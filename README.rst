@@ -20,5 +20,20 @@ GNU General Public License Version 3
 Design note
 ===========
 
+Control model
+-------------
+
+.. image:: control-model.png
+   :alt: control model
+
+Monitor model
+-------------
+
+.. image:: monitor-model.png
+   :alt: monitor model
+
+Multi threading
+---------------
+
 .. image:: overview.png
    :alt: overview
