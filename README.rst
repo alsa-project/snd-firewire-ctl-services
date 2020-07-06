@@ -26,6 +26,12 @@ Control model
 .. image:: control-model.png
    :alt: control model
 
+Monitor model
+-------------
+
+.. image:: monitor-model.png
+   :alt: monitor model
+
 Listener model (without any help of drivers in ALSA firewire stack)
 -------------------------------------------------------------------
 
