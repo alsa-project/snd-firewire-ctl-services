@@ -9,8 +9,8 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:export-ydpi="90"
    inkscape:export-xdpi="90"
-   inkscape:export-filename="/home/mocchi/git/snd-firewire-ctl-services/listener-model-b.png"
-   sodipodi:docname="listener-model-b.svg"
+   inkscape:export-filename="/home/mocchi/git/snd-firewire-ctl-services/listener-model-a.png"
+   sodipodi:docname="listener-model-a.svg"
    inkscape:version="1.0 (6e3e5246a0, 2020-05-07)"
    id="svg8"
    version="1.1"
@@ -380,9 +380,9 @@
      showgrid="true"
      inkscape:current-layer="layer1"
      inkscape:document-units="mm"
-     inkscape:cy="556.61239"
-     inkscape:cx="358.32962"
-     inkscape:zoom="2.8284272"
+     inkscape:cy="593.38185"
+     inkscape:cx="344.35823"
+     inkscape:zoom="1.4142136"
      inkscape:pageshadow="2"
      inkscape:pageopacity="0.0"
      borderopacity="1.0"
@@ -401,7 +401,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -500,9 +500,9 @@
     <rect
        ry="4.1961671e-06"
        rx="4.1961671e-06"
-       y="125.67709"
+       y="133.61458"
        x="15.875"
-       height="13.229171"
+       height="5.2916808"
        width="29.104168"
        id="rect4552-5-5"
        style="display:inline;fill:#f2f2f2;stroke:#000000;stroke-width:0.500001;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
@@ -690,13 +690,13 @@
        sodipodi:nodetypes="cc"
        inkscape:connector-curvature="0"
        id="path5025-21"
-       d="M 44.979167,215.32292 H 75.40625"
+       d="m 92.604167,225.90625 v 6.61458"
        style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-4)" />
     <path
        sodipodi:nodetypes="cc"
        inkscape:connector-curvature="0"
        id="path5025-21-4"
-       d="m 30.427083,212.67708 v -9.26041"
+       d="m 30.427083,220.61458 0,-17.19791"
        style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-4-7)" />
     <flowRoot
        style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
@@ -751,7 +751,7 @@
        style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
        id="flowRoot4520-1-2"
        xml:space="preserve"
-       transform="matrix(0.26458333,0,0,0.26458333,-38.521155,103.3787)"><flowRegion
+       transform="matrix(0.26458333,0,0,0.26458333,-37.175359,107.28089)"><flowRegion
          style="font-size:13.3333px"
          id="flowRegion4522-5-7"><rect
            style="font-size:13.3333px"
@@ -844,7 +844,7 @@
            id="rect4524-0-4-3-51-5" /></flowRegion><flowPara
          id="flowPara4526-6-0-1-1-0">user space</flowPara></flowRoot>
     <flowRoot
-       transform="matrix(0.26458333,0,0,0.26458333,-46.304642,115.09741)"
+       transform="matrix(0.26458333,0,0,0.26458333,-46.359819,119.0957)"
        xml:space="preserve"
        id="flowRoot4520-1-2-9-6-1-0-6"
        style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none"><flowRegion
@@ -903,7 +903,7 @@
        style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        id="flowRoot4520-1-2-9-6-1-0-9-2-5-0"
        xml:space="preserve"
-       transform="matrix(0.26458333,0,0,0.26458333,-16.174937,108.92292)"><flowRegion
+       transform="matrix(0.26458333,0,0,0.26458333,2.9520777,127.27378)"><flowRegion
          style="font-size:13.3333px"
          id="flowRegion4522-5-7-22-8-9-6-0-15-4-3"><rect
            style="font-size:13.33333302px"
@@ -914,7 +914,7 @@
            id="rect4524-0-4-3-5-9-4-8-0-8-4" /></flowRegion><flowPara
          id="flowPara4526-6-0-1-2-6-9-9-9-1-0">allocation</flowPara></flowRoot>
     <flowRoot
-       transform="matrix(0.26458333,0,0,0.26458333,27.527695,148.51863)"
+       transform="matrix(0.26458333,0,0,0.26458333,30.305941,148.52601)"
        xml:space="preserve"
        id="flowRoot4520-1-2-9-6-1-0-9-2-5-0-3"
        style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none"><flowRegion
@@ -929,7 +929,7 @@
          id="flowPara4526-6-0-1-2-6-9-9-9-1-0-9">transaction</flowPara></flowRoot>
     <path
        style="display:inline;fill:none;stroke:#000000;stroke-width:0.499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-4-05)"
-       d="M 95.25,262.94792 V 248.39584"
+       d="M 97.895833,262.94791 V 248.39583"
        id="path5025-21-46"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cc" />
@@ -985,13 +985,13 @@
        sodipodi:nodetypes="cc"
        inkscape:connector-curvature="0"
        id="path5025-21-47-6"
-       d="m 95.25,233.84375 v -6.61458"
+       d="m 97.895833,233.84375 v -6.61458"
        style="display:inline;fill:none;stroke:#000000;stroke-width:0.499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-4-9-9)" />
     <flowRoot
        style="font-style:normal;font-weight:normal;font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;display:inline;fill:#000000;fill-opacity:1;stroke:none"
        id="flowRoot4520-1-2-9-6-1-0-9-2-5-0-3-8"
        xml:space="preserve"
-       transform="matrix(0.26458333,0,0,0.26458333,27.450452,127.14571)"><flowRegion
+       transform="matrix(0.26458333,0,0,0.26458333,30.316825,127.2931)"><flowRegion
          style="font-size:13.3333px"
          id="flowRegion4522-5-7-22-8-9-6-0-15-4-3-9-0"><rect
            style="font-size:13.33333302px"

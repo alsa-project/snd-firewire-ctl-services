@@ -32,6 +32,12 @@ Monitor model
 .. image:: monitor-model.png
    :alt: monitor model
 
+Listener model (with help of drivers in ALSA firewire stack)
+-------------------------------------------------------------------
+
+.. image:: listener-model-a.png
+   :alt: listener-a-model
+
 Listener model (without any help of drivers in ALSA firewire stack)
 -------------------------------------------------------------------
 
