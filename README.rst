@@ -26,11 +26,11 @@ Control model
 .. image:: control-model.png
    :alt: control model
 
-Monitor model
--------------
+Listener model (without any help of drivers in ALSA firewire stack)
+-------------------------------------------------------------------
 
-.. image:: monitor-model.png
-   :alt: monitor model
+.. image:: listener-model-b.png
+   :alt: listener-b-model
 
 Multi threading
 ---------------
