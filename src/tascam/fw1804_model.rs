@@ -36,6 +36,25 @@ impl<'a> Fw1804Model<'a> {
     }
 }
 
+impl<'a> card_cntr::MonitorModel<hinawa::SndTscm> for Fw1804Model<'a> {
+    fn get_monitored_elems(&mut self, _: &mut Vec<alsactl::ElemId>) {
+    }
+
+    fn monitor_unit(&mut self, _: &hinawa::SndTscm) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn monitor_elems(
+        &mut self,
+        _: &hinawa::SndTscm,
+        _: &alsactl::ElemId,
+        _: &alsactl::ElemValue,
+        _: &mut alsactl::ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+}
+
 impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
     fn load(
         &mut self,
