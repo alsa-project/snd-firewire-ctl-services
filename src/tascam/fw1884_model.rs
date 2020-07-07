@@ -226,4 +226,40 @@ impl<'a> ConsoleData<'a> for Fw1884Model<'a> {
         ((9, 0x00000800), &[95, 108]),      // low
         ((9, 0x00800000), &[77]),           // shuttle
     ];
+
+    const SIMPLE_BUTTONS: &'a [(u32, u32)] = &[
+        (7, 0x01000000),    // panel
+        (8, 0x01000000),    // pfl
+        (8, 0x02000000),    // computer
+        (8, 0x10000000),    // clock
+        (9, 0x00001000),    // up
+        (9, 0x00002000),    // left
+        (9, 0x00004000),    // down
+        (9, 0x00008000),    // right
+        (9, 0x00010000),    // eq-rec
+        (9, 0x00020000),    // nudge-l
+        (9, 0x00040000),    // nudge-r
+        (9, 0x00200000),    // locate-l
+        (9, 0x00400000),    // locate-r
+        (9, 0x01000000),    // set
+        (9, 0x02000000),    // in
+        (9, 0x04000000),    // out
+    ];
+
+    const DIALS: &'a [((u32, u32), u8)] = &[
+        ((10, 0x0000ffff), 0),    // rotary-1
+        ((10, 0xffff0000), 16),   // rotary-2
+        ((11, 0x0000ffff), 0),    // rotary-3
+        ((11, 0xffff0000), 16),   // rotary-4
+        ((12, 0x0000ffff), 0),    // rotary-5
+        ((12, 0xffff0000), 16),   // rotary-6
+        ((13, 0x0000ffff), 0),    // rotary-7
+        ((13, 0xffff0000), 16),   // rotary-8
+
+        ((14, 0x0000ffff), 0),    // gain
+        ((14, 0xffff0000), 16),   // freq
+        ((15, 0x0000ffff), 0),    // q
+
+        ((15, 0xffff0000), 16),   // dial for transport.
+    ];
 }

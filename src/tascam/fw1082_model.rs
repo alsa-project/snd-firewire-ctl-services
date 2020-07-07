@@ -191,4 +191,28 @@ impl<'a> ConsoleData<'a> for Fw1082Model<'a> {
         ((9, 0x00000800), &[95, 108]),      // eq-low, aux-4/8
         ((9, 0x00800000), &[77]),           // shuttle
     ];
+
+    const SIMPLE_BUTTONS: &'a [(u32, u32)] = &[
+        (8, 0x01000000),    // shift
+        (8, 0x10000000),    // panel
+        (9, 0x00001000),    // up
+        (9, 0x00002000),    // left
+        (9, 0x00004000),    // down
+        (9, 0x00008000),    // right
+        (9, 0x00010000),    // rec
+        (9, 0x00200000),    // locate-l
+        (9, 0x00400000),    // locate-r
+        (9, 0x01000000),    // set
+        (9, 0x02000000),    // in
+        (9, 0x04000000),    // out
+    ];
+
+    const DIALS: &'a [((u32, u32), u8)] = &[
+        ((14, 0x0000ffff), 0),    // eq gain, aux-1/5
+        ((14, 0xffff0000), 16),   // eq freq, aux-2/6
+        ((15, 0x0000ffff), 0),    // eq q, aux-3/7
+        ((10, 0x0000ffff), 16),   // pan, aux-4/8
+
+        ((15, 0xffff0000), 16),   // dial for transport.
+    ];
 }
