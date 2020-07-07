@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2020/06/03
+2020/07/07
 Takashi Sakamoto
 
 Introduction
@@ -17,6 +17,8 @@ Executables
 
 snd-firewire-digi00x-ctl-service
    For sound card bound to ALSA firewire-digi00x driver (snd-firewire-digi00x)
+snd-firewire-tascam-ctl-service
+   For sound card bound to ALSA firewire-tascam driver (snd-firewire-tascam), or TASCAM FE-8.
 
 License
 =======
@@ -66,6 +68,13 @@ your device, please contact to developer.
   * Digi 003 Rack
   * Digi 003 Rack+
 
+* snd-firewire-tascam-ctl-service
+
+  * Tascam FW-1884
+  * Tascam FW-1082
+  * Tascam FW-1804
+  * Tascam FE-8
+
 Supported protocols
 ===================
 
@@ -74,6 +83,7 @@ Supported protocols
    * Configuration ROM for AV/C Devices 1.0 (Dec. 2000, 1394 Trade Association)
 * Vendor specific protocols
    * Protocol for Digi 002/003 family of Digidesign
+   * Protocol for FireWire series of TASCAM (TEAC)
 
 Design note
 ===========
