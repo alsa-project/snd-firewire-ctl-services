@@ -10,7 +10,8 @@ use hinawa::{FwNodeExt, FwRespExt, FwRespExtManual};
 
 use crate::dispatcher;
 
-use super::protocol::ExpanderProtocol;
+use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition};
+use super::fe8_model::Fe8Model;
 
 enum AsyncUnitEvent {
     Shutdown,
@@ -27,10 +28,16 @@ pub struct AsyncUnit {
     dispatchers: Vec<dispatcher::Dispatcher>,
     req: hinawa::FwReq,
     state_cntr: Arc<Mutex<[u32; 32]>>,
+    led_states: std::collections::HashMap::<u16, bool>,
 }
 
 impl Drop for AsyncUnit {
     fn drop(&mut self) {
+        self.led_states.iter().for_each(|(&pos, &state)| {
+            if state {
+                let _ = self.req.bright_led(&self.node, pos, false);
+            }
+        });
         let _ = self.req.enable_notification(&self.node, false);
         self.resp.release();
         self.dispatchers.clear();
@@ -56,6 +63,7 @@ impl<'a> AsyncUnit {
             dispatchers,
             req: hinawa::FwReq::new(),
             state_cntr: Arc::new(Mutex::new([0;32])),
+            led_states: std::collections::HashMap::new(),
         })
     }
 
@@ -147,9 +155,35 @@ impl<'a> AsyncUnit {
         Ok(())
     }
 
+    fn update_led_if_needed(&mut self, pos: u16, state: bool) -> Result<(), Error> {
+        match self.led_states.get(&pos) {
+            Some(&s) => {
+                if s != state {
+                    self.req.bright_led(&self.node, pos, state)?;
+                }
+            }
+            None => self.req.bright_led(&self.node, pos, state)?,
+        }
+
+        self.led_states.insert(pos, state);
+
+        Ok(())
+    }
+
+
+    fn init_led(&mut self) -> Result<(), Error> {
+        Fe8Model::FW_LED.get_position(|pos| {
+            self.update_led_if_needed(pos, true)
+        })?;
+
+        Ok(())
+    }
+
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.register_address_space()?;
+
+        self.init_led()?;
 
         Ok(())
     }
@@ -170,4 +204,8 @@ impl<'a> AsyncUnit {
             }
         }
     }
+}
+
+pub trait ConsoleData<'a> {
+    const FW_LED: &'a [u16];
 }
