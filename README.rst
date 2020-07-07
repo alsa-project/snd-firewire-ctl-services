@@ -17,6 +17,27 @@ License
 
 GNU General Public License Version 3
 
+Build dependencies
+==================
+
+* Rust programming language <https://www.rust-lang.org/>
+* Cargo
+* Some crates and their dependencies
+
+  * glib crate in <https://gtk-rs.org/>
+
+Runtime dependencies
+====================
+
+* glib <https://developer.gnome.org/glib/>
+
+How to build
+============
+
+Build ::
+
+    $ cargo build
+
 Supported protocols
 ===================
 

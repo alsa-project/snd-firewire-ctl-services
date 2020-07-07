@@ -2,3 +2,5 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod ieee1212;
 pub mod ta1394;
+
+pub mod dispatcher;
