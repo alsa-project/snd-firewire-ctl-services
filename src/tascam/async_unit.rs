@@ -10,6 +10,8 @@ use hinawa::{FwNodeExt, FwRespExt};
 
 use crate::dispatcher;
 
+use super::protocol::ExpanderProtocol;
+
 enum AsyncUnitEvent {
     Shutdown,
     Disconnected,
@@ -22,10 +24,12 @@ pub struct AsyncUnit {
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
+    req: hinawa::FwReq,
 }
 
 impl Drop for AsyncUnit {
     fn drop(&mut self) {
+        let _ = self.req.enable_notification(&self.node, false);
         self.resp.release();
         self.dispatchers.clear();
     }
@@ -48,6 +52,7 @@ impl<'a> AsyncUnit {
             tx,
             rx,
             dispatchers,
+            req: hinawa::FwReq::new(),
         })
     }
 
@@ -94,6 +99,12 @@ impl<'a> AsyncUnit {
             let label = "Fail to reserve address space";
             return Err(Error::new(FileError::Nospc, label));
         }
+
+        // Register the address to the unit.
+        addr |= (self.node.get_property_local_node_id() as u64) << 48;
+        self.req.register_notification_addr(&self.node, addr)?;
+
+        self.req.enable_notification(&self.node, true)?;
 
         Ok(())
     }
