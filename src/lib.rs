@@ -6,3 +6,5 @@ pub mod ta1394;
 pub mod dispatcher;
 
 pub mod card_cntr;
+
+pub mod dg00x;
