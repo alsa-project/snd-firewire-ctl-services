@@ -463,6 +463,21 @@ impl<H> DetectAction<H> for &[(u32, u32)]
     }
 }
 
+impl<H> DetectAction<H> for &[((u32, u32), u8)]
+    where H: FnMut(&(u32, u32), u16) -> Result<(), Error>
+{
+    fn detect_action(&self, index: u32, before: u32, after: u32, mut handle: H)
+        -> Result<(), Error>
+    {
+        self.iter().filter(|((idx, mask), _)| {
+            *idx == index && (before ^ after) & *mask > 0
+        }).try_for_each(|(key, shift)| {
+            let val = ((after & key.1) >> shift) as u16;
+            handle(&key, val)
+        })
+    }
+}
+
 pub trait ChooseSingle<H> {
     fn choose_single(&self, index: usize, handle: H) -> Result<(), Error>;
 }
@@ -478,5 +493,30 @@ impl<H> ChooseSingle<H> for &[&[u16]]
                 Ok(())
             }
         })
+    }
+}
+
+pub trait GetValue<T> {
+    fn get_value(&self, states: &T, idx: usize) -> ((u32, u32), u16);
+}
+
+impl GetValue<[u32;64]> for &[((u32, u32), u8)] {
+    fn get_value(&self, states: &[u32;64], idx: usize) -> ((u32, u32), u16) {
+        let (key, shift) = self[idx];
+        let val = ((states[key.0 as usize] & key.1) >> shift) as u16;
+        (key, val)
+    }
+}
+
+pub trait ComputeValue<H> {
+    fn compute_value(&self) -> H;
+}
+
+impl ComputeValue<i32> for bool {
+    fn compute_value(&self) -> i32 {
+        match self {
+            true => 127,
+            false => 0,
+        }
     }
 }
