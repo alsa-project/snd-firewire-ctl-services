@@ -213,3 +213,28 @@ impl CommonProtocol for hinawa::FwReq {
         self.write_transaction(fw_node, Self::INPUT_THRESHOLD_OFFSET, &mut frames)
     }
 }
+
+pub trait OpticalProtocol: CommonProtocol {
+    fn get_spdif_in_src(&self, fw_node: &hinawa::FwNode) -> Result<usize, Error>;
+    fn set_spdif_in_src(&self, fw_node: &hinawa::FwNode, index: usize) -> Result<(), Error>;
+    fn get_opt_out_src(&self, fw_node: &hinawa::FwNode) -> Result<usize, Error>;
+    fn set_opt_out_src(&self, fw_node: &hinawa::FwNode, index: usize) -> Result<(), Error>;
+}
+
+impl OpticalProtocol for hinawa::FwReq {
+    fn get_spdif_in_src(&self, fw_node: &hinawa::FwNode) -> Result<usize, Error> {
+        self.get_routing_flag(fw_node, 0, 0x01)
+    }
+
+    fn set_spdif_in_src(&self, fw_node: &hinawa::FwNode, index: usize) -> Result<(), Error> {
+        self.set_routing_flag(fw_node, 0, 0x01, index)
+    }
+
+    fn get_opt_out_src(&self, fw_node: &hinawa::FwNode) -> Result<usize, Error> {
+        self.get_routing_flag(fw_node, 2, 0x03)
+    }
+
+    fn set_opt_out_src(&self, fw_node: &hinawa::FwNode, index: usize) -> Result<(), Error> {
+        self.set_routing_flag(fw_node, 2, 0x03, index)
+    }
+}
