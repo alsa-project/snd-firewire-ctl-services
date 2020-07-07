@@ -532,6 +532,14 @@ impl GetValue<[u32;64]> for &[((u32, u32), u8)] {
     }
 }
 
+impl GetValue<[u32;32]> for &[((u32, u32), u8)] {
+    fn get_value(&self, states: &[u32;32], idx: usize) -> ((u32, u32), u16) {
+        let (key, shift) = self[idx];
+        let val = ((states[key.0 as usize] & key.1) >> shift) as u16;
+        (key, val)
+    }
+}
+
 pub trait ComputeValue<H> {
     fn compute_value(&self) -> H;
 }
