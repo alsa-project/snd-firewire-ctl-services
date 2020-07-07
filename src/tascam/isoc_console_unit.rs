@@ -18,6 +18,8 @@ use card_cntr::{CtlModel, MonitorModel};
 use super::fw1884_model::Fw1884Model;
 use super::fw1082_model::Fw1082Model;
 
+use super::protocol::{BaseProtocol, GetPosition, DetectPosition};
+
 use super::seq_cntr;
 
 enum ConsoleUnitEvent {
@@ -44,10 +46,19 @@ pub struct IsocConsoleUnit<'a> {
     dispatchers: Vec<dispatcher::Dispatcher>,
     monitor: Option<dispatcher::Dispatcher>,
     monitored_elems: Vec<alsactl::ElemId>,
+
+    req: hinawa::FwReq,
+    msg_map: Vec<(u32, u32)>,
+    led_states: std::collections::HashMap<u16, bool>,
 }
 
 impl<'a> Drop for IsocConsoleUnit<'a> {
     fn drop(&mut self) {
+        let node = self.unit.get_node();
+        self.led_states.iter().filter(|&(_, &state)| state).for_each(|(&pos, _)|{
+            let _ = self.req.bright_led(&node, pos, false);
+        });
+
         self.dispatchers.clear();
     }
 }
@@ -90,6 +101,9 @@ impl<'a> IsocConsoleUnit<'a> {
             dispatchers,
             monitor: None,
             monitored_elems: Vec::new(),
+            req: hinawa::FwReq::new(),
+            msg_map: Vec::new(),
+            led_states: std::collections::HashMap::new(),
         })
     }
 
@@ -168,6 +182,8 @@ impl<'a> IsocConsoleUnit<'a> {
             ConsoleModel::Fw1884(m) => m.load(&self.unit, &mut self.card_cntr)?,
             ConsoleModel::Fw1082(m) => m.load(&self.unit, &mut self.card_cntr)?,
         }
+
+        self.init_surface()?;
 
         let elem_id = alsactl::ElemId::new_by_name(
             alsactl::ElemIfaceType::Mixer,
@@ -252,8 +268,86 @@ impl<'a> IsocConsoleUnit<'a> {
                         }
                     };
                 }
-                ConsoleUnitEvent::SeqAppl(_) => (),
+                ConsoleUnitEvent::SeqAppl(ctl_data) => {
+                    let _ = self.dispatch_seq_event(ctl_data);
+                }
             }
         }
     }
+
+    fn update_led_if_needed(&mut self, pos: u16, state: bool) -> Result<(), Error> {
+        let node = self.unit.get_node();
+
+        match self.led_states.get(&pos) {
+            Some(&s) => {
+                if s != state {
+                    self.req.bright_led(&node, pos, state)?;
+                }
+            }
+            None => self.req.bright_led(&node, pos, state)?,
+        }
+
+        self.led_states.insert(pos, state);
+
+        Ok(())
+    }
+
+    fn init_led(&mut self) -> Result<(), Error> {
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_LEDS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_LEDS,
+        }.iter().try_for_each(|entries| {
+            entries.get_position(|pos| {
+                self.update_led_if_needed(pos, false)
+            })
+        })?;
+
+        Ok(())
+    }
+
+    fn init_msg_map(&mut self) {
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_LEDS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_LEDS,
+        }.iter().enumerate().for_each(|(i, _)| {
+            let key = (std::u32::MAX, i as u32);
+            self.msg_map.push(key);
+        });
+    }
+
+    fn init_surface(&mut self) -> Result<(), Error> {
+        self.init_led()?;
+
+        self.init_msg_map();
+
+        Ok(())
+    }
+
+    fn dispatch_seq_event(&mut self, ctl_data: alsaseq::EventDataCtl) -> Result<(), Error>
+    {
+        if ctl_data.get_channel() != 0 {
+            let label = format!("Channel {} is not supported yet.", ctl_data.get_channel());
+            return Err(Error::new(FileError::Inval, &label));
+        }
+
+        let key = (std::u32::MAX, ctl_data.get_param());
+        let index = match self.msg_map.iter().position(|k| k == &key) {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
+        let state = ctl_data.get_value() > 0;
+        match &mut self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_LEDS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_LEDS,
+        }.detect_position(index, |pos| {
+            self.update_led_if_needed(pos, state)
+        })?;
+
+        Ok(())
+    }
+}
+
+pub trait ConsoleData<'a> {
+    const SIMPLE_LEDS: &'a [&'a [u16]];
 }
