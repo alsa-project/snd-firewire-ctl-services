@@ -6,7 +6,12 @@ use std::time::Duration;
 
 use glib::Error;
 use glib::{source, MainContext, MainLoop, Source};
+use glib::IsA;
+
 use nix::sys::signal;
+
+use hinawa::SndUnitExt;
+use hinawa::FwNodeExt;
 
 pub struct Dispatcher {
     name: String,
@@ -65,5 +70,33 @@ impl Dispatcher {
             source::unix_signal_source_new(signum as i32, None, source::PRIORITY_DEFAULT_IDLE, cb);
 
         self.attach_src_to_ctx(&src);
+    }
+
+    pub fn attach_snd_unit<U, F>(&mut self, unit: &U, disconnect_cb: F) -> Result<(), Error>
+    where
+        U: IsA<hinawa::SndUnit>,
+        F: Fn(&U) + Send + 'static,
+    {
+        let src = unit.create_source()?;
+
+        unit.connect_disconnected(disconnect_cb);
+
+        self.attach_src_to_ctx(&src);
+
+        Ok(())
+    }
+
+    pub fn attach_fw_node<N, F>(&mut self, node: &N, disconnect_cb: F) -> Result<(), Error>
+    where
+        N: IsA<hinawa::FwNode>,
+        F: Fn(&N) + Send + Sync + 'static,
+    {
+        let src = node.create_source()?;
+
+        node.connect_disconnected(disconnect_cb);
+
+        self.attach_src_to_ctx(&src);
+
+        Ok(())
     }
 }
