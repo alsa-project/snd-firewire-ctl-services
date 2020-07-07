@@ -8,3 +8,4 @@ pub mod dispatcher;
 pub mod card_cntr;
 
 pub mod dg00x;
+pub mod tascam;
