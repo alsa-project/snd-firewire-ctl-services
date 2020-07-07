@@ -6,7 +6,7 @@ use glib::source;
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::{FwNodeExt, SndUnitExt, SndTscmExt};
+use hinawa::{FwNodeExt, SndUnitExt, SndTscmExt, SndTscmExtManual};
 
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
@@ -18,6 +18,7 @@ use card_cntr::{CtlModel, MonitorModel};
 use super::fw1884_model::Fw1884Model;
 use super::fw1082_model::Fw1082Model;
 use super::protocol::{BaseProtocol, GetPosition, DetectPosition, DetectAction, ChooseSingle};
+use super::protocol::{GetValue, ComputeValue};
 
 use super::seq_cntr;
 
@@ -360,6 +361,55 @@ impl<'a> IsocConsoleUnit<'a> {
             let key = (std::u32::MAX, i as u32);
             self.msg_map.push(key);
         });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::STATELESS_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::STATELESS_BUTTONS,
+        }.iter().for_each(|(key, _)| {
+            self.msg_map.push(*key);
+        });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::TOGGLED_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::TOGGLED_BUTTONS,
+        }.iter().for_each(|(key, _)| {
+            self.msg_map.push(*key);
+        });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::BANK_CURSORS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::BANK_CURSORS,
+        }.iter().for_each(|key| {
+            self.msg_map.push(*key);
+        });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::TRANSPORT_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::TRANSPORT_BUTTONS,
+        }.iter().for_each(|key| {
+            self.msg_map.push(*key);
+        });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_BUTTONS,
+        }.iter().for_each(|key| {
+            self.msg_map.push(*key);
+        });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::INPUT_FADERS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::INPUT_FADERS,
+        }.iter().for_each(|(key, _)| {
+            self.msg_map.push(*key);
+        });
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::DIALS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::DIALS,
+        }.iter().for_each(|(key, _)| {
+            self.msg_map.push(*key);
+        });
     }
 
     fn init_surface(&mut self) -> Result<(), Error> {
@@ -401,13 +451,22 @@ impl<'a> IsocConsoleUnit<'a> {
         Ok(())
     }
 
+    fn xfer_seq_event(&mut self, key: &(u32, u32), value: i32) -> Result<(), Error> {
+        if let Some(param) = self.msg_map.iter().position(|e| e == key) {
+            self.seq_cntr.schedule_event(param as u32, value)
+        } else {
+            Ok(())
+        }
+    }
+
     fn dispatch_surface_event(&mut self, index: u32, before: u32, after: u32) -> Result<(), Error>
     {
         match self.model {
             ConsoleModel::Fw1884(_) => Fw1884Model::STATELESS_BUTTONS,
             ConsoleModel::Fw1082(_) => Fw1082Model::STATELESS_BUTTONS,
-        }.detect_action(index, before, after, |_, pos, state| {
-            self.update_led_if_needed(pos, state)
+        }.detect_action(index, before, after, |key, pos, state| {
+            self.update_led_if_needed(pos, state)?;
+            self.xfer_seq_event(&key, state.compute_value())
         })?;
 
         match self.model {
@@ -420,6 +479,7 @@ impl<'a> IsocConsoleUnit<'a> {
                     None => return Ok(())
                 };
                 self.update_led_if_needed(pos, s)?;
+                self.xfer_seq_event(&key, s.compute_value())?;
                 self.button_states.insert(*key, s);
             }
             Ok(())
@@ -429,7 +489,7 @@ impl<'a> IsocConsoleUnit<'a> {
             ConsoleModel::Fw1884(_) => (Fw1884Model::BANK_CURSORS, Fw1884Model::BANK_LEDS),
             ConsoleModel::Fw1082(_) => (Fw1082Model::BANK_CURSORS, Fw1082Model::BANK_LEDS),
         };
-        bank_cursors.detect_action(index, before, after, |idx, _, state| {
+        bank_cursors.detect_action(index, before, after, |idx, key, state| {
             if state  {
                 if idx > 0 && self.bank_state < 3 {
                     self.bank_state += 1;
@@ -439,17 +499,17 @@ impl<'a> IsocConsoleUnit<'a> {
 
                 bank_leds.choose_single(self.bank_state, |pos, state| {
                     self.update_led_if_needed(pos, state)
-                })
-            } else {
-                Ok(())
+                })?;
             }
+            self.xfer_seq_event(key, state.compute_value())
         })?;
 
         let (transport_buttons, transport_leds) = match self.model {
             ConsoleModel::Fw1884(_) => (Fw1884Model::TRANSPORT_BUTTONS, Fw1884Model::TRANSPORT_LEDS),
             ConsoleModel::Fw1082(_) => (Fw1082Model::TRANSPORT_BUTTONS, Fw1082Model::TRANSPORT_LEDS),
         };
-        transport_buttons.detect_action(index, before, after, |idx, _, state| {
+        transport_buttons.detect_action(index, before, after, |idx, key, state| {
+            self.xfer_seq_event(key, state.compute_value())?;
             if state {
                 self.transport_state = idx;
                 transport_leds.choose_single(self.transport_state, |pos, state| {
@@ -460,6 +520,33 @@ impl<'a> IsocConsoleUnit<'a> {
             }
         })?;
 
+        let simple_buttons = match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_BUTTONS,
+        };
+        simple_buttons.detect_action(index, before, after, |_, key, state| {
+            self.xfer_seq_event(&key, state.compute_value())
+        })?;
+
+        let (input_sensors, input_faders) = match self.model {
+            ConsoleModel::Fw1884(_) => (Fw1884Model::INPUT_SENSORS, Fw1884Model::INPUT_FADERS),
+            ConsoleModel::Fw1082(_) => (Fw1082Model::INPUT_SENSORS, Fw1082Model::INPUT_FADERS),
+        };
+        input_sensors.detect_action(index, before, after, |idx, _, state| {
+            if !state {
+                let states = self.unit.get_state()?;
+                let (key, val) = input_faders.get_value(states, idx);
+                self.xfer_seq_event(&key, val as i32)?;
+            }
+            Ok(())
+        })?;
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::DIALS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::DIALS,
+        }.detect_action(index, before, after, |key, val| {
+            self.xfer_seq_event(key, val as i32)
+        })?;
         Ok(())
     }
 }
@@ -468,6 +555,8 @@ pub trait ConsoleData<'a> {
     const SIMPLE_LEDS: &'a [&'a [u16]];
     const STATELESS_BUTTONS: &'a [((u32, u32), &'a [u16])];
     const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
+    const SIMPLE_BUTTONS: &'a [(u32, u32)];
+    const DIALS: &'a [((u32, u32), u8)];
 
     const BANK_LEDS: &'a [&'a [u16]] = &[
         &[127, 140],
@@ -495,5 +584,29 @@ pub trait ConsoleData<'a> {
         (9, 0x20000000),    // stop
         (9, 0x40000000),    // play
         (9, 0x80000000),    // record
+    ];
+
+    const INPUT_SENSORS: &'a [(u32, u32)] = &[
+        (5, 0x00010000),    // input 1
+        (5, 0x00020000),    // input 2
+        (5, 0x00040000),    // input 3
+        (5, 0x00080000),    // input 4
+        (5, 0x00100000),    // input 5
+        (5, 0x00200000),    // input 6
+        (5, 0x00400000),    // input 7
+        (5, 0x00800000),    // input 8
+        (5, 0x01000000),    // master
+    ];
+
+    const INPUT_FADERS: &'a [((u32, u32), u8)] = &[
+        ((0, 0x0000ffff), 0),     // input 1
+        ((0, 0x0ffff000), 16),    // input 2
+        ((1, 0x0000ffff), 0),     // input 3
+        ((1, 0xffff0000), 16),    // input 4
+        ((2, 0x0000ffff), 0),     // input 5
+        ((2, 0xffff0000), 16),    // input 6
+        ((3, 0x0000ffff), 0),     // input 7
+        ((3, 0xffff0000), 16),    // input 8
+        ((4, 0x0000ffff), 0),     // master
     ];
 }
