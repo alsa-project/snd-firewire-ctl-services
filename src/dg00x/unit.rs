@@ -4,6 +4,7 @@ use glib::source;
 use glib::Error;
 use nix::sys::signal;
 use std::sync::mpsc;
+use std::thread;
 
 use hinawa::{SndUnitExt, SndDg00xExt};
 use hinawa::{FwNodeExt, FwNodeExtManual};
@@ -12,7 +13,7 @@ use alsactl::CardExt;
 
 use crate::dispatcher;
 use crate::card_cntr;
-use card_cntr::CtlModel;
+use card_cntr::{CtlModel, MonitorModel};
 
 use super::model::Dg00xModel;
 
@@ -21,6 +22,7 @@ enum Event {
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    StreamLock,
 }
 
 pub struct Dg00xUnit {
@@ -30,6 +32,7 @@ pub struct Dg00xUnit {
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
+    monitored_elems: Vec<alsactl::ElemId>,
 }
 
 impl<'a> Drop for Dg00xUnit {
@@ -58,6 +61,7 @@ impl<'a> Dg00xUnit {
         let (tx, rx) = mpsc::sync_channel(32);
 
         let dispatchers = Vec::new();
+        let monitored_elems = Vec::new();
 
         Ok(Dg00xUnit {
             unit,
@@ -66,6 +70,7 @@ impl<'a> Dg00xUnit {
             rx,
             tx,
             dispatchers,
+            monitored_elems,
         })
     }
 
@@ -111,6 +116,18 @@ impl<'a> Dg00xUnit {
                 let _ = tx.send(Event::Elem((elem_id.clone(), events)));
             });
 
+        let tx = self.tx.clone();
+        self.unit.connect_lock_status(move |_, _| {
+            let t = tx.clone();
+            let _ = thread::spawn(move || {
+                // The notification of stream lock is not strictly corresponding to actual
+                // packet streaming. Here, wait for 500 msec to catch the actual packet
+                // streaming.
+                thread::sleep(std::time::Duration::from_millis(500));
+                let _ = t.send(Event::StreamLock);
+            });
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -121,6 +138,7 @@ impl<'a> Dg00xUnit {
         self.launch_system_event_dispatcher()?;
 
         self.model.load(&self.unit, &mut self.card_cntr)?;
+        self.model.get_monitored_elems(&mut self.monitored_elems);
 
         Ok(())
     }
@@ -142,6 +160,14 @@ impl<'a> Dg00xUnit {
                         &self.unit,
                         &elem_id,
                         &events,
+                        &mut self.model,
+                    );
+                }
+                Event::StreamLock => {
+                    let _ = self.model.monitor_unit(&self.unit);
+                    let _ = self.card_cntr.monitor_elems(
+                        &self.unit,
+                        &self.monitored_elems,
                         &mut self.model,
                     );
                 }
