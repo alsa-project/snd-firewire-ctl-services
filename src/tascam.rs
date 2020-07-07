@@ -15,3 +15,4 @@ mod common_ctl;
 mod meter_ctl;
 mod optical_ctl;
 mod console_ctl;
+mod rack_ctl;

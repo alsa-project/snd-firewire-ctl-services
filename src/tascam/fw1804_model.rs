@@ -10,12 +10,14 @@ use super::protocol::ClkSrc;
 use super::common_ctl::CommonCtl;
 use super::meter_ctl::MeterCtl;
 use super::optical_ctl::OpticalCtl;
+use super::rack_ctl::RackCtl;
 
 pub struct Fw1804Model<'a> {
     req: hinawa::FwReq,
     common: CommonCtl<'a>,
     meter: MeterCtl<'a>,
     optical: OpticalCtl<'a>,
+    rack: RackCtl,
 }
 
 impl<'a> Fw1804Model<'a> {
@@ -46,6 +48,7 @@ impl<'a> Fw1804Model<'a> {
                                    Self::CLK_SRC_LABELS),
             meter: MeterCtl::new(Self::CLK_SRC_LABELS, 2, true, false),
             optical: OpticalCtl::new(Self::OPT_OUT_SRC_LABELS),
+            rack: RackCtl::new(),
         }
     }
 }
@@ -85,6 +88,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
         self.common.load(unit, &self.req, card_cntr)?;
         self.meter.load(card_cntr)?;
         self.optical.load(unit, &self.req, card_cntr)?;
+        self.rack.load(unit, &self.req, card_cntr)?;
         Ok(())
     }
 
@@ -97,6 +101,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
         if self.common.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
         } else if self.optical.read(unit, &self.req, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.rack.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -113,6 +119,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
         if self.common.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else if self.optical.write(unit, &self.req, elem_id, old, new)? {
+            Ok(true)
+        } else if self.rack.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
