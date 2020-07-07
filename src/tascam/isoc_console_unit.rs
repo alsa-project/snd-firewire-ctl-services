@@ -52,6 +52,7 @@ pub struct IsocConsoleUnit<'a> {
     led_states: std::collections::HashMap<u16, bool>,
     button_states: std::collections::HashMap::<(u32, u32), bool>,
     bank_state: usize,
+    transport_state: usize,
 }
 
 impl<'a> Drop for IsocConsoleUnit<'a> {
@@ -108,6 +109,7 @@ impl<'a> IsocConsoleUnit<'a> {
             led_states: std::collections::HashMap::new(),
             button_states: std::collections::HashMap::new(),
             bank_state: 0,
+            transport_state: 0,
         })
     }
 
@@ -339,6 +341,14 @@ impl<'a> IsocConsoleUnit<'a> {
             self.update_led_if_needed(pos, state)
         })?;
 
+        self.transport_state = 2;
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::TRANSPORT_LEDS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::TRANSPORT_LEDS,
+        }.choose_single(self.transport_state, |pos, state| {
+            self.update_led_if_needed(pos, state)
+        })?;
+
         Ok(())
     }
 
@@ -435,6 +445,21 @@ impl<'a> IsocConsoleUnit<'a> {
             }
         })?;
 
+        let (transport_buttons, transport_leds) = match self.model {
+            ConsoleModel::Fw1884(_) => (Fw1884Model::TRANSPORT_BUTTONS, Fw1884Model::TRANSPORT_LEDS),
+            ConsoleModel::Fw1082(_) => (Fw1082Model::TRANSPORT_BUTTONS, Fw1082Model::TRANSPORT_LEDS),
+        };
+        transport_buttons.detect_action(index, before, after, |idx, _, state| {
+            if state {
+                self.transport_state = idx;
+                transport_leds.choose_single(self.transport_state, |pos, state| {
+                    self.update_led_if_needed(pos, state)
+                })
+            } else {
+                Ok(())
+            }
+        })?;
+
         Ok(())
     }
 }
@@ -454,5 +479,21 @@ pub trait ConsoleData<'a> {
     const BANK_CURSORS: &'a [(u32, u32)] = &[
         (9, 0x00080000),    // bank L
         (9, 0x00100000),    // bank R
+    ];
+
+    const TRANSPORT_LEDS: &'a [&'a [u16]] = &[
+        &[13],      // rew
+        &[45],      // fwd
+        &[242],     // stop
+        &[17],      // play
+        &[146],     // record
+    ];
+
+    const TRANSPORT_BUTTONS: &'a [(u32, u32)] = &[
+        (9, 0x08000000),    // rew
+        (9, 0x10000000),    // fwd
+        (9, 0x20000000),    // stop
+        (9, 0x40000000),    // play
+        (9, 0x80000000),    // record
     ];
 }
