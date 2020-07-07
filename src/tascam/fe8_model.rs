@@ -67,4 +67,15 @@ impl<'a> ConsoleData<'a> for Fe8Model {
         ((6, 0x0000ffff), 0),   // input 7
         ((7, 0x0000ffff), 0),   // input 8
     ];
+
+    const DIALS: &'a [((u32, u32), u8)] = &[
+        ((20, 0x0000ffff), 0),  // rotary-1
+        ((21, 0x0000ffff), 0),  // rotary-2
+        ((22, 0x0000ffff), 0),  // rotary-3
+        ((23, 0x0000ffff), 0),  // rotary-4
+        ((24, 0x0000ffff), 0),  // rotary-5
+        ((25, 0x0000ffff), 0),  // rotary-6
+        ((26, 0x0000ffff), 0),  // rotary-7
+        ((27, 0x0000ffff), 0),  // rotary-8
+    ];
 }

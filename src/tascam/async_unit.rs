@@ -238,6 +238,10 @@ impl<'a> AsyncUnit {
         Fe8Model::INPUT_FADERS.iter().for_each(|&(key, _)| {
             self.msg_map.push(key);
         });
+
+        Fe8Model::DIALS.iter().for_each(|&(key, _)| {
+            self.msg_map.push(key);
+        });
     }
 
     pub fn listen(&mut self) -> Result<(), Error> {
@@ -313,6 +317,10 @@ impl<'a> AsyncUnit {
             Ok(())
         })?;
 
+        Fe8Model::DIALS.detect_action(index, before, after, |key, val| {
+            self.xfer_seq_event(key, val as i32)
+        })?;
+
         Ok(())
     }
 
@@ -344,4 +352,5 @@ pub trait ConsoleData<'a> {
     const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
     const INPUT_SENSORS: &'a [(u32, u32)];
     const INPUT_FADERS: &'a [((u32, u32), u8)];
+    const DIALS: &'a [((u32, u32), u8)];
 }
