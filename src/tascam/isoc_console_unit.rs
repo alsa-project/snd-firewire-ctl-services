@@ -50,6 +50,7 @@ pub struct IsocConsoleUnit<'a> {
     req: hinawa::FwReq,
     msg_map: Vec<(u32, u32)>,
     led_states: std::collections::HashMap<u16, bool>,
+    button_states: std::collections::HashMap::<(u32, u32), bool>,
 }
 
 impl<'a> Drop for IsocConsoleUnit<'a> {
@@ -104,6 +105,7 @@ impl<'a> IsocConsoleUnit<'a> {
             req: hinawa::FwReq::new(),
             msg_map: Vec::new(),
             led_states: std::collections::HashMap::new(),
+            button_states: std::collections::HashMap::new(),
         })
     }
 
@@ -319,6 +321,15 @@ impl<'a> IsocConsoleUnit<'a> {
             })
         })?;
 
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::TOGGLED_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::TOGGLED_BUTTONS,
+        }.iter().try_for_each(|&(_, entries)| {
+            entries.get_position(|pos| {
+                self.update_led_if_needed(pos, false)
+            })
+        })?;
+
         Ok(())
     }
 
@@ -334,6 +345,13 @@ impl<'a> IsocConsoleUnit<'a> {
 
     fn init_surface(&mut self) -> Result<(), Error> {
         self.init_led()?;
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::TOGGLED_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::TOGGLED_BUTTONS,
+        }.iter().for_each(|&(key, _)| {
+            self.button_states.insert(key, false);
+        });
 
         self.init_msg_map();
 
@@ -373,6 +391,21 @@ impl<'a> IsocConsoleUnit<'a> {
             self.update_led_if_needed(pos, state)
         })?;
 
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::TOGGLED_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::TOGGLED_BUTTONS,
+        }.detect_action(index, before, after, |key, pos, state| {
+            if state {
+                let s = match self.button_states.get(&key) {
+                    Some(s) => !s,
+                    None => return Ok(())
+                };
+                self.update_led_if_needed(pos, s)?;
+                self.button_states.insert(*key, s);
+            }
+            Ok(())
+        })?;
+
         Ok(())
     }
 }
@@ -380,4 +413,5 @@ impl<'a> IsocConsoleUnit<'a> {
 pub trait ConsoleData<'a> {
     const SIMPLE_LEDS: &'a [&'a [u16]];
     const STATELESS_BUTTONS: &'a [((u32, u32), &'a [u16])];
+    const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
 }
