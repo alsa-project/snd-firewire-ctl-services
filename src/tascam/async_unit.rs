@@ -15,6 +15,7 @@ use crate::dispatcher;
 use super::seq_cntr;
 
 use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction, DetectPosition};
+use super::protocol::ComputeValue;
 
 use super::fe8_model::Fe8Model;
 
@@ -229,6 +230,10 @@ impl<'a> AsyncUnit {
             let key = (std::u32::MAX, i as u32);
             self.msg_map.push(key);
         });
+
+        Fe8Model::TOGGLED_BUTTONS.iter().for_each(|&(key, _)| {
+            self.msg_map.push(key);
+        });
     }
 
     pub fn listen(&mut self) -> Result<(), Error> {
@@ -266,6 +271,14 @@ impl<'a> AsyncUnit {
         }
     }
 
+    fn xfer_seq_event(&mut self, key: &(u32, u32), value: i32) -> Result<(), Error> {
+        if let Some(param) = self.msg_map.iter().position(|e| e == key) {
+            self.seq_cntr.schedule_event(param as u32, value)
+        } else {
+            Ok(())
+        }
+    }
+
     fn dispatch_surface_event(&mut self, index: u32, before: u32, after: u32) -> Result<(), Error>
     {
         Fe8Model::TOGGLED_BUTTONS.detect_action(index, before, after, |key, pos, state| {
@@ -276,6 +289,7 @@ impl<'a> AsyncUnit {
                 };
 
                 self.update_led_if_needed(pos, s)?;
+                self.xfer_seq_event(key, s.compute_value())?;
                 self.button_states.insert(*key, s);
             }
             Ok(())
