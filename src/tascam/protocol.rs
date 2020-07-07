@@ -422,3 +422,30 @@ impl<H> DetectPosition<H> for &[&[u16]]
         }
     }
 }
+
+pub trait DetectAction<H> {
+    fn detect_action(&self, index: u32, before: u32, after: u32, handle: H)
+        -> Result<(), Error>;
+}
+
+impl<H> DetectAction<H> for &[((u32, u32), &[u16])]
+    where H: FnMut(&(u32, u32), u16, bool) -> Result<(), Error>
+{
+    fn detect_action(&self, index: u32, before: u32, after: u32, mut handle: H)
+        -> Result<(), Error> {
+        self.iter().filter(|((idx, mask), _)| {
+            *idx == index && (before ^ after) & *mask > 0
+        }).try_for_each(|(key, entries)| {
+            match entries.iter().nth(0) {
+                Some(&pos) => {
+                    let state = after & key.1 == 0;
+                    handle(key, pos, state)
+                }
+                None => {
+                    let label = "Program mistake for table of LED position.";
+                    Err(Error::new(FileError::Nxio, &label))
+                }
+            }
+        })
+    }
+}
