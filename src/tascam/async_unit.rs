@@ -8,7 +8,11 @@ use std::sync::{mpsc, Arc, Mutex};
 
 use hinawa::{FwNodeExt, FwRespExt, FwRespExtManual};
 
+use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
+
 use crate::dispatcher;
+
+use super::seq_cntr;
 
 use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction};
 
@@ -19,11 +23,13 @@ enum AsyncUnitEvent {
     Disconnected,
     BusReset(u32),
     Surface((u32, u32, u32)),
+    SeqAppl(alsaseq::EventDataCtl),
 }
 
 pub struct AsyncUnit {
     node: hinawa::FwNode,
     resp: hinawa::FwResp,
+    seq_cntr: seq_cntr::SeqCntr,
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -49,8 +55,10 @@ impl Drop for AsyncUnit {
 impl<'a> AsyncUnit {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
 
-    pub fn new(node: hinawa::FwNode, _: String) -> Result<Self, Error> {
+    pub fn new(node: hinawa::FwNode, name: String) -> Result<Self, Error> {
         let resp = hinawa::FwResp::new();
+
+        let seq_cntr = seq_cntr::SeqCntr::new(name)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
@@ -60,6 +68,7 @@ impl<'a> AsyncUnit {
         Ok(AsyncUnit {
             node,
             resp,
+            seq_cntr,
             tx,
             rx,
             dispatchers,
@@ -90,6 +99,23 @@ impl<'a> AsyncUnit {
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
             let _ = tx.send(AsyncUnitEvent::Shutdown);
             source::Continue(false)
+        });
+
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_seq(&self.seq_cntr.client)?;
+        self.seq_cntr
+            .client
+            .connect_handle_event(move |_, ev_cntr| {
+                let _ = (0..ev_cntr.count_events())
+                    .filter(|&i| {
+                        // At present, controller event is handled.
+                        ev_cntr.get_event_type(i).unwrap_or(alsaseq::EventType::None) == alsaseq::EventType::Controller
+                    }).for_each(|i| {
+                        if let Ok(ctl_data) = ev_cntr.get_ctl_data(i) {
+                            let data = AsyncUnitEvent::SeqAppl(ctl_data);
+                            let _ = tx.send(data);
+                        }
+                    });
         });
 
         self.dispatchers.push(dispatcher);
@@ -194,6 +220,8 @@ impl<'a> AsyncUnit {
         self.launch_node_event_dispatcher()?;
         self.register_address_space()?;
 
+        self.seq_cntr.open_port()?;
+
         self.init_led()?;
 
         Ok(())
@@ -214,6 +242,7 @@ impl<'a> AsyncUnit {
                 AsyncUnitEvent::Surface((index, before, after)) => {
                     let _ = self.dispatch_surface_event(index, before, after);
                 }
+                AsyncUnitEvent::SeqAppl(_) => (),
             }
         }
     }
