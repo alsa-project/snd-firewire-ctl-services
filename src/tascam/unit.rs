@@ -9,13 +9,13 @@ use crate::ieee1212;
 use super::isoc_console_unit::IsocConsoleUnit;
 use super::isoc_rack_unit::IsocRackUnit;
 
-pub enum TascamUnit {
-    IsocConsole(IsocConsoleUnit),
-    IsocRack(IsocRackUnit),
+pub enum TascamUnit<'a> {
+    IsocConsole(IsocConsoleUnit<'a>),
+    IsocRack(IsocRackUnit<'a>),
     Asynch,
 }
 
-impl TascamUnit {
+impl<'a> TascamUnit<'a> {
     pub fn new(subsystem: &String, sysnum: u32) -> Result<Self, Error> {
         match subsystem.as_str() {
             "snd" => {
