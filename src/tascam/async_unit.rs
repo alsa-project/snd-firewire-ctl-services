@@ -10,7 +10,8 @@ use hinawa::{FwNodeExt, FwRespExt, FwRespExtManual};
 
 use crate::dispatcher;
 
-use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition};
+use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction};
+
 use super::fe8_model::Fe8Model;
 
 enum AsyncUnitEvent {
@@ -29,6 +30,7 @@ pub struct AsyncUnit {
     req: hinawa::FwReq,
     state_cntr: Arc<Mutex<[u32; 32]>>,
     led_states: std::collections::HashMap::<u16, bool>,
+    button_states: std::collections::HashMap::<(u32, u32), bool>,
 }
 
 impl Drop for AsyncUnit {
@@ -64,6 +66,7 @@ impl<'a> AsyncUnit {
             req: hinawa::FwReq::new(),
             state_cntr: Arc::new(Mutex::new([0;32])),
             led_states: std::collections::HashMap::new(),
+            button_states: std::collections::HashMap::new(),
         })
     }
 
@@ -176,6 +179,14 @@ impl<'a> AsyncUnit {
             self.update_led_if_needed(pos, true)
         })?;
 
+        Fe8Model::TOGGLED_BUTTONS.iter().try_for_each(|&(key, entries)| {
+            entries.get_position(|pos| {
+                self.update_led_if_needed(pos, false)?;
+                self.button_states.insert(key, false);
+                Ok(())
+            })
+        })?;
+
         Ok(())
     }
 
@@ -200,12 +211,33 @@ impl<'a> AsyncUnit {
                 AsyncUnitEvent::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
-                AsyncUnitEvent::Surface((_, _, _)) => (),
+                AsyncUnitEvent::Surface((index, before, after)) => {
+                    let _ = self.dispatch_surface_event(index, before, after);
+                }
             }
         }
+    }
+
+    fn dispatch_surface_event(&mut self, index: u32, before: u32, after: u32) -> Result<(), Error>
+    {
+        Fe8Model::TOGGLED_BUTTONS.detect_action(index, before, after, |key, pos, state| {
+            if state {
+                let s = match self.button_states.get(key) {
+                    Some(s) => !s,
+                    None => return Ok(()),
+                };
+
+                self.update_led_if_needed(pos, s)?;
+                self.button_states.insert(*key, s);
+            }
+            Ok(())
+        })?;
+
+        Ok(())
     }
 }
 
 pub trait ConsoleData<'a> {
     const FW_LED: &'a [u16];
+    const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
 }
