@@ -8,7 +8,11 @@ use std::sync::mpsc;
 
 use hinawa::{FwNodeExt, SndUnitExt};
 
+use alsactl::CardExt;
+
 use crate::dispatcher;
+use crate::card_cntr;
+use crate::card_cntr::CtlModel;
 
 use super::fw1804_model::Fw1804Model;
 
@@ -16,11 +20,13 @@ enum RackUnitEvent {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
 pub struct IsocRackUnit {
     unit: hinawa::SndTscm,
     model: Fw1804Model,
+    card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<RackUnitEvent>,
     tx: mpsc::SyncSender<RackUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -36,8 +42,11 @@ impl<'a> IsocRackUnit {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
-    pub fn new(unit: hinawa::SndTscm, _: String, _: u32) -> Result<Self, Error> {
+    pub fn new(unit: hinawa::SndTscm, _: String, sysnum: u32) -> Result<Self, Error> {
         let model = Fw1804Model::new();
+
+        let card_cntr = card_cntr::CardCntr::new();
+        card_cntr.card.open(sysnum, 0)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
@@ -47,6 +56,7 @@ impl<'a> IsocRackUnit {
         Ok(IsocRackUnit {
             unit,
             model,
+            card_cntr,
             tx,
             rx,
             dispatchers,
@@ -88,6 +98,14 @@ impl<'a> IsocRackUnit {
             source::Continue(false)
         });
 
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let _ = tx.send(RackUnitEvent::Elem((elem_id.clone(), events)));
+            });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -96,6 +114,8 @@ impl<'a> IsocRackUnit {
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
 
         Ok(())
     }
@@ -112,6 +132,9 @@ impl<'a> IsocRackUnit {
                 RackUnitEvent::Disconnected => break,
                 RackUnitEvent::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                RackUnitEvent::Elem((elem_id, events)) => {
+                    let _ = self.card_cntr.dispatch_elem_event(&self.unit, &elem_id, &events, &mut self.model);
                 }
             }
         }
