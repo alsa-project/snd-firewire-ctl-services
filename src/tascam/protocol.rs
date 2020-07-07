@@ -238,3 +238,29 @@ impl OpticalProtocol for hinawa::FwReq {
         self.set_routing_flag(fw_node, 2, 0x03, index)
     }
 }
+
+pub trait ConsoleProtocol: CommonProtocol {
+    const MASTER_FADER_OFFSET: u64 = 0x022c;
+
+    fn get_master_fader_assign(&self, fw_node: &hinawa::FwNode) -> Result<bool, Error>;
+    fn set_master_fader_assign(
+        &self,
+        fw_node: &hinawa::FwNode,
+        assignment: bool,
+    ) -> Result<(), Error>;
+}
+
+impl ConsoleProtocol for hinawa::FwReq {
+    fn get_master_fader_assign(&self, fw_node: &hinawa::FwNode) -> Result<bool, Error> {
+        let val = self.get_routing_flag(fw_node, 4, 0x01)?;
+        Ok(val > 0)
+    }
+
+    fn set_master_fader_assign(
+        &self,
+        fw_node: &hinawa::FwNode,
+        assignment: bool,
+    ) -> Result<(), Error> {
+        self.set_routing_flag(fw_node, 4, 0x01, assignment as usize)
+    }
+}
