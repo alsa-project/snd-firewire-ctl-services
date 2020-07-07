@@ -21,6 +21,8 @@ Supported protocols
 ===================
 
 * IEEE 1212:2001 - IEEE Standard for a Control and Status Registers (CSR) Architecture for Microcomputer Buses https://ieeexplore.ieee.org/servlet/opac?punumber=8030
+* Protocols defined by 1394 Trading Association http://1394ta.org/specifications/
+   * Configuration ROM for AV/C Devices 1.0 (Dec. 2000, 1394 Trade Association)
 
 Design note
 ===========
