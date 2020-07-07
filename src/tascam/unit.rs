@@ -7,15 +7,17 @@ use hinawa::{FwNodeExtManual, SndUnitExt, SndTscmExt};
 use crate::ieee1212;
 
 use super::isoc_console_unit::IsocConsoleUnit;
+use super::isoc_rack_unit::IsocRackUnit;
 
 pub enum TascamUnit {
     IsocConsole(IsocConsoleUnit),
+    IsocRack(IsocRackUnit),
     Asynch,
 }
 
 impl TascamUnit {
     pub fn new(subsystem: &String, sysnum: u32) -> Result<Self, Error> {
-        let unit = match subsystem.as_str() {
+        match subsystem.as_str() {
             "snd" => {
                 let unit = hinawa::SndTscm::new();
                 let devnode = format!("/dev/snd/hwC{}D0", sysnum);
@@ -23,26 +25,27 @@ impl TascamUnit {
 
                 let node = unit.get_node();
                 let name = detect_model_name(&node)?;
-                let isoc_unit = match name.as_str() {
-                    "FW-1884" | "FW-1082" => IsocConsoleUnit::new(unit, name, sysnum),
+                match name.as_str() {
+                    "FW-1884" | "FW-1082" => {
+                        let console_unit = IsocConsoleUnit::new(unit, name, sysnum)?;
+                        Ok(Self::IsocConsole(console_unit))
+                    }
+                    "FW-1804" => {
+                        let rack_unit = IsocRackUnit::new(unit, name, sysnum)?;
+                        Ok(Self::IsocRack(rack_unit))
+                    }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
-                }?;
-
-                Self::IsocConsole(isoc_unit)
+                }
             }
-            "fw" => Self::Asynch,
-            _ => {
-                let label = "Invalid name of subsystem";
-                return Err(Error::new(FileError::Nodev, &label));
-            }
-        };
-
-        Ok(unit)
+            "fw" => Ok(Self::Asynch),
+            _ => Err(Error::new(FileError::Nodev, "Invalid name of subsystem")),
+        }
     }
 
     pub fn listen(&mut self) -> Result<(), Error> {
         match self {
             Self::IsocConsole(unit) => unit.listen(),
+            Self::IsocRack(unit) => unit.listen(),
             Self::Asynch => Ok(()),
         }
     }
@@ -50,6 +53,7 @@ impl TascamUnit {
     pub fn run(&mut self) {
         match self {
             Self::IsocConsole(unit) => unit.run(),
+            Self::IsocRack(unit) => unit.run(),
             Self::Asynch => (),
         }
     }
