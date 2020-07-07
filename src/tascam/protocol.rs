@@ -264,3 +264,124 @@ impl ConsoleProtocol for hinawa::FwReq {
         self.set_routing_flag(fw_node, 4, 0x01, assignment as usize)
     }
 }
+
+pub trait RackProtocol: CommonProtocol {
+    const INPUT_OFFSET: u64 = 0x0408;
+
+    fn init_states(&self, node: &hinawa::FwNode, cache: &mut [u8; 72]) -> Result<(), Error>;
+
+    fn write_input_quadlet(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8],
+        pos: usize,
+    ) -> Result<(), Error>;
+    fn get_gain(&self, cache: &[u8; 72], index: usize) -> Result<i16, Error>;
+    fn set_gain(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8; 72],
+        index: usize,
+        gain: i16,
+    ) -> Result<(), Error>;
+    fn get_balance(&self, cache: &[u8; 72], index: usize) -> Result<u8, Error>;
+    fn set_balance(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8; 72],
+        index: usize,
+        pan: u8,
+    ) -> Result<(), Error>;
+    fn get_mute(&self, cache: &[u8; 72], index: usize) -> Result<bool, Error>;
+    fn set_mute(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8; 72],
+        index: usize,
+        mute: bool,
+    ) -> Result<(), Error>;
+}
+
+impl RackProtocol for hinawa::FwReq {
+    fn init_states(&self, node: &hinawa::FwNode, cache: &mut [u8; 72]) -> Result<(), Error> {
+        let val: i16 = 0x7fff;
+
+        (0..18).try_for_each(|i| {
+            let pos = i * std::mem::size_of::<u32>();
+            cache[pos] = i as u8;
+            if i % 2 > 0 {
+                cache[pos + 1] = 0xff;
+            }
+            cache[(pos + 2)..(pos + 4)].copy_from_slice(&val.to_le_bytes());
+
+            self.write_input_quadlet(&node, cache, pos)?;
+
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    fn write_input_quadlet(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8],
+        pos: usize,
+    ) -> Result<(), Error> {
+        self.write_transaction(fw_node, Self::INPUT_OFFSET, &mut cache[pos..(pos + 4)])
+    }
+
+    fn get_gain(&self, cache: &[u8; 72], index: usize) -> Result<i16, Error> {
+        let pos = index * std::mem::size_of::<u32>();
+        Ok(i16::from_be_bytes([cache[pos + 2], cache[pos + 3]]))
+    }
+
+    fn set_gain(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8; 72],
+        index: usize,
+        gain: i16,
+    ) -> Result<(), Error> {
+        let pos = index * std::mem::size_of::<u32>();
+        cache[(pos + 2)..(pos + 4)].copy_from_slice(&gain.to_be_bytes());
+        self.write_input_quadlet(fw_node, cache, pos)
+    }
+
+    fn get_balance(&self, cache: &[u8; 72], index: usize) -> Result<u8, Error> {
+        let pos = index * std::mem::size_of::<u32>();
+        Ok(cache[pos + 1])
+    }
+
+    fn set_balance(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8; 72],
+        index: usize,
+        pan: u8,
+    ) -> Result<(), Error> {
+        let pos = index * std::mem::size_of::<u32>();
+        cache[pos + 1] = pan;
+        self.write_input_quadlet(fw_node, cache, pos)
+    }
+
+    fn get_mute(&self, cache: &[u8; 72], index: usize) -> Result<bool, Error> {
+        let pos = index * std::mem::size_of::<u32>();
+        Ok(cache[pos] & 0x80 > 0)
+    }
+
+    fn set_mute(
+        &self,
+        fw_node: &hinawa::FwNode,
+        cache: &mut [u8; 72],
+        index: usize,
+        mute: bool,
+    ) -> Result<(), Error> {
+        let pos = index * std::mem::size_of::<u32>();
+        cache[pos] &= !0x80;
+        if mute {
+            cache[pos] |= 0x80;
+        }
+        self.write_input_quadlet(fw_node, cache, pos)
+    }
+}
