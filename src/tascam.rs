@@ -12,3 +12,4 @@ mod fw1804_model;
 mod protocol;
 
 mod common_ctl;
+mod meter_ctl;
