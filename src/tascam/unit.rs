@@ -2,17 +2,18 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use hinawa::{FwNodeExtManual, SndUnitExt, SndTscmExt};
+use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndTscmExt};
 
 use crate::ieee1212;
 
 use super::isoc_console_unit::IsocConsoleUnit;
 use super::isoc_rack_unit::IsocRackUnit;
+use super::async_unit::AsyncUnit;
 
 pub enum TascamUnit<'a> {
     IsocConsole(IsocConsoleUnit<'a>),
     IsocRack(IsocRackUnit<'a>),
-    Asynch,
+    Async(AsyncUnit),
 }
 
 impl<'a> TascamUnit<'a> {
@@ -37,8 +38,24 @@ impl<'a> TascamUnit<'a> {
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
                 }
             }
-            "fw" => Ok(Self::Asynch),
-            _ => Err(Error::new(FileError::Nodev, "Invalid name of subsystem")),
+            "fw" => {
+                let node = hinawa::FwNode::new();
+                let devnode = format!("/dev/fw{}", sysnum);
+                node.open(&devnode)?;
+
+                let name = detect_model_name(&node)?;
+                match name.as_str() {
+                    "FE-8" => {
+                        let async_unit = AsyncUnit::new(node, name)?;
+                        Ok(Self::Async(async_unit))
+                    }
+                    _ => Err(Error::new(FileError::Noent, "Not supported")),
+                }
+            }
+            _ => {
+                let label = "Invalid name of subsystem";
+                Err(Error::new(FileError::Nodev, &label))
+            }
         }
     }
 
@@ -46,7 +63,7 @@ impl<'a> TascamUnit<'a> {
         match self {
             Self::IsocConsole(unit) => unit.listen(),
             Self::IsocRack(unit) => unit.listen(),
-            Self::Asynch => Ok(()),
+            Self::Async(unit) => unit.listen(),
         }
     }
 
@@ -54,7 +71,7 @@ impl<'a> TascamUnit<'a> {
         match self {
             Self::IsocConsole(unit) => unit.run(),
             Self::IsocRack(unit) => unit.run(),
-            Self::Asynch => (),
+            Self::Async(unit) => unit.run(),
         }
     }
 }

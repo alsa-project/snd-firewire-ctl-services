@@ -4,6 +4,7 @@ pub mod unit;
 
 mod isoc_console_unit;
 mod isoc_rack_unit;
+mod async_unit;
 
 mod fw1082_model;
 mod fw1884_model;
