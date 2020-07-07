@@ -1,0 +1,9 @@
+[package]
+name = "snd-firewire-ctl-services"
+version = "0.1.0"
+authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
+edition = "2018"
+license-file = "COPYING"
+
+[lib]
+name = "snd_fw_ctl_services"
