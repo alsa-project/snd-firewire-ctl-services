@@ -4,9 +4,9 @@ use glib::{Error, FileError};
 use glib::source;
 
 use nix::sys::signal;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, Mutex};
 
-use hinawa::{FwNodeExt, FwRespExt};
+use hinawa::{FwNodeExt, FwRespExt, FwRespExtManual};
 
 use crate::dispatcher;
 
@@ -16,6 +16,7 @@ enum AsyncUnitEvent {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Surface((u32, u32, u32)),
 }
 
 pub struct AsyncUnit {
@@ -25,6 +26,7 @@ pub struct AsyncUnit {
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
     req: hinawa::FwReq,
+    state_cntr: Arc<Mutex<[u32; 32]>>,
 }
 
 impl Drop for AsyncUnit {
@@ -53,6 +55,7 @@ impl<'a> AsyncUnit {
             rx,
             dispatchers,
             req: hinawa::FwReq::new(),
+            state_cntr: Arc::new(Mutex::new([0;32])),
         })
     }
 
@@ -100,6 +103,41 @@ impl<'a> AsyncUnit {
             return Err(Error::new(FileError::Nospc, label));
         }
 
+        let tx = self.tx.clone();
+        let state_cntr = self.state_cntr.clone();
+        self.resp.connect_requested(move |resp, tcode| {
+            // This application can handle any write request.
+            if tcode != hinawa::FwTcode::WriteQuadletRequest
+                && tcode != hinawa::FwTcode::WriteBlockRequest
+            {
+                return hinawa::FwRcode::AddressError;
+            }
+
+            let frames = resp.get_req_frames();
+            let len = frames.len() / 4;
+
+            // Operate states under mutual exclusive lock.
+            if let Ok(mut states) = state_cntr.clone().lock() {
+                (0..len).for_each(|mut i| {
+                    i *= 4;
+                    let index = frames[i + 1] as usize;
+                    let doublet = [frames[i + 2], frames[i + 3]];
+                    let state = u16::from_be_bytes(doublet) as u32;
+
+                    if states[index] != state {
+                        // Avoid change from initial state.
+                        if states[index] != 0 {
+                            let ev = (index as u32, states[index], state);
+                            let _ = tx.send(AsyncUnitEvent::Surface(ev));
+                        }
+
+                        states[index] = state;
+                    }
+                });
+            }
+
+            hinawa::FwRcode::Complete
+        });
         // Register the address to the unit.
         addr |= (self.node.get_property_local_node_id() as u64) << 48;
         self.req.register_notification_addr(&self.node, addr)?;
@@ -128,6 +166,7 @@ impl<'a> AsyncUnit {
                 AsyncUnitEvent::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
+                AsyncUnitEvent::Surface((_, _, _)) => (),
             }
         }
     }
