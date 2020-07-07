@@ -11,6 +11,8 @@ use super::common_ctl::CommonCtl;
 use super::meter_ctl::MeterCtl;
 use super::console_ctl::ConsoleCtl;
 
+use super::isoc_console_unit::ConsoleData;
+
 pub struct Fw1082Model<'a> {
     req: hinawa::FwReq,
     common: CommonCtl<'a>,
@@ -113,4 +115,35 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
             Ok(false)
         }
     }
+}
+
+impl<'a> ConsoleData<'a> for Fw1082Model<'a> {
+    const SIMPLE_LEDS: &'a [&'a [u16]] = &[
+        &[3],               // ol-1
+        &[22],              // ol-2
+        &[35],              // ol-3
+        &[54],              // ol-4
+        &[67, 131],         // ol-5
+        &[86, 150, 163],    // ol-6
+        &[99, 182, 195],    // ol-7
+        &[118, 214, 227],   // ol-8
+
+        &[4],               // signal-1
+        &[23],              // signal-2
+        &[36],              // signal-3
+        &[55],              // signal-4
+        &[68, 132],         // signal-5
+        &[87, 151, 164],    // signal-6
+        &[100, 183, 196],   // signal-7
+        &[119, 215, 228],   // signal-8
+
+        &[5],               // rec-1
+        &[24],              // rec-2
+        &[37],              // rec-3
+        &[56],              // rec-4
+        &[69, 133],         // rec-5
+        &[88, 152, 165],    // rec-6
+        &[101, 184, 197],   // rec-7
+        &[120, 216, 229],   // rec-8
+    ];
 }
