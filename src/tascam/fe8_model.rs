@@ -7,6 +7,17 @@ pub struct Fe8Model{}
 impl<'a> ConsoleData<'a> for Fe8Model {
     const FW_LED: &'a [u16] = &[0x16, 0x8e];
 
+    const SIMPLE_LEDS: &'a [&'a [u16]] = &[
+        &[0x05],            // rec-0
+        &[0x18, 0x25],      // rec-1
+        &[0x38, 0x45],      // rec-2
+        &[0x58, 0x65],      // rec-3
+        &[0x76, 0x82],      // rec-4
+        &[0x98, 0xa5],      // rec-5
+        &[0xb8, 0xc5],      // rec-6
+        &[0xd8, 0xe5],      // rec-7
+    ];
+
     const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])] = &[
         ((13, 0x00000001), &[0x00]),        // select-0
         ((13, 0x00000002), &[0x13, 0x20]),  // select-1
