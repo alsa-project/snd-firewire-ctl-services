@@ -6,7 +6,7 @@ use glib::source;
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::{FwNodeExt, SndUnitExt};
+use hinawa::{FwNodeExt, SndUnitExt, SndTscmExt};
 
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
@@ -17,8 +17,7 @@ use card_cntr::{CtlModel, MonitorModel};
 
 use super::fw1884_model::Fw1884Model;
 use super::fw1082_model::Fw1082Model;
-
-use super::protocol::{BaseProtocol, GetPosition, DetectPosition};
+use super::protocol::{BaseProtocol, GetPosition, DetectPosition, DetectAction};
 
 use super::seq_cntr;
 
@@ -29,6 +28,7 @@ enum ConsoleUnitEvent {
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
     Monitor,
     SeqAppl(alsaseq::EventDataCtl),
+    Surface((u32, u32, u32)),
 }
 
 enum ConsoleModel<'a> {
@@ -115,6 +115,11 @@ impl<'a> IsocConsoleUnit<'a> {
         dispatcher.attach_snd_unit(&self.unit, move |_| {
             let _ = tx.send(ConsoleUnitEvent::Disconnected);
         })?;
+
+        let tx = self.tx.clone();
+        self.unit.connect_control(move |_, index, before, after| {
+            let _ = tx.send(ConsoleUnitEvent::Surface((index, before, after)));
+        });
 
         let tx = self.tx.clone();
         dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
@@ -271,6 +276,9 @@ impl<'a> IsocConsoleUnit<'a> {
                 ConsoleUnitEvent::SeqAppl(ctl_data) => {
                     let _ = self.dispatch_seq_event(ctl_data);
                 }
+                ConsoleUnitEvent::Surface((index, before, after)) => {
+                    let _ = self.dispatch_surface_event(index, before, after);
+                }
             }
         }
     }
@@ -297,6 +305,15 @@ impl<'a> IsocConsoleUnit<'a> {
             ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_LEDS,
             ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_LEDS,
         }.iter().try_for_each(|entries| {
+            entries.get_position(|pos| {
+                self.update_led_if_needed(pos, false)
+            })
+        })?;
+
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::STATELESS_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::STATELESS_BUTTONS,
+        }.iter().try_for_each(|(_, entries)| {
             entries.get_position(|pos| {
                 self.update_led_if_needed(pos, false)
             })
@@ -337,10 +354,22 @@ impl<'a> IsocConsoleUnit<'a> {
         };
 
         let state = ctl_data.get_value() > 0;
-        match &mut self.model {
+        match self.model {
             ConsoleModel::Fw1884(_) => Fw1884Model::SIMPLE_LEDS,
             ConsoleModel::Fw1082(_) => Fw1082Model::SIMPLE_LEDS,
         }.detect_position(index, |pos| {
+            self.update_led_if_needed(pos, state)
+        })?;
+
+        Ok(())
+    }
+
+    fn dispatch_surface_event(&mut self, index: u32, before: u32, after: u32) -> Result<(), Error>
+    {
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::STATELESS_BUTTONS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::STATELESS_BUTTONS,
+        }.detect_action(index, before, after, |_, pos, state| {
             self.update_led_if_needed(pos, state)
         })?;
 
@@ -350,4 +379,5 @@ impl<'a> IsocConsoleUnit<'a> {
 
 pub trait ConsoleData<'a> {
     const SIMPLE_LEDS: &'a [&'a [u16]];
+    const STATELESS_BUTTONS: &'a [((u32, u32), &'a [u16])];
 }
