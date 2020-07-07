@@ -10,6 +10,8 @@ use hinawa::{FwNodeExt, SndUnitExt};
 
 use crate::dispatcher;
 
+use super::fw1804_model::Fw1804Model;
+
 enum RackUnitEvent {
     Shutdown,
     Disconnected,
@@ -18,6 +20,7 @@ enum RackUnitEvent {
 
 pub struct IsocRackUnit {
     unit: hinawa::SndTscm,
+    model: Fw1804Model,
     rx: mpsc::Receiver<RackUnitEvent>,
     tx: mpsc::SyncSender<RackUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -34,6 +37,8 @@ impl<'a> IsocRackUnit {
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
     pub fn new(unit: hinawa::SndTscm, _: String, _: u32) -> Result<Self, Error> {
+        let model = Fw1804Model::new();
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -41,6 +46,7 @@ impl<'a> IsocRackUnit {
 
         Ok(IsocRackUnit {
             unit,
+            model,
             tx,
             rx,
             dispatchers,
