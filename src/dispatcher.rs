@@ -5,7 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 use glib::Error;
-use glib::{MainContext, MainLoop};
+use glib::{source, MainContext, MainLoop, Source};
+use nix::sys::signal;
 
 pub struct Dispatcher {
     name: String,
@@ -49,5 +50,20 @@ impl Dispatcher {
 
         let th = Some(th);
         Ok(Dispatcher{name, th, ev_loop})
+    }
+
+    fn attach_src_to_ctx(&mut self, src: &Source) {
+        let ctx = self.ev_loop.get_context();
+        src.attach(Some(&ctx));
+    }
+
+    pub fn attach_signal_handler<F>(&mut self, signum: signal::Signal, cb: F)
+    where
+        F: FnMut() -> source::Continue + Send + 'static,
+    {
+        let src =
+            source::unix_signal_source_new(signum as i32, None, source::PRIORITY_DEFAULT_IDLE, cb);
+
+        self.attach_src_to_ctx(&src);
     }
 }
