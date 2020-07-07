@@ -45,4 +45,26 @@ impl<'a> ConsoleData<'a> for Fe8Model {
         ((14, 0x00000040), &[0xb5, 0xc2]),  // mute-6
         ((14, 0x00000080), &[0xd5, 0xe2]),  // mute-7
     ];
+
+    const INPUT_SENSORS: &'a [(u32, u32)] = &[
+        (11, 0x00000001),       // input 1
+        (11, 0x00000002),       // input 2
+        (11, 0x00000004),       // input 3
+        (11, 0x00000008),       // input 4
+        (11, 0x00000010),       // input 5
+        (11, 0x00000020),       // input 6
+        (11, 0x00000040),       // input 7
+        (11, 0x00000080),       // input 8
+    ];
+
+    const INPUT_FADERS: &'a [((u32, u32), u8)] = &[
+        ((0, 0x0000ffff), 0),   // input 1
+        ((1, 0x0000ffff), 0),   // input 2
+        ((2, 0x0000ffff), 0),   // input 3
+        ((3, 0x0000ffff), 0),   // input 4
+        ((4, 0x0000ffff), 0),   // input 5
+        ((5, 0x0000ffff), 0),   // input 6
+        ((6, 0x0000ffff), 0),   // input 7
+        ((7, 0x0000ffff), 0),   // input 8
+    ];
 }

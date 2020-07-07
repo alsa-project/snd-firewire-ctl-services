@@ -15,7 +15,7 @@ use crate::dispatcher;
 use super::seq_cntr;
 
 use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction, DetectPosition};
-use super::protocol::ComputeValue;
+use super::protocol::{GetValue, ComputeValue};
 
 use super::fe8_model::Fe8Model;
 
@@ -234,6 +234,10 @@ impl<'a> AsyncUnit {
         Fe8Model::TOGGLED_BUTTONS.iter().for_each(|&(key, _)| {
             self.msg_map.push(key);
         });
+
+        Fe8Model::INPUT_FADERS.iter().for_each(|&(key, _)| {
+            self.msg_map.push(key);
+        });
     }
 
     pub fn listen(&mut self) -> Result<(), Error> {
@@ -295,6 +299,20 @@ impl<'a> AsyncUnit {
             Ok(())
         })?;
 
+        Fe8Model::INPUT_SENSORS.detect_action(index, before, after, |idx, _, state| {
+            if !state {
+                let (key, val) = match self.state_cntr.lock() {
+                    Ok(s) => {
+                        let states: &[u32;32] = &s;
+                        Fe8Model::INPUT_FADERS.get_value(states, idx)
+                    }
+                    Err(_) => return Ok(()),
+                };
+                self.xfer_seq_event(&key, val as i32)?;
+            }
+            Ok(())
+        })?;
+
         Ok(())
     }
 
@@ -324,4 +342,6 @@ pub trait ConsoleData<'a> {
     const FW_LED: &'a [u16];
     const SIMPLE_LEDS: &'a [&'a [u16]];
     const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
+    const INPUT_SENSORS: &'a [(u32, u32)];
+    const INPUT_FADERS: &'a [((u32, u32), u8)];
 }
