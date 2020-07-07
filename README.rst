@@ -12,6 +12,12 @@ This project is a sub project in Advanced Linux Sound Architecture a.k.a ALSA,
 to produce userspace service daemon for Audio and Music units on IEEE 1394 bus,
 supported by drivers in ALSA firewire stack.
 
+Executables
+=================================
+
+snd-firewire-digi00x-ctl-service
+   For sound card bound to ALSA firewire-digi00x driver (snd-firewire-digi00x)
+
 License
 =======
 
@@ -42,12 +48,32 @@ Build ::
 
     $ cargo build
 
+Execute ::
+
+    & cargo run --bin (the executable name) (the arguments of executable)
+
+Supported devices
+=================
+
+Currently below devices are supported. If you would like to add support for
+your device, please contact to developer.
+
+* snd-firewire-digi00x-ctl-service
+
+  * Digi 002
+  * Digi 002 Rack
+  * Digi 003
+  * Digi 003 Rack
+  * Digi 003 Rack+
+
 Supported protocols
 ===================
 
 * IEEE 1212:2001 - IEEE Standard for a Control and Status Registers (CSR) Architecture for Microcomputer Buses https://ieeexplore.ieee.org/servlet/opac?punumber=8030
 * Protocols defined by 1394 Trading Association http://1394ta.org/specifications/
    * Configuration ROM for AV/C Devices 1.0 (Dec. 2000, 1394 Trade Association)
+* Vendor specific protocols
+   * Protocol for Digi 002/003 family of Digidesign
 
 Design note
 ===========
