@@ -10,6 +10,7 @@ use glib::IsA;
 
 use nix::sys::signal;
 
+use alsactl::CardExt;
 use hinawa::SndUnitExt;
 use hinawa::FwNodeExt;
 
@@ -70,6 +71,20 @@ impl Dispatcher {
             source::unix_signal_source_new(signum as i32, None, source::PRIORITY_DEFAULT_IDLE, cb);
 
         self.attach_src_to_ctx(&src);
+    }
+
+    pub fn attach_snd_card<C, F>(&mut self, card: &C, disconnect_cb: F) -> Result<(), Error>
+    where
+        C: IsA<alsactl::Card>,
+        F: Fn(&C) + 'static,
+    {
+        let src = card.create_source()?;
+
+        card.connect_handle_disconnection(disconnect_cb);
+
+        self.attach_src_to_ctx(&src);
+
+        Ok(())
     }
 
     pub fn attach_snd_unit<U, F>(&mut self, unit: &U, disconnect_cb: F) -> Result<(), Error>
