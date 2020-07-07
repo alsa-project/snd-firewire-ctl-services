@@ -17,6 +17,11 @@ License
 
 GNU General Public License Version 3
 
+Supported protocols
+===================
+
+* IEEE 1212:2001 - IEEE Standard for a Control and Status Registers (CSR) Architecture for Microcomputer Buses https://ieeexplore.ieee.org/servlet/opac?punumber=8030
+
 Design note
 ===========
 
