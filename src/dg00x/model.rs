@@ -5,6 +5,8 @@ use glib::{Error, FileError};
 use crate::ieee1212;
 use crate::ta1394;
 
+use crate::card_cntr;
+
 pub struct Dg00xModel {}
 
 impl Dg00xModel {
@@ -24,5 +26,34 @@ impl Dg00xModel {
         let model = Dg00xModel{};
 
         Ok(model)
+    }
+}
+
+impl card_cntr::CtlModel<hinawa::SndDg00x> for Dg00xModel {
+    fn load(
+        &mut self,
+        _: &hinawa::SndDg00x,
+        _: &mut card_cntr::CardCntr,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read(
+        &mut self,
+        _: &hinawa::SndDg00x,
+        _: &alsactl::ElemId,
+        _: &mut alsactl::ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+
+    fn write(
+        &mut self,
+        _: &hinawa::SndDg00x,
+        _: &alsactl::ElemId,
+        _: &alsactl::ElemValue,
+        _: &alsactl::ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
     }
 }

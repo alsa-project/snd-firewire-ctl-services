@@ -8,7 +8,11 @@ use std::sync::mpsc;
 use hinawa::{SndUnitExt, SndDg00xExt};
 use hinawa::{FwNodeExt, FwNodeExtManual};
 
+use alsactl::CardExt;
+
 use crate::dispatcher;
+use crate::card_cntr;
+use card_cntr::CtlModel;
 
 use super::model::Dg00xModel;
 
@@ -16,11 +20,13 @@ enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
 pub struct Dg00xUnit {
     unit: hinawa::SndDg00x,
     model: Dg00xModel,
+    card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -41,6 +47,9 @@ impl<'a> Dg00xUnit {
         let unit = hinawa::SndDg00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
+        let card_cntr = card_cntr::CardCntr::new();
+        card_cntr.card.open(card_id, 0)?;
+
         let node = unit.get_node();
         let data = node.get_config_rom()?;
         let model = Dg00xModel::new(&data)?;
@@ -53,6 +62,7 @@ impl<'a> Dg00xUnit {
         Ok(Dg00xUnit {
             unit,
             model,
+            card_cntr,
             rx,
             tx,
             dispatchers,
@@ -93,6 +103,14 @@ impl<'a> Dg00xUnit {
             source::Continue(false)
         });
 
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let _ = tx.send(Event::Elem((elem_id.clone(), events)));
+            });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -101,6 +119,8 @@ impl<'a> Dg00xUnit {
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
 
         Ok(())
     }
@@ -116,6 +136,14 @@ impl<'a> Dg00xUnit {
                 Event::Shutdown | Event::Disconnected => break,
                 Event::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem((elem_id, events)) => {
+                    let _ = self.card_cntr.dispatch_elem_event(
+                        &self.unit,
+                        &elem_id,
+                        &events,
+                        &mut self.model,
+                    );
                 }
             }
         }
