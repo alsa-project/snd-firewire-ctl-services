@@ -25,11 +25,13 @@ Build dependencies
 * Some crates and their dependencies
 
   * glib crate in <https://gtk-rs.org/>
+  * hinawa crate v0.1.0 in <https://github.com/takaswie/hinawa-rs/>
 
 Runtime dependencies
 ====================
 
 * glib <https://developer.gnome.org/glib/>
+* libhinawa v2.0 or later <https://github.com/takaswie/libhinawa>
 
 How to build
 ============
