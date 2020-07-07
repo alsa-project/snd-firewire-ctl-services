@@ -9,11 +9,13 @@ use crate::card_cntr;
 use super::protocol::ClkSrc;
 use super::common_ctl::CommonCtl;
 use super::meter_ctl::MeterCtl;
+use super::optical_ctl::OpticalCtl;
 
 pub struct Fw1884Model<'a> {
     req: hinawa::FwReq,
     common: CommonCtl<'a>,
     meter: MeterCtl<'a>,
+    optical: OpticalCtl<'a>,
 }
 
 impl<'a> Fw1884Model<'a> {
@@ -31,12 +33,19 @@ impl<'a> Fw1884Model<'a> {
         "ADAT",
     ];
 
+    const OPT_OUT_SRC_LABELS: &'a [&'a str] = &[
+        "ADAT-1/2/3/4/5/6/7/8",
+        "S/PDIF-1/2",
+        "Analog-1/2/3/4/5/6/7/8",
+    ];
+
     pub fn new() -> Self {
         Fw1884Model{
             req: hinawa::FwReq::new(),
             common: CommonCtl::new(Self::CLK_SRCS,
                                    Self::CLK_SRC_LABELS),
             meter: MeterCtl::new(Self::CLK_SRC_LABELS, 8, true, true),
+            optical: OpticalCtl::new(Self::OPT_OUT_SRC_LABELS),
         }
     }
 }
@@ -75,6 +84,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
     ) -> Result<(), Error> {
         self.common.load(unit, &self.req, card_cntr)?;
         self.meter.load(card_cntr)?;
+        self.optical.load(unit, &self.req, card_cntr)?;
         Ok(())
     }
 
@@ -85,6 +95,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
         elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
         if self.common.read(unit, &self.req, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.optical.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -99,6 +111,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
         new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
         if self.common.write(unit, &self.req, elem_id, old, new)? {
+            Ok(true)
+        } else if self.optical.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)

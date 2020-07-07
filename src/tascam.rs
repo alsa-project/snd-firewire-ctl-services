@@ -13,3 +13,4 @@ mod protocol;
 
 mod common_ctl;
 mod meter_ctl;
+mod optical_ctl;
