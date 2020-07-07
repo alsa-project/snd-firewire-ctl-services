@@ -385,3 +385,40 @@ impl RackProtocol for hinawa::FwReq {
         self.write_input_quadlet(fw_node, cache, pos)
     }
 }
+
+pub trait GetPosition<H> {
+    fn get_position(&self, handle: H) -> Result<(), Error>;
+}
+
+impl <H> GetPosition<H> for &[u16]
+    where H: FnMut(u16) -> Result<(), Error>
+{
+
+    fn get_position(&self, mut handle: H) -> Result<(), Error> {
+        match self.iter().nth(0) {
+            Some(&pos) => handle(pos),
+            None => {
+                let label = "Program mistake for table of LED position.";
+                Err(Error::new(FileError::Nxio, &label))
+            }
+        }
+    }
+}
+
+pub trait DetectPosition<H> {
+    fn detect_position(&self, index: usize, handle: H) -> Result<(), Error>;
+}
+
+impl<H> DetectPosition<H> for &[&[u16]]
+    where H: FnMut(u16) -> Result<(), Error> {
+
+    fn detect_position(&self, index: usize, handle: H) -> Result<(), Error> {
+        match self.iter().nth(index) {
+            Some(entries) => entries.get_position(handle),
+            None => {
+                let label = "Invalid argument for index to table of LED position.";
+                Err(Error::new(FileError::Inval, &label))
+            }
+        }
+    }
+}
