@@ -32,7 +32,7 @@ Build dependencies
 
   * glib crate in <https://gtk-rs.org/>
   * hinawa crate v0.1.0 in <https://github.com/takaswie/hinawa-rs/>
-  * alsactl crates v0.1.0 in <https://github.com/takaswie/alsa-gobject-rs/>
+  * alsactl/alsaseq crates v0.1.0 in <https://github.com/takaswie/alsa-gobject-rs/>
 
 Runtime dependencies
 ====================

@@ -9,6 +9,7 @@ use std::sync::mpsc;
 use hinawa::{FwNodeExt, SndUnitExt};
 
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
+use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
 use crate::dispatcher;
 use crate::card_cntr;
@@ -17,12 +18,15 @@ use card_cntr::{CtlModel, MonitorModel};
 use super::fw1884_model::Fw1884Model;
 use super::fw1082_model::Fw1082Model;
 
+use super::seq_cntr;
+
 enum ConsoleUnitEvent {
     Shutdown,
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
     Monitor,
+    SeqAppl(alsaseq::EventDataCtl),
 }
 
 enum ConsoleModel<'a> {
@@ -34,6 +38,7 @@ pub struct IsocConsoleUnit<'a> {
     unit: hinawa::SndTscm,
     model: ConsoleModel<'a>,
     card_cntr: card_cntr::CardCntr,
+    seq_cntr: seq_cntr::SeqCntr,
     rx: mpsc::Receiver<ConsoleUnitEvent>,
     tx: mpsc::SyncSender<ConsoleUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -68,6 +73,8 @@ impl<'a> IsocConsoleUnit<'a> {
         let card_cntr = card_cntr::CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
+        let seq_cntr = seq_cntr::SeqCntr::new(name)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -77,6 +84,7 @@ impl<'a> IsocConsoleUnit<'a> {
             unit,
             model,
             card_cntr,
+            seq_cntr,
             tx,
             rx,
             dispatchers,
@@ -128,6 +136,23 @@ impl<'a> IsocConsoleUnit<'a> {
                 let _ = tx.send(ConsoleUnitEvent::Elem((elem_id.clone(), events)));
             });
 
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_seq(&self.seq_cntr.client)?;
+        self.seq_cntr
+            .client
+            .connect_handle_event(move |_, ev_cntr| {
+                let _ = (0..ev_cntr.count_events())
+                    .filter(|&i| {
+                        // At present, controller event is handled.
+                        ev_cntr.get_event_type(i).unwrap_or(alsaseq::EventType::None) == alsaseq::EventType::Controller
+                    }).for_each(|i| {
+                        if let Ok(ctl_data) = ev_cntr.get_ctl_data(i) {
+                            let data = ConsoleUnitEvent::SeqAppl(ctl_data);
+                            let _ = tx.send(data);
+                        }
+                    });
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -136,6 +161,8 @@ impl<'a> IsocConsoleUnit<'a> {
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
+
+        self.seq_cntr.open_port()?;
 
         match &mut self.model {
             ConsoleModel::Fw1884(m) => m.load(&self.unit, &mut self.card_cntr)?,
@@ -225,6 +252,7 @@ impl<'a> IsocConsoleUnit<'a> {
                         }
                     };
                 }
+                ConsoleUnitEvent::SeqAppl(_) => (),
             }
         }
     }
