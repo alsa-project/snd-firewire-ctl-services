@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 use glib::source;
 
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::FwNodeExt;
+use hinawa::{FwNodeExt, FwRespExt};
 
 use crate::dispatcher;
 
@@ -18,6 +18,7 @@ enum AsyncUnitEvent {
 
 pub struct AsyncUnit {
     node: hinawa::FwNode,
+    resp: hinawa::FwResp,
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -25,6 +26,7 @@ pub struct AsyncUnit {
 
 impl Drop for AsyncUnit {
     fn drop(&mut self) {
+        self.resp.release();
         self.dispatchers.clear();
     }
 }
@@ -33,6 +35,8 @@ impl<'a> AsyncUnit {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
 
     pub fn new(node: hinawa::FwNode, _: String) -> Result<Self, Error> {
+        let resp = hinawa::FwResp::new();
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -40,6 +44,7 @@ impl<'a> AsyncUnit {
 
         Ok(AsyncUnit {
             node,
+            resp,
             tx,
             rx,
             dispatchers,
@@ -73,8 +78,29 @@ impl<'a> AsyncUnit {
         Ok(())
     }
 
+    fn register_address_space(&mut self) -> Result<(), Error> {
+        // Reserve local address to receive async messages from the
+        // unit within private space.
+        let mut addr = 0x0000ffffe0000000 as u64;
+        while addr < 0x0000fffff0000000 {
+            if let Err(_) = self.resp.reserve(&self.node, addr, 0x80) {
+                addr += 0x80;
+                continue;
+            }
+
+            break;
+        }
+        if !self.resp.get_property_is_reserved() {
+            let label = "Fail to reserve address space";
+            return Err(Error::new(FileError::Nospc, label));
+        }
+
+        Ok(())
+    }
+
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
+        self.register_address_space()?;
 
         Ok(())
     }
