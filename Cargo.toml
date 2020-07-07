@@ -18,3 +18,7 @@ alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "
 [[bin]]
 name = "snd-firewire-digi00x-ctl-service"
 path = "src/bin/snd-firewire-digi00x-ctl-service.rs"
+
+[[bin]]
+name = "snd-firewire-tascam-ctl-service"
+path = "src/bin/snd-firewire-tascam-ctl-service.rs"
