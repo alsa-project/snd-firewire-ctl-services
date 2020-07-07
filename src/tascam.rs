@@ -8,3 +8,5 @@ mod isoc_rack_unit;
 mod fw1082_model;
 mod fw1884_model;
 mod fw1804_model;
+
+mod protocol;
