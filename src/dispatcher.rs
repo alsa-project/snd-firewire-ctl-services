@@ -11,6 +11,7 @@ use glib::IsA;
 use nix::sys::signal;
 
 use alsactl::CardExt;
+use alsaseq::UserClientExt;
 use hinawa::SndUnitExt;
 use hinawa::FwNodeExt;
 
@@ -84,6 +85,15 @@ impl Dispatcher {
 
         self.attach_src_to_ctx(&src);
 
+        Ok(())
+    }
+
+    pub fn attach_snd_seq<U>(&mut self, client: &U) -> Result<(), Error>
+    where
+        U: IsA<alsaseq::UserClient>,
+    {
+        let src = client.create_source()?;
+        self.attach_src_to_ctx(&src);
         Ok(())
     }
 
