@@ -14,7 +14,7 @@ use crate::dispatcher;
 
 use super::seq_cntr;
 
-use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction};
+use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction, DetectPosition};
 
 use super::fe8_model::Fe8Model;
 
@@ -37,6 +37,7 @@ pub struct AsyncUnit {
     state_cntr: Arc<Mutex<[u32; 32]>>,
     led_states: std::collections::HashMap::<u16, bool>,
     button_states: std::collections::HashMap::<(u32, u32), bool>,
+    msg_map: Vec<(u32, u32)>,
 }
 
 impl Drop for AsyncUnit {
@@ -76,6 +77,7 @@ impl<'a> AsyncUnit {
             state_cntr: Arc::new(Mutex::new([0;32])),
             led_states: std::collections::HashMap::new(),
             button_states: std::collections::HashMap::new(),
+            msg_map: Vec::new(),
         })
     }
 
@@ -205,6 +207,12 @@ impl<'a> AsyncUnit {
             self.update_led_if_needed(pos, true)
         })?;
 
+        Fe8Model::SIMPLE_LEDS.iter().try_for_each(|entries| {
+            entries.get_position(|pos| {
+                self.update_led_if_needed(pos, false)
+            })
+        })?;
+
         Fe8Model::TOGGLED_BUTTONS.iter().try_for_each(|&(key, entries)| {
             entries.get_position(|pos| {
                 self.update_led_if_needed(pos, false)?;
@@ -216,6 +224,13 @@ impl<'a> AsyncUnit {
         Ok(())
     }
 
+    fn init_msg_map(&mut self) {
+        Fe8Model::SIMPLE_LEDS.iter().enumerate().for_each(|(i, _)| {
+            let key = (std::u32::MAX, i as u32);
+            self.msg_map.push(key);
+        });
+    }
+
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.register_address_space()?;
@@ -223,6 +238,8 @@ impl<'a> AsyncUnit {
         self.seq_cntr.open_port()?;
 
         self.init_led()?;
+
+        self.init_msg_map();
 
         Ok(())
     }
@@ -242,7 +259,9 @@ impl<'a> AsyncUnit {
                 AsyncUnitEvent::Surface((index, before, after)) => {
                     let _ = self.dispatch_surface_event(index, before, after);
                 }
-                AsyncUnitEvent::SeqAppl(_) => (),
+                AsyncUnitEvent::SeqAppl(ctl_data) => {
+                    let _ = self.dispatch_seq_event(ctl_data);
+                }
             }
         }
     }
@@ -264,9 +283,31 @@ impl<'a> AsyncUnit {
 
         Ok(())
     }
+
+    fn dispatch_seq_event(&mut self, ctl_data: alsaseq::EventDataCtl) -> Result<(), Error>
+    {
+        if ctl_data.get_channel() != 0 {
+            let label = format!("Channel {} is not supported yet.", ctl_data.get_channel());
+            return Err(Error::new(FileError::Inval, &label));
+        }
+
+        let key = (std::u32::MAX, ctl_data.get_param());
+        let index = match self.msg_map.iter().position(|k| k == &key) {
+            Some(p) => p,
+            None => return Ok(()),
+        };
+
+        let state = ctl_data.get_value() > 0;
+        Fe8Model::SIMPLE_LEDS.detect_position(index, |pos| {
+            self.update_led_if_needed(pos, state)
+        })?;
+
+        Ok(())
+    }
 }
 
 pub trait ConsoleData<'a> {
     const FW_LED: &'a [u16];
+    const SIMPLE_LEDS: &'a [&'a [u16]];
     const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
 }
