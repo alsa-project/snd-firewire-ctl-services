@@ -24,27 +24,27 @@ enum ConsoleUnitEvent {
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
-enum ConsoleModel{
-    Fw1884(Fw1884Model),
-    Fw1082(Fw1082Model),
+enum ConsoleModel<'a> {
+    Fw1884(Fw1884Model<'a>),
+    Fw1082(Fw1082Model<'a>),
 }
 
-pub struct IsocConsoleUnit {
+pub struct IsocConsoleUnit<'a> {
     unit: hinawa::SndTscm,
-    model: ConsoleModel,
+    model: ConsoleModel<'a>,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<ConsoleUnitEvent>,
     tx: mpsc::SyncSender<ConsoleUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for IsocConsoleUnit {
+impl<'a> Drop for IsocConsoleUnit<'a> {
     fn drop(&mut self) {
         self.dispatchers.clear();
     }
 }
 
-impl<'a> IsocConsoleUnit {
+impl<'a> IsocConsoleUnit<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 

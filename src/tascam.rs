@@ -10,3 +10,5 @@ mod fw1884_model;
 mod fw1804_model;
 
 mod protocol;
+
+mod common_ctl;

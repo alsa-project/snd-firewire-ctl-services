@@ -4,39 +4,72 @@ use glib::Error;
 
 use crate::card_cntr;
 
-pub struct Fw1884Model {}
+use super::protocol::ClkSrc;
+use super::common_ctl::CommonCtl;
 
-impl Fw1884Model {
+pub struct Fw1884Model<'a> {
+    req: hinawa::FwReq,
+    common: CommonCtl<'a>,
+}
+
+impl<'a> Fw1884Model<'a> {
+    const CLK_SRCS: &'a [ClkSrc] = &[
+        ClkSrc::Internal,
+        ClkSrc::Wordclock,
+        ClkSrc::Spdif,
+        ClkSrc::Adat,
+    ];
+
+    const CLK_SRC_LABELS: &'a [&'a str] = &[
+        "Internal",
+        "Word-clock",
+        "S/PDIF",
+        "ADAT",
+    ];
+
     pub fn new() -> Self {
-        Fw1884Model{}
+        Fw1884Model{
+            req: hinawa::FwReq::new(),
+            common: CommonCtl::new(Self::CLK_SRCS,
+                                   Self::CLK_SRC_LABELS),
+        }
     }
 }
 
-impl card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model {
+impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
     fn load(
         &mut self,
-        _: &hinawa::SndTscm,
-        _: &mut card_cntr::CardCntr,
+        unit: &hinawa::SndTscm,
+        card_cntr: &mut card_cntr::CardCntr,
     ) -> Result<(), Error> {
+        self.common.load(unit, &self.req, card_cntr)?;
         Ok(())
     }
 
     fn read(
         &mut self,
-        _: &hinawa::SndTscm,
-        _: &alsactl::ElemId,
-        _: &mut alsactl::ElemValue,
+        unit: &hinawa::SndTscm,
+        elem_id: &alsactl::ElemId,
+        elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.common.read(unit, &self.req, elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(
         &mut self,
-        _: &hinawa::SndTscm,
-        _: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        _: &alsactl::ElemValue,
+        unit: &hinawa::SndTscm,
+        elem_id: &alsactl::ElemId,
+        old: &alsactl::ElemValue,
+        new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.common.write(unit, &self.req, elem_id, old, new)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }

@@ -23,22 +23,22 @@ enum RackUnitEvent {
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
-pub struct IsocRackUnit {
+pub struct IsocRackUnit<'a> {
     unit: hinawa::SndTscm,
-    model: Fw1804Model,
+    model: Fw1804Model<'a>,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<RackUnitEvent>,
     tx: mpsc::SyncSender<RackUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for IsocRackUnit {
+impl<'a> Drop for IsocRackUnit<'a> {
     fn drop(&mut self) {
         self.dispatchers.clear();
     }
 }
 
-impl<'a> IsocRackUnit {
+impl<'a> IsocRackUnit<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
