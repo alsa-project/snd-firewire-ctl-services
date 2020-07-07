@@ -114,4 +114,14 @@ impl Dispatcher {
 
         Ok(())
     }
+
+    pub fn attach_interval_handler<F>(&mut self, interval_msec: std::time::Duration, cb: F)
+    where
+        F: FnMut() -> source::Continue + Send + 'static,
+    {
+        let msec = interval_msec.as_millis() as u32;
+        let src = source::timeout_source_new(msec, None, source::PRIORITY_DEFAULT_IDLE, cb);
+
+        self.attach_src_to_ctx(&src);
+    }
 }
