@@ -7,7 +7,12 @@ use crate::ta1394;
 
 use crate::card_cntr;
 
-pub struct Dg00xModel {}
+use super::common_ctl::CommonCtl;
+
+pub struct Dg00xModel {
+    req: hinawa::FwReq,
+    common: CommonCtl,
+}
 
 impl Dg00xModel {
     pub fn new(config_rom: &[u8]) -> Result<Self, Error> {
@@ -23,7 +28,12 @@ impl Dg00xModel {
             _ => return Err(Error::new(FileError::Nxio, "Not supported.")),
         }
 
-        let model = Dg00xModel{};
+        let has_word_bnc = data.model_name.find("003") != None;
+
+        let model = Dg00xModel{
+            req: hinawa::FwReq::new(),
+            common: CommonCtl::new(has_word_bnc),
+        };
 
         Ok(model)
     }
@@ -32,28 +42,37 @@ impl Dg00xModel {
 impl card_cntr::CtlModel<hinawa::SndDg00x> for Dg00xModel {
     fn load(
         &mut self,
-        _: &hinawa::SndDg00x,
-        _: &mut card_cntr::CardCntr,
+        unit: &hinawa::SndDg00x,
+        card_cntr: &mut card_cntr::CardCntr,
     ) -> Result<(), Error> {
+        self.common.load(&unit, &self.req, card_cntr)?;
         Ok(())
     }
 
     fn read(
         &mut self,
-        _: &hinawa::SndDg00x,
-        _: &alsactl::ElemId,
-        _: &mut alsactl::ElemValue,
+        unit: &hinawa::SndDg00x,
+        elem_id: &alsactl::ElemId,
+        elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.common.read(unit, &self.req, elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(
         &mut self,
-        _: &hinawa::SndDg00x,
-        _: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        _: &alsactl::ElemValue,
+        unit: &hinawa::SndDg00x,
+        elem_id: &alsactl::ElemId,
+        old: &alsactl::ElemValue,
+        new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.common.write(unit, &self.req, elem_id, old, new)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
