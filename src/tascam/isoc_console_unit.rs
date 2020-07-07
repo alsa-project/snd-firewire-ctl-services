@@ -17,7 +17,7 @@ use card_cntr::{CtlModel, MonitorModel};
 
 use super::fw1884_model::Fw1884Model;
 use super::fw1082_model::Fw1082Model;
-use super::protocol::{BaseProtocol, GetPosition, DetectPosition, DetectAction};
+use super::protocol::{BaseProtocol, GetPosition, DetectPosition, DetectAction, ChooseSingle};
 
 use super::seq_cntr;
 
@@ -51,6 +51,7 @@ pub struct IsocConsoleUnit<'a> {
     msg_map: Vec<(u32, u32)>,
     led_states: std::collections::HashMap<u16, bool>,
     button_states: std::collections::HashMap::<(u32, u32), bool>,
+    bank_state: usize,
 }
 
 impl<'a> Drop for IsocConsoleUnit<'a> {
@@ -106,6 +107,7 @@ impl<'a> IsocConsoleUnit<'a> {
             msg_map: Vec::new(),
             led_states: std::collections::HashMap::new(),
             button_states: std::collections::HashMap::new(),
+            bank_state: 0,
         })
     }
 
@@ -330,6 +332,13 @@ impl<'a> IsocConsoleUnit<'a> {
             })
         })?;
 
+        match self.model {
+            ConsoleModel::Fw1884(_) => Fw1884Model::BANK_LEDS,
+            ConsoleModel::Fw1082(_) => Fw1082Model::BANK_LEDS,
+        }.choose_single(self.bank_state, |pos, state| {
+            self.update_led_if_needed(pos, state)
+        })?;
+
         Ok(())
     }
 
@@ -406,6 +415,26 @@ impl<'a> IsocConsoleUnit<'a> {
             Ok(())
         })?;
 
+        let (bank_cursors, bank_leds) = match self.model {
+            ConsoleModel::Fw1884(_) => (Fw1884Model::BANK_CURSORS, Fw1884Model::BANK_LEDS),
+            ConsoleModel::Fw1082(_) => (Fw1082Model::BANK_CURSORS, Fw1082Model::BANK_LEDS),
+        };
+        bank_cursors.detect_action(index, before, after, |idx, _, state| {
+            if state  {
+                if idx > 0 && self.bank_state < 3 {
+                    self.bank_state += 1;
+                } else if idx == 0 && self.bank_state > 0 {
+                    self.bank_state -= 1;
+                }
+
+                bank_leds.choose_single(self.bank_state, |pos, state| {
+                    self.update_led_if_needed(pos, state)
+                })
+            } else {
+                Ok(())
+            }
+        })?;
+
         Ok(())
     }
 }
@@ -414,4 +443,16 @@ pub trait ConsoleData<'a> {
     const SIMPLE_LEDS: &'a [&'a [u16]];
     const STATELESS_BUTTONS: &'a [((u32, u32), &'a [u16])];
     const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
+
+    const BANK_LEDS: &'a [&'a [u16]] = &[
+        &[127, 140],
+        &[159, 172],
+        &[191, 204],
+        &[223, 236],
+    ];
+
+    const BANK_CURSORS: &'a [(u32, u32)] = &[
+        (9, 0x00080000),    // bank L
+        (9, 0x00100000),    // bank R
+    ];
 }

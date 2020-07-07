@@ -449,3 +449,34 @@ impl<H> DetectAction<H> for &[((u32, u32), &[u16])]
         })
     }
 }
+
+impl<H> DetectAction<H> for &[(u32, u32)]
+    where H: FnMut(usize, &(u32, u32), bool) -> Result<(), Error>
+{
+    fn detect_action(&self, index: u32, before: u32, after: u32, mut handle: H)
+        -> Result<(), Error> {
+        self.iter().enumerate().filter(|(_, &(idx, mask))| {
+            idx == index && (before ^ after) & mask > 0
+        }).try_for_each(|(i, key)| {
+            handle(i, key, after & key.1 == 0)
+        })
+    }
+}
+
+pub trait ChooseSingle<H> {
+    fn choose_single(&self, index: usize, handle: H) -> Result<(), Error>;
+}
+
+impl<H> ChooseSingle<H> for &[&[u16]]
+    where H: FnMut(u16, bool) -> Result<(), Error>
+{
+    fn choose_single(&self, index: usize, mut handle: H) -> Result<(), Error> {
+        self.iter().enumerate().try_for_each(|(i, &entries)| {
+            if let Some(&pos) = entries.iter().nth(0) {
+                handle(pos, i == index)
+            } else {
+                Ok(())
+            }
+        })
+    }
+}
