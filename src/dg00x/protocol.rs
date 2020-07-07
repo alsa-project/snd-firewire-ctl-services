@@ -35,3 +35,34 @@ impl CommonProtocol for hinawa::FwReq {
         )
     }
 }
+
+pub trait MonitorProtocol: CommonProtocol {
+    const MIXER_OFFSET: u64 = 0x0300;
+    fn read_gain(&self, node: &hinawa::FwNode, monitor: usize, index: usize) -> Result<u32, Error>;
+    fn write_gain(
+        &self,
+        node: &hinawa::FwNode,
+        monitor: usize,
+        index: usize,
+        val: u32,
+    ) -> Result<(), Error>;
+}
+
+impl MonitorProtocol for hinawa::FwReq {
+    fn read_gain(&self, node: &hinawa::FwNode, monitor: usize, index: usize) -> Result<u32, Error> {
+        let addr = Self::MIXER_OFFSET + (index as u64) * 0x08 + (monitor as u64) * 0x04;
+        let val = self.read_quadlet(node, addr)?;
+        Ok(val)
+    }
+
+    fn write_gain(
+        &self,
+        node: &hinawa::FwNode,
+        monitor: usize,
+        index: usize,
+        val: u32,
+    ) -> Result<(), Error> {
+        let addr = Self::MIXER_OFFSET + (index as u64) * 0x08 + (monitor as u64) * 0x04;
+        self.write_quadlet(node, addr, val)
+    }
+}
