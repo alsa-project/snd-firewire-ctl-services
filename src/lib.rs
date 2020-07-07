@@ -4,3 +4,5 @@ pub mod ieee1212;
 pub mod ta1394;
 
 pub mod dispatcher;
+
+pub mod card_cntr;
