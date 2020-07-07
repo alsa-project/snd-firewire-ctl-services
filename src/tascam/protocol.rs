@@ -386,6 +386,30 @@ impl RackProtocol for hinawa::FwReq {
     }
 }
 
+pub trait ExpanderProtocol: BaseProtocol {
+    const ENABLE_NOTIFICATION: u64 = 0x0310;
+    const ADDR_HIGH_OFFSET: u64 = 0x0314;
+    const ADDR_LOW_OFFSET: u64 = 0x0318;
+
+    fn register_notification_addr(&self, node: &hinawa::FwNode, addr: u64) -> Result<(), Error>;
+    fn enable_notification(&self, node: &hinawa::FwNode, state: bool) -> Result<(), Error>;
+}
+
+impl ExpanderProtocol for hinawa::FwReq {
+    fn register_notification_addr(&self, node: &hinawa::FwNode, addr: u64) -> Result<(), Error> {
+        let mut addr_hi = ((addr >> 32) as u32).to_be_bytes();
+        self.write_transaction(node, Self::ADDR_HIGH_OFFSET, &mut addr_hi)?;
+
+        let mut addr_lo = ((addr & 0xffffffff) as u32).to_be_bytes();
+        self.write_transaction(node, Self::ADDR_LOW_OFFSET, &mut addr_lo)
+    }
+
+    fn enable_notification(&self, node: &hinawa::FwNode, enable: bool) -> Result<(), Error> {
+        let mut frames = (enable as u32).to_be_bytes();
+        self.write_transaction(node, Self::ENABLE_NOTIFICATION, &mut frames)
+    }
+}
+
 pub trait GetPosition<H> {
     fn get_position(&self, handle: H) -> Result<(), Error>;
 }
