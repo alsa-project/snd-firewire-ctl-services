@@ -6,9 +6,11 @@ use nix::sys::signal;
 use std::sync::mpsc;
 
 use hinawa::{SndUnitExt, SndDg00xExt};
-use hinawa::FwNodeExt;
+use hinawa::{FwNodeExt, FwNodeExtManual};
 
 use crate::dispatcher;
+
+use super::model::Dg00xModel;
 
 enum Event {
     Shutdown,
@@ -18,6 +20,7 @@ enum Event {
 
 pub struct Dg00xUnit {
     unit: hinawa::SndDg00x,
+    model: Dg00xModel,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -38,6 +41,10 @@ impl<'a> Dg00xUnit {
         let unit = hinawa::SndDg00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
+        let node = unit.get_node();
+        let data = node.get_config_rom()?;
+        let model = Dg00xModel::new(&data)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -45,6 +52,7 @@ impl<'a> Dg00xUnit {
 
         Ok(Dg00xUnit {
             unit,
+            model,
             rx,
             tx,
             dispatchers,
