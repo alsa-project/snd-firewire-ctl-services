@@ -9,3 +9,4 @@ pub mod card_cntr;
 
 pub mod dg00x;
 pub mod tascam;
+pub mod efw;
