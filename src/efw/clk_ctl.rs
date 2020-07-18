@@ -115,8 +115,12 @@ impl<'a> ClkCtl {
                 if !unit.get_property_streaming() {
                     let mut vals = [0];
                     new.get_enum(&mut vals);
-                    EfwHwCtl::set_clock(unit, Some(ClkSrc::from(vals[0] as usize)), None)?;
-                    Ok(true)
+                    if let Some(&src) = self.srcs.iter().nth(vals[0] as usize) {
+                        EfwHwCtl::set_clock(unit, Some(src), None)?;
+                        Ok(true)
+                    } else {
+                        Ok(false)
+                    }
                 } else {
                     Ok(false)
                 }
