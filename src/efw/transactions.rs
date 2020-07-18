@@ -8,6 +8,7 @@ enum Category {
     Info,
     HwCtl,
     PhysOutput,
+    PhysInput,
     Playback,
     Monitor,
 }
@@ -18,6 +19,7 @@ impl From<Category> for u32 {
             Category::Info => 0x00,
             Category::HwCtl => 0x03,
             Category::PhysOutput => 0x04,
+            Category::PhysInput => 0x05,
             Category::Playback => 0x06,
             Category::Monitor => 0x08,
         }
@@ -438,6 +440,38 @@ impl EfwPhysOutput {
         Ok(NominalLevel::from(params[1]))
     }
 }
+
+pub struct EfwPhysInput {}
+
+impl EfwPhysInput {
+    const CMD_SET_NOMINAL: u32 = 8;
+    const CMD_GET_NOMINAL: u32 = 9;
+
+    pub fn set_nominal(unit: &hinawa::SndEfw, ch: usize, level: NominalLevel) -> Result<(), Error> {
+        let args = [ch as u32, u32::from(level)];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysInput),
+            Self::CMD_SET_NOMINAL,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_nominal(unit: &hinawa::SndEfw, ch: usize) -> Result<NominalLevel, Error> {
+        let args = [ch as u32, 0];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysInput),
+            Self::CMD_GET_NOMINAL,
+            &args,
+            &mut params,
+        )?;
+        Ok(NominalLevel::from(params[1]))
+    }
+}
+
 pub struct EfwPlayback {}
 
 impl EfwPlayback {
