@@ -7,6 +7,7 @@ use hinawa::SndEfwExtManual;
 enum Category {
     Info,
     HwCtl,
+    PhysOutput,
     Playback,
     Monitor,
 }
@@ -16,6 +17,7 @@ impl From<Category> for u32 {
         match cat {
             Category::Info => 0x00,
             Category::HwCtl => 0x03,
+            Category::PhysOutput => 0x04,
             Category::Playback => 0x06,
             Category::Monitor => 0x08,
         }
@@ -328,6 +330,114 @@ impl EfwHwCtl {
     }
 }
 
+pub enum NominalLevel {
+    PlusFour,
+    Medium,
+    MinusTen,
+}
+
+impl From<NominalLevel> for u32 {
+    fn from(level: NominalLevel) -> Self {
+        match level {
+            NominalLevel::MinusTen => 2,
+            NominalLevel::Medium => 1,
+            NominalLevel::PlusFour => 0,
+        }
+    }
+}
+
+impl From<u32> for NominalLevel {
+    fn from(val: u32) -> Self {
+        match val {
+            2 => NominalLevel::MinusTen,
+            1 => NominalLevel::Medium,
+            _ => NominalLevel::PlusFour,
+        }
+    }
+}
+
+pub struct EfwPhysOutput {}
+
+impl EfwPhysOutput {
+    const CMD_SET_VOL: u32 = 0;
+    const CMD_GET_VOL: u32 = 1;
+    const CMD_SET_MUTE: u32 = 2;
+    const CMD_GET_MUTE: u32 = 3;
+    const CMD_SET_NOMINAL: u32 = 8;
+    const CMD_GET_NOMINAL: u32 = 9;
+
+    pub fn set_vol(unit: &hinawa::SndEfw, ch: usize, vol: i32) -> Result<(), Error> {
+        let args = [ch as u32, vol as u32];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysOutput),
+            Self::CMD_SET_VOL,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_vol(unit: &hinawa::SndEfw, ch: usize) -> Result<i32, Error> {
+        let args = [ch as u32, 0];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysOutput),
+            Self::CMD_GET_VOL,
+            &args,
+            &mut params,
+        )?;
+        Ok(params[1] as i32)
+    }
+
+    pub fn set_mute(unit: &hinawa::SndEfw, ch: usize, mute: bool) -> Result<(), Error> {
+        let args = [ch as u32, mute as u32];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysOutput),
+            Self::CMD_SET_MUTE,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_mute(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
+        let args = [ch as u32, 0];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysOutput),
+            Self::CMD_GET_MUTE,
+            &args,
+            &mut params,
+        )?;
+        Ok(params[1] > 0)
+    }
+
+    pub fn set_nominal(unit: &hinawa::SndEfw, ch: usize, level: NominalLevel) -> Result<(), Error> {
+        let args = [ch as u32, u32::from(level)];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysOutput),
+            Self::CMD_SET_NOMINAL,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_nominal(unit: &hinawa::SndEfw, ch: usize) -> Result<NominalLevel, Error> {
+        let args = [ch as u32, 0];
+        let mut params = [0; 2];
+        let _ = unit.transaction(
+            u32::from(Category::PhysOutput),
+            Self::CMD_GET_NOMINAL,
+            &args,
+            &mut params,
+        )?;
+        Ok(NominalLevel::from(params[1]))
+    }
+}
 pub struct EfwPlayback {}
 
 impl EfwPlayback {
