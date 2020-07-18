@@ -8,6 +8,7 @@ enum Category {
     Info,
     HwCtl,
     Playback,
+    Monitor,
 }
 
 impl From<Category> for u32 {
@@ -16,6 +17,7 @@ impl From<Category> for u32 {
             Category::Info => 0x00,
             Category::HwCtl => 0x03,
             Category::Playback => 0x06,
+            Category::Monitor => 0x08,
         }
     }
 }
@@ -406,5 +408,124 @@ impl EfwPlayback {
             &mut params,
         )?;
         Ok(params[1] > 0)
+    }
+}
+
+pub struct EfwMonitor {}
+
+impl EfwMonitor {
+    const CMD_SET_VOL: u32 = 0;
+    const CMD_GET_VOL: u32 = 1;
+    const CMD_SET_MUTE: u32 = 2;
+    const CMD_GET_MUTE: u32 = 3;
+    const CMD_SET_SOLO: u32 = 4;
+    const CMD_GET_SOLO: u32 = 5;
+    const CMD_SET_PAN: u32 = 4;
+    const CMD_GET_PAN: u32 = 5;
+
+    pub fn set_vol(unit: &hinawa::SndEfw, dst: usize, src: usize, vol: i32) -> Result<(), Error> {
+        let args = [src as u32, dst as u32, vol as u32];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_SET_VOL,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_vol(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<i32, Error> {
+        let args = [src as u32, dst as u32, 0];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_GET_VOL,
+            &args,
+            &mut params,
+        )?;
+        Ok(params[1] as i32)
+    }
+
+    pub fn set_mute(
+        unit: &hinawa::SndEfw,
+        dst: usize,
+        src: usize,
+        mute: bool,
+    ) -> Result<(), Error> {
+        let args = [src as u32, dst as u32, mute as u32];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_SET_MUTE,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_mute(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<bool, Error> {
+        let args = [src as u32, dst as u32, 0];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_GET_MUTE,
+            &args,
+            &mut params,
+        )?;
+        Ok(params[1] > 0)
+    }
+
+    pub fn set_solo(
+        unit: &hinawa::SndEfw,
+        dst: usize,
+        src: usize,
+        solo: bool,
+    ) -> Result<(), Error> {
+        let args = [src as u32, dst as u32, solo as u32];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_SET_SOLO,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_solo(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<bool, Error> {
+        let args = [src as u32, dst as u32, 0];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_GET_SOLO,
+            &args,
+            &mut params,
+        )?;
+        Ok(params[1] > 0)
+    }
+
+    pub fn set_pan(unit: &hinawa::SndEfw, dst: usize, src: usize, pan: u8) -> Result<(), Error> {
+        let args = [src as u32, dst as u32, pan as u32];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_SET_PAN,
+            &args,
+            &mut params,
+        )?;
+        Ok(())
+    }
+
+    pub fn get_pan(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<u8, Error> {
+        let args = [src as u32, dst as u32, 0];
+        let mut params = [0; 3];
+        let _ = unit.transaction(
+            u32::from(Category::Monitor),
+            Self::CMD_GET_PAN,
+            &args,
+            &mut params,
+        )?;
+        Ok(params[1] as u8)
     }
 }
