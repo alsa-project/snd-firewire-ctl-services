@@ -13,6 +13,7 @@ use super::mixer_ctl;
 use super::output_ctl;
 use super::input_ctl;
 use super::port_ctl;
+use super::meter_ctl;
 
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
@@ -20,6 +21,7 @@ pub struct EfwModel {
     output_ctl: output_ctl::OutputCtl,
     input_ctl: input_ctl::InputCtl,
     port_ctl: port_ctl::PortCtl,
+    meter_ctl: meter_ctl::MeterCtl,
 }
 
 impl EfwModel {
@@ -54,6 +56,7 @@ impl EfwModel {
                         output_ctl: output_ctl::OutputCtl::new(),
                         input_ctl: input_ctl::InputCtl::new(),
                         port_ctl: port_ctl::PortCtl::new(),
+                        meter_ctl: meter_ctl::MeterCtl::new(),
                     };
                     Ok(model)
                 },
@@ -79,6 +82,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         self.output_ctl.load(&hwinfo, card_cntr)?;
         self.input_ctl.load(&hwinfo, card_cntr)?;
         self.port_ctl.load(&hwinfo, card_cntr)?;
+        self.meter_ctl.load(&hwinfo, card_cntr)?;
         Ok(())
     }
 
@@ -124,21 +128,21 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
 }
 
 impl card_cntr::MonitorModel<hinawa::SndEfw> for EfwModel {
-    fn get_monitored_elems(&mut self, _: &mut Vec<alsactl::ElemId>) {
-        ()
+    fn get_monitored_elems(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.monitored_elems);
     }
 
-    fn monitor_unit(&mut self, _: &hinawa::SndEfw) -> Result<(), Error> {
-        Ok(())
+    fn monitor_unit(&mut self, unit: &hinawa::SndEfw) -> Result<(), Error> {
+        self.meter_ctl.monitor_unit(unit)
     }
 
     fn monitor_elems(
         &mut self,
-        _: &hinawa::SndEfw,
-        _: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        _: &mut alsactl::ElemValue,
+        unit: &hinawa::SndEfw,
+        elem_id: &alsactl::ElemId,
+        old: &alsactl::ElemValue,
+        new: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        self.meter_ctl.monitor_elems(unit, elem_id, old, new)
     }
 }
