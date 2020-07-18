@@ -7,11 +7,11 @@ use std::sync::mpsc;
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndEfwExt};
 
-use alsactl::CardExt;
+use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
 use crate::dispatcher;
 use crate::card_cntr;
-use card_cntr::CtlModel;
+use card_cntr::{CtlModel, MonitorModel};
 
 use super::model;
 
@@ -19,6 +19,7 @@ enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Monitor,
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
@@ -29,6 +30,8 @@ pub struct EfwUnit {
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
+    monitor: Option<dispatcher::Dispatcher>,
+    monitored_elems: Vec<alsactl::ElemId>,
 }
 
 impl Drop for EfwUnit {
@@ -41,6 +44,10 @@ impl Drop for EfwUnit {
 impl<'a> EfwUnit {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
+    const MONITOR_DISPATCHER_NAME: &'a str = "interval monitor dispatcher";
+
+    const MONITOR_NAME: &'a str = "monitoring";
+    const MONITOR_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     pub fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndEfw::new();
@@ -57,6 +64,8 @@ impl<'a> EfwUnit {
         let (tx, rx) = mpsc::sync_channel(32);
 
         let dispatchers = Vec::new();
+        let monitor = None;
+        let monitored_elems = Vec::new();
 
         Ok(EfwUnit {
             unit,
@@ -65,6 +74,8 @@ impl<'a> EfwUnit {
             rx,
             tx,
             dispatchers,
+            monitor,
+            monitored_elems,
         })
     }
 
@@ -122,7 +133,33 @@ impl<'a> EfwUnit {
 
         self.model.load(&self.unit, &mut self.card_cntr)?;
 
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
+                                                   Self::MONITOR_NAME, 0);
+        let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        self.model.get_monitored_elems(&mut self.monitored_elems);
+
         Ok(())
+    }
+
+    fn start_interval_monitor(&mut self) -> Result<(), Error> {
+        let mut dispatcher = dispatcher::Dispatcher::run(Self::MONITOR_DISPATCHER_NAME.to_string())?;
+        let tx = self.tx.clone();
+        dispatcher.attach_interval_handler(Self::MONITOR_INTERVAL, move || {
+            let _ = tx.send(Event::Monitor);
+            source::Continue(true)
+        });
+
+        self.monitor = Some(dispatcher);
+
+        Ok(())
+    }
+
+    fn stop_interval_monitor(&mut self) {
+        if let Some(dispatcher) = &self.monitor {
+            drop(dispatcher);
+            self.monitor = None;
+        }
     }
 
     pub fn run(&mut self) {
@@ -137,13 +174,31 @@ impl<'a> EfwUnit {
                 Event::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
+                Event::Monitor => {
+                    let _ = self.model.monitor_unit(&self.unit);
+                    let _ = self.card_cntr.monitor_elems(&self.unit, &self.monitored_elems,
+                                                         &mut self.model);
+                }
                 Event::Elem((elem_id, events)) => {
-                    let _ = self.card_cntr.dispatch_elem_event(
-                        &self.unit,
-                        &elem_id,
-                        &events,
-                        &mut self.model,
-                    );
+                    if elem_id.get_name() != Self::MONITOR_NAME {
+                        let _ = self.card_cntr.dispatch_elem_event(
+                            &self.unit,
+                            &elem_id,
+                            &events,
+                            &mut self.model,
+                        );
+                    } else {
+                        let mut elem_value = alsactl::ElemValue::new();
+                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                            let mut vals = [false];
+                            elem_value.get_bool(&mut vals);
+                            if vals[0] {
+                                let _ = self.start_interval_monitor();
+                            } else {
+                                self.stop_interval_monitor();
+                            }
+                        }
+                    }
                 }
             }
         }
