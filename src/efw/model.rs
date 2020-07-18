@@ -8,8 +8,11 @@ use crate::card_cntr;
 use card_cntr::CtlModel;
 
 use super::transactions::EfwInfo;
+use super::clk_ctl;
 
-pub struct EfwModel {}
+pub struct EfwModel {
+    clk_ctl: clk_ctl::ClkCtl,
+}
 
 impl EfwModel {
     pub fn new(data: &[u8]) -> Result<Self, Error> {
@@ -37,7 +40,9 @@ impl EfwModel {
                 (0x00075b, 0x00afb2) |
                 // Gibson, Robot Interface Pack (RIP) for Dark Fire series.
                 (0x00075b, 0x00afb9) => {
-                    let model = EfwModel {};
+                    let model = EfwModel {
+                        clk_ctl: clk_ctl::ClkCtl::new(),
+                    };
                     Ok(model)
                 },
                 _ => {
@@ -54,24 +59,34 @@ impl EfwModel {
 }
 
 impl CtlModel<hinawa::SndEfw> for EfwModel {
-    fn load(&mut self, unit: &hinawa::SndEfw, _: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &hinawa::SndEfw, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error> {
         let hwinfo = EfwInfo::get_hwinfo(unit)?;
-
+        self.clk_ctl.load(&hwinfo, card_cntr)?;
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndEfw, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+    fn read(&mut self, unit: &hinawa::SndEfw, elem_id: &alsactl::ElemId,
+            elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error> {
-        Ok(false)
+        if self.clk_ctl.read(unit, elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(
         &mut self,
-        _: &hinawa::SndEfw,
-        _: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        _: &alsactl::ElemValue,
+        unit: &hinawa::SndEfw,
+        elem_id: &alsactl::ElemId,
+        old: &alsactl::ElemValue,
+        new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.clk_ctl.write(unit, elem_id, old, new)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
