@@ -19,6 +19,8 @@ snd-firewire-digi00x-ctl-service
    For sound card bound to ALSA firewire-digi00x driver (snd-firewire-digi00x)
 snd-firewire-tascam-ctl-service
    For sound card bound to ALSA firewire-tascam driver (snd-firewire-tascam), or TASCAM FE-8.
+snd-fireworks-ctl-service
+   For sound card bound to ALSA fireworks driver (snd-fireworks)
 
 License
 =======
@@ -75,6 +77,19 @@ your device, please contact to developer.
   * Tascam FW-1804
   * Tascam FE-8
 
+* snd-fireowrks-ctl-service
+
+  * Mackie (Loud) Onyx 1200F
+  * Mackie (Loud) Onyx 400F
+  * Echo Audio Audiofire 12 (till Jul 2009)
+  * Echo Audio Audiofire 8 (till Jul 2009)
+  * Echo Audio Audiofire 12 (since Jul 2009)
+  * Echo Audio Audiofire 8 (since Jul 2009)
+  * Echo Audio Audiofire 2
+  * Echo Audio Audiofire 4
+  * Echo Audio Audiofire Pre8
+  * Gibson Robot Interface Pack (RIP) for Robot Guitar series
+
 Supported protocols
 ===================
 
@@ -84,6 +99,7 @@ Supported protocols
 * Vendor specific protocols
    * Protocol for Digi 002/003 family of Digidesign
    * Protocol for FireWire series of TASCAM (TEAC)
+   * Protocol for Fireworks board module of Echo Digital Audio
 
 Design note
 ===========
