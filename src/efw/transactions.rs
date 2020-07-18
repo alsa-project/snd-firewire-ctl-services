@@ -630,8 +630,8 @@ impl EfwMonitor {
     const CMD_GET_MUTE: u32 = 3;
     const CMD_SET_SOLO: u32 = 4;
     const CMD_GET_SOLO: u32 = 5;
-    const CMD_SET_PAN: u32 = 4;
-    const CMD_GET_PAN: u32 = 5;
+    const CMD_SET_PAN: u32 = 6;
+    const CMD_GET_PAN: u32 = 7;
 
     pub fn set_vol(unit: &hinawa::SndEfw, dst: usize, src: usize, vol: i32) -> Result<(), Error> {
         let args = [src as u32, dst as u32, vol as u32];
