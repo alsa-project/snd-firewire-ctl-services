@@ -107,18 +107,15 @@ impl<'a> ClkCtl {
         &mut self,
         unit: &hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
+        _: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
                 if !unit.get_property_streaming() {
-                    let mut vals = [0; 2];
-                    old.get_enum(&mut vals[0..1]);
-                    new.get_enum(&mut vals[1..]);
-                    if vals[0] != vals[1] {
-                        EfwHwCtl::set_clock(unit, Some(ClkSrc::from(vals[0] as usize)), None)?;
-                    }
+                    let mut vals = [0];
+                    new.get_enum(&mut vals);
+                    EfwHwCtl::set_clock(unit, Some(ClkSrc::from(vals[0] as usize)), None)?;
                     Ok(true)
                 } else {
                     Ok(false)
@@ -126,12 +123,9 @@ impl<'a> ClkCtl {
             }
             Self::RATE_NAME => {
                 if !unit.get_property_streaming() {
-                    let mut vals = [0; 2];
-                    old.get_enum(&mut vals[0..1]);
-                    new.get_enum(&mut vals[1..]);
-                    if vals[0] != vals[1] {
-                        EfwHwCtl::set_clock(unit, None, Some(vals[0]))?;
-                    }
+                    let mut vals = [0];
+                    new.get_enum(&mut vals);
+                    EfwHwCtl::set_clock(unit, None, Some(vals[0]))?;
                     Ok(true)
                 } else {
                     Ok(false)
