@@ -11,6 +11,7 @@ enum Category {
     PhysInput,
     Playback,
     Monitor,
+    PortConf,
 }
 
 impl From<Category> for u32 {
@@ -22,6 +23,7 @@ impl From<Category> for u32 {
             Category::PhysInput => 0x05,
             Category::Playback => 0x06,
             Category::Monitor => 0x08,
+            Category::PortConf => 0x09,
         }
     }
 }
@@ -671,5 +673,171 @@ impl EfwMonitor {
             &mut params,
         )?;
         Ok(params[1] as u8)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum DigitalMode {
+    SpdifCoax,
+    AesebuXlr,
+    SpdifOpt,
+    AdatOpt,
+    Unknown(u32),
+}
+
+impl From<u32> for DigitalMode {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => DigitalMode::SpdifCoax,
+            1 => DigitalMode::AesebuXlr,
+            2 => DigitalMode::SpdifOpt,
+            3 => DigitalMode::AdatOpt,
+            _ => DigitalMode::Unknown(val),
+        }
+    }
+}
+
+impl From<DigitalMode> for u32 {
+    fn from(mode: DigitalMode) -> Self {
+        match mode {
+            DigitalMode::SpdifCoax => 0,
+            DigitalMode::AesebuXlr => 1,
+            DigitalMode::SpdifOpt => 2,
+            DigitalMode::AdatOpt => 3,
+            DigitalMode::Unknown(val) => val,
+        }
+    }
+}
+
+pub struct EfwPortConf {}
+
+impl EfwPortConf {
+    const CMD_SET_MIRROR: u32 = 0;
+    const CMD_GET_MIRROR: u32 = 1;
+    const CMD_SET_DIG_MODE: u32 = 2;
+    const CMD_GET_DIG_MODE: u32 = 3;
+    const CMD_SET_PHANTOM: u32 = 4;
+    const CMD_GET_PHANTOM: u32 = 5;
+    const CMD_SET_STREAM_MAP: u32 = 6;
+    const CMD_GET_STREAM_MAP: u32 = 7;
+
+    const MAP_SIZE: usize = 70;
+
+    pub fn set_output_mirror(unit: &hinawa::SndEfw, pair: usize) -> Result<(), Error> {
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_SET_MIRROR,
+            &[pair as u32],
+            &mut [0],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_output_mirror(unit: &hinawa::SndEfw) -> Result<usize, Error> {
+        let mut params = [0];
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_GET_MIRROR,
+            &[],
+            &mut params,
+        )?;
+        Ok(params[0] as usize)
+    }
+
+    pub fn set_digital_mode(unit: &hinawa::SndEfw, mode: DigitalMode) -> Result<(), Error> {
+        let args = [u32::from(mode)];
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_SET_DIG_MODE,
+            &args,
+            &mut [0],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_digital_mode(unit: &hinawa::SndEfw) -> Result<DigitalMode, Error> {
+        let mut params = [0];
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_GET_DIG_MODE,
+            &[],
+            &mut params,
+        )?;
+        Ok(DigitalMode::from(params[0]))
+    }
+
+    pub fn set_phantom_powering(unit: &hinawa::SndEfw, state: bool) -> Result<(), Error> {
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_SET_PHANTOM,
+            &[state as u32],
+            &mut [0],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_phantom_powering(unit: &hinawa::SndEfw) -> Result<bool, Error> {
+        let mut params = [0];
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_GET_PHANTOM,
+            &[],
+            &mut params,
+        )?;
+        Ok(params[0] > 0)
+    }
+
+    pub fn set_stream_map(
+        unit: &hinawa::SndEfw,
+        rx_map: Option<Vec<usize>>,
+        tx_map: Option<Vec<usize>>,
+    ) -> Result<(), Error> {
+        let mut args = [0; Self::MAP_SIZE];
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_GET_STREAM_MAP,
+            &[],
+            &mut args,
+        )?;
+        if let Some(entries) = rx_map {
+            args[2] = entries.len() as u32;
+            entries
+                .iter()
+                .enumerate()
+                .for_each(|(pos, entry)| args[4 + pos] = 2 * *entry as u32);
+        }
+        if let Some(entries) = tx_map {
+            args[36] = entries.len() as u32;
+            entries
+                .iter()
+                .enumerate()
+                .for_each(|(pos, entry)| args[38 + pos] = 2 * *entry as u32);
+        }
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_SET_STREAM_MAP,
+            &args,
+            &mut [0],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_stream_map(unit: &hinawa::SndEfw) -> Result<(Vec<usize>, Vec<usize>), Error> {
+        let mut params = [0; Self::MAP_SIZE];
+        let _ = unit.transaction(
+            u32::from(Category::PortConf),
+            Self::CMD_GET_STREAM_MAP,
+            &[],
+            &mut params,
+        )?;
+        let rx_entry_count = params[2] as usize;
+        let rx_entries: Vec<usize> = (0..rx_entry_count)
+            .map(|pos| (params[4 + pos] / 2) as usize)
+            .collect();
+        let tx_entry_count = params[36] as usize;
+        let tx_entries: Vec<usize> = (0..tx_entry_count)
+            .map(|pos| (params[38 + pos] / 2) as usize)
+            .collect();
+        Ok((rx_entries, tx_entries))
     }
 }
