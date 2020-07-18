@@ -12,12 +12,14 @@ use super::clk_ctl;
 use super::mixer_ctl;
 use super::output_ctl;
 use super::input_ctl;
+use super::port_ctl;
 
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
     mixer_ctl: mixer_ctl::MixerCtl,
     output_ctl: output_ctl::OutputCtl,
     input_ctl: input_ctl::InputCtl,
+    port_ctl: port_ctl::PortCtl,
 }
 
 impl EfwModel {
@@ -51,6 +53,7 @@ impl EfwModel {
                         mixer_ctl: mixer_ctl::MixerCtl::new(),
                         output_ctl: output_ctl::OutputCtl::new(),
                         input_ctl: input_ctl::InputCtl::new(),
+                        port_ctl: port_ctl::PortCtl::new(),
                     };
                     Ok(model)
                 },
@@ -75,6 +78,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
         self.input_ctl.load(&hwinfo, card_cntr)?;
+        self.port_ctl.load(&hwinfo, card_cntr)?;
         Ok(())
     }
 
@@ -88,6 +92,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         } else if self.output_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(unit, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.port_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -108,6 +114,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         } else if self.output_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
         } else if self.input_ctl.write(unit, elem_id, old, new)? {
+            Ok(true)
+        } else if self.port_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
