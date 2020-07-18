@@ -9,9 +9,11 @@ use card_cntr::CtlModel;
 
 use super::transactions::EfwInfo;
 use super::clk_ctl;
+use super::mixer_ctl;
 
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
+    mixer_ctl: mixer_ctl::MixerCtl,
 }
 
 impl EfwModel {
@@ -42,6 +44,7 @@ impl EfwModel {
                 (0x00075b, 0x00afb9) => {
                     let model = EfwModel {
                         clk_ctl: clk_ctl::ClkCtl::new(),
+                        mixer_ctl: mixer_ctl::MixerCtl::new(),
                     };
                     Ok(model)
                 },
@@ -63,6 +66,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         -> Result<(), Error> {
         let hwinfo = EfwInfo::get_hwinfo(unit)?;
         self.clk_ctl.load(&hwinfo, card_cntr)?;
+        self.mixer_ctl.load(&hwinfo, card_cntr)?;
         Ok(())
     }
 
@@ -70,6 +74,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error> {
         if self.clk_ctl.read(unit, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -84,6 +90,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, old, new)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
