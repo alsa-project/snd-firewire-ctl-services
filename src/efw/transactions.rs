@@ -654,7 +654,7 @@ impl EfwMonitor {
             &args,
             &mut params,
         )?;
-        Ok(params[1] as i32)
+        Ok(params[2] as i32)
     }
 
     pub fn set_mute(
@@ -683,7 +683,7 @@ impl EfwMonitor {
             &args,
             &mut params,
         )?;
-        Ok(params[1] > 0)
+        Ok(params[2] > 0)
     }
 
     pub fn set_solo(
@@ -712,7 +712,7 @@ impl EfwMonitor {
             &args,
             &mut params,
         )?;
-        Ok(params[1] > 0)
+        Ok(params[2] > 0)
     }
 
     pub fn set_pan(unit: &hinawa::SndEfw, dst: usize, src: usize, pan: u8) -> Result<(), Error> {
@@ -736,7 +736,7 @@ impl EfwMonitor {
             &args,
             &mut params,
         )?;
-        Ok(params[1] as u8)
+        Ok(params[2] as u8)
     }
 }
 
