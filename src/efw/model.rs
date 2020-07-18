@@ -122,3 +122,23 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         }
     }
 }
+
+impl card_cntr::MonitorModel<hinawa::SndEfw> for EfwModel {
+    fn get_monitored_elems(&mut self, _: &mut Vec<alsactl::ElemId>) {
+        ()
+    }
+
+    fn monitor_unit(&mut self, _: &hinawa::SndEfw) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn monitor_elems(
+        &mut self,
+        _: &hinawa::SndEfw,
+        _: &alsactl::ElemId,
+        _: &alsactl::ElemValue,
+        _: &mut alsactl::ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+}
