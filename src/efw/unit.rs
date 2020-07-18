@@ -5,9 +5,11 @@ use glib::source;
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::{FwNodeExt, SndUnitExt, SndEfwExt};
+use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndEfwExt};
 
 use crate::dispatcher;
+
+use super::model;
 
 enum Event {
     Shutdown,
@@ -17,6 +19,7 @@ enum Event {
 
 pub struct EfwUnit {
     unit: hinawa::SndEfw,
+    model: model::EfwModel,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -37,6 +40,10 @@ impl<'a> EfwUnit {
         let unit = hinawa::SndEfw::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
+        let node = unit.get_node();
+        let data = node.get_config_rom()?;
+        let model = model::EfwModel::new(&data)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -44,6 +51,7 @@ impl<'a> EfwUnit {
 
         Ok(EfwUnit {
             unit,
+            model,
             rx,
             tx,
             dispatchers,
