@@ -4,6 +4,9 @@ use glib::{Error, FileError};
 
 use crate::ta1394;
 
+use crate::card_cntr;
+use card_cntr::CtlModel;
+
 pub struct EfwModel {}
 
 impl EfwModel {
@@ -45,5 +48,26 @@ impl EfwModel {
                 Err(Error::new(FileError::Noent, label))
             }
         }
+    }
+}
+
+impl CtlModel<hinawa::SndEfw> for EfwModel {
+    fn load(&mut self, _: &hinawa::SndEfw, _: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read(&mut self, _: &hinawa::SndEfw, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+        -> Result<bool, Error> {
+        Ok(false)
+    }
+
+    fn write(
+        &mut self,
+        _: &hinawa::SndEfw,
+        _: &alsactl::ElemId,
+        _: &alsactl::ElemValue,
+        _: &alsactl::ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
     }
 }
