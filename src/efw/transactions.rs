@@ -6,12 +6,14 @@ use hinawa::SndEfwExtManual;
 
 enum Category {
     Info,
+    HwCtl,
 }
 
 impl From<Category> for u32 {
     fn from(cat: Category) -> Self {
         match cat {
             Category::Info => 0x00,
+            Category::HwCtl => 0x03,
         }
     }
 }
@@ -276,5 +278,48 @@ impl EfwInfo {
         let _ = unit.transaction(u32::from(Category::Info), Self::CMD_HWINFO,
                                  &[], &mut data)?;
         HwInfo::new(&data)
+    }
+}
+
+pub struct EfwHwCtl {}
+
+impl EfwHwCtl {
+    const CMD_SET_CLOCK: u32 = 0;
+    const CMD_GET_CLOCK: u32 = 1;
+
+    pub fn set_clock(
+        unit: &hinawa::SndEfw,
+        src: Option<ClkSrc>,
+        rate: Option<u32>,
+    ) -> Result<(), Error> {
+        let mut args = [0, 0, 0];
+        let mut params = [0, 0, 0];
+        let (current_src, current_rate) = Self::get_clock(unit)?;
+        args[0] = usize::from(match src {
+            Some(s) => s,
+            None => current_src,
+        }) as u32;
+        args[1] = match rate {
+            Some(r) => r,
+            None => current_rate,
+        };
+        let _ = unit.transaction(
+            u32::from(Category::HwCtl),
+            Self::CMD_SET_CLOCK,
+            &args,
+            &mut params,
+        );
+        Ok(())
+    }
+
+    pub fn get_clock(unit: &hinawa::SndEfw) -> Result<(ClkSrc, u32), Error> {
+        let mut params = [0, 0, 0];
+        let _ = unit.transaction(
+            u32::from(Category::HwCtl),
+            Self::CMD_GET_CLOCK,
+            &[],
+            &mut params,
+        )?;
+        Ok((ClkSrc::from(params[0] as usize), params[1]))
     }
 }
