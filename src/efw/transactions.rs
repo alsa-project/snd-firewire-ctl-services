@@ -278,16 +278,78 @@ impl HwInfo {
     }
 }
 
+#[derive(Debug)]
+pub struct HwMeter {
+    pub detected_clk_srcs: Vec<(ClkSrc, bool)>,
+    pub detected_midi_inputs: [bool; 2],
+    pub detected_midi_outputs: [bool; 2],
+    pub guitar_charging: bool,
+    pub guitar_stereo_connect: bool,
+    pub guitar_hex_signal: bool,
+    pub phys_output_meters: Vec<i32>,
+    pub phys_input_meters: Vec<i32>,
+}
+
+impl HwMeter {
+    const METER_SIZE: usize = 110;
+
+    pub fn new(clk_srcs: &[ClkSrc], phys_inputs: usize, phys_outputs: usize) -> Self {
+        HwMeter {
+            detected_clk_srcs: clk_srcs.iter().map(|&src| (src, false)).collect(),
+            detected_midi_inputs: [false; 2],
+            detected_midi_outputs: [false; 2],
+            guitar_charging: false,
+            guitar_stereo_connect: false,
+            guitar_hex_signal: false,
+            phys_output_meters: vec![0; phys_outputs],
+            phys_input_meters: vec![0; phys_inputs],
+        }
+    }
+
+    pub fn parse(&mut self, data: &[u32;Self::METER_SIZE]) -> Result<(), Error> {
+        let flags = data[0];
+        self.detected_clk_srcs.iter_mut()
+            .for_each(|(src, detected)| *detected = (1 << usize::from(*src)) & flags > 0);
+        // I note that data[1..4] is reserved space and it stores previous set command for FPGA device.
+        self.detected_midi_inputs.iter_mut().enumerate()
+            .for_each(|(i, detected)| *detected = (1 << (8 + i)) & flags > 0);
+        self.detected_midi_outputs.iter_mut().enumerate()
+            .for_each(|(i, detected)| *detected = (1 << (8 + i)) & flags > 0);
+        self.guitar_charging = (1 << 29) & flags > 0;
+        self.guitar_stereo_connect = (1 << 30) & flags > 0;
+        self.guitar_hex_signal = (1 << 31) & flags > 0;
+
+        let phys_outputs = data[5] as usize;
+        let phys_inputs = data[6] as usize;
+        self.phys_output_meters.iter_mut().take(phys_outputs).enumerate()
+            .for_each(|(i, val)| *val = Self::calc(data[9 + i]));
+        self.phys_input_meters.iter_mut().take(phys_inputs).enumerate()
+            .for_each(|(i, val)| *val = Self::calc(data[9 + i + phys_outputs]));
+        Ok(())
+    }
+
+    fn calc(val: u32) -> i32 {
+        (val >> 8) as i32
+    }
+}
+
 pub struct EfwInfo {}
 
 impl EfwInfo {
     const CMD_HWINFO: u32 = 0;
+    const CMD_METER: u32 = 1;
 
     pub fn get_hwinfo(unit: &hinawa::SndEfw) -> Result<HwInfo, Error> {
         let mut data = [0; HwInfo::SIZE];
         let _ = unit.transaction(u32::from(Category::Info), Self::CMD_HWINFO,
                                  &[], &mut data)?;
         HwInfo::new(&data)
+    }
+
+    pub fn get_meter(unit: &hinawa::SndEfw, meters: &mut HwMeter) -> Result<(), Error> {
+        let mut params = [0; HwMeter::METER_SIZE];
+        let _ = unit.transaction(u32::from(Category::Info), Self::CMD_METER, &[], &mut params)?;
+        meters.parse(&params)
     }
 }
 
