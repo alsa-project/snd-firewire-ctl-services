@@ -7,6 +7,8 @@ use crate::ta1394;
 use crate::card_cntr;
 use card_cntr::CtlModel;
 
+use super::transactions::EfwInfo;
+
 pub struct EfwModel {}
 
 impl EfwModel {
@@ -52,7 +54,9 @@ impl EfwModel {
 }
 
 impl CtlModel<hinawa::SndEfw> for EfwModel {
-    fn load(&mut self, _: &hinawa::SndEfw, _: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &hinawa::SndEfw, _: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        let hwinfo = EfwInfo::get_hwinfo(unit)?;
+
         Ok(())
     }
 
