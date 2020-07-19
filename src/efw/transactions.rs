@@ -181,15 +181,16 @@ pub struct HwInfo {
 impl HwInfo {
     const SIZE: usize = 65;
 
+    const O1200F: u32 = 0x0001200f;
+
     fn new(data: &[u32;Self::SIZE]) -> Result<Self, Error> {
-        let model_name = Self::parse_text(&data[13..21])?;
         let info = HwInfo {
-            caps: Self::parse_caps(data[0], &model_name),
+            caps: Self::parse_caps(data[0], data[3]),
             guid: ((data[1] as u64) << 32) | (data[2] as u64),
             hw_type: data[3],
             hw_version: data[4],
             vendor_name: Self::parse_text(&data[5..13])?,
-            model_name: model_name,
+            model_name: Self::parse_text(&data[13..21])?,
             clk_srcs: Self::parse_supported_clk_srcs(data[21]),
             rx_channels: [
                 data[22] as usize,
@@ -215,15 +216,16 @@ impl HwInfo {
         Ok(info)
     }
 
-    fn parse_caps(flags: u32, model_name: &str) -> Vec<HwCap> {
+    fn parse_caps(flags: u32, hw_type: u32) -> Vec<HwCap> {
         let mut caps = Vec::new();
         (0..16).for_each(|i| {
             if (1 << i) & flags > 0 {
                 caps.push(HwCap::from(i))
             }
         });
-        if model_name == "Onyx 1200F" {
-            caps.push(HwCap::InputMapping);
+        match hw_type {
+            Self::O1200F => caps.push(HwCap::InputMapping),
+            _ => (),
         }
         caps
     }
