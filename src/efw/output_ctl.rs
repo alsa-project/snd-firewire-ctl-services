@@ -23,7 +23,8 @@ impl<'a> OutputCtl {
     const COEF_STEP: i32 = 0x00000001;
     const COEF_TLV: &'a [i32] = &[5, 8, -14400, 6];
 
-    const OUT_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "0", "-10dBV"];
+    const OUT_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "-10dBV"];
+    const OUT_NOMINAL_LEVELS: &'a [NominalLevel] = &[NominalLevel::PlusFour, NominalLevel::MinusTen];
 
     pub fn new() -> Self {
         OutputCtl { phys_outputs: 0 }
@@ -88,11 +89,10 @@ impl<'a> OutputCtl {
             Self::OUT_NOMINAL_NAME => {
                 let mut vals = vec![0; self.phys_outputs];
                 vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = match EfwPhysOutput::get_nominal(unit, i)? {
-                        NominalLevel::MinusTen => 2,
-                        NominalLevel::Medium => 1,
-                        NominalLevel::PlusFour => 0,
-                    };
+                    let level = EfwPhysOutput::get_nominal(unit, i)?;
+                    if let Some(pos) = Self::OUT_NOMINAL_LEVELS.iter().position(|&l| l == level) {
+                        *val = pos as u32;
+                    }
                     Ok(())
                 })?;
                 elem_value.set_enum(&vals);
@@ -140,12 +140,9 @@ impl<'a> OutputCtl {
                 old.get_enum(&mut vals[self.phys_outputs..]);
                 (0..self.phys_outputs).try_for_each(|i| {
                     if vals[i] != vals[self.phys_outputs + i] {
-                        let level = match vals[i] {
-                            2 => NominalLevel::MinusTen,
-                            1 => NominalLevel::Medium,
-                            _ => NominalLevel::PlusFour,
-                        };
-                        EfwPhysOutput::set_nominal(unit, i, level)?;
+                        if let Some(&level) = Self::OUT_NOMINAL_LEVELS.iter().nth(vals[i] as usize) {
+                            EfwPhysOutput::set_nominal(unit, i, level)?;
+                        }
                     }
                     Ok(())
                 })?;
