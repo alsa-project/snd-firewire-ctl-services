@@ -83,7 +83,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         self.clk_ctl.load(&hwinfo, card_cntr)?;
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
-        self.input_ctl.load(&hwinfo, card_cntr)?;
+        self.input_ctl.load(unit, &hwinfo, card_cntr)?;
         self.port_ctl.load(&hwinfo, card_cntr)?;
         self.meter_ctl.load(&hwinfo, card_cntr)?;
         self.guitar_ctl.load(&hwinfo, card_cntr)?;
