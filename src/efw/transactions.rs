@@ -182,6 +182,11 @@ impl HwInfo {
     const SIZE: usize = 65;
 
     const O1200F: u32 = 0x0001200f;
+    const AF2: u32 = 0x00000af2;
+    const AF4: u32 = 0x00000af4;
+    const AF8: u32 = 0x00000af8;
+    const AFP8: u32 = 0x00000af9;
+    const AF12: u32 = 0x0000af12;
 
     fn new(data: &[u32;Self::SIZE]) -> Result<Self, Error> {
         let info = HwInfo {
@@ -225,6 +230,14 @@ impl HwInfo {
         });
         match hw_type {
             Self::O1200F => caps.push(HwCap::InputMapping),
+            Self::AF2 |
+            Self::AF4 |
+            Self::AF8 |
+            Self::AFP8 |
+            Self::AF12 => {
+                caps.push(HwCap::NominalInput);
+                caps.push(HwCap::NominalOutput);
+            }
             _ => (),
         }
         caps
