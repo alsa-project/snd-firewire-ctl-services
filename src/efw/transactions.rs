@@ -413,6 +413,7 @@ impl EfwHwCtl {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum NominalLevel {
     PlusFour,
     Medium,
