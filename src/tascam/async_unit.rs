@@ -145,15 +145,19 @@ impl<'a> AsyncUnit {
 
         let tx = self.tx.clone();
         let state_cntr = self.state_cntr.clone();
-        self.resp.connect_requested(move |resp, tcode| {
+        let node_id = self.node.get_property_node_id();
+        self.resp.connect_requested2(move |_, tcode, _, src, _, _, _, frames| {
             // This application can handle any write request.
             if tcode != hinawa::FwTcode::WriteQuadletRequest
                 && tcode != hinawa::FwTcode::WriteBlockRequest
             {
-                return hinawa::FwRcode::AddressError;
+                return hinawa::FwRcode::TypeError;
             }
 
-            let frames = resp.get_req_frames();
+            if src != node_id {
+                return hinawa::FwRcode::TypeError;
+            }
+
             let len = frames.len() / 4;
 
             // Operate states under mutual exclusive lock.
