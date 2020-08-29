@@ -21,7 +21,7 @@ enum RackUnitEvent {
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
-    Monitor,
+    Timer,
 }
 
 pub struct IsocRackUnit<'a> {
@@ -31,8 +31,8 @@ pub struct IsocRackUnit<'a> {
     rx: mpsc::Receiver<RackUnitEvent>,
     tx: mpsc::SyncSender<RackUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
-    monitor: Option<dispatcher::Dispatcher>,
-    monitored_elems: Vec<alsactl::ElemId>,
+    timer: Option<dispatcher::Dispatcher>,
+    measure_elems: Vec<alsactl::ElemId>,
 }
 
 impl<'a> Drop for IsocRackUnit<'a> {
@@ -44,10 +44,10 @@ impl<'a> Drop for IsocRackUnit<'a> {
 impl<'a> IsocRackUnit<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-    const MONITOR_DISPATCHER_NAME: &'a str = "interval monitor dispatcher";
+    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
 
-    const MONITOR_NAME: &'a str = "monitor";
-    const MONITOR_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+    const TIMER_NAME: &'a str = "meter";
+    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     pub fn new(unit: hinawa::SndTscm, _: String, sysnum: u32) -> Result<Self, Error> {
         let model = Fw1804Model::new();
@@ -67,8 +67,8 @@ impl<'a> IsocRackUnit<'a> {
             tx,
             rx,
             dispatchers,
-            monitor: None,
-            monitored_elems: Vec::new(),
+            timer: None,
+            measure_elems: Vec::new(),
         })
     }
 
@@ -130,33 +130,33 @@ impl<'a> IsocRackUnit<'a> {
             alsactl::ElemIfaceType::Mixer,
             0,
             0,
-            Self::MONITOR_NAME,
+            Self::TIMER_NAME,
             0,
         );
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        self.model.get_measure_elem_list(&mut self.monitored_elems);
+        self.model.get_measure_elem_list(&mut self.measure_elems);
 
         Ok(())
     }
 
-    fn start_interval_monitor(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::MONITOR_DISPATCHER_NAME.to_string())?;
+    fn start_interval_timer(&mut self) -> Result<(), Error> {
+        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
-        dispatcher.attach_interval_handler(Self::MONITOR_INTERVAL, move || {
-            let _ = tx.send(RackUnitEvent::Monitor);
+        dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
+            let _ = tx.send(RackUnitEvent::Timer);
             source::Continue(true)
         });
 
-        self.monitor = Some(dispatcher);
+        self.timer = Some(dispatcher);
 
         Ok(())
     }
 
-    fn stop_interval_monitor(&mut self) {
-        if let Some(dispatcher) = &self.monitor {
+    fn stop_interval_timer(&mut self) {
+        if let Some(dispatcher) = &self.timer {
             drop(dispatcher);
-            self.monitor = None;
+            self.timer = None;
         }
     }
     pub fn run(&mut self) {
@@ -173,7 +173,7 @@ impl<'a> IsocRackUnit<'a> {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 RackUnitEvent::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != Self::MONITOR_NAME {
+                    if elem_id.get_name() != Self::TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(&self.unit, &elem_id, &events,
                                                                    &mut self.model);
                     } else {
@@ -182,15 +182,15 @@ impl<'a> IsocRackUnit<'a> {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
                             if vals[0] {
-                                let _ = self.start_interval_monitor();
+                                let _ = self.start_interval_timer();
                             } else {
-                                self.stop_interval_monitor();
+                                self.stop_interval_timer();
                             }
                         }
                     }
                 }
-                RackUnitEvent::Monitor => {
-                    let _ = self.card_cntr.measure_elems(&self.unit, &self.monitored_elems,
+                RackUnitEvent::Timer => {
+                    let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems,
                                                          &mut self.model);
                 }
             }
