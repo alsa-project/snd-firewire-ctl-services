@@ -49,13 +49,13 @@ impl<'a> MeterCtl {
         self.midi_inputs = hwinfo.midi_inputs;
         self.midi_outputs = hwinfo.midi_outputs;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::CLK_DETECT, 0);
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::CLK_DETECT, 0);
         let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, hwinfo.clk_srcs.len(), false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         if self.midi_inputs > 0 {
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, Self::MIDI_IN_DETECT, 0);
+                alsactl::ElemIfaceType::Rawmidi, 0, 0, Self::MIDI_IN_DETECT, 0);
 
             let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, self.midi_inputs, false)?;
             self.measure_elems.extend_from_slice(&elem_id_list);
@@ -63,7 +63,7 @@ impl<'a> MeterCtl {
 
         if self.midi_outputs > 0 {
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, Self::MIDI_OUT_DETECT, 0);
+                alsactl::ElemIfaceType::Rawmidi, 0, 0, Self::MIDI_OUT_DETECT, 0);
             let elem_id_list =
                 card_cntr.add_bool_elems(&elem_id, 1, self.midi_outputs, false)?;
             self.measure_elems.extend_from_slice(&elem_id_list);
