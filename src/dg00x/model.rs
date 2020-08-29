@@ -42,23 +42,20 @@ impl Dg00xModel {
     }
 }
 
-impl card_cntr::MonitorModel<hinawa::SndDg00x> for Dg00xModel {
-    fn get_monitored_elems(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl card_cntr::NotifyModel<hinawa::SndDg00x, bool> for Dg00xModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.monitor.monitored_elems);
     }
 
-    fn monitor_unit(&mut self, _: &hinawa::SndDg00x) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &hinawa::SndDg00x, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn monitor_elems(
-        &mut self,
-        unit: &hinawa::SndDg00x,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        _: &mut alsactl::ElemValue,
-    ) -> Result<bool, Error> {
-        self.monitor.monitor_elems(unit, &self.req, elem_id, old)
+    fn read_notified_elem(&mut self, unit: &hinawa::SndDg00x, elem_id: &alsactl::ElemId,
+                          elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        self.monitor.monitor_elems(unit, &self.req, elem_id, elem_value)
     }
 }
 
