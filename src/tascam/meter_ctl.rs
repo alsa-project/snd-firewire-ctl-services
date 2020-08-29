@@ -15,7 +15,7 @@ pub struct MeterCtl<'a> {
     has_adat: bool,
     has_solo: bool,
 
-    meter_elems: Vec<alsactl::ElemId>,
+    pub measure_elems: Vec<alsactl::ElemId>,
 
     monitor: i32,
     solo: i32,
@@ -55,7 +55,7 @@ impl<'a> MeterCtl<'a> {
             analog_out_count,
             has_adat,
             has_solo,
-            meter_elems: Vec::new(),
+            measure_elems: Vec::new(),
             monitor: 0,
             solo: 0,
             inputs: [0; 18],
@@ -112,10 +112,6 @@ impl<'a> MeterCtl<'a> {
         }
     }
 
-    pub fn get_monitored_elems(&self) -> &Vec<alsactl::ElemId> {
-        &self.meter_elems
-    }
-
     pub fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         // For volume of monitor knob.
         let elem_id = alsactl::ElemId::new_by_name(
@@ -135,7 +131,7 @@ impl<'a> MeterCtl<'a> {
             None,
             false,
         )?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For For volume of solo knob.
         if self.has_solo {
@@ -156,7 +152,7 @@ impl<'a> MeterCtl<'a> {
                 None,
                 false,
             )?;
-            self.meter_elems.extend_from_slice(&elem_id_list);
+            self.measure_elems.extend_from_slice(&elem_id_list);
         }
 
         // For meters of inputs.
@@ -181,7 +177,7 @@ impl<'a> MeterCtl<'a> {
             None,
             false,
         )?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For meters of outputs.
         let mut outputs = 2 + self.analog_out_count as usize;
@@ -205,7 +201,7 @@ impl<'a> MeterCtl<'a> {
             None,
             false,
         )?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For meters of monitors.
         let elem_id = alsactl::ElemId::new_by_name(
@@ -225,7 +221,7 @@ impl<'a> MeterCtl<'a> {
             None,
             false,
         )?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For meters of mixer for analog inputs.
         let elem_id = alsactl::ElemId::new_by_name(
@@ -245,7 +241,7 @@ impl<'a> MeterCtl<'a> {
             None,
             false,
         )?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For detection of clock source.
         let elem_id = alsactl::ElemId::new_by_name(
@@ -257,7 +253,7 @@ impl<'a> MeterCtl<'a> {
         );
         let elem_id_list =
             card_cntr.add_enum_elems(&elem_id, 1, 1, self.clk_src_labels, None, false)?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For detection of clock rate.
         let elem_id = alsactl::ElemId::new_by_name(
@@ -269,7 +265,7 @@ impl<'a> MeterCtl<'a> {
         );
         let elem_id_list =
             card_cntr.add_enum_elems(&elem_id, 1, 1, CommonCtl::CLK_RATE_LABELS, None, false)?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For mode of monitor.
         let elem_id = alsactl::ElemId::new_by_name(
@@ -281,7 +277,7 @@ impl<'a> MeterCtl<'a> {
         );
         let elem_id_list =
             card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MONITOR_MODE_LABELS, None, false)?;
-        self.meter_elems.extend_from_slice(&elem_id_list);
+        self.measure_elems.extend_from_slice(&elem_id_list);
 
         Ok(())
     }
