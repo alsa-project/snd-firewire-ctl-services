@@ -44,7 +44,7 @@ impl Dg00xModel {
 
 impl card_cntr::NotifyModel<hinawa::SndDg00x, bool> for Dg00xModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.monitor.monitored_elems);
+        elem_id_list.extend_from_slice(&self.monitor.notified_elems);
     }
 
     fn parse_notification(&mut self, _: &hinawa::SndDg00x, _: &bool) -> Result<(), Error> {
@@ -55,7 +55,7 @@ impl card_cntr::NotifyModel<hinawa::SndDg00x, bool> for Dg00xModel {
                           elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        self.monitor.monitor_elems(unit, &self.req, elem_id, elem_value)
+        self.monitor.read_notified_elems(unit, &self.req, elem_id, elem_value)
     }
 }
 
