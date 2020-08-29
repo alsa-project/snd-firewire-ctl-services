@@ -15,6 +15,7 @@ use super::input_ctl;
 use super::port_ctl;
 use super::meter_ctl;
 use super::guitar_ctl;
+use super::iec60958_ctl;
 
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
@@ -24,6 +25,7 @@ pub struct EfwModel {
     port_ctl: port_ctl::PortCtl,
     meter_ctl: meter_ctl::MeterCtl,
     guitar_ctl: guitar_ctl::GuitarCtl,
+    iec60958_ctl: iec60958_ctl::Iec60958Ctl,
 }
 
 impl EfwModel {
@@ -60,6 +62,7 @@ impl EfwModel {
                         port_ctl: port_ctl::PortCtl::new(),
                         meter_ctl: meter_ctl::MeterCtl::new(),
                         guitar_ctl: guitar_ctl::GuitarCtl::new(),
+                        iec60958_ctl: iec60958_ctl::Iec60958Ctl::new(),
                     };
                     Ok(model)
                 },
@@ -87,6 +90,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         self.port_ctl.load(&hwinfo, card_cntr)?;
         self.meter_ctl.load(&hwinfo, card_cntr)?;
         self.guitar_ctl.load(&hwinfo, card_cntr)?;
+        self.iec60958_ctl.load(&hwinfo, card_cntr)?;
         Ok(())
     }
 
@@ -104,6 +108,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         } else if self.port_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
         } else if self.guitar_ctl.read(unit, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.iec60958_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -128,6 +134,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         } else if self.port_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
         } else if self.guitar_ctl.write(unit, elem_id, old, new)? {
+            Ok(true)
+        } else if self.iec60958_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
