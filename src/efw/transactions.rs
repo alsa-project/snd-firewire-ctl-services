@@ -387,11 +387,67 @@ impl EfwInfo {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum HwCtlFlag {
+    MixerEnabled,
+    SpdifPro,
+    SpdifNoneAudio,
+    CtlRoomSelect,
+    OutputLevelBypass,
+    MeterInMode,
+    MeterOutMode,
+    SoftClip,
+    GuitarHexInput,
+    GuitarAutoCharging,
+    PhantomPowering,
+    Invalid(usize),
+}
+
+impl From<HwCtlFlag> for usize {
+    fn from(flag: HwCtlFlag) -> Self {
+        match flag {
+            HwCtlFlag::MixerEnabled => 0,
+            HwCtlFlag::SpdifPro => 1,
+            HwCtlFlag::SpdifNoneAudio => 2,
+            HwCtlFlag::CtlRoomSelect => 8,          // B if it stands, else A.
+            HwCtlFlag::OutputLevelBypass => 9,      // B if it stands, else A.
+            HwCtlFlag::MeterInMode => 12,           // D2 if stands, else D1.
+            HwCtlFlag::MeterOutMode => 13,
+            HwCtlFlag::SoftClip => 18,
+            HwCtlFlag::GuitarHexInput => 29,
+            HwCtlFlag::GuitarAutoCharging => 30,
+            HwCtlFlag::PhantomPowering => 31,
+            HwCtlFlag::Invalid(idx) => idx,
+        }
+    }
+}
+
+impl From<usize> for HwCtlFlag {
+    fn from(pos: usize) -> Self {
+        match pos {
+            0 => HwCtlFlag::MixerEnabled,
+            1 => HwCtlFlag::SpdifPro,
+            2 => HwCtlFlag::SpdifNoneAudio,
+            8 => HwCtlFlag::CtlRoomSelect,
+            9 => HwCtlFlag::OutputLevelBypass,
+            12 => HwCtlFlag::MeterInMode,
+            13 => HwCtlFlag::MeterOutMode,
+            18 => HwCtlFlag::SoftClip,
+            29 => HwCtlFlag::GuitarHexInput,
+            30 => HwCtlFlag::GuitarAutoCharging,
+            31 => HwCtlFlag::PhantomPowering,
+            _ => HwCtlFlag::Invalid(pos),
+        }
+    }
+}
+
 pub struct EfwHwCtl {}
 
 impl EfwHwCtl {
     const CMD_SET_CLOCK: u32 = 0;
     const CMD_GET_CLOCK: u32 = 1;
+    const CMD_SET_FLAGS: u32 = 3;
+    const CMD_GET_FLAGS: u32 = 4;
 
     pub fn set_clock(
         unit: &hinawa::SndEfw,
@@ -429,6 +485,39 @@ impl EfwHwCtl {
             TIMEOUT,
         )?;
         Ok((ClkSrc::from(params[0] as usize), params[1]))
+    }
+
+    pub fn set_flags(unit: &hinawa::SndEfw, enable: &[HwCtlFlag], disable: &[HwCtlFlag])
+        -> Result<(), Error>
+    {
+        let mut args = [0, 0];
+
+        args[0] = enable.iter().fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
+        args[1] = disable.iter().fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
+        let _ = unit.transaction_sync(
+            u32::from(Category::HwCtl),
+            Self::CMD_SET_FLAGS,
+            Some(&args),
+            None,
+            TIMEOUT,
+        );
+        Ok(())
+    }
+
+    pub fn get_flags(unit: &hinawa::SndEfw) -> Result<Vec<HwCtlFlag>, Error> {
+        let mut params = [0];
+        let _ = unit.transaction_sync(
+            u32::from(Category::HwCtl),
+            Self::CMD_GET_FLAGS,
+            None,
+            Some(&mut params),
+            TIMEOUT,
+        )?;
+        let flags = (0..32)
+            .filter(|i| params[0] & (1 << i) > 0)
+            .map(|i| HwCtlFlag::from(i))
+            .collect();
+        Ok(flags)
     }
 }
 
