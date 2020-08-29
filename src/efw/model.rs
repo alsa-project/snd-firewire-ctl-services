@@ -137,17 +137,17 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
 
 impl MeasureModel<hinawa::SndEfw> for EfwModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.monitored_elems);
+        elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
     fn measure_states(&mut self, unit: &hinawa::SndEfw) -> Result<(), Error> {
-        self.meter_ctl.monitor_unit(unit)
+        self.meter_ctl.measure_states(unit)
     }
 
     fn measure_elem(&mut self, _: &hinawa::SndEfw, elem_id: &alsactl::ElemId,
                     elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        self.meter_ctl.monitor_elems(elem_id, elem_value)
+        self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }
