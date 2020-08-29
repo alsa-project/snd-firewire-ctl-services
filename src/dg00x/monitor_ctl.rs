@@ -11,7 +11,7 @@ use crate::card_cntr;
 use super::protocol::{CommonProtocol, MonitorProtocol};
 
 pub struct MonitorCtl {
-    pub monitored_elems: Vec<alsactl::ElemId>,
+    pub notified_elems: Vec<alsactl::ElemId>,
 }
 
 impl<'a> MonitorCtl {
@@ -34,7 +34,7 @@ impl<'a> MonitorCtl {
 
     pub fn new() -> Self {
         MonitorCtl {
-            monitored_elems: Vec::new(),
+            notified_elems: Vec::new(),
         }
     }
 
@@ -47,7 +47,7 @@ impl<'a> MonitorCtl {
         let elem_id =
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::ENABLE_NAME, 0);
         let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-        self.monitored_elems.push(elem_id_list.remove(0));
+        self.notified_elems.push(elem_id_list.remove(0));
 
         let elem_id = alsactl::ElemId::new_by_name(
             alsactl::ElemIfaceType::Mixer,
@@ -66,13 +66,13 @@ impl<'a> MonitorCtl {
             Some(Self::GAIN_TLV),
             true,
         )?;
-        self.monitored_elems.append(&mut elem_id_list);
+        self.notified_elems.append(&mut elem_id_list);
 
         Ok(())
     }
 
-    pub fn monitor_elems(&mut self, unit: &hinawa::SndDg00x, req: &hinawa::FwReq,
-                         elem_id: &alsactl::ElemId, old: &alsactl::ElemValue)
+    pub fn read_notified_elems(&mut self, unit: &hinawa::SndDg00x, req: &hinawa::FwReq,
+                               elem_id: &alsactl::ElemId, elem_value: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
         // Any write transaction to register has effective to configure internal multiplexer just
@@ -81,7 +81,7 @@ impl<'a> MonitorCtl {
         // update the registers with cached value at the beginning of packet streaming.
         if unit.get_property_streaming() {
             let dummy = alsactl::ElemValue::new();
-            self.write(unit, req, elem_id, &dummy, old)
+            self.write(unit, req, elem_id, &dummy, elem_value)
         } else {
             Ok(false)
         }
