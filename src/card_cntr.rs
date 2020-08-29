@@ -46,6 +46,14 @@ pub trait MeasureModel<O: IsA<hinawa::SndUnit>> {
         -> Result<bool, Error>;
 }
 
+pub trait NotifyModel<O: IsA<hinawa::SndUnit>, N> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
+    fn parse_notification(&mut self, unit: &O, notice: &N) -> Result<(), Error>;
+    fn read_notified_elem(&mut self, unit: &O, elem_id: &alsactl::ElemId,
+                          elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>;
+}
+
 impl Drop for CardCntr {
     fn drop(&mut self) {
         self.entries.iter().filter_map(|v| v.get_property_elem_id()).for_each(|elem_id| {
@@ -398,6 +406,38 @@ impl CardCntr {
                 }
             }).try_for_each(|elem_value| {
                 if ctl_model.measure_elem(unit, elem_id, elem_value)? {
+                    card.write_elem_value(elem_id, elem_value)?;
+                }
+
+                Ok(())
+            })
+        })
+    }
+
+    pub fn dispatch_notification<O, N, T>(
+        &mut self,
+        unit: &O,
+        notification: &N,
+        elem_id_list: &Vec<alsactl::ElemId>,
+        ctl_model: &mut T,
+    ) -> Result<(), Error>
+    where
+        O: IsA<hinawa::SndUnit>,
+        T: CtlModel<O> + NotifyModel<O, N>,
+    {
+        let card = &self.card;
+        let entries = &mut self.entries;
+
+        ctl_model.parse_notification(unit, notification)?;
+
+        elem_id_list.iter().try_for_each(|elem_id| {
+            entries.iter_mut().filter(|elem_value| {
+                match elem_value.get_property_elem_id() {
+                    Some(eid) => eid == *elem_id,
+                    None => false,
+                }
+            }).try_for_each(|elem_value| {
+                if ctl_model.read_notified_elem(unit, elem_id, elem_value)? {
                     card.write_elem_value(elem_id, elem_value)?;
                 }
 
