@@ -13,7 +13,7 @@ use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
 use crate::dispatcher;
 use crate::card_cntr;
-use card_cntr::{CtlModel, MonitorModel};
+use card_cntr::{CtlModel, MeasureModel};
 
 use super::fw1884_model::Fw1884Model;
 use super::fw1082_model::Fw1082Model;
@@ -207,8 +207,8 @@ impl<'a> IsocConsoleUnit<'a> {
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.get_monitored_elems(&mut self.monitored_elems),
-            ConsoleModel::Fw1082(m) => m.get_monitored_elems(&mut self.monitored_elems),
+            ConsoleModel::Fw1884(m) => m.get_measure_elem_list(&mut self.monitored_elems),
+            ConsoleModel::Fw1082(m) => m.get_measure_elem_list(&mut self.monitored_elems),
         }
 
         Ok(())
@@ -271,12 +271,10 @@ impl<'a> IsocConsoleUnit<'a> {
                 ConsoleUnitEvent::Monitor => {
                     match &mut self.model {
                         ConsoleModel::Fw1884(m) =>{
-                            let _ = m.monitor_unit(&self.unit);
-                            let _ = self.card_cntr.monitor_elems(&self.unit, &self.monitored_elems, m);
+                            let _ = self.card_cntr.measure_elems(&self.unit, &self.monitored_elems, m);
                         }
                         ConsoleModel::Fw1082(m) => {
-                            let _ = m.monitor_unit(&self.unit);
-                            let _ = self.card_cntr.monitor_elems(&self.unit, &self.monitored_elems, m);
+                            let _ = self.card_cntr.measure_elems(&self.unit, &self.monitored_elems, m);
                         }
                     };
                 }
