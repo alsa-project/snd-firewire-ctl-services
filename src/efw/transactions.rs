@@ -4,6 +4,8 @@ use glib::{Error, FileError};
 
 use hinawa::SndEfwExtManual;
 
+const TIMEOUT: u32 = 200;
+
 enum Category {
     Info,
     HwCtl,
@@ -358,14 +360,15 @@ impl EfwInfo {
 
     pub fn get_hwinfo(unit: &hinawa::SndEfw) -> Result<HwInfo, Error> {
         let mut data = [0; HwInfo::SIZE];
-        let _ = unit.transaction(u32::from(Category::Info), Self::CMD_HWINFO,
-                                 &[], &mut data)?;
+        let _ = unit.transaction_sync(u32::from(Category::Info), Self::CMD_HWINFO,
+                                      None, Some(&mut data), TIMEOUT)?;
         HwInfo::new(&data)
     }
 
     pub fn get_meter(unit: &hinawa::SndEfw, meters: &mut HwMeter) -> Result<(), Error> {
         let mut params = [0; HwMeter::METER_SIZE];
-        let _ = unit.transaction(u32::from(Category::Info), Self::CMD_METER, &[], &mut params)?;
+        let _ = unit.transaction_sync(u32::from(Category::Info), Self::CMD_METER,
+                                      None, Some(&mut params), TIMEOUT)?;
         meters.parse(&params)
     }
 }
@@ -392,22 +395,24 @@ impl EfwHwCtl {
             Some(r) => r,
             None => current_rate,
         };
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::HwCtl),
             Self::CMD_SET_CLOCK,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         );
         Ok(())
     }
 
     pub fn get_clock(unit: &hinawa::SndEfw) -> Result<(ClkSrc, u32), Error> {
         let mut params = [0, 0, 0];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::HwCtl),
             Self::CMD_GET_CLOCK,
-            &[],
-            &mut params,
+            None,
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok((ClkSrc::from(params[0] as usize), params[1]))
     }
@@ -453,11 +458,12 @@ impl EfwPhysOutput {
     pub fn set_vol(unit: &hinawa::SndEfw, ch: usize, vol: i32) -> Result<(), Error> {
         let args = [ch as u32, vol as u32];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysOutput),
             Self::CMD_SET_VOL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -465,11 +471,12 @@ impl EfwPhysOutput {
     pub fn get_vol(unit: &hinawa::SndEfw, ch: usize) -> Result<i32, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysOutput),
             Self::CMD_GET_VOL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[1] as i32)
     }
@@ -477,11 +484,12 @@ impl EfwPhysOutput {
     pub fn set_mute(unit: &hinawa::SndEfw, ch: usize, mute: bool) -> Result<(), Error> {
         let args = [ch as u32, mute as u32];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysOutput),
             Self::CMD_SET_MUTE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -489,11 +497,12 @@ impl EfwPhysOutput {
     pub fn get_mute(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysOutput),
             Self::CMD_GET_MUTE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[1] > 0)
     }
@@ -501,11 +510,12 @@ impl EfwPhysOutput {
     pub fn set_nominal(unit: &hinawa::SndEfw, ch: usize, level: NominalLevel) -> Result<(), Error> {
         let args = [ch as u32, u32::from(level)];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysOutput),
             Self::CMD_SET_NOMINAL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -513,11 +523,12 @@ impl EfwPhysOutput {
     pub fn get_nominal(unit: &hinawa::SndEfw, ch: usize) -> Result<NominalLevel, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysOutput),
             Self::CMD_GET_NOMINAL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(NominalLevel::from(params[1]))
     }
@@ -532,11 +543,12 @@ impl EfwPhysInput {
     pub fn set_nominal(unit: &hinawa::SndEfw, ch: usize, level: NominalLevel) -> Result<(), Error> {
         let args = [ch as u32, u32::from(level)];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysInput),
             Self::CMD_SET_NOMINAL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -544,11 +556,12 @@ impl EfwPhysInput {
     pub fn get_nominal(unit: &hinawa::SndEfw, ch: usize) -> Result<NominalLevel, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PhysInput),
             Self::CMD_GET_NOMINAL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(NominalLevel::from(params[1]))
     }
@@ -567,11 +580,12 @@ impl EfwPlayback {
     pub fn set_vol(unit: &hinawa::SndEfw, ch: usize, vol: i32) -> Result<(), Error> {
         let args = [ch as u32, vol as u32];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Playback),
             Self::CMD_SET_VOL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -579,11 +593,12 @@ impl EfwPlayback {
     pub fn get_vol(unit: &hinawa::SndEfw, ch: usize) -> Result<i32, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Playback),
             Self::CMD_GET_VOL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[1] as i32)
     }
@@ -591,11 +606,12 @@ impl EfwPlayback {
     pub fn set_mute(unit: &hinawa::SndEfw, ch: usize, mute: bool) -> Result<(), Error> {
         let args = [ch as u32, mute as u32];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Playback),
             Self::CMD_SET_MUTE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -603,11 +619,12 @@ impl EfwPlayback {
     pub fn get_mute(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Playback),
             Self::CMD_GET_MUTE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[1] > 0)
     }
@@ -615,11 +632,12 @@ impl EfwPlayback {
     pub fn set_solo(unit: &hinawa::SndEfw, ch: usize, solo: bool) -> Result<(), Error> {
         let args = [ch as u32, solo as u32];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Playback),
             Self::CMD_SET_SOLO,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -627,11 +645,12 @@ impl EfwPlayback {
     pub fn get_solo(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
         let args = [ch as u32, 0];
         let mut params = [0; 2];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Playback),
             Self::CMD_GET_SOLO,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[1] > 0)
     }
@@ -652,11 +671,12 @@ impl EfwMonitor {
     pub fn set_vol(unit: &hinawa::SndEfw, dst: usize, src: usize, vol: i32) -> Result<(), Error> {
         let args = [src as u32, dst as u32, vol as u32];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_SET_VOL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -664,11 +684,12 @@ impl EfwMonitor {
     pub fn get_vol(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<i32, Error> {
         let args = [src as u32, dst as u32, 0];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_GET_VOL,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[2] as i32)
     }
@@ -681,11 +702,12 @@ impl EfwMonitor {
     ) -> Result<(), Error> {
         let args = [src as u32, dst as u32, mute as u32];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_SET_MUTE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -693,11 +715,12 @@ impl EfwMonitor {
     pub fn get_mute(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<bool, Error> {
         let args = [src as u32, dst as u32, 0];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_GET_MUTE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[2] > 0)
     }
@@ -710,11 +733,12 @@ impl EfwMonitor {
     ) -> Result<(), Error> {
         let args = [src as u32, dst as u32, solo as u32];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_SET_SOLO,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -722,11 +746,12 @@ impl EfwMonitor {
     pub fn get_solo(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<bool, Error> {
         let args = [src as u32, dst as u32, 0];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_GET_SOLO,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[2] > 0)
     }
@@ -734,11 +759,12 @@ impl EfwMonitor {
     pub fn set_pan(unit: &hinawa::SndEfw, dst: usize, src: usize, pan: u8) -> Result<(), Error> {
         let args = [src as u32, dst as u32, pan as u32];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_SET_PAN,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
@@ -746,11 +772,12 @@ impl EfwMonitor {
     pub fn get_pan(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<u8, Error> {
         let args = [src as u32, dst as u32, 0];
         let mut params = [0; 3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Monitor),
             Self::CMD_GET_PAN,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[2] as u8)
     }
@@ -804,65 +831,71 @@ impl EfwPortConf {
     const MAP_SIZE: usize = 70;
 
     pub fn set_output_mirror(unit: &hinawa::SndEfw, pair: usize) -> Result<(), Error> {
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_SET_MIRROR,
-            &[pair as u32],
-            &mut [0],
+            Some(&[pair as u32]),
+            None,
+            TIMEOUT,
         )?;
         Ok(())
     }
 
     pub fn get_output_mirror(unit: &hinawa::SndEfw) -> Result<usize, Error> {
         let mut params = [0];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_GET_MIRROR,
-            &[],
-            &mut params,
+            None,
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[0] as usize)
     }
 
     pub fn set_digital_mode(unit: &hinawa::SndEfw, mode: DigitalMode) -> Result<(), Error> {
         let args = [u32::from(mode)];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_SET_DIG_MODE,
-            &args,
-            &mut [0],
+            Some(&args),
+            None,
+            TIMEOUT,
         )?;
         Ok(())
     }
 
     pub fn get_digital_mode(unit: &hinawa::SndEfw) -> Result<DigitalMode, Error> {
         let mut params = [0];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_GET_DIG_MODE,
-            &[],
-            &mut params,
+            None,
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(DigitalMode::from(params[0]))
     }
 
     pub fn set_phantom_powering(unit: &hinawa::SndEfw, state: bool) -> Result<(), Error> {
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_SET_PHANTOM,
-            &[state as u32],
-            &mut [0],
+            Some(&[state as u32]),
+            None,
+            TIMEOUT,
         )?;
         Ok(())
     }
 
     pub fn get_phantom_powering(unit: &hinawa::SndEfw) -> Result<bool, Error> {
         let mut params = [0];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_GET_PHANTOM,
-            &[],
-            &mut params,
+            None,
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(params[0] > 0)
     }
@@ -873,11 +906,12 @@ impl EfwPortConf {
         tx_map: Option<Vec<usize>>,
     ) -> Result<(), Error> {
         let mut args = [0; Self::MAP_SIZE];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_GET_STREAM_MAP,
-            &[],
-            &mut args,
+            None,
+            Some(&mut args),
+            TIMEOUT,
         )?;
         if let Some(entries) = rx_map {
             args[2] = entries.len() as u32;
@@ -893,22 +927,24 @@ impl EfwPortConf {
                 .enumerate()
                 .for_each(|(pos, entry)| args[38 + pos] = 2 * *entry as u32);
         }
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_SET_STREAM_MAP,
-            &args,
-            &mut [0],
+            Some(&args),
+            None,
+            TIMEOUT,
         )?;
         Ok(())
     }
 
     pub fn get_stream_map(unit: &hinawa::SndEfw) -> Result<(Vec<usize>, Vec<usize>), Error> {
         let mut params = [0; Self::MAP_SIZE];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::PortConf),
             Self::CMD_GET_STREAM_MAP,
-            &[],
-            &mut params,
+            None,
+            Some(&mut params),
+            TIMEOUT,
         )?;
         let rx_entry_count = params[2] as usize;
         let rx_entries: Vec<usize> = (0..rx_entry_count)
@@ -937,11 +973,12 @@ impl EfwGuitar {
 
     pub fn get_charge_state(unit: &hinawa::SndEfw) -> Result<GuitarChargeState, Error> {
         let mut params = [0;3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Guitar),
             Self::CMD_GET_CHARGE_STATE,
-            &[],
-            &mut params,
+            None,
+            Some(&mut params),
+            TIMEOUT,
         )?;
         let state = GuitarChargeState{
             manual_charge: params[0] > 0,
@@ -958,11 +995,12 @@ impl EfwGuitar {
             state.suspend_to_charge,
         ];
         let mut params = [0;3];
-        let _ = unit.transaction(
+        let _ = unit.transaction_sync(
             u32::from(Category::Guitar),
             Self::CMD_SET_CHARGE_STATE,
-            &args,
-            &mut params,
+            Some(&args),
+            Some(&mut params),
+            TIMEOUT,
         )?;
         Ok(())
     }
