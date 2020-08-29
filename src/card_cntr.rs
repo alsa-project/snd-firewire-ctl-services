@@ -145,6 +145,26 @@ impl CardCntr {
         self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock)
     }
 
+    pub fn add_iec60958_elem(
+        &mut self,
+        elem_id: &alsactl::ElemId,
+        elem_count: usize,
+        unlock: bool) -> Result<ElemId, Error>
+    {
+        let elem_info = alsactl::ElemInfo::new(ElemType::Iec60958)?;
+        elem_info.set_property_value_count(1);
+
+        let access =
+            alsactl::ElemAccessFlag::READ |
+            alsactl::ElemAccessFlag::WRITE |
+            alsactl::ElemAccessFlag::VOLATILE;
+        elem_info.set_property_access(access);
+
+        let mut elem_id_list = self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)?;
+
+        Ok(elem_id_list.remove(0))
+    }
+
     fn register_elems<P>(
         &mut self,
         elem_id: &alsactl::ElemId,
