@@ -27,7 +27,7 @@ enum ConsoleUnitEvent {
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
-    Monitor,
+    Interval,
     SeqAppl(alsaseq::EventDataCtl),
     Surface((u32, u32, u32)),
 }
@@ -45,8 +45,8 @@ pub struct IsocConsoleUnit<'a> {
     rx: mpsc::Receiver<ConsoleUnitEvent>,
     tx: mpsc::SyncSender<ConsoleUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
-    monitor: Option<dispatcher::Dispatcher>,
-    monitored_elems: Vec<alsactl::ElemId>,
+    timer: Option<dispatcher::Dispatcher>,
+    measure_elems: Vec<alsactl::ElemId>,
 
     req: hinawa::FwReq,
     msg_map: Vec<(u32, u32)>,
@@ -70,10 +70,10 @@ impl<'a> Drop for IsocConsoleUnit<'a> {
 impl<'a> IsocConsoleUnit<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-    const MONITOR_DISPATCHER_NAME: &'a str = "interval monitor dispatcher";
+    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
 
-    const MONITOR_NAME: &'a str = "monitor";
-    const MONITOR_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+    const TIMER_NAME: &'a str = "metering";
+    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     pub fn new(unit: hinawa::SndTscm, name: String, sysnum: u32) -> Result<Self, Error> {
         let model = match name.as_str() {
@@ -103,8 +103,8 @@ impl<'a> IsocConsoleUnit<'a> {
             tx,
             rx,
             dispatchers,
-            monitor: None,
-            monitored_elems: Vec::new(),
+            timer: None,
+            measure_elems: Vec::new(),
             req: hinawa::FwReq::new(),
             msg_map: Vec::new(),
             led_states: std::collections::HashMap::new(),
@@ -201,36 +201,36 @@ impl<'a> IsocConsoleUnit<'a> {
             alsactl::ElemIfaceType::Mixer,
             0,
             0,
-            Self::MONITOR_NAME,
+            Self::TIMER_NAME,
             0,
         );
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.get_measure_elem_list(&mut self.monitored_elems),
-            ConsoleModel::Fw1082(m) => m.get_measure_elem_list(&mut self.monitored_elems),
+            ConsoleModel::Fw1884(m) => m.get_measure_elem_list(&mut self.measure_elems),
+            ConsoleModel::Fw1082(m) => m.get_measure_elem_list(&mut self.measure_elems),
         }
 
         Ok(())
     }
 
-    fn start_interval_monitor(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::MONITOR_DISPATCHER_NAME.to_string())?;
+    fn start_interval_timer(&mut self) -> Result<(), Error> {
+        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
-        dispatcher.attach_interval_handler(Self::MONITOR_INTERVAL, move || {
-            let _ = tx.send(ConsoleUnitEvent::Monitor);
+        dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
+            let _ = tx.send(ConsoleUnitEvent::Interval);
             source::Continue(true)
         });
 
-        self.monitor = Some(dispatcher);
+        self.timer = Some(dispatcher);
 
         Ok(())
     }
 
-    fn stop_interval_monitor(&mut self) {
-        if let Some(dispatcher) = &self.monitor {
+    fn stop_interval_timer(&mut self) {
+        if let Some(dispatcher) = &self.timer {
             drop(dispatcher);
-            self.monitor = None;
+            self.timer = None;
         }
     }
 
@@ -248,7 +248,7 @@ impl<'a> IsocConsoleUnit<'a> {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 ConsoleUnitEvent::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != Self::MONITOR_NAME {
+                    if elem_id.get_name() != Self::TIMER_NAME {
                         let _ = match &mut self.model {
                             ConsoleModel::Fw1884(m) =>
                                 self.card_cntr.dispatch_elem_event(&self.unit, &elem_id, &events, m),
@@ -261,20 +261,20 @@ impl<'a> IsocConsoleUnit<'a> {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
                             if vals[0] {
-                                let _ = self.start_interval_monitor();
+                                let _ = self.start_interval_timer();
                             } else {
-                                self.stop_interval_monitor();
+                                self.stop_interval_timer();
                             }
                         }
                     }
                 }
-                ConsoleUnitEvent::Monitor => {
+                ConsoleUnitEvent::Interval => {
                     match &mut self.model {
                         ConsoleModel::Fw1884(m) =>{
-                            let _ = self.card_cntr.measure_elems(&self.unit, &self.monitored_elems, m);
+                            let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems, m);
                         }
                         ConsoleModel::Fw1082(m) => {
-                            let _ = self.card_cntr.measure_elems(&self.unit, &self.monitored_elems, m);
+                            let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems, m);
                         }
                     };
                 }
