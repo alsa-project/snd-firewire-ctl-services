@@ -13,7 +13,7 @@ use alsactl::CardExt;
 
 use crate::dispatcher;
 use crate::card_cntr;
-use card_cntr::{CtlModel, MonitorModel};
+use card_cntr::{CtlModel, NotifyModel};
 
 use super::model::Dg00xModel;
 
@@ -22,7 +22,7 @@ enum Event {
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
-    StreamLock,
+    StreamLock(bool),
 }
 
 pub struct Dg00xUnit {
@@ -117,14 +117,14 @@ impl<'a> Dg00xUnit {
             });
 
         let tx = self.tx.clone();
-        self.unit.connect_lock_status(move |_, _| {
+        self.unit.connect_lock_status(move |_, locked| {
             let t = tx.clone();
             let _ = thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual
                 // packet streaming. Here, wait for 500 msec to catch the actual packet
                 // streaming.
                 thread::sleep(std::time::Duration::from_millis(500));
-                let _ = t.send(Event::StreamLock);
+                let _ = t.send(Event::StreamLock(locked));
             });
         });
 
@@ -138,7 +138,7 @@ impl<'a> Dg00xUnit {
         self.launch_system_event_dispatcher()?;
 
         self.model.load(&self.unit, &mut self.card_cntr)?;
-        self.model.get_monitored_elems(&mut self.monitored_elems);
+        self.model.get_notified_elem_list(&mut self.monitored_elems);
 
         Ok(())
     }
@@ -163,13 +163,9 @@ impl<'a> Dg00xUnit {
                         &mut self.model,
                     );
                 }
-                Event::StreamLock => {
-                    let _ = self.model.monitor_unit(&self.unit);
-                    let _ = self.card_cntr.monitor_elems(
-                        &self.unit,
-                        &self.monitored_elems,
-                        &mut self.model,
-                    );
+                Event::StreamLock(locked) => {
+                    let _ = self.card_cntr.dispatch_notification(&self.unit, &locked,
+                                                            &self.monitored_elems, &mut self.model);
                 }
             }
         }
