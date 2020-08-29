@@ -110,23 +110,23 @@ Control model
 .. image:: control-model.png
    :alt: control model
 
-Monitor model
+Measure model
 -------------
 
-.. image:: monitor-model.png
-   :alt: monitor model
+.. image:: measure-model.png
+   :alt: measure model
 
-Listener model (with help of drivers in ALSA firewire stack)
+Notify model (with help of drivers in ALSA firewire stack)
 -------------------------------------------------------------------
 
-.. image:: listener-model-a.png
-   :alt: listener-a-model
+.. image:: notify-model-a.png
+   :alt: notify-a-model
 
-Listener model (without any help of drivers in ALSA firewire stack)
+Notify model (without any help of drivers in ALSA firewire stack)
 -------------------------------------------------------------------
 
-.. image:: listener-model-b.png
-   :alt: listener-b-model
+.. image:: notify-model-b.png
+   :alt: notify-b-model
 
 Multi threading
 ---------------
