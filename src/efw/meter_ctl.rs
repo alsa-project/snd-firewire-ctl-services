@@ -119,9 +119,7 @@ impl<'a> MeterCtl {
 
     pub fn monitor_elems(
         &mut self,
-        _: &hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
         new: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
