@@ -44,7 +44,7 @@ impl<'a> Fw1082Model<'a> {
 
 impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1082Model<'a> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter.get_monitored_elems());
+        elem_id_list.extend_from_slice(&self.meter.measure_elems);
         elem_id_list.extend_from_slice(&self.console.get_monitored_elems());
     }
 
