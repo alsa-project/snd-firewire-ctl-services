@@ -83,7 +83,7 @@ impl<'a> PortCtl {
                 self.dig_modes.push(*mode);
             }
         });
-        if self.dig_modes.len() > 0 {
+        if self.dig_modes.len() > 1 {
             let modes: Vec<String> = self.dig_modes.iter()
                 .map(|mode| String::from(mode))
                 .collect();
