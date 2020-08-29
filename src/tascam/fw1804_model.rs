@@ -53,25 +53,22 @@ impl<'a> Fw1804Model<'a> {
     }
 }
 
-impl<'a> card_cntr::MonitorModel<hinawa::SndTscm> for Fw1804Model<'a> {
-    fn get_monitored_elems(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1804Model<'a> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.meter.get_monitored_elems());
     }
 
-    fn monitor_unit(&mut self, unit: &hinawa::SndTscm) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &hinawa::SndTscm) -> Result<(), Error> {
         let states = unit.get_state()?;
         self.meter.parse_states(states);
         Ok(())
     }
 
-    fn monitor_elems(
-        &mut self,
-        _: &hinawa::SndTscm,
-        elem_id: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        new: &mut alsactl::ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter.read(elem_id, new)? {
+    fn measure_elem(&mut self, _: &hinawa::SndTscm, elem_id: &alsactl::ElemId,
+                    elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.meter.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
