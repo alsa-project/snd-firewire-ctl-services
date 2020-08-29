@@ -49,7 +49,7 @@ impl<'a> ClkCtl {
             .collect();
 
         let elem_id =
-            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::SRC_NAME, 0);
+            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<&str> = hwinfo
@@ -68,7 +68,7 @@ impl<'a> ClkCtl {
             .collect();
 
         let elem_id =
-            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::RATE_NAME, 0);
+            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
