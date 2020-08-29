@@ -183,6 +183,7 @@ pub struct HwInfo {
 impl HwInfo {
     const SIZE: usize = 65;
 
+    const O400F: u32 = 0x0000400f;
     const O1200F: u32 = 0x0001200f;
     const AF2: u32 = 0x00000af2;
     const AF4: u32 = 0x00000af4;
@@ -231,11 +232,24 @@ impl HwInfo {
             }
         });
         match hw_type {
+            Self::O400F => caps.push(HwCap::SpdifCoax),
             Self::O1200F => caps.push(HwCap::InputMapping),
             Self::AF2 |
-            Self::AF4 |
-            Self::AF8 |
-            Self::AFP8 |
+            Self::AF4 => {
+                caps.push(HwCap::NominalInput);
+                caps.push(HwCap::NominalOutput);
+                caps.push(HwCap::SpdifCoax);
+            }
+            Self::AF8 => {
+                caps.push(HwCap::NominalInput);
+                caps.push(HwCap::NominalOutput);
+                caps.push(HwCap::SpdifCoax);
+            }
+            Self::AFP8 => {
+                caps.push(HwCap::NominalInput);
+                caps.push(HwCap::NominalOutput);
+                // It has flags for Coaxial/Optical interface for S/PDIF signal.
+            }
             Self::AF12 => {
                 caps.push(HwCap::NominalInput);
                 caps.push(HwCap::NominalOutput);
