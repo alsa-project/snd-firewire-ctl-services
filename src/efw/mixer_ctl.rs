@@ -6,11 +6,12 @@ use crate::card_cntr;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use super::transactions::{HwInfo, EfwPlayback, EfwMonitor};
+use super::transactions::{HwInfo, EfwPlayback, EfwMonitor, HwCap, EfwHwCtl, HwCtlFlag};
 
 pub struct MixerCtl {
     playbacks: usize,
     captures: usize,
+    has_fpga: bool,
 }
 
 impl<'a> MixerCtl {
@@ -22,6 +23,8 @@ impl<'a> MixerCtl {
     const MONITOR_MUTE_NAME: &'a str = "monitor-mute";
     const MONITOR_SOLO_NAME: &'a str = "monitor-solo";
     const MONITOR_PAN_NAME: &'a str = "monitor-pan";
+
+    const ENABLE_MIXER: &'a str = "enable-mixer";
 
     // The fixed point number of 8.24 format.
     const COEF_MIN: i32 = 0x00000000;
@@ -37,6 +40,7 @@ impl<'a> MixerCtl {
         MixerCtl {
             playbacks: 0,
             captures: 0,
+            has_fpga: false,
         }
     }
 
@@ -81,6 +85,11 @@ impl<'a> MixerCtl {
         let _ = card_cntr.add_int_elems(&elem_id, self.playbacks,
             Self::PAN_MIN, Self::PAN_MAX, Self::PAN_STEP,
             self.captures, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
+                                                   Self::ENABLE_MIXER, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        self.has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
 
         Ok(())
     }
@@ -157,6 +166,12 @@ impl<'a> MixerCtl {
                     Ok(())
                 })?;
                 elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::ENABLE_MIXER=> {
+                let flags = EfwHwCtl::get_flags(unit)?;
+                let state = flags.iter().find(|&flag| *flag == HwCtlFlag::MixerEnabled).is_some();
+                elem_value.set_bool(&[state]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -257,6 +272,25 @@ impl<'a> MixerCtl {
                     }
                     Ok(())
                 })?;
+                Ok(true)
+            }
+            Self::ENABLE_MIXER=> {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                if vals[0] {
+                    EfwHwCtl::set_flags(unit, &[HwCtlFlag::MixerEnabled], &[])?;
+                } else {
+                    EfwHwCtl::set_flags(unit, &[], &[HwCtlFlag::MixerEnabled])?;
+                }
+                // The above operation immediately has an effect for DSP model, but not for FPGA
+                // model. For workaround, configure each monitor with input 0 to activate the
+                // configuration.
+                if self.has_fpga {
+                    (0..self.playbacks).try_for_each(|i| {
+                        let vol = EfwMonitor::get_vol(unit, 0, i)?;
+                        EfwMonitor::set_vol(unit, 0, i, vol)
+                    })?;
+                }
                 Ok(true)
             }
             _ => Ok(false),
