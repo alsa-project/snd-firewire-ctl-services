@@ -32,7 +32,7 @@ pub struct Dg00xUnit {
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
-    monitored_elems: Vec<alsactl::ElemId>,
+    notified_elems: Vec<alsactl::ElemId>,
 }
 
 impl<'a> Drop for Dg00xUnit {
@@ -61,7 +61,7 @@ impl<'a> Dg00xUnit {
         let (tx, rx) = mpsc::sync_channel(32);
 
         let dispatchers = Vec::new();
-        let monitored_elems = Vec::new();
+        let notified_elems = Vec::new();
 
         Ok(Dg00xUnit {
             unit,
@@ -70,7 +70,7 @@ impl<'a> Dg00xUnit {
             rx,
             tx,
             dispatchers,
-            monitored_elems,
+            notified_elems,
         })
     }
 
@@ -138,7 +138,7 @@ impl<'a> Dg00xUnit {
         self.launch_system_event_dispatcher()?;
 
         self.model.load(&self.unit, &mut self.card_cntr)?;
-        self.model.get_notified_elem_list(&mut self.monitored_elems);
+        self.model.get_notified_elem_list(&mut self.notified_elems);
 
         Ok(())
     }
@@ -165,7 +165,7 @@ impl<'a> Dg00xUnit {
                 }
                 Event::StreamLock(locked) => {
                     let _ = self.card_cntr.dispatch_notification(&self.unit, &locked,
-                                                            &self.monitored_elems, &mut self.model);
+                                                            &self.notified_elems, &mut self.model);
                 }
             }
         }
