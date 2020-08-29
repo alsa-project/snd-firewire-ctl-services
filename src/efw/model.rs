@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use crate::ta1394;
 
 use crate::card_cntr;
-use card_cntr::CtlModel;
+use card_cntr::{CtlModel, MeasureModel};
 
 use super::transactions::EfwInfo;
 use super::clk_ctl;
@@ -135,22 +135,19 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
     }
 }
 
-impl card_cntr::MonitorModel<hinawa::SndEfw> for EfwModel {
-    fn get_monitored_elems(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl MeasureModel<hinawa::SndEfw> for EfwModel {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.monitored_elems);
     }
 
-    fn monitor_unit(&mut self, unit: &hinawa::SndEfw) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &hinawa::SndEfw) -> Result<(), Error> {
         self.meter_ctl.monitor_unit(unit)
     }
 
-    fn monitor_elems(
-        &mut self,
-        unit: &hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &mut alsactl::ElemValue,
-    ) -> Result<bool, Error> {
-        self.meter_ctl.monitor_elems(unit, elem_id, old, new)
+    fn measure_elem(&mut self, _: &hinawa::SndEfw, elem_id: &alsactl::ElemId,
+                    elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        self.meter_ctl.monitor_elems(elem_id, elem_value)
     }
 }
