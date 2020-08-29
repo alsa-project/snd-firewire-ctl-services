@@ -26,18 +26,6 @@ pub trait CtlModel<O: IsA<hinawa::SndUnit>> {
     ) -> Result<bool, Error>;
 }
 
-pub trait MonitorModel<O: IsA<hinawa::SndUnit>> {
-    fn get_monitored_elems(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
-    fn monitor_unit(&mut self, unit: &O) -> Result<(), Error>;
-    fn monitor_elems(
-        &mut self,
-        unit: &O,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &mut alsactl::ElemValue,
-    ) -> Result<bool, Error>;
-}
-
 pub trait MeasureModel<O: IsA<hinawa::SndUnit>> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
     fn measure_states(&mut self, unit: &O) -> Result<(), Error>;
@@ -247,50 +235,6 @@ impl CardCntr {
         }
 
         Ok(elem_id_list)
-    }
-
-    pub fn monitor_elems<O, T>(
-        &mut self,
-        unit: &O,
-        elem_id_list: &Vec<alsactl::ElemId>,
-        ctl_model: &mut T,
-    ) -> Result<(), Error>
-    where
-        O: IsA<hinawa::SndUnit>,
-        T: CtlModel<O> + MonitorModel<O>,
-    {
-        elem_id_list.iter().for_each(|elem_id| {
-            for v in &mut self.entries {
-                let e = match v.get_property_elem_id() {
-                    Some(e) => e,
-                    None => continue,
-                };
-
-                if e != *elem_id {
-                    continue;
-                }
-
-                let mut val = alsactl::ElemValue::new();
-
-                if let Ok(res) = ctl_model.monitor_elems(unit, &e, v, &mut val) {
-                    if !res {
-                        continue;
-                    }
-
-                    if v.equal(&val) {
-                        continue;
-                    }
-
-                    if let Err(_) = self.card.write_elem_value(&e, &val) {
-                        continue;
-                    }
-
-                    *v = val;
-                }
-            }
-        });
-
-        Ok(())
     }
 
     pub fn dispatch_elem_event<O, T>(
