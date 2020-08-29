@@ -12,7 +12,7 @@ use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
 use crate::dispatcher;
 use crate::card_cntr;
-use card_cntr::{CtlModel, MonitorModel};
+use card_cntr::{CtlModel, MeasureModel};
 
 use super::fw1804_model::Fw1804Model;
 
@@ -135,7 +135,7 @@ impl<'a> IsocRackUnit<'a> {
         );
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        self.model.get_monitored_elems(&mut self.monitored_elems);
+        self.model.get_measure_elem_list(&mut self.monitored_elems);
 
         Ok(())
     }
@@ -190,8 +190,7 @@ impl<'a> IsocRackUnit<'a> {
                     }
                 }
                 RackUnitEvent::Monitor => {
-                    let _ = self.model.monitor_unit(&self.unit);
-                    let _ = self.card_cntr.monitor_elems(&self.unit, &self.monitored_elems,
+                    let _ = self.card_cntr.measure_elems(&self.unit, &self.monitored_elems,
                                                          &mut self.model);
                 }
             }
