@@ -141,30 +141,41 @@ impl<'a> CommonCtl {
         _: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        if unit.get_property_streaming() {
-            return Ok(false);
-        }
-
         let node = unit.get_node();
 
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
                 let mut vals = [0];
                 new.get_enum(&mut vals);
-                req.write_quadlet(&node, Self::CLK_SRC_OFFSET, vals[0])?;
-                Ok(true)
+                unit.lock()?;
+                let res = req.write_quadlet(&node, Self::CLK_SRC_OFFSET, vals[0]);
+                let _ = unit.unlock();
+                match res {
+                    Err(err) => Err(err),
+                    Ok(()) => Ok(true),
+                }
             }
             Self::CLK_LOCAL_RATE_NAME => {
                 let mut vals = [0];
                 new.get_enum(&mut vals);
-                req.write_quadlet(&node, Self::CLK_LOCAL_RATE_OFFSET, vals[0])?;
-                Ok(true)
+                unit.lock()?;
+                let res = req.write_quadlet(&node, Self::CLK_LOCAL_RATE_OFFSET, vals[0]);
+                let _ = unit.unlock();
+                match res {
+                    Err(err) => Err(err),
+                    Ok(()) => Ok(true),
+                }
             }
             Self::OPT_IFACE_NAME => {
                 let mut vals = [0];
                 new.get_enum(&mut vals);
-                req.write_quadlet(&node, Self::OPT_IFACE_OFFSET, vals[0])?;
-                Ok(true)
+                unit.lock()?;
+                let res = req.write_quadlet(&node, Self::OPT_IFACE_OFFSET, vals[0]);
+                let _ = unit.unlock();
+                match res {
+                    Err(err) => Err(err),
+                    Ok(()) => Ok(true),
+                }
             }
             _ => Ok(false),
         }
