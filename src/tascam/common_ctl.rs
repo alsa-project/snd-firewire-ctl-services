@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
+use glib::Error;
 
 use hinawa::SndUnitExt;
 
@@ -156,31 +156,28 @@ impl<'a> CommonCtl<'a> {
 
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
-                if unit.get_property_streaming() {
-                    let label = "Packet streaming is running.";
-                    Err(Error::new(FileError::Txtbsy, &label))
-                } else {
-                    let mut vals = [0];
-                    new.get_enum(&mut vals);
-                    let index = vals[0] as usize;
-                    if index <= self.clk_srcs.len() {
-                        req.set_clk_src(&node, self.clk_srcs[index])?;
-                    }
-                    Ok(true)
-                }
-            }
-            Self::CLK_RATE_NAME => {
-                if unit.get_property_streaming() {
-                    let label = "Packet streaming is running.";
-                    return Err(Error::new(FileError::Txtbsy, &label));
-                }
                 let mut vals = [0];
                 new.get_enum(&mut vals);
                 let index = vals[0] as usize;
-                if index <= Self::CLK_RATES.len() {
-                    req.set_clk_rate(&node, Self::CLK_RATES[index])?;
+                unit.lock()?;
+                let res = req.set_clk_src(&node, self.clk_srcs[index]);
+                let _ = unit.unlock();
+                match res {
+                    Err(err) => Err(err),
+                    Ok(()) => Ok(true),
                 }
-                Ok(true)
+            }
+            Self::CLK_RATE_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let index = vals[0] as usize;
+                unit.lock()?;
+                let res = req.set_clk_rate(&node, Self::CLK_RATES[index]);
+                let _ = unit.unlock();
+                match res {
+                    Err(err) => Err(err),
+                    Ok(()) => Ok(true),
+                }
             }
             Self::INPUT_THRESHOLD_NAME => {
                 let mut vals = [0];
