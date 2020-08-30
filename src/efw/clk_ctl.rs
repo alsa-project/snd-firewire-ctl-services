@@ -112,28 +112,30 @@ impl<'a> ClkCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
-                if !unit.get_property_streaming() {
-                    let mut vals = [0];
-                    new.get_enum(&mut vals);
-                    if let Some(&src) = self.srcs.iter().nth(vals[0] as usize) {
-                        EfwHwCtl::set_clock(unit, Some(src), None)?;
-                        Ok(true)
-                    } else {
-                        Ok(false)
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                if let Some(&src) = self.srcs.iter().nth(vals[0] as usize) {
+                    unit.lock()?;
+                    let res = EfwHwCtl::set_clock(unit, Some(src), None);
+                    let _ = unit.unlock();
+                    match res {
+                        Err(err) => Err(err),
+                        Ok(()) => Ok(true),
                     }
                 } else {
                     Ok(false)
                 }
             }
             Self::RATE_NAME => {
-                if !unit.get_property_streaming() {
-                    let mut vals = [0];
-                    new.get_enum(&mut vals);
-                    if let Some(&rate) = self.rates.iter().nth(vals[0] as usize) {
-                        EfwHwCtl::set_clock(unit, None, Some(rate))?;
-                        Ok(true)
-                    } else {
-                        Ok(false)
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                if let Some(&rate) = self.rates.iter().nth(vals[0] as usize) {
+                    unit.lock()?;
+                    let res = EfwHwCtl::set_clock(unit, None, Some(rate));
+                    let _ = unit.unlock();
+                    match res {
+                        Err(err) => Err(err),
+                        Ok(()) => Ok(true),
                     }
                 } else {
                     Ok(false)
