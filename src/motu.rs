@@ -6,3 +6,5 @@ mod model;
 
 mod common_proto;
 mod v3_proto;
+
+mod v3_clk_ctls;
