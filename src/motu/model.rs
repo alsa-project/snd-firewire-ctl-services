@@ -5,6 +5,7 @@ use glib::{Error, FileError};
 use crate::card_cntr::{CardCntr, CtlModel};
 
 use super::ultralite_mk3::UltraLiteMk3;
+use super::h4pre::H4pre;
 
 pub struct MotuModel<'a> {
     firmware_version: u32,
@@ -13,12 +14,14 @@ pub struct MotuModel<'a> {
 
 enum MotuCtlModel<'a> {
     UltraLiteMk3(UltraLiteMk3<'a>),
+    H4pre(H4pre<'a>),
 }
 
 impl<'a> MotuModel<'a> {
     pub fn new(model_id: u32, version: u32) -> Result<Self, Error> {
         let ctl_model = match model_id {
             0x000019 => MotuCtlModel::UltraLiteMk3(UltraLiteMk3::new()),
+            0x000045 => MotuCtlModel::H4pre(H4pre::new()),
             _ => {
                 let label = format!("Unsupported model ID: 0x{:06x}", model_id);
                 return Err(Error::new(FileError::Noent, &label));
@@ -36,6 +39,7 @@ impl<'a> MotuModel<'a> {
     {
         match &mut self.ctl_model {
             MotuCtlModel::UltraLiteMk3(m) => m.load(unit, card_cntr),
+            MotuCtlModel::H4pre(m) => m.load(unit, card_cntr),
         }
     }
 
@@ -45,6 +49,7 @@ impl<'a> MotuModel<'a> {
     {
         match &mut self.ctl_model {
             MotuCtlModel::UltraLiteMk3(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+            MotuCtlModel::H4pre(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
         }
     }
 }
