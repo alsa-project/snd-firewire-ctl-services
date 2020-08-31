@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 use glib::source;
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::{FwNodeExt, SndUnitExt, SndMotuExt};
+use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
 
 use crate::dispatcher;
+
+use crate::ieee1212;
+
+const OUI_MOTU: u32 = 0x0001f2;
 
 enum Event {
     Shutdown,
@@ -36,6 +40,9 @@ impl<'a> MotuUnit {
     pub fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndMotu::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
+
+        let node = unit.get_node();
+        let (model_id, version) = detect_model(&node)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
@@ -111,4 +118,62 @@ impl<'a> MotuUnit {
             }
         }
     }
+}
+
+fn read_directory<'a>(entries: &'a [ieee1212::Entry], key_type: ieee1212::KeyType, field_name: &str)
+    -> Result<&'a [ieee1212::Entry], Error>
+{
+    entries.iter().find_map(|entry| {
+        if entry.key == key_type as u8 {
+            if let ieee1212::EntryData::Directory(unit) = &entry.data {
+                return Some(unit.as_slice());
+            }
+        }
+        None
+    }).ok_or_else(|| {
+        let label = format!("Fail to detect {} directory in configuration ROM", field_name);
+        Error::new(FileError::Nxio, &label)
+    })
+}
+
+fn read_immediate(entries: &[ieee1212::Entry], key_type: ieee1212::KeyType, field_name: &str)
+    -> Result<u32, Error>
+{
+    entries.iter().find_map(|entry| {
+        if entry.key == key_type as u8 {
+            if let ieee1212::EntryData::Immediate(val) = entry.data {
+                return Some(val)
+            }
+        }
+        None
+    }).ok_or_else(|| {
+        let label = format!("Fail to detect {} in configuration ROM", field_name);
+        Error::new(FileError::Nxio, &label)
+    })
+}
+
+fn detect_model(node: &hinawa::FwNode) -> Result<(u32, u32), Error> {
+    let data = node.get_config_rom()?;
+    let entries = ieee1212::get_root_entry_list(&data);
+
+    let vendor = read_immediate(&entries, ieee1212::KeyType::Vendor, "Vendor ID")?;
+    if vendor != OUI_MOTU {
+        let label = format!("Vendor Id is not OUI of Mark of the Unicorn: {:08x}", vendor);
+        return Err(Error::new(FileError::Nxio, &label));
+    }
+
+    let unit_entries = read_directory(&entries, ieee1212::KeyType::Unit, "Unit")?;
+
+    let spec_id = read_immediate(&unit_entries, ieee1212::KeyType::SpecifierId, "Specifier ID")?;
+    if spec_id != OUI_MOTU {
+        let label = format!("Specifier ID is not OUI of Mark of the Unicorn: {:08x} ", spec_id);
+        return Err(Error::new(FileError::Nxio, &label));
+    }
+
+    // NOTE: It's odd but version field is used for model ID and model field is used for version
+    // in MOTU case.
+    let model_id = read_immediate(&unit_entries, ieee1212::KeyType::Version, "Version")?;
+    let version = read_immediate(&unit_entries, ieee1212::KeyType::Model, "Model ID")?;
+
+    Ok((model_id, version))
 }
