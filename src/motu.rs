@@ -7,6 +7,7 @@ mod ultralite_mk3;
 mod audioexpress;
 mod h4pre;
 mod f828mk3;
+mod ultralite;
 
 mod common_proto;
 mod v3_proto;
