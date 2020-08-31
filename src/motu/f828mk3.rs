@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{SndMotu, FwReq};
 
-use crate::card_cntr::{CardCntr, CtlModel};
+use crate::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use super::v3_clk_ctls::V3ClkCtl;
 use super::v3_port_ctls::V3PortCtl;
@@ -13,9 +13,14 @@ pub struct F828mk3<'a> {
     req: FwReq,
     clk_ctls: V3ClkCtl<'a>,
     port_ctls: V3PortCtl<'a>,
+    msg_cache: u32,
 }
 
 impl<'a> F828mk3<'a> {
+    const NOTIFY_OPERATED: u32 = 0x40000000;
+    const NOTIFY_COMPLETED: u32 = 0x00000002;
+    const NOTIFY_OPERATED_AND_COMPLETED: u32 = Self::NOTIFY_OPERATED | Self::NOTIFY_COMPLETED;
+
     const CLK_RATE_LABELS: &'a [&'a str] = &[
         "44100", "48000",
         "88200", "96000",
@@ -61,6 +66,7 @@ impl<'a> F828mk3<'a> {
                                     Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, true),
             port_ctls: V3PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       true, true, true, true),
+            msg_cache: 0,
         }
     }
 }
@@ -95,6 +101,29 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl<'a> NotifyModel<SndMotu, u32> for F828mk3<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.port_ctls.notified_elems);
+    }
+
+    fn parse_notification(&mut self, _: &SndMotu, msg: &u32) -> Result<(), Error> {
+        self.msg_cache = *msg;
+        Ok(())
+    }
+
+    fn read_notified_elem(&mut self, unit: &SndMotu, elem_id: &alsactl::ElemId,
+                          elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.msg_cache & (Self::NOTIFY_OPERATED_AND_COMPLETED) == Self::NOTIFY_OPERATED_AND_COMPLETED {
+            let res = self.port_ctls.read(unit, &self.req, elem_id, elem_value)?;
+            Ok(res)
         } else {
             Ok(false)
         }
