@@ -21,6 +21,8 @@ snd-firewire-tascam-ctl-service
    For sound card bound to ALSA firewire-tascam driver (snd-firewire-tascam), or TASCAM FE-8.
 snd-fireworks-ctl-service
    For sound card bound to ALSA fireworks driver (snd-fireworks)
+snd-firewire-motu-ctl-service
+   For sound card bound to ALSA firewire-motu driver (snd-firewire-motu)
 
 License
 =======
@@ -90,6 +92,17 @@ your device, please contact to developer.
   * Echo Audio Audiofire Pre8
   * Gibson Robot Interface Pack (RIP) for Robot Guitar series
 
+* snd-firewire-motu-ctl-service
+
+  * MOTU Traveler
+  * MOTU 828mkII
+  * MOTU UltraLite
+  * MOTU 8pre
+  * MOTU 828mk3
+  * MOTU UltraLite mk3
+  * MOTU 4pre
+  * MOTU AudioExpress
+
 Supported protocols
 ===================
 
@@ -100,6 +113,7 @@ Supported protocols
    * Protocol for Digi 002/003 family of Digidesign
    * Protocol for FireWire series of TASCAM (TEAC)
    * Protocol for Fireworks board module of Echo Digital Audio
+   * Protocol for Mark of the Unicorn (MOTU) FireWire series
 
 Design note
 ===========
