@@ -70,6 +70,7 @@ impl<'a> MotuModel<'a> {
         }?;
 
         match &mut self.ctl_model {
+            MotuCtlModel::UltraLite(m) => m.get_notified_elem_list(&mut self.notified_elems),
             MotuCtlModel::UltraLiteMk3(m) => m.get_notified_elem_list(&mut self.notified_elems),
             MotuCtlModel::F828mk3(m) => m.get_notified_elem_list(&mut self.notified_elems),
             _ => (),
@@ -100,6 +101,7 @@ impl<'a> MotuModel<'a> {
         let elem_id_list = &self.notified_elems;
 
         match &mut self.ctl_model {
+            MotuCtlModel::UltraLite(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             MotuCtlModel::UltraLiteMk3(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             MotuCtlModel::F828mk3(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             _ => Ok(()),
