@@ -4,6 +4,7 @@ use glib::{Error, FileError};
 
 use crate::card_cntr::{CardCntr, CtlModel};
 
+use super::f828mk2::F828mk2;
 use super::traveler::Traveler;
 use super::ultralite::UltraLite;
 use super::f8pre::F8pre;
@@ -18,6 +19,7 @@ pub struct MotuModel<'a> {
 }
 
 enum MotuCtlModel<'a> {
+    F828mk2(F828mk2<'a>),
     Traveler(Traveler<'a>),
     UltraLite(UltraLite<'a>),
     F8pre(F8pre<'a>),
@@ -30,6 +32,7 @@ enum MotuCtlModel<'a> {
 impl<'a> MotuModel<'a> {
     pub fn new(model_id: u32, version: u32) -> Result<Self, Error> {
         let ctl_model = match model_id {
+            0x000003 => MotuCtlModel::F828mk2(F828mk2::new()),
             0x000009 => MotuCtlModel::Traveler(Traveler::new()),
             0x00000d => MotuCtlModel::UltraLite(UltraLite::new()),
             0x00000f => MotuCtlModel::F8pre(F8pre::new()),
@@ -54,6 +57,7 @@ impl<'a> MotuModel<'a> {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
+            MotuCtlModel::F828mk2(m) => m.load(unit, card_cntr),
             MotuCtlModel::Traveler(m) => m.load(unit, card_cntr),
             MotuCtlModel::UltraLite(m) => m.load(unit, card_cntr),
             MotuCtlModel::F8pre(m) => m.load(unit, card_cntr),
@@ -69,6 +73,7 @@ impl<'a> MotuModel<'a> {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
+            MotuCtlModel::F828mk2(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::Traveler(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::UltraLite(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::F8pre(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
