@@ -22,6 +22,7 @@ enum Event {
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    Notify(u32),
 }
 
 pub struct MotuUnit<'a> {
@@ -78,6 +79,17 @@ impl<'a> MotuUnit<'a> {
         dispatcher.attach_snd_unit(&self.unit, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
+
+        let tx = self.tx.clone();
+        self.unit.connect_notified(move |_, msg| {
+            let t = tx.clone();
+            let _ = std::thread::spawn(move || {
+                // Just after notification, the target device tends to return RCODE_BUSY against
+                // read request. Here, wait for 100 msec to avoid it.
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                let _ = t.send(Event::Notify(msg));
+            });
+        });
 
         let tx = self.tx.clone();
         dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
@@ -139,6 +151,9 @@ impl<'a> MotuUnit<'a> {
                 Event::Elem((elem_id, events)) => {
                     let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
                                                            &elem_id, &events);
+                }
+                Event::Notify(msg) => {
+                    let _ = self.model.dispatch_notification(&self.unit, &msg, &mut self.card_cntr);
                 }
             }
         }
