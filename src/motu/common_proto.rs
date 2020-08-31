@@ -9,6 +9,7 @@ pub trait CommonProto<'a> {
     const BASE_OFFSET: u64 = 0xfffff0000000;
 
     const TIMEOUT: u32 = 100;
+    const BUSY_DURATION: u64 = 150;
 
     const OFFSET_CLK: u32 = 0x0b14;
     const OFFSET_PORT: u32 = 0x0c04;
@@ -51,11 +52,30 @@ impl<'a> CommonProto<'a> for hinawa::FwReq {
         Ok(u32::from_be_bytes(frame))
     }
 
+    // AudioExpress sometimes transfers response subaction with non-standard rcode. This causes
+    // Linux firewire subsystem to report 'unsolicited response' error. In the case, send error
+    // is reported to userspace applications. As a workaround, the change of register is ensured
+    // by following read transaction in failure of write transaction.
     fn write_quad(&self, unit: &hinawa::SndMotu, offset: u32, quad: u32) -> Result<(), Error> {
         let mut frame = [0;4];
         frame.copy_from_slice(&quad.to_be_bytes());
-        self.transaction_sync(&unit.get_node(), FwTcode::WriteQuadletRequest,
-                              Self::BASE_OFFSET + offset as u64, 4, &mut frame, Self::TIMEOUT)
+        let res = self.transaction_sync(&unit.get_node(), FwTcode::WriteQuadletRequest,
+                                Self::BASE_OFFSET + offset as u64, 4, &mut frame, Self::TIMEOUT);
+        match res {
+            Ok(()) => Ok(()),
+            Err(err) => {
+                // For prevention of RCODE_BUSY.
+                std::thread::sleep(std::time::Duration::from_millis(Self::BUSY_DURATION));
+                self.transaction_sync(&unit.get_node(), FwTcode::WriteQuadletRequest,
+                            Self::BASE_OFFSET + offset as u64, 4, &mut frame, Self::TIMEOUT)?;
+                let q = u32::from_be_bytes(frame);
+                if q == quad {
+                    Ok(())
+                } else {
+                    Err(err)
+                }
+            }
+        }
     }
 
     fn get_idx_from_val(&self, offset: u32, mask: u32, shift: usize, label: &str, unit: &hinawa::SndMotu,
