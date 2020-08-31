@@ -27,3 +27,7 @@ path = "src/bin/snd-firewire-tascam-ctl-service.rs"
 [[bin]]
 name = "snd-fireworks-ctl-service"
 path = "src/bin/snd-fireworks-ctl-service.rs"
+
+[[bin]]
+name = "snd-firewire-motu-ctl-service"
+path = "src/bin/snd-firewire-motu-ctl-service.rs"
