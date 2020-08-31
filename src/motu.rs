@@ -3,6 +3,7 @@
 pub mod unit;
 
 mod model;
+mod ultralite_mk3;
 
 mod common_proto;
 mod v3_proto;
