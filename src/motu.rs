@@ -10,6 +10,7 @@ mod f828mk3;
 mod ultralite;
 mod traveler;
 mod f8pre;
+mod f828mk2;
 
 mod common_proto;
 mod v3_proto;
