@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use crate::card_cntr::{CardCntr, CtlModel};
+use crate::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use super::f828mk2::F828mk2;
 use super::traveler::Traveler;
@@ -82,5 +82,11 @@ impl<'a> MotuModel<'a> {
             MotuCtlModel::F828mk3(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::H4pre(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
         }
+    }
+
+    pub fn dispatch_notification(&mut self, unit: &hinawa::SndMotu, msg: &u32, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+    {
+        Ok(())
     }
 }
