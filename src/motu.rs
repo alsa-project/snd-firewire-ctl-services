@@ -10,6 +10,7 @@ mod f828mk3;
 
 mod common_proto;
 mod v3_proto;
+mod v2_proto;
 
 mod v3_clk_ctls;
 mod v3_port_ctls;
