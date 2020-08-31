@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{SndMotu, FwReq};
 
-use crate::card_cntr::{CardCntr, CtlModel};
+use crate::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use super::v2_clk_ctls::V2ClkCtl;
 use super::v2_port_ctls::V2PortCtl;
@@ -13,9 +13,12 @@ pub struct UltraLite<'a> {
     req: FwReq,
     clk_ctls: V2ClkCtl<'a>,
     port_ctls: V2PortCtl<'a>,
+    msg_cache: u32,
 }
 
 impl<'a> UltraLite<'a> {
+    const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+
     const CLK_RATE_LABELS: &'a [&'a str] = &[
         "44100", "48000",
         "88200", "96000",
@@ -46,6 +49,7 @@ impl<'a> UltraLite<'a> {
                                     Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, true),
             port_ctls: V2PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       true, false, false, false),
+            msg_cache: 0,
         }
     }
 }
@@ -80,6 +84,29 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl<'a> NotifyModel<SndMotu, u32> for UltraLite<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.port_ctls.notified_elems);
+    }
+
+    fn parse_notification(&mut self, _: &SndMotu, msg: &u32) -> Result<(), Error> {
+        self.msg_cache = *msg;
+        Ok(())
+    }
+
+    fn read_notified_elem(&mut self, unit: &SndMotu, elem_id: &alsactl::ElemId,
+                          elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
+            let res = self.port_ctls.read(unit, &self.req, elem_id, elem_value)?;
+            Ok(res)
         } else {
             Ok(false)
         }
