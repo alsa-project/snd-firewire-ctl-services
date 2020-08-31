@@ -6,10 +6,12 @@ use nix::sys::signal;
 use std::sync::mpsc;
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
+use alsactl::CardExt;
 
 use crate::dispatcher;
 
 use crate::ieee1212;
+use crate::card_cntr;
 
 const OUI_MOTU: u32 = 0x0001f2;
 
@@ -21,6 +23,7 @@ enum Event {
 
 pub struct MotuUnit {
     unit: hinawa::SndMotu,
+    card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -44,6 +47,9 @@ impl<'a> MotuUnit {
         let node = unit.get_node();
         let (model_id, version) = detect_model(&node)?;
 
+        let card_cntr = card_cntr::CardCntr::new();
+        card_cntr.card.open(card_id, 0)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
@@ -51,6 +57,7 @@ impl<'a> MotuUnit {
 
         Ok(MotuUnit {
             unit,
+            card_cntr,
             rx,
             tx,
             dispatchers,
