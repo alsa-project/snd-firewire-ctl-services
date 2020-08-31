@@ -4,6 +4,7 @@ pub mod unit;
 
 mod model;
 mod ultralite_mk3;
+mod audioexpress;
 mod h4pre;
 
 mod common_proto;
