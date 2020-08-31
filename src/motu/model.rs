@@ -16,4 +16,17 @@ impl MotuModel {
             },
         }
     }
+
+    pub fn load(&mut self, unit: &hinawa::SndMotu, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        Ok(())
+    }
+
+    pub fn dispatch_elem_event(&mut self, unit: &hinawa::SndMotu, card_cntr: &mut card_cntr::CardCntr,
+                               elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
+        -> Result<(), Error>
+    {
+        Ok(())
+    }
 }

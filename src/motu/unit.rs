@@ -21,6 +21,7 @@ enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
 pub struct MotuUnit {
@@ -103,6 +104,12 @@ impl<'a> MotuUnit {
             source::Continue(false)
         });
 
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
+        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
+            let _ = tx.send(Event::Elem((elem_id.clone(), events)));
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -111,6 +118,8 @@ impl<'a> MotuUnit {
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
 
         Ok(())
     }
@@ -126,6 +135,10 @@ impl<'a> MotuUnit {
                 Event::Shutdown | Event::Disconnected => break,
                 Event::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem((elem_id, events)) => {
+                    let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
+                                                           &elem_id, &events);
                 }
             }
         }
