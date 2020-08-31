@@ -16,6 +16,7 @@ use super::h4pre::H4pre;
 pub struct MotuModel<'a> {
     firmware_version: u32,
     ctl_model: MotuCtlModel<'a>,
+    notified_elems: Vec<alsactl::ElemId>,
 }
 
 enum MotuCtlModel<'a> {
@@ -49,6 +50,7 @@ impl<'a> MotuModel<'a> {
         let model = MotuModel{
             firmware_version: version,
             ctl_model,
+            notified_elems: Vec::new(),
         };
         Ok(model)
     }
@@ -65,7 +67,14 @@ impl<'a> MotuModel<'a> {
             MotuCtlModel::AudioExpress(m) => m.load(unit, card_cntr),
             MotuCtlModel::F828mk3(m) => m.load(unit, card_cntr),
             MotuCtlModel::H4pre(m) => m.load(unit, card_cntr),
+        }?;
+
+        match &mut self.ctl_model {
+            MotuCtlModel::UltraLiteMk3(m) => m.get_notified_elem_list(&mut self.notified_elems),
+            _ => (),
         }
+
+        Ok(())
     }
 
     pub fn dispatch_elem_event(&mut self, unit: &hinawa::SndMotu, card_cntr: &mut CardCntr,
@@ -87,6 +96,11 @@ impl<'a> MotuModel<'a> {
     pub fn dispatch_notification(&mut self, unit: &hinawa::SndMotu, msg: &u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        Ok(())
+        let elem_id_list = &self.notified_elems;
+
+        match &mut self.ctl_model {
+            MotuCtlModel::UltraLiteMk3(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
+            _ => Ok(()),
+        }
     }
 }
