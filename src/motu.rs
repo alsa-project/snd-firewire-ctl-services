@@ -5,3 +5,4 @@ pub mod unit;
 mod model;
 
 mod common_proto;
+mod v3_proto;
