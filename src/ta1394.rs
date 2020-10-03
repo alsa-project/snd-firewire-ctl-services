@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod config_rom;
 pub mod general;
+pub mod amdtp;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
