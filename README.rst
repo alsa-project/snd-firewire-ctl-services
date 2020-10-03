@@ -110,6 +110,7 @@ Supported protocols
 * Protocols defined by 1394 Trading Association http://1394ta.org/specifications/
    * Configuration ROM for AV/C Devices 1.0 (Dec. 2000, 1394 Trade Association)
    * AV/C Digital Interface Command Set General Specification Version 4.2 (September 1, 2004. TA Document 2004006)
+   * Audio and Music Data Transmission Protocol 2.3 (April 24, 2012. Document 2009013)
 * Vendor specific protocols
    * Protocol for Digi 002/003 family of Digidesign
    * Protocol for FireWire series of TASCAM (TEAC)
