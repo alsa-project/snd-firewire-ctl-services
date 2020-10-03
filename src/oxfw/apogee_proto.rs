@@ -195,6 +195,20 @@ impl<'a> ApogeeCmd {
         assert!(self.vals.len() == 0, "Unexpected write operation as u16 argument.");
         self.vals.extend_from_slice(&val.to_be_bytes());
     }
+
+    pub fn get_u8(&self) -> u8 {
+        assert!(self.vals.len() > 0, "Unexpected read operation as u8 argument.");
+        self.vals[0]
+    }
+
+    pub fn put_u8(&mut self, val: u8) {
+        assert!(self.vals.len() == 0, "Unexpected write operation as u8 argument.");
+        self.vals.push(val);
+    }
+
+    pub fn copy_block(&self, data: &mut [u8;8]) {
+        data.copy_from_slice(&self.vals[..8]);
+    }
 }
 
 impl AvcOp for ApogeeCmd {

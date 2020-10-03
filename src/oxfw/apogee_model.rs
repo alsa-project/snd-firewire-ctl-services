@@ -10,7 +10,7 @@ use crate::ta1394::{Ta1394Avc, AvcAddr, AvcSubunitType};
 use crate::ta1394::general::UnitInfo;
 
 use super::common_ctl::CommonCtl;
-use super::apogee_ctls::{OutputCtl, MixerCtl, InputCtl, DisplayCtl};
+use super::apogee_ctls::{OutputCtl, MixerCtl, InputCtl, DisplayCtl, HwState};
 
 pub struct ApogeeModel{
     avc: hinawa::FwFcp,
@@ -20,6 +20,7 @@ pub struct ApogeeModel{
     mixer_ctl: MixerCtl,
     input_ctl: InputCtl,
     display_ctl: DisplayCtl,
+    hwstate: HwState,
 }
 
 impl<'a> ApogeeModel {
@@ -34,6 +35,7 @@ impl<'a> ApogeeModel {
             mixer_ctl: MixerCtl::new(),
             input_ctl: InputCtl::new(),
             display_ctl: DisplayCtl::new(),
+            hwstate: HwState::new(),
         }
     }
 }
@@ -55,6 +57,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
         self.mixer_ctl.load(&self.avc, card_cntr)?;
         self.input_ctl.load(&self.avc, card_cntr)?;
         self.display_ctl.load(&self.avc, card_cntr)?;
+        self.hwstate.load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -72,6 +75,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
         } else if self.input_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
             Ok(true)
         } else if self.display_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.hwstate.read(&self.avc, &self.company_id, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -92,6 +97,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
             Ok(true)
         } else if self.display_ctl.write(&self.avc, &self.company_id, elem_id, old, new)? {
             Ok(true)
+        } else if self.hwstate.write(&self.avc, &self.company_id, elem_id, old, new)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -99,18 +106,19 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
 }
 
 impl card_cntr::MeasureModel<hinawa::SndUnit> for ApogeeModel {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.hwstate.measure_elems);
     }
 
-    fn measure_states(&mut self, _: &hinawa::SndUnit) -> Result<(), Error> {
-        Ok(())
+    fn measure_states(&mut self, unit: &hinawa::SndUnit) -> Result<(), Error> {
+        self.hwstate.measure_states(&unit.get_node(), &self.avc, &self.company_id)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId,
-                    _: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+                    elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.hwstate.measure_elems(elem_id, elem_value)
     }
 }
 

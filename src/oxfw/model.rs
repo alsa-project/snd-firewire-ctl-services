@@ -66,10 +66,13 @@ impl OxfwModel {
         }
     }
 
-    pub fn measure_elems(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr)
+    pub fn measure_elems(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
     {
-        Ok(())
+        match &mut self.ctl_model {
+            OxfwCtlModel::Duet(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            _ => Ok(()),
+        }
     }
 
     pub fn dispatch_notification(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, locked: bool)
