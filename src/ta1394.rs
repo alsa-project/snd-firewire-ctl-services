@@ -189,10 +189,62 @@ impl From<AvcCmdType> for u8 {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum AvcRespCode {
+    NotImplemented,
+    Accepted,
+    Rejected,
+    InTransition,
+    ImplementedStable,
+    Changed,
+    Interim,
+    Reserved(u8),
+}
+
+impl AvcRespCode {
+    const NOT_IMPLEMENTED: u8 = 0x08;
+    const ACCEPTED: u8 = 0x09;
+    const REJECTED: u8 = 0x0a;
+    const IN_TRANSITION: u8 = 0x0b;
+    const IMPLEMENTED_STABLE: u8 = 0x0c;
+    const CHANGED: u8 = 0x0d;
+    const INTERIM: u8 = 0x0f;
+}
+
+impl From<u8> for AvcRespCode {
+    fn from(val: u8) -> Self {
+        match val {
+            AvcRespCode::NOT_IMPLEMENTED => AvcRespCode::NotImplemented,
+            AvcRespCode::ACCEPTED => AvcRespCode::Accepted,
+            AvcRespCode::REJECTED => AvcRespCode::Rejected,
+            AvcRespCode::IN_TRANSITION => AvcRespCode::InTransition,
+            AvcRespCode::IMPLEMENTED_STABLE => AvcRespCode::ImplementedStable,
+            AvcRespCode::CHANGED => AvcRespCode::Changed,
+            AvcRespCode::INTERIM => AvcRespCode::Interim,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<AvcRespCode> for u8 {
+    fn from(resp: AvcRespCode) -> u8 {
+        match resp {
+            AvcRespCode::NotImplemented => AvcRespCode::NOT_IMPLEMENTED,
+            AvcRespCode::Accepted => AvcRespCode::ACCEPTED,
+            AvcRespCode::Rejected => AvcRespCode::REJECTED,
+            AvcRespCode::InTransition => AvcRespCode::IN_TRANSITION,
+            AvcRespCode::ImplementedStable => AvcRespCode::IMPLEMENTED_STABLE,
+            AvcRespCode::Changed => AvcRespCode::CHANGED,
+            AvcRespCode::Interim => AvcRespCode::INTERIM,
+            AvcRespCode::Reserved(val) => val,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{AvcSubunitType, AvcAddrSubunit, AvcAddr};
-    use super::AvcCmdType;
+    use super::{AvcCmdType, AvcRespCode};
 
     #[test]
     fn avcsubunittype_from() {
@@ -243,5 +295,18 @@ mod test {
         assert_eq!(0x02, u8::from(AvcCmdType::from(0x02)));
         assert_eq!(0x03, u8::from(AvcCmdType::from(0x03)));
         assert_eq!(0x04, u8::from(AvcCmdType::from(0x04)));
+    }
+
+    #[test]
+    fn avcrespcode_from() {
+        assert_eq!(0x08, u8::from(AvcRespCode::from(0x08)));
+        assert_eq!(0x09, u8::from(AvcRespCode::from(0x09)));
+        assert_eq!(0x0a, u8::from(AvcRespCode::from(0x0a)));
+        assert_eq!(0x0b, u8::from(AvcRespCode::from(0x0b)));
+        assert_eq!(0x0c, u8::from(AvcRespCode::from(0x0c)));
+        assert_eq!(0x0d, u8::from(AvcRespCode::from(0x0d)));
+        assert_eq!(0x0e, u8::from(AvcRespCode::from(0x0e)));
+        assert_eq!(0x0f, u8::from(AvcRespCode::from(0x0f)));
+        assert_eq!(0xff, u8::from(AvcRespCode::from(0xff)));
     }
 }
