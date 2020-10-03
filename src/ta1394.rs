@@ -89,6 +89,11 @@ impl From<AvcSubunitType> for u8 {
     }
 }
 
+pub const MUSIC_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit{
+    subunit_type: AvcSubunitType::Music,
+    subunit_id: 0,
+};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AvcAddrSubunit {
     pub subunit_type: AvcSubunitType,
