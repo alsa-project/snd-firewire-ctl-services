@@ -36,7 +36,7 @@ impl OxfwModel {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
         }?;
-        
+
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }

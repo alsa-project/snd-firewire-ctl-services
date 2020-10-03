@@ -147,16 +147,17 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
 }
 
 impl card_cntr::NotifyModel<hinawa::SndUnit, bool> for TascamModel {
-    fn get_notified_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, _: &hinawa::SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.common_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)
     }
 }
