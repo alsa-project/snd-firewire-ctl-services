@@ -145,3 +145,18 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         }
     }
 }
+
+impl card_cntr::NotifyModel<hinawa::SndUnit, bool> for TascamModel {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
+    }
+
+    fn parse_notification(&mut self, _: &hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        Ok(false)
+    }
+}
