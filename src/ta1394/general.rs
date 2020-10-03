@@ -201,11 +201,181 @@ impl AvcStatus for VendorDependent {
     }
 }
 
+//
+// AV/C PLUG INFO command.
+//
+#[derive(Debug)]
+pub struct PlugInfoUnitIsocExtData {
+    pub isoc_input_plugs: u8,
+    pub isoc_output_plugs: u8,
+    pub external_input_plugs: u8,
+    pub external_output_plugs: u8,
+}
+
+#[derive(Debug)]
+pub struct PlugInfoUnitAsyncData {
+    pub async_input_plugs: u8,
+    pub async_output_plugs: u8,
+}
+
+#[derive(Debug)]
+pub struct PlugInfoUnitOtherData {
+    pub subfunction: u8,
+    pub first_input_plug: u8,
+    pub input_plugs: u8,
+    pub first_output_plug: u8,
+    pub output_plugs: u8,
+}
+
+#[derive(Debug)]
+pub enum PlugInfoUnitData {
+    IsocExt(PlugInfoUnitIsocExtData),
+    Async(PlugInfoUnitAsyncData),
+    Other(PlugInfoUnitOtherData),
+}
+
+#[derive(Debug)]
+pub struct PlugInfoSubunitData {
+    pub dst_plugs: u8,
+    pub src_plugs: u8,
+}
+
+#[derive(Debug)]
+pub enum PlugInfo {
+    Unit(PlugInfoUnitData),
+    Subunit(PlugInfoSubunitData),
+}
+
+impl PlugInfo {
+    const SUBFUNC_UNIT_ISOC_EXT: u8 = 0x00;
+    const SUBFUNC_UNIT_ASYNC: u8 = 0x01;
+    const SUBFUNC_SUBUNIT: u8 = 0x00;
+
+    pub fn new_for_unit_isoc_ext_plugs() -> Self {
+        PlugInfo::Unit(PlugInfoUnitData::IsocExt(PlugInfoUnitIsocExtData{
+            isoc_input_plugs: 0xff,
+            isoc_output_plugs: 0xff,
+            external_input_plugs: 0xff,
+            external_output_plugs: 0xff,
+        }))
+    }
+
+    pub fn new_for_unit_async_plugs() -> Self {
+        PlugInfo::Unit(PlugInfoUnitData::Async(PlugInfoUnitAsyncData{
+            async_input_plugs: 0xff,
+            async_output_plugs: 0xff,
+        }))
+    }
+
+    pub fn new_for_unit_other_plugs(subfunction: u8) -> Self {
+        PlugInfo::Unit(PlugInfoUnitData::Other(PlugInfoUnitOtherData{
+            subfunction,
+            first_input_plug: 0xff,
+            input_plugs: 0xff,
+            first_output_plug: 0xff,
+            output_plugs: 0xff,
+        }))
+    }
+
+    pub fn new_for_subunit_plugs() -> Self {
+        PlugInfo::Subunit(PlugInfoSubunitData{
+            dst_plugs: 0xff,
+            src_plugs: 0xff,
+        })
+    }
+}
+
+impl AvcOp for PlugInfo {
+    const OPCODE: u8 = 0x02;
+}
+
+impl AvcStatus for PlugInfo {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        let subfunction = match &self {
+            PlugInfo::Unit(u) => {
+                if let AvcAddr::Subunit(_) = addr {
+                    let label = "Subunit address is not supported for unit plug data by PlugInfo";
+                    return Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label));
+                }
+                match u {
+                    PlugInfoUnitData::IsocExt(_) => Self::SUBFUNC_UNIT_ISOC_EXT,
+                    PlugInfoUnitData::Async(_) => Self::SUBFUNC_UNIT_ASYNC,
+                    PlugInfoUnitData::Other(d) => d.subfunction,
+                }
+            }
+            PlugInfo::Subunit(_) => {
+                if let AvcAddr::Unit = addr {
+                    let label = "Unit address is not supported for subunit plug data by PlugInfo";
+                    return Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label));
+                }
+                Self::SUBFUNC_SUBUNIT
+            }
+        };
+        operands.push(subfunction);
+        operands.extend_from_slice(&[0xff;4]);
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() < 5 {
+            let label = format!("Oprands too short for PlugInfo; {}", operands.len());
+            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+        }
+
+        let subfunction = operands[0];
+        match self {
+            PlugInfo::Unit(u) => {
+                match u {
+                    PlugInfoUnitData::IsocExt(d) => {
+                        if subfunction != Self::SUBFUNC_UNIT_ISOC_EXT {
+                            let label = format!("Invalid subfunction for unit by PlugInfo: {}", subfunction);
+                            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                        }
+                        d.isoc_input_plugs = operands[1];
+                        d.isoc_output_plugs = operands[2];
+                        d.external_input_plugs = operands[3];
+                        d.external_output_plugs = operands[4];
+                    }
+                    PlugInfoUnitData::Async(d) => {
+                        if subfunction != Self::SUBFUNC_UNIT_ASYNC {
+                            let label = format!("Invalid subfunction for unit by PlugInfo: {}", subfunction);
+                            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                        }
+                        d.async_input_plugs = operands[1];
+                        d.async_output_plugs = operands[2];
+                    }
+                    PlugInfoUnitData::Other(d) => {
+                        if subfunction != d.subfunction {
+                            let label = format!("Invalid subfunction for unit by PlugInfo: {}", subfunction);
+                            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                        }
+                        d.first_input_plug = operands[1];
+                        d.input_plugs = operands[2];
+                        d.first_output_plug = operands[3];
+                        d.output_plugs = operands[4];
+                    }
+                }
+            }
+            PlugInfo::Subunit(s) => {
+                if subfunction != Self::SUBFUNC_SUBUNIT {
+                    let label = format!("Invalid subfunction for subunit by PlugInfo: {}", subfunction);
+                    return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                }
+                s.dst_plugs = operands[1];
+                s.src_plugs = operands[2];
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::{AvcSubunitType, AvcAddr};
+    use super::{AvcSubunitType, AvcAddr, AvcAddrSubunit};
     use super::{AvcStatus, AvcControl};
     use super::{UnitInfo, SubunitInfo, SubunitInfoEntry, VendorDependent};
+    use super::{PlugInfo, PlugInfoUnitData};
 
     #[test]
     fn unitinfo_operands() {
@@ -254,5 +424,86 @@ mod test {
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &target).unwrap();
         assert_eq!(op.company_id, company_id);
         assert_eq!(&op.data, &[0xde, 0xad, 0xbe, 0xef]);
+    }
+
+    #[test]
+    fn op_operands() {
+        let operands = [0x00, 0xde, 0xad, 0xbe, 0xef];
+        let mut op = PlugInfo::new_for_unit_isoc_ext_plugs();
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        match &op {
+            PlugInfo::Unit(u) => match u {
+                PlugInfoUnitData::IsocExt(d) => {
+                    assert_eq!(d.isoc_input_plugs, 0xde);
+                    assert_eq!(d.isoc_output_plugs, 0xad);
+                    assert_eq!(d.external_input_plugs, 0xbe);
+                    assert_eq!(d.external_output_plugs, 0xef);
+                },
+                _ => unreachable!(),
+            }
+            _ => unreachable!(),
+        }
+
+        let mut target = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(&target, &[0x00, 0xff, 0xff, 0xff, 0xff]);
+
+        let operands = [0x01, 0xde, 0xad, 0xff, 0xff];
+        let mut op = PlugInfo::new_for_unit_async_plugs();
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        match &op {
+            PlugInfo::Unit(u) => match u {
+                PlugInfoUnitData::Async(d) => {
+                    assert_eq!(d.async_input_plugs, 0xde);
+                    assert_eq!(d.async_output_plugs, 0xad);
+                }
+                _ => unreachable!(),
+            }
+            _ => unreachable!(),
+        }
+
+        let mut target = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(&target, &[0x01, 0xff, 0xff, 0xff, 0xff]);
+
+        let operands = [0x53, 0xde, 0xad, 0xbe, 0xef];
+        let mut op = PlugInfo::new_for_unit_other_plugs(0x53);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        match &op {
+            PlugInfo::Unit(u) => match u {
+                PlugInfoUnitData::Other(d) => {
+                    assert_eq!(d.subfunction, 0x53);
+                    assert_eq!(d.first_input_plug, 0xde);
+                    assert_eq!(d.input_plugs, 0xad);
+                    assert_eq!(d.first_output_plug, 0xbe);
+                    assert_eq!(d.output_plugs, 0xef);
+                }
+                _ => unreachable!(),
+            }
+            _ => unreachable!(),
+        }
+
+        let mut target = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(&target, &[0x53, 0xff, 0xff, 0xff, 0xff]);
+
+        let operands = [0x00, 0xde, 0xad, 0xff, 0xff];
+        let mut op = PlugInfo::new_for_subunit_plugs();
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        match &op {
+            PlugInfo::Subunit(s) => {
+                assert_eq!(s.dst_plugs, 0xde);
+                assert_eq!(s.src_plugs, 0xad);
+            }
+            _ => unreachable!(),
+        }
+
+        let mut target = Vec::new();
+        let addr = AvcAddr::Subunit(AvcAddrSubunit{
+            subunit_type: AvcSubunitType::Audio,
+            subunit_id: 0x4,
+        });
+        AvcStatus::build_operands(&mut op, &addr, &mut target).unwrap();
+        assert_eq!(&target, &[0x00, 0xff, 0xff, 0xff, 0xff]);
     }
 }
