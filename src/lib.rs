@@ -11,3 +11,4 @@ pub mod dg00x;
 pub mod tascam;
 pub mod efw;
 pub mod motu;
+pub mod oxfw;
