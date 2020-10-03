@@ -7,5 +7,6 @@ mod tascam_model;
 mod apogee_model;
 
 mod tascam_proto;
+mod apogee_proto;
 
 mod common_ctl;
