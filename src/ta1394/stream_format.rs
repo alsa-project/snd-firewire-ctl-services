@@ -2,6 +2,9 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
+use super::{AvcAddr, Ta1394AvcError};
+use super::{AvcOp, AvcStatus, AvcControl};
+
 //
 // AV/C STREAM FORMAT INFORMATION
 //
@@ -868,6 +871,152 @@ impl From<PlugAddr> for [u8;5] {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SupportStatus {
+    Active,
+    Inactive,
+    NoStreamFormat,
+    NoInfo,
+    Reserved(u8),
+}
+
+impl SupportStatus {
+    const ACTIVE: u8 = 0x00;
+    const INACTIVE: u8 = 0x01;
+    const NO_STREAM_FORMAT: u8 = 0x02;
+    const NO_INFO: u8 = 0xff;
+}
+
+impl From<u8> for SupportStatus {
+    fn from(val: u8) -> Self {
+        match val {
+            Self::ACTIVE => Self::Active,
+            Self::INACTIVE => Self::Inactive,
+            Self::NO_STREAM_FORMAT => Self::NoStreamFormat,
+            Self::NO_INFO => Self::NoInfo,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<SupportStatus> for u8 {
+    fn from(status: SupportStatus) -> Self {
+        match status {
+            SupportStatus::Active => SupportStatus::ACTIVE,
+            SupportStatus::Inactive => SupportStatus::INACTIVE,
+            SupportStatus::NoStreamFormat => SupportStatus::NO_STREAM_FORMAT,
+            SupportStatus::NoInfo => SupportStatus::NO_INFO,
+            SupportStatus::Reserved(val) => val,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExtendedStreamFormat{
+    subfunc: u8,
+    plug_addr: PlugAddr,
+    support_status: SupportStatus,
+}
+
+impl ExtendedStreamFormat {
+    const OPCODE: u8 = 0xbf;
+    
+    fn new(subfunc: u8, plug_addr: &PlugAddr) -> Self {
+        ExtendedStreamFormat{
+            subfunc,
+            plug_addr: *plug_addr,
+            support_status: SupportStatus::Reserved(0xff),
+        }
+    }
+
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        operands.push(self.subfunc);
+        operands.extend_from_slice(&Into::<[u8;5]>::into(self.plug_addr));
+        operands.push(self.support_status.into());
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() < 7 {
+            let label = format!("Unexpected length of data for ExtendedStreamFormat: {}",
+                                operands.len());
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else if operands[0] != self.subfunc {
+            let label = format!("Unexpected subfunction for ExtendedStreamFormat: {} but {}",
+                                self.subfunc, operands[0]);
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else {
+            let plug_addr = PlugAddr::from(&operands[1..6]);
+            if plug_addr != self.plug_addr {
+                let label = format!("Unexpected address to plug for ExtendedStreamFormat: {:?} but {:?}",
+                                    plug_addr, self.plug_addr);
+                Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            } else {
+                self.support_status = SupportStatus::from(operands[6]);
+                Ok(())
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExtendedStreamFormatSingle{
+    pub support_status: SupportStatus,
+    pub stream_format: StreamFormat,
+    op: ExtendedStreamFormat,
+}
+
+impl ExtendedStreamFormatSingle {
+    const SUBFUNC: u8 = 0xc0;
+
+    pub fn new(plug_addr: &PlugAddr) -> Self {
+        ExtendedStreamFormatSingle{
+            support_status: SupportStatus::NoInfo,
+            stream_format: StreamFormat::Reserved(Vec::new()),
+            op: ExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
+        }
+    }
+}
+
+impl AvcOp for ExtendedStreamFormatSingle {
+    const OPCODE: u8 = ExtendedStreamFormat::OPCODE;
+}
+
+impl AvcStatus for ExtendedStreamFormatSingle {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.support_status = SupportStatus::Reserved(0xff);
+        self.op.build_operands(addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        self.op.parse_operands(addr, operands)?;
+
+        self.stream_format = StreamFormat::from(&operands[7..]);
+
+        self.support_status = self.op.support_status;
+
+        Ok(())
+    }
+}
+
+impl AvcControl for ExtendedStreamFormatSingle {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.build_operands(addr, operands)?;
+        operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        self.op.parse_operands(addr, operands)?;
+
+        self.stream_format = StreamFormat::from(&operands[7..]);
+
+        self.support_status = self.op.support_status;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Am824MultiBitAudioAttr, Am824OneBitAudioAttr, Am824Stream};
@@ -875,6 +1024,10 @@ mod tests {
     use super::{AmStream, StreamFormat};
 
     use super::{UnitPlugType, UnitPlugData, SubunitPlugData, FunctionBlockPlugData, PlugAddrMode, PlugDirection, PlugAddr};
+
+    use super::AvcAddr;
+    use super::{AvcStatus, AvcControl};
+    use super::{SupportStatus, ExtendedStreamFormatSingle};
 
     #[test]
     fn am824multibitaudioattr_from() {
@@ -1067,5 +1220,67 @@ mod tests {
         };
         let raw: [u8;5] = fb.into();
         assert_eq!(fb, raw[..].into());
+    }
+
+    #[test]
+    fn single_operands() {
+        let plug_addr = PlugAddr{
+            direction: PlugDirection::Output,
+            mode: PlugAddrMode::Unit(UnitPlugData{
+                unit_type: UnitPlugType::Pcr,
+                plug_id: 0x03,
+            }),
+        };
+        let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+        let mut operands = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        assert_eq!(&operands, &[0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff]);
+
+        let operands = [0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01,
+                        0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00];
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.op.plug_addr, plug_addr);
+        assert_eq!(op.op.support_status, SupportStatus::Inactive);
+
+        if let StreamFormat::Am(stream_format) = &op.stream_format {
+            if let AmStream::CompoundAm824(s) = stream_format {
+                assert_eq!(s.freq, 48000);
+                assert_eq!(s.sync_src, false);
+                assert_eq!(s.rate_ctl, RateCtl::Supported);
+                assert_eq!(s.entries.len(), 2);
+                assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
+                assert_eq!(s.entries[1], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::Iec60958_3});
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+
+        let mut operands = Vec::new();
+        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        assert_eq!(&operands, &[0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01,
+                                0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00]);
+
+        let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+        let operands = [0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff,
+                        0x90, 0x40, 0x05, 0x04, 0x02, 0x02, 0x06, 0x02, 0x00];
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.op.plug_addr, plug_addr);
+        assert_eq!(op.op.support_status, SupportStatus::NoInfo);
+        if let StreamFormat::Am(stream_format) = &op.stream_format {
+            if let AmStream::CompoundAm824(s) = stream_format {
+                assert_eq!(s.freq, 96000);
+                assert_eq!(s.sync_src, true);
+                assert_eq!(s.rate_ctl, RateCtl::Supported);
+                assert_eq!(s.entries.len(), 2);
+                assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
+                assert_eq!(s.entries[1], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::Iec60958_3});
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
     }
 }
