@@ -6,11 +6,14 @@ use glib::source;
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::{FwNodeExt, SndUnitExt, SndUnitExtManual};
+use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
 use alsactl::CardExt;
 
 use crate::dispatcher;
 use crate::card_cntr;
+use crate::ta1394;
+
+use super::model::OxfwModel;
 
 enum Event {
     Shutdown,
@@ -21,6 +24,7 @@ enum Event {
 
 pub struct OxfwUnit {
     unit: hinawa::SndUnit,
+    model: OxfwModel,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
@@ -47,6 +51,14 @@ impl<'a> OxfwUnit {
             return Err(Error::new(FileError::Inval, label));
         }
 
+        let node = unit.get_node();
+        let data = node.get_config_rom()?;
+        let (vendor, model) = ta1394::config_rom::parse_entries(&data).ok_or_else(|| {
+            let label = "Fail to detect information of unit";
+            Error::new(FileError::Noent, label)
+        })?;
+        let model = OxfwModel::new(vendor.vendor_id, model.model_id)?;
+
         let card_cntr = card_cntr::CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
@@ -55,6 +67,7 @@ impl<'a> OxfwUnit {
 
         Ok(OxfwUnit {
             unit,
+            model,
             card_cntr,
             rx,
             tx,
@@ -111,6 +124,8 @@ impl<'a> OxfwUnit {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
+        self.model.load(&self.unit, &mut self.card_cntr)?;
+
         Ok(())
     }
 
@@ -127,7 +142,9 @@ impl<'a> OxfwUnit {
                 Event::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
-                Event::Elem((_, _)) => (),
+                Event::Elem((elem_id, events)) => {
+                    let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr, &elem_id, &events);
+                }
             }
         }
     }
