@@ -6,9 +6,11 @@ use crate::card_cntr;
 use crate::card_cntr::{CtlModel, NotifyModel};
 
 use super::tascam_model::TascamModel;
+use super::apogee_model::ApogeeModel;
 
 enum OxfwCtlModel {
     Fireone(TascamModel),
+    Duet(ApogeeModel),
 }
 
 pub struct OxfwModel{
@@ -21,6 +23,7 @@ impl OxfwModel {
     pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
             (0x00022e, 0x800007) => OxfwCtlModel::Fireone(TascamModel::new()),
+            (0x0003db, 0x01dddd) => OxfwCtlModel::Duet(ApogeeModel::new()),
             _ => return Err(Error::new(FileError::Noent, "Not supported")),
         };
         let model = OxfwModel{
@@ -35,10 +38,12 @@ impl OxfwModel {
     {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
+            OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            OxfwCtlModel::Duet(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -50,6 +55,7 @@ impl OxfwModel {
     {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+            OxfwCtlModel::Duet(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
         }
     }
 
@@ -58,6 +64,7 @@ impl OxfwModel {
     {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
+            OxfwCtlModel::Duet(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
         }
     }
 }
