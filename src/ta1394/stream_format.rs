@@ -318,11 +318,240 @@ impl From<&Am824Stream> for [u8;4] {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompoundAm824StreamFormat{
+    Iec60958_3,
+    Iec61937_3,
+    Iec61937_4,
+    Iec61937_5,
+    Iec61937_6,
+    Iec61937_7,
+    MultiBitLinearAudioRaw,
+    MultiBitLinearAudioDvd,
+    HighPrecisionMultiBitLinearAudio,
+    MidiConformant,
+    SmpteTimeCodeConformant,
+    SampleCount,
+    AncillaryData,
+    SyncStream,
+    Reserved(u8),
+}
+
+impl CompoundAm824StreamFormat {
+    const IEC60958_3: u8 = 0x00;
+    const IEC61937_3: u8 = 0x01;
+    const IEC61937_4: u8 = 0x02;
+    const IEC61937_5: u8 = 0x03;
+    const IEC61937_6: u8 = 0x04;
+    const IEC61937_7: u8 = 0x05;
+    const MULTI_BIT_LINEAR_AUDIO_RAW: u8 = 0x06;
+    const MULTI_BIT_LINEAR_AUDIO_DVD: u8 = 0x07;
+    const HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO: u8 = 0x0c;
+    const MIDI_CONFORMANT: u8 = 0x0d;
+    const SMPTE_TIME_CODE_CONFORMANT: u8 = 0x0e;
+    const SAMPLE_COUNT: u8 = 0x0f;
+    const ANCILLARY_DATA: u8 = 0x10;
+    const SYNC_STREAM: u8 = 0x40;
+}
+
+impl From<u8> for CompoundAm824StreamFormat {
+    fn from(val: u8) -> Self {
+        match val {
+            CompoundAm824StreamFormat::IEC60958_3 => CompoundAm824StreamFormat::Iec60958_3,
+            CompoundAm824StreamFormat::IEC61937_3 => CompoundAm824StreamFormat::Iec61937_3,
+            CompoundAm824StreamFormat::IEC61937_4 => CompoundAm824StreamFormat::Iec61937_4,
+            CompoundAm824StreamFormat::IEC61937_5 => CompoundAm824StreamFormat::Iec61937_5,
+            CompoundAm824StreamFormat::IEC61937_6 => CompoundAm824StreamFormat::Iec61937_6,
+            CompoundAm824StreamFormat::IEC61937_7 => CompoundAm824StreamFormat::Iec61937_7,
+            CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => CompoundAm824StreamFormat::MultiBitLinearAudioRaw,
+            CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => CompoundAm824StreamFormat::MultiBitLinearAudioDvd,
+            CompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => CompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio,
+            CompoundAm824StreamFormat::MIDI_CONFORMANT => CompoundAm824StreamFormat::MidiConformant,
+            CompoundAm824StreamFormat::SMPTE_TIME_CODE_CONFORMANT => CompoundAm824StreamFormat::SmpteTimeCodeConformant,
+            CompoundAm824StreamFormat::SAMPLE_COUNT => CompoundAm824StreamFormat::SampleCount,
+            CompoundAm824StreamFormat::ANCILLARY_DATA => CompoundAm824StreamFormat::AncillaryData,
+            CompoundAm824StreamFormat::SYNC_STREAM => CompoundAm824StreamFormat::SyncStream,
+            _ => CompoundAm824StreamFormat::Reserved(val),
+        }
+    }
+}
+
+impl From<CompoundAm824StreamFormat> for u8 {
+    fn from(fmt: CompoundAm824StreamFormat) -> Self {
+        match fmt {
+            CompoundAm824StreamFormat::Iec60958_3 => CompoundAm824StreamFormat::IEC60958_3,
+            CompoundAm824StreamFormat::Iec61937_3 => CompoundAm824StreamFormat::IEC61937_3,
+            CompoundAm824StreamFormat::Iec61937_4 => CompoundAm824StreamFormat::IEC61937_4,
+            CompoundAm824StreamFormat::Iec61937_5 => CompoundAm824StreamFormat::IEC61937_5,
+            CompoundAm824StreamFormat::Iec61937_6 => CompoundAm824StreamFormat::IEC61937_6,
+            CompoundAm824StreamFormat::Iec61937_7 => CompoundAm824StreamFormat::IEC61937_7,
+            CompoundAm824StreamFormat::MultiBitLinearAudioRaw => CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW,
+            CompoundAm824StreamFormat::MultiBitLinearAudioDvd => CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD,
+            CompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => CompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO,
+            CompoundAm824StreamFormat::MidiConformant => CompoundAm824StreamFormat::MIDI_CONFORMANT,
+            CompoundAm824StreamFormat::SmpteTimeCodeConformant => CompoundAm824StreamFormat::SMPTE_TIME_CODE_CONFORMANT,
+            CompoundAm824StreamFormat::SampleCount => CompoundAm824StreamFormat::SAMPLE_COUNT,
+            CompoundAm824StreamFormat::AncillaryData => CompoundAm824StreamFormat::ANCILLARY_DATA,
+            CompoundAm824StreamFormat::SyncStream => CompoundAm824StreamFormat::SYNC_STREAM,
+            CompoundAm824StreamFormat::Reserved(val) => val,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompoundAm824StreamEntry{
+    pub count: u8,
+    pub format: CompoundAm824StreamFormat,
+}
+
+impl From<&[u8;2]> for CompoundAm824StreamEntry {
+    fn from(raw: &[u8;2]) -> Self {
+        CompoundAm824StreamEntry{
+            count: raw[0],
+            format: CompoundAm824StreamFormat::from(raw[1]),
+        }
+    }
+}
+
+impl From<&CompoundAm824StreamEntry> for [u8;2] {
+    fn from(data: &CompoundAm824StreamEntry) -> Self {
+        [data.count, data.format.into()]
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RateCtl {
+    Supported,
+    DontCare,
+    NotSupported,
+    Reserved(u8),
+}
+
+impl RateCtl {
+    const SUPPORTED: u8 = 0x00;
+    const DONT_CARE: u8 = 0x01;
+    const NOT_SUPPORTED: u8 = 0x02;
+}
+
+impl From<RateCtl> for u8 {
+    fn from(rate_ctl: RateCtl) -> Self {
+        match rate_ctl {
+            RateCtl::Supported => RateCtl::SUPPORTED,
+            RateCtl::DontCare => RateCtl::DONT_CARE,
+            RateCtl::NotSupported => RateCtl::NOT_SUPPORTED,
+            RateCtl::Reserved(val) => val,
+        }
+    }
+}
+
+impl From<u8> for RateCtl {
+    fn from(val: u8) -> Self {
+        match val {
+            Self::SUPPORTED => Self::Supported,
+            Self::DONT_CARE => Self::DontCare,
+            Self::NOT_SUPPORTED => Self::NotSupported,
+            _ => RateCtl::Reserved(val),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompoundAm824Stream{
+    pub freq: u32,
+    pub sync_src: bool,
+    pub rate_ctl: RateCtl,
+    pub entries: Vec<CompoundAm824StreamEntry>,
+}
+
+impl CompoundAm824Stream {
+    const FREQ_CODE_22050: u8 = 0x00;
+    const FREQ_CODE_24000: u8 = 0x01;
+    const FREQ_CODE_32000: u8 = 0x02;
+    const FREQ_CODE_44100: u8 = 0x03;
+    const FREQ_CODE_48000: u8 = 0x04;
+    const FREQ_CODE_96000: u8 = 0x05;
+    const FREQ_CODE_176400: u8 = 0x06;
+    const FREQ_CODE_192000: u8 = 0x07;
+    const FREQ_CODE_88200: u8 = 0x0a;
+
+    const SYNC_SRC_MASK: u8 = 0x01;
+    const SYNC_SRC_SHIFT: usize = 2;
+
+    const RATE_CTL_MASK: u8 = 0x03;
+    const RATE_CTL_SHIFT: usize = 0;
+}
+
+impl From<&[u8]> for CompoundAm824Stream {
+    fn from(raw: &[u8]) -> Self {
+        let freq = match raw[0] {
+            CompoundAm824Stream::FREQ_CODE_22050 => 22050,
+            CompoundAm824Stream::FREQ_CODE_24000 => 24000,
+            CompoundAm824Stream::FREQ_CODE_32000 => 32000,
+            CompoundAm824Stream::FREQ_CODE_44100 => 44100,
+            CompoundAm824Stream::FREQ_CODE_48000 => 48000,
+            CompoundAm824Stream::FREQ_CODE_96000 => 96000,
+            CompoundAm824Stream::FREQ_CODE_176400 => 176400,
+            CompoundAm824Stream::FREQ_CODE_192000 => 192000,
+            CompoundAm824Stream::FREQ_CODE_88200 => 88200,
+            _ => u32::MAX,
+        };
+        let sync_src_code =
+            (raw[1] >> CompoundAm824Stream::SYNC_SRC_SHIFT) & CompoundAm824Stream::SYNC_SRC_MASK;
+        let sync_src = sync_src_code > 0;
+        let rate_ctl_code =
+            (raw[1] >> CompoundAm824Stream::RATE_CTL_SHIFT) & CompoundAm824Stream::RATE_CTL_MASK;
+        let rate_ctl = RateCtl::from(rate_ctl_code);
+        let entry_count = raw[2] as usize;
+        let entries = (0..entry_count).filter_map(|i| {
+            if 3 + i * 2 + 2 > raw.len() {
+                None
+            } else {
+                let mut doublet = [0;2];
+                doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
+                Some(CompoundAm824StreamEntry::from(&doublet))
+            }
+        }).collect();
+        CompoundAm824Stream{freq, sync_src, rate_ctl, entries}
+    }
+}
+
+impl From<&CompoundAm824Stream> for Vec<u8> {
+    fn from(data: &CompoundAm824Stream) -> Self {
+        let mut raw = Vec::new();
+        let freq_code = match data.freq {
+            22050 => CompoundAm824Stream::FREQ_CODE_22050,
+            24000 => CompoundAm824Stream::FREQ_CODE_24000,
+            32000 => CompoundAm824Stream::FREQ_CODE_32000,
+            44100 => CompoundAm824Stream::FREQ_CODE_44100,
+            48000 => CompoundAm824Stream::FREQ_CODE_48000,
+            96000 => CompoundAm824Stream::FREQ_CODE_96000,
+            176400 => CompoundAm824Stream::FREQ_CODE_176400,
+            192000 => CompoundAm824Stream::FREQ_CODE_192000,
+            88200 => CompoundAm824Stream::FREQ_CODE_88200,
+            _ => u8::MAX,
+        };
+        raw.push(freq_code);
+
+        let sync_src_code = ((data.sync_src as u8) & CompoundAm824Stream::SYNC_SRC_MASK) <<
+                            CompoundAm824Stream::SYNC_SRC_SHIFT;
+        let rate_ctl_code = (u8::from(data.rate_ctl) & CompoundAm824Stream::RATE_CTL_MASK) <<
+                            CompoundAm824Stream::RATE_CTL_SHIFT;
+        raw.push(sync_src_code | rate_ctl_code);
+
+        raw.push(data.entries.len() as u8);
+        data.entries.iter().for_each(|entry|{
+            raw.extend_from_slice(&Into::<[u8;2]>::into(entry));
+        });
+        raw
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AmStream{
     Am824(Am824Stream),
     AudioPack,
     Fp32,
+    CompoundAm824(CompoundAm824Stream),
     Reserved(Vec<u8>),
 }
 
@@ -330,6 +559,7 @@ impl AmStream {
     const HIER_LEVEL_1_AM824: u8 = 0x00;
     const HIER_LEVEL_1_AUDIO_PACK: u8 = 0x01;
     const HIER_LEVEL_1_FP32: u8 = 0x02;
+    const HIER_LEVEL_1_COMPOUND_AM824: u8 = 0x40;
 }
 
 impl From<&[u8]> for AmStream {
@@ -343,6 +573,10 @@ impl From<&[u8]> for AmStream {
             }
             AmStream::HIER_LEVEL_1_AUDIO_PACK => AmStream::AudioPack,
             AmStream::HIER_LEVEL_1_FP32 => AmStream::Fp32,
+            AmStream::HIER_LEVEL_1_COMPOUND_AM824 => {
+                let s = CompoundAm824Stream::from(&raw[1..]);
+                AmStream::CompoundAm824(s)
+            }
             _ => AmStream::Reserved((*raw).to_vec()),
         }
     }
@@ -363,6 +597,10 @@ impl From<&AmStream> for Vec<u8> {
             AmStream::Fp32 => {
                 raw.push(AmStream::HIER_LEVEL_1_FP32);
                 raw.extend_from_slice(&[0xff, 0xff, 0xff, 0xff]);
+            }
+            AmStream::CompoundAm824(s) => {
+                raw.push(AmStream::HIER_LEVEL_1_COMPOUND_AM824);
+                raw.append(&mut Into::<Vec<u8>>::into(s));
             }
             AmStream::Reserved(d) => {
                 raw.copy_from_slice(d);
@@ -399,6 +637,15 @@ impl StreamFormat {
             Err(Error::new(FileError::Nxio, &label))
         }
     }
+
+    pub fn as_compound_am824_stream(&self) -> Result<&CompoundAm824Stream, Error> {
+        if let AmStream::CompoundAm824(s) = self.as_am_stream()? {
+            Ok(s)
+        } else {
+            let label = "Compound AM824 stream is not available for the unit";
+            Err(Error::new(FileError::Nxio, &label))
+        }
+    }
 }
 
 impl From<&[u8]> for StreamFormat {
@@ -427,6 +674,7 @@ impl From<&StreamFormat> for Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::{Am824MultiBitAudioAttr, Am824OneBitAudioAttr, Am824Stream};
+    use super::{CompoundAm824Stream, CompoundAm824StreamEntry, CompoundAm824StreamFormat, RateCtl};
     use super::{AmStream, StreamFormat};
 
     #[test]
@@ -500,5 +748,74 @@ mod tests {
             unreachable!();
         }
         assert_eq!(raw, Into::<Vec<u8>>::into(&format).as_slice());
+
+        let mut raw = Vec::<u8>::new();
+        raw.extend_from_slice(&[0x90, 0x40, 0x04, 0x02, 0x01, 0x1c, 0x02]);
+        let stream_format = StreamFormat::from(raw.as_slice());
+        if let StreamFormat::Am(i) = &stream_format {
+            if let AmStream::CompoundAm824(s) = i {
+                assert_eq!(48000, s.freq);
+                assert_eq!(false, s.sync_src);
+                assert_eq!(RateCtl::NotSupported, s.rate_ctl);
+                assert_eq!(1, s.entries.len());
+                assert_eq!(0x1c, s.entries[0].count);
+                assert_eq!(CompoundAm824StreamFormat::Iec61937_4, s.entries[0].format);
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+        assert_eq!(raw, Into::<Vec<u8>>::into(&stream_format));
+    }
+
+    #[test]
+    fn compoundam824streamformat_from() {
+        assert_eq!(0x00, u8::from(CompoundAm824StreamFormat::from(0x00)));
+        assert_eq!(0x01, u8::from(CompoundAm824StreamFormat::from(0x01)));
+        assert_eq!(0x02, u8::from(CompoundAm824StreamFormat::from(0x02)));
+        assert_eq!(0x03, u8::from(CompoundAm824StreamFormat::from(0x03)));
+        assert_eq!(0x04, u8::from(CompoundAm824StreamFormat::from(0x04)));
+        assert_eq!(0x05, u8::from(CompoundAm824StreamFormat::from(0x05)));
+        assert_eq!(0x06, u8::from(CompoundAm824StreamFormat::from(0x06)));
+        assert_eq!(0x07, u8::from(CompoundAm824StreamFormat::from(0x07)));
+        assert_eq!(0x0c, u8::from(CompoundAm824StreamFormat::from(0x0c)));
+        assert_eq!(0x0d, u8::from(CompoundAm824StreamFormat::from(0x0d)));
+        assert_eq!(0x0e, u8::from(CompoundAm824StreamFormat::from(0x0e)));
+        assert_eq!(0x0f, u8::from(CompoundAm824StreamFormat::from(0x0f)));
+        assert_eq!(0x10, u8::from(CompoundAm824StreamFormat::from(0x10)));
+        assert_eq!(0x40, u8::from(CompoundAm824StreamFormat::from(0x40)));
+        assert_eq!(0xff, u8::from(CompoundAm824StreamFormat::from(0xff)));
+    }
+
+    #[test]
+    fn compoundam824streamentry_from() {
+        assert_eq!([0x02, 0x04], Into::<[u8;2]>::into(&CompoundAm824StreamEntry::from(&[0x02, 0x04])));
+        assert_eq!([0x19, 0x03], Into::<[u8;2]>::into(&CompoundAm824StreamEntry::from(&[0x19, 0x03])));
+        assert_eq!([0x37, 0x00], Into::<[u8;2]>::into(&CompoundAm824StreamEntry::from(&[0x37, 0x00])));
+    }
+
+    #[test]
+    fn ratectl_from() {
+        assert_eq!(0x00, u8::from(RateCtl::from(0x00)));
+        assert_eq!(0x01, u8::from(RateCtl::from(0x01)));
+        assert_eq!(0x02, u8::from(RateCtl::from(0x02)));
+        assert_eq!(0xff, u8::from(RateCtl::from(0xff)));
+    }
+
+    #[test]
+    fn compoundam824stream_from() {
+        let mut raw = Vec::<u8>::new();
+        raw.extend_from_slice(&[0x03, 0x02, 0x02, 0xee, 0x03, 0x37, 0x0d]);
+        let s = CompoundAm824Stream::from(raw.as_slice());
+        assert_eq!(44100, s.freq);
+        assert_eq!(false, s.sync_src);
+        assert_eq!(RateCtl::NotSupported, s.rate_ctl);
+        assert_eq!(2, s.entries.len());
+        assert_eq!(0xee, s.entries[0].count);
+        assert_eq!(CompoundAm824StreamFormat::Iec61937_5, s.entries[0].format);
+        assert_eq!(0x37, s.entries[1].count);
+        assert_eq!(CompoundAm824StreamFormat::MidiConformant, s.entries[1].format);
+        assert_eq!(raw, Into::<Vec<u8>>::into(&CompoundAm824Stream::from(raw.as_slice())));
     }
 }
