@@ -3,6 +3,7 @@
 pub mod config_rom;
 pub mod general;
 pub mod amdtp;
+pub mod ccm;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
