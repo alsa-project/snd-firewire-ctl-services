@@ -76,18 +76,22 @@ impl CardCntr {
         self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)
     }
 
-    pub fn add_enum_elems(
+    pub fn add_enum_elems<O>(
         &mut self,
         elem_id: &alsactl::ElemId,
         elem_count: usize,
         value_count: usize,
-        labels: &[&str],
+        labels: &[O],
         tlv: Option<&[i32]>,
         unlock: bool,
-    ) -> Result<Vec<alsactl::ElemId>, Error> {
+    ) -> Result<Vec<alsactl::ElemId>, Error>
+        where O: AsRef<str>
+    {
+        let entries = labels.iter().map(|entry| entry.as_ref()).collect::<Vec<&str>>();
+
         let elem_info = alsactl::ElemInfo::new(ElemType::Enumerated)?;
         elem_info.set_property_value_count(value_count as u32);
-        elem_info.set_enum_data(&labels)?;
+        elem_info.set_enum_data(&entries)?;
 
         let access = alsactl::ElemAccessFlag::READ
             | alsactl::ElemAccessFlag::WRITE
