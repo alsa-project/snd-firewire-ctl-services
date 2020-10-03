@@ -10,13 +10,14 @@ use crate::ta1394::{Ta1394Avc, AvcAddr, AvcSubunitType};
 use crate::ta1394::general::UnitInfo;
 
 use super::common_ctl::CommonCtl;
-use super::apogee_ctls::OutputCtl;
+use super::apogee_ctls::{OutputCtl, MixerCtl};
 
 pub struct ApogeeModel{
     avc: hinawa::FwFcp,
     company_id: [u8; 3],
     common_ctl: CommonCtl,
     output_ctl: OutputCtl,
+    mixer_ctl: MixerCtl,
 }
 
 impl<'a> ApogeeModel {
@@ -28,6 +29,7 @@ impl<'a> ApogeeModel {
             company_id: [0xff;3],
             common_ctl: CommonCtl::new(),
             output_ctl: OutputCtl::new(),
+            mixer_ctl: MixerCtl::new(),
         }
     }
 }
@@ -46,6 +48,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
 
         self.common_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.output_ctl.load(&self.avc, card_cntr)?;
+        self.mixer_ctl.load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -57,6 +60,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
         if self.common_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -70,6 +75,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
         if self.common_ctl.write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.write(&self.avc, &self.company_id, elem_id, old, new)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(&self.avc, &self.company_id, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)

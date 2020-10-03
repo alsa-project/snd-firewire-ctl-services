@@ -183,6 +183,18 @@ impl<'a> ApogeeCmd {
         assert!(self.vals.len() == 0, "Unexpected write operation as bool argument.");
         self.vals.push(if val > 0 { Self::ON } else { Self::OFF })
     }
+
+    pub fn read_u16(&self) -> u16 {
+        assert!(self.vals.len() > 0, "Unexpected read operation as bool argument.");
+        let mut doublet = [0;2];
+        doublet.copy_from_slice(&self.vals[..2]);
+        u16::from_be_bytes(doublet)
+    }
+
+    pub fn write_u16(&mut self, val: u16) {
+        assert!(self.vals.len() == 0, "Unexpected write operation as u16 argument.");
+        self.vals.extend_from_slice(&val.to_be_bytes());
+    }
 }
 
 impl AvcOp for ApogeeCmd {
