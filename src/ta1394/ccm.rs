@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use super::{AvcSubunitType, AvcAddr, AvcAddrSubunit};
+use glib::Error;
+
+use super::{AvcSubunitType, AvcAddr, AvcAddrSubunit, Ta1394AvcError};
+use super::{AvcOp, AvcStatus, AvcControl};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignalUnitAddr {
@@ -101,9 +104,70 @@ impl From<SignalAddr> for [u8;2] {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct SignalSource {
+    pub src: SignalAddr,
+    pub dst: SignalAddr,
+}
+
+impl SignalSource {
+    pub fn new(dst: &SignalAddr) -> Self {
+        SignalSource{
+            src: SignalAddr::Unit(SignalUnitAddr::Isoc(SignalUnitAddr::PLUG_ID_MASK)),
+            dst: *dst,
+        }
+    }
+
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() > 4 {
+            let mut doublet = [0;2];
+            doublet.copy_from_slice(&operands[1..3]);
+            self.src = SignalAddr::from(&doublet);
+            doublet.copy_from_slice(&operands[3..5]);
+            self.dst = SignalAddr::from(&doublet);
+            Ok(())
+        } else {
+            let label = format!("Oprands too short for VendorDependent; {}", operands.len());
+            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+        }
+    }
+}
+
+impl AvcOp for SignalSource {
+    const OPCODE: u8 = 0x1a;
+}
+
+impl AvcControl for SignalSource {
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        operands.push(0xff);
+        operands.extend_from_slice(&Into::<[u8;2]>::into(self.src));
+        operands.extend_from_slice(&Into::<[u8;2]>::into(self.dst));
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        Self::parse_operands(self, operands)
+    }
+}
+
+impl AvcStatus for SignalSource {
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        operands.push(0xff);
+        operands.extend_from_slice(&[0xff, 0xfe]);
+        operands.extend_from_slice(&Into::<[u8;2]>::into(self.dst));
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        Self::parse_operands(self, operands)
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use super::SignalAddr;
+    use super::{AvcSubunitType, AvcAddrSubunit, AvcAddr};
+    use super::{AvcStatus, AvcControl};
+    use super::{SignalAddr, SignalUnitAddr, SignalSubunitAddr, SignalSource};
 
     #[test]
     fn signaladdr_from() {
@@ -113,5 +177,41 @@ mod test {
         assert_eq!([0xff, 0xc7], Into::<[u8;2]>::into(SignalAddr::from(&[0xff, 0xc7])));
         assert_eq!([0x63, 0x07], Into::<[u8;2]>::into(SignalAddr::from(&[0x63, 0x07])));
         assert_eq!([0x09, 0x11], Into::<[u8;2]>::into(SignalAddr::from(&[0x09, 0x11])));
+    }
+
+    #[test]
+    fn signalsource_operands() {
+        let operands = [0x00, 0x2e, 0x1c, 0xff, 0x05];
+        let dst = SignalAddr::Unit(SignalUnitAddr::Isoc(0x05));
+        let src = SignalAddr::Subunit(SignalSubunitAddr{
+            subunit: AvcAddrSubunit::new(AvcSubunitType::Tuner, 0x06),
+            plug_id: 0x1c,
+        });
+        let mut op = SignalSource::new(&dst);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.src, src);
+        assert_eq!(op.dst, dst);
+
+        let mut targets = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut targets).unwrap();
+        assert_eq!(targets, [0xff, 0xff, 0xfe, 0xff, 0x05]);
+
+        let mut targets = Vec::new();
+        let src = SignalAddr::Subunit(SignalSubunitAddr{
+            subunit: AvcAddrSubunit::new(AvcSubunitType::Extended, 0x05),
+            plug_id: 0x07,
+        });
+        let dst = SignalAddr::Unit(SignalUnitAddr::Ext(0x03));
+        let mut op = SignalSource{src, dst};
+        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut targets).unwrap();
+        assert_eq!(targets, [0xff, 0xf5, 0x07, 0xff, 0x83]);
+
+        let mut op = SignalSource{
+            src: SignalAddr::Unit(SignalUnitAddr::Isoc(0xf)),
+            dst: SignalAddr::Unit(SignalUnitAddr::Isoc(0xf)),
+        };
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &targets).unwrap();
+        assert_eq!(op.src, src);
+        assert_eq!(op.dst, dst);
     }
 }
