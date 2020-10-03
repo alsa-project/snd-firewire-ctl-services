@@ -65,6 +65,9 @@ impl<'a> ApogeeCmd {
     const IN_CLICKLESS: u8 = 0x1e;
     const DISPLAY_FOLLOW: u8 = 0x22;
 
+    const ON: u8 = 0x70;
+    const OFF: u8 = 0x60;
+
     pub fn new(company_id: &[u8;3], cmd: VendorCmd) -> Self {
         ApogeeCmd{
             cmd,
@@ -169,6 +172,16 @@ impl<'a> ApogeeCmd {
             self.vals = self.op.data.split_off(6);
             Ok(())
         }
+    }
+
+    pub fn get_enum(&self) -> u32 {
+        assert!(self.vals.len() > 0, "Unexpected read operation as bool argument.");
+        (self.vals[0] == Self::ON) as u32
+    }
+
+    pub fn put_enum(&mut self, val: u32) {
+        assert!(self.vals.len() == 0, "Unexpected write operation as bool argument.");
+        self.vals.push(if val > 0 { Self::ON } else { Self::OFF })
     }
 }
 
