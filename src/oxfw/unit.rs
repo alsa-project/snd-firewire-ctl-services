@@ -7,17 +7,21 @@ use nix::sys::signal;
 use std::sync::mpsc;
 
 use hinawa::{FwNodeExt, SndUnitExt, SndUnitExtManual};
+use alsactl::CardExt;
 
 use crate::dispatcher;
+use crate::card_cntr;
 
 enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
 pub struct OxfwUnit {
     unit: hinawa::SndUnit,
+    card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -43,11 +47,15 @@ impl<'a> OxfwUnit {
             return Err(Error::new(FileError::Inval, label));
         }
 
+        let card_cntr = card_cntr::CardCntr::new();
+        card_cntr.card.open(card_id, 0)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(OxfwUnit {
             unit,
+            card_cntr,
             rx,
             tx,
             dispatchers: Vec::new(),
@@ -88,6 +96,12 @@ impl<'a> OxfwUnit {
             source::Continue(false)
         });
 
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
+        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
+            let _ = tx.send(Event::Elem((elem_id.clone(), events)));
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -113,6 +127,7 @@ impl<'a> OxfwUnit {
                 Event::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
+                Event::Elem((_, _)) => (),
             }
         }
     }
