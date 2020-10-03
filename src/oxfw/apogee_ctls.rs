@@ -172,3 +172,82 @@ impl<'a> OutputCtl {
         }
     }
 }
+
+pub struct MixerCtl;
+
+impl<'a> MixerCtl {
+    const TARGET_LABELS: &'a [&'a str] = &["mixer-1", "mixer-2"];
+
+    const SRC_LABELS: &'a [&'a str] = &["stream-1", "stream-2", "analog-1", "analog-2"];
+
+    const MIXER_NAME: &'a str = "mixer-source-gain";
+
+    const GAIN_MIN: i32 = 0;
+    const GAIN_MAX: i32 = 0x3fff;
+    const GAIN_STEP: i32 = 0xff;
+
+    pub fn new() -> Self {
+        MixerCtl {}
+    }
+
+    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        // For gain of mixer sources.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIXER_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, Self::TARGET_LABELS.len(),
+                                        Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        Self::SRC_LABELS.len(),
+                                        None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+                elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_NAME => {
+                let dst = elem_id.get_index();
+                let mut vals = vec![0;Self::SRC_LABELS.len()];
+                vals.iter_mut().enumerate().try_for_each(|(src, val)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *val = op.read_u16() as i32;
+                    Ok(())
+                })?;
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_NAME => {
+                let dst = elem_id.get_index();
+                let mut vals = vec![0;8];
+                new.get_int(&mut vals[..4]);
+                old.get_int(&mut vals[4..]);
+
+                vals[..4].iter().zip(&vals[4..]).enumerate().try_for_each(|(src, (n, o))| {
+                    if n != o {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
+                        op.write_u16(*n as u16);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    } else {
+                        Ok::<(), Error>(())
+                    }
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
