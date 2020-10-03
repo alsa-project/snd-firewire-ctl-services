@@ -109,6 +109,7 @@ your device, please contact to developer.
   * Tascam FireOne
   * Apogee Duet FireWire
   * Griffin FireWave
+  * Lacie FireWire Speakers
 
 Supported protocols
 ===================

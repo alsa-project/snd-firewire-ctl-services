@@ -8,11 +8,13 @@ use crate::card_cntr::{CtlModel, MeasureModel, NotifyModel};
 use super::tascam_model::TascamModel;
 use super::apogee_model::ApogeeModel;
 use super::griffin_model::GriffinModel;
+use super::lacie_model::LacieModel;
 
 enum OxfwCtlModel {
     Fireone(TascamModel),
     Duet(ApogeeModel),
     Firewave(GriffinModel),
+    Speaker(LacieModel),
 }
 
 pub struct OxfwModel{
@@ -28,6 +30,7 @@ impl OxfwModel {
             (0x00022e, 0x800007) => OxfwCtlModel::Fireone(TascamModel::new()),
             (0x0003db, 0x01dddd) => OxfwCtlModel::Duet(ApogeeModel::new()),
             (0x001292, 0x00f970) => OxfwCtlModel::Firewave(GriffinModel::new()),
+            (0x00d04b, 0x00f970) => OxfwCtlModel::Speaker(LacieModel::new()),
             _ => return Err(Error::new(FileError::Noent, "Not supported")),
         };
         let model = OxfwModel{
@@ -45,6 +48,7 @@ impl OxfwModel {
             OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Firewave(m) => m.load(unit, card_cntr),
+            OxfwCtlModel::Speaker(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
@@ -56,6 +60,7 @@ impl OxfwModel {
             OxfwCtlModel::Fireone(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             OxfwCtlModel::Duet(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             OxfwCtlModel::Firewave(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            OxfwCtlModel::Speaker(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -69,6 +74,7 @@ impl OxfwModel {
             OxfwCtlModel::Fireone(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             OxfwCtlModel::Duet(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             OxfwCtlModel::Firewave(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+            OxfwCtlModel::Speaker(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
         }
     }
 
@@ -88,6 +94,7 @@ impl OxfwModel {
             OxfwCtlModel::Fireone(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
             OxfwCtlModel::Duet(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
             OxfwCtlModel::Firewave(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
+            OxfwCtlModel::Speaker(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
         }
     }
 }

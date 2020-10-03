@@ -6,6 +6,7 @@ mod model;
 mod tascam_model;
 mod apogee_model;
 mod griffin_model;
+mod lacie_model;
 
 mod tascam_proto;
 mod apogee_proto;
