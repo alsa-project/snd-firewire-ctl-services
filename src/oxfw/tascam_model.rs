@@ -4,12 +4,14 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
+use alsactl::{ElemValueExtManual, ElemValueExt};
+
 use crate::card_cntr;
 
 use crate::ta1394::{Ta1394Avc, AvcAddr};
 use crate::ta1394::general::UnitInfo;
 
-use super::tascam_proto::TascamAvc;
+use super::tascam_proto::{TascamProto, VendorCmd, TascamAvc};
 
 use super::common_ctl::CommonCtl;
 
@@ -18,8 +20,26 @@ pub struct TascamModel{
     common_ctl: CommonCtl,
 }
 
-impl TascamModel {
+impl<'a> TascamModel {
     const FCP_TIMEOUT_MS: u32 = 100;
+
+    const DISPLAY_MODE_NAME: &'a str = "display-mode";
+    const MESSAGE_MODE_NAME: &'a str = "message-mode";
+    const INPUT_MODE_NAME: &'a str = "input-mode";
+    const FIRMWARE_VERSION_NAME: &'a str = "firmware-version";
+
+    const DISPLAY_MODE_LABELS: &'a [&'a str] = &[
+        "always-off",
+        "always-on",
+        "breathe",
+        "metronome",
+        "midi-clock-rotate",
+        "midi-clock-flash",
+        "jog-slow-rotate",
+        "jog-track",
+    ];
+    const MESSAGE_MODE_LABELS: &'a [&'a str] = &["native", "mackie-hui-emulation"];
+    const INPUT_MODE_LABELS: &'a [&'a str] = &["stereo", "monaural"];
 
     pub fn new() -> Self {
         TascamModel{
@@ -39,6 +59,19 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
 
         self.common_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
 
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::DISPLAY_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::DISPLAY_MODE_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::MESSAGE_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MESSAGE_MODE_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::INPUT_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::INPUT_MODE_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::FIRMWARE_VERSION_NAME, 0);
+        let _ = card_cntr.add_bytes_elems(&elem_id, 1, 1, None, false)?;
+
         Ok(())
     }
 
@@ -49,7 +82,33 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         if self.common_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             return Ok(true);
         } else {
-            Ok(false)
+            match elem_id.get_name().as_str() {
+                Self::DISPLAY_MODE_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::DisplayMode);
+                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    elem_value.set_enum(&[op.val as u32]);
+                    Ok(true)
+                }
+                Self::MESSAGE_MODE_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::MessageMode);
+                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    elem_value.set_enum(&[op.val as u32]);
+                    Ok(true)
+                }
+                Self::INPUT_MODE_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::InputMode);
+                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    elem_value.set_enum(&[op.val as u32]);
+                    Ok(true)
+                }
+                Self::FIRMWARE_VERSION_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::FirmwareVersion);
+                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    elem_value.set_bytes(&[op.val as u8]);
+                    Ok(true)
+                }
+                _ => Ok(false),
+            }
         }
     }
 
@@ -59,7 +118,30 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         if self.common_ctl.write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)? {
             return Ok(true);
         } else {
-            Ok(false)
+            let mut vals = [0];
+            new.get_enum(&mut vals);
+
+            match elem_id.get_name().as_str() {
+                Self::DISPLAY_MODE_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::DisplayMode);
+                    op.val = vals[0] as u8;
+                    self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    Ok(true)
+                }
+                Self::MESSAGE_MODE_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::MessageMode);
+                    op.val = vals[0] as u8;
+                    self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    Ok(true)
+                }
+                Self::INPUT_MODE_NAME => {
+                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::InputMode);
+                    op.val = vals[0] as u8;
+                    self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    Ok(true)
+                }
+                _ => Ok(false),
+            }
         }
     }
 }
