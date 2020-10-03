@@ -98,6 +98,22 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
     }
 }
 
+impl card_cntr::MeasureModel<hinawa::SndUnit> for ApogeeModel {
+    fn get_measure_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
+    }
+
+    fn measure_states(&mut self, _: &hinawa::SndUnit) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn measure_elem(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId,
+                    _: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        Ok(false)
+    }
+}
+
 impl card_cntr::NotifyModel<hinawa::SndUnit, bool> for ApogeeModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);

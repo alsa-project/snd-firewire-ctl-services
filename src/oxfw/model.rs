@@ -3,7 +3,7 @@
 use glib::{Error, FileError};
 
 use crate::card_cntr;
-use crate::card_cntr::{CtlModel, NotifyModel};
+use crate::card_cntr::{CtlModel, MeasureModel, NotifyModel};
 
 use super::tascam_model::TascamModel;
 use super::apogee_model::ApogeeModel;
@@ -16,6 +16,7 @@ enum OxfwCtlModel {
 pub struct OxfwModel{
     ctl_model: OxfwCtlModel,
 
+    pub measure_elem_list: Vec<alsactl::ElemId>,
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
@@ -28,6 +29,7 @@ impl OxfwModel {
         };
         let model = OxfwModel{
             ctl_model,
+            measure_elem_list: Vec::new(),
             notified_elem_list: Vec::new(),
         };
         Ok(model)
@@ -40,6 +42,11 @@ impl OxfwModel {
             OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
         }?;
+
+        match &mut self.ctl_model {
+            OxfwCtlModel::Duet(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            _ => (),
+        }
 
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -57,6 +64,12 @@ impl OxfwModel {
             OxfwCtlModel::Fireone(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             OxfwCtlModel::Duet(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
         }
+    }
+
+    pub fn measure_elems(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        Ok(())
     }
 
     pub fn dispatch_notification(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, locked: bool)
