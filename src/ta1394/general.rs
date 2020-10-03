@@ -59,11 +59,89 @@ impl AvcStatus for UnitInfo {
     }
 }
 
+//
+// AV/C SUBUNIT INFO command.
+//
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct SubunitInfoEntry{
+    pub subunit_type: AvcSubunitType,
+    pub maximum_id: u8,
+}
+
+impl SubunitInfoEntry {
+    pub fn new(subunit_type: AvcSubunitType, maximum_id: u8) -> Self {
+        SubunitInfoEntry{subunit_type, maximum_id}
+    }
+}
+
+#[derive(Debug)]
+pub struct SubunitInfo{
+    pub page: u8,
+    pub extension_code: u8,
+    pub entries: Vec<SubunitInfoEntry>,
+}
+
+impl SubunitInfo {
+    const PAGE_SHIFT: usize = 4;
+    const PAGE_MASK: u8 = 0x07;
+    const EXTENSION_CODE_SHIFT: usize = 0;
+    const EXTENSION_CODE_MASK: u8 = 0x07;
+
+    pub fn new(page: u8, extension_code: u8) -> Self {
+        SubunitInfo{
+            page,
+            extension_code,
+            entries: Vec::new(),
+        }
+    }
+}
+
+impl AvcOp for SubunitInfo {
+    const OPCODE: u8 = 0x31;
+}
+
+impl AvcStatus for SubunitInfo {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        if let AvcAddr::Subunit(_) = addr {
+            let label = "Subunit address is not supported by SubunitInfo";
+            return Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label));
+        } else {
+            operands.push(((self.page & Self::PAGE_MASK) << Self::PAGE_SHIFT) |
+                          ((self.extension_code & Self::EXTENSION_CODE_MASK) << Self::EXTENSION_CODE_SHIFT));
+            operands.extend_from_slice(&[0xff;4]);
+            Ok(())
+        }
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() < 4 {
+            let label = format!("Oprands too short for SubunitInfo; {}", operands.len());
+            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+        } else {
+            self.page = (operands[0] >> Self::PAGE_SHIFT) & Self::PAGE_MASK;
+            self.extension_code = (operands[0] >> Self::EXTENSION_CODE_SHIFT) & Self::EXTENSION_CODE_MASK;
+
+            self.entries = operands[1..5].iter()
+                .filter(|&operand| *operand != 0xff)
+                .map(|operand| {
+                    let subunit_type = (operand >> AvcAddrSubunit::SUBUNIT_TYPE_SHIFT) & AvcAddrSubunit::SUBUNIT_TYPE_MASK;
+                    let maximum_id = (operand >> AvcAddrSubunit::SUBUNIT_ID_SHIFT) & AvcAddrSubunit::SUBUNIT_ID_MASK;
+                    SubunitInfoEntry{
+                        subunit_type: AvcSubunitType::from(subunit_type),
+                        maximum_id,
+                    }
+                }).collect();
+
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{AvcSubunitType, AvcAddr};
     use super::AvcStatus;
-    use super::UnitInfo;
+    use super::{UnitInfo, SubunitInfo, SubunitInfoEntry};
 
     #[test]
     fn unitinfo_operands() {
@@ -77,5 +155,18 @@ mod test {
         let mut operands = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
         assert_eq!(&operands, &[0x07, 0xff, 0xff, 0xff, 0xff]);
+    }
+
+    #[test]
+    fn subunitinfo_operands() {
+        let operands = [0xde, 0xad, 0xbe, 0xef, 0x3a];
+        let mut op = SubunitInfo::new(0, 0);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.page, 0x05);
+        assert_eq!(op.extension_code, 0x06);
+        assert_eq!(op.entries[0], SubunitInfoEntry::new(AvcSubunitType::Reserved(0x15), 0x05));
+        assert_eq!(op.entries[1], SubunitInfoEntry::new(AvcSubunitType::Reserved(0x17), 0x06));
+        assert_eq!(op.entries[2], SubunitInfoEntry::new(AvcSubunitType::Reserved(0x1d), 0x07));
+        assert_eq!(op.entries[3], SubunitInfoEntry::new(AvcSubunitType::Camera, 0x02));
     }
 }
