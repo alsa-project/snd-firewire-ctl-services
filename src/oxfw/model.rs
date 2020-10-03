@@ -3,7 +3,7 @@
 use glib::{Error, FileError};
 
 use crate::card_cntr;
-use crate::card_cntr::CtlModel;
+use crate::card_cntr::{CtlModel, NotifyModel};
 
 use super::tascam_model::TascamModel;
 
@@ -13,6 +13,8 @@ enum OxfwCtlModel {
 
 pub struct OxfwModel{
     ctl_model: OxfwCtlModel,
+
+    pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
 impl OxfwModel {
@@ -23,6 +25,7 @@ impl OxfwModel {
         };
         let model = OxfwModel{
             ctl_model,
+            notified_elem_list: Vec::new(),
         };
         Ok(model)
     }
@@ -32,7 +35,13 @@ impl OxfwModel {
     {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
+        }?;
+        
+        match &mut self.ctl_model {
+            OxfwCtlModel::Fireone(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
+
+        Ok(())
     }
 
     pub fn dispatch_elem_event(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr,
@@ -41,6 +50,14 @@ impl OxfwModel {
     {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+        }
+    }
+
+    pub fn dispatch_notification(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, locked: bool)
+        -> Result<(), Error>
+    {
+        match &mut self.ctl_model {
+            OxfwCtlModel::Fireone(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
         }
     }
 }

@@ -20,6 +20,7 @@ enum Event {
     Disconnected,
     BusReset(u32),
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    StreamLock(bool),
 }
 
 pub struct OxfwUnit {
@@ -94,6 +95,18 @@ impl<'a> OxfwUnit {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
+        let tx = self.tx.clone();
+        self.unit.connect_lock_status(move |_, locked| {
+            let t = tx.clone();
+            let _ = std::thread::spawn(move || {
+                // The notification of stream lock is not strictly corresponding to actual
+                // packet streaming. Here, wait for 500 msec to catch the actual packet
+                // streaming.
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let _ = t.send(Event::StreamLock(locked));
+            });
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -144,6 +157,9 @@ impl<'a> OxfwUnit {
                 }
                 Event::Elem((elem_id, events)) => {
                     let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr, &elem_id, &events);
+                }
+                Event::StreamLock(locked) => {
+                    let _ = self.model.dispatch_notification(&self.unit, &mut self.card_cntr, locked);
                 }
             }
         }
