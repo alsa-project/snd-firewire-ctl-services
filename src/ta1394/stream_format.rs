@@ -671,11 +671,210 @@ impl From<&StreamFormat> for Vec<u8> {
     }
 }
 
+//
+// AV/C EXTENDED STREAM FORMAT INFORMATION.
+//
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UnitPlugType {
+    Pcr,
+    External,
+    Async,
+    Invalid(u8),
+}
+
+impl From<u8> for UnitPlugType {
+    fn from(val: u8) -> Self {
+        match val {
+            0 => Self::Pcr,
+            1 => Self::External,
+            2 => Self::Async,
+            _ => Self::Invalid(val),
+        }
+    }
+}
+
+impl From<UnitPlugType> for u8 {
+    fn from(plug_type: UnitPlugType) -> Self {
+        match plug_type {
+            UnitPlugType::Pcr => 0,
+            UnitPlugType::External => 1,
+            UnitPlugType::Async => 2,
+            UnitPlugType::Invalid(val) => val,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UnitPlugData{
+    pub unit_type: UnitPlugType,
+    pub plug_id: u8,
+}
+
+impl From<&[u8]> for UnitPlugData {
+    fn from(raw: &[u8]) -> Self {
+        UnitPlugData{
+            unit_type: raw[0].into(),
+            plug_id: raw[1],
+        }
+    }
+}
+
+impl From<UnitPlugData> for [u8;3] {
+    fn from(data: UnitPlugData) -> Self {
+        [u8::from(data.unit_type), data.plug_id, 0xff]
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SubunitPlugData{
+    pub plug_id: u8,
+}
+
+impl From<&[u8]> for SubunitPlugData {
+    fn from(raw: &[u8]) -> Self {
+        SubunitPlugData{
+            plug_id: raw[0],
+        }
+    }
+}
+
+impl From<SubunitPlugData> for [u8;3] {
+    fn from(data: SubunitPlugData) -> Self {
+        [data.plug_id, 0xff, 0xff]
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FunctionBlockPlugData{
+    pub fb_type: u8,
+    pub fb_id: u8,
+    pub plug_id: u8,
+}
+
+impl From<&[u8]> for FunctionBlockPlugData {
+    fn from(raw: &[u8]) -> Self {
+        FunctionBlockPlugData{
+            fb_type: raw[0],
+            fb_id: raw[1],
+            plug_id: raw[2],
+        }
+    }
+}
+
+impl From<FunctionBlockPlugData> for [u8;3] {
+    fn from(data: FunctionBlockPlugData) -> Self {
+        [data.fb_type, data.fb_id, data.plug_id]
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PlugAddrMode {
+    Unit(UnitPlugData),
+    Subunit(SubunitPlugData),
+    FunctionBlock(FunctionBlockPlugData),
+    Invalid,
+}
+
+impl From<&[u8]> for PlugAddrMode {
+    fn from(raw: &[u8]) -> Self {
+        match raw[0] {
+            0 => Self::Unit(UnitPlugData::from(&raw[1..4])),
+            1 => Self::Subunit(SubunitPlugData::from(&raw[1..4])),
+            2 => Self::FunctionBlock(FunctionBlockPlugData::from(&raw[1..4])),
+            _ => Self::Invalid,
+        }
+    }
+}
+
+impl From<PlugAddrMode> for [u8;4] {
+    fn from(mode: PlugAddrMode) -> Self {
+        let mut raw: [u8;4] = [0xff;4];
+        match mode {
+            PlugAddrMode::Unit(data) => {
+                raw[0] = 0;
+                let d: [u8;3] = data.into();
+                raw[1..4].copy_from_slice(&d);
+            }
+            PlugAddrMode::Subunit(data) => {
+                raw[0] = 1;
+                let d: [u8;3] = data.into();
+                raw[1..4].copy_from_slice(&d);
+            }
+            PlugAddrMode::FunctionBlock(data) => {
+                raw[0] = 2;
+                let d: [u8;3] = data.into();
+                raw[1..4].copy_from_slice(&d);
+            }
+            _ => (),
+        }
+        raw
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PlugDirection {
+    Input,
+    Output,
+    Invalid(u8),
+}
+
+impl PlugDirection {
+    const INPUT: u8 = 0;
+    const OUTPUT: u8 = 1;
+}
+
+impl From<u8> for PlugDirection {
+    fn from(val: u8) -> Self {
+        match val {
+            PlugDirection::INPUT => PlugDirection::Input,
+            PlugDirection::OUTPUT => PlugDirection::Output,
+            _ => Self::Invalid(val),
+        }
+    }
+}
+
+impl From<PlugDirection> for u8 {
+    fn from(dir: PlugDirection) -> Self {
+        match dir {
+            PlugDirection::Input => PlugDirection::INPUT,
+            PlugDirection::Output => PlugDirection::OUTPUT,
+            PlugDirection::Invalid(val) => val,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PlugAddr{
+    pub direction: PlugDirection,
+    pub mode: PlugAddrMode,
+}
+
+impl From<&[u8]> for PlugAddr {
+    fn from(raw: &[u8]) -> Self {
+        PlugAddr {
+            direction: PlugDirection::from(raw[0]),
+            mode: PlugAddrMode::from(&raw[1..5]),
+        }
+    }
+}
+
+impl From<PlugAddr> for [u8;5] {
+    fn from(addr: PlugAddr) -> [u8;5] {
+        let mut raw = [0xff;5];
+        raw[0] = u8::from(addr.direction);
+        let m: [u8;4] = addr.mode.into();
+        raw[1..5].copy_from_slice(&m);
+        raw
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Am824MultiBitAudioAttr, Am824OneBitAudioAttr, Am824Stream};
     use super::{CompoundAm824Stream, CompoundAm824StreamEntry, CompoundAm824StreamFormat, RateCtl};
     use super::{AmStream, StreamFormat};
+
+    use super::{UnitPlugType, UnitPlugData, SubunitPlugData, FunctionBlockPlugData, PlugAddrMode, PlugDirection, PlugAddr};
 
     #[test]
     fn am824multibitaudioattr_from() {
@@ -817,5 +1016,56 @@ mod tests {
         assert_eq!(0x37, s.entries[1].count);
         assert_eq!(CompoundAm824StreamFormat::MidiConformant, s.entries[1].format);
         assert_eq!(raw, Into::<Vec<u8>>::into(&CompoundAm824Stream::from(raw.as_slice())));
+    }
+
+    #[test]
+    fn plug_addr_from() {
+        let unit_pcr = PlugAddr {
+            direction: PlugDirection::Input,
+            mode: PlugAddrMode::Unit(UnitPlugData {
+                unit_type: UnitPlugType::Pcr,
+                plug_id: 0x2,
+            }),
+        };
+        let raw: [u8;5] = unit_pcr.into();
+        assert_eq!(unit_pcr, raw[..].into());
+
+        let unit_ext = PlugAddr {
+            direction: PlugDirection::Input,
+            mode: PlugAddrMode::Unit(UnitPlugData {
+                unit_type: UnitPlugType::External,
+                plug_id: 0x3,
+            }),
+        };
+        let raw: [u8;5] = unit_ext.into();
+        assert_eq!(unit_ext, raw[..].into());
+
+        let unit_async = PlugAddr {
+            direction: PlugDirection::Output,
+            mode: PlugAddrMode::Unit(UnitPlugData {
+                unit_type: UnitPlugType::Async,
+                plug_id: 0x4,
+            }),
+        };
+        let raw: [u8;5] = unit_async.into();
+        assert_eq!(unit_async, raw[..].into());
+
+        let subunit = PlugAddr {
+            direction: PlugDirection::Output,
+            mode: PlugAddrMode::Subunit(SubunitPlugData { plug_id: 0x8 }),
+        };
+        let raw: [u8;5] = subunit.into();
+        assert_eq!(subunit, raw[..].into());
+
+        let fb = PlugAddr {
+            direction: PlugDirection::Input,
+            mode: PlugAddrMode::FunctionBlock(FunctionBlockPlugData {
+                fb_type: 0x1f,
+                fb_id: 0x07,
+                plug_id: 0x29,
+            }),
+        };
+        let raw: [u8;5] = fb.into();
+        assert_eq!(fb, raw[..].into());
     }
 }
