@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod config_rom;
+pub mod general;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
@@ -93,10 +94,10 @@ pub struct AvcAddrSubunit {
 }
 
 impl AvcAddrSubunit {
-    const SUBUNIT_TYPE_SHIFT: usize = 3;
-    const SUBUNIT_TYPE_MASK: u8 = 0x1f;
-    const SUBUNIT_ID_SHIFT: usize = 0;
-    const SUBUNIT_ID_MASK: u8 = 0x07;
+    pub const SUBUNIT_TYPE_SHIFT: usize = 3;
+    pub const SUBUNIT_TYPE_MASK: u8 = 0x1f;
+    pub const SUBUNIT_ID_SHIFT: usize = 0;
+    pub const SUBUNIT_ID_MASK: u8 = 0x07;
 
     pub fn new(subunit_type: AvcSubunitType, mut subunit_id: u8) -> Self {
         subunit_id &= Self::SUBUNIT_ID_MASK;
