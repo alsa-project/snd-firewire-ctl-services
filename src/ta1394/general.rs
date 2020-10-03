@@ -3,7 +3,7 @@
 use glib::Error;
 
 use super::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
-use super::{AvcOp, AvcStatus};
+use super::{AvcOp, AvcStatus, AvcControl};
 
 //
 // AV/C UNIT INFO command.
@@ -137,11 +137,75 @@ impl AvcStatus for SubunitInfo {
     }
 }
 
+//
+// AV/C VENDOR-DEPENDENT command.
+//
+#[derive(Debug)]
+pub struct VendorDependent {
+    pub company_id: [u8;3],
+    pub data: Vec<u8>,
+}
+
+impl VendorDependent {
+    pub fn new(company_id: &[u8;3]) -> Self {
+        VendorDependent{
+            company_id: *company_id,
+            data: Vec::new(),
+        }
+    }
+
+    fn build_operands(&self, operands: &mut Vec<u8>) -> Result<(), Error> {
+        if self.data.len() > 0 {
+            operands.extend_from_slice(&self.company_id);
+            operands.extend_from_slice(&self.data);
+            Ok(())
+        } else {
+            let label = format!("No data for VendorDependent");
+            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+        }
+    }
+
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() > 3 {
+            self.company_id.copy_from_slice(&operands[0..3]);
+            self.data = operands[3..].to_vec();
+            Ok(())
+        } else {
+            let label = format!("Oprands too short for VendorDependent; {}", operands.len());
+            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+        }
+    }
+}
+
+impl AvcOp for VendorDependent {
+    const OPCODE: u8 = 0x00;
+}
+
+impl AvcControl for VendorDependent {
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        Self::build_operands(self, operands)
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        Self::parse_operands(self, operands)
+    }
+}
+
+impl AvcStatus for VendorDependent {
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        Self::build_operands(self, operands)
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        Self::parse_operands(self, operands)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{AvcSubunitType, AvcAddr};
-    use super::AvcStatus;
-    use super::{UnitInfo, SubunitInfo, SubunitInfoEntry};
+    use super::{AvcStatus, AvcControl};
+    use super::{UnitInfo, SubunitInfo, SubunitInfoEntry, VendorDependent};
 
     #[test]
     fn unitinfo_operands() {
@@ -168,5 +232,27 @@ mod test {
         assert_eq!(op.entries[1], SubunitInfoEntry::new(AvcSubunitType::Reserved(0x17), 0x06));
         assert_eq!(op.entries[2], SubunitInfoEntry::new(AvcSubunitType::Reserved(0x1d), 0x07));
         assert_eq!(op.entries[3], SubunitInfoEntry::new(AvcSubunitType::Camera, 0x02));
+    }
+
+    #[test]
+    fn vendor_dependent_operands() {
+        let company_id = [0x00, 0x01, 0x02];
+        let operands = [0x00, 0x01, 0x02, 0xde, 0xad, 0xbe, 0xef];
+        let mut op = VendorDependent::new(&company_id);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.company_id, company_id);
+        assert_eq!(&op.data, &[0xde, 0xad, 0xbe, 0xef]);
+
+        let mut target = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(&target, &operands);
+
+        let mut target = Vec::new();
+        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(&target, &operands);
+
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &target).unwrap();
+        assert_eq!(op.company_id, company_id);
+        assert_eq!(&op.data, &[0xde, 0xad, 0xbe, 0xef]);
     }
 }
