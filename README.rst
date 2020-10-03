@@ -105,6 +105,9 @@ your device, please contact to developer.
   * MOTU 4pre
   * MOTU AudioExpress
 
+* snd-oxfw-ctl-service
+  * Tascam FireOne
+
 Supported protocols
 ===================
 
