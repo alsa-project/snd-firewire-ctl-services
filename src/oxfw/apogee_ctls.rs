@@ -251,3 +251,218 @@ impl<'a> MixerCtl {
         }
     }
 }
+
+pub struct InputCtl;
+
+impl<'a> InputCtl {
+    const SRC_NAME: &'a str = "input-source";
+    const PHONE_LEVEL_NAME: &'a str = "input-phone-level";
+    const LINE_LEVEL_NAME: &'a str = "input-line-level";
+    const POLARITY_NAME: &'a str = "mic-polarity";
+    const PHANTOM_NAME: &'a str = "mic-phantom";
+    const CLICKLESS_NAME: &'a str = "input-clickless";
+
+    const TARGET_LABELS: &'a [&'a str] = &["Analog-in-1", "Analog-in-2"];
+    const MIC_LABELS: &'a [&'a str] = &["Mic-1", "Mic-2"];
+    const PHONE_LABELS: &'a [&'a str] = &["Phone-1", "Phone-2"];
+    const SRC_LABELS: &'a [&'a str] = &["Mic", "Phone"];
+    const PHONE_LEVEL_LABELS: &'a [&'a str] = &["Instrument", "Line"];
+    const LINE_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB"];
+
+    pub fn new() -> Self {
+        InputCtl{}
+    }
+
+    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        // For polarity of microphone.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::POLARITY_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
+
+        // For level of input in phone jack.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::PHONE_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1,
+                                         Self::PHONE_LABELS.len(), Self::PHONE_LEVEL_LABELS,
+                                         None, true)?;
+
+        // For level of line input in phone jack.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::LINE_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1,
+                                         Self::PHONE_LABELS.len(), Self::LINE_LEVEL_LABELS,
+                                         None, true)?;
+
+        // For phantom powering of microphone.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::PHANTOM_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
+
+        // For source of analog inputs.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGET_LABELS.len(),
+                                         Self::SRC_LABELS, None, true)?;
+
+        // For input clickless.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::CLICKLESS_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+                elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::POLARITY_NAME => {
+                let mut vals = [false;2];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPolarity(i as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *v = op.get_enum() > 0;
+                    Ok(())
+                })?;
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::PHONE_LEVEL_NAME => {
+                let mut vals = [0;2];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::PhoneInLine(i as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *v = op.get_enum();
+                    Ok(())
+                })?;
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            Self::LINE_LEVEL_NAME => {
+                let mut vals = [0;2];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::LineInLevel(i as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *v = op.get_enum();
+                    Ok(())
+                })?;
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            Self::PHANTOM_NAME => {
+                let mut vals = [false;2];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPhantom(i as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *v = op.get_enum() > 0;
+                    Ok(())
+                })?;
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::SRC_NAME => {
+                let mut vals = [0;2];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicIn(i as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *v = op.get_enum();
+                    Ok(())
+                })?;
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            Self::CLICKLESS_NAME => {
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::InClickless);
+                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                elem_value.set_bool(&[op.get_enum() > 0]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::POLARITY_NAME => {
+                let mut vals = [false;4];
+                new.get_bool(&mut vals[..2]);
+                old.get_bool(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| n != o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPolarity(i as u8));
+                        op.put_enum(*n as u32);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            Self::PHONE_LEVEL_NAME => {
+                let mut vals = [0;4];
+                new.get_enum(&mut vals[..2]);
+                old.get_enum(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| n != o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::PhoneInLine(i as u8));
+                        op.put_enum(*n);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            Self::LINE_LEVEL_NAME => {
+                let mut vals = [0;4];
+                new.get_enum(&mut vals[..2]);
+                old.get_enum(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| n != o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::LineInLevel(i as u8));
+                        op.put_enum(*n);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            Self::PHANTOM_NAME => {
+                let mut vals = [false;4];
+                new.get_bool(&mut vals[..2]);
+                old.get_bool(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| n != o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPhantom(i as u8));
+                        op.put_enum(*n as u32);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            Self::SRC_NAME => {
+                let mut vals = [0;4];
+                new.get_enum(&mut vals[..2]);
+                old.get_enum(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| n != o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MicIn(i as u8));
+                        op.put_enum(*n);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            Self::CLICKLESS_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::InClickless);
+                op.put_enum(vals[0] as u32);
+                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
