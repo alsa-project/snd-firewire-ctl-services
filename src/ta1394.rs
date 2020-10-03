@@ -4,6 +4,7 @@ pub mod config_rom;
 pub mod general;
 pub mod amdtp;
 pub mod ccm;
+pub mod audio;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
@@ -91,6 +92,11 @@ impl From<AvcSubunitType> for u8 {
 
 pub const MUSIC_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit{
     subunit_type: AvcSubunitType::Music,
+    subunit_id: 0,
+};
+
+pub const AUDIO_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit{
+    subunit_type: AvcSubunitType::Audio,
     subunit_id: 0,
 };
 
