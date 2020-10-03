@@ -47,10 +47,9 @@ impl<'a> PortCtl {
         phys_pairs: usize,
         stream_pairs: usize,
     ) -> Result<(), Error> {
-        let list: Vec<String> = (0..stream_pairs)
+        let labels = (0..stream_pairs)
             .map(|pair| format!("Stream-{}/{}", pair * 2 + 1, pair * 2 + 2))
-            .collect();
-        let labels: Vec<&str> = list.iter().map(|entry| entry.as_str()).collect();
+            .collect::<Vec<String>>();
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, phys_pairs, &labels, None, true)?;
@@ -62,16 +61,14 @@ impl<'a> PortCtl {
         -> Result<(), Error>
     {
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::MirrorOutput).is_some() {
-            let mut list = Vec::new();
-            hwinfo.phys_outputs.iter().for_each(|entry| {
-                if entry.group_type != PhysGroupType::AnalogMirror {
-                    (0..(entry.group_count / 2)).for_each(|i| {
-                        let name = String::from(&entry.group_type);
-                        list.push(format!("{}-{}/{}", name, i * 2 + 1, i * 2 + 2))
-                    })
-                }
-            });
-            let labels: Vec<&str> = list.iter().map(|entry| entry.as_str()).collect();
+            let labels = hwinfo.phys_outputs.iter()
+                .filter(|entry| entry.group_type != PhysGroupType::AnalogMirror)
+                .map(|entry| {
+                    (0..(entry.group_count / 2))
+                        .map(move |i| format!("{}-{}/{}", entry.group_type.to_string(), i * 2 + 1, i * 2 + 2))
+                })
+                .flatten()
+                .collect::<Vec<String>>();
 
             let elem_id = alsactl::ElemId::new_by_name(
                 alsactl::ElemIfaceType::Mixer, 0, 0, Self::MIRROR_OUTPUT_NAME, 0);
@@ -84,12 +81,9 @@ impl<'a> PortCtl {
             }
         });
         if self.dig_modes.len() > 1 {
-            let modes: Vec<String> = self.dig_modes.iter()
-                .map(|mode| String::from(mode))
-                .collect();
-            let labels: Vec<&str> = modes.iter()
-                .map(|label| label.as_str())
-                .collect();
+            let labels = self.dig_modes.iter()
+                .map(|mode| mode.to_string())
+                .collect::<Vec<String>>();
 
             let elem_id = alsactl::ElemId::new_by_name(
                 alsactl::ElemIfaceType::Mixer, 0, 0, Self::DIG_MODE_NAME, 0);
@@ -230,9 +224,9 @@ impl<'a> PortCtl {
     }
 }
 
-impl From<&PhysGroupType> for String {
-    fn from(group_type: &PhysGroupType) -> String {
-        match group_type {
+impl ToString for PhysGroupType {
+    fn to_string(&self) -> String {
+        match self {
             PhysGroupType::Analog       => "Analog",
             PhysGroupType::Spdif        => "S/PDIF",
             PhysGroupType::Adat         => "ADAT",
@@ -248,9 +242,9 @@ impl From<&PhysGroupType> for String {
     }
 }
 
-impl From<&DigitalMode> for String {
-    fn from(mode: &DigitalMode) -> String {
-        match mode {
+impl ToString for DigitalMode {
+    fn to_string(&self) -> String {
+        match self {
             DigitalMode::SpdifCoax  => "S/PDIF-Coaxial",
             DigitalMode::AesebuXlr  => "AES/EBU-XLR",
             DigitalMode::SpdifOpt   => "S/PDIF-Optical",

@@ -34,38 +34,17 @@ impl<'a> ClkCtl {
         self.srcs.extend_from_slice(&hwinfo.clk_srcs);
         self.rates.extend_from_slice(&hwinfo.clk_rates);
 
-        let labels: Vec<&str> = self
-            .srcs
-            .iter()
-            .map(|src| match *src {
-                ClkSrc::Internal => "Internal",
-                ClkSrc::WordClock => "WordClock",
-                ClkSrc::Spdif => "S/PDIF",
-                ClkSrc::Adat => "ADAT",
-                ClkSrc::Adat2 => "ADAT2",
-                ClkSrc::Continuous => "Continuous",
-                ClkSrc::Unknown(_) => "Unknown",
-            })
-            .collect();
+        let labels = self.srcs.iter()
+            .map(|src| src.to_string())
+            .collect::<Vec<String>>();
 
         let elem_id =
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = hwinfo
-            .clk_rates
-            .iter()
-            .map(|rate| match *rate {
-                32000 => "32000",
-                44100 => "44100",
-                48000 => "48000",
-                88200 => "88200",
-                96000 => "96000",
-                176400 => "176400",
-                192000 => "192000",
-                _ => "Unknown",
-            })
-            .collect();
+        let labels = hwinfo.clk_rates.iter()
+            .map(|rate| rate.to_string())
+            .collect::<Vec<String>>();
 
         let elem_id =
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::RATE_NAME, 0);
@@ -143,5 +122,19 @@ impl<'a> ClkCtl {
             }
             _ => Ok(false),
         }
+    }
+}
+
+impl ToString for ClkSrc {
+    fn to_string(&self) -> String {
+        match self {
+            ClkSrc::Internal => "Internal",
+            ClkSrc::WordClock => "WordClock",
+            ClkSrc::Spdif => "S/PDIF",
+            ClkSrc::Adat => "ADAT",
+            ClkSrc::Adat2 => "ADAT2",
+            ClkSrc::Continuous => "Continuous",
+            ClkSrc::Unknown(_) => "Unknown",
+        }.to_string()
     }
 }
