@@ -1017,6 +1017,55 @@ impl AvcControl for ExtendedStreamFormatSingle {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExtendedStreamFormatList{
+    pub support_status: SupportStatus,
+    pub index: u8,
+    pub stream_format: StreamFormat,
+    op: ExtendedStreamFormat,
+}
+
+impl ExtendedStreamFormatList {
+    const SUBFUNC: u8 = 0xc1;
+
+    pub fn new(plug_addr: &PlugAddr, index: u8) -> Self {
+        ExtendedStreamFormatList{
+            support_status: SupportStatus::Reserved(0xff),
+            index,
+            stream_format: StreamFormat::Reserved(Vec::new()),
+            op: ExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
+        }
+    }
+}
+
+impl AvcOp for ExtendedStreamFormatList {
+    const OPCODE: u8 = ExtendedStreamFormat::OPCODE;
+}
+
+impl AvcStatus for ExtendedStreamFormatList {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.support_status = SupportStatus::Reserved(0xff);
+        self.op.build_operands(addr, operands)?;
+        operands.push(self.index);
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        self.op.parse_operands(addr, operands)?;
+
+        if self.index != operands[7] {
+            let label = format!("Unexpected value for list index: {:?}", operands[7]);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        self.stream_format = StreamFormat::from(&operands[8..]);
+
+        self.support_status = self.op.support_status;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Am824MultiBitAudioAttr, Am824OneBitAudioAttr, Am824Stream};
@@ -1027,7 +1076,7 @@ mod tests {
 
     use super::AvcAddr;
     use super::{AvcStatus, AvcControl};
-    use super::{SupportStatus, ExtendedStreamFormatSingle};
+    use super::{SupportStatus, ExtendedStreamFormatSingle, ExtendedStreamFormatList};
 
     #[test]
     fn am824multibitaudioattr_from() {
@@ -1272,6 +1321,42 @@ mod tests {
             if let AmStream::CompoundAm824(s) = stream_format {
                 assert_eq!(s.freq, 96000);
                 assert_eq!(s.sync_src, true);
+                assert_eq!(s.rate_ctl, RateCtl::Supported);
+                assert_eq!(s.entries.len(), 2);
+                assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
+                assert_eq!(s.entries[1], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::Iec60958_3});
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+    }
+
+    #[test]
+    fn list_operands() {
+        let plug_addr = PlugAddr{
+            direction: PlugDirection::Output,
+            mode: PlugAddrMode::Unit(UnitPlugData{
+                unit_type: UnitPlugType::Pcr,
+                plug_id: 0x03,
+            }),
+        };
+        let mut op = ExtendedStreamFormatList::new(&plug_addr, 0x31);
+        let mut operands = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        assert_eq!(&operands, &[0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff, 0x31]);
+
+        let operands = [0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x31,
+                        0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00];
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.op.plug_addr, plug_addr);
+        assert_eq!(op.op.support_status, SupportStatus::Inactive);
+        assert_eq!(op.index, 0x31);
+        if let StreamFormat::Am(stream_format) = &op.stream_format {
+            if let AmStream::CompoundAm824(s) = stream_format {
+                assert_eq!(s.freq, 48000);
+                assert_eq!(s.sync_src, false);
                 assert_eq!(s.rate_ctl, RateCtl::Supported);
                 assert_eq!(s.entries.len(), 2);
                 assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
