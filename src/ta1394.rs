@@ -2,6 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod config_rom;
 
+use glib::Error;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcSubunitType {
     Monitor,
@@ -239,6 +241,29 @@ impl From<AvcRespCode> for u8 {
             AvcRespCode::Reserved(val) => val,
         }
     }
+}
+
+pub trait AvcOp {
+    const OPCODE: u8;
+
+    fn opcode(&self) -> u8 {
+        Self::OPCODE
+    }
+}
+
+pub trait AvcControl {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error>;
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
+}
+
+pub trait AvcStatus {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error>;
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
+}
+
+pub trait AvcNotify {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error>;
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
 }
 
 #[cfg(test)]
