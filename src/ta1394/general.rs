@@ -370,12 +370,84 @@ impl AvcStatus for PlugInfo {
     }
 }
 
+//
+// AV/C INPUT PLUG SIGNAL FORMAT command.
+//
+#[derive(Debug)]
+pub struct InputPlugSignalFormat {
+    pub plug_id: u8,
+    pub fmt: u8,
+    pub fdf: [u8;3],
+}
+
+impl InputPlugSignalFormat {
+    pub fn new(plug_id: u8) -> Self {
+        InputPlugSignalFormat{
+            plug_id,
+            fmt: 0xff,
+            fdf: [0xff;3],
+        }
+    }
+
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() > 4 {
+            self.plug_id = operands[0];
+            self.fmt = operands[1];
+            self.fdf.copy_from_slice(&operands[2..5]);
+            Ok(())
+        } else {
+            let label = format!("Oprands too short for InputPlugSignalFormat; {}", operands.len());
+            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+        }
+    }
+}
+
+impl AvcOp for InputPlugSignalFormat {
+    const OPCODE: u8 = 0x19;
+}
+
+impl AvcControl for InputPlugSignalFormat {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        if *addr == AvcAddr::Unit {
+            operands.push(self.plug_id);
+            operands.push(self.fmt);
+            operands.extend_from_slice(&self.fdf);
+            Ok(())
+        } else {
+            let label = "Subunit address is not supported by InputPlugSignalFormat";
+            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+        }
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        Self::parse_operands(self, operands)
+    }
+}
+
+impl AvcStatus for InputPlugSignalFormat {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        if *addr == AvcAddr::Unit {
+            operands.push(self.plug_id);
+            operands.extend_from_slice(&[0xff;4]);
+            Ok(())
+        } else {
+            let label = "Subunit address is not supported by InputPlugSignalFormat";
+            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+        }
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        Self::parse_operands(self, operands)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{AvcSubunitType, AvcAddr, AvcAddrSubunit};
     use super::{AvcStatus, AvcControl};
     use super::{UnitInfo, SubunitInfo, SubunitInfoEntry, VendorDependent};
     use super::{PlugInfo, PlugInfoUnitData};
+    use super::{InputPlugSignalFormat};
 
     #[test]
     fn unitinfo_operands() {
@@ -505,5 +577,29 @@ mod test {
         });
         AvcStatus::build_operands(&mut op, &addr, &mut target).unwrap();
         assert_eq!(&target, &[0x00, 0xff, 0xff, 0xff, 0xff]);
+    }
+
+    #[test]
+    fn inputplugsignalformat_from() {
+        let operands = [0x1e, 0xde, 0xad, 0xbe, 0xef];
+        let mut op = InputPlugSignalFormat::new(0x1e);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.plug_id, 0x1e);
+        assert_eq!(op.fmt, 0xde);
+        assert_eq!(op.fdf, [0xad, 0xbe, 0xef]);
+
+        let mut target = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(target, &[0x1e, 0xff, 0xff, 0xff, 0xff]);
+
+        let mut target = Vec::new();
+        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        assert_eq!(target, operands);
+
+        let mut op = InputPlugSignalFormat::new(0x1e);
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.plug_id, 0x1e);
+        assert_eq!(op.fmt, 0xde);
+        assert_eq!(op.fdf, [0xad, 0xbe, 0xef]);
     }
 }
