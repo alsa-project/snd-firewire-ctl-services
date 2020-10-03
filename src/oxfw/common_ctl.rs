@@ -17,6 +17,7 @@ pub struct CommonCtl{
     input_fmt_entries: Vec<CompoundAm824Stream>,
     supported_rates: Vec<u32>,
     assumed: bool,
+    pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
 impl<'a> CommonCtl {
@@ -30,6 +31,7 @@ impl<'a> CommonCtl {
             input_fmt_entries: Vec::new(),
             supported_rates: Vec::new(),
             assumed: false,
+            notified_elem_list: Vec::new(),
         }
     }
 
@@ -75,7 +77,8 @@ impl<'a> CommonCtl {
         let labels = self.supported_rates.iter().map(|rate| rate.to_string()).collect::<Vec<String>>();
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::CLK_RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
 
         Ok(())
     }
