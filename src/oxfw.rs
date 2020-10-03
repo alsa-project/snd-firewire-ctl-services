@@ -4,3 +4,5 @@ pub mod unit;
 
 mod model;
 mod tascam_model;
+
+mod tascam_proto;
