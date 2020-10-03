@@ -379,7 +379,7 @@ impl Ta1394Avc for hinawa::FwFcp {
         AvcControl::build_operands(op, addr, &mut operands)?;
         let opcode = op.opcode();
         let (rcode, operands) = self.trx(AvcCmdType::SpecificInquiry, addr, opcode, &mut operands, timeout_ms)?;
-        if rcode != AvcRespCode::ImplementedStable{
+        if rcode != AvcRespCode::ImplementedStable {
             let label = format!("Unexpected response code for specific inquiry opcode {}: {:?}", opcode, rcode);
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
         }
