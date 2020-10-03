@@ -113,6 +113,7 @@ Supported protocols
    * Audio and Music Data Transmission Protocol 2.3 (April 24, 2012. Document 2009013)
    * AV/C Connection and Compatibility Management Specification 1.1 (March 19, 2003. TA Document 2002010)
    * AV/C Audio Subunit Specification 1.0 (October 24, 2000. TA Document 1999008)
+   * AV/C Stream Format Information Specification 1.0 (May 24, 2002, TA Document 2001002)
 * Vendor specific protocols
    * Protocol for Digi 002/003 family of Digidesign
    * Protocol for FireWire series of TASCAM (TEAC)

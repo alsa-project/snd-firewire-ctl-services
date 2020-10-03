@@ -5,6 +5,7 @@ pub mod general;
 pub mod amdtp;
 pub mod ccm;
 pub mod audio;
+pub mod stream_format;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
