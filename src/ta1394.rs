@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod config_rom;
 
-use glib::Error;
+use glib::{Error, error::ErrorDomain, Quark};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcSubunitType {
@@ -266,10 +266,47 @@ pub trait AvcNotify {
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Ta1394AvcError {
+    InvalidCmdOperands,
+    TooShortResp,
+    UnexpectedRespCode,
+    UnexpectedRespOperands,
+    Invalid(i32),
+}
+
+impl ErrorDomain for Ta1394AvcError {
+    fn domain() -> Quark {
+        Quark::from_string("ta1394-avc-error-quark")
+    }
+
+    fn code(self) -> i32 {
+        match self {
+            Self::InvalidCmdOperands => 0,
+            Self::TooShortResp => 1,
+            Self::UnexpectedRespCode => 2,
+            Self::UnexpectedRespOperands => 3,
+            Self::Invalid(val) => val,
+        }
+    }
+
+    fn from(code: i32) -> Option<Self> {
+        let enumeration = match code {
+            0 => Self::InvalidCmdOperands,
+            1 => Self::TooShortResp,
+            2 => Self::UnexpectedRespCode,
+            3 => Self::UnexpectedRespOperands,
+            _ => Self::Invalid(code),
+        };
+
+        Some(enumeration)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{AvcSubunitType, AvcAddrSubunit, AvcAddr};
-    use super::{AvcCmdType, AvcRespCode};
+    use super::{AvcCmdType, AvcRespCode, Ta1394AvcError, ErrorDomain};
 
     #[test]
     fn avcsubunittype_from() {
@@ -333,5 +370,14 @@ mod test {
         assert_eq!(0x0e, u8::from(AvcRespCode::from(0x0e)));
         assert_eq!(0x0f, u8::from(AvcRespCode::from(0x0f)));
         assert_eq!(0xff, u8::from(AvcRespCode::from(0xff)));
+    }
+
+    #[test]
+    fn ta1394avcerror_from() {
+        assert_eq!(Some(Ta1394AvcError::InvalidCmdOperands), ErrorDomain::from(0));
+        assert_eq!(Some(Ta1394AvcError::TooShortResp), ErrorDomain::from(1));
+        assert_eq!(Some(Ta1394AvcError::UnexpectedRespCode), ErrorDomain::from(2));
+        assert_eq!(Some(Ta1394AvcError::UnexpectedRespOperands), ErrorDomain::from(3));
+        assert_eq!(Some(Ta1394AvcError::Invalid(1234)), ErrorDomain::from(1234));
     }
 }
