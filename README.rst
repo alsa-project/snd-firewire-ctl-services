@@ -108,6 +108,7 @@ your device, please contact to developer.
 * snd-oxfw-ctl-service
   * Tascam FireOne
   * Apogee Duet FireWire
+  * Griffin FireWave
 
 Supported protocols
 ===================
