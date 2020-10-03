@@ -10,3 +10,4 @@ mod tascam_proto;
 mod apogee_proto;
 
 mod common_ctl;
+mod apogee_ctls;
