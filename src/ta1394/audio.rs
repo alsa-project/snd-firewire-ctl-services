@@ -312,12 +312,328 @@ impl AvcControl for AudioSelector {
     }
 }
 
+//
+// AV/C Audio Subunit FUNCTION_BLOCK command for Feature function block
+//
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GraphicEqualizerData {
+    pub bands_present: [u8;4],
+    pub ex_bands_present: [u8;4],
+    pub gain: Vec<i8>,
+}
+
+impl From<&[u8]> for GraphicEqualizerData {
+    fn from(raw: &[u8]) -> Self {
+        let mut data = GraphicEqualizerData{
+            bands_present: [0;4],
+            ex_bands_present: [0;4],
+            gain: Vec::new(),
+        };
+        data.bands_present.copy_from_slice(&raw[0..4]);
+        data.ex_bands_present.copy_from_slice(&raw[4..8]);
+        raw[8..].iter().for_each(|val| data.gain.push(*val as i8));
+        data
+    }
+}
+
+impl From<&GraphicEqualizerData> for Vec<u8> {
+    fn from(data: &GraphicEqualizerData) -> Self {
+        let mut raw = Vec::new();
+        raw.extend_from_slice(&data.bands_present);
+        raw.extend_from_slice(&data.ex_bands_present);
+        data.gain.iter().for_each(|val| raw.push(*val as u8));
+        raw
+    }
+}
+
+fn i16_vector_to_raw(data: &[i16]) -> Vec<u8> {
+    data.iter().fold(Vec::new(), |mut raw, d| { raw.extend_from_slice(&d.to_be_bytes()); raw})
+}
+
+fn u16_vector_to_raw(data: &[u16]) -> Vec<u8> {
+    data.iter().fold(Vec::new(), |mut raw, d| { raw.extend_from_slice(&d.to_be_bytes()); raw})
+}
+
+fn bool_vector_to_raw(data: &[bool]) -> Vec<u8> {
+    data.iter().map(|&d| if d { FeatureCtl::TRUE } else { FeatureCtl::FALSE }).collect()
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FeatureCtl {
+    Mute(Vec<bool>),
+    Volume(Vec<i16>),
+    LrBalance(i16),
+    FrBalance(i16),
+    Bass(Vec<i8>),
+    Mid(Vec<i8>),
+    Treble(Vec<i8>),
+    GraphicEqualizer(GraphicEqualizerData),
+    AutomaticGain(Vec<bool>),
+    Delay(Vec<u16>),
+    BassBoost(Vec<bool>),
+    Loudness(Vec<bool>),
+    Reserved(Vec<u8>),
+}
+
+impl FeatureCtl {
+    const MUTE: u8 = 0x01;
+    const VOLUME: u8 = 0x02;
+    const LR_BALANCE: u8 = 0x03;
+    const FR_BALANCE: u8 = 0x04;
+    const BASS: u8 = 0x05;
+    const MID: u8 = 0x06;
+    const TREBLE: u8 = 0x07;
+    const GRAPHIC_EQUALIZER: u8 = 0x08;
+    const AUTOMATIC_GAIN: u8 = 0x09;
+    const DELAY: u8 = 0x0a;
+    const BASS_BOOST: u8 = 0x0b;
+    const LOUDNESS: u8 = 0x0c;
+
+    const TRUE: u8 = 0x70;
+    const FALSE: u8 = 0x60;
+}
+
+impl From<&FeatureCtl> for AudioFuncBlkCtl {
+    fn from(ctl: &FeatureCtl) -> Self {
+        match &ctl {
+            FeatureCtl::Mute(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::MUTE,
+                    data: bool_vector_to_raw(data),
+                }
+            }
+            FeatureCtl::Volume(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::VOLUME,
+                    data: i16_vector_to_raw(data),
+                }
+            }
+            FeatureCtl::LrBalance(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::LR_BALANCE,
+                    data: data.to_be_bytes().to_vec(),
+                }
+            }
+            FeatureCtl::FrBalance(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::FR_BALANCE,
+                    data: data.to_be_bytes().to_vec(),
+                }
+            }
+            FeatureCtl::Bass(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::BASS,
+                    data: data.iter().map(|v| *v as u8).collect(),
+                }
+            }
+            FeatureCtl::Mid(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::MID,
+                    data: data.iter().map(|v| *v as u8).collect(),
+                }
+            }
+            FeatureCtl::Treble(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::TREBLE,
+                    data: data.iter().map(|v| *v as u8).collect(),
+                }
+            }
+            FeatureCtl::GraphicEqualizer(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::GRAPHIC_EQUALIZER,
+                    data: data.into(),
+                }
+            }
+            FeatureCtl::AutomaticGain(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::AUTOMATIC_GAIN,
+                    data: bool_vector_to_raw(data),
+                }
+            }
+            FeatureCtl::Delay(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::DELAY,
+                    data: u16_vector_to_raw(data),
+                }
+            }
+            FeatureCtl::BassBoost(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::BASS_BOOST,
+                    data: bool_vector_to_raw(data),
+                }
+            }
+            FeatureCtl::Loudness(data) => {
+                AudioFuncBlkCtl{
+                    selector: FeatureCtl::LOUDNESS,
+                    data: bool_vector_to_raw(data),
+                }
+            }
+            FeatureCtl::Reserved(data) => {
+                AudioFuncBlkCtl{
+                    selector: data[0],
+                    data: data[2..].to_vec(),
+                }
+            }
+        }
+    }
+}
+
+fn i16_vector_from_raw(raw: &[u8]) -> Vec<i16> {
+    (0..(raw.len() / 2)).map(|i| {
+        let mut doublet = [0;2];
+        doublet.copy_from_slice(&raw[(i * 2)..(i * 2 + 2)]);
+        i16::from_be_bytes(doublet)
+    }).collect()
+}
+
+fn u16_vector_from_raw(raw: &[u8]) -> Vec<u16> {
+    (0..(raw.len() / 2)).map(|i| {
+        let mut doublet = [0;2];
+        doublet.copy_from_slice(&raw[(i * 2)..(i * 2 + 2)]);
+        u16::from_be_bytes(doublet)
+    }).collect()
+}
+
+fn bool_vector_from_raw(raw: &[u8]) -> Vec<bool> {
+    raw.iter().map(|&b| b == FeatureCtl::TRUE).collect()
+}
+
+fn i8_vector_from_raw(raw: &[u8]) -> Vec<i8> {
+    raw.iter().map(|&b| b as i8).collect()
+}
+
+fn i16_from_raw(data: &[u8]) -> i16 {
+    let mut doublet = [0;2];
+    doublet.copy_from_slice(&data);
+    i16::from_be_bytes(doublet)
+}
+
+impl From<&AudioFuncBlkCtl> for FeatureCtl {
+    fn from(ctl: &AudioFuncBlkCtl) -> Self {
+        match ctl.selector {
+            Self::MUTE => FeatureCtl::Mute(bool_vector_from_raw(&ctl.data)),
+            Self::VOLUME => FeatureCtl::Volume(i16_vector_from_raw(&ctl.data)),
+            Self::LR_BALANCE => FeatureCtl::LrBalance(i16_from_raw(&ctl.data)),
+            Self::FR_BALANCE => FeatureCtl::FrBalance(i16_from_raw(&ctl.data)),
+            Self::BASS => FeatureCtl::Bass(i8_vector_from_raw(&ctl.data)),
+            Self::MID => FeatureCtl::Mid(i8_vector_from_raw(&ctl.data)),
+            Self::TREBLE => FeatureCtl::Treble(i8_vector_from_raw(&ctl.data)),
+            Self::GRAPHIC_EQUALIZER => FeatureCtl::GraphicEqualizer(ctl.data.as_slice().into()),
+            Self::AUTOMATIC_GAIN => FeatureCtl::AutomaticGain(bool_vector_from_raw(&ctl.data)),
+            Self::DELAY => FeatureCtl::Delay(u16_vector_from_raw(&ctl.data)),
+            Self::BASS_BOOST => FeatureCtl::BassBoost(bool_vector_from_raw(&ctl.data)),
+            Self::LOUDNESS => FeatureCtl::Loudness(bool_vector_from_raw(&ctl.data)),
+            _ => {
+                let mut data = Vec::new();
+                data.push(ctl.selector);
+                data.push(1 + ctl.data.len() as u8);
+                data.extend_from_slice(&ctl.data);
+                FeatureCtl::Reserved(data)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AudioCh {
+    All,
+    Each(u8),
+}
+
+impl AudioCh {
+    const MASTER: u8 = 0x00;
+}
+
+impl From<u8> for AudioCh {
+    fn from(val: u8) -> Self {
+        match val {
+            AudioCh::MASTER => AudioCh::All,
+            _ => AudioCh::Each(val - 1),
+        }
+    }
+}
+
+impl From<AudioCh> for u8 {
+    fn from(num: AudioCh) -> u8 {
+        match num {
+            AudioCh::All => AudioCh::MASTER,
+            AudioCh::Each(val) => val + 1,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AudioFeature {
+    pub audio_ch_num: AudioCh,
+    pub ctl: FeatureCtl,
+
+    func_blk: AudioFuncBlk,
+}
+
+impl AudioFeature {
+    pub fn new(func_blk_id: u8, ctl_attr: CtlAttr, audio_ch_num: AudioCh, ctl: FeatureCtl) -> Self {
+        AudioFeature{
+            audio_ch_num,
+            ctl,
+            func_blk: AudioFuncBlk::new(AudioFuncBlkType::Feature, func_blk_id, ctl_attr),
+        }
+    }
+
+    fn build_func_blk(&mut self) -> Result<(), Error> {
+        self.func_blk.audio_selector_data.clear();
+        self.func_blk.audio_selector_data.push(u8::from(self.audio_ch_num));
+        self.func_blk.ctl = AudioFuncBlkCtl::from(&self.ctl);
+        Ok(())
+    }
+
+    fn parse_func_blk(&mut self) -> Result<(), Error> {
+        let audio_ch_num = AudioCh::from(self.func_blk.audio_selector_data[0]);
+        if audio_ch_num != self.audio_ch_num {
+            let label = format!("Unexpected channel number for AudioFeature: {:?} but {:?}",
+                                self.audio_ch_num, audio_ch_num);
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else {
+            self.ctl = FeatureCtl::from(&self.func_blk.ctl);
+            Ok(())
+        }
+    }
+}
+
+impl AvcOp for AudioFeature {
+    const OPCODE: u8 = AudioFuncBlk::OPCODE;
+}
+
+impl AvcStatus for AudioFeature {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.build_func_blk()?;
+        AvcStatus::build_operands(&mut self.func_blk, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
+        self.parse_func_blk()
+    }
+}
+
+impl AvcControl for AudioFeature {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.build_func_blk()?;
+        AvcControl::build_operands(&mut self.func_blk, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
+        self.parse_func_blk()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::ta1394::AvcAddr;
     use crate::ta1394::{AvcStatus, AvcControl};
-    use super::{AUDIO_SUBUNIT_0_ADDR, AudioFuncBlk, AudioFuncBlkType, CtlAttr};
+    use super::{AUDIO_SUBUNIT_0_ADDR, AudioFuncBlk, AudioFuncBlkType, AudioFuncBlkCtl, CtlAttr};
     use super::AudioSelector;
+    use super::{AudioFeature, FeatureCtl, GraphicEqualizerData, AudioCh};
 
     #[test]
     fn func_blk_operands() {
@@ -439,5 +755,75 @@ mod test {
 
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.input_plug_id, 0x96);
+    }
+
+    #[test]
+    fn featurectl_from() {
+        let ctl = FeatureCtl::Mute(vec![false, true, false]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Volume(vec![0x1234, 0x3456, 0x789a]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::LrBalance(-123);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::FrBalance(321);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Bass(vec![10, -10, 20, -20]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Mid(vec![30, -30, -40, 40]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let data = GraphicEqualizerData{
+            bands_present: [0x00, 0x01, 0x02, 0x03],
+            ex_bands_present: [0x04, 0x05, 0x06, 0x07],
+            gain: vec![-1, -2, -3, 10, 14, -40, -100, 33, 87, 99, -123, 100, -76, -97, 18, 21],
+        };
+        let ctl = FeatureCtl::GraphicEqualizer(data);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Treble(vec![50, 60, -70, -80]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::AutomaticGain(vec![false, true, false]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Delay(vec![0x1234, 0x3456, 0x789a]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::BassBoost(vec![true, false, true]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Loudness(vec![false, true, false]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = FeatureCtl::Reserved(vec![0xff, 0x04, 0xad, 0xbe, 0xef]);
+        assert_eq!(ctl, FeatureCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+    }
+
+    #[test]
+    fn avcaudiofeature_operands() {
+        let ctl = FeatureCtl::Volume(vec![-1234, 5678, 3210]);
+        let mut op = AudioFeature::new(0x03, CtlAttr::Minimum, AudioCh::Each(0x1b), ctl.clone());
+        let mut operands = Vec::new();
+        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        assert_eq!(&operands, &[0x81, 0x03, 0x02, 0x02, 0x1c, 0x02, 0x06, 0xfb, 0x2e, 0x16, 0x2e, 0x0c, 0x8a]);
+
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(AudioCh::Each(0x1b), op.audio_ch_num);
+        assert_eq!(ctl, op.ctl);
+
+        let ctl = FeatureCtl::Treble(vec![40, -33, 123, -96]);
+        let mut op = AudioFeature::new(0x33, CtlAttr::Resolution, AudioCh::Each(0xd8), ctl.clone());
+        let mut operands = Vec::new();
+        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        assert_eq!(&operands, &[0x81, 0x33, 0x01, 0x2, 0xd9, 0x07, 0x04, 0x28, 0xdf, 0x7b, 0xa0]);
+
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(AudioCh::Each(0xd8), op.audio_ch_num);
+        assert_eq!(ctl, op.ctl);
     }
 }
