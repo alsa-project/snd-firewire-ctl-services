@@ -144,9 +144,55 @@ impl From<AvcAddr> for u8 {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AvcCmdType {
+    Control,
+    Status,
+    SpecificInquiry,
+    Notify,
+    GeneralInquiry,
+    Reserved(u8),
+}
+
+impl AvcCmdType {
+    const CONTROL: u8 = 0x00;
+    const STATUS: u8 = 0x01;
+    const SPECIFIC_INQUIRY: u8 = 0x02;
+    const NOTIFY: u8 = 0x03;
+    const GENERAL_INQUIRY: u8 = 0x04;
+}
+
+impl From<u8> for AvcCmdType {
+    fn from(val: u8) -> Self {
+        match val {
+            AvcCmdType::CONTROL => AvcCmdType::Control,
+            AvcCmdType::STATUS => AvcCmdType::Status,
+            AvcCmdType::SPECIFIC_INQUIRY => AvcCmdType::SpecificInquiry,
+            AvcCmdType::NOTIFY => AvcCmdType::Notify,
+            AvcCmdType::GENERAL_INQUIRY => AvcCmdType::GeneralInquiry,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<AvcCmdType> for u8 {
+    fn from(code: AvcCmdType) -> Self {
+        match code {
+            AvcCmdType::Control => AvcCmdType::CONTROL,
+            AvcCmdType::Status => AvcCmdType::STATUS,
+            AvcCmdType::SpecificInquiry => AvcCmdType::SPECIFIC_INQUIRY,
+            AvcCmdType::Notify => AvcCmdType::NOTIFY,
+            AvcCmdType::GeneralInquiry => AvcCmdType::GENERAL_INQUIRY,
+            AvcCmdType::Reserved(val) => val,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::{AvcSubunitType, AvcAddrSubunit, AvcAddr};
+    use super::AvcCmdType;
 
     #[test]
     fn avcsubunittype_from() {
@@ -188,5 +234,14 @@ mod test {
                    AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Music, 0x03)));
         assert_eq!(AvcAddr::from(0x87),
                    AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Reserved(0x10), 0x07)));
+    }
+
+    #[test]
+    fn avccmdtype_from() {
+        assert_eq!(0x00, u8::from(AvcCmdType::from(0x00)));
+        assert_eq!(0x01, u8::from(AvcCmdType::from(0x01)));
+        assert_eq!(0x02, u8::from(AvcCmdType::from(0x02)));
+        assert_eq!(0x03, u8::from(AvcCmdType::from(0x03)));
+        assert_eq!(0x04, u8::from(AvcCmdType::from(0x04)));
     }
 }
