@@ -242,11 +242,82 @@ impl AvcControl for AudioFuncBlk {
     }
 }
 
+//
+// AV/C Audio Subunit FUNCTION_BLOCK command for Selector function block
+//
+pub struct AudioSelector {
+    pub input_plug_id: u8,
+    func_blk: AudioFuncBlk,
+}
+
+impl AudioSelector {
+    const SELECTOR_CONTROL: u8 = 0x01;
+
+    pub fn new(func_blk_id: u8, ctl_attr: CtlAttr, input_plug_id: u8) -> Self {
+        AudioSelector{
+            input_plug_id,
+            func_blk: AudioFuncBlk::new(AudioFuncBlkType::Selector, func_blk_id, ctl_attr),
+        }
+    }
+
+    fn build_func_blk(&mut self) -> Result<(), Error> {
+        self.func_blk.audio_selector_data.clear();
+        self.func_blk.audio_selector_data.push(self.input_plug_id);
+        self.func_blk.ctl.selector = Self::SELECTOR_CONTROL;
+        self.func_blk.ctl.data.clear();
+        Ok(())
+    }
+
+    fn parse_func_blk(&mut self) -> Result<(), Error> {
+        if self.func_blk.ctl.selector != Self::SELECTOR_CONTROL {
+            let label = format!("Unexpected control selector: {} but {}",
+                                Self::SELECTOR_CONTROL, self.func_blk.ctl.selector);
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else if self.func_blk.ctl.data.len() > 0 {
+            let label = format!("Unexpected length of control data: {} but {}",
+                                0, self.func_blk.ctl.data.len());
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else {
+            self.input_plug_id = self.func_blk.audio_selector_data[0];
+            Ok(())
+        }
+    }
+}
+
+impl AvcOp for AudioSelector {
+    const OPCODE: u8 = AudioFuncBlk::OPCODE;
+}
+
+impl AvcStatus for AudioSelector {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.build_func_blk()?;
+        AvcStatus::build_operands(&mut self.func_blk, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
+        self.parse_func_blk()
+    }
+}
+
+impl AvcControl for AudioSelector {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.build_func_blk()?;
+        AvcControl::build_operands(&mut self.func_blk, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
+        self.parse_func_blk()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::ta1394::AvcAddr;
     use crate::ta1394::{AvcStatus, AvcControl};
     use super::{AUDIO_SUBUNIT_0_ADDR, AudioFuncBlk, AudioFuncBlkType, CtlAttr};
+    use super::AudioSelector;
 
     #[test]
     fn func_blk_operands() {
@@ -349,5 +420,24 @@ mod test {
         assert_eq!(&op.audio_selector_data, &[0xda, 0xed]);
         assert_eq!(op.ctl.selector, 0x16);
         assert_eq!(&op.ctl.data, &[]);
+    }
+
+    #[test]
+    fn avcaudioselector_operands() {
+        let mut op = AudioSelector::new(0xe5, CtlAttr::Duration, 0x28);
+        let mut operands = Vec::new();
+        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        assert_eq!(&operands, &[0x80, 0xe5, 0x08, 0x02, 0x28, 0x01]);
+
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.input_plug_id, 0x28);
+
+        let mut op = AudioSelector::new(0x1e, CtlAttr::Move, 0x96);
+        let mut operands = Vec::new();
+        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        assert_eq!(&operands, &[0x80, 0x1e, 0x18, 0x02, 0x96, 0x01]);
+
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.input_plug_id, 0x96);
     }
 }
