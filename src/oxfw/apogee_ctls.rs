@@ -466,3 +466,100 @@ impl<'a> InputCtl {
         }
     }
 }
+
+pub struct DisplayCtl;
+
+impl<'a> DisplayCtl {
+    const TARGET_NAME: &'a str = "display-target";
+    const FOLLOWED_NAME: &'a str = "meter-followed";
+    const OVERHOLDS_NAME: &'a str = "overholds-duration";
+
+    const TARGET_LABELS: &'a [&'a str] = &["output", "input"];
+    const OVERHOLDS_LABELS: &'a [&'a str] = &["infinite", "2 sec"];
+
+    pub fn new() -> Self {
+        DisplayCtl{}
+    }
+
+    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        // For target of display.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::TARGET_LABELS, None, true)?;
+
+        // For switch to force meters followed to selected item.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::FOLLOWED_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        // For overholds duration.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::OVERHOLDS_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::OVERHOLDS_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+            elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::TARGET_NAME => {
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayInput);
+                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                elem_value.set_enum(&[op.get_enum()]);
+                Ok(true)
+            }
+            Self::FOLLOWED_NAME => {
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayFollow);
+                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                elem_value.set_bool(&[op.get_enum() > 0]);
+                Ok(true)
+            }
+            Self::OVERHOLDS_NAME => {
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
+                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                elem_value.set_enum(&[op.get_enum()]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+                 _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::TARGET_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayInput);
+                op.put_enum(vals[0]);
+                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                //avc.write_bool(company_id, VendorCmd::DisplayInput, vals[0] > 0)?;
+                Ok(true)
+            }
+            Self::FOLLOWED_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayFollow);
+                op.put_enum(vals[0] as u32);
+                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                Ok(true)
+            }
+            Self::OVERHOLDS_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
+                op.put_enum(vals[0]);
+                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
