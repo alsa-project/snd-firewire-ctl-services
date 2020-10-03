@@ -627,6 +627,159 @@ impl AvcControl for AudioFeature {
     }
 }
 
+//
+// AV/C Audio Subunit FUNCTION_BLOCK command for processing function block
+//
+//
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProcessingCtl {
+    Enable(bool),
+    Mode(Vec<u8>),
+    Mixer(Vec<i16>),
+    Reserved(Vec<u8>),
+}
+
+impl ProcessingCtl {
+    const ENABLE: u8 = 0x01;
+    const MODE: u8 = 0x02;
+    const MIXER: u8 = 0x03;
+
+    const TRUE: u8 = 0x70;
+    const FALSE: u8 = 0x60;
+}
+
+impl From<&ProcessingCtl> for AudioFuncBlkCtl {
+    fn from(ctl: &ProcessingCtl) -> Self {
+        match ctl {
+            ProcessingCtl::Enable(data) => {
+                AudioFuncBlkCtl{
+                    selector: ProcessingCtl::ENABLE,
+                    data: vec![if *data { ProcessingCtl::TRUE } else { ProcessingCtl::FALSE }],
+                }
+            }
+            ProcessingCtl::Mode(data) => {
+                AudioFuncBlkCtl{
+                    selector: ProcessingCtl::MODE,
+                    data: data.to_vec(),
+                }
+            }
+            ProcessingCtl::Mixer(data) => {
+                AudioFuncBlkCtl{
+                    selector: ProcessingCtl::MIXER,
+                    data: i16_vector_to_raw(data),
+                }
+            }
+            ProcessingCtl::Reserved(data) => {
+                AudioFuncBlkCtl{
+                    selector: data[0],
+                    data: data[2..].to_vec(),
+                }
+            }
+        }
+    }
+}
+
+impl From<&AudioFuncBlkCtl> for ProcessingCtl {
+    fn from(ctl_blk: &AudioFuncBlkCtl) -> Self {
+        match ctl_blk.selector {
+            Self::ENABLE => ProcessingCtl::Enable(ctl_blk.data[0] == ProcessingCtl::TRUE),
+            Self::MODE => ProcessingCtl::Mode(ctl_blk.data.to_vec()),
+            Self::MIXER => ProcessingCtl::Mixer(i16_vector_from_raw(&ctl_blk.data)),
+            _ => {
+                let mut data = Vec::new();
+                data.push(ctl_blk.selector);
+                data.push(1 + ctl_blk.data.len() as u8);
+                data.extend_from_slice(&ctl_blk.data);
+                ProcessingCtl::Reserved(data)
+            }
+        }
+    }
+}
+
+pub struct AudioProcessing {
+    pub input_plug_id: u8,
+    pub input_ch: AudioCh,
+    pub output_ch: AudioCh,
+    pub ctl: ProcessingCtl,
+
+    func_blk: AudioFuncBlk,
+}
+
+impl AudioProcessing {
+    pub fn new(func_blk_id: u8, ctl_attr: CtlAttr, input_plug_id: u8, input_ch: AudioCh,
+               output_ch: AudioCh, ctl: ProcessingCtl) -> Self {
+        AudioProcessing{
+            input_plug_id,
+            input_ch,
+            output_ch,
+            ctl,
+            func_blk: AudioFuncBlk::new(AudioFuncBlkType::Processing, func_blk_id, ctl_attr),
+        }
+    }
+
+    fn build_func_blk(&mut self) -> Result<(), Error> {
+        self.func_blk.audio_selector_data.clear();
+        self.func_blk.audio_selector_data.push(self.input_plug_id);
+        self.func_blk.audio_selector_data.push(u8::from(self.input_ch));
+        self.func_blk.audio_selector_data.push(u8::from(self.output_ch));
+        self.func_blk.ctl = AudioFuncBlkCtl::from(&self.ctl);
+        Ok(())
+    }
+
+    fn parse_func_blk(&mut self) -> Result<(), Error> {
+        if self.func_blk.audio_selector_data[0] != self.input_plug_id {
+            let label = format!("Unexpected input plug ID for AudioProcessing: {} but {}",
+                                self.input_plug_id, self.func_blk.func_blk_id);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        let input_ch = AudioCh::from(self.func_blk.audio_selector_data[1]);
+        if input_ch != self.input_ch {
+            let label = format!("Unexpected input audio channel number for AudioProcessing: {:?} but {:?}",
+                                self.input_ch, input_ch);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        let output_ch = AudioCh::from(self.func_blk.audio_selector_data[2]);
+        if output_ch != self.output_ch {
+            let label = format!("Unexpected output audio channel number for AudioProcessing: {:?} but {:?}",
+                                self.output_ch, output_ch);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        self.ctl = ProcessingCtl::from(&self.func_blk.ctl);
+        Ok(())
+    }
+}
+
+impl AvcOp for AudioProcessing {
+    const OPCODE: u8 = AudioFuncBlk::OPCODE;
+}
+
+impl AvcStatus for AudioProcessing {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.build_func_blk()?;
+        AvcStatus::build_operands(&mut self.func_blk, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
+        self.parse_func_blk()
+    }
+}
+
+impl AvcControl for AudioProcessing {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.build_func_blk()?;
+        AvcControl::build_operands(&mut self.func_blk, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
+        self.parse_func_blk()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::ta1394::AvcAddr;
@@ -634,6 +787,7 @@ mod test {
     use super::{AUDIO_SUBUNIT_0_ADDR, AudioFuncBlk, AudioFuncBlkType, AudioFuncBlkCtl, CtlAttr};
     use super::AudioSelector;
     use super::{AudioFeature, FeatureCtl, GraphicEqualizerData, AudioCh};
+    use super::{AudioProcessing, ProcessingCtl};
 
     #[test]
     fn func_blk_operands() {
@@ -824,6 +978,47 @@ mod test {
 
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(AudioCh::Each(0xd8), op.audio_ch_num);
+        assert_eq!(ctl, op.ctl);
+    }
+
+    #[test]
+    fn processingctl_from() {
+        let ctl = ProcessingCtl::Enable(true);
+        assert_eq!(ctl, ProcessingCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = ProcessingCtl::Mode(vec![0xde, 0xad, 0xbe, 0xef]);
+        assert_eq!(ctl, ProcessingCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+
+        let ctl = ProcessingCtl::Mixer(vec![-73, -157]);
+        assert_eq!(ctl, ProcessingCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+    }
+
+    #[test]
+    fn avcaudioprocessing_operands() {
+        let ctl = ProcessingCtl::Enable(true);
+        let mut op = AudioProcessing::new(0xf5, CtlAttr::Default, 0x71, AudioCh::Each(0xa8),
+                                          AudioCh::Each(0x3e), ctl.clone());
+        let mut operands = Vec::new();
+        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        assert_eq!(&operands, &[0x82, 0xf5, 0x04, 0x04, 0x71, 0xa9, 0x3f, 0x01, 0x01, 0x70]);
+
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(0x71, op.input_plug_id);
+        assert_eq!(AudioCh::Each(0xa8), op.input_ch);
+        assert_eq!(AudioCh::Each(0x3e), op.output_ch);
+        assert_eq!(ctl, op.ctl);
+
+        let ctl = ProcessingCtl::Mixer(vec![10, -10]);
+        let mut op = AudioProcessing::new(0x11, CtlAttr::Minimum, 0x22, AudioCh::Each(0x32),
+                                          AudioCh::Each(0x43), ctl.clone());
+        let mut operands = Vec::new();
+        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        assert_eq!(&operands, &[0x82, 0x11, 0x02, 0x04, 0x22, 0x33, 0x44, 0x03, 0x04, 0x00, 0x0a, 0xff, 0xf6]);
+
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(0x22, op.input_plug_id);
+        assert_eq!(AudioCh::Each(0x32), op.input_ch);
+        assert_eq!(AudioCh::Each(0x43), op.output_ch);
         assert_eq!(ctl, op.ctl);
     }
 }
