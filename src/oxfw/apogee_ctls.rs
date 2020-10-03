@@ -7,7 +7,7 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 use crate::card_cntr;
 
 use crate::ta1394::{AvcAddr, Ta1394Avc};
-use super::apogee_proto::{VendorCmd, ApogeeCmd};
+use super::apogee_proto::{VendorCmd, ApogeeCmd, ApogeeMeterProtocol};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -557,6 +557,235 @@ impl<'a> DisplayCtl {
                 let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
                 op.put_enum(vals[0]);
                 avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub struct HwState {
+    pub measure_elems: Vec<alsactl::ElemId>,
+
+    req: hinawa::FwReq,
+    meters: [i32;6],
+    states: [u8;8],
+}
+
+impl<'a> HwState {
+    const OUT_MUTE_NAME: &'a str = "output-mute";
+    const SELECTED_KNOB_NAME: &'a str = "selected-knob";
+    const OUT_VOLUME_NAME: &'a str = "output-volume";
+    const IN_GAIN_NAME: &'a str = "input-gain";
+
+    const ANALOG_IN_METER_NAME: &'a str = "analog-input-meters";
+    const MIXER_SRC_METER_NAME: &'a str = "mixer-source-meters";
+    const MIXER_OUT_METER_NAME: &'a str = "mixer-output-meters";
+
+    const KNOB_LABELS: &'a [&'a str] = &["Out", "In-1", "In-2"];
+
+    const INPUT_LABELS: &'a [&'a str] = &[
+        "analog-input-1",
+        "analog-input-2",
+    ];
+
+    const DIAL_OUT_MIN: i32 = 0;
+    const DIAL_OUT_MAX: i32 = 75;
+    const DIAL_OUT_STEP: i32 = 1;
+
+    const DIAL_IN_MIN: i32 = 10;
+    const DIAL_IN_MAX: i32 = 75;
+    const DIAL_IN_STEP: i32 = 1;
+
+    const METER_MIN: i32 = 0;
+    const METER_MAX: i32 = i32::MAX;
+    const METER_STEP: i32 = 256;
+
+    pub fn new() -> Self {
+        HwState{
+            measure_elems: Vec::new(),
+            req: hinawa::FwReq::new(),
+            meters: [0;6],
+            states: [0;8],
+        }
+    }
+
+    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        // For mute of analog outputs.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::OUT_MUTE_NAME, 0);
+        let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        // For selection of knob.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::SELECTED_KNOB_NAME, 0);
+        let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::KNOB_LABELS,
+                                                    None, false)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        // For output volume.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::OUT_VOLUME_NAME, 0);
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                    Self::DIAL_OUT_MIN, Self::DIAL_OUT_MAX, Self::DIAL_OUT_STEP,
+                                    1, None, true)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        // For input gain.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::IN_GAIN_NAME, 0);
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                    Self::DIAL_IN_MIN, Self::DIAL_IN_MAX, Self::DIAL_IN_STEP,
+                                    Self::INPUT_LABELS.len(), None, true)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        // For meter of inputs.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::ANALOG_IN_METER_NAME, 0);
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                                   Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
+                                                   Self::INPUT_LABELS.len(), None, false)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        // For meters of mixer sources.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIXER_SRC_METER_NAME, 0);
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                                   Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
+                                                   MixerCtl::SRC_LABELS.len(), None, false)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        // For meters of mixer sources.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIXER_OUT_METER_NAME, 0);
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                                   Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
+                                                   MixerCtl::TARGET_LABELS.len(), None, false)?;
+        self.measure_elems.extend_from_slice(&elem_id_list);
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+            elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_MUTE_NAME => {
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutMute);
+                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                elem_value.set_bool(&[op.get_enum() > 0]);
+                Ok(true)
+            }
+            Self::OUT_VOLUME_NAME => {
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutVolume);
+                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                elem_value.set_int(&[Self::DIAL_OUT_MAX - (op.get_u8() as i32)]);
+                Ok(true)
+            }
+            Self::IN_GAIN_NAME => {
+                let mut vals = [0;2];
+                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::InGain(i as u8));
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    *val = op.get_u8() as i32;
+                    Ok(())
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_MUTE_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutMute);
+                op.put_enum(vals[0] as u32);
+                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                Ok(true)
+            }
+            Self::OUT_VOLUME_NAME => {
+                let mut vals = [0];
+                new.get_int(&mut vals);
+                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutVolume);
+                op.put_u8((Self::DIAL_OUT_MAX - vals[0]) as u8);
+                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                Ok(true)
+            }
+            Self::IN_GAIN_NAME => {
+                let mut vals = [0;4];
+                new.get_int(&mut vals[..2]);
+                old.get_int(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate().try_for_each(|(i, (n, o))| {
+                    if n != o {
+                        let mut op = ApogeeCmd::new(company_id, VendorCmd::InGain(i as u8));
+                        op.put_u8(*n as u8);
+                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                    } else {
+                        Ok(())
+                    }
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn measure_states(&mut self, node: &hinawa::FwNode, avc: &hinawa::FwFcp, company_id: &[u8;3])
+        -> Result<(), Error>
+    {
+        let mut meters = [0;6];
+        self.req.read_meters(node, &mut meters)?;
+        self.meters.iter_mut().zip(meters.iter()).for_each(|(d, s)| *d = *s as i32);
+
+        let mut op = ApogeeCmd::new(company_id, VendorCmd::HwState);
+        avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+        op.copy_block(&mut self.states);
+
+        Ok(())
+    }
+
+    pub fn measure_elems(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_MUTE_NAME => {
+                elem_value.set_bool(&[self.states[0] > 0]);
+                Ok(true)
+            }
+            Self::SELECTED_KNOB_NAME => {
+                elem_value.set_enum(&[self.states[1] as u32]);
+                Ok(true)
+            }
+            Self::OUT_VOLUME_NAME => {
+                elem_value.set_int(&[Self::DIAL_OUT_MAX - (self.states[3] as i32)]);
+                Ok(true)
+            }
+            Self::IN_GAIN_NAME => {
+                let mut vals = [0;2];
+                vals.iter_mut().enumerate().for_each(|(i, val)| *val = self.states[4 + i] as i32);
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::ANALOG_IN_METER_NAME => {
+                elem_value.set_int(&self.meters[..2]);
+                Ok(true)
+            }
+            Self::MIXER_SRC_METER_NAME => {
+                elem_value.set_int(&self.meters[2..4]);
+                Ok(true)
+            }
+            Self::MIXER_OUT_METER_NAME => {
+                elem_value.set_int(&self.meters[4..]);
                 Ok(true)
             }
             _ => Ok(false),
