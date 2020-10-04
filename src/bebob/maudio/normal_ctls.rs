@@ -9,6 +9,7 @@ use crate::card_cntr;
 use crate::ta1394::{AvcAddr, Ta1394Avc};
 use crate::ta1394::{AvcOp, AvcControl};
 use crate::ta1394::general::VendorDependent;
+use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME};
@@ -387,5 +388,135 @@ impl<'a> MeterCtl<'a> {
             _ => Ok(false),
         }
     }
+}
 
+fn get_fb_id_and_ch(fb_ids: &[u8], target: usize) -> (u8, u8) {
+    let pos = target / 2;
+    let mut val = u8::MAX;
+    let mut left = 0;
+    for i in 0..(pos + 1) {
+        if val == fb_ids[i] {
+            left += 2;
+        } else {
+            val = fb_ids[i];
+            left = 0;
+        }
+    }
+    (val, left + (target % 2) as u8)
+}
+
+pub struct MixerCtl<'a> {
+    dst_fb_ids: &'a [u8],
+    dst_labels: &'a [&'a str],
+
+    phys_src_fb_ids: &'a [u8],
+    phys_src_labels: &'a [&'a str],
+
+    stream_src_fb_ids: &'a [u8],
+    stream_src_labels: &'a [&'a str],
+}
+
+const ON: i16 = 0x0000;
+const OFF: i16 = (0x8000 as u16) as i16;
+
+impl<'a> MixerCtl<'a> {
+    const MIXER_SRC_NAME: &'a str = "mixer-source";
+
+    pub fn new(dst_fb_ids: &'a [u8], dst_labels: &'a [&'a str],
+               phys_src_fb_ids: &'a [u8], phys_src_labels: &'a [&'a str],
+               stream_src_fb_ids: &'a [u8], stream_src_labels: &'a [&'a str])
+        -> Self
+    {
+        assert_eq!(dst_fb_ids.len(), dst_labels.len());
+        assert_eq!(phys_src_fb_ids.len(), phys_src_labels.len());
+        assert_eq!(stream_src_fb_ids.len(), stream_src_labels.len());
+
+        MixerCtl {dst_fb_ids, dst_labels, phys_src_fb_ids, phys_src_labels, stream_src_fb_ids, stream_src_labels}
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        (0..self.dst_fb_ids.len()).take(self.stream_src_fb_ids.len()).try_for_each(|i| {
+            let (dst_fb, dst_ch) = get_fb_id_and_ch(self.dst_fb_ids, i * 2);
+            let (src_fb, src_ch) = get_fb_id_and_ch(self.stream_src_fb_ids, i * 2);
+            let mut op = AudioProcessing::new(dst_fb, CtlAttr::Current, src_fb,
+                                    AudioCh::Each(src_ch), AudioCh::Each(dst_ch),
+                                    ProcessingCtl::Mixer(vec![ON]));
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+        })?;
+
+        let src_count = self.stream_src_labels.len() + self.phys_src_labels.len();
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIXER_SRC_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, self.dst_labels.len(), src_count, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_SRC_NAME => {
+                let dst = elem_id.get_index() as usize;
+                let (dst_fb, dst_ch) = get_fb_id_and_ch(self.dst_fb_ids, dst * 2);
+
+                let mut src_fb_ids = Vec::new();
+                src_fb_ids.extend_from_slice(&self.stream_src_fb_ids);
+                src_fb_ids.extend_from_slice(&self.phys_src_fb_ids);
+
+                let mut vals = vec![false;src_fb_ids.len()];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let (src_fb, src_ch) = get_fb_id_and_ch(&src_fb_ids, i * 2);
+                    let mut op = AudioProcessing::new(dst_fb, CtlAttr::Current, src_fb,
+                                                      AudioCh::Each(src_ch), AudioCh::Each(dst_ch),
+                                                      ProcessingCtl::Mixer(vec![-1]));
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    if let ProcessingCtl::Mixer(data) = op.ctl {
+                        *v = data[0] == ON;
+                        Ok(())
+                    } else {
+                        unreachable!();
+                    }
+                })?;
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+                 new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_SRC_NAME => {
+                let dst = elem_id.get_index() as usize;
+                let (dst_fb, dst_ch) = get_fb_id_and_ch(self.dst_fb_ids, dst * 2);
+
+                let mut src_fb_ids = Vec::new();
+                src_fb_ids.extend_from_slice(&self.stream_src_fb_ids);
+                src_fb_ids.extend_from_slice(&self.phys_src_fb_ids);
+
+                let mut vals = vec![false;src_fb_ids.len() * 2];
+                new.get_bool(&mut vals[..src_fb_ids.len()]);
+                old.get_bool(&mut vals[src_fb_ids.len()..]);
+                vals[..src_fb_ids.len()].iter().zip(vals[src_fb_ids.len()..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        // Left channel is a representative.
+                        let (src_fb, src_ch) = get_fb_id_and_ch(&src_fb_ids, i * 2);
+                        let mut op = AudioProcessing::new(dst_fb, CtlAttr::Current, src_fb,
+                                                AudioCh::Each(src_ch), AudioCh::Each(dst_ch),
+                                                ProcessingCtl::Mixer(vec![if *v { ON } else { OFF }]));
+                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
 }

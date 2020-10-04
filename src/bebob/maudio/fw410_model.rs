@@ -16,13 +16,14 @@ use crate::bebob::common_ctls::ClkCtl;
 use crate::bebob::BebobAvc;
 
 use super::common_proto::FCP_TIMEOUT_MS;
-use super::normal_ctls::MeterCtl;
+use super::normal_ctls::{MeterCtl, MixerCtl};
 
 pub struct Fw410Model<'a>{
     avc: BebobAvc,
     req: hinawa::FwReq,
     clk_ctl: ClkCtl<'a>,
     meter_ctl: MeterCtl<'a>,
+    mixer_ctl: MixerCtl<'a>,
 }
 
 impl<'a> Fw410Model<'a> {
@@ -49,12 +50,30 @@ impl<'a> Fw410Model<'a> {
         "digital-out-1", "digital-out-2",
     ];
 
+    const MIXER_DST_FB_IDS: &'a [u8] = &[0x01, 0x01, 0x01, 0x01, 0x01];
+    const MIXER_LABELS: &'a [&'a str] = &[
+        "mixer-1/2", "mixer-3/4", "mixer-5/6", "mixer-7/8",
+        "mixer-9/10",
+    ];
+    const MIXER_PHYS_SRC_FB_IDS: &'a [u8] = &[0x02, 0x03];
+    const PHYS_IN_LABELS: &'a [&'a str] = &["analog-1/2", "digital-1/2"];
+    const MIXER_STREAM_SRC_FB_IDS: &'a [u8] = &[0x01, 0x00, 0x00, 0x00, 0x00];
+    const STREAM_IN_LABELS: &'a [&'a str] = &[
+        "stream-1/2", "stream-3/4", "stream-5/6", "stream-7/8",
+        "stream-9/10",
+    ];
+
     pub fn new() -> Self {
         Fw410Model{
             avc: BebobAvc::new(),
             req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
             meter_ctl: MeterCtl::new(Self::IN_METER_LABELS, &[], Self::OUT_METER_LABELS, false, 1, true),
+            mixer_ctl: MixerCtl::new(
+                Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
+                Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
+                Self::MIXER_STREAM_SRC_FB_IDS, Self::STREAM_IN_LABELS,
+            ),
         }
     }
 }
@@ -69,6 +88,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;
+        self.mixer_ctl.load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -79,6 +99,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -92,6 +114,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.write(&self.avc, elem_id, old, new)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
