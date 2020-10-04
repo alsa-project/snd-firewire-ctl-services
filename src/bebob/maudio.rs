@@ -5,6 +5,7 @@ pub mod solo_model;
 pub mod audiophile_model;
 pub mod fw410_model;
 pub mod profirelightbridge_model;
+pub mod special_model;
 
 mod normal_ctls;
 

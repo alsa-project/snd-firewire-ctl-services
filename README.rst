@@ -122,6 +122,8 @@ your device, please contact to developer.
   * M-Audio FireWire Audiophile
   * M-Audio FireWire 410
   * M-Audio ProFire LightBridge
+  * M-Audio FireWire 1814
+  * M-Audio ProjectMix I/O
 
 Supported protocols
 ===================
