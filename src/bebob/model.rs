@@ -7,6 +7,7 @@ use card_cntr::{CtlModel, MeasureModel, NotifyModel};
 
 use super::apogee::apogee_model::EnsembleModel;
 use super::maudio::ozonic_model::OzonicModel;
+use super::maudio::solo_model::SoloModel;
 
 pub struct BebobModel<'a>{
     ctl_model: BebobCtlModel<'a>,
@@ -17,6 +18,7 @@ pub struct BebobModel<'a>{
 enum BebobCtlModel<'a> {
     ApogeeEnsemble(EnsembleModel<'a>),
     MaudioOzonic(OzonicModel),
+    MaudioSolo(SoloModel),
 }
 
 impl<'a> BebobModel<'a> {
@@ -24,6 +26,7 @@ impl<'a> BebobModel<'a> {
         let ctl_model = match (vendor_id, model_id) {
             (0x0003db, 0x01eeee) => BebobCtlModel::ApogeeEnsemble(EnsembleModel::new()),
             (0x000d6c, 0x00000a) => BebobCtlModel::MaudioOzonic(OzonicModel::new()),
+            (0x000d6c, 0x010062) => BebobCtlModel::MaudioSolo(SoloModel::new()),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }
@@ -44,16 +47,19 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => m.load(unit, card_cntr),
             BebobCtlModel::MaudioOzonic(m) => m.load(unit, card_cntr),
+            BebobCtlModel::MaudioSolo(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             BebobCtlModel::MaudioOzonic(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            BebobCtlModel::MaudioSolo(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
         }
 
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             BebobCtlModel::MaudioOzonic(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            BebobCtlModel::MaudioSolo(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -66,6 +72,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             BebobCtlModel::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            BebobCtlModel::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -75,6 +82,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             BebobCtlModel::MaudioOzonic(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            BebobCtlModel::MaudioSolo(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
         }
     }
 
@@ -84,6 +92,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             BebobCtlModel::MaudioOzonic(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            BebobCtlModel::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
         }
     }
 }
