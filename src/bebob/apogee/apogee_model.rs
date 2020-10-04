@@ -12,7 +12,7 @@ use crate::ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;
-use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl};
+use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl};
 
 pub struct EnsembleModel<'a>{
     avc: BebobAvc,
@@ -20,6 +20,7 @@ pub struct EnsembleModel<'a>{
     hw_ctls: HwCtl,
     display_ctls: DisplayCtl,
     opt_iface_ctls: OpticalCtl,
+    input_ctls: InputCtl,
 }
 
 impl<'a> EnsembleModel<'a> {
@@ -53,6 +54,7 @@ impl<'a> EnsembleModel<'a> {
             hw_ctls: HwCtl::new(),
             display_ctls: DisplayCtl::new(),
             opt_iface_ctls: OpticalCtl::new(),
+            input_ctls: InputCtl::new(),
         }
     }
 }
@@ -71,6 +73,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         self.hw_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.display_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.opt_iface_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+        self.input_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -85,6 +88,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         } else if self.display_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctls.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -102,6 +107,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         } else if self.display_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.input_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)

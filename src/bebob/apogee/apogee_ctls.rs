@@ -360,3 +360,182 @@ impl<'a> OpticalCtl {
         }
     }
 }
+
+pub struct InputCtl{
+    limits: [bool; 8],
+    levels: [u32; 8],
+
+    phantoms: [bool; 4],
+    polarities: [bool; 4],
+}
+
+impl<'a> InputCtl {
+    const IN_LIMIT_NAME: &'a str = "input-limit";
+    const IN_LEVEL_NAME: &'a str = "input-level";
+    const MIC_PHANTOM_NAME: &'a str = "mic-phantom";
+    const MIC_POLARITY_NAME: &'a str = "mic-polarity";
+
+    const IN_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7",
+        "analog-8",
+    ];
+
+    const IN_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB", "Mic"];
+
+    const MIC_LABELS: &'a [&'a str] = &["mci-1", "mic-2", "mic-3", "mic-4"];
+
+    pub fn new() -> Self {
+        InputCtl {
+            limits: [false;8],
+            levels: [0;8],
+            phantoms: [false;4],
+            polarities: [false;4],
+        }
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        (0..Self::IN_LABELS.len()).try_for_each(|i| {
+            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::InputLimit(i as u8),
+                                        &[self.limits[i] as u8]);
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x01),
+                                        &[self.levels[i] as u8]);
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+            Ok(())
+        })?;
+
+        (0..Self::MIC_LABELS.len()).try_for_each(|i| {
+            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPower(i as u8),
+                                        &[self.phantoms[i] as u8]);
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPolarity(i as u8),
+                                        &[self.polarities[i] as u8]);
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+            Ok(())
+        })?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::IN_LIMIT_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::IN_LABELS.len(), true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::IN_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::IN_LABELS.len(),
+                                         Self::IN_LEVEL_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIC_PHANTOM_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIC_POLARITY_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::IN_LIMIT_NAME => {
+                elem_value.set_bool(&self.limits);
+                Ok(true)
+            }
+            Self::IN_LEVEL_NAME => {
+                elem_value.set_enum(&self.levels);
+                Ok(true)
+            }
+            Self::MIC_PHANTOM_NAME => {
+                elem_value.set_bool(&self.phantoms);
+                Ok(true)
+            }
+            Self::MIC_POLARITY_NAME => {
+                elem_value.set_bool(&self.polarities);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::IN_LIMIT_NAME => {
+                let len = Self::IN_LABELS.len();
+                let mut vals = vec![false;len * 2];
+                new.get_bool(&mut vals[..len]);
+                old.get_bool(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::InputLimit(i as u8),
+                                                    &[*n as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        self.limits[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            Self::IN_LEVEL_NAME => {
+                let len = Self::IN_LABELS.len();
+                let mut vals = vec![0;len * 2];
+                new.get_enum(&mut vals[..len]);
+                old.get_enum(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x01),
+                                                    &[*n as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        self.levels[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            Self::MIC_PHANTOM_NAME => {
+                let len = Self::MIC_LABELS.len();
+                let mut vals = vec![false;len * 2];
+                new.get_bool(&mut vals[..len]);
+                old.get_bool(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter())
+                    .enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPower(i as u8),
+                                                    &[*n as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        self.phantoms[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            Self::MIC_POLARITY_NAME => {
+                let len = Self::MIC_LABELS.len();
+                let mut vals = vec![false;len * 2];
+                new.get_bool(&mut vals[0..len]);
+                old.get_bool(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter())
+                    .enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPolarity(i as u8),
+                                                    &[*n as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        self.polarities[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
