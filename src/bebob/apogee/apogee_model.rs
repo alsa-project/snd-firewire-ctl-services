@@ -12,7 +12,7 @@ use crate::ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;
-use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl, ResamplerCtl};
+use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl, ResamplerCtl, MeterCtl};
 
 pub struct EnsembleModel<'a>{
     avc: BebobAvc,
@@ -25,6 +25,7 @@ pub struct EnsembleModel<'a>{
     mixer_ctls: MixerCtl,
     route_ctls: RouteCtl,
     resampler_ctls: ResamplerCtl,
+    meter_ctls: MeterCtl,
 }
 
 impl<'a> EnsembleModel<'a> {
@@ -63,6 +64,7 @@ impl<'a> EnsembleModel<'a> {
             mixer_ctls: MixerCtl::new(),
             route_ctls: RouteCtl::new(),
             resampler_ctls: ResamplerCtl::new(),
+            meter_ctls: MeterCtl::new(),
         }
     }
 }
@@ -86,6 +88,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         self.mixer_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.route_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.resampler_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+        self.meter_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -110,6 +113,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         } else if self.route_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.resampler_ctls.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -138,8 +143,26 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
             Ok(true)
         } else if self.resampler_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.meter_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(true)
         }
+    }
+}
+
+impl<'a> card_cntr::MeasureModel<hinawa::SndUnit> for EnsembleModel<'a> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctls.measure_elem_list);
+    }
+
+    fn measure_states(&mut self, _: &hinawa::SndUnit) -> Result<(), Error> {
+        self.meter_ctls.measure_states(&self.avc, Self::FCP_TIMEOUT_MS)
+    }
+
+    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        self.meter_ctls.measure_elem(elem_id, elem_value)
     }
 }

@@ -3,7 +3,7 @@
 use glib::{Error, FileError};
 
 use crate::card_cntr;
-use card_cntr::CtlModel;
+use card_cntr::{CtlModel, MeasureModel};
 
 use super::apogee::apogee_model::EnsembleModel;
 
@@ -38,7 +38,13 @@ impl<'a> BebobModel<'a> {
     {
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => m.load(unit, card_cntr),
+        }?;
+
+        match &mut self.ctl_model {
+            BebobCtlModel::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
         }
+
+        Ok(())
     }
 
     pub fn dispatch_elem_event(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr,
@@ -50,11 +56,11 @@ impl<'a> BebobModel<'a> {
         }
     }
 
-    pub fn measure_elems(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr)
+    pub fn measure_elems(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
-            _ => Ok(()),
+            BebobCtlModel::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
         }
     }
 }
@@ -63,5 +69,9 @@ pub const CLK_RATE_NAME: &str = "clock-rate";
 pub const CLK_SRC_NAME: &str = "clock-source";
 
 pub const OUT_SRC_NAME: &str = "output-source";
+pub const OUT_VOL_NAME: &str = "output-volume";
 
 pub const HP_SRC_NAME: &str = "headphone-source";
+
+pub const IN_METER_NAME: &str = "input-meters";
+pub const OUT_METER_NAME: &str = "output-meters";
