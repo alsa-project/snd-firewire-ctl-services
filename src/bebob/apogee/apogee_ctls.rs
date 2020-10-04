@@ -539,3 +539,80 @@ impl<'a> InputCtl {
         }
     }
 }
+
+pub struct OutputCtl {
+    levels: [u32; 8],
+}
+
+impl<'a> OutputCtl {
+    const OUT_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB"];
+
+    const OUT_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7",
+        "analog-8",
+    ];
+
+    const OUT_LEVEL_NAME: &'a str = "output-level";
+
+    pub fn new() -> Self {
+        OutputCtl { levels: [1; 8] }
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        self.levels.iter()
+            .enumerate()
+            .try_for_each(|(i, l)| {
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x00),
+                                            &[*l as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                Ok(())
+            })?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::OUT_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::OUT_LABELS.len(),
+                                         Self::OUT_LEVEL_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_LEVEL_NAME => {
+                elem_value.set_enum(&self.levels);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_LEVEL_NAME => {
+                let len = Self::OUT_LABELS.len();
+                let mut vals = vec![0;len * 2];
+                new.get_enum(&mut vals[..len]);
+                old.get_enum(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter())
+                    .enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x00),
+                                                    &[*n as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        self.levels[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
