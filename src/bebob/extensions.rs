@@ -1324,6 +1324,55 @@ impl AvcControl for ExtendedStreamFormatSingle {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExtendedStreamFormatList{
+    pub support_status: SupportStatus,
+    pub index: u8,
+    pub stream_format: BcoStreamFormat,
+    op: BcoExtendedStreamFormat,
+}
+
+impl ExtendedStreamFormatList {
+    const SUBFUNC: u8 = 0xc1;
+
+    pub fn new(plug_addr: &BcoPlugAddr, index: u8) -> Self {
+        ExtendedStreamFormatList{
+            support_status: SupportStatus::NoInfo,
+            index,
+            stream_format: BcoStreamFormat::Reserved(Vec::new()),
+            op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
+        }
+    }
+}
+
+impl AvcOp for ExtendedStreamFormatList {
+    const OPCODE: u8 = BcoExtendedStreamFormat::OPCODE;
+}
+
+impl AvcStatus for ExtendedStreamFormatList {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.build_operands(addr, operands)?;
+        operands.push(self.index);
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        self.op.parse_operands(addr, operands)?;
+
+        self.support_status = self.op.support_status;
+
+        if operands[7] != self.index {
+            let label = format!("Unexpected index to stream entry: {} but {}",
+                                self.index, operands[7]);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        self.stream_format = BcoStreamFormat::from(&operands[8..]);
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::ta1394::{AvcSubunitType, AvcAddr};
