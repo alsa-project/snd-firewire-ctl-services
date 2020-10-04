@@ -9,6 +9,7 @@ use super::apogee::apogee_model::EnsembleModel;
 
 pub struct BebobModel<'a>{
     ctl_model: BebobCtlModel<'a>,
+    pub measure_elem_list: Vec<alsactl::ElemId>,
 }
 
 enum BebobCtlModel<'a> {
@@ -26,6 +27,7 @@ impl<'a> BebobModel<'a> {
 
         let model = BebobModel{
             ctl_model,
+            measure_elem_list: Vec::new(),
         };
 
         Ok(model)
@@ -45,6 +47,14 @@ impl<'a> BebobModel<'a> {
     {
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+        }
+    }
+
+    pub fn measure_elems(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        match &mut self.ctl_model {
+            _ => Ok(()),
         }
     }
 }
