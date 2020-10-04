@@ -7,15 +7,15 @@ use card_cntr::CtlModel;
 
 use super::apogee::apogee_model::EnsembleModel;
 
-pub struct BebobModel{
-    ctl_model: BebobCtlModel,
+pub struct BebobModel<'a>{
+    ctl_model: BebobCtlModel<'a>,
 }
 
-enum BebobCtlModel {
-    ApogeeEnsemble(EnsembleModel),
+enum BebobCtlModel<'a> {
+    ApogeeEnsemble(EnsembleModel<'a>),
 }
 
-impl BebobModel {
+impl<'a> BebobModel<'a> {
     pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
             (0x0003db, 0x01eeee) => BebobCtlModel::ApogeeEnsemble(EnsembleModel::new()),
@@ -48,3 +48,6 @@ impl BebobModel {
         }
     }
 }
+
+pub const CLK_RATE_NAME: &str = "clock-rate";
+pub const CLK_SRC_NAME: &str = "clock-source";
