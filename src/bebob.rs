@@ -10,6 +10,7 @@ mod model;
 mod apogee;
 mod maudio;
 mod behringer;
+mod stanton;
 
 
 use glib::Error;
