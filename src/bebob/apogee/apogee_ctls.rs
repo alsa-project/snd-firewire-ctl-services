@@ -984,3 +984,122 @@ impl<'a> RouteCtl {
         }
     }
 }
+
+pub struct ResamplerCtl {
+    enabled: bool,
+    iface: u8,
+    direction: u8,
+    rate: u8,
+}
+
+impl<'a> ResamplerCtl {
+    const ENABLE_NAME: &'a str = "resampler-enable";
+    const IFACE_NAME: &'a str = "resampler-interface";
+    const DIRECTION_NAME: &'a str = "resampler-direction";
+    const RATE_NAME: &'a str = "resampler-rate";
+
+    const IFACE_LABELS: &'a [&'a str] = &["optical", "coaxial"];
+    const DIRECTION_LABELS: &'a [&'a str] = &["output", "input"];
+    const RATE_LABELS: &'a [&'a str] = &["44100", "48000", "88200", "96000", "176400", "192000"];
+
+    pub fn new() -> Self {
+        ResamplerCtl {
+            enabled: false,
+            iface: 0,
+            direction: 0,
+            rate: 0,
+        }
+    }
+
+    fn send(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::SpdifResample,
+                                    &[self.enabled as u8, self.iface, self.direction, self.rate]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        self.send(avc, timeout_ms)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::ENABLE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::IFACE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::IFACE_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::DIRECTION_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::DIRECTION_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::RATE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::RATE_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::ENABLE_NAME => {
+                elem_value.set_bool(&[self.enabled]);
+                Ok(true)
+            }
+            Self::IFACE_NAME => {
+                elem_value.set_enum(&[self.iface as u32]);
+                Ok(true)
+            }
+            Self::DIRECTION_NAME => {
+                elem_value.set_enum(&[self.direction as u32]);
+                Ok(true)
+            }
+            Self::RATE_NAME => {
+                elem_value.set_enum(&[self.rate as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 _: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::ENABLE_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                self.enabled = vals[0] as bool;
+                self.send(avc, timeout_ms)?;
+                Ok(true)
+            }
+            Self::IFACE_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                self.iface = vals[0] as u8;
+                self.send(avc, timeout_ms)?;
+                Ok(true)
+            }
+            Self::DIRECTION_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                self.direction = vals[0] as u8;
+                self.send(avc, timeout_ms)?;
+                Ok(true)
+            }
+            Self::RATE_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                self.rate = vals[0] as u8;
+                self.send(avc, timeout_ms)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
