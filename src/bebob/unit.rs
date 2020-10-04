@@ -8,16 +8,21 @@ use std::sync::mpsc;
 
 use hinawa::{FwNodeExt, SndUnitExt, SndUnitExtManual};
 
+use alsactl::CardExt;
+
 use crate::dispatcher;
+use crate::card_cntr;
 
 enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Elem(alsactl::ElemId, alsactl::ElemEventMask),
 }
 
 pub struct BebobUnit {
     unit: hinawa::SndUnit,
+    card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -43,11 +48,15 @@ impl<'a> BebobUnit {
             return Err(Error::new(FileError::Inval, label));
         }
 
+        let card_cntr = card_cntr::CardCntr::new();
+        card_cntr.card.open(card_id, 0)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(BebobUnit {
             unit,
+            card_cntr,
             rx,
             tx,
             dispatchers: Vec::new(),
@@ -88,6 +97,13 @@ impl<'a> BebobUnit {
             source::Continue(false)
         });
 
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
+        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
+            let elem_id: alsactl::ElemId = elem_id.clone();
+            let _ = tx.send(Event::Elem(elem_id, events));
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -112,6 +128,8 @@ impl<'a> BebobUnit {
                 Event::Disconnected => break,
                 Event::BusReset(generation) => {
                     println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem(_, _) => {
                 }
             }
         }
