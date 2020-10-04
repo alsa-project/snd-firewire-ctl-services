@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 use crate::ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
 use crate::ta1394::{AvcOp, AvcStatus};
 use crate::ta1394::general::{PlugInfo, SubunitInfo};
+use crate::ta1394::stream_format::{StreamFormat, AmStream};
 
 //
 // Bco Extended Plug Info command
@@ -937,6 +938,279 @@ impl AvcStatus for ExtendedSubunitInfo {
             }).collect();
             Ok(())
         }
+    }
+}
+
+//
+// Bco Extended Stream Format Info command
+//
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum BcoCompoundAm824StreamFormat{
+    Iec60958_3,
+    Iec61937_3,
+    Iec61937_4,
+    Iec61937_5,
+    Iec61937_6,
+    Iec61937_7,
+    MultiBitLinearAudioRaw,
+    MultiBitLinearAudioDvd,
+    HighPrecisionMultiBitLinearAudio,
+    MidiConformant,
+    Reserved(u8),
+}
+
+impl BcoCompoundAm824StreamFormat {
+    const IEC60958_3: u8 = 0x00;
+    const IEC61937_3: u8 = 0x01;
+    const IEC61937_4: u8 = 0x02;
+    const IEC61937_5: u8 = 0x03;
+    const IEC61937_6: u8 = 0x04;
+    const IEC61937_7: u8 = 0x05;
+    const MULTI_BIT_LINEAR_AUDIO_RAW: u8 = 0x06;
+    const MULTI_BIT_LINEAR_AUDIO_DVD: u8 = 0x07;
+    const HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO: u8 = 0x0c;
+    const MIDI_CONFORMANT: u8 = 0x0d;
+}
+
+impl From<u8> for BcoCompoundAm824StreamFormat {
+    fn from(val: u8) -> Self {
+        match val {
+            BcoCompoundAm824StreamFormat::IEC60958_3 => BcoCompoundAm824StreamFormat::Iec60958_3,
+            BcoCompoundAm824StreamFormat::IEC61937_3 => BcoCompoundAm824StreamFormat::Iec61937_3,
+            BcoCompoundAm824StreamFormat::IEC61937_4 => BcoCompoundAm824StreamFormat::Iec61937_4,
+            BcoCompoundAm824StreamFormat::IEC61937_5 => BcoCompoundAm824StreamFormat::Iec61937_5,
+            BcoCompoundAm824StreamFormat::IEC61937_6 => BcoCompoundAm824StreamFormat::Iec61937_6,
+            BcoCompoundAm824StreamFormat::IEC61937_7 => BcoCompoundAm824StreamFormat::Iec61937_7,
+            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw,
+            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd,
+            BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio,
+            BcoCompoundAm824StreamFormat::MIDI_CONFORMANT => BcoCompoundAm824StreamFormat::MidiConformant,
+            _ => BcoCompoundAm824StreamFormat::Reserved(val),
+        }
+    }
+}
+
+impl From<BcoCompoundAm824StreamFormat> for u8 {
+    fn from(fmt: BcoCompoundAm824StreamFormat) -> u8 {
+        match fmt {
+            BcoCompoundAm824StreamFormat::Iec60958_3 => BcoCompoundAm824StreamFormat::IEC60958_3,
+            BcoCompoundAm824StreamFormat::Iec61937_3 => BcoCompoundAm824StreamFormat::IEC61937_3,
+            BcoCompoundAm824StreamFormat::Iec61937_4 => BcoCompoundAm824StreamFormat::IEC61937_4,
+            BcoCompoundAm824StreamFormat::Iec61937_5 => BcoCompoundAm824StreamFormat::IEC61937_5,
+            BcoCompoundAm824StreamFormat::Iec61937_6 => BcoCompoundAm824StreamFormat::IEC61937_6,
+            BcoCompoundAm824StreamFormat::Iec61937_7 => BcoCompoundAm824StreamFormat::IEC61937_7,
+            BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw => BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW,
+            BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd => BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD,
+            BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO,
+            BcoCompoundAm824StreamFormat::MidiConformant => BcoCompoundAm824StreamFormat::MIDI_CONFORMANT,
+            BcoCompoundAm824StreamFormat::Reserved(val) => val,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BcoCompoundAm824StreamEntry{
+    pub count: u8,
+    pub format: BcoCompoundAm824StreamFormat,
+}
+
+impl From<&[u8;2]> for BcoCompoundAm824StreamEntry {
+    fn from(raw: &[u8;2]) -> Self {
+        BcoCompoundAm824StreamEntry{
+            count: raw[0],
+            format: BcoCompoundAm824StreamFormat::from(raw[1]),
+        }
+    }
+}
+
+impl From<&BcoCompoundAm824StreamEntry> for [u8;2] {
+    fn from(data: &BcoCompoundAm824StreamEntry) -> Self {
+        [data.count, data.format.into()]
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BcoCompoundAm824Stream{
+    pub freq: u32,
+    pub sync_src: bool,
+    pub rate_ctl: bool,
+    pub entries: Vec<BcoCompoundAm824StreamEntry>,
+}
+
+impl BcoCompoundAm824Stream {
+    const FREQ_CODE_22050: u8 = 0x00;
+    const FREQ_CODE_24000: u8 = 0x01;
+    const FREQ_CODE_32000: u8 = 0x02;
+    const FREQ_CODE_44100: u8 = 0x03;
+    const FREQ_CODE_48000: u8 = 0x04;
+    const FREQ_CODE_96000: u8 = 0x05;
+    const FREQ_CODE_176400: u8 = 0x06;
+    const FREQ_CODE_192000: u8 = 0x07;
+    const FREQ_CODE_88200: u8 = 0x0a;
+
+    const SYNC_SRC_MASK: u8 = 0x01;
+    const SYNC_SRC_SHIFT: usize = 2;
+
+    const RATE_CTL_MASK: u8 = 0x03;
+    const RATE_CTL_SHIFT: usize = 0;
+}
+
+impl From<&[u8]> for BcoCompoundAm824Stream {
+    fn from(raw: &[u8]) -> Self {
+        let freq = match raw[0] {
+            BcoCompoundAm824Stream::FREQ_CODE_22050 => 22050,
+            BcoCompoundAm824Stream::FREQ_CODE_24000 => 24000,
+            BcoCompoundAm824Stream::FREQ_CODE_32000 => 32000,
+            BcoCompoundAm824Stream::FREQ_CODE_44100 => 44100,
+            BcoCompoundAm824Stream::FREQ_CODE_48000 => 48000,
+            BcoCompoundAm824Stream::FREQ_CODE_96000 => 96000,
+            BcoCompoundAm824Stream::FREQ_CODE_176400 => 176400,
+            BcoCompoundAm824Stream::FREQ_CODE_192000 => 192000,
+            BcoCompoundAm824Stream::FREQ_CODE_88200 => 88200,
+            _ => u32::MAX,
+        };
+        let sync_src_code =
+            (raw[1] >> BcoCompoundAm824Stream::SYNC_SRC_SHIFT) & BcoCompoundAm824Stream::SYNC_SRC_MASK;
+        let sync_src = sync_src_code > 0;
+        let rate_ctl_code =
+            (raw[1] >> BcoCompoundAm824Stream::RATE_CTL_SHIFT) & BcoCompoundAm824Stream::RATE_CTL_MASK;
+        let rate_ctl = rate_ctl_code == 0;
+        let entry_count = raw[2] as usize;
+        let entries = (0..entry_count).filter_map(|i| {
+            if 3 + i * 2 + 2 > raw.len() {
+                None
+            } else {
+                let mut doublet = [0;2];
+                doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
+                Some(BcoCompoundAm824StreamEntry::from(&doublet))
+            }
+        }).collect();
+        BcoCompoundAm824Stream{freq, sync_src, rate_ctl, entries}
+    }
+}
+
+impl From<&BcoCompoundAm824Stream> for Vec<u8> {
+    fn from(data: &BcoCompoundAm824Stream) -> Self {
+        let mut raw = Vec::new();
+        let freq_code = match data.freq {
+            22050 => BcoCompoundAm824Stream::FREQ_CODE_22050,
+            24000 => BcoCompoundAm824Stream::FREQ_CODE_24000,
+            32000 => BcoCompoundAm824Stream::FREQ_CODE_32000,
+            44100 => BcoCompoundAm824Stream::FREQ_CODE_44100,
+            48000 => BcoCompoundAm824Stream::FREQ_CODE_48000,
+            96000 => BcoCompoundAm824Stream::FREQ_CODE_96000,
+            176400 => BcoCompoundAm824Stream::FREQ_CODE_176400,
+            192000 => BcoCompoundAm824Stream::FREQ_CODE_192000,
+            88200 => BcoCompoundAm824Stream::FREQ_CODE_88200,
+            _ => u8::MAX,
+        };
+        raw.push(freq_code);
+
+        let sync_src_code = ((data.sync_src as u8) & BcoCompoundAm824Stream::SYNC_SRC_MASK) <<
+                            BcoCompoundAm824Stream::SYNC_SRC_SHIFT;
+        let rate_ctl_code = ((data.rate_ctl as u8) & BcoCompoundAm824Stream::RATE_CTL_MASK) <<
+                            BcoCompoundAm824Stream::RATE_CTL_SHIFT;
+        raw.push(sync_src_code | rate_ctl_code);
+
+        raw.push(data.entries.len() as u8);
+        data.entries.iter().for_each(|entry|{
+            raw.extend_from_slice(&Into::<[u8;2]>::into(entry));
+        });
+
+        raw
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BcoAmStream{
+    AmStream(AmStream),
+    BcoStream(BcoCompoundAm824Stream),
+}
+
+impl From<&[u8]> for BcoAmStream {
+    fn from(raw: &[u8]) -> Self {
+        match raw[0] {
+            AmStream::HIER_LEVEL_1_COMPOUND_AM824 => {
+                let s = BcoCompoundAm824Stream::from(&raw[1..]);
+                BcoAmStream::BcoStream(s)
+            }
+            _ => BcoAmStream::AmStream(AmStream::from(raw)),
+        }
+    }
+}
+
+impl From<&BcoAmStream> for Vec<u8> {
+    fn from(data: &BcoAmStream) -> Self {
+        match data {
+            BcoAmStream::BcoStream(s) => {
+                let mut raw = Vec::new();
+                raw.push(AmStream::HIER_LEVEL_1_COMPOUND_AM824);
+                raw.append(&mut Into::<Vec<u8>>::into(s));
+                raw
+            }
+            _ => {
+                Into::<Vec<u8>>::into(data)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BcoStreamFormat{
+    // Dvcr is not supported currently.
+    Am(BcoAmStream),
+    Reserved(Vec<u8>),
+}
+
+impl BcoStreamFormat {
+    fn as_bco_am_stream(&self) -> Result<&BcoAmStream, Error> {
+        if let BcoStreamFormat::Am(s) = self {
+            Ok(s)
+        } else {
+            let label = "Bco Audio & Music stream is not available for the unit";
+            Err(Error::new(FileError::Nxio, &label))
+        }
+    }
+
+    pub fn as_am_stream(&self) -> Result<&AmStream, Error> {
+        if let BcoAmStream::AmStream(s) = self.as_bco_am_stream()? {
+            Ok(s)
+        } else {
+            let label = "Audio & Music stream is not available for the unit";
+            Err(Error::new(FileError::Nxio, &label))
+        }
+    }
+
+    pub fn as_bco_compound_am824_stream(&self) -> Result<&BcoCompoundAm824Stream, Error> {
+        if let BcoAmStream::BcoStream(s) = self.as_bco_am_stream()? {
+            Ok(s)
+        } else {
+            let label = "Bco Compound AM824 stream is not available for the unit";
+            Err(Error::new(FileError::Nxio, &label))
+        }
+    }
+}
+
+impl From<&[u8]> for BcoStreamFormat {
+    fn from(raw: &[u8]) -> Self {
+        match raw[0] {
+            StreamFormat::HIER_ROOT_AM => BcoStreamFormat::Am(BcoAmStream::from(&raw[1..])),
+            _ => BcoStreamFormat::Reserved(raw.to_vec()),
+        }
+    }
+}
+
+impl From<&BcoStreamFormat> for Vec<u8> {
+    fn from(data: &BcoStreamFormat) -> Self {
+        let mut raw = Vec::new();
+        match data {
+            BcoStreamFormat::Am(i) => {
+                raw.push(StreamFormat::HIER_ROOT_AM);
+                raw.append(&mut i.into());
+            }
+            BcoStreamFormat::Reserved(d) => raw.extend_from_slice(d),
+        }
+        raw
     }
 }
 
