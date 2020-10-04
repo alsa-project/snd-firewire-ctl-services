@@ -357,6 +357,8 @@ impl SpecialProto for hinawa::FwReq {}
 pub trait StateCacheAccessor {
     fn get_u32(&self, pos: usize) -> u32;
     fn set_u32(&mut self, pos: usize, val: u32);
+    fn get_i16(&self, pos: usize) -> i16;
+    fn set_i16(&mut self, pos: usize, val: i16);
 }
 
 impl StateCacheAccessor for StateCache {
@@ -369,6 +371,17 @@ impl StateCacheAccessor for StateCache {
     fn set_u32(&mut self, pos: usize, val: u32) {
         let quadlet = val.to_be_bytes();
         self.cache[pos..(pos + std::mem::size_of::<u32>())].copy_from_slice(&quadlet);
+    }
+
+    fn get_i16(&self, pos: usize) -> i16 {
+        let mut doublet = [0;std::mem::size_of::<i16>()];
+        doublet.copy_from_slice(&self.cache[pos..(pos + std::mem::size_of::<i16>())]);
+        i16::from_be_bytes(doublet)
+    }
+
+    fn set_i16(&mut self, pos: usize, val: i16) {
+        let doublet = val.to_be_bytes();
+        self.cache[pos..(pos + std::mem::size_of::<i16>())].copy_from_slice(&doublet);
     }
 }
 
@@ -518,6 +531,247 @@ impl MixerCtl for StateCache {
                     req.write_quadlet(unit, MIXER_PHYS_SRC_POS, &mut self.cache)?;
                 }
 
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const STREAM_IN_LABELS: &[&str] = &[
+    "stream-1", "stream-2", "stream-3", "stream-4",
+];
+const ANALOG_IN_LABELS: &[&str] = &[
+    "analog-1", "analog-2", "analog-3", "analog-4",
+    "analog-5", "analog-6", "analog-7", "analog-8",
+];
+const SPDIF_IN_LABELS: &[&str] = &[
+    "spdif-1", "spdif-2",
+];
+const ADAT_IN_LABELS: &[&str] = &[
+    "adat-1", "adat-2", "adat-3", "adat-4",
+    "adat-5", "adat-6", "adat-7", "adat-8",
+];
+
+const STREAM_IN_GAIN_POS: usize = 0x0000;       // 0x0000 - 0x0008
+const ANALOG_IN_GAIN_POS: usize = 0x0010;       // 0x0010 - 0x0020
+const SPDIF_IN_GAIN_POS: usize = 0x0020;        // 0x0020 - 0x0024
+const ADAT_IN_GAIN_POS: usize = 0x0024;         // 0x0024 - 0x0034
+
+const ANALOG_IN_PAN_POS: usize = 0x0034;    // 0x0040 - 0x0050
+const SPDIF_IN_PAN_POS: usize = 0x0050;     // 0x0050 - 0x0054
+const ADAT_IN_PAN_POS: usize = 0x0054;      // 0x0054 - 0x0064.
+
+const GAIN_SIZE: usize = std::mem::size_of::<i16>();
+const PAN_SIZE: usize = std::mem::size_of::<i16>();
+
+const STREAM_IN_GAIN_NAME: &str = "stream-in-gain";
+const ANALOG_IN_GAIN_NAME: &str = "analog-in-gain";
+const SPDIF_IN_GAIN_NAME: &str = "spdif-in-gain";
+const ADAT_IN_GAIN_NAME: &str = "adat-in-gain";
+
+const ANALOG_IN_PAN_NAME: &str = "analog-in-balance";
+const SPDIF_IN_PAN_NAME: &str = "spdif-in-balance";
+const ADAT_IN_PAN_NAME: &str = "adat-in-balance";
+
+const GAIN_MIN: i32 = i16::MIN as i32;
+const GAIN_MAX: i32 = 0;
+const GAIN_STEP: i32 = 256;
+const GAIN_TLV: &[i32;4] = &[5, 8, -12800, 0];
+
+const PAN_MIN: i32 = i16::MIN as i32;
+const PAN_MAX: i32 = i16::MAX as i32;
+const PAN_STEP: i32 = 256;
+
+pub trait InputCtl<'a> : StateCacheAccessor {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>;
+}
+
+fn add_input_gain_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_count: usize)
+    -> Result<Vec<alsactl::ElemId>, Error>
+{
+    let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+    card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, value_count, Some(GAIN_TLV), true)
+}
+
+fn add_input_pan_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_count: usize)
+    -> Result<Vec<alsactl::ElemId>, Error>
+{
+    let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+    card_cntr.add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, value_count, None, true)
+}
+
+impl StateCache {
+    fn read_input_gain(&self, value_count: usize, pos: usize, elem_value: &mut alsactl::ElemValue) {
+        let vals = (0..value_count).map(|i| {
+            let p = pos + i * GAIN_SIZE;
+            self.get_i16(p) as i32
+        }).collect::<Vec<i32>>();
+        elem_value.set_int(&vals);
+    }
+
+    fn read_input_pan(&self, value_count: usize, pos: usize, elem_value: &mut alsactl::ElemValue) {
+        let vals = (0..value_count).map(|i| {
+            let p = pos + i * PAN_SIZE;
+            self.get_i16(p) as i32
+        }).collect::<Vec<i32>>();
+        elem_value.set_int(&vals);
+    }
+
+    fn write_input_gain(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, value_count: usize, pos: usize,
+                        old: &alsactl::ElemValue, new: &alsactl::ElemValue) -> Result<(), Error> {
+        let mut vals = vec![0;value_count * 2];
+        new.get_int(&mut vals[..value_count]);
+        old.get_int(&mut vals[value_count..]);
+        vals[..value_count].iter().zip(vals[value_count..].iter()).enumerate()
+            .filter(|(_, (n, o))| *n != *o)
+            .try_for_each(|(i, (v, _))| {
+                let mut p = pos + i * GAIN_SIZE;
+                self.set_i16(p, *v as i16);
+                p -= p % std::mem::size_of::<u32>();
+                req.write_quadlet(unit, p, &mut self.cache)
+            })
+    }
+
+    fn write_input_pan(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, value_count: usize, pos: usize,
+                       old: &alsactl::ElemValue, new: &alsactl::ElemValue) -> Result<(), Error> {
+        let mut vals = vec![0;value_count * 2];
+        new.get_int(&mut vals[..value_count]);
+        old.get_int(&mut vals[value_count..]);
+        vals[..value_count].iter().zip(vals[value_count..].iter()).enumerate()
+            .filter(|(_, (n, o))| *n != *o)
+            .try_for_each(|(i, (v, _))| {
+                let mut p = pos + i * PAN_SIZE;
+                self.set_i16(p, *v as i16);
+                p -= p % std::mem::size_of::<u32>();
+                req.write_quadlet(unit, p, &mut self.cache)
+            })
+    }
+}
+
+impl<'a> InputCtl<'a> for StateCache {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // Gain of inputs from stream.
+        (0..STREAM_IN_LABELS.len()).for_each(|i| {
+            let pos = STREAM_IN_GAIN_POS + i * GAIN_SIZE;
+            self.set_i16(pos, GAIN_MAX as i16);
+        });
+
+        // Gain of inputs from physical ports.
+        (0..ANALOG_IN_LABELS.len()).for_each(|i| {
+            let pos = ANALOG_IN_GAIN_POS + i * GAIN_SIZE;
+            self.set_i16(pos, GAIN_MAX as i16);
+        });
+        (0..SPDIF_IN_LABELS.len()).for_each(|i| {
+            let pos = SPDIF_IN_GAIN_POS + i * GAIN_SIZE;
+            self.set_i16(pos, GAIN_MAX as i16);
+        });
+        (0..ADAT_IN_LABELS.len()).for_each(|i| {
+            let pos = ADAT_IN_GAIN_POS + i * GAIN_SIZE;
+            self.set_i16(pos, GAIN_MAX as i16);
+        });
+
+        // L/R balance of inputs from analog 1-8, S/PDIF 1/2, ADAT 1-8.
+        (0..(ANALOG_IN_LABELS.len() / 2)).for_each(|i| {
+            let mut pos = ANALOG_IN_PAN_POS + i * PAN_SIZE * 2;
+            self.set_i16(pos, PAN_MIN as i16);
+            pos += PAN_SIZE;
+            self.set_i16(pos, PAN_MAX as i16);
+        });
+        (0..(SPDIF_IN_LABELS.len() / 2)).for_each(|i| {
+            let mut pos = SPDIF_IN_PAN_POS+ i * PAN_SIZE * 2;
+            self.set_i16(pos, PAN_MIN as i16);
+            pos += PAN_SIZE;
+            self.set_i16(pos, PAN_MAX as i16);
+        });
+        (0..(ADAT_IN_LABELS.len() / 2)).for_each(|i| {
+            let mut pos = ADAT_IN_PAN_POS + i * PAN_SIZE * 2;
+            self.set_i16(pos, PAN_MIN as i16);
+            pos += PAN_SIZE;
+            self.set_i16(pos, PAN_MAX as i16);
+        });
+
+        let _ = add_input_gain_elem(card_cntr, STREAM_IN_GAIN_NAME, STREAM_IN_LABELS.len())?;
+        let _ = add_input_gain_elem(card_cntr, ANALOG_IN_GAIN_NAME, ANALOG_IN_LABELS.len())?;
+        let _ = add_input_gain_elem(card_cntr, SPDIF_IN_GAIN_NAME, SPDIF_IN_LABELS.len())?;
+        let _ = add_input_gain_elem(card_cntr, ADAT_IN_GAIN_NAME, ADAT_IN_LABELS.len())?;
+
+        let _ = add_input_pan_elem(card_cntr, ANALOG_IN_PAN_NAME, ANALOG_IN_LABELS.len())?;
+        let _ = add_input_pan_elem(card_cntr, SPDIF_IN_PAN_NAME, SPDIF_IN_LABELS.len())?;
+        let _ = add_input_pan_elem(card_cntr, ADAT_IN_PAN_NAME, ADAT_IN_LABELS.len())?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            STREAM_IN_GAIN_NAME => {
+                self.read_input_gain(STREAM_IN_LABELS.len(), STREAM_IN_GAIN_POS, elem_value);
+                Ok(true)
+            }
+            ANALOG_IN_GAIN_NAME => {
+                self.read_input_gain(ANALOG_IN_LABELS.len(), ANALOG_IN_GAIN_POS, elem_value);
+                Ok(true)
+            }
+            SPDIF_IN_GAIN_NAME => {
+                self.read_input_gain(SPDIF_IN_LABELS.len(), SPDIF_IN_GAIN_POS, elem_value);
+                Ok(true)
+            }
+            ADAT_IN_GAIN_NAME => {
+                self.read_input_gain(ADAT_IN_LABELS.len(), ADAT_IN_GAIN_POS, elem_value);
+                Ok(true)
+            }
+            ANALOG_IN_PAN_NAME => {
+                self.read_input_pan(ANALOG_IN_LABELS.len(), ANALOG_IN_PAN_POS, elem_value);
+                Ok(true)
+            }
+            SPDIF_IN_PAN_NAME => {
+                self.read_input_pan(SPDIF_IN_LABELS.len(), SPDIF_IN_PAN_POS, elem_value);
+                Ok(true)
+            }
+            ADAT_IN_PAN_NAME => {
+                self.read_input_pan(ADAT_IN_LABELS.len(), ADAT_IN_PAN_POS, elem_value);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            STREAM_IN_GAIN_NAME => {
+                self.write_input_gain(unit, req, STREAM_IN_LABELS.len(), STREAM_IN_GAIN_POS, old, new)?;
+                Ok(true)
+            }
+            ANALOG_IN_GAIN_NAME => {
+                self.write_input_gain(unit, req, ANALOG_IN_LABELS.len(), ANALOG_IN_GAIN_POS, old, new)?;
+                Ok(true)
+            }
+            SPDIF_IN_GAIN_NAME => {
+                self.write_input_gain(unit, req, ANALOG_IN_LABELS.len(), SPDIF_IN_GAIN_POS, old, new)?;
+                Ok(true)
+            }
+            ADAT_IN_GAIN_NAME => {
+                self.write_input_gain(unit, req, ANALOG_IN_LABELS.len(), ADAT_IN_GAIN_POS, old, new)?;
+                Ok(true)
+            }
+            ANALOG_IN_PAN_NAME => {
+                self.write_input_pan(unit, req, ANALOG_IN_LABELS.len(), ANALOG_IN_PAN_POS, old, new)?;
+                Ok(true)
+            }
+            SPDIF_IN_PAN_NAME => {
+                self.write_input_pan(unit, req, SPDIF_IN_LABELS.len(), SPDIF_IN_PAN_POS, old, new)?;
+                Ok(true)
+            }
+            ADAT_IN_PAN_NAME => {
+                self.write_input_pan(unit, req, ADAT_IN_LABELS.len(), ADAT_IN_PAN_POS, old, new)?;
                 Ok(true)
             }
             _ => Ok(false),
