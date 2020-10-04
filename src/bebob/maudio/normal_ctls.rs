@@ -684,3 +684,132 @@ impl<'a> InputCtl<'a> {
         Ok(true)
     }
 }
+
+const VOL_MIN: i32 = i16::MIN as i32;
+const VOL_MAX: i32 = 0;
+const VOL_STEP: i32 = 256;
+const VOL_TLV: &[i32] = &[5, 8, -12800, 0];
+
+pub struct AuxCtl<'a> {
+    out_fb_id: u8,
+    src_fb_ids: Vec<u8>,
+    src_labels: Vec<&'a str>,
+}
+
+impl<'a> AuxCtl<'a> {
+    const AUX_SRC_GAIN_NAME: &'a str = "aux-source-gain";
+    const AUX_OUT_VOLUME_NAME: &'a str = "aux-output-volume";
+
+    pub fn new(out_fb_id: u8, phys_src_fb_ids: &'a [u8], phys_src_labels: &'a [&'a str],
+               stream_src_fb_ids: &'a [u8], stream_src_labels: &'a [&'a str])
+        -> Self
+    {
+        assert_eq!(phys_src_fb_ids.len(), phys_src_labels.len());
+        assert_eq!(stream_src_fb_ids.len(), stream_src_labels.len());
+
+        let mut src_fb_ids = phys_src_fb_ids.to_vec();
+        src_fb_ids.extend(stream_src_fb_ids);
+        let mut src_labels = phys_src_labels.to_vec();
+        src_labels.extend(stream_src_labels);
+
+        AuxCtl {
+            out_fb_id: out_fb_id,
+            src_fb_ids: src_fb_ids,
+            src_labels: src_labels,
+        }
+    }
+
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // For gain of sources to aux.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::AUX_SRC_GAIN_NAME, 0);
+        let len = 2 * self.src_labels.len();
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len, Some(GAIN_TLV), true)?;
+
+        // For volume of output from aux.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::AUX_OUT_VOLUME_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2, Some(VOL_TLV), true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::AUX_SRC_GAIN_NAME => {
+                let mut vals = vec![0;self.src_labels.len() * 2];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, i);
+                    let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                   FeatureCtl::Volume(vec![-1]));
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    if let FeatureCtl::Volume(data) = op.ctl {
+                        *v = data[0] as i32;
+                        Ok(())
+                    } else {
+                        unreachable!();
+                    }
+                })?;
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::AUX_OUT_VOLUME_NAME => {
+                let mut vals = [0; 2];
+                vals.iter_mut().enumerate().try_for_each(|(ch, v)| {
+                    let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                   FeatureCtl::Volume(vec![*v as i16]));
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    if let FeatureCtl::Volume(data) = op.ctl {
+                        *v = data[0] as i32;
+                        Ok(())
+                    } else {
+                        unreachable!();
+                    }
+                })?;
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::AUX_SRC_GAIN_NAME => {
+                let len = self.src_labels.len() * 2;
+                let mut vals = vec![0;len * 2];
+                old.get_int(&mut vals[..len]);
+                new.get_int(&mut vals[len..]);
+
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, i);
+                        let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                       FeatureCtl::Volume(vec![*v as i16]));
+                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            Self::AUX_OUT_VOLUME_NAME => {
+                let mut vals = [0; 4];
+                new.get_int(&mut vals[..2]);
+                old.get_int(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(ch, (v, _))| {
+                        let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                       FeatureCtl::Volume(vec![*v as i16]));
+                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
