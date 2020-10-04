@@ -120,6 +120,7 @@ your device, please contact to developer.
   * M-Audio Ozonic
   * M-Audio FireWire Solo
   * M-Audio FireWire Audiophile
+  * M-Audio FireWire 410
 
 Supported protocols
 ===================
