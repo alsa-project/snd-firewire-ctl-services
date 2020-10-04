@@ -4,12 +4,15 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
+use alsactl::ElemValueExtManual;
+
 use crate::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
 use crate::ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
 use crate::ta1394::general::UnitInfo;
 use crate::ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
+use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, ProcessingCtl, AudioProcessing};
 
 use crate::bebob::common_ctls::ClkCtl;
 
@@ -129,6 +132,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         self.aux_ctl.load(&self.avc, card_cntr)?;
         self.output_ctl.load(&self.avc, card_cntr)?;
         self.hp_ctl.load(&self.avc, card_cntr)?;
+        HpMixerCtl::load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -149,6 +153,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         } else if self.output_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else if self.hp_ctl.read(&self.avc, elem_id, elem_value)? {
+            Ok(true)
+        } else if HpMixerCtl::read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -172,6 +178,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         } else if self.output_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if self.hp_ctl.write(&self.avc, elem_id, old, new)? {
+            Ok(true)
+        } else if HpMixerCtl::write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -211,3 +219,74 @@ impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for Fw410Model<'a> {
         self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
+
+const HP_MIXER_SRC_NAME: &str = "headphone-mixer-source";
+const HP_MIXER_DST_FB_ID: u8 = 0x07;
+const HP_MIXER_SRC_FB_ID: u8 = 0x00;
+
+const HP_MIXER_ON: i16 = 0x0000;
+const HP_MIXER_OFF: i16 = (0x8000 as u16) as i16;
+
+trait HpMixerCtl : Ta1394Avc {
+    fn load(&self, card_cntr: &mut card_cntr::CardCntr,) -> Result<(), Error> {
+        // For physical/stream inputs to headphone mixer.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_MIXER_SRC_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Fw410Model::PHYS_OUT_LABELS.len(), true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            HP_MIXER_SRC_NAME => {
+                let len = Fw410Model::PHYS_OUT_SRC_FB_IDS.len();
+                let mut vals = vec![false;len];
+                vals.iter_mut().enumerate()
+                    .try_for_each(|(i, v)| {
+                        // NOTE: The value of 0/1 for out_ch has the same effect.
+                        let mut op = AudioProcessing::new(HP_MIXER_DST_FB_ID, CtlAttr::Current, HP_MIXER_SRC_FB_ID,
+                                                          AudioCh::Each(Fw410Model::PHYS_OUT_SRC_FB_IDS[i]),
+                                                          AudioCh::Each(0), ProcessingCtl::Mixer(vec![-1]));
+                        self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                        if let ProcessingCtl::Mixer(data) = op.ctl {
+                            *v = data[0] == HP_MIXER_ON;
+                            Ok(())
+                        } else {
+                            unreachable!();
+                        }
+                    })?;
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&self, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            HP_MIXER_SRC_NAME => {
+                let len = Fw410Model::PHYS_OUT_SRC_FB_IDS.len();
+                let mut vals = vec![false;len * 2];
+                new.get_bool(&mut vals[0..len]);
+                old.get_bool(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let ctl = ProcessingCtl::Mixer(vec![if *v { HP_MIXER_ON } else { HP_MIXER_OFF }]);
+                        // NOTE: The value of 0/1 for out_ch has the same effect.
+                        let mut op = AudioProcessing::new(HP_MIXER_DST_FB_ID, CtlAttr::Current, HP_MIXER_SRC_FB_ID,
+                                            AudioCh::Each(Fw410Model::PHYS_OUT_SRC_FB_IDS[i]), AudioCh::Each(0), ctl);
+                        self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+impl HpMixerCtl for BebobAvc {}
