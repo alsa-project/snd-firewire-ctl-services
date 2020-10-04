@@ -562,7 +562,7 @@ impl AmStream {
     const HIER_LEVEL_1_AM824: u8 = 0x00;
     const HIER_LEVEL_1_AUDIO_PACK: u8 = 0x01;
     const HIER_LEVEL_1_FP32: u8 = 0x02;
-    const HIER_LEVEL_1_COMPOUND_AM824: u8 = 0x40;
+    pub const HIER_LEVEL_1_COMPOUND_AM824: u8 = 0x40;
 }
 
 impl From<&[u8]> for AmStream {
@@ -621,7 +621,7 @@ pub enum StreamFormat{
 }
 
 impl StreamFormat {
-    const HIER_ROOT_AM: u8 = 0x90;
+    pub const HIER_ROOT_AM: u8 = 0x90;
 
     fn as_am_stream(&self) -> Result<&AmStream, Error> {
         if let StreamFormat::Am(i) = self {
