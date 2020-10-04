@@ -7,50 +7,79 @@ use hinawa::{FwFcpExt, SndUnitExt};
 use crate::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
-use crate::ta1394::{AvcAddr, Ta1394Avc};
+use crate::ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
 use crate::ta1394::general::UnitInfo;
+use crate::ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
+
+use crate::bebob::common_ctls::ClkCtl;
 
 use crate::bebob::BebobAvc;
 
 use super::common_proto::FCP_TIMEOUT_MS;
 
-pub struct SoloModel{
+pub struct SoloModel<'a>{
     avc: BebobAvc,
+    clk_ctl: ClkCtl<'a>,
 }
 
-impl SoloModel {
+impl<'a> SoloModel<'a> {
+    const CLK_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+        subunit: MUSIC_SUBUNIT_0,
+        plug_id: 0x01,
+    });
+    const CLK_SRCS: &'a [SignalAddr] = &[
+        SignalAddr::Subunit(SignalSubunitAddr{
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x01,
+        }),
+        SignalAddr::Unit(SignalUnitAddr::Ext(0x01)),
+    ];
+    const CLK_LABELS: &'a [&'a str] = &["Internal", "S/PDIF"];
+
     pub fn new() -> Self {
         SoloModel{
             avc: BebobAvc::new(),
+            clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
         }
     }
 }
 
-impl CtlModel<hinawa::SndUnit> for SoloModel {
-    fn load(&mut self, unit: &hinawa::SndUnit, _: &mut card_cntr::CardCntr) -> Result<(), Error> {
+impl<'a> CtlModel<hinawa::SndUnit> for SoloModel<'a> {
+    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
 
         let mut op = UnitInfo::new();
         self.avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
         self.avc.company_id = op.company_id;
 
+        self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
-    fn write(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &alsactl::ElemValue, _: &alsactl::ElemValue)
+    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
-impl MeasureModel<hinawa::SndUnit> for SoloModel {
+impl<'a> MeasureModel<hinawa::SndUnit> for SoloModel<'a> {
     fn get_measure_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
     }
 
@@ -65,17 +94,19 @@ impl MeasureModel<hinawa::SndUnit> for SoloModel {
     }
 }
 
-impl card_cntr::NotifyModel<hinawa::SndUnit, bool> for SoloModel {
-    fn get_notified_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
+impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for SoloModel<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, _: &hinawa::SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+                          elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
