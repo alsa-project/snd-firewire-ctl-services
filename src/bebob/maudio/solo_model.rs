@@ -4,12 +4,15 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
+use alsactl::{ElemValueExt, ElemValueExtManual};
+
 use crate::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
 use crate::ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
 use crate::ta1394::general::UnitInfo;
 use crate::ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
+use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioSelector};
 
 use crate::bebob::common_ctls::ClkCtl;
 
@@ -96,6 +99,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for SoloModel<'a> {
         self.mixer_ctl.load(&self.avc, card_cntr)?;
         self.input_ctl.load(&self.avc, card_cntr)?;
 
+        SpdifOutCtl::load(&self.avc, card_cntr)?;
+
         Ok(())
     }
 
@@ -109,6 +114,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for SoloModel<'a> {
         } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(&self.avc, elem_id, elem_value)? {
+            Ok(true)
+        } else if SpdifOutCtl::read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -126,6 +133,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for SoloModel<'a> {
         } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if self.input_ctl.write(&self.avc, elem_id, old, new)? {
+            Ok(true)
+        } else if SpdifOutCtl::write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -165,3 +174,47 @@ impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for SoloModel<'a> {
         self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
+
+const SPDIF_OUT_SRC_NAME: &str = "S/PDIF-out-source";
+const SPDIF_OUT_SRC_LABELS: &[&str] = &["stream-3/4", "mixer-3/4"];
+const SPDIF_OUT_SRC_FB_ID: u8 = 0x01;
+
+trait SpdifOutCtl : Ta1394Avc {
+    fn load(&self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, SPDIF_OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, SPDIF_OUT_SRC_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            SPDIF_OUT_SRC_NAME => {
+                let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, 0xff);
+                self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                elem_value.set_enum(&[op.input_plug_id as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&self, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            SPDIF_OUT_SRC_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, vals[0] as u8);
+                self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+impl SpdifOutCtl for BebobAvc {}
