@@ -3,7 +3,7 @@
 use glib::Error;
 use crate::ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
 use crate::ta1394::{AvcOp, AvcStatus};
-use crate::ta1394::general::PlugInfo;
+use crate::ta1394::general::{PlugInfo, SubunitInfo};
 
 //
 // Bco Extended Plug Info command
@@ -849,6 +849,97 @@ impl AvcStatus for ExtendedPlugInfo {
     }
 }
 
+//
+// Bco Extended Subunit Info command
+//
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct ExtendedSubunitInfoEntry{
+    pub func_blk_type: u8,
+    pub func_blk_id: u8,
+    pub func_blk_purpose: u8,
+    pub input_plugs: u8,
+    pub output_plugs: u8,
+}
+
+impl From<&[u8;5]> for ExtendedSubunitInfoEntry {
+    fn from(raw: &[u8;5]) -> Self {
+        ExtendedSubunitInfoEntry{
+            func_blk_type: raw[0],
+            func_blk_id: raw[1],
+            func_blk_purpose: raw[2],
+            input_plugs: raw[3],
+            output_plugs: raw[4],
+        }
+    }
+}
+
+impl From<&ExtendedSubunitInfoEntry> for [u8;5] {
+    fn from(data: &ExtendedSubunitInfoEntry) -> Self {
+        [
+            data.func_blk_type,
+            data.func_blk_id,
+            data.func_blk_purpose,
+            data.input_plugs,
+            data.output_plugs,
+        ]
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ExtendedSubunitInfo{
+    pub page: u8,
+    pub func_blk_type: u8,
+    pub entries: Vec<ExtendedSubunitInfoEntry>,
+}
+
+impl ExtendedSubunitInfo {
+    #[allow(dead_code)]
+    pub fn new(page: u8, func_blk_type: u8) -> Self {
+        ExtendedSubunitInfo{
+            page,
+            func_blk_type,
+            entries: Vec::new(),
+        }
+    }
+}
+
+impl AvcOp for ExtendedSubunitInfo {
+    const OPCODE: u8 = SubunitInfo::OPCODE;
+}
+
+impl AvcStatus for ExtendedSubunitInfo {
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        operands.push(self.page);
+        operands.push(self.func_blk_type);
+        operands.extend_from_slice(&[0xff;25]);
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() != 27 {
+            let label = format!("Unexpected length of operands for ExtendedSubunitInfo: {}",
+                                operands.len());
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else if self.page != operands[0] {
+            let label = format!("Unexpected value of page for ExtendedSubunitInfo: {} but {}",
+                                self.page, operands[0]);
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else if self.func_blk_type != operands[1] {
+            let label = format!("Unexpected value of function block type for ExtendedSubunitInfo: {} but {}",
+                                self.func_blk_type, operands[2]);
+            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+        } else {
+            self.entries = (0..5).filter(|i| operands[2 + i * 5] != 0xff).map(|i| {
+                let pos = 2 + i * 5;
+                let mut raw = [0;5];
+                raw.copy_from_slice(&operands[pos..(pos + 5)]);
+                ExtendedSubunitInfoEntry::from(&raw)
+            }).collect();
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::ta1394::{AvcSubunitType, AvcAddr};
@@ -862,6 +953,7 @@ mod test {
     use super::{BcoIoPlugAddr, BcoIoPlugAddrMode};
     use super::BcoPlugInfo;
     use super::ExtendedPlugInfo;
+    use super::ExtendedSubunitInfo;
 
     #[test]
     fn bcoplugaddr_from() {
@@ -1345,5 +1437,36 @@ mod test {
         } else {
             unreachable!();
         }
+    }
+
+    #[test]
+    fn extendedsubunitinfo_operands() {
+        let operands = [0x00, 0xff,
+                        0x81, 0x70, 0xd0, 0xe0, 0x03,
+                        0x82, 0x60, 0xe0, 0xe0, 0x04,
+                        0xff, 0xff, 0xff, 0xff, 0xff,
+                        0xff, 0xff, 0xff, 0xff, 0xff,
+                        0xff, 0xff, 0xff, 0xff, 0xff];
+        let mut op = ExtendedSubunitInfo::new(0, 0xff);
+        AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.page, 0x00);
+        assert_eq!(op.func_blk_type, 0xff);
+        assert_eq!(op.entries.len(), 2);
+        let e = op.entries[0];
+        assert_eq!(e.func_blk_type, 0x81);
+        assert_eq!(e.func_blk_id, 0x70);
+        assert_eq!(e.func_blk_purpose, 0xd0);
+        assert_eq!(e.input_plugs, 0xe0);
+        assert_eq!(e.output_plugs, 0x03);
+        let e = op.entries[1];
+        assert_eq!(e.func_blk_type, 0x82);
+        assert_eq!(e.func_blk_id, 0x60);
+        assert_eq!(e.func_blk_purpose, 0xe0);
+        assert_eq!(e.input_plugs, 0xe0);
+        assert_eq!(e.output_plugs, 0x04);
+        let mut operands = Vec::new();
+        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        assert_eq!(&operands[..2], &[0x00, 0xff]);
+        assert_eq!(&operands[2..], &[0xff;25]);
     }
 }
