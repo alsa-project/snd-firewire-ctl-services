@@ -125,6 +125,7 @@ your device, please contact to developer.
   * M-Audio FireWire 1814
   * M-Audio ProjectMix I/O
   * Behringer FIREPOWER FCA610
+  * Stanton ScratchAmp in Final Scratch version 2
 
 Supported protocols
 ===================
