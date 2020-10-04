@@ -25,6 +25,8 @@ snd-firewire-motu-ctl-service
    For sound card bound to ALSA firewire-motu driver (snd-firewire-motu)
 snd-oxfw-ctl-service
    For sound card bound to ALSA oxfw driver (snd-oxfw)
+snd-bebob-ctl-service
+   For sound card bound to ALSA bebob driver (snd-bebob)
 
 License
 =======
@@ -129,6 +131,7 @@ Supported protocols
    * Protocol for Fireworks board module of Echo Digital Audio
    * Protocol for Mark of the Unicorn (MOTU) FireWire series
    * Protocol for Oxford Semiconductor OXFW970/OXFW971 ASIC
+   * Protocol for DM1000/DM1100/DM1500 ASIC in BridgeCo. Enhanced BreakOut Box (BeBoB)
 
 Design note
 ===========

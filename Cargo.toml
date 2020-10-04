@@ -35,3 +35,7 @@ path = "src/bin/snd-firewire-motu-ctl-service.rs"
 [[bin]]
 name = "snd-oxfw-ctl-service"
 path = "src/bin/snd-oxfw-ctl-service.rs"
+
+[[bin]]
+name = "snd-bebob-ctl-service"
+path = "src/bin/snd-bebob-ctl-service.rs"
