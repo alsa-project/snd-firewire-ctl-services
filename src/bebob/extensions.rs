@@ -2,9 +2,9 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 use crate::ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
-use crate::ta1394::{AvcOp, AvcStatus};
+use crate::ta1394::{AvcOp, AvcStatus, AvcControl};
 use crate::ta1394::general::{PlugInfo, SubunitInfo};
-use crate::ta1394::stream_format::{StreamFormat, AmStream};
+use crate::ta1394::stream_format::{StreamFormat, AmStream, SupportStatus};
 
 //
 // Bco Extended Plug Info command
@@ -1211,6 +1211,116 @@ impl From<&BcoStreamFormat> for Vec<u8> {
             BcoStreamFormat::Reserved(d) => raw.extend_from_slice(d),
         }
         raw
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct BcoExtendedStreamFormat{
+    subfunc: u8,
+    plug_addr: BcoPlugAddr,
+    support_status: SupportStatus,
+}
+
+impl BcoExtendedStreamFormat {
+    const OPCODE: u8 = 0x2f;
+
+    fn new(subfunc: u8, plug_addr: &BcoPlugAddr) -> Self {
+        BcoExtendedStreamFormat{
+            subfunc,
+            plug_addr: *plug_addr,
+            support_status: SupportStatus::Reserved(0xff),
+        }
+    }
+}
+
+impl AvcStatus for BcoExtendedStreamFormat {
+    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        operands.push(self.subfunc);
+        operands.extend_from_slice(&Into::<[u8;5]>::into(&self.plug_addr));
+        operands.push(self.support_status.into());
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        if operands.len() < 7 {
+            let label = format!("Unexpected length of data for BcoExtendedStreamFormat: {}", operands.len());
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        if operands[0] != self.subfunc {
+            let label = format!("Unexpected subfunction: {} but {}", self.subfunc, operands[0]);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        let mut r = [0;5];
+        r.copy_from_slice(&operands[1..6]);
+        let plug_addr = BcoPlugAddr::from(&r);
+        if plug_addr != self.plug_addr {
+            let label = format!("Unexpected address for plug: {:?} but {:?}", self.plug_addr, plug_addr);
+            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+        }
+
+        self.support_status = SupportStatus::from(operands[6]);
+
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExtendedStreamFormatSingle{
+    pub support_status: SupportStatus,
+    pub stream_format: BcoStreamFormat,
+    op: BcoExtendedStreamFormat,
+}
+
+impl ExtendedStreamFormatSingle {
+    const SUBFUNC: u8 = 0xc0;
+
+    pub fn new(plug_addr: &BcoPlugAddr) -> Self {
+        ExtendedStreamFormatSingle{
+            support_status: SupportStatus::Reserved(0xff),
+            stream_format: BcoStreamFormat::Reserved(Vec::new()),
+            op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
+        }
+    }
+}
+
+impl AvcOp for ExtendedStreamFormatSingle {
+    const OPCODE: u8 = BcoExtendedStreamFormat::OPCODE;
+}
+
+impl AvcStatus for ExtendedStreamFormatSingle {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.support_status = SupportStatus::Reserved(0xff);
+        self.op.build_operands(addr, operands)?;
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        self.op.parse_operands(addr, operands)?;
+
+        self.support_status = self.op.support_status;
+        self.stream_format = BcoStreamFormat::from(&operands[7..]);
+
+        Ok(())
+    }
+}
+
+impl AvcControl for ExtendedStreamFormatSingle {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.support_status = SupportStatus::Active;
+        self.op.build_operands(addr, operands)?;
+        operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        self.op.parse_operands(addr, operands)?;
+
+        self.support_status = self.op.support_status;
+        self.stream_format = BcoStreamFormat::from(&operands[7..]);
+
+        Ok(())
     }
 }
 
