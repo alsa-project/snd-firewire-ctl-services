@@ -14,6 +14,7 @@ use crate::bebob::BebobAvc;
 use crate::bebob::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
 use crate::bebob::extensions::BcoCompoundAm824StreamFormat;
 use crate::bebob::extensions::ExtendedStreamFormatSingle;
+use crate::bebob::model::{HP_SRC_NAME, OUT_SRC_NAME};
 use super::apogee_proto::{ApogeeCmd, VendorCmd, HwCmdOp};
 
 pub struct HwCtl{
@@ -750,6 +751,233 @@ impl<'a> MixerCtl {
                         self.write_pair(avc, index, &vals, p, timeout_ms)?;
                     }
                 }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub struct RouteCtl {
+    out: [u32; 18],
+    cap: [u32; 18],
+    hp: [u32; 2],
+}
+
+impl<'a> RouteCtl {
+    const PORT_LABELS: &'a [&'a str] = &[
+        // From external interfaces.
+        "analog-1", "analog-2", "analog-3", "analog-4",
+        "analog-5", "analog-6", "analog-7", "analog-8",
+        // For host computer.
+        "stream-1", "stream-2", "stream-3", "stream-4",
+        "stream-5", "stream-6", "stream-7", "stream-8",
+        "stream-9", "stream-10", "stream-11", "stream-12",
+        "stream-13", "stream-14", "stream-15", "stream-16",
+        "stream-17", "stream-18",
+        // From external interfaces.
+        "spdif-1", "spdif-2",
+        "adat-1", "adat-2", "adat-3", "adat-4",
+        "adat-5", "adat-6", "adat-7", "adat-8",
+        // From internal multiplexers.
+        "mixer-1", "mixer-2", "mixer-3", "mixer-4",
+    ];
+
+    const OUT_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4",
+        "analog-5", "analog-6", "analog-7", "analog-8",
+        "spdif-1", "spdif-2",
+        "adat-1", "adat-2", "adat-3", "adat-4",
+        "adat-5", "adat-6", "adat-7", "adat-8",
+    ];
+
+    const OUT_SRC_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4",
+        "analog-5", "analog-6", "analog-7", "analog-8",
+        "stream-1", "stream-2", "stream-3", "stream-4",
+        "stream-5", "stream-6", "stream-7", "stream-8",
+        "stream-9", "stream-10", "stream-11", "stream-12",
+        "stream-13", "stream-14", "stream-15", "stream-16",
+        "stream-17", "stream-18",
+        "spdif-1", "spdif-2",
+        "adat-1", "adat-2", "adat-3", "adat-4",
+        "adat-5", "adat-6", "adat-7", "adat-8",
+        "mixer-1", "mixer-2", "mixer-3", "mixer-4",
+    ];
+
+    const CAP_LABELS: &'a [&'a str] = &[
+        "stream-1", "stream-2", "stream-3", "stream-4",
+        "stream-5", "stream-6", "stream-7", "stream-8",
+        "stream-9", "stream-10", "stream-11", "stream-12",
+        "stream-13", "stream-14", "stream-15", "stream-16",
+        "stream-17", "stream-18",
+    ];
+
+    const CAP_SRC_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7",
+        "analog-8", "spdif-1", "spdif-2", "adat-1", "adat-2", "adat-3", "adat-4", "adat-5",
+        "adat-6", "adat-7", "adat-8",
+    ];
+
+    const HP_LABELS: &'a [&'a str] = &["hp-2", "hp-1"];
+
+    const HP_SRC_LABELS: &'a [&'a str] = &[
+        "analog-1/2",
+        "analog-3/4",
+        "analog-5/6",
+        "analog-7/8",
+        "spdif-1/2",
+        "none",
+    ];
+
+    const CAP_SRC_NAME: &'a str = "capture-source";
+
+    pub fn new() -> Self {
+        let mut out = [0; 18];
+        for (i, v) in out.iter_mut().enumerate() {
+            *v = (i + 8) as u32;
+        }
+
+        let mut cap = [0; 18];
+        for (i, v) in cap.iter_mut().enumerate() {
+            *v = i as u32;
+        }
+
+        let hp = [1, 0];
+
+        RouteCtl { out, cap, hp }
+    }
+
+    fn update_route(&mut self, avc: &BebobAvc, dst: &str, src: &str, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        if let Some(d) = Self::PORT_LABELS.iter().position(|&x| x == dst) {
+            if let Some(s) = Self::PORT_LABELS.iter().position(|&x| x == src) {
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoRouting(d as u8),
+                                            &[s as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                Ok(())
+            } else {
+                unreachable!();
+            }
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn update_hp_source(&mut self, avc: &BebobAvc, dst: usize, src: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let val = src * 2 + 1;
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::HpSrc(dst as u8),
+                                    &[val as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        self.hp[dst] = src as u32;
+        Ok(())
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        Self::OUT_LABELS.iter().enumerate().try_for_each(|(i, dst)| {
+            let src = Self::OUT_SRC_LABELS[8 + i];
+            self.update_route(avc, dst, src, timeout_ms)
+        })?;
+
+        Self::CAP_LABELS.iter().enumerate().try_for_each(|(i, dst)| {
+            let src = Self::CAP_SRC_LABELS[i];
+            self.update_route(avc, dst, src, timeout_ms)
+        })?;
+
+        (0..Self::HP_LABELS.len()).try_for_each(|i| {
+            self.update_hp_source(avc, i, i, timeout_ms)
+        })?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::OUT_LABELS.len(),
+                                         Self::OUT_SRC_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::CAP_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::CAP_LABELS.len(),
+                                         Self::CAP_SRC_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::HP_LABELS.len(),
+                                         Self::HP_SRC_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUT_SRC_NAME => {
+                elem_value.set_enum(&self.out);
+                Ok(true)
+            }
+            Self::CAP_SRC_NAME => {
+                elem_value.set_enum(&self.cap);
+                Ok(true)
+            }
+            HP_SRC_NAME => {
+                elem_value.set_enum(&self.hp);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUT_SRC_NAME => {
+                let len = Self::OUT_LABELS.len();
+                let mut vals = vec![0;len * 2];
+                new.get_enum(&mut vals[..len]);
+                old.get_enum(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let dst = Self::OUT_LABELS[i];
+                        let src = Self::OUT_SRC_LABELS[*n as usize];
+                        self.update_route(avc, dst, src, timeout_ms)?;
+                        self.out[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            Self::CAP_SRC_NAME => {
+                let len = Self::CAP_LABELS.len();
+                let mut vals = vec![0;len * 2];
+                new.get_enum(&mut vals[..len]);
+                old.get_enum(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        let dst = Self::CAP_LABELS[i];
+                        let src = Self::CAP_SRC_LABELS[*n as usize];
+                        self.update_route(avc, dst, src, timeout_ms)?;
+                        self.cap[i] = *n;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            HP_SRC_NAME => {
+                let len = Self::HP_LABELS.len();
+                let mut vals = vec![0;len * 2];
+                new.get_enum(&mut vals[..len]);
+                old.get_enum(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (n, _))| {
+                        self.update_hp_source(avc, i, *n as usize, timeout_ms)?;
+                        Ok(())
+                    })?;
                 Ok(true)
             }
             _ => Ok(false),

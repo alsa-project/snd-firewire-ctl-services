@@ -51,3 +51,7 @@ impl<'a> BebobModel<'a> {
 
 pub const CLK_RATE_NAME: &str = "clock-rate";
 pub const CLK_SRC_NAME: &str = "clock-source";
+
+pub const OUT_SRC_NAME: &str = "output-source";
+
+pub const HP_SRC_NAME: &str = "headphone-source";
