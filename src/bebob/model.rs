@@ -63,6 +63,12 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
         }
     }
+
+    pub fn dispatch_stream_lock(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr, _: bool)
+        -> Result<(), Error>
+    {
+        Ok(())
+    }
 }
 
 pub const CLK_RATE_NAME: &str = "clock-rate";

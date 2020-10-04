@@ -22,6 +22,7 @@ enum Event {
     BusReset(u32),
     Elem(alsactl::ElemId, alsactl::ElemEventMask),
     Timer,
+    StreamLock(bool),
 }
 
 pub struct BebobUnit<'a> {
@@ -124,6 +125,18 @@ impl<'a> BebobUnit<'a> {
             let _ = tx.send(Event::Elem(elem_id, events));
         });
 
+        let tx = self.tx.clone();
+        self.unit.connect_lock_status(move |_, locked| {
+            let t = tx.clone();
+            let _ = std::thread::spawn(move || {
+                // The notification of stream lock is not strictly corresponding to actual
+                // packet streaming. Here, wait for 500 msec to catch the actual packet
+                // streaming.
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let _ = t.send(Event::StreamLock(locked));
+            });
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
@@ -196,6 +209,9 @@ impl<'a> BebobUnit<'a> {
                 }
                 Event::Timer => {
                     let _ = self.model.measure_elems(&self.unit, &mut self.card_cntr);
+                }
+                Event::StreamLock(locked) => {
+                    let _ = self.model.dispatch_stream_lock(&self.unit, &mut self.card_cntr, locked);
                 }
             }
         }
