@@ -2,31 +2,75 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::{SndUnitExt, FwFcpExt};
+
 use crate::card_cntr;
 use card_cntr::CtlModel;
 
-pub struct ScratchampModel;
+use crate::ta1394::MUSIC_SUBUNIT_0;
+use crate::ta1394::ccm::{SignalAddr, SignalSubunitAddr};
 
-impl ScratchampModel {
+use crate::bebob::BebobAvc;
+use crate::bebob::common_ctls::ClkCtl;
+
+pub struct ScratchampModel<'a>{
+    avc: BebobAvc,
+    clk_ctl: ClkCtl<'a>,
+}
+
+impl<'a> ScratchampModel<'a> {
+    const FCP_TIMEOUT_MS: u32 = 100;
+
+    const CLK_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+        subunit: MUSIC_SUBUNIT_0,
+        plug_id: 0x05,
+    });
+    const CLK_SRCS: &'a [SignalAddr] = &[
+        SignalAddr::Subunit(SignalSubunitAddr{
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x05,
+        }),
+    ];
+
+    const CLK_LABELS: &'a [&'a str] = &[
+        "Internal",
+    ];
+
     pub fn new() -> Self {
-        ScratchampModel{}
+        ScratchampModel{
+            avc: BebobAvc::new(),
+            clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
+        }
     }
 }
 
-impl CtlModel<hinawa::SndUnit> for ScratchampModel {
-    fn load(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr) -> Result<(), Error> {
+impl<'a> CtlModel<hinawa::SndUnit> for ScratchampModel<'a> {
+    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        self.avc.fcp.bind(&unit.get_node())?;
+
+        self.clk_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        if self.clk_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
-    fn write(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &alsactl::ElemValue, _: &alsactl::ElemValue)
+    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+             new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }

@@ -30,7 +30,7 @@ enum BebobCtlModel<'a> {
     MaudioPlb(ProfirelightbridgeModel<'a>),
     MaudioSpecial(SpecialModel),
     BehringerFirepower(FirepowerModel<'a>),
-    StantonScratchamp(ScratchampModel),
+    StantonScratchamp(ScratchampModel<'a>),
 }
 
 impl<'a> BebobModel<'a> {
