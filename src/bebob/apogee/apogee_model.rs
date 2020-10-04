@@ -12,7 +12,7 @@ use crate::ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;
-use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl};
+use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl, ResamplerCtl};
 
 pub struct EnsembleModel<'a>{
     avc: BebobAvc,
@@ -24,6 +24,7 @@ pub struct EnsembleModel<'a>{
     out_ctls: OutputCtl,
     mixer_ctls: MixerCtl,
     route_ctls: RouteCtl,
+    resampler_ctls: ResamplerCtl,
 }
 
 impl<'a> EnsembleModel<'a> {
@@ -61,6 +62,7 @@ impl<'a> EnsembleModel<'a> {
             out_ctls: OutputCtl::new(),
             mixer_ctls: MixerCtl::new(),
             route_ctls: RouteCtl::new(),
+            resampler_ctls: ResamplerCtl::new(),
         }
     }
 }
@@ -83,6 +85,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         self.out_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.mixer_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.route_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+        self.resampler_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -105,6 +108,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         } else if self.mixer_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.route_ctls.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.resampler_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -130,6 +135,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         } else if self.mixer_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.route_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.resampler_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)
