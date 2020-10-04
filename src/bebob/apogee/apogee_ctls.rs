@@ -616,3 +616,143 @@ impl<'a> OutputCtl {
         }
     }
 }
+
+pub struct MixerCtl {
+    mixers: [[i32; 36]; 4],
+}
+
+impl<'a> MixerCtl {
+    const MIXER_LABELS: &'a [&'a str] = &["mixer-1", "mixer-2", "mixer-3", "mixer-4"];
+
+    const MIXER_SRC_LABELS: &'a [&'a str] = &[
+        // = VendorCmd::MixerSrc0.
+        "analog-1", "analog-2", "analog-3", "analog-4",
+        "analog-5", "analog-6", "analog-7", "analog-8",
+        "stream-1",
+        // = VendorCmd::MixerSrc1.
+        "stream-2", "stream-3", "stream-4",
+        "stream-5", "stream-6", "stream-7", "stream-8",
+        "stream-9", "stream-10",
+        // = VendorCmd::MixerSrc2.
+        "stream-11", "stream-12",
+        "stream-13", "stream-14", "stream-15", "stream-16",
+        "stream-17", "stream-18",
+        "adat-1",
+        // = VendorCmd::MixerSrc3.
+        "adat-2", "adat-3", "adat-4",
+        "adat-5", "adat-6", "adat-7", "adat-8",
+        "spdif-1", "spdif-2",
+    ];
+
+    const MIXER_SRC_GAIN_NAME: &'a str = "mixer-source-gain";
+
+    const GAIN_MIN: i32 = 0;
+    const GAIN_MAX: i32 = 0x7fff;
+    const GAIN_STEP: i32 = 0xff;
+    const GAIN_TLV: &'a [i32; 4] = &[5, 8, -4800, 0];
+
+    pub fn new() -> Self {
+        let mut mixers = [[0; 36]; 4];
+
+        mixers.iter_mut()
+            .enumerate()
+            .for_each(|(i, mixer)| {
+                mixer.iter_mut()
+                    .enumerate()
+                    .filter(|(j, _)| i % 2 == j % 2)
+                    .for_each(|(_, v)| {
+                        *v = Self::GAIN_MAX;
+                    });
+            });
+
+        MixerCtl{mixers}
+    }
+
+    fn write_pair(&mut self, avc: &BebobAvc, index: usize, vals: &[i32], pos: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut args = Vec::new();
+        args.push((index / 2) as u8);
+
+        let params = (pos..(pos + 9)).fold(Vec::new(), |mut params, i| {
+            let (l, r) = match index % 2 {
+                0 => (vals[i] as i16, self.mixers[index + 1][i] as i16),
+                _ => (self.mixers[index - 1][i] as i16, vals[i] as i16),
+            };
+            params.extend_from_slice(&l.to_le_bytes());
+            params.extend_from_slice(&r.to_le_bytes());
+            params
+        });
+
+        let p = (index / 2) as u8;
+        let cmd = match pos / 9 {
+            3 => VendorCmd::MixerSrc3(p),
+            2 => VendorCmd::MixerSrc2(p),
+            1 => VendorCmd::MixerSrc1(p),
+            _ => VendorCmd::MixerSrc0(p),
+        };
+
+        let mut op = ApogeeCmd::new(&avc.company_id, cmd, &params);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        self.mixers[index].copy_from_slice(&vals[0..Self::MIXER_SRC_LABELS.len()]);
+
+        Ok(())
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        let mixers = self.mixers;
+        (0..4).try_for_each(|i| {
+            mixers.iter().enumerate().try_for_each(|(j, vals)| {
+                self.write_pair(avc, j, vals, i * 9, timeout_ms)
+            })
+        })?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MIXER_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, Self::MIXER_LABELS.len(),
+                                        Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        Self::MIXER_SRC_LABELS.len(), Some(Self::GAIN_TLV), true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_SRC_GAIN_NAME => {
+                let vals = &self.mixers[elem_id.get_index() as usize];
+                elem_value.set_int(vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_SRC_GAIN_NAME => {
+                let len = Self::MIXER_SRC_LABELS.len();
+                let mut vals = vec![0;len * 2];
+                new.get_int(&mut vals[0..len]);
+                old.get_int(&mut vals[len..]);
+                let index = elem_id.get_index() as usize;
+                for i in 0..4 {
+                    let p = i * 9;
+                    if vals[p..(p + 9)] != vals[(len + p)..(len + p + 9)] {
+                        self.write_pair(avc, index, &vals, p, timeout_ms)?;
+                    }
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
