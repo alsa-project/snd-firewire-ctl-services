@@ -38,8 +38,8 @@ impl<'a> BebobModel<'a> {
             (0x000d6c, 0x010060) => BebobCtlModel::MaudioAudiophile(AudiophileModel::new()),
             (0x0007f5, 0x010046) => BebobCtlModel::MaudioFw410(Fw410Model::new()),
             (0x000d6c, 0x0100a1) => BebobCtlModel::MaudioPlb(ProfirelightbridgeModel::new()),
-            (0x000d6c, 0x010071) |
-            (0x000d6c, 0x010091) => BebobCtlModel::MaudioSpecial(SpecialModel::new()),
+            (0x000d6c, 0x010071) => BebobCtlModel::MaudioSpecial(SpecialModel::new(true)),
+            (0x000d6c, 0x010091) => BebobCtlModel::MaudioSpecial(SpecialModel::new(false)),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }

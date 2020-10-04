@@ -8,5 +8,6 @@ pub mod profirelightbridge_model;
 pub mod special_model;
 
 mod normal_ctls;
+mod special_ctls;
 
 mod common_proto;
