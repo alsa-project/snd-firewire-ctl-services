@@ -3,13 +3,14 @@
 use glib::{Error, FileError};
 
 use crate::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
+use card_cntr::{CtlModel, MeasureModel, NotifyModel};
 
 use super::apogee::apogee_model::EnsembleModel;
 
 pub struct BebobModel<'a>{
     ctl_model: BebobCtlModel<'a>,
     pub measure_elem_list: Vec<alsactl::ElemId>,
+    pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
 enum BebobCtlModel<'a> {
@@ -28,6 +29,7 @@ impl<'a> BebobModel<'a> {
         let model = BebobModel{
             ctl_model,
             measure_elem_list: Vec::new(),
+            notified_elem_list: Vec::new(),
         };
 
         Ok(model)
@@ -42,6 +44,10 @@ impl<'a> BebobModel<'a> {
 
         match &mut self.ctl_model {
             BebobCtlModel::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+        }
+
+        match &mut self.ctl_model {
+            BebobCtlModel::ApogeeEnsemble(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -64,10 +70,12 @@ impl<'a> BebobModel<'a> {
         }
     }
 
-    pub fn dispatch_stream_lock(&mut self, _: &hinawa::SndUnit, _: &mut card_cntr::CardCntr, _: bool)
+    pub fn dispatch_stream_lock(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, notice: bool)
         -> Result<(), Error>
     {
-        Ok(())
+        match &mut self.ctl_model {
+            BebobCtlModel::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+        }
     }
 }
 

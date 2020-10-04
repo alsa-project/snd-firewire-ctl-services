@@ -166,3 +166,20 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndUnit> for EnsembleModel<'a> {
         self.meter_ctls.measure_elem(elem_id, elem_value)
     }
 }
+
+impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for EnsembleModel<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.clk_ctls.notified_elem_list);
+    }
+
+    fn parse_notification(&mut self, _: &hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+                          elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        self.clk_ctls.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)
+    }
+}

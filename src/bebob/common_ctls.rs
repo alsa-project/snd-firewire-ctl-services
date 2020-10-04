@@ -23,6 +23,7 @@ pub struct ClkCtl<'a> {
     clk_dst: &'a SignalAddr,
     clk_srcs: &'a [SignalAddr],
     clk_src_labels: &'a [&'a str],
+    pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
 impl<'a> ClkCtl<'a> {
@@ -32,6 +33,7 @@ impl<'a> ClkCtl<'a> {
             clk_dst,
             clk_srcs,
             clk_src_labels,
+            notified_elem_list: Vec::new(),
         }
     }
 
@@ -75,7 +77,8 @@ impl<'a> ClkCtl<'a> {
         let labels = self.supported_clk_rates.iter().map(|r| r.to_string()).collect::<Vec<String>>();
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
 
         if self.clk_srcs.len() > 1 {
             // NOTE: all of bebob models support "SignalAddr::Unit(SignalUnitAddr::Isoc(0x00))"
@@ -85,7 +88,8 @@ impl<'a> ClkCtl<'a> {
             // IEEE 1394 bus. However, the most of models doesn't work with it actually even if
             // configured, therefore useless.
             let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.clk_src_labels, None, true)?;
+            let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.clk_src_labels, None, true)?;
+            self.notified_elem_list.append(&mut elem_id_list);
         }
 
         Ok(())
