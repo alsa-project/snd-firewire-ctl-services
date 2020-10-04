@@ -12,12 +12,13 @@ use crate::ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;
-use super::apogee_ctls::HwCtl;
+use super::apogee_ctls::{HwCtl, DisplayCtl};
 
 pub struct EnsembleModel<'a>{
     avc: BebobAvc,
     clk_ctls: ClkCtl<'a>,
     hw_ctls: HwCtl,
+    display_ctls: DisplayCtl,
 }
 
 impl<'a> EnsembleModel<'a> {
@@ -49,6 +50,7 @@ impl<'a> EnsembleModel<'a> {
             avc: BebobAvc::new(),
             clk_ctls: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_SRC_LABELS),
             hw_ctls: HwCtl::new(),
+            display_ctls: DisplayCtl::new(),
         }
     }
 }
@@ -65,6 +67,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
 
         self.clk_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.hw_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
+        self.display_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -75,6 +78,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         if self.clk_ctls.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.hw_ctls.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.display_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -88,6 +93,8 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         if self.clk_ctls.write(unit, &self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.display_ctls.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)
