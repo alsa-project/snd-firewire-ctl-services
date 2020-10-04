@@ -28,7 +28,7 @@ enum BebobCtlModel<'a> {
     MaudioFw410(Fw410Model<'a>),
     MaudioPlb(ProfirelightbridgeModel<'a>),
     MaudioSpecial(SpecialModel),
-    BehringerFirepower(FirepowerModel),
+    BehringerFirepower(FirepowerModel<'a>),
 }
 
 impl<'a> BebobModel<'a> {
