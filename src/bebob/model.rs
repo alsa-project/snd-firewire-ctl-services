@@ -19,10 +19,10 @@ pub struct BebobModel<'a>{
 
 enum BebobCtlModel<'a> {
     ApogeeEnsemble(EnsembleModel<'a>),
-    MaudioOzonic(OzonicModel),
-    MaudioSolo(SoloModel),
-    MaudioAudiophile(AudiophileModel),
-    MaudioFw410(Fw410Model),
+    MaudioOzonic(OzonicModel<'a>),
+    MaudioSolo(SoloModel<'a>),
+    MaudioAudiophile(AudiophileModel<'a>),
+    MaudioFw410(Fw410Model<'a>),
 }
 
 impl<'a> BebobModel<'a> {
