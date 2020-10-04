@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
@@ -14,7 +14,7 @@ use crate::bebob::BebobAvc;
 use crate::bebob::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
 use crate::bebob::extensions::BcoCompoundAm824StreamFormat;
 use crate::bebob::extensions::ExtendedStreamFormatSingle;
-use crate::bebob::model::{HP_SRC_NAME, OUT_SRC_NAME};
+use crate::bebob::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME, IN_METER_NAME, OUT_METER_NAME};
 use super::apogee_proto::{ApogeeCmd, VendorCmd, HwCmdOp};
 
 pub struct HwCtl{
@@ -1097,6 +1097,250 @@ impl<'a> ResamplerCtl {
                 new.get_enum(&mut vals);
                 self.rate = vals[0] as u8;
                 self.send(avc, timeout_ms)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+// 33-34: mixer-out-3/4
+// 35: unknown
+// 36-52: stream-in-0..16, missing 17
+pub struct MeterCtl {
+    cache: [u8;Self::FRAME_SIZE],
+    pub measure_elem_list: Vec<alsactl::ElemId>,
+}
+
+impl<'a> MeterCtl {
+    const IN_KNOB_TARGET_NAME: &'a str = "input-knob-target";
+    const IN_GAIN_NAME: &'a str = "input-gain";
+
+    const OUT_KNOB_TARGET_NAME: &'a str = "output-knob-target";
+
+    const IN_METER_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7", "analog-8",
+        "spdif-1", "spdif-2", "adat-1", "adat-2", "adat-3", "adat-4", "adat-5", "adat-6",
+        "adat-7", "adat-8",
+    ];
+
+    const OUT_METER_LABELS: &'a [&'a str] = &[
+        "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7", "analog-8",
+        "spdif-1", "spdif-2", "adat-1", "adat-2", "adat-3", "adat-4", "adat-5", "adat-6",
+        //"adat-7", "adat-8",
+    ];
+
+    const IN_SELECT_LABELS: &'a [&'a str] = &["mic-1", "mic-2", "mic-3", "mic-4"];
+    const OUT_SELECT_LABELS: &'a [&'a str] = &["main", "headphone-1/2", "headphone-3/4"];
+
+    const IN_KNOB_TARGET_MASK: u8 = 0x03;
+    const IN_KNOB_TARGET_SHIFT: usize = 3;
+    const IN_KNOB_TARGET_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x03];
+    const IN_KNOB_VAL_TARGETS: &'a [u8] = &[0, 1, 2, 3];
+
+    const OUT_KNOB_TARGET_MASK: u8 = 0x07;
+    const OUT_KNOB_TARGET_SHIFT: usize = 0;
+    const OUT_KNOB_TARGET_VALS: &'a [u8] = &[0x01, 0x02, 0x04];
+    const OUT_KNOB_VAL_TARGETS: &'a [u8] = &[0, 1, 2];
+
+    const GAIN_MIN: i32 = 10;
+    const GAIN_MAX: i32 = 75;
+    const GAIN_STEP: i32 = 1;
+    const GAIN_TLV: &'a [i32;4] = &[4, 8, 1000, 7500];
+
+    // NOTE: actually inverted value.
+    const VOL_MIN: i32 = -127;
+    const VOL_MAX: i32 = 0;
+    const VOL_STEP: i32 = 1;
+    const VOL_TLV: &'a [i32;4] = &[4, 8, -12700, 0];
+
+    const SELECT_POS: usize = 4;
+    const IN_GAIN_POS: &'a [usize] = &[0, 1, 2, 3];
+    const OUT_VOL_POS: &'a [usize] = &[7, 6, 5];
+    const IN_METER_POS: &'a [usize] = &[12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29];
+    const OUT_METER_POS: &'a [usize] = &[35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50];
+
+    const METER_MIN: i32 = 0x00;
+    const METER_MAX: i32 = 0xff;
+    const METER_STEP: i32 = 0x01;
+    const METER_TLV: &'a [i32;4] = &[4, 8, -4800, 0];
+
+    const FRAME_SIZE: usize = 56;
+
+    pub fn new() -> Self {
+        MeterCtl {
+            cache: [0;Self::FRAME_SIZE],
+            measure_elem_list: Vec::new(),
+        }
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.measure_states(avc, timeout_ms)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::IN_KNOB_TARGET_NAME, 0);
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1,
+                                                        Self::IN_SELECT_LABELS, None, true)?;
+        self.measure_elem_list.append(&mut elem_id_list);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::IN_GAIN_NAME, 0);
+        let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                        Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        Self::IN_SELECT_LABELS.len(), Some(Self::GAIN_TLV), true)?;
+        self.measure_elem_list.append(&mut elem_id_list);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                    0, 0, Self::OUT_KNOB_TARGET_NAME, 0);
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1,
+                                                        Self::OUT_SELECT_LABELS, None, true)?;
+        self.measure_elem_list.append(&mut elem_id_list);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                        Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
+                                        Self::OUT_SELECT_LABELS.len(), Some(Self::VOL_TLV), true)?;
+        self.measure_elem_list.append(&mut elem_id_list);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
+        let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                                       Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
+                                                       Self::IN_METER_LABELS.len(), Some(Self::METER_TLV), false)?;
+        self.measure_elem_list.append(&mut elem_id_list);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
+        let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
+                                                       Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
+                                                       Self::OUT_METER_LABELS.len(), Some(Self::VOL_TLV), false)?;
+        self.measure_elem_list.append(&mut elem_id_list);
+
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        self.measure_elem(elem_id, elem_value)
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::IN_KNOB_TARGET_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let idx = vals[0] as usize;
+                let target = Self::IN_KNOB_VAL_TARGETS[idx];
+                let val = self.cache[Self::IN_GAIN_POS[idx]] as u8;
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target), &[val]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                Ok(true)
+            }
+            Self::IN_GAIN_NAME => {
+                let mut vals = [0;Self::IN_KNOB_VAL_TARGETS.len() * 2];
+                new.get_int(&mut vals[..Self::IN_KNOB_VAL_TARGETS.len()]);
+                old.get_int(&mut vals[Self::IN_KNOB_VAL_TARGETS.len()..]);
+                vals[..Self::IN_KNOB_VAL_TARGETS.len()].iter().zip(vals[Self::IN_KNOB_VAL_TARGETS.len()..].iter())
+                    .enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let target = Self::IN_KNOB_VAL_TARGETS[i];
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target), &[*v as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            Self::OUT_KNOB_TARGET_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let idx = vals[0] as usize;
+                let target = Self::OUT_KNOB_VAL_TARGETS[idx];
+                let val = self.cache[Self::OUT_VOL_POS[idx]];
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target), &[val]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                Ok(true)
+            }
+            OUT_VOL_NAME => {
+                let mut vals = [0;Self::OUT_KNOB_VAL_TARGETS.len() * 2];
+                new.get_int(&mut vals[..Self::OUT_KNOB_VAL_TARGETS.len()]);
+                old.get_int(&mut vals[Self::OUT_KNOB_VAL_TARGETS.len()..]);
+                vals[..Self::OUT_KNOB_VAL_TARGETS.len()].iter().zip(vals[Self::OUT_KNOB_VAL_TARGETS.len()..].iter())
+                    .enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let target = Self::OUT_KNOB_VAL_TARGETS[i];
+                        let val = - *v;
+                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target), &[val as u8]);
+                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                        Ok(())
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn measure_states(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::HwStatus(true), &[0x01]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        self.cache.copy_from_slice(&op.params);
+        Ok(())
+    }
+
+    pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::IN_KNOB_TARGET_NAME => {
+                let val = (self.cache[Self::SELECT_POS] >> Self::IN_KNOB_TARGET_SHIFT) & Self::IN_KNOB_TARGET_MASK;
+                match Self::IN_KNOB_TARGET_VALS.iter().position(|v| *v == val) {
+                    Some(pos) => {
+                        elem_value.set_enum(&[pos as u32]);
+                        Ok(true)
+                    }
+                    None => {
+                        let label = format!("Unexpected value for flag of input knob: {}", val);
+                        Err(Error::new(FileError::Io, &label))
+                    }
+                }
+            }
+            Self::IN_GAIN_NAME => {
+                let vals = Self::IN_GAIN_POS.iter().map(|p| self.cache[*p] as i32).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::OUT_KNOB_TARGET_NAME => {
+                let val = (self.cache[Self::SELECT_POS] >> Self::OUT_KNOB_TARGET_SHIFT) & Self::OUT_KNOB_TARGET_MASK;
+                match Self::OUT_KNOB_TARGET_VALS.iter().position(|v| *v == val) {
+                    Some(pos) => {
+                        elem_value.set_enum(&[pos as u32]);
+                        Ok(true)
+                    }
+                    None => {
+                        let label = format!("Unexpected value for flag of output knob: {}", val);
+                        Err(Error::new(FileError::Io, &label))
+                    }
+                }
+            }
+            OUT_VOL_NAME => {
+                let vals = Self::OUT_VOL_POS.iter().map(|p| -1 * (self.cache[*p] as i32)).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            IN_METER_NAME => {
+                let vals = Self::IN_METER_POS.iter().map(|p| self.cache[*p] as i32).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            OUT_METER_NAME => {
+                let vals = Self::OUT_METER_POS.iter().map(|p| self.cache[*p] as i32).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
