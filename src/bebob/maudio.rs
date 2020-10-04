@@ -5,4 +5,6 @@ pub mod solo_model;
 pub mod audiophile_model;
 pub mod fw410_model;
 
+mod normal_ctls;
+
 mod common_proto;
