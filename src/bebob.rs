@@ -8,6 +8,7 @@ mod common_ctls;
 mod model;
 
 mod apogee;
+mod maudio;
 
 
 use glib::Error;

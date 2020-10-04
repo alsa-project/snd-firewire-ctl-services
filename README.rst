@@ -117,6 +117,7 @@ your device, please contact to developer.
 * snd-bebob-ctl-service
 
   * Apogee Ensemble
+  * M-Audio Ozonic
 
 Supported protocols
 ===================
