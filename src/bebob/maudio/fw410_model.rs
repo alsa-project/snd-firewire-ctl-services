@@ -16,7 +16,7 @@ use crate::bebob::common_ctls::ClkCtl;
 use crate::bebob::BebobAvc;
 
 use super::common_proto::FCP_TIMEOUT_MS;
-use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl};
+use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl};
 
 pub struct Fw410Model<'a>{
     avc: BebobAvc,
@@ -27,6 +27,7 @@ pub struct Fw410Model<'a>{
     input_ctl: InputCtl<'a>,
     aux_ctl: AuxCtl<'a>,
     output_ctl: OutputCtl<'a>,
+    hp_ctl: HpCtl<'a>,
 }
 
 impl<'a> Fw410Model<'a> {
@@ -65,6 +66,7 @@ impl<'a> Fw410Model<'a> {
         "stream-1/2", "stream-3/4", "stream-5/6", "stream-7/8",
         "stream-9/10",
     ];
+    const HP_SRC_LABELS: &'a [&'a str] = &["mixer", "aux-1/2"];
 
     const PHYS_IN_FB_IDS: &'a [u8] = &[0x03, 0x04];
     const STREAM_IN_FB_IDS: &'a [u8] = &[0x01, 0x01, 0x01, 0x01, 0x02];
@@ -79,6 +81,9 @@ impl<'a> Fw410Model<'a> {
     ];
     const PHYS_OUT_FB_IDS: &'a [u8] = &[0x0a, 0x0b, 0x0c, 0x0d, 0x0e];
     const PHYS_OUT_SRC_FB_IDS: &'a [u8] = &[0x02, 0x03, 0x04, 0x05, 0x06];
+
+    const HP_SRC_FB_ID: u8 = 0x07;
+    const HP_OUT_FB_ID: u8 = 0x0f;
 
     pub fn new() -> Self {
         Fw410Model{
@@ -104,6 +109,7 @@ impl<'a> Fw410Model<'a> {
                 Self::PHYS_OUT_FB_IDS,
                 Self::PHYS_OUT_SRC_FB_IDS,
             ),
+            hp_ctl: HpCtl::new(Self::HP_OUT_FB_ID, Self::HP_SRC_FB_ID, Self::HP_SRC_LABELS),
         }
     }
 }
@@ -122,6 +128,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         self.input_ctl.load(&self.avc, card_cntr)?;
         self.aux_ctl.load(&self.avc, card_cntr)?;
         self.output_ctl.load(&self.avc, card_cntr)?;
+        self.hp_ctl.load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -140,6 +147,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         } else if self.aux_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(&self.avc, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.hp_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -161,6 +170,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         } else if self.aux_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if self.output_ctl.write(&self.avc, elem_id, old, new)? {
+            Ok(true)
+        } else if self.hp_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)

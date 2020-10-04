@@ -12,7 +12,7 @@ use crate::ta1394::general::VendorDependent;
 use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl, AudioSelector};
 
 use crate::bebob::BebobAvc;
-use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
+use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::CommonProto;
 
@@ -911,6 +911,98 @@ impl<'a> OutputCtl<'a> {
                     .try_for_each(|(i, (v, _))| {
                         let ch = (i % 2) as u8;
                         let mut op = AudioFeature::new(self.vol_fb_ids[i / 2], CtlAttr::Current, AudioCh::Each(ch),
+                                                       FeatureCtl::Volume(vec![*v as i16]));
+                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub struct HpCtl<'a> {
+    vol_fb_id: u8,
+    src_fb_id: u8,
+    src_labels: &'a [&'a str],
+    pub measure_elems: Vec<alsactl::ElemId>,
+}
+
+impl<'a> HpCtl<'a> {
+    const HP_VOL_NAME: &'a str = "headphone-volume";
+
+    pub fn new(vol_fb_id: u8, src_fb_id: u8, src_labels: &'a [&'a str]) -> Self {
+        HpCtl {
+            vol_fb_id,
+            src_fb_id,
+            src_labels,
+            measure_elems: Vec::new(),
+        }
+    }
+
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // For source of headphone.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.src_labels, None, true)?;
+
+        // For volume of headphone.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::HP_VOL_NAME, 0);
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2, Some(VOL_TLV), true)?;
+        self.measure_elems.push(elem_id_list[0].clone());
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            HP_SRC_NAME => {
+                let mut op = AudioSelector::new(self.src_fb_id, CtlAttr::Current, 0xff);
+                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                elem_value.set_enum(&[op.input_plug_id as u32]);
+                Ok(true)
+            }
+            Self::HP_VOL_NAME => {
+                let mut vals = [0;2];
+                vals.iter_mut().enumerate().try_for_each(|(ch, v)| {
+                    let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                   FeatureCtl::Volume(vec![-1]));
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    if let FeatureCtl::Volume(data) = op.ctl {
+                        *v = data[0] as i32;
+                        Ok(())
+                    } else {
+                        unreachable!();
+                    }
+                })?;
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            HP_SRC_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = AudioSelector::new(self.src_fb_id, CtlAttr::Current, vals[0] as u8);
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                Ok(true)
+            }
+            Self::HP_VOL_NAME => {
+                let mut vals = [0;4];
+                new.get_int(&mut vals[..2]);
+                old.get_int(&mut vals[2..]);
+                vals[..2].iter().zip(vals[2..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(ch, (v, _))| {
+                        let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
                                                        FeatureCtl::Volume(vec![*v as i16]));
                         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
                     })?;
