@@ -23,23 +23,23 @@ enum Event {
     Elem(alsactl::ElemId, alsactl::ElemEventMask),
 }
 
-pub struct BebobUnit {
+pub struct BebobUnit<'a> {
     unit: hinawa::SndUnit,
-    model: BebobModel,
+    model: BebobModel<'a>,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for BebobUnit {
+impl<'a> Drop for BebobUnit<'a> {
     fn drop(&mut self) {
         // Finish I/O threads.
         self.dispatchers.clear();
     }
 }
 
-impl<'a> BebobUnit {
+impl<'a> BebobUnit<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
