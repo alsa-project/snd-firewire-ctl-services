@@ -8,7 +8,7 @@ use crate::card_cntr;
 
 use crate::bebob::BebobAvc;
 
-use super::special_ctls::{ClkCtl, MeterCtl, StateCache, MixerCtl, InputCtl, OutputCtl};
+use super::special_ctls::{ClkCtl, MeterCtl, StateCache, MixerCtl, InputCtl, OutputCtl, AuxCtl};
 
 pub struct SpecialModel {
     avc: BebobAvc,
@@ -40,6 +40,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         MixerCtl::load(&mut self.cache, card_cntr)?;
         InputCtl::load(&mut self.cache, card_cntr)?;
         OutputCtl::load(&mut self.cache, card_cntr)?;
+        AuxCtl::load(&mut self.cache, card_cntr)?;
 
         self.cache.upload(unit, &self.req)?;
 
@@ -57,6 +58,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
             Ok(true)
         } else if OutputCtl::read(&mut self.cache, elem_id, elem_value)? {
             Ok(true)
+        } else if AuxCtl::read(&mut self.cache, elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -73,6 +76,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         } else if InputCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else if OutputCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
+            Ok(true)
+        } else if AuxCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)

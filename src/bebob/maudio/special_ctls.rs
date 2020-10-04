@@ -902,3 +902,104 @@ impl OutputCtl for StateCache {
         }
     }
 }
+
+pub trait AuxCtl : StateCacheAccessor {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>;
+}
+
+const AUX_OUT_LABELS: &[&str] = &["aux-1", "aux-2"];
+
+const AUX_SRC_PAIR_TO_DST_POS: usize = 0x64;    // 0x64 - 0x8c.
+const AUX_OUT_POS: usize = 0x34;                // 0x34.
+
+const AUX_SRC_PAIR_NAME: &str = "aux-source";
+const AUX_OUT_VOL_NAME: &str = "aux-out-volume";
+
+impl AuxCtl for StateCache {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // Gain of inputs to aux mixer.
+        let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
+                        SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
+        (0..src_count).for_each(|i| {
+            let pos = AUX_SRC_PAIR_TO_DST_POS + i * GAIN_SIZE;
+            self.set_i16(pos, GAIN_MIN as i16);
+        });
+
+        // Volume of outputs from aux mixer.
+        (0..AUX_OUT_LABELS.len()).for_each(|i| {
+            let pos = AUX_OUT_POS + i * GAIN_SIZE;
+            self.set_i16(pos, GAIN_MAX as i16);
+        });
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, AUX_SRC_PAIR_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, src_count, Some(GAIN_TLV), true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
+                                        AUX_OUT_LABELS.len(), Some(VOL_TLV), true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            AUX_SRC_PAIR_NAME => {
+                let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
+                                SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
+                let vals = (0..src_count).map(|i| {
+                    let pos = AUX_SRC_PAIR_TO_DST_POS + i * GAIN_SIZE;
+                    self.get_i16(pos) as i32
+                }).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            AUX_OUT_VOL_NAME => {
+                let vals = (0..AUX_OUT_LABELS.len()).map(|i| {
+                    let pos = AUX_OUT_POS + i * VOL_SIZE;
+                    self.get_i16(pos) as i32
+                }).collect::<Vec::<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            AUX_SRC_PAIR_NAME => {
+                let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
+                                SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
+                let mut vals = vec![0;src_count * 2];
+                new.get_int(&mut vals[..src_count]);
+                old.get_int(&mut vals[src_count..]);
+                vals[..src_count].iter().zip(vals[src_count..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let mut pos = AUX_SRC_PAIR_TO_DST_POS + i * GAIN_SIZE;
+                        self.set_i16(pos, *v as i16);
+                        pos -= pos % std::mem::size_of::<u32>();
+                        req.write_quadlet(unit, pos, &mut self.cache)
+                    })?;
+                Ok(true)
+            }
+            AUX_OUT_VOL_NAME => {
+                let mut vals = [0;AUX_OUT_LABELS.len()];
+                new.get_int(&mut vals);
+                vals.iter().enumerate().for_each(|(i, v)| {
+                    let pos = AUX_OUT_POS + i * VOL_SIZE;
+                    self.set_i16(pos, *v as i16);
+                });
+                req.write_quadlet(unit, AUX_OUT_POS, &mut self.cache)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
