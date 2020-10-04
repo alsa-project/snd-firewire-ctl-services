@@ -192,7 +192,7 @@ impl<'a> BebobUnit<'a> {
                 }
                 Event::Elem(elem_id, events) => {
                     if elem_id.get_name() != Self::TIMER_NAME {
-                        let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
+                        let _= self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
                                                                &elem_id, &events);
                     } else {
                         let mut elem_value = alsactl::ElemValue::new();
