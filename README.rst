@@ -124,6 +124,7 @@ your device, please contact to developer.
   * M-Audio ProFire LightBridge
   * M-Audio FireWire 1814
   * M-Audio ProjectMix I/O
+  * Behringer FIREPOWER FCA610
 
 Supported protocols
 ===================

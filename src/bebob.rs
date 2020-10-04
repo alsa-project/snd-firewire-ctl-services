@@ -9,6 +9,7 @@ mod model;
 
 mod apogee;
 mod maudio;
+mod behringer;
 
 
 use glib::Error;
