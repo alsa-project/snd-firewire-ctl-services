@@ -23,6 +23,7 @@ pub struct ProfirelightbridgeModel<'a> {
     req: hinawa::FwReq,
     clk_ctl: ClkCtl<'a>,
     meter_ctl: MeterCtl,
+    input_ctl: InputCtl,
 }
 
 impl<'a> ProfirelightbridgeModel<'a> {
@@ -58,6 +59,7 @@ impl<'a> ProfirelightbridgeModel<'a> {
             req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
             meter_ctl: MeterCtl::new(),
+            input_ctl: InputCtl::new(),
         }
     }
 }
@@ -68,6 +70,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.meter_ctl.load(card_cntr)?;
+        self.input_ctl.load(unit, &self.req, card_cntr)?;
 
         Ok(())
     }
@@ -76,6 +79,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -87,6 +92,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.input_ctl.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -212,5 +219,113 @@ impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for ProfirelightbridgeMod
         -> Result<bool, Error>
     {
         self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    }
+}
+
+struct InputCtl {
+    cache: [u8; Self::FRAME_COUNT],
+}
+
+impl<'a> InputCtl {
+    const FRAME_COUNT: usize = 24;
+
+    const MUTE_NAME: &'a str = "Input-mute";
+    const FORCE_SMUX_NAME: &'a str = "Force-S/MUX";
+
+    const INPUT_LABELS: &'a [&'a str] = &[
+        "ADAT_1-8",
+        "ADAT_9-16",
+        "ADAT_17-24",
+        "ADAT_25-32",
+        "S/PDIF-1/2",
+    ];
+
+    const OFFSET: u64 = 0;
+
+    fn new() -> Self {
+        InputCtl {
+            cache: [0;Self::FRAME_COUNT],
+        }
+    }
+
+    fn load(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, card_cntr: &mut card_cntr::CardCntr)
+        -> Result<(), Error>
+    {
+        // For mute of input for ADAT interfaces.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::MUTE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_LABELS.len(), true)?;
+
+        // For switch to force S/MUX.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::FORCE_SMUX_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        // Initialize cache.
+        let val = 1 as u32;
+        (0..Self::INPUT_LABELS.len()).for_each(|i| {
+            let pos = i * 4;
+            self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        });
+
+        req.write_block(unit, Self::OFFSET, &mut self.cache)
+    }
+
+    fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            Self::MUTE_NAME => {
+                let mut vals = vec![false;Self::INPUT_LABELS.len()];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut quadlet = [0; 4];
+                    let bytes = &self.cache[(i * 4)..(i * 4 + 4)];
+                    quadlet.copy_from_slice(bytes);
+                    *v = u32::from_be_bytes(quadlet) > 0;
+                    Ok(())
+                })?;
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::FORCE_SMUX_NAME => {
+                let mut quadlet = [0; 4];
+                let pos = Self::INPUT_LABELS.len() * 4;
+                quadlet.copy_from_slice(&self.cache[pos..(pos + 4)]);
+                elem_value.set_bool(&[u32::from_be_bytes(quadlet) > 0]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MUTE_NAME => {
+                if unit.get_property_streaming() {
+                    Ok(false)
+                } else {
+                    let mut vals = vec![false;Self::INPUT_LABELS.len()];
+                    new.get_bool(&mut vals);
+                    vals.iter().enumerate().for_each(|(i, v)| {
+                        let val = *v as u32;
+                        let pos = i * 4;
+                        self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+                    });
+                    req.write_block(unit, Self::OFFSET, &mut self.cache)?;
+                    Ok(true)
+                }
+            }
+            Self::FORCE_SMUX_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let val = vals[0] as u32;
+                let pos = Self::INPUT_LABELS.len() * 4;
+                self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+                req.write_block(unit, Self::OFFSET, &mut self.cache)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
