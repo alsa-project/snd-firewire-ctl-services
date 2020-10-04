@@ -146,3 +146,136 @@ impl<'a> HwCtl {
         }
     }
 }
+
+pub struct DisplayCtl{
+    illuminate: bool,
+    mode: bool,
+    target: u32,
+    overhold: bool,
+}
+
+impl<'a> DisplayCtl {
+    const ILLUMINATE_NAME: &'a str = "display-illuminate";
+    const MODE_NAME: &'a str = "display-mode";
+    const TARGET_NAME: &'a str = "display-target";
+    const OVERHOLD_NAME: &'a str = "display-overhold";
+
+    const TARGET_LABELS: &'a [&'a str] = &["output", "input"];
+
+    pub fn new() -> Self {
+        DisplayCtl {
+            illuminate: false,
+            mode: false,
+            target: 0,
+            overhold: false,
+        }
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
+                                    &[self.illuminate as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayMode),
+                                    &[self.mode as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayTarget),
+                                    &[self.target as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayOverhold),
+                                    &[self.overhold as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::ILLUMINATE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::MODE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::TARGET_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::OVERHOLD_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+                -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::ILLUMINATE_NAME => {
+                elem_value.set_bool(&[self.illuminate]);
+                Ok(true)
+            }
+            Self::MODE_NAME => {
+                elem_value.set_bool(&[self.mode]);
+                Ok(true)
+            }
+            Self::TARGET_NAME => {
+                elem_value.set_enum(&[self.target]);
+                Ok(true)
+            }
+            Self::OVERHOLD_NAME => {
+                elem_value.set_bool(&[self.overhold]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 _: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::ILLUMINATE_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
+                                            &[vals[0] as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                self.illuminate = vals[0];
+                Ok(true)
+            }
+            Self::MODE_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayMode),
+                                            &[vals[0] as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                self.mode = vals[0];
+                Ok(true)
+            }
+            Self::TARGET_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayTarget),
+                                            &[vals[0] as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                self.target = vals[0];
+                Ok(true)
+            }
+            Self::OVERHOLD_NAME => {
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayOverhold),
+                                            &[vals[0] as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                self.overhold = vals[0];
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
