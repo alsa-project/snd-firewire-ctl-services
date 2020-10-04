@@ -108,10 +108,15 @@ your device, please contact to developer.
   * MOTU AudioExpress
 
 * snd-oxfw-ctl-service
+
   * Tascam FireOne
   * Apogee Duet FireWire
   * Griffin FireWave
   * Lacie FireWire Speakers
+
+* snd-bebob-ctl-service
+
+  * Apogee Ensemble
 
 Supported protocols
 ===================
