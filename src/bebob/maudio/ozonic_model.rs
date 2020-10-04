@@ -15,10 +15,13 @@ use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;
 
 use super::common_proto::FCP_TIMEOUT_MS;
+use super::normal_ctls::MeterCtl;
 
 pub struct OzonicModel<'a>{
     avc: BebobAvc,
+    req: hinawa::FwReq,
     clk_ctl: ClkCtl<'a>,
+    meter_ctl: MeterCtl<'a>,
 }
 
 impl<'a> OzonicModel<'a> {
@@ -33,10 +36,26 @@ impl<'a> OzonicModel<'a> {
         }),
     ];
     const CLK_LABELS: &'a [&'a str] = &["Internal", "S/PDIF"];
+
+    const IN_METER_LABELS: &'a [&'a str] = &[
+        "analog-in-1", "analog-in-2", "digital-in-1", "digital-in-2",
+    ];
+
+    const OUT_METER_LABELS: &'a [&'a str] = &[
+        "analog-out-1", "analog-out-2", "digital-out-1", "digital-out-2",
+    ];
+
+    const STREAM_METER_LABELS: &'a [&'a str] = &[
+        "stream-in-1", "stream-in-2", "stream-in-3", "stream-in-4",
+    ];
+
     pub fn new() -> Self {
         OzonicModel{
             avc: BebobAvc::new(),
+            req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
+            meter_ctl: MeterCtl::new(Self::IN_METER_LABELS, Self::STREAM_METER_LABELS, Self::OUT_METER_LABELS,
+                                     false, 0, false),
         }
     }
 }
@@ -50,6 +69,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
         self.avc.company_id = op.company_id;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+        self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;
 
         Ok(())
     }
@@ -58,6 +78,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -70,6 +92,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.meter_ctl.write(&self.avc, elem_id, old, new)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -77,17 +101,18 @@ impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
 }
 
 impl<'a> MeasureModel<hinawa::SndUnit> for OzonicModel<'a> {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<alsactl::ElemId>) {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, _: &hinawa::SndUnit) -> Result<(), Error> {
-        Ok(())
+    fn measure_states(&mut self, unit: &hinawa::SndUnit) -> Result<(), Error> {
+        self.meter_ctl.measure_states(unit, &self.avc, &self.req)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndUnit, _: &alsactl::ElemId, _: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }
 
