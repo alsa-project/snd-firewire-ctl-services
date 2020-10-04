@@ -2,4 +2,6 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod unit;
 
+mod extensions;
+
 mod model;
