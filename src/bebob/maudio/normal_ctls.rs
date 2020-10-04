@@ -9,7 +9,7 @@ use crate::card_cntr;
 use crate::ta1394::{AvcAddr, Ta1394Avc};
 use crate::ta1394::{AvcOp, AvcControl};
 use crate::ta1394::general::VendorDependent;
-use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl};
+use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME};
@@ -518,5 +518,169 @@ impl<'a> MixerCtl<'a> {
             }
             _ => Ok(false),
         }
+    }
+}
+
+pub struct InputCtl<'a> {
+    phys_fb_ids: &'a [u8],
+    phys_labels: &'a [&'a str],
+    stream_fb_ids: &'a [u8],
+    stream_labels: &'a [&'a str],
+}
+
+const GAIN_MIN: i32 = i16::MIN as i32;
+const GAIN_MAX: i32 = 0;
+const GAIN_STEP: i32 = 256;
+const GAIN_TLV: &[i32] = &[5, 8, -12800, 0];
+
+const PAN_MIN: i32 = i16::MIN as i32;
+const PAN_MAX: i32 = i16::MAX as i32;
+const PAN_STEP: i32 = 256;
+const PAN_TLV: &[i32] = &[5, 8, -12800, 12800];
+
+impl<'a> InputCtl<'a> {
+    const PHYS_GAIN_NAME: &'a str = "phys-in-gain";
+    const PHYS_BALANCE_NAME: &'a str = "phys-in-balance";
+    const STREAM_GAIN_NAME: &'a str = "stream-in-gain";
+
+    pub fn new(phys_fb_ids: &'a [u8], phys_labels: &'a [&'a str],
+               stream_fb_ids: &'a [u8], stream_labels: &'a [&'a str])
+        -> Self
+    {
+        assert_eq!(phys_fb_ids.len(), phys_labels.len());
+        assert_eq!(stream_fb_ids.len(), stream_labels.len());
+
+        InputCtl {
+            phys_fb_ids,
+            phys_labels,
+            stream_fb_ids,
+            stream_labels,
+        }
+    }
+
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // For gain of physical inputs.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::PHYS_GAIN_NAME, 0);
+        let len = 2 * self.phys_labels.len();
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len, Some(GAIN_TLV), true)?;
+
+        // For balance of physical inputs.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::PHYS_BALANCE_NAME, 0);
+        let len = 2 * self.phys_labels.len();
+        let _ = card_cntr.add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, len, Some(PAN_TLV), true)?;
+
+        // For gain of stream inputs.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::STREAM_GAIN_NAME, 0);
+        let len = 2 * self.stream_labels.len();
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len, Some(GAIN_TLV), true)?;
+
+        // Balance of stream inputs is not available.
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::PHYS_GAIN_NAME => self.read_gain(avc, elem_value, self.phys_fb_ids),
+            Self::PHYS_BALANCE_NAME => self.read_balance(avc, elem_value, self.phys_fb_ids),
+            Self::STREAM_GAIN_NAME => self.read_gain(avc, elem_value, self.stream_fb_ids),
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+                 new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::PHYS_GAIN_NAME => self.write_gain(avc, old, new, self.phys_fb_ids),
+            Self::PHYS_BALANCE_NAME => self.write_balance(avc, old, new, self.phys_fb_ids),
+            Self::STREAM_GAIN_NAME => self.write_gain(avc, old, new, self.stream_fb_ids),
+            _ => Ok(false),
+        }
+    }
+
+    pub fn read_gain(&mut self, avc: &BebobAvc, elem_value: &mut alsactl::ElemValue, fb_ids: &[u8])
+        -> Result<bool, Error>
+    {
+        let mut vals = vec![0;fb_ids.len()];
+        vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
+            let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
+                                           FeatureCtl::Volume(vec![-1]));
+            avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+            if let FeatureCtl::Volume(data) = op.ctl {
+                *v = data[0] as i32;
+                Ok(())
+            } else {
+                unreachable!();
+            }
+        })?;
+        elem_value.set_int(&vals);
+        Ok(true)
+    }
+
+    pub fn write_gain(&mut self, avc: &BebobAvc, old: &alsactl::ElemValue, new: &alsactl::ElemValue,
+                      fb_ids: &[u8])
+        -> Result<bool, Error>
+    {
+        let len = fb_ids.len() * 2;
+        let mut vals = vec![0;len * 2];
+        new.get_int(&mut vals[0..len]);
+        old.get_int(&mut vals[len..]);
+        vals[..len].iter().zip(vals[len..].iter()).enumerate()
+            .filter(|(_, (n, o))| *n != *o)
+            .try_for_each(|(i, (v, _))| {
+                let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
+                let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
+                                               FeatureCtl::Volume(vec![*v as i16]));
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+            })?;
+        Ok(true)
+    }
+
+    fn read_balance(&mut self, avc: &BebobAvc, elem_value: &mut alsactl::ElemValue, fb_ids: &[u8])
+        -> Result<bool, Error>
+    {
+        let len = fb_ids.len() * 2;
+        let mut vals = vec![0;len];
+        vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
+            let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
+                                           FeatureCtl::LrBalance(-1));
+            avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+            if let FeatureCtl::LrBalance(val) = op.ctl {
+                *v = val as i32;
+                Ok(())
+            } else {
+                unreachable!();
+            }
+        })?;
+        elem_value.set_int(&vals);
+        Ok(true)
+    }
+
+    fn write_balance(&mut self, avc: &BebobAvc, old: &alsactl::ElemValue, new: &alsactl::ElemValue,
+                     fb_ids: &[u8])
+        -> Result<bool, Error>
+    {
+        let len = fb_ids.len() * 2;
+        let mut vals = vec![0; len * 2];
+        new.get_int(&mut vals[..len]);
+        old.get_int(&mut vals[len..]);
+        vals[..len].iter().zip(vals[len..].iter()).enumerate()
+            .filter(|(_, (n, o))| *n != *o)
+            .try_for_each(|(i, (v, _))| {
+                let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
+                let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
+                                               FeatureCtl::LrBalance(*v as i16));
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+            })?;
+        Ok(true)
     }
 }
