@@ -8,13 +8,14 @@ use crate::card_cntr;
 
 use crate::bebob::BebobAvc;
 
-use super::special_ctls::{ClkCtl, MeterCtl};
+use super::special_ctls::{ClkCtl, MeterCtl, StateCache};
 
 pub struct SpecialModel {
     avc: BebobAvc,
     req: hinawa::FwReq,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
+    cache: StateCache,
 }
 
 impl SpecialModel {
@@ -24,6 +25,7 @@ impl SpecialModel {
             req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(is_fw1814),
             meter_ctl: MeterCtl::new(),
+            cache: StateCache::new(),
         }
     }
 }
@@ -34,6 +36,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
 
         self.clk_ctl.load(card_cntr)?;
         self.meter_ctl.load(unit, &self.req, &self.avc, card_cntr)?;
+
+        self.cache.upload(unit, &self.req)?;
 
         Ok(())
     }
