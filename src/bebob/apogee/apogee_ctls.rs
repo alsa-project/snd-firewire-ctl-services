@@ -279,3 +279,84 @@ impl<'a> DisplayCtl {
         }
     }
 }
+
+pub struct OpticalCtl{
+    output: u32,
+    input: u32,
+}
+
+impl<'a> OpticalCtl {
+    const OUT_MODE_NAME: &'a str = "output-optical-mode";
+    const IN_MODE_NAME: &'a str = "input-optical-mode";
+
+    const MODE_LABELS: &'a [&'a str] = &["S/PDIF", "ADAT/SMUX"];
+
+    pub fn new() -> Self {
+        OpticalCtl {
+            output: 0,
+            input: 0,
+        }
+    }
+
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        // Transfer initialized data.
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x00), &[self.output as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x01), &[self.input as u8]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::OUT_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MODE_LABELS, None, true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::IN_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MODE_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_MODE_NAME => {
+                elem_value.set_enum(&[self.output]);
+                Ok(true)
+            }
+            Self::IN_MODE_NAME => {
+                elem_value.set_enum(&[self.input]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 _: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_MODE_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x00), &[vals[0] as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                self.output = vals[0];
+                Ok(true)
+            }
+            Self::IN_MODE_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x01), &[vals[0] as u8]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                self.input = vals[0];
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
