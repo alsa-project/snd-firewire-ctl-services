@@ -24,7 +24,7 @@ enum BebobCtlModel<'a> {
     MaudioSolo(SoloModel<'a>),
     MaudioAudiophile(AudiophileModel<'a>),
     MaudioFw410(Fw410Model<'a>),
-    MaudioPlb(ProfirelightbridgeModel),
+    MaudioPlb(ProfirelightbridgeModel<'a>),
 }
 
 impl<'a> BebobModel<'a> {
