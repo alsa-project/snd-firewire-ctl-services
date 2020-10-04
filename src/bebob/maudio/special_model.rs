@@ -8,7 +8,7 @@ use crate::card_cntr;
 
 use crate::bebob::BebobAvc;
 
-use super::special_ctls::{ClkCtl, MeterCtl, StateCache};
+use super::special_ctls::{ClkCtl, MeterCtl, StateCache, MixerCtl};
 
 pub struct SpecialModel {
     avc: BebobAvc,
@@ -37,6 +37,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         self.clk_ctl.load(card_cntr)?;
         self.meter_ctl.load(unit, &self.req, &self.avc, card_cntr)?;
 
+        MixerCtl::load(&mut self.cache, card_cntr)?;
+
         self.cache.upload(unit, &self.req)?;
 
         Ok(())
@@ -46,6 +48,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value)? {
+            Ok(true)
+        } else if MixerCtl::read(&mut self.cache, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -57,6 +61,8 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new)? {
+            Ok(true)
+        } else if MixerCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
