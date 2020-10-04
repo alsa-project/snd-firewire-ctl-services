@@ -9,10 +9,10 @@ use crate::card_cntr;
 use crate::ta1394::{AvcAddr, Ta1394Avc};
 use crate::ta1394::{AvcOp, AvcControl};
 use crate::ta1394::general::VendorDependent;
-use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl};
+use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl, AudioSelector};
 
 use crate::bebob::BebobAvc;
-use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME};
+use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
 
 use super::common_proto::CommonProto;
 
@@ -804,6 +804,113 @@ impl<'a> AuxCtl<'a> {
                     .filter(|(_, (n, o))| *n != *o)
                     .try_for_each(|(ch, (v, _))| {
                         let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                       FeatureCtl::Volume(vec![*v as i16]));
+                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub struct OutputCtl<'a> {
+    labels: &'a [&'a str],
+    vol_fb_ids: &'a [u8],
+    src_fb_ids: &'a [u8],
+}
+
+impl<'a> OutputCtl<'a> {
+    const OUT_SRC_LABELS: &'a [&'a str] = &["mixer", "aux-1/2"];
+
+    pub fn new(labels: &'a [&'a str], vol_fb_ids: &'a [u8], src_fb_ids: &'a [u8]) -> Self {
+        assert_eq!(labels.len(), vol_fb_ids.len());
+        assert_eq!(labels.len(), src_fb_ids.len());
+        OutputCtl {
+            labels,
+            vol_fb_ids,
+            src_fb_ids,
+        }
+    }
+
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // For source of output.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, self.labels.len(), Self::OUT_SRC_LABELS, None, true)?;
+
+        // For volume of output.
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        let len = 2 * self.labels.len();
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, len, Some(VOL_TLV), true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUT_SRC_NAME => {
+                let len = self.labels.len();
+                let mut vals = vec![0;len];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let mut op = AudioSelector::new(self.src_fb_ids[i], CtlAttr::Current, 0xff);
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    *v = op.input_plug_id as u32;
+                    Ok(())
+                })?;
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            OUT_VOL_NAME => {
+                let mut vals = vec![0;2 * self.labels.len()];
+                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
+                    let ch = (i % 2) as u8;
+                    let mut op = AudioFeature::new(self.vol_fb_ids[i / 2], CtlAttr::Current, AudioCh::Each(ch),
+                                                   FeatureCtl::Volume(vec![-1]));
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    if let FeatureCtl::Volume(data) = op.ctl {
+                        *v = data[0] as i32;
+                        Ok(())
+                    } else {
+                        unreachable!();
+                    }
+                })?;
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
+                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUT_SRC_NAME => {
+                let len = self.labels.len();
+                let mut vals = vec![0; len * 2];
+                new.get_enum(&mut vals[0..len]);
+                old.get_enum(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let mut op = AudioSelector::new(self.src_fb_ids[i], CtlAttr::Current, *v as u8);
+                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                    })?;
+                Ok(true)
+            }
+            OUT_VOL_NAME => {
+                let len = self.labels.len() * 2;
+                let mut vals = vec![0; len * 2];
+                new.get_int(&mut vals[0..len]);
+                old.get_int(&mut vals[len..]);
+                vals[..len].iter().zip(vals[len..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let ch = (i % 2) as u8;
+                        let mut op = AudioFeature::new(self.vol_fb_ids[i / 2], CtlAttr::Current, AudioCh::Each(ch),
                                                        FeatureCtl::Volume(vec![*v as i16]));
                         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
                     })?;
