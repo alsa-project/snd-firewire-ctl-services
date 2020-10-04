@@ -14,7 +14,7 @@ use crate::ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat, Vend
 use crate::ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
 
 use crate::bebob::BebobAvc;
-use crate::bebob::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
+use crate::bebob::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
 
@@ -997,6 +997,132 @@ impl AuxCtl for StateCache {
                     self.set_i16(pos, *v as i16);
                 });
                 req.write_quadlet(unit, AUX_OUT_POS, &mut self.cache)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub trait HpCtl : StateCacheAccessor {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>;
+}
+
+const HP_OUT_LABELS: &[&str] = &["headphone-1", "headphone-2", "headphone-3", "headphone-4"];
+const HP_OUT_PAIR_LABELS: &[&str] = &["headphone-1/2", "headphone-3/4"];
+const HP_SRC_PAIR_LABELS: &[&str] = &["mixer-1/2", "mixer-3/4", "aux-1/2"];
+
+const HP_OUT_VOL_POS: usize = 0x38;            // 0x38 - 0x40.
+const HP_SRC_PAIR_POS: usize = 0x98;                // 0x98-0x9f
+
+const HP_DST_PAIR_SHIFT_TABLE: [usize;2] = [0, 16];
+const HP_SRC_PAIR_SHIFT_TABLE: [usize;3] = [0, 1, 2];
+
+const HP_OUT_VOL_NAME: &str = "headphone-volume";
+
+trait HpSrcOperation {
+    fn build_hp_src_flags(&self, vals: &[u32]) -> u32;
+    fn parse_hp_src_flags(&self) -> Vec<u32>;
+}
+
+impl HpSrcOperation for u32 {
+    fn build_hp_src_flags(&self, vals: &[u32]) -> Self {
+        vals.iter().zip(HP_DST_PAIR_SHIFT_TABLE.iter()).fold(*self, |flags, (v, dst_shift)| {
+            HP_SRC_PAIR_SHIFT_TABLE.iter().enumerate().fold(flags, |mut flags, (i, src_shift)| {
+                let flag = 1 << (dst_shift + src_shift);
+                flags &= !flag;
+                if i == *v as usize {
+                    flags |= flag;
+                }
+                flags
+            })
+        })
+    }
+
+    fn parse_hp_src_flags(&self) -> Vec<u32> {
+        HP_DST_PAIR_SHIFT_TABLE.iter().map(|dst_shift| {
+            HP_SRC_PAIR_SHIFT_TABLE.iter().position(|src_shift| {
+                let flag = 1 << (dst_shift + src_shift);
+                flag & *self > 0
+            }).unwrap_or(0) as u32
+        }).collect::<Vec<u32>>()
+    }
+}
+
+impl HpCtl for StateCache {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // Source of headphone.
+        let mut flags = self.get_u32(HP_SRC_PAIR_POS);
+        flags = flags.build_hp_src_flags(&[0, 1]);
+        self.set_u32(HP_SRC_PAIR_POS, flags);
+
+        // Volume of headphone output.
+        (0..HP_OUT_LABELS.len()).for_each(|i| {
+            let pos = HP_OUT_VOL_POS + i * VOL_SIZE;
+            self.set_i16(pos, VOL_MAX as i16);
+        });
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_OUT_VOL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
+                                        HP_OUT_LABELS.len(), Some(VOL_TLV), true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, HP_OUT_PAIR_LABELS.len(), HP_SRC_PAIR_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            HP_SRC_NAME => {
+                let flags = self.get_u32(HP_SRC_PAIR_POS);
+                let vals = flags.parse_hp_src_flags();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            HP_OUT_VOL_NAME => {
+                let vals = (0..HP_OUT_LABELS.len()).map(|i| {
+                    let pos = HP_OUT_VOL_POS + i * VOL_SIZE;
+                    self.get_i16(pos) as i32
+                }).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            HP_SRC_NAME => {
+                let mut vals = [0;HP_OUT_PAIR_LABELS.len()];
+                new.get_enum(&mut vals);
+                let prev_flags = self.get_u32(HP_SRC_PAIR_POS);
+                let curr_flags = prev_flags.build_hp_src_flags(&vals);
+                if curr_flags != prev_flags {
+                    self.set_u32(HP_SRC_PAIR_POS, curr_flags);
+                    req.write_quadlet(unit, HP_SRC_PAIR_POS, &mut self.cache)?;
+                }
+                Ok(true)
+            }
+            HP_OUT_VOL_NAME => {
+                let mut vals = [0;HP_OUT_LABELS.len() * 2];
+                new.get_int(&mut vals[..HP_OUT_LABELS.len()]);
+                old.get_int(&mut vals[HP_OUT_LABELS.len()..]);
+                vals[..HP_OUT_LABELS.len()].iter().zip(vals[HP_OUT_LABELS.len()..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let mut pos = HP_OUT_VOL_POS + i * VOL_SIZE;
+                        self.set_i16(pos, *v as i16);
+                        pos -= pos % std::mem::size_of::<u32>();
+                        req.write_quadlet(unit, pos, &mut self.cache)
+                    })?;
                 Ok(true)
             }
             _ => Ok(false),
