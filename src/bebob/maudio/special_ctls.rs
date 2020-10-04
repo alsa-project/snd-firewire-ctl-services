@@ -14,7 +14,7 @@ use crate::ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat, Vend
 use crate::ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
 
 use crate::bebob::BebobAvc;
-use crate::bebob::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME};
+use crate::bebob::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
 
@@ -772,6 +772,130 @@ impl<'a> InputCtl<'a> for StateCache {
             }
             ADAT_IN_PAN_NAME => {
                 self.write_input_pan(unit, req, ADAT_IN_LABELS.len(), ADAT_IN_PAN_POS, old, new)?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub trait OutputCtl : StateCacheAccessor {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>;
+}
+
+const ANALOG_OUT_LABELS: &[&str] = &["analog-1", "analog-2", "analog-3", "analog-4"];
+const OUT_PAIR_LABELS: &[&str] = &["output-1/2", "output-3/4"];
+const OUT_PAIR_SRC_LABELS: &[&str] = &["mixer", "aux-1/2"];
+
+const ANALOG_OUT_VOL_POS: usize = 0x08;     // 0x08 - 0x10
+const OUT_PAIR_SRC_POS: usize = 0x9c;       // 0x9c
+
+const OUT_PAIR_SRC_TABLE: [usize;2] = [0, 1];
+
+const VOL_SIZE: usize = std::mem::size_of::<i16>();
+
+const VOL_MIN: i32 = i16::MIN as i32;
+const VOL_MAX: i32 = 0;
+const VOL_STEP: i32 = 256;
+const VOL_TLV: &[i32;4] = &[5, 8, -12800, 0];
+
+trait OutputSrcOperation {
+    fn parse_out_src_flags(&self) -> Vec<u32>;
+    fn build_out_src_flags(&self, vals: &[u32]) -> Self;
+}
+
+impl OutputSrcOperation for u32 {
+    fn parse_out_src_flags(&self) -> Vec<u32> {
+        OUT_PAIR_SRC_TABLE.iter().map(|shift| {
+            (*self & (1 << *shift) > 0) as u32
+        }).collect::<Vec<u32>>()
+    }
+
+    fn build_out_src_flags(&self, vals: &[u32]) -> Self {
+        vals.iter().zip(OUT_PAIR_SRC_TABLE.iter()).fold(*self, |mut flags, (v, shift)| {
+            let flag = 1 << shift;
+            flags &= !flag;
+            if *v > 0 {
+                flags |= flag;
+            }
+            flags
+        })
+    }
+}
+
+impl OutputCtl for StateCache {
+    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+        // Volume of outputs to analog ports.
+        (0..ANALOG_OUT_LABELS.len()).for_each(|i| {
+            let pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
+            self.set_i16(pos, VOL_MAX as i16);
+        });
+
+        // Source of outputs.
+        let mut flags = self.get_u32(OUT_PAIR_SRC_POS);
+        flags = flags.build_out_src_flags(&[0, 0]);
+        self.set_u32(OUT_PAIR_SRC_POS, flags);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
+                                ANALOG_OUT_LABELS.len(), Some(VOL_TLV), true)?;
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, OUT_PAIR_LABELS.len(), OUT_PAIR_SRC_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_VOL_NAME => {
+                let vals = (0..ANALOG_OUT_LABELS.len()).map(|i| {
+                    let pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
+                    self.get_i16(pos) as i32
+                }).collect::<Vec<i32>>();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            OUT_SRC_NAME => {
+                let flags = self.get_u32(OUT_PAIR_SRC_POS);
+                let vals = flags.parse_out_src_flags();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUT_VOL_NAME => {
+                let mut vals = [0;ANALOG_OUT_LABELS.len() * 2];
+                new.get_int(&mut vals[..ANALOG_OUT_LABELS.len()]);
+                old.get_int(&mut vals[ANALOG_OUT_LABELS.len()..]);
+                vals[..ANALOG_OUT_LABELS.len()].iter().zip(vals[ANALOG_OUT_LABELS.len()..].iter()).enumerate()
+                    .filter(|(_, (n, o))| *n != *o)
+                    .try_for_each(|(i, (v, _))| {
+                        let mut pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
+                        self.set_i16(pos, *v as i16);
+                        pos -= pos % std::mem::size_of::<u32>();
+                        req.write_quadlet(unit, pos, &mut self.cache)
+                    })?;
+                Ok(true)
+            }
+            OUT_SRC_NAME => {
+                let mut vals = [0;OUT_PAIR_SRC_LABELS.len()];
+                new.get_enum(&mut vals);
+                let mut flags = self.get_u32(OUT_PAIR_SRC_POS);
+                flags = flags.build_out_src_flags(&vals);
+                self.set_u32(OUT_PAIR_SRC_POS, flags);
+                req.write_quadlet(unit, OUT_PAIR_SRC_POS, &mut self.cache)?;
                 Ok(true)
             }
             _ => Ok(false),
