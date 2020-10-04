@@ -10,6 +10,7 @@ use super::maudio::ozonic_model::OzonicModel;
 use super::maudio::solo_model::SoloModel;
 use super::maudio::audiophile_model::AudiophileModel;
 use super::maudio::fw410_model::Fw410Model;
+use super::maudio::profirelightbridge_model::ProfirelightbridgeModel;
 
 pub struct BebobModel<'a>{
     ctl_model: BebobCtlModel<'a>,
@@ -23,6 +24,7 @@ enum BebobCtlModel<'a> {
     MaudioSolo(SoloModel<'a>),
     MaudioAudiophile(AudiophileModel<'a>),
     MaudioFw410(Fw410Model<'a>),
+    MaudioPlb(ProfirelightbridgeModel),
 }
 
 impl<'a> BebobModel<'a> {
@@ -33,6 +35,7 @@ impl<'a> BebobModel<'a> {
             (0x000d6c, 0x010062) => BebobCtlModel::MaudioSolo(SoloModel::new()),
             (0x000d6c, 0x010060) => BebobCtlModel::MaudioAudiophile(AudiophileModel::new()),
             (0x0007f5, 0x010046) => BebobCtlModel::MaudioFw410(Fw410Model::new()),
+            (0x000d6c, 0x0100a1) => BebobCtlModel::MaudioPlb(ProfirelightbridgeModel::new()),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }
@@ -56,6 +59,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioSolo(m) => m.load(unit, card_cntr),
             BebobCtlModel::MaudioAudiophile(m) => m.load(unit, card_cntr),
             BebobCtlModel::MaudioFw410(m) => m.load(unit, card_cntr),
+            BebobCtlModel::MaudioPlb(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
@@ -64,6 +68,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioSolo(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             BebobCtlModel::MaudioAudiophile(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             BebobCtlModel::MaudioFw410(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            BebobCtlModel::MaudioPlb(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
         }
 
         match &mut self.ctl_model {
@@ -72,6 +77,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioSolo(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             BebobCtlModel::MaudioAudiophile(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             BebobCtlModel::MaudioFw410(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            BebobCtlModel::MaudioPlb(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -87,6 +93,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             BebobCtlModel::MaudioAudiophile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             BebobCtlModel::MaudioFw410(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            BebobCtlModel::MaudioPlb(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -99,6 +106,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioSolo(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             BebobCtlModel::MaudioAudiophile(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             BebobCtlModel::MaudioFw410(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            BebobCtlModel::MaudioPlb(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
         }
     }
 
@@ -111,6 +119,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             BebobCtlModel::MaudioAudiophile(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             BebobCtlModel::MaudioFw410(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            BebobCtlModel::MaudioPlb(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
         }
     }
 }
