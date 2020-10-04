@@ -119,6 +119,7 @@ your device, please contact to developer.
   * Apogee Ensemble
   * M-Audio Ozonic
   * M-Audio FireWire Solo
+  * M-Audio FireWire Audiophile
 
 Supported protocols
 ===================
