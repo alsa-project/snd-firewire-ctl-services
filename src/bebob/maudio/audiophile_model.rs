@@ -16,7 +16,7 @@ use crate::bebob::common_ctls::ClkCtl;
 use crate::bebob::BebobAvc;
 
 use super::common_proto::FCP_TIMEOUT_MS;
-use super::normal_ctls::{MeterCtl, MixerCtl};
+use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl};
 
 pub struct AudiophileModel<'a>{
     avc: BebobAvc,
@@ -24,6 +24,7 @@ pub struct AudiophileModel<'a>{
     clk_ctl: ClkCtl<'a>,
     meter_ctl: MeterCtl<'a>,
     mixer_ctl: MixerCtl<'a>,
+    input_ctl: InputCtl<'a>,
 }
 
 impl<'a> AudiophileModel<'a> {
@@ -56,6 +57,9 @@ impl<'a> AudiophileModel<'a> {
     const MIXER_STREAM_SRC_FB_IDS: &'a [u8] = &[0x00, 0x01, 0x02];
     const STREAM_IN_LABELS: &'a [&'a str] = &["stream-1/2", "stream-3/4", "stream-5/6"];
 
+    const PHYS_IN_FB_IDS: &'a [u8] = &[0x04, 0x05];
+    const STREAM_IN_FB_IDS: &'a [u8] = &[0x01, 0x02, 0x03];
+
     pub fn new() -> Self {
         AudiophileModel{
             avc: BebobAvc::new(),
@@ -66,6 +70,10 @@ impl<'a> AudiophileModel<'a> {
                 Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
                 Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
                 Self::MIXER_STREAM_SRC_FB_IDS, Self::STREAM_IN_LABELS,
+            ),
+            input_ctl: InputCtl::new(
+                Self::PHYS_IN_FB_IDS, Self::PHYS_IN_LABELS,
+                Self::STREAM_IN_FB_IDS, Self::STREAM_IN_LABELS,
             ),
         }
     }
@@ -82,6 +90,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;
         self.mixer_ctl.load(&self.avc, card_cntr)?;
+        self.input_ctl.load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -94,6 +103,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -109,6 +120,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
         } else if self.meter_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
+            Ok(true)
+        } else if self.input_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
