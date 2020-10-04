@@ -90,7 +90,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioFw410(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             BebobCtlModel::MaudioPlb(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             BebobCtlModel::MaudioSpecial(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            _ => (),
+            BebobCtlModel::BehringerFirepower(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -138,7 +138,7 @@ impl<'a> BebobModel<'a> {
             BebobCtlModel::MaudioFw410(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             BebobCtlModel::MaudioPlb(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             BebobCtlModel::MaudioSpecial(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            _ => Ok(()),
+            BebobCtlModel::BehringerFirepower(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
         }
     }
 }
