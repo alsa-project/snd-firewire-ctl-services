@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use snd_fw_ctl_services::tascam::unit::TascamUnit;
-
 use std::env;
 
 fn print_help() {
@@ -40,7 +38,7 @@ fn main() {
         }
     };
 
-    let err = match TascamUnit::new(subsystem, sysnum) {
+    let err = match tascam::unit::TascamUnit::new(subsystem, sysnum) {
         Err(err) => {
             println!(
                 "The {}:{} is not for Tascam device: {}",
