@@ -9,7 +9,6 @@ use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
 use alsactl::CardExt;
 
 use core::dispatcher;
-
 use core::card_cntr;
 
 use super::model::MotuModel;

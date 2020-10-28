@@ -7,5 +7,6 @@ members = [
     "libs/dg00x",
     "libs/tascam",
     "libs/efw",
+    "libs/motu",
     "services",
 ]
