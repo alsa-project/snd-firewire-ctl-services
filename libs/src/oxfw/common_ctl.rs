@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use hinawa::SndUnitExt;
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use crate::ta1394::*;
 use crate::ta1394::general::*;

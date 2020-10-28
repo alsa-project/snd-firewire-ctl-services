@@ -11,8 +11,8 @@ use hinawa::{FwNodeExt, SndUnitExt, SndTscmExt, SndTscmExtManual};
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
-use crate::dispatcher;
-use crate::card_cntr;
+use core::dispatcher;
+use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
 use super::fw1884_model::Fw1884Model;

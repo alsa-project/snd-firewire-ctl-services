@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use crate::bebob::BebobAvc;
 

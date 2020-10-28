@@ -6,7 +6,7 @@ use hinawa::{FwFcpExt, SndUnitExt};
 
 use alsactl::{ElemValueExtManual, ElemValueExt};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use crate::ta1394::{Ta1394Avc, AvcAddr};
 use crate::ta1394::general::UnitInfo;

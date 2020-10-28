@@ -6,7 +6,7 @@ use hinawa::SndUnitExt;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 use crate::tascam::protocol::{ClkSrc, ClkRate, CommonProtocol};
 
 pub struct CommonCtl<'a> {

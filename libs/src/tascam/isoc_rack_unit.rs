@@ -10,8 +10,8 @@ use hinawa::{FwNodeExt, SndUnitExt};
 
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
-use crate::dispatcher;
-use crate::card_cntr;
+use core::dispatcher;
+use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
 use super::fw1804_model::Fw1804Model;

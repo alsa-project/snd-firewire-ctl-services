@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::SndTscmExtManual;
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use super::protocol::ClkSrc;
 use super::common_ctl::CommonCtl;

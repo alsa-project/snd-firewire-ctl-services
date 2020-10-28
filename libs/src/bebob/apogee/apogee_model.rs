@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use crate::ta1394::{Ta1394Avc, AvcAddr, MUSIC_SUBUNIT_0};
 use crate::ta1394::general::UnitInfo;

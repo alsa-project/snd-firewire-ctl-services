@@ -10,7 +10,7 @@ use hinawa::{FwNodeExt, FwRespExt, FwRespExtManual};
 
 use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
-use crate::dispatcher;
+use core::dispatcher;
 
 use super::seq_cntr;
 

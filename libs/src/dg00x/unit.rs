@@ -11,8 +11,8 @@ use hinawa::{FwNodeExt, FwNodeExtManual};
 
 use alsactl::CardExt;
 
-use crate::dispatcher;
-use crate::card_cntr;
+use core::dispatcher;
+use core::card_cntr;
 use card_cntr::{CtlModel, NotifyModel};
 
 use super::model::Dg00xModel;

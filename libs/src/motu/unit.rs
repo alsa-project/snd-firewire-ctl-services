@@ -8,10 +8,10 @@ use std::sync::mpsc;
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
 use alsactl::CardExt;
 
-use crate::dispatcher;
+use core::dispatcher;
 
 use crate::ieee1212;
-use crate::card_cntr;
+use core::card_cntr;
 
 use super::model::MotuModel;
 

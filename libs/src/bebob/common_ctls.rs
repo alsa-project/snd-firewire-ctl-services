@@ -6,7 +6,7 @@ use hinawa::SndUnitExt;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr::CardCntr;
+use core::card_cntr::CardCntr;
 
 use crate::ta1394::{AvcAddr, Ta1394Avc};
 use crate::ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};

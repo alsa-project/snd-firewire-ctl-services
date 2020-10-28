@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use crate::ta1394::{Ta1394Avc, AvcAddr, AvcSubunitType};
 use crate::ta1394::general::UnitInfo;

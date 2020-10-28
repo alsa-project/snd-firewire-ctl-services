@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{SndMotu, FwReq};
 
-use crate::card_cntr::{CardCntr, CtlModel, NotifyModel};
+use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use super::v2_clk_ctls::V2ClkCtl;
 use super::v2_port_ctls::V2PortCtl;

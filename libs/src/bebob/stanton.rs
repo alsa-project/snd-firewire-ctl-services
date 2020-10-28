@@ -5,7 +5,7 @@ use glib::Error;
 use hinawa::{SndUnitExt, FwFcpExt};
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 use card_cntr::CtlModel;
 
 use crate::ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
