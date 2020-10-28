@@ -2,5 +2,6 @@
 members = [
     "libs",
     "libs/core",
+    "libs/ieee1212",
     "services",
 ]

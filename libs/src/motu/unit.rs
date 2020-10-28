@@ -10,7 +10,6 @@ use alsactl::CardExt;
 
 use core::dispatcher;
 
-use crate::ieee1212;
 use core::card_cntr;
 
 use super::model::MotuModel;
