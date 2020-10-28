@@ -10,11 +10,11 @@ use core::card_cntr;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
-use crate::bebob::BebobAvc;
-use crate::bebob::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
-use crate::bebob::extensions::BcoCompoundAm824StreamFormat;
-use crate::bebob::extensions::ExtendedStreamFormatSingle;
-use crate::bebob::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME, IN_METER_NAME, OUT_METER_NAME};
+use super::super::BebobAvc;
+use super::super::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
+use super::super::extensions::BcoCompoundAm824StreamFormat;
+use super::super::extensions::ExtendedStreamFormatSingle;
+use super::super::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME, IN_METER_NAME, OUT_METER_NAME};
 use super::apogee_proto::{ApogeeCmd, VendorCmd, HwCmdOp};
 
 pub struct HwCtl{

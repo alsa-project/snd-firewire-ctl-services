@@ -10,8 +10,8 @@ use ta1394::{Ta1394Avc, AvcAddr, MUSIC_SUBUNIT_0};
 use ta1394::general::UnitInfo;
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
-use crate::bebob::BebobAvc;
-use crate::bebob::common_ctls::ClkCtl;
+use super::super::BebobAvc;
+use super::super::common_ctls::ClkCtl;
 use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl, ResamplerCtl, MeterCtl};
 
 pub struct EnsembleModel<'a>{
