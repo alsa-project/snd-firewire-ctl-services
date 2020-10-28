@@ -1,0 +1,37 @@
+[package]
+name = "snd-firewire-ctl-services"
+version = "0.1.0"
+authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
+edition = "2018"
+license = "GPL-3.0-or-later"
+description = """
+Service programs to control audio and music unit on IEEE 1394 bus, supported by ALSA
+"""
+
+[dependencies]
+libc = "0.2"
+snd_fw_ctl_services = { path = "../libs" }
+
+[[bin]]
+name = "snd-firewire-digi00x-ctl-service"
+path = "src/snd-firewire-digi00x-ctl-service.rs"
+
+[[bin]]
+name = "snd-firewire-tascam-ctl-service"
+path = "src/snd-firewire-tascam-ctl-service.rs"
+
+[[bin]]
+name = "snd-fireworks-ctl-service"
+path = "src/snd-fireworks-ctl-service.rs"
+
+[[bin]]
+name = "snd-firewire-motu-ctl-service"
+path = "src/snd-firewire-motu-ctl-service.rs"
+
+[[bin]]
+name = "snd-oxfw-ctl-service"
+path = "src/snd-oxfw-ctl-service.rs"
+
+[[bin]]
+name = "snd-bebob-ctl-service"
+path = "src/snd-bebob-ctl-service.rs"
