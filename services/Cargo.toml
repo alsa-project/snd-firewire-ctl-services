@@ -12,6 +12,7 @@ Service programs to control audio and music unit on IEEE 1394 bus, supported by 
 libc = "0.2"
 snd_fw_ctl_services = { path = "../libs" }
 dg00x = { path = "../libs/dg00x" }
+tascam = { path = "../libs/tascam" }
 
 [[bin]]
 name = "snd-firewire-digi00x-ctl-service"
