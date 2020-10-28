@@ -2,7 +2,6 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use crate::ieee1212;
 use crate::ta1394;
 
 use core::card_cntr;

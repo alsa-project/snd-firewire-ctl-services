@@ -4,8 +4,6 @@ use glib::{Error, FileError};
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndTscmExt};
 
-use crate::ieee1212;
-
 use super::isoc_console_unit::IsocConsoleUnit;
 use super::isoc_rack_unit::IsocRackUnit;
 use super::async_unit::AsyncUnit;

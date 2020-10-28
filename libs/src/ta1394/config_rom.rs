@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use crate::ieee1212;
-
 use ieee1212::{Entry, EntryData, KeyType};
 
 #[derive(Clone, Debug)]
