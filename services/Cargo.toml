@@ -15,6 +15,7 @@ dg00x = { path = "../libs/dg00x" }
 tascam = { path = "../libs/tascam" }
 efw = { path = "../libs/efw" }
 motu = { path = "../libs/motu" }
+oxfw = { path = "../libs/oxfw" }
 
 [[bin]]
 name = "snd-firewire-digi00x-ctl-service"

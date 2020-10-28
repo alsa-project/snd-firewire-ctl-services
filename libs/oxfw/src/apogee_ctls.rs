@@ -7,6 +7,7 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 use core::card_cntr;
 
 use ta1394::{AvcAddr, Ta1394Avc};
+
 use super::apogee_proto::{VendorCmd, ApogeeCmd, ApogeeMeterProtocol};
 
 const TIMEOUT_MS: u32 = 100;
