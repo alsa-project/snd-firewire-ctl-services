@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use snd_fw_ctl_services::dg00x;
-
 use std::env;
 
 fn print_help() {
