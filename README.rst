@@ -153,29 +153,29 @@ Design note
 Control model
 -------------
 
-.. image:: control-model.png
+.. image:: docs/control-model.png
    :alt: control model
 
 Measure model
 -------------
 
-.. image:: measure-model.png
+.. image:: docs/measure-model.png
    :alt: measure model
 
 Notify model (with help of drivers in ALSA firewire stack)
 -------------------------------------------------------------------
 
-.. image:: notify-model-a.png
+.. image:: docs/notify-model-a.png
    :alt: notify-a-model
 
 Notify model (without any help of drivers in ALSA firewire stack)
 -------------------------------------------------------------------
 
-.. image:: notify-model-b.png
+.. image:: docs/notify-model-b.png
    :alt: notify-b-model
 
 Multi threading
 ---------------
 
-.. image:: overview.png
+.. image:: docs/overview.png
    :alt: overview
