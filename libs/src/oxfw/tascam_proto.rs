@@ -2,9 +2,9 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use crate::ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
-use crate::ta1394::{AvcOp, AvcControl, AvcStatus, AvcNotify};
-use crate::ta1394::general::VendorDependent;
+use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
+use ta1394::{AvcOp, AvcControl, AvcStatus, AvcNotify};
+use ta1394::general::VendorDependent;
 
 pub enum VendorCmd {
     DisplayMode,
@@ -155,7 +155,7 @@ impl Ta1394Avc for TascamAvc {
 
 #[cfg(test)]
 mod test {
-    use crate::ta1394::{AvcAddr, AvcStatus, AvcControl};
+    use ta1394::{AvcAddr, AvcStatus, AvcControl};
     use super::{TascamProto, VendorCmd};
 
     #[test]

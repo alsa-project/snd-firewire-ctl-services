@@ -6,10 +6,10 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
 
-use crate::ta1394::{AvcAddr, Ta1394Avc};
-use crate::ta1394::{AvcOp, AvcControl};
-use crate::ta1394::general::VendorDependent;
-use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl, AudioSelector};
+use ta1394::{AvcAddr, Ta1394Avc};
+use ta1394::{AvcOp, AvcControl};
+use ta1394::general::VendorDependent;
+use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl, AudioSelector};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};

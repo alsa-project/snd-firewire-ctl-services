@@ -8,7 +8,7 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
 
-use crate::ta1394::{AvcAddr, Ta1394Avc};
+use ta1394::{AvcAddr, Ta1394Avc};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};

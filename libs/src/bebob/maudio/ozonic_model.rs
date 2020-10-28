@@ -7,9 +7,9 @@ use hinawa::{FwFcpExt, SndUnitExt};
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
-use crate::ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
-use crate::ta1394::general::UnitInfo;
-use crate::ta1394::ccm::{SignalAddr, SignalSubunitAddr};
+use ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
+use ta1394::general::UnitInfo;
+use ta1394::ccm::{SignalAddr, SignalSubunitAddr};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;

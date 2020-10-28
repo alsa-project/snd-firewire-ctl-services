@@ -6,8 +6,8 @@ use hinawa::{SndUnitExt, FwFcpExt};
 
 use core::card_cntr;
 
-use crate::ta1394::{Ta1394Avc, AvcAddr, AvcSubunitType};
-use crate::ta1394::general::UnitInfo;
+use ta1394::{Ta1394Avc, AvcAddr, AvcSubunitType};
+use ta1394::general::UnitInfo;
 
 use super::common_ctl::CommonCtl;
 use super::apogee_ctls::{OutputCtl, MixerCtl, InputCtl, DisplayCtl, HwState};

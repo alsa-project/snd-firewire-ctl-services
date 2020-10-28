@@ -9,8 +9,8 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
-use crate::ta1394::{MUSIC_SUBUNIT_0};
-use crate::ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
+use ta1394::{MUSIC_SUBUNIT_0};
+use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;

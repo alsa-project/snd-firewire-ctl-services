@@ -8,9 +8,9 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 use core::card_cntr;
 use card_cntr::CtlModel;
 
-use crate::ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
-use crate::ta1394::ccm::{SignalAddr, SignalSubunitAddr};
-use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, FeatureCtl, CtlAttr, AudioCh};
+use ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
+use ta1394::ccm::{SignalAddr, SignalSubunitAddr};
+use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, FeatureCtl, CtlAttr, AudioCh};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::common_ctls::ClkCtl;

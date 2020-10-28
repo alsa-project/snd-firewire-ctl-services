@@ -7,10 +7,10 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
 
-use crate::ta1394::*;
-use crate::ta1394::general::*;
-use crate::ta1394::stream_format::*;
-use crate::ta1394::amdtp::*;
+use ta1394::*;
+use ta1394::general::*;
+use ta1394::stream_format::*;
+use ta1394::amdtp::*;
 
 pub struct CommonCtl{
     output_fmt_entries: Vec<CompoundAm824Stream>,

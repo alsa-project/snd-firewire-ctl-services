@@ -8,10 +8,10 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::CardCntr;
 
-use crate::ta1394::{AvcAddr, Ta1394Avc};
-use crate::ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
-use crate::ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
-use crate::ta1394::ccm::{SignalSource, SignalAddr};
+use ta1394::{AvcAddr, Ta1394Avc};
+use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
+use ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
+use ta1394::ccm::{SignalSource, SignalAddr};
 
 use super::extensions::{BcoPlugDirection, BcoPlugAddr, BcoPlugAddrUnitType};
 use super::extensions::{ExtendedStreamFormatSingle, ExtendedStreamFormatList};
