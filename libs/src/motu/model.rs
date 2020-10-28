@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use crate::card_cntr::{CardCntr, CtlModel, NotifyModel};
+use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use super::f828mk2::F828mk2;
 use super::traveler::Traveler;

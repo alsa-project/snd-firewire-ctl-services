@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use super::common_ctl::CommonCtl;
 

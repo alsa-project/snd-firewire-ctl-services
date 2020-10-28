@@ -4,7 +4,7 @@ use glib::Error;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use super::transactions::{HwInfo, HwCap, EfwGuitar};
 

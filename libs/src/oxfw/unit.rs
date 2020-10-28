@@ -9,8 +9,8 @@ use std::sync::mpsc;
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
-use crate::dispatcher;
-use crate::card_cntr;
+use core::dispatcher;
+use core::card_cntr;
 use crate::ta1394;
 
 use super::model::OxfwModel;

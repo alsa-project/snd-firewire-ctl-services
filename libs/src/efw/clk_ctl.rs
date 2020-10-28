@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use hinawa::SndUnitExt;
 

@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use crate::card_cntr;
+use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel, NotifyModel};
 
 use super::apogee::apogee_model::EnsembleModel;

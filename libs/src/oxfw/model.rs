@@ -2,8 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use crate::card_cntr;
-use crate::card_cntr::{CtlModel, MeasureModel, NotifyModel};
+use core::card_cntr;
+use card_cntr::{CtlModel, MeasureModel, NotifyModel};
 
 use super::tascam_model::TascamModel;
 use super::apogee_model::ApogeeModel;

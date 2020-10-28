@@ -4,7 +4,7 @@ use glib::Error;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use crate::ta1394::{AvcAddr, Ta1394Avc};
 use crate::ta1394::{AvcOp, AvcControl};

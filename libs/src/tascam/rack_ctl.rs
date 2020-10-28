@@ -6,7 +6,7 @@ use hinawa::SndUnitExt;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use super::protocol::RackProtocol;
 

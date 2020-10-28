@@ -6,7 +6,7 @@ use hinawa::{FwFcpExt, SndUnitExt};
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr;
+use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
 use crate::ta1394::{MUSIC_SUBUNIT_0};

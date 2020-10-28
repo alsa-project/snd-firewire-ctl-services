@@ -4,7 +4,7 @@ use glib::{Error, FileError};
 
 use crate::ta1394;
 
-use crate::card_cntr;
+use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
 use super::transactions::EfwInfo;

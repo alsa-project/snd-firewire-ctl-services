@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use hinawa::{SndUnitExt, SndMotu};
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use crate::card_cntr::CardCntr;
+use core::card_cntr::CardCntr;
 
 use super::common_proto::CommonProto;
 use super::v3_proto::V3Proto;

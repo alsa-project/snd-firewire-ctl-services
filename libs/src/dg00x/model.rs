@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use crate::ieee1212;
 use crate::ta1394;
 
-use crate::card_cntr;
+use core::card_cntr;
 
 use super::common_ctl::CommonCtl;
 use super::monitor_ctl::MonitorCtl;
