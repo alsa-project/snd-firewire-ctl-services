@@ -8,8 +8,8 @@ use alsactl::{ElemValueExtManual, ElemValueExt};
 
 use core::card_cntr;
 
-use crate::ta1394::{Ta1394Avc, AvcAddr};
-use crate::ta1394::general::UnitInfo;
+use ta1394::{Ta1394Avc, AvcAddr};
+use ta1394::general::UnitInfo;
 
 use super::tascam_proto::{TascamProto, VendorCmd, TascamAvc};
 

@@ -14,3 +14,4 @@ alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "
 alsaseq = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.1.1", version = "0.1" }
 core = { path = "core" }
 ieee1212 = { path = "ieee1212" }
+ta1394 = { path = "ta1394" }

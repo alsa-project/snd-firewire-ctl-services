@@ -2,9 +2,9 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use crate::ta1394::AvcAddr;
-use crate::ta1394::{AvcOp, AvcControl};
-use crate::ta1394::general::VendorDependent;
+use ta1394::AvcAddr;
+use ta1394::{AvcOp, AvcControl};
+use ta1394::general::VendorDependent;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum VendorCmd {
@@ -255,8 +255,8 @@ impl AvcControl for ApogeeCmd {
 #[cfg(test)]
 mod test {
     use super::{VendorCmd, HwCmdOp, ApogeeCmd};
-    use crate::ta1394::AvcAddr;
-    use crate::ta1394::AvcControl;
+    use ta1394::AvcAddr;
+    use ta1394::AvcControl;
 
     #[test]
     fn vendorcmd_from() {

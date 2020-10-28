@@ -2,8 +2,6 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use crate::ta1394;
-
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 

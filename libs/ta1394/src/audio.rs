@@ -782,8 +782,8 @@ impl AvcControl for AudioProcessing {
 
 #[cfg(test)]
 mod test {
-    use crate::ta1394::AvcAddr;
-    use crate::ta1394::{AvcStatus, AvcControl};
+    use super::super::AvcAddr;
+    use super::super::{AvcStatus, AvcControl};
     use super::{AUDIO_SUBUNIT_0_ADDR, AudioFuncBlk, AudioFuncBlkType, AudioFuncBlkCtl, CtlAttr};
     use super::AudioSelector;
     use super::{AudioFeature, FeatureCtl, GraphicEqualizerData, AudioCh};

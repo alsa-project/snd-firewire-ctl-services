@@ -8,8 +8,8 @@ use alsactl::{CardExtManual, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
 
-use crate::ta1394::Ta1394Avc;
-use crate::ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, CtlAttr, FeatureCtl, AudioCh};
+use ta1394::Ta1394Avc;
+use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, CtlAttr, FeatureCtl, AudioCh};
 
 use super::common_ctl::CommonCtl;
 

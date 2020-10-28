@@ -4,9 +4,9 @@ use glib::Error;
 
 use hinawa::FwReqExtManual;
 
-use crate::ta1394::{Ta1394AvcError, AvcAddr};
-use crate::ta1394::{AvcOp, AvcStatus, AvcControl};
-use crate::ta1394::general::VendorDependent;
+use ta1394::{Ta1394AvcError, AvcAddr};
+use ta1394::{AvcOp, AvcStatus, AvcControl};
+use ta1394::general::VendorDependent;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 // Usually 5 params.
@@ -275,8 +275,8 @@ impl ApogeeMeterProtocol for hinawa::FwReq {
 
 #[cfg(test)]
 mod test {
-    use crate::ta1394::AvcAddr;
-    use crate::ta1394::{AvcStatus, AvcControl};
+    use ta1394::AvcAddr;
+    use ta1394::{AvcStatus, AvcControl};
     use super::{ApogeeCmd, VendorCmd};
 
     #[test]

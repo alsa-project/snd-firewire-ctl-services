@@ -14,10 +14,10 @@ mod stanton;
 
 
 use glib::Error;
-use crate::ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
-use crate::ta1394::{AvcOp, AvcStatus, AvcControl, AvcNotify};
-use crate::ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
-use crate::ta1394::ccm::SignalSource;
+use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
+use ta1394::{AvcOp, AvcStatus, AvcControl, AvcNotify};
+use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
+use ta1394::ccm::SignalSource;
 
 pub struct BebobAvc{
     pub fcp: hinawa::FwFcp,

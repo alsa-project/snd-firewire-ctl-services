@@ -8,10 +8,10 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
 
-use crate::ta1394::{AvcAddr, Ta1394Avc};
-use crate::ta1394::{AvcOp, AvcControl};
-use crate::ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat, VendorDependent};
-use crate::ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
+use ta1394::{AvcAddr, Ta1394Avc};
+use ta1394::{AvcOp, AvcControl};
+use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat, VendorDependent};
+use ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
 
 use crate::bebob::BebobAvc;
 use crate::bebob::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};

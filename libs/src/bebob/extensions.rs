@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
-use crate::ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
-use crate::ta1394::{AvcOp, AvcStatus, AvcControl};
-use crate::ta1394::general::{PlugInfo, SubunitInfo};
-use crate::ta1394::stream_format::{StreamFormat, AmStream, SupportStatus};
+use ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
+use ta1394::{AvcOp, AvcStatus, AvcControl};
+use ta1394::general::{PlugInfo, SubunitInfo};
+use ta1394::stream_format::{StreamFormat, AmStream, SupportStatus};
 
 //
 // Bco Extended Plug Info command
@@ -1375,8 +1375,8 @@ impl AvcStatus for ExtendedStreamFormatList {
 
 #[cfg(test)]
 mod test {
-    use crate::ta1394::{AvcSubunitType, AvcAddr};
-    use crate::ta1394::AvcStatus;
+    use ta1394::{AvcSubunitType, AvcAddr};
+    use ta1394::AvcStatus;
     use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
     use super::{BcoPlugAddrUnit, BcoPlugAddrUnitType, BcoPlugAddrSubunit, BcoPlugAddrFuncBlk};
     use super::BcoPlugType;

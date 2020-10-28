@@ -12,7 +12,6 @@ use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
 use core::dispatcher;
 use core::card_cntr;
-use crate::ta1394;
 
 use super::model::BebobModel;
 
