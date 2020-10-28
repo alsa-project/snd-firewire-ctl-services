@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "libs",
     "libs/core",
     "libs/ieee1212",
     "libs/ta1394",
@@ -9,5 +8,6 @@ members = [
     "libs/efw",
     "libs/motu",
     "libs/oxfw",
+    "libs/bebob",
     "services",
 ]

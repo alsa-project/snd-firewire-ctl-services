@@ -14,9 +14,9 @@ use ta1394::general::UnitInfo;
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, ProcessingCtl, AudioProcessing, AudioSelector};
 
-use crate::bebob::common_ctls::ClkCtl;
+use super::super::common_ctls::ClkCtl;
 
-use crate::bebob::BebobAvc;
+use super::super::BebobAvc;
 
 use super::common_proto::FCP_TIMEOUT_MS;
 use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl};

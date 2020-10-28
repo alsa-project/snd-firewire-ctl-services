@@ -10,8 +10,8 @@ use card_cntr::CtlModel;
 use ta1394::MUSIC_SUBUNIT_0;
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
-use crate::bebob::BebobAvc;
-use crate::bebob::common_ctls::ClkCtl;
+use super::super::BebobAvc;
+use super::super::common_ctls::ClkCtl;
 
 pub struct FirepowerModel<'a>{
     avc: BebobAvc,

@@ -12,9 +12,9 @@ use card_cntr::{CtlModel, MeasureModel};
 use ta1394::{MUSIC_SUBUNIT_0};
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
-use crate::bebob::BebobAvc;
-use crate::bebob::common_ctls::ClkCtl;
-use crate::bebob::model::OUT_METER_NAME;
+use super::super::BebobAvc;
+use super::super::common_ctls::ClkCtl;
+use super::super::model::OUT_METER_NAME;
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
 

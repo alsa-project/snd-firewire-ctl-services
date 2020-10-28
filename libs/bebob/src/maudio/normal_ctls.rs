@@ -11,8 +11,8 @@ use ta1394::{AvcOp, AvcControl};
 use ta1394::general::VendorDependent;
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl, AudioSelector};
 
-use crate::bebob::BebobAvc;
-use crate::bebob::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
+use super::super::BebobAvc;
+use super::super::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::CommonProto;
 
