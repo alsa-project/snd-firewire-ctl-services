@@ -4,10 +4,9 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
 use ta1394::general::UnitInfo;
@@ -247,23 +246,18 @@ trait HpMixerCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             HP_MIXER_SRC_NAME => {
-                let len = Fw410Model::PHYS_OUT_SRC_FB_IDS.len();
-                let mut vals = vec![false;len];
-                vals.iter_mut().enumerate()
-                    .try_for_each(|(i, v)| {
-                        // NOTE: The value of 0/1 for out_ch has the same effect.
-                        let mut op = AudioProcessing::new(HP_MIXER_DST_FB_ID, CtlAttr::Current, HP_MIXER_SRC_FB_ID,
-                                                          AudioCh::Each(Fw410Model::PHYS_OUT_SRC_FB_IDS[i]),
-                                                          AudioCh::Each(0), ProcessingCtl::Mixer(vec![-1]));
-                        self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
-                        if let ProcessingCtl::Mixer(data) = op.ctl {
-                            *v = data[0] == HP_MIXER_ON;
-                            Ok(())
-                        } else {
-                            unreachable!();
-                        }
-                    })?;
-                elem_value.set_bool(&vals);
+                ElemValueAccessor::<bool>::set_vals(elem_value, Fw410Model::PHYS_OUT_SRC_FB_IDS.len(), |idx| {
+                    // NOTE: The value of 0/1 for out_ch has the same effect.
+                    let mut op = AudioProcessing::new(HP_MIXER_DST_FB_ID, CtlAttr::Current, HP_MIXER_SRC_FB_ID,
+                                                      AudioCh::Each(Fw410Model::PHYS_OUT_SRC_FB_IDS[idx]),
+                                                      AudioCh::Each(0), ProcessingCtl::Mixer(vec![-1]));
+                    self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    if let ProcessingCtl::Mixer(data) = op.ctl {
+                        Ok(data[0] == HP_MIXER_ON)
+                    } else {
+                        unreachable!();
+                    }
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -275,19 +269,13 @@ trait HpMixerCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             HP_MIXER_SRC_NAME => {
-                let len = Fw410Model::PHYS_OUT_SRC_FB_IDS.len();
-                let mut vals = vec![false;len * 2];
-                new.get_bool(&mut vals[0..len]);
-                old.get_bool(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let ctl = ProcessingCtl::Mixer(vec![if *v { HP_MIXER_ON } else { HP_MIXER_OFF }]);
-                        // NOTE: The value of 0/1 for out_ch has the same effect.
-                        let mut op = AudioProcessing::new(HP_MIXER_DST_FB_ID, CtlAttr::Current, HP_MIXER_SRC_FB_ID,
-                                            AudioCh::Each(Fw410Model::PHYS_OUT_SRC_FB_IDS[i]), AudioCh::Each(0), ctl);
-                        self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, Fw410Model::PHYS_OUT_SRC_FB_IDS.len(), |idx, val| {
+                    let ctl = ProcessingCtl::Mixer(vec![if val { HP_MIXER_ON } else { HP_MIXER_OFF }]);
+                    // NOTE: The value of 0/1 for out_ch has the same effect.
+                    let mut op = AudioProcessing::new(HP_MIXER_DST_FB_ID, CtlAttr::Current, HP_MIXER_SRC_FB_ID,
+                                        AudioCh::Each(Fw410Model::PHYS_OUT_SRC_FB_IDS[idx]), AudioCh::Each(0), ctl);
+                    self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -313,9 +301,11 @@ trait SpdifSrcCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             SPDIF_SRC_NAME => {
-                let mut op = AudioSelector::new(SPDIF_SRC_FB_ID, CtlAttr::Current, 0xff);
-                self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.input_plug_id as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = AudioSelector::new(SPDIF_SRC_FB_ID, CtlAttr::Current, 0xff);
+                    self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    Ok(op.input_plug_id as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -327,10 +317,10 @@ trait SpdifSrcCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             SPDIF_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = AudioSelector::new(SPDIF_SRC_FB_ID, CtlAttr::Current, vals[0] as u8);
-                self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = AudioSelector::new(SPDIF_SRC_FB_ID, CtlAttr::Current, val as u8);
+                    self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),

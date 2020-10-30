@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr::CardCntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
@@ -102,28 +101,32 @@ impl<'a> ClkCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                let plug_addr = BcoPlugAddr::new_for_unit(BcoPlugDirection::Output, BcoPlugAddrUnitType::Isoc, 0);
-                let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
-                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                let format = op.stream_format.as_bco_compound_am824_stream()?;
-                match self.supported_clk_rates.iter().position(|r| *r == format.freq) {
-                    Some(idx) => {
-                        elem_value.set_enum(&[idx as u32]);
-                        Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let plug_addr = BcoPlugAddr::new_for_unit(BcoPlugDirection::Output, BcoPlugAddrUnitType::Isoc, 0);
+                    let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+                    avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    let format = op.stream_format.as_bco_compound_am824_stream()?;
+                    if let Some(idx) = self.supported_clk_rates.iter().position(|r| *r == format.freq) {
+                        Ok(idx as u32)
+                    } else {
+                        let label = "Unexpected entry for stream format";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                    None => Ok(false),
-                }
+                })?;
+                Ok(true)
             }
             CLK_SRC_NAME => {
-                let mut op = SignalSource::new(self.clk_dst);
-                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                match self.clk_srcs.iter().position(|s| *s == op.src) {
-                    Some(idx) => {
-                        elem_value.set_enum(&[idx as u32]);
-                        Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = SignalSource::new(self.clk_dst);
+                    avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    if let Some(idx) = self.clk_srcs.iter().position(|s| *s == op.src) {
+                        Ok(idx as u32)
+                    } else {
+                        let label = "Unexpected entry for source of clock";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                    None => Ok(false)
-                }
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -138,42 +141,44 @@ impl<'a> ClkCtl<'a> {
         timeout_ms *= 2;
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let freq = self.supported_clk_rates[vals[0] as usize];
-                let fdf = AmdtpFdf::new(AmdtpEventType::Am824, false, freq);
-                unit.lock()?;
-                let mut op = InputPlugSignalFormat{
-                    plug_id: 0,
-                    fmt: FMT_IS_AMDTP,
-                    fdf: fdf.into(),
-                };
-                let mut res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
-                if res.is_ok() {
-                    let mut op = OutputPlugSignalFormat{
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let freq = self.supported_clk_rates[val as usize];
+                    let fdf = AmdtpFdf::new(AmdtpEventType::Am824, false, freq);
+                    unit.lock()?;
+                    let mut op = InputPlugSignalFormat{
                         plug_id: 0,
                         fmt: FMT_IS_AMDTP,
                         fdf: fdf.into(),
                     };
-                    res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
-                }
-                let _ = unit.unlock();
-                res.and(Ok(true))
+                    let mut res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
+                    if res.is_ok() {
+                        let mut op = OutputPlugSignalFormat{
+                            plug_id: 0,
+                            fmt: FMT_IS_AMDTP,
+                            fdf: fdf.into(),
+                        };
+                        res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
+                    }
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             CLK_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                match self.clk_srcs.iter().nth(vals[0] as usize) {
-                    Some(src) => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    if let Some(src) = self.clk_srcs.iter().nth(val as usize) {
                         let mut op = SignalSource::new(self.clk_dst);
                         op.src = *src;
                         unit.lock()?;
                         let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
                         let _ = unit.unlock();
-                        res.and(Ok(true))
+                        res
+                    } else {
+                        let label = "Invalid value for source of clock";
+                        Err(Error::new(FileError::Inval, &label))
                     }
-                    None => Ok(false),
-                }
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }

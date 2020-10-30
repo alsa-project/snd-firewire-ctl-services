@@ -4,10 +4,9 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{MUSIC_SUBUNIT_0};
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
@@ -173,14 +172,12 @@ impl<'a> MeterCtl {
     fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_METER_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().for_each(|(i, v)| {
-                    let mut quadlet = [0;4];
-                    let pos = 4 + i * 4;
+                let mut quadlet = [0;4];
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    let pos = 4 + idx * 4;
                     quadlet.copy_from_slice(&self.cache[pos..(pos + 4)]);
-                    *v = i32::from_be_bytes(quadlet);
-                });
-                elem_value.set_int(&vals);
+                    Ok(i32::from_be_bytes(quadlet))
+                })?;
                 Ok(true)
             }
             Self::DETECTED_RATE_NAME => {
@@ -188,16 +185,20 @@ impl<'a> MeterCtl {
                 quadlet.copy_from_slice(&self.cache[0..4]);
                 let val = u32::from_be_bytes(quadlet);
                 if val > 0 && val <= Self::RATE_LABELS.len() as u32 {
-                    elem_value.set_enum(&[val - 1]);
+                    ElemValueAccessor::<u32>::set_val(elem_value, || {
+                        Ok(val - 1)
+                    })?;
                     Ok(true)
                 } else {
                     Ok(false)
                 }
             }
             Self::SYNC_STATUS_NAME => {
-                let mut quadlet = [0;4];
-                quadlet.copy_from_slice(&self.cache[20..24]);
-                elem_value.set_bool(&[u32::from_be_bytes(quadlet) != 2]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let mut quadlet = [0;4];
+                    quadlet.copy_from_slice(&self.cache[20..24]);
+                    Ok(u32::from_be_bytes(quadlet) != 2)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -274,22 +275,22 @@ impl<'a> InputCtl {
     fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MUTE_NAME => {
-                let mut vals = vec![false;Self::INPUT_LABELS.len()];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut quadlet = [0; 4];
-                    let bytes = &self.cache[(i * 4)..(i * 4 + 4)];
+                let mut quadlet = [0;4];
+                ElemValueAccessor::<bool>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    let pos = idx * 4;
+                    let bytes = &self.cache[pos..(pos + 4)];
                     quadlet.copy_from_slice(bytes);
-                    *v = u32::from_be_bytes(quadlet) > 0;
-                    Ok(())
+                    Ok(u32::from_be_bytes(quadlet) > 0)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::FORCE_SMUX_NAME => {
-                let mut quadlet = [0; 4];
-                let pos = Self::INPUT_LABELS.len() * 4;
-                quadlet.copy_from_slice(&self.cache[pos..(pos + 4)]);
-                elem_value.set_bool(&[u32::from_be_bytes(quadlet) > 0]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let mut quadlet = [0;4];
+                    let pos = Self::INPUT_LABELS.len() * 4;
+                    quadlet.copy_from_slice(&self.cache[pos..(pos + 4)]);
+                    Ok(u32::from_be_bytes(quadlet) > 0)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -297,7 +298,7 @@ impl<'a> InputCtl {
     }
 
     fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -305,24 +306,23 @@ impl<'a> InputCtl {
                 if unit.get_property_streaming() {
                     Ok(false)
                 } else {
-                    let mut vals = vec![false;Self::INPUT_LABELS.len()];
-                    new.get_bool(&mut vals);
-                    vals.iter().enumerate().for_each(|(i, v)| {
-                        let val = *v as u32;
-                        let pos = i * 4;
+                    ElemValueAccessor::<bool>::get_vals(new, old, Self::INPUT_LABELS.len(), |idx, val| {
+                        let val = val as u32;
+                        let pos = idx * 4;
                         self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
-                    });
+                        Ok(())
+                    })?;
                     req.write_block(unit, Self::OFFSET, &mut self.cache)?;
                     Ok(true)
                 }
             }
             Self::FORCE_SMUX_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let val = vals[0] as u32;
-                let pos = Self::INPUT_LABELS.len() * 4;
-                self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
-                req.write_block(unit, Self::OFFSET, &mut self.cache)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let val = val as u32;
+                    let pos = Self::INPUT_LABELS.len() * 4;
+                    self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+                    req.write_block(unit, Self::OFFSET, &mut self.cache)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
