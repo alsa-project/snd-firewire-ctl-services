@@ -2,3 +2,4 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod dispatcher;
 pub mod card_cntr;
+pub mod elem_value_accessor;
