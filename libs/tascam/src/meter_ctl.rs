@@ -5,6 +5,7 @@ use glib::Error;
 use alsactl::ElemValueExt;
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::common_ctl::CommonCtl;
 
@@ -289,11 +290,11 @@ impl<'a> MeterCtl<'a> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MONITOR_ROTARY_NAME => {
-                elem_value.set_int(&[self.monitor]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.monitor))?;
                 Ok(true)
             }
             Self::SOLO_ROTARY_NAME => {
-                elem_value.set_int(&[self.solo]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.solo))?;
                 Ok(true)
             }
             Self::INPUT_METER_NAME => {
@@ -329,11 +330,11 @@ impl<'a> MeterCtl<'a> {
                 Ok(true)
             }
             Self::DETECTED_CLK_SRC_NAME => {
-                elem_value.set_enum(&[self.src]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.src))?;
                 Ok(true)
             }
             Self::DETECTED_CLK_RATE_NAME => {
-                elem_value.set_enum(&[self.rate]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.rate))?;
                 Ok(true)
             }
             Self::MONITOR_METER_NAME => {
@@ -345,7 +346,7 @@ impl<'a> MeterCtl<'a> {
                 Ok(true)
             }
             Self::MONITOR_MODE_NAME => {
-                elem_value.set_enum(&[self.monitor_mode]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.monitor_mode))?;
                 Ok(true)
             }
             _ => Ok(false),

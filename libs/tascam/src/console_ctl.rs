@@ -4,9 +4,8 @@ use glib::Error;
 
 use hinawa::SndUnitExt;
 
-use alsactl::ElemValueExtManual;
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::protocol::ConsoleProtocol;
 
@@ -75,12 +74,14 @@ impl<'a> ConsoleCtl {
 
         match elem_id.get_name().as_str() {
             Self::MASTER_FADER_ASSIGN_NAME => {
-                let val = req.get_master_fader_assign(&node)?;
-                elem_value.set_bool(&[val]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let val = req.get_master_fader_assign(&node)?;
+                    Ok(val)
+                })?;
                 Ok(true)
             }
             Self::HOST_MODE_NAME => {
-                elem_value.set_bool(&[self.host_mode]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.host_mode))?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -99,9 +100,7 @@ impl<'a> ConsoleCtl {
 
         match elem_id.get_name().as_str() {
             Self::MASTER_FADER_ASSIGN_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                req.set_master_fader_assign(&node, vals[0])?;
+                ElemValueAccessor::<bool>::get_val(new, |val| req.set_master_fader_assign(&node, val))?;
                 Ok(true)
             }
             _ => Ok(false),

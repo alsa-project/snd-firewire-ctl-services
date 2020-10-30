@@ -4,9 +4,8 @@ use glib::Error;
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::protocol::RackProtocol;
 
@@ -91,30 +90,24 @@ impl<'a> RackCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::GAIN_NAME => {
-                let mut vals = vec![0;Self::INPUT_LABELS.len()];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = req.get_gain(&self.cache, i)? as i32;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    let val = req.get_gain(&self.cache, idx)?;
+                    Ok(val as i32)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::BALANCE_NAME => {
-                let mut vals = vec![0;Self::INPUT_LABELS.len()];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = req.get_balance(&self.cache, i)? as i32;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    let val = req.get_balance(&self.cache, idx)?;
+                    Ok(val as i32)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::MUTE_NAME => {
-                let mut vals = vec![false;Self::INPUT_LABELS.len()];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = req.get_mute(&self.cache, i)?;
-                    Ok(())
+                ElemValueAccessor::<bool>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    let val = req.get_mute(&self.cache, idx)?;
+                    Ok(val)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -133,48 +126,21 @@ impl<'a> RackCtl {
 
         match elem_id.get_name().as_str() {
             Self::GAIN_NAME => {
-                let len = Self::INPUT_LABELS.len();
-                let mut vals = vec![0; len * 2];
-                old.get_int(&mut vals[0..len]);
-                new.get_int(&mut vals[len..]);
-
-                (0..len).try_for_each(|i| {
-                    if vals[i] != vals[len + i] {
-                        req.set_gain(&node, &mut self.cache, i, vals[len + i] as i16)?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<i32>::get_vals(new, old, Self::INPUT_LABELS.len(), |idx, val| {
+                    req.set_gain(&node, &mut self.cache, idx, val as i16)
                 })?;
-
                 Ok(true)
             }
             Self::BALANCE_NAME => {
-                let len = Self::INPUT_LABELS.len();
-                let mut vals = vec![0; len * 2];
-                old.get_int(&mut vals[0..len]);
-                new.get_int(&mut vals[len..]);
-
-                (0..len).try_for_each(|i| {
-                    if vals[i] != vals[len + i] {
-                        req.set_balance(&node, &mut self.cache, i, vals[len + i] as u8)?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<i32>::get_vals(new, old, Self::INPUT_LABELS.len(), |idx, val| {
+                    req.set_balance(&node, &mut self.cache, idx, val as u8)
                 })?;
-
                 Ok(true)
             }
             Self::MUTE_NAME => {
-                let len = Self::INPUT_LABELS.len();
-                let mut vals = vec![false; len * 2];
-                old.get_bool(&mut vals[0..len]);
-                new.get_bool(&mut vals[len..]);
-
-                (0..len).try_for_each(|i| {
-                    if vals[i] != vals[len + i] {
-                        req.set_mute(&node, &mut self.cache, i, vals[len + i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<bool>::get_vals(new, old, Self::INPUT_LABELS.len(), |idx, val| {
+                    req.set_mute(&node, &mut self.cache, idx, val)
                 })?;
-
                 Ok(true)
             }
             _ => Ok(false),

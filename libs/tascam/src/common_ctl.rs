@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::protocol::{ClkSrc, ClkRate, CommonProtocol};
 
@@ -112,33 +111,41 @@ impl<'a> CommonCtl<'a> {
 
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
-                let src = req.get_clk_src(&node)?;
-                match self.clk_srcs.iter().position(|&s| s == src) {
-                    Some(index) => {
-                        elem_value.set_enum(&[index as u32]);
-                        Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let src = req.get_clk_src(&node)?;
+                    if let Some(index) = self.clk_srcs.iter().position(|&s| s == src) {
+                        Ok(index as u32)
+                    } else {
+                        let label = "Unexpected value for source of clock";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                    _ => Ok(false),
-                }
+                })?;
+                Ok(true)
             }
             Self::CLK_RATE_NAME => {
-                let rate = req.get_clk_rate(&node)?;
-                match Self::CLK_RATES.iter().position(|&r| r == rate) {
-                    Some(index) => {
-                        elem_value.set_enum(&[index as u32]);
-                        Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let rate = req.get_clk_rate(&node)?;
+                    if let Some(index) = Self::CLK_RATES.iter().position(|&r| r == rate) {
+                        Ok(index as u32)
+                    } else {
+                        let label = "Unexpected value for rate of clock";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                    _ => Ok(false),
-                }
+                })?;
+                Ok(true)
             }
             Self::INPUT_THRESHOLD_NAME => {
-                let val = req.get_input_threshold(&node)?;
-                elem_value.set_int(&[val as i32]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    let val = req.get_input_threshold(&node)?;
+                    Ok(val as i32)
+                })?;
                 Ok(true)
             }
             Self::COAX_OUT_SRC_NAME => {
-                let index = req.get_coax_out_src(&node)?;
-                elem_value.set_enum(&[index as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let index = req.get_coax_out_src(&node)?;
+                    Ok(index as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(true),
@@ -157,43 +164,43 @@ impl<'a> CommonCtl<'a> {
 
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let index = vals[0] as usize;
-                unit.lock()?;
-                let res = req.set_clk_src(&node, self.clk_srcs[index]);
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.set_clk_src(&node, self.clk_srcs[val as usize]);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             Self::CLK_RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let index = vals[0] as usize;
-                unit.lock()?;
-                let res = req.set_clk_rate(&node, Self::CLK_RATES[index]);
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.set_clk_rate(&node, Self::CLK_RATES[val as usize]);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             Self::INPUT_THRESHOLD_NAME => {
-                let mut vals = [0];
-                new.get_int(&mut vals);
-                if vals[0] >= Self::THRESHOLD_MIN && vals[0] <= Self::THRESHOLD_MAX {
-                    req.set_input_threshold(&node, vals[0] as i16)?;
-                }
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    if val >= Self::THRESHOLD_MIN && val <= Self::THRESHOLD_MAX {
+                        req.set_input_threshold(&node, val as i16)
+                    } else {
+                        let label = "Unexpected value for threshold";
+                        Err(Error::new(FileError::Inval, &label))
+                    }
+                })?;
                 Ok(true)
             }
             Self::COAX_OUT_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                if vals[0] < Self::COAX_OUT_SRC_LABELS.len() as u32 {
-                    req.set_coax_out_src(&node, vals[0] as usize)?;
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    if val < Self::COAX_OUT_SRC_LABELS.len() as u32 {
+                        req.set_coax_out_src(&node, val as usize)
+                    } else {
+                        let label = "Unexpected value for source of coaxial output";
+                        Err(Error::new(FileError::Inval, &label))
+                    }
+                })?;
                 Ok(true)
             }
             _ => Ok(false),

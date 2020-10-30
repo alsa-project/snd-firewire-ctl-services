@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::protocol::OpticalProtocol;
 
@@ -67,13 +66,17 @@ impl<'a> OpticalCtl<'a> {
 
         match elem_id.get_name().as_str() {
             Self::OPT_OUT_SRC_NAME => {
-                let index = req.get_opt_out_src(&node)?;
-                elem_value.set_enum(&[index as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let index = req.get_opt_out_src(&node)?;
+                    Ok(index as u32)
+                })?;
                 Ok(true)
             }
             Self::SPDIF_IN_SRC_NAME => {
-                let index = req.get_spdif_in_src(&node)?;
-                elem_value.set_enum(&[index as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let index = req.get_spdif_in_src(&node)?;
+                    Ok(index as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -92,21 +95,27 @@ impl<'a> OpticalCtl<'a> {
 
         match elem_id.get_name().as_str() {
             Self::OPT_OUT_SRC_NAME => {
-                let mut vals = [0; 2];
-                new.get_enum(&mut vals[1..]);
-                let index = vals[0] as usize;
-                if index <= self.out_src_labels.len() {
-                    req.set_opt_out_src(&node, index)?;
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let index = val as usize;
+                    if index <= self.out_src_labels.len() {
+                        req.set_opt_out_src(&node, index)
+                    } else {
+                        let label = "Invalid value of source of opticao output";
+                        Err(Error::new(FileError::Inval, &label))
+                    }
+                })?;
                 Ok(true)
             }
             Self::SPDIF_IN_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let index = vals[0] as usize;
-                if index <= Self::SPDIF_IN_SRC_LABELS.len() {
-                    req.set_spdif_in_src(&node, index)?;
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let index = val as usize;
+                    if index <= Self::SPDIF_IN_SRC_LABELS.len() {
+                        req.set_spdif_in_src(&node, index)
+                    } else {
+                        let label = "Invalid value for source of S/PDIF input";
+                        Err(Error::new(FileError::Inval, &label))
+                    }
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
