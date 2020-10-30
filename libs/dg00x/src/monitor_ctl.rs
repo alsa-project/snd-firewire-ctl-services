@@ -4,9 +4,8 @@ use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::protocol::{CommonProtocol, MonitorProtocol};
 
@@ -98,20 +97,18 @@ impl<'a> MonitorCtl {
 
         match elem_id.get_name().as_str() {
             Self::ENABLE_NAME => {
-                let mut vals = [false];
-                vals[0] = req.read_quadlet(&node, Self::ENABLE_OFFSET)? > 0;
-                elem_value.set_bool(&vals);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let val = req.read_quadlet(&node, Self::ENABLE_OFFSET)?;
+                    Ok(val > 0)
+                })?;
                 Ok(true)
             }
             Self::SRC_GAIN_NAME => {
                 let monitor = elem_id.get_index() as usize;
-                let mut vals = [0; 18];
-                Self::IN_LABELS.iter().enumerate().try_for_each(|(i, _)| {
-                    let val = req.read_gain(&node, monitor, i)?;
-                    vals[i] = (val >> 24) as i32;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::IN_LABELS.len(), |idx| {
+                    let val = req.read_gain(&node, monitor, idx)?;
+                    Ok((val >> 24) as i32)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -134,26 +131,16 @@ impl<'a> MonitorCtl {
 
             match elem_id.get_name().as_str() {
                 Self::ENABLE_NAME => {
-                    let mut vals = [false];
-                    new.get_bool(&mut vals);
-                    let val = vals[0];
-                    req.write_quadlet(&node, Self::ENABLE_OFFSET, val as u32)?;
+                    ElemValueAccessor::<bool>::get_val(new, |val| {
+                        req.write_quadlet(&node, Self::ENABLE_OFFSET, val as u32)
+                    })?;
                     Ok(true)
                 }
                 Self::SRC_GAIN_NAME => {
                     let monitor = elem_id.get_index() as usize;
-                    let len = Self::IN_LABELS.len();
-                    let mut vals = vec![0; len * 2];
-                    new.get_int(&mut vals[0..len]);
-                    old.get_int(&mut vals[len..]);
-
-                    Self::IN_LABELS.iter().enumerate().try_for_each(|(i, _)| {
-                        if vals[i] != vals[i + len] {
-                            let val = (vals[i] << 24) as u32;
-                            req.write_gain(&node, monitor, i, val)
-                        } else {
-                            Ok(())
-                        }
+                    ElemValueAccessor::<i32>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
+                        let val = (val << 24) as u32;
+                        req.write_gain(&node, monitor, idx, val)
                     })?;
                     Ok(true)
                 }
