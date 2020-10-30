@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use core::card_cntr;
-
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::transactions::{HwCap, EfwPhysInput, NominalLevel, HwInfo};
 
@@ -59,26 +58,20 @@ impl<'a> InputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::IN_NOMINAL_NAME => {
-                let mut vals = vec![0; self.phys_inputs];
-                match &self.cache {
-                    // For models with FPGA.
-                    Some(cache) => {
-                        vals.iter_mut().zip(cache.iter()).for_each(|(val, &level)| {
-                            *val = u32::from(level)
-                        });
+                ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_inputs, |idx| {
+                    if let Some(cache) = &self.cache {
+                        // For models with FPGA.
+                        Ok(u32::from(cache[idx]))
+                    } else {
+                        // For models with DSP.
+                        let level = EfwPhysInput::get_nominal(unit, idx)?;
+                        if let Some(pos) = Self::IN_NOMINAL_LEVELS.iter().position(|&l| l == level) {
+                            Ok(pos as u32)
+                        } else {
+                            unreachable!();
+                        }
                     }
-                    // For models with DSP.
-                    None => {
-                        vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                            let level = EfwPhysInput::get_nominal(unit, i)?;
-                            if let Some(pos) = Self::IN_NOMINAL_LEVELS.iter().position(|&l| l == level) {
-                                *val = pos as u32;
-                            }
-                            Ok(())
-                        })?;
-                    }
-                }
-                elem_value.set_enum(&vals);
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -94,25 +87,19 @@ impl<'a> InputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::IN_NOMINAL_NAME => {
-                let mut vals = vec![0; self.phys_inputs * 2];
-                new.get_enum(&mut vals[..self.phys_inputs]);
-                old.get_enum(&mut vals[self.phys_inputs..]);
-                (0..self.phys_inputs).try_for_each(|i| {
-                    if vals[i] != vals[self.phys_inputs + i] {
-                        if let Some(&level) = Self::IN_NOMINAL_LEVELS.iter().nth(vals[i] as usize) {
-                            EfwPhysInput::set_nominal(unit, i, level)?;
+                ElemValueAccessor::<u32>::get_vals(new, old, self.phys_inputs, |idx, val| {
+                    if let Some(&level) = Self::IN_NOMINAL_LEVELS.iter().nth(val as usize) {
+                        EfwPhysInput::set_nominal(unit, idx, level)?;
+                        if let Some(cache) = &mut self.cache {
+                            // For FPGA models.
+                            cache[idx] = level;
                         }
+                        Ok(())
+                    } else {
+                        let label = "Invalid value for nominal level of input";
+                        Err(Error::new(FileError::Inval, &label))
                     }
-                    Ok(())
                 })?;
-
-                // For FPGA models.
-                if let Some(cache) = &mut self.cache {
-                    cache.iter_mut().zip(vals[0..self.phys_inputs].iter()).for_each(|(c, &val)| {
-                        *c = NominalLevel::from(val);
-                    });
-                }
-
                 Ok(true)
             }
             _ => Ok(false),

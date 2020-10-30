@@ -2,9 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::transactions::{HwInfo, HwCap, EfwGuitar};
 
@@ -54,18 +53,24 @@ impl<'a> GuitarCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MANUAL_CHARGE_NAME => {
-                let state = EfwGuitar::get_charge_state(unit)?;
-                elem_value.set_bool(&[state.manual_charge]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let state = EfwGuitar::get_charge_state(unit)?;
+                    Ok(state.manual_charge)
+                })?;
                 Ok(true)
             }
             Self::AUTO_CHARGE_NAME => {
-                let state = EfwGuitar::get_charge_state(unit)?;
-                elem_value.set_bool(&[state.auto_charge]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let state = EfwGuitar::get_charge_state(unit)?;
+                    Ok(state.auto_charge)
+                })?;
                 Ok(true)
             }
             Self::SUSPEND_TO_CHARGE => {
-                let state = EfwGuitar::get_charge_state(unit)?;
-                elem_value.set_int(&[state.suspend_to_charge as i32]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    let state = EfwGuitar::get_charge_state(unit)?;
+                    Ok(state.suspend_to_charge as i32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -81,27 +86,27 @@ impl<'a> GuitarCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MANUAL_CHARGE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut state = EfwGuitar::get_charge_state(unit)?;
-                state.manual_charge = vals[0];
-                EfwGuitar::set_charge_state(unit, &state)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut state = EfwGuitar::get_charge_state(unit)?;
+                    state.manual_charge = val;
+                    EfwGuitar::set_charge_state(unit, &state)
+                })?;
                 Ok(true)
             }
             Self::AUTO_CHARGE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut state = EfwGuitar::get_charge_state(unit)?;
-                state.auto_charge = vals[0];
-                EfwGuitar::set_charge_state(unit, &state)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut state = EfwGuitar::get_charge_state(unit)?;
+                    state.auto_charge = val;
+                    EfwGuitar::set_charge_state(unit, &state)
+                })?;
                 Ok(true)
             }
             Self::SUSPEND_TO_CHARGE => {
-                let mut vals = [0];
-                new.get_int(&mut vals);
-                let mut state = EfwGuitar::get_charge_state(unit)?;
-                state.suspend_to_charge = vals[0] as u32;
-                EfwGuitar::set_charge_state(unit, &state)?;
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    let mut state = EfwGuitar::get_charge_state(unit)?;
+                    state.suspend_to_charge = val as u32;
+                    EfwGuitar::set_charge_state(unit, &state)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
