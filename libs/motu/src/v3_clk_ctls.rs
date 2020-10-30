@@ -3,9 +3,9 @@
 use glib::Error;
 
 use hinawa::{SndUnitExt, SndMotu};
-use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::CardCntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::common_proto::CommonProto;
 use super::v3_proto::V3Proto;
@@ -47,16 +47,20 @@ impl<'a> V3ClkCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
-                let val = req.get_clk_rate(unit, &self.rate_vals)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_clk_rate(unit, &self.rate_vals)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
-                let val = req.get_clk_src(unit, &self.src_vals)?;
-                if self.has_lcd {
-                    req.update_clk_disaplay(unit, &self.src_labels[val])?;
-                }
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_clk_src(unit, &self.src_vals)?;
+                    if self.has_lcd {
+                        req.update_clk_disaplay(unit, &self.src_labels[val])?;
+                    }
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -69,33 +73,29 @@ impl<'a> V3ClkCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                unit.lock()?;
-                let res = req.set_clk_rate(unit, &self.rate_vals, vals[0] as usize);
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.set_clk_rate(unit, &self.rate_vals, val as usize);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             Self::SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let prev_src = req.get_clk_src(unit, &self.src_vals)?;
-                unit.lock()?;
-                let mut res = req.set_clk_src(unit, &self.src_vals, vals[0] as usize);
-                if res.is_ok() && self.has_lcd {
-                    res = req.update_clk_disaplay(unit, self.src_labels[vals[0] as usize]);
-                    if res.is_err() {
-                        let _ = req.set_clk_src(unit, &self.src_vals, prev_src);
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let prev_src = req.get_clk_src(unit, &self.src_vals)?;
+                    unit.lock()?;
+                    let mut res = req.set_clk_src(unit, &self.src_vals, val as usize);
+                    if res.is_ok() && self.has_lcd {
+                        res = req.update_clk_disaplay(unit, self.src_labels[val as usize]);
+                        if res.is_err() {
+                            let _ = req.set_clk_src(unit, &self.src_vals, prev_src);
+                        }
                     }
-                }
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }

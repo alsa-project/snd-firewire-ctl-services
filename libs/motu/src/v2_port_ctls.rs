@@ -3,9 +3,9 @@
 use glib::Error;
 
 use hinawa::{SndUnitExt, SndMotu};
-use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::CardCntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::common_proto::CommonProto;
 use super::v2_proto::V2Proto;
@@ -110,28 +110,38 @@ impl<'a> V2PortCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
-                let val = req.get_phone_assign(unit, &self.phone_assign_vals)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_phone_assign(unit, &self.phone_assign_vals)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::MAIN_VOL_TARGET_NAME => {
-                let val = req.get_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
-                let val = req.get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::OPT_IN_IFACE_MODE_NAME => {
-                let val = req.get_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let val = req.get_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -144,44 +154,40 @@ impl<'a> V2PortCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_phone_assign(unit, &self.phone_assign_vals, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_phone_assign(unit, &self.phone_assign_vals, val as usize)
+                })?;
                 Ok(true)
             }
             Self::MAIN_VOL_TARGET_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS, val as usize)
+                })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_word_out(unit, &Self::WORD_OUT_MODE_VALS, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_word_out(unit, &Self::WORD_OUT_MODE_VALS, val as usize)
+                })?;
                 Ok(true)
             }
             Self::OPT_IN_IFACE_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                unit.lock()?;
-                let res = req.set_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS, vals[0] as usize);
-                unit.unlock()?;
-                match res {
-                    Ok(()) => Ok(true),
-                    Err(err) => Err(err),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.set_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS, val as usize);
+                    unit.unlock()?;
+                    res
+                })?;
+                Ok(true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                unit.lock()?;
-                let res = req.set_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS, vals[0] as usize);
-                unit.unlock()?;
-                match res {
-                    Ok(()) => Ok(true),
-                    Err(err) => Err(err),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.set_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS, val as usize);
+                    unit.unlock()?;
+                    res
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }

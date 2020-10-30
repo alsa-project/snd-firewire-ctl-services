@@ -3,9 +3,9 @@
 use glib::{Error, FileError};
 
 use hinawa::{SndUnitExt, SndMotu};
-use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::CardCntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::common_proto::CommonProto;
 use super::v3_proto::V3Proto;
@@ -136,41 +136,45 @@ impl<'a> V3PortCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
-                let val = req.get_phone_assign(unit, &self.assign_vals)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_phone_assign(unit, &self.assign_vals)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::MAIN_ASSIGN_NAME => {
-                let val = req.get_main_assign(unit, &self.assign_vals)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_main_assign(unit, &self.assign_vals)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::RETURN_ASSIGN_NAME => {
-                let val = req.get_return_assign(unit, &self.assign_vals)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_return_assign(unit, &self.assign_vals)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
-                let val = req.get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
-                elem_value.set_enum(&[val as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
+                    Ok(val as u32)
+                })?;
                 Ok(true)
             }
             Self::OPT_IFACE_IN_MODE_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = self.get_opt_iface_mode(unit, req, false, i > 0)?;
-                    Ok(())
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    let val = self.get_opt_iface_mode(unit, req, false, idx > 0)?;
+                    Ok(val)
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             Self::OPT_IFACE_OUT_MODE_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = self.get_opt_iface_mode(unit, req, true, i > 0)?;
-                    Ok(())
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    let val = self.get_opt_iface_mode(unit, req, true, idx > 0)?;
+                    Ok(val)
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -183,60 +187,44 @@ impl<'a> V3PortCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_phone_assign(unit, &self.assign_vals, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_phone_assign(unit, &self.assign_vals, val as usize)
+                })?;
                 Ok(true)
             }
             Self::MAIN_ASSIGN_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_main_assign(unit, &self.assign_vals, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_main_assign(unit, &self.assign_vals, val as usize)
+                })?;
                 Ok(true)
             }
             Self::RETURN_ASSIGN_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_return_assign(unit, &self.assign_vals, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_return_assign(unit, &self.assign_vals, val as usize)
+                })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                req.set_word_out(unit, &Self::WORD_OUT_MODE_VALS, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    req.set_word_out(unit, &Self::WORD_OUT_MODE_VALS, val as usize)
+                })?;
                 Ok(true)
             }
             Self::OPT_IFACE_IN_MODE_NAME => {
-                let mut vals = [0;4];
-                old.get_enum(&mut vals[2..]);
-                new.get_enum(&mut vals[..2]);
                 unit.lock()?;
-                let res = vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (new, old))| new != old)
-                    .try_for_each(|(i, (v, _))| {
-                        self.set_opt_iface_mode(unit, req, false, i > 0, *v)
-                    });
+                let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    self.set_opt_iface_mode(unit, req, false, idx > 0, val)
+                });
                 let _ = unit.unlock();
-                match res {
-                    Ok(()) => Ok(true),
-                    Err(err) => Err(err)
-                }
+                res.and(Ok(true))
             }
             Self::OPT_IFACE_OUT_MODE_NAME => {
-                let mut vals = [0;4];
-                old.get_enum(&mut vals[2..]);
-                new.get_enum(&mut vals[..2]);
                 unit.lock()?;
-                let res = vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (new, old))| new != old)
-                    .try_for_each(|(i, (v, _))| {
-                        self.set_opt_iface_mode(unit, req, true, i > 0, *v)
-                    });
+                let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    self.set_opt_iface_mode(unit, req, true, idx > 0, val)
+                });
                 let _ = unit.unlock();
-                match res {
-                    Ok(()) => Ok(true),
-                    Err(err) => Err(err)
-                }
+                res.and(Ok(true))
             }
             _ => Ok(false),
         }
