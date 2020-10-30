@@ -4,9 +4,8 @@ use glib::Error;
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::protocol::CommonProtocol;
 
@@ -105,28 +104,38 @@ impl<'a> CommonCtl {
 
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
-                let val = req.read_quadlet(&node, Self::CLK_SRC_OFFSET)?;
-                elem_value.set_enum(&[val]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.read_quadlet(&node, Self::CLK_SRC_OFFSET)?;
+                    Ok(val)
+                })?;
                 Ok(true)
             }
             Self::CLK_LOCAL_RATE_NAME => {
-                let val = req.read_quadlet(&node, Self::CLK_LOCAL_RATE_OFFSET)?;
-                elem_value.set_enum(&[val]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.read_quadlet(&node, Self::CLK_LOCAL_RATE_OFFSET)?;
+                    Ok(val)
+                })?;
                 Ok(true)
             }
             Self::CLK_EXT_RATE_NAME => {
-                let val = req.read_quadlet(&node, Self::CLK_EXT_RATE_OFFSET)?;
-                elem_value.set_enum(&[val]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.read_quadlet(&node, Self::CLK_EXT_RATE_OFFSET)?;
+                    Ok(val)
+                })?;
                 Ok(true)
             }
             Self::OPT_IFACE_NAME => {
-                let val = req.read_quadlet(&node, Self::OPT_IFACE_OFFSET)?;
-                elem_value.set_enum(&[val]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.read_quadlet(&node, Self::OPT_IFACE_OFFSET)?;
+                    Ok(val)
+                })?;
                 Ok(true)
             }
             Self::CLK_EXT_DETECT_NAME => {
-                let val = req.read_quadlet(&node, Self::CLK_EXT_DETECT_OFFSET)?;
-                elem_value.set_enum(&[val]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = req.read_quadlet(&node, Self::CLK_EXT_DETECT_OFFSET)?;
+                    Ok(val)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -145,37 +154,31 @@ impl<'a> CommonCtl {
 
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                unit.lock()?;
-                let res = req.write_quadlet(&node, Self::CLK_SRC_OFFSET, vals[0]);
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.write_quadlet(&node, Self::CLK_SRC_OFFSET, val);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             Self::CLK_LOCAL_RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                unit.lock()?;
-                let res = req.write_quadlet(&node, Self::CLK_LOCAL_RATE_OFFSET, vals[0]);
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.write_quadlet(&node, Self::CLK_LOCAL_RATE_OFFSET, val);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             Self::OPT_IFACE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                unit.lock()?;
-                let res = req.write_quadlet(&node, Self::OPT_IFACE_OFFSET, vals[0]);
-                let _ = unit.unlock();
-                match res {
-                    Err(err) => Err(err),
-                    Ok(()) => Ok(true),
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = req.write_quadlet(&node, Self::OPT_IFACE_OFFSET, val);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }
