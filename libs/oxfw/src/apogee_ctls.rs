@@ -2,9 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
@@ -79,35 +78,42 @@ impl<'a> OutputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::UseMixerOut);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.get_enum()]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::UseMixerOut);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum())
+                })?;
                 Ok(true)
             }
             Self::LEVEL_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutAttr);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.get_enum()]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::OutAttr);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum())
+                })?;
                 Ok(true)
             }
             Self::MUTE_FOR_LINE_OUT => {
-                let mut mute_op = ApogeeCmd::new(company_id, VendorCmd::MuteForLineOut);
-                avc.status(&AvcAddr::Unit, &mut mute_op, TIMEOUT_MS)?;
-                let mut unmute_op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForLineOut);
-                avc.status(&AvcAddr::Unit, &mut unmute_op, TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut mute_op = ApogeeCmd::new(company_id, VendorCmd::MuteForLineOut);
+                    avc.status(&AvcAddr::Unit, &mut mute_op, TIMEOUT_MS)?;
 
-                let idx = Self::parse_mute_mode(mute_op.get_enum() > 0, unmute_op.get_enum() > 0);
-                elem_value.set_enum(&[idx]);
+                    let mut unmute_op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForLineOut);
+                    avc.status(&AvcAddr::Unit, &mut unmute_op, TIMEOUT_MS)?;
+
+                    Ok(Self::parse_mute_mode(mute_op.get_enum() > 0, unmute_op.get_enum() > 0))
+                })?;
                 Ok(true)
             }
             Self::MUTE_FOR_HP_OUT => {
-                let mut mute_op = ApogeeCmd::new(company_id, VendorCmd::MuteForHpOut);
-                avc.status(&AvcAddr::Unit, &mut mute_op, TIMEOUT_MS)?;
-                let mut unmute_op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForHpOut);
-                avc.status(&AvcAddr::Unit, &mut unmute_op, TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut mute_op = ApogeeCmd::new(company_id, VendorCmd::MuteForHpOut);
+                    avc.status(&AvcAddr::Unit, &mut mute_op, TIMEOUT_MS)?;
+                    let mut unmute_op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForHpOut);
+                    avc.status(&AvcAddr::Unit, &mut unmute_op, TIMEOUT_MS)?;
 
-                let idx = Self::parse_mute_mode(mute_op.get_enum() > 0, unmute_op.get_enum() > 0);
-                elem_value.set_enum(&[idx]);
+                    Ok(Self::parse_mute_mode(mute_op.get_enum() > 0, unmute_op.get_enum() > 0))
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -124,49 +130,47 @@ impl<'a> OutputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::UseMixerOut);
-                op.put_enum(vals[0]);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::UseMixerOut);
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::LEVEL_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutAttr);
-                op.put_enum(vals[0]);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::OutAttr);
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::MUTE_FOR_LINE_OUT => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let (mute_mode, unmute_mode) = Self::build_mute_mode(vals[0]);
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let (mute_mode, unmute_mode) = Self::build_mute_mode(val);
 
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::MuteForLineOut);
-                op.put_enum(mute_mode as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MuteForLineOut);
+                    op.put_enum(mute_mode as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
 
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForLineOut);
-                op.put_enum(unmute_mode as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForLineOut);
+                    op.put_enum(unmute_mode as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::MUTE_FOR_HP_OUT => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let (mute_mode, unmute_mode) = Self::build_mute_mode(vals[0]);
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let (mute_mode, unmute_mode) = Self::build_mute_mode(val);
 
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::MuteForHpOut);
-                op.put_enum(mute_mode as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MuteForHpOut);
+                    op.put_enum(mute_mode as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
 
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForHpOut);
-                op.put_enum(unmute_mode as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::UnmuteForHpOut);
+                    op.put_enum(unmute_mode as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -212,14 +216,11 @@ impl<'a> MixerCtl {
         match elem_id.get_name().as_str() {
             Self::MIXER_NAME => {
                 let dst = elem_id.get_index();
-                let mut vals = vec![0;Self::SRC_LABELS.len()];
-                vals.iter_mut().enumerate().try_for_each(|(src, val)| {
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
                     let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *val = op.read_u16() as i32;
-                    Ok(())
+                    Ok(op.read_u16() as i32)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -233,18 +234,10 @@ impl<'a> MixerCtl {
         match elem_id.get_name().as_str() {
             Self::MIXER_NAME => {
                 let dst = elem_id.get_index();
-                let mut vals = vec![0;8];
-                new.get_int(&mut vals[..4]);
-                old.get_int(&mut vals[4..]);
-
-                vals[..4].iter().zip(&vals[4..]).enumerate().try_for_each(|(src, (n, o))| {
-                    if n != o {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
-                        op.write_u16(*n as u16);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    } else {
-                        Ok::<(), Error>(())
-                    }
+                ElemValueAccessor::<i32>::get_vals(new, old, 4, |src, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
+                    op.write_u16(val as u16);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
                 })?;
                 Ok(true)
             }
@@ -321,64 +314,51 @@ impl<'a> InputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::POLARITY_NAME => {
-                let mut vals = [false;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPolarity(i as u8));
+                ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPolarity(idx as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *v = op.get_enum() > 0;
-                    Ok(())
+                    Ok(op.get_enum() > 0)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::PHONE_LEVEL_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::PhoneInLine(i as u8));
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::PhoneInLine(idx as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *v = op.get_enum();
-                    Ok(())
+                    Ok(op.get_enum())
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             Self::LINE_LEVEL_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::LineInLevel(i as u8));
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::LineInLevel(idx as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *v = op.get_enum();
-                    Ok(())
+                    Ok(op.get_enum())
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             Self::PHANTOM_NAME => {
-                let mut vals = [false;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPhantom(i as u8));
+                ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPhantom(idx as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *v = op.get_enum() > 0;
-                    Ok(())
+                    Ok(op.get_enum() > 0)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::SRC_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicIn(i as u8));
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicIn(idx as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *v = op.get_enum();
-                    Ok(())
+                    Ok(op.get_enum())
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             Self::CLICKLESS_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::InClickless);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_bool(&[op.get_enum() > 0]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::InClickless);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum() > 0)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -391,76 +371,51 @@ impl<'a> InputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::POLARITY_NAME => {
-                let mut vals = [false;4];
-                new.get_bool(&mut vals[..2]);
-                old.get_bool(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| n != o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPolarity(i as u8));
-                        op.put_enum(*n as u32);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPolarity(idx as u8));
+                    op.put_enum(val as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::PHONE_LEVEL_NAME => {
-                let mut vals = [0;4];
-                new.get_enum(&mut vals[..2]);
-                old.get_enum(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| n != o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::PhoneInLine(i as u8));
-                        op.put_enum(*n);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::PhoneInLine(idx as u8));
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::LINE_LEVEL_NAME => {
-                let mut vals = [0;4];
-                new.get_enum(&mut vals[..2]);
-                old.get_enum(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| n != o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::LineInLevel(i as u8));
-                        op.put_enum(*n);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::LineInLevel(idx as u8));
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::PHANTOM_NAME => {
-                let mut vals = [false;4];
-                new.get_bool(&mut vals[..2]);
-                old.get_bool(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| n != o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPhantom(i as u8));
-                        op.put_enum(*n as u32);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicPhantom(idx as u8));
+                    op.put_enum(val as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
-                let mut vals = [0;4];
-                new.get_enum(&mut vals[..2]);
-                old.get_enum(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| n != o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::MicIn(i as u8));
-                        op.put_enum(*n);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MicIn(idx as u8));
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::CLICKLESS_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::InClickless);
-                op.put_enum(vals[0] as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::InClickless);
+                    op.put_enum(val as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -509,21 +464,27 @@ impl<'a> DisplayCtl {
     {
         match elem_id.get_name().as_str() {
             Self::TARGET_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayInput);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.get_enum()]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayInput);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum())
+                })?;
                 Ok(true)
             }
             Self::FOLLOWED_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayFollow);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_bool(&[op.get_enum() > 0]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayFollow);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum() > 0)
+                })?;
                 Ok(true)
             }
             Self::OVERHOLDS_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.get_enum()]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -536,28 +497,27 @@ impl<'a> DisplayCtl {
     {
         match elem_id.get_name().as_str() {
             Self::TARGET_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayInput);
-                op.put_enum(vals[0]);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                //avc.write_bool(company_id, VendorCmd::DisplayInput, vals[0] > 0)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayInput);
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::FOLLOWED_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayFollow);
-                op.put_enum(vals[0] as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayFollow);
+                    op.put_enum(val as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::OVERHOLDS_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
-                op.put_enum(vals[0]);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::DisplayOverhold);
+                    op.put_enum(val);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -676,24 +636,26 @@ impl<'a> HwState {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MUTE_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutMute);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_bool(&[op.get_enum() > 0]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::OutMute);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(op.get_enum() > 0)
+                })?;
                 Ok(true)
             }
             Self::OUT_VOLUME_NAME => {
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutVolume);
-                avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                elem_value.set_int(&[Self::DIAL_OUT_MAX - (op.get_u8() as i32)]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::OutVolume);
+                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                    Ok(Self::DIAL_OUT_MAX - (op.get_u8() as i32))
+                })?;
                 Ok(true)
             }
             Self::IN_GAIN_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::InGain(i as u8));
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::InGain(idx as u8));
                     avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    *val = op.get_u8() as i32;
-                    Ok(())
+                    Ok(op.get_u8() as i32)
                 })?;
                 Ok(true)
             }
@@ -707,33 +669,26 @@ impl<'a> HwState {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MUTE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutMute);
-                op.put_enum(vals[0] as u32);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::OutMute);
+                    op.put_enum(val as u32);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::OUT_VOLUME_NAME => {
-                let mut vals = [0];
-                new.get_int(&mut vals);
-                let mut op = ApogeeCmd::new(company_id, VendorCmd::OutVolume);
-                op.put_u8((Self::DIAL_OUT_MAX - vals[0]) as u8);
-                avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::OutVolume);
+                    op.put_u8((Self::DIAL_OUT_MAX - val) as u8);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::IN_GAIN_NAME => {
-                let mut vals = [0;4];
-                new.get_int(&mut vals[..2]);
-                old.get_int(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate().try_for_each(|(i, (n, o))| {
-                    if n != o {
-                        let mut op = ApogeeCmd::new(company_id, VendorCmd::InGain(i as u8));
-                        op.put_u8(*n as u8);
-                        avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                    } else {
-                        Ok(())
-                    }
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = ApogeeCmd::new(company_id, VendorCmd::InGain(idx as u8));
+                    op.put_u8(val as u8);
+                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
                 })?;
                 Ok(true)
             }
@@ -760,33 +715,31 @@ impl<'a> HwState {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MUTE_NAME => {
-                elem_value.set_bool(&[self.states[0] > 0]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.states[0] > 0))?;
                 Ok(true)
             }
             Self::SELECTED_KNOB_NAME => {
-                elem_value.set_enum(&[self.states[1] as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.states[1] as u32))?;
                 Ok(true)
             }
             Self::OUT_VOLUME_NAME => {
-                elem_value.set_int(&[Self::DIAL_OUT_MAX - (self.states[3] as i32)]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.states[3] as i32))?;
                 Ok(true)
             }
             Self::IN_GAIN_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().for_each(|(i, val)| *val = self.states[4 + i] as i32);
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| Ok(self.states[4 + idx] as i32))?;
                 Ok(true)
             }
             Self::ANALOG_IN_METER_NAME => {
-                elem_value.set_int(&self.meters[..2]);
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| Ok(self.meters[idx]))?;
                 Ok(true)
             }
             Self::MIXER_SRC_METER_NAME => {
-                elem_value.set_int(&self.meters[2..4]);
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| Ok(self.meters[idx + 2]))?;
                 Ok(true)
             }
             Self::MIXER_OUT_METER_NAME => {
-                elem_value.set_int(&self.meters[4..]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.meters[4]))?;
                 Ok(true)
             }
             _ => Ok(false),

@@ -4,9 +4,10 @@ use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
 
-use alsactl::{CardExtManual, ElemValueExt, ElemValueExtManual};
+use alsactl::CardExtManual;
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::Ta1394Avc;
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, CtlAttr, FeatureCtl, AudioCh};
@@ -91,26 +92,30 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
         } else if self.voluntary {
             match elem_id.get_name().as_str() {
                 Self::VOL_LABEL => {
-                    let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
-                                                   FeatureCtl::Volume(vec![-1]));
-                    self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    if let FeatureCtl::Volume(data) = op.ctl {
-                        elem_value.set_int(&[data[0] as i32]);
-                        Ok(true)
-                    } else {
-                        Ok(false)
-                    }
+                    ElemValueAccessor::<i32>::set_val(elem_value, || {
+                        let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
+                                                       FeatureCtl::Volume(vec![-1]));
+                        self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        if let FeatureCtl::Volume(data) = op.ctl {
+                            Ok(data[0] as i32)
+                        } else {
+                            unreachable!();
+                        }
+                    })?;
+                    Ok(true)
                 }
                 Self::MUTE_LABEL => {
-                    let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
-                                                   FeatureCtl::Mute(vec![false]));
-                    self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    if let FeatureCtl::Mute(data) = op.ctl {
-                        elem_value.set_bool(&data);
-                        Ok(true)
-                    } else {
-                        Ok(false)
-                    }
+                    ElemValueAccessor::<bool>::set_val(elem_value, || {
+                        let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
+                                                       FeatureCtl::Mute(vec![false]));
+                        self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        if let FeatureCtl::Mute(data) = op.ctl {
+                            Ok(data[0])
+                        } else {
+                            unreachable!();
+                        }
+                    })?;
+                    Ok(true)
                 }
                 _ => Ok(false),
             }
@@ -127,19 +132,19 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
         } else if self.voluntary {
             match elem_id.get_name().as_str() {
                 Self::VOL_LABEL => {
-                    let mut vals = [0];
-                    new.get_int(&mut vals);
-                    let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
-                                                   FeatureCtl::Volume(vec![vals[0] as i16]));
-                    self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    ElemValueAccessor::<i32>::get_val(new, |val| {
+                        let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
+                                                       FeatureCtl::Volume(vec![val as i16]));
+                        self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)
+                    })?;
                     Ok(true)
                 }
                 Self::MUTE_LABEL => {
-                    let mut vals = vec![false];
-                    new.get_bool(&mut vals);
-                    let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
-                                                   FeatureCtl::Mute(vals));
-                    self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    ElemValueAccessor::<bool>::get_val(new, |val| {
+                        let mut op = AudioFeature::new(Self::FB_ID, CtlAttr::Current, AudioCh::All,
+                                                       FeatureCtl::Mute(vec![val]));
+                        self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)
+                    })?;
                     Ok(true)
                 }
                 _ => Ok(false),

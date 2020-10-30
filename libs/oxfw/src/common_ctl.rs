@@ -3,9 +3,9 @@
 use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
-use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::*;
 use ta1394::general::*;
@@ -106,8 +106,10 @@ impl<'a> CommonCtl {
     {
         match elem_id.get_name().as_str() {
             Self::CLK_RATE_NAME => {
-                let idx = self.read_freq(avc, timeout_ms)?;
-                elem_value.set_enum(&[idx as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let idx = self.read_freq(avc, timeout_ms)?;
+                    Ok(idx as u32)
+                })?;
                 Ok(true)
             },
             _ => Ok(false),
@@ -206,15 +208,13 @@ impl<'a> CommonCtl {
     {
         match elem_id.get_name().as_str() {
             Self::CLK_RATE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                unit.lock()?;
-                let res = self.write_freq(avc, vals[0] as usize, timeout_ms);
-                let _ = unit.unlock();
-                match res {
-                    Ok(()) => Ok(true),
-                    Err(err) => Err(err),
-                }
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    unit.lock()?;
+                    let res = self.write_freq(avc, val as usize, timeout_ms);
+                    let _ = unit.unlock();
+                    res
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }

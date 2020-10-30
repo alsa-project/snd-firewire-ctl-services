@@ -4,9 +4,8 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
-use alsactl::{ElemValueExtManual, ElemValueExt};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{Ta1394Avc, AvcAddr};
 use ta1394::general::UnitInfo;
@@ -84,27 +83,35 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         } else {
             match elem_id.get_name().as_str() {
                 Self::DISPLAY_MODE_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::DisplayMode);
-                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    elem_value.set_enum(&[op.val as u32]);
+                    ElemValueAccessor::<u32>::set_val(elem_value, || {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::DisplayMode);
+                        self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        Ok(op.val as u32)
+                    })?;
                     Ok(true)
                 }
                 Self::MESSAGE_MODE_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::MessageMode);
-                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    elem_value.set_enum(&[op.val as u32]);
+                    ElemValueAccessor::<u32>::set_val(elem_value, || {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::MessageMode);
+                        self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        Ok(op.val as u32)
+                    })?;
                     Ok(true)
                 }
                 Self::INPUT_MODE_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::InputMode);
-                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    elem_value.set_enum(&[op.val as u32]);
+                    ElemValueAccessor::<u32>::set_val(elem_value, || {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::InputMode);
+                        self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        Ok(op.val as u32)
+                    })?;
                     Ok(true)
                 }
                 Self::FIRMWARE_VERSION_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::FirmwareVersion);
-                    self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    elem_value.set_bytes(&[op.val as u8]);
+                    ElemValueAccessor::<u8>::set_val(elem_value, || {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::FirmwareVersion);
+                        self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        Ok(op.val as u8)
+                    })?;
                     Ok(true)
                 }
                 _ => Ok(false),
@@ -118,26 +125,29 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         if self.common_ctl.write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)? {
             return Ok(true);
         } else {
-            let mut vals = [0];
-            new.get_enum(&mut vals);
-
             match elem_id.get_name().as_str() {
                 Self::DISPLAY_MODE_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::DisplayMode);
-                    op.val = vals[0] as u8;
-                    self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    ElemValueAccessor::<u32>::get_val(new, |val| {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::DisplayMode);
+                        op.val = val as u8;
+                        self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)
+                    })?;
                     Ok(true)
                 }
                 Self::MESSAGE_MODE_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::MessageMode);
-                    op.val = vals[0] as u8;
-                    self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    ElemValueAccessor::<u32>::get_val(new, |val| {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::MessageMode);
+                        op.val = val as u8;
+                        self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)
+                    })?;
                     Ok(true)
                 }
                 Self::INPUT_MODE_NAME => {
-                    let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::InputMode);
-                    op.val = vals[0] as u8;
-                    self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    ElemValueAccessor::<u32>::get_val(new, |val| {
+                        let mut op = TascamProto::new(&self.avc.company_id, VendorCmd::InputMode);
+                        op.val = val as u8;
+                        self.avc.control(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)
+                    })?;
                     Ok(true)
                 }
                 _ => Ok(false),
