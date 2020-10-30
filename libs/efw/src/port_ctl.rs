@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use core::card_cntr;
-
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::transactions::{HwCap, DigitalMode, EfwPortConf, PhysGroupType, HwInfo};
 
@@ -129,34 +128,42 @@ impl<'a> PortCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MIRROR_OUTPUT_NAME => {
-                let pair = EfwPortConf::get_output_mirror(unit)?;
-                elem_value.set_enum(&[pair as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pair = EfwPortConf::get_output_mirror(unit)?;
+                    Ok(pair as u32)
+                })?;
                 Ok(true)
             }
             Self::DIG_MODE_NAME => {
-                let mode = EfwPortConf::get_digital_mode(unit)?;
-                if let Some(pos) = self.dig_modes.iter().position(|&m| m == mode) {
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mode = EfwPortConf::get_digital_mode(unit)?;
+                    if let Some(pos) = self.dig_modes.iter().position(|&m| m == mode) {
+                        Ok(pos as u32)
+                    } else {
+                        unreachable!();
+                    }
+                })?;
+                Ok(true)
             }
             Self::PHANTOM_NAME => {
-                let state = EfwPortConf::get_phantom_powering(unit)?;
-                elem_value.set_bool(&[state]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let state = EfwPortConf::get_phantom_powering(unit)?;
+                    Ok(state)
+                })?;
                 Ok(true)
             }
             Self::RX_MAP_NAME => {
                 let (rx_entries, _) = EfwPortConf::get_stream_map(unit)?;
-                let vals: Vec<u32> = rx_entries.iter().map(|entry| *entry as u32).collect();
-                elem_value.set_enum(&vals);
+                ElemValueAccessor::<u32>::set_vals(elem_value, rx_entries.len(), |idx| {
+                    Ok(rx_entries[idx] as u32)
+                })?;
                 Ok(true)
             }
             Self::TX_MAP_NAME => {
                 let (_, tx_entries) = EfwPortConf::get_stream_map(unit)?;
-                let vals: Vec<u32> = tx_entries.iter().map(|entry| *entry as u32).collect();
-                elem_value.set_enum(&vals);
+                ElemValueAccessor::<u32>::set_vals(elem_value, tx_entries.len(), |idx| {
+                    Ok(tx_entries[idx] as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -172,51 +179,44 @@ impl<'a> PortCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MIRROR_OUTPUT_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                EfwPortConf::set_output_mirror(unit, vals[0] as usize)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    EfwPortConf::set_output_mirror(unit, val as usize)
+                })?;
                 Ok(true)
             }
             Self::DIG_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                if self.dig_modes.len() > vals[0] as usize {
-                    EfwPortConf::set_digital_mode(unit, self.dig_modes[vals[0] as usize])?;
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    if self.dig_modes.len() > val as usize {
+                        EfwPortConf::set_digital_mode(unit, self.dig_modes[val as usize])
+                    } else {
+                        let label = "Invalid value for digital mode";
+                        Err(Error::new(FileError::Inval, &label))
+                    }
+                })?;
+                Ok(true)
             }
             Self::PHANTOM_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                EfwPortConf::set_phantom_powering(unit, vals[0])?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    EfwPortConf::set_phantom_powering(unit, val)
+                })?;
                 Ok(true)
             }
             Self::RX_MAP_NAME => {
-                let mut vals = vec![0; self.rx_pairs * 2];
-                new.get_enum(&mut vals[..self.rx_pairs]);
-                old.get_enum(&mut vals[self.rx_pairs..]);
-                if vals[..self.rx_pairs] != vals[self.rx_pairs..] {
-                    let entries: Vec<usize> = vals[..self.rx_pairs]
-                        .iter()
-                        .map(|entry| *entry as usize)
-                        .collect();
-                    EfwPortConf::set_stream_map(unit, Some(entries), None)?;
-                }
+                let (mut rx_entries, _) = EfwPortConf::get_stream_map(unit)?;
+                ElemValueAccessor::<u32>::get_vals(new, old, rx_entries.len(), |idx, val| {
+                    rx_entries[idx] = val as usize;
+                    Ok(())
+                })?;
+                EfwPortConf::set_stream_map(unit, Some(rx_entries), None)?;
                 Ok(true)
             }
             Self::TX_MAP_NAME => {
-                let mut vals = vec![0; self.tx_pairs * 2];
-                new.get_enum(&mut vals[..self.tx_pairs]);
-                old.get_enum(&mut vals[self.tx_pairs..]);
-                if vals[..self.tx_pairs] != vals[self.tx_pairs..] {
-                    let entries: Vec<usize> = vals[..self.tx_pairs]
-                        .iter()
-                        .map(|entry| *entry as usize)
-                        .collect();
-                    EfwPortConf::set_stream_map(unit, None, Some(entries))?;
-                }
+                let (_, mut tx_entries) = EfwPortConf::get_stream_map(unit)?;
+                ElemValueAccessor::<u32>::get_vals(new, old, tx_entries.len(), |idx, val| {
+                    tx_entries[idx] = val as usize;
+                    Ok(())
+                })?;
+                EfwPortConf::set_stream_map(unit, None, Some(tx_entries))?;
                 Ok(true)
             }
             _ => Ok(false),

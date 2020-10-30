@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use core::card_cntr;
-
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::transactions::{HwCap, PhysGroupType, NominalLevel, EfwPhysOutput, HwInfo};
 
@@ -69,33 +68,28 @@ impl<'a> OutputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_VOL_NAME => {
-                let mut vals = vec![0; self.phys_outputs];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = EfwPhysOutput::get_vol(unit, i)?;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, self.phys_outputs, |idx| {
+                    let val = EfwPhysOutput::get_vol(unit, idx)?;
+                    Ok(val)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::OUT_MUTE_NAME => {
-                let mut vals = vec![false; self.phys_outputs];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = EfwPhysOutput::get_mute(unit, i)?;
-                    Ok(())
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.phys_outputs, |idx| {
+                    let val = EfwPhysOutput::get_mute(unit, idx)?;
+                    Ok(val)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::OUT_NOMINAL_NAME => {
-                let mut vals = vec![0; self.phys_outputs];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    let level = EfwPhysOutput::get_nominal(unit, i)?;
+                ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_outputs, |idx| {
+                    let level = EfwPhysOutput::get_nominal(unit, idx)?;
                     if let Some(pos) = Self::OUT_NOMINAL_LEVELS.iter().position(|&l| l == level) {
-                        *val = pos as u32;
+                        Ok(pos as u32)
+                    } else {
+                        unreachable!();
                     }
-                    Ok(())
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -111,40 +105,25 @@ impl<'a> OutputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_VOL_NAME => {
-                let mut vals = vec![0; self.phys_outputs * 2];
-                new.get_int(&mut vals[..self.phys_outputs]);
-                old.get_int(&mut vals[self.phys_outputs..]);
-                (0..self.phys_outputs).try_for_each(|i| {
-                    if vals[i] != vals[self.phys_outputs + i] {
-                        EfwPhysOutput::set_vol(unit, i, vals[i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<i32>::get_vals(new, old, self.phys_outputs, |idx, val| {
+                    EfwPhysOutput::set_vol(unit, idx, val)
                 })?;
                 Ok(true)
             }
             Self::OUT_MUTE_NAME => {
-                let mut vals = vec![false; self.phys_outputs * 2];
-                new.get_bool(&mut vals[..self.phys_outputs]);
-                old.get_bool(&mut vals[self.phys_outputs..]);
-                (0..self.phys_outputs).try_for_each(|i| {
-                    if vals[i] != vals[self.phys_outputs + i] {
-                        EfwPhysOutput::set_mute(unit, i, vals[i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<bool>::get_vals(new, old, self.phys_outputs, |idx, val| {
+                    EfwPhysOutput::set_mute(unit, idx, val)
                 })?;
                 Ok(true)
             }
             Self::OUT_NOMINAL_NAME => {
-                let mut vals = vec![0; self.phys_outputs * 2];
-                new.get_enum(&mut vals[..self.phys_outputs]);
-                old.get_enum(&mut vals[self.phys_outputs..]);
-                (0..self.phys_outputs).try_for_each(|i| {
-                    if vals[i] != vals[self.phys_outputs + i] {
-                        if let Some(&level) = Self::OUT_NOMINAL_LEVELS.iter().nth(vals[i] as usize) {
-                            EfwPhysOutput::set_nominal(unit, i, level)?;
-                        }
+                ElemValueAccessor::<bool>::get_vals(new, old, self.phys_outputs, |idx, val| {
+                    if let Some(&level) = Self::OUT_NOMINAL_LEVELS.iter().nth(val as usize) {
+                        EfwPhysOutput::set_nominal(unit, idx, level)
+                    } else {
+                        let label = "Invalid value for nominal level of output";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                    Ok(())
                 })?;
                 Ok(true)
             }

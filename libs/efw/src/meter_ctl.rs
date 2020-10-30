@@ -136,10 +136,7 @@ impl<'a> MeterCtl {
             }
             Self::MIDI_IN_DETECT => {
                 if let Some(meters) = &self.meters {
-                    let vals: Vec<bool> = (0..self.midi_inputs)
-                        .map(|i| meters.detected_midi_inputs[i])
-                        .collect();
-                    elem_value.set_bool(&vals);
+                    elem_value.set_bool(&meters.detected_midi_inputs[..self.midi_inputs]);
                     Ok(true)
                 } else {
                     Ok(false)
@@ -147,10 +144,7 @@ impl<'a> MeterCtl {
             }
             Self::MIDI_OUT_DETECT => {
                 if let Some(meters) = &self.meters {
-                    let vals: Vec<bool> = (0..self.midi_outputs)
-                        .map(|i| meters.detected_midi_inputs[i])
-                        .collect();
-                    elem_value.set_bool(&vals);
+                    elem_value.set_bool(&meters.detected_midi_outputs[..self.midi_outputs]);
                     Ok(true)
                 } else {
                     Ok(false)

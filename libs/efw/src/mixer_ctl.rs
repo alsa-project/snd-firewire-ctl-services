@@ -3,8 +3,7 @@
 use glib::Error;
 
 use core::card_cntr;
-
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use super::transactions::{HwInfo, EfwPlayback, EfwMonitor, HwCap, EfwHwCtl, HwCtlFlag};
 
@@ -102,76 +101,63 @@ impl<'a> MixerCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::PLAYBACK_VOL_NAME => {
-                let mut vals = vec![0; self.playbacks];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = EfwPlayback::get_vol(unit, i)?;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, self.playbacks, |idx| {
+                    let val = EfwPlayback::get_vol(unit, idx)?;
+                    Ok(val)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::PLAYBACK_MUTE_NAME => {
-                let mut vals = vec![false; self.playbacks];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = EfwPlayback::get_mute(unit, i)?;
-                    Ok(())
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.playbacks, |idx| {
+                    let val = EfwPlayback::get_mute(unit, idx)?;
+                    Ok(val)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::PLAYBACK_SOLO_NAME => {
-                let mut vals = vec![false; self.playbacks];
-                vals.iter_mut().enumerate().try_for_each(|(i, val)| {
-                    *val = EfwPlayback::get_solo(unit, i)?;
-                    Ok(())
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.playbacks, |idx| {
+                    let val = EfwPlayback::get_solo(unit, idx)?;
+                    Ok(val)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::MONITOR_GAIN_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![0; self.captures];
-                vals.iter_mut().enumerate().try_for_each(|(src, val)| {
-                    *val = EfwMonitor::get_vol(unit, dst, src)?;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
+                    let val = EfwMonitor::get_vol(unit, dst, src)?;
+                    Ok(val)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::MONITOR_MUTE_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![false; self.captures];
-                vals.iter_mut().enumerate().try_for_each(|(src, val)| {
-                    *val = EfwMonitor::get_mute(unit, dst, src)?;
-                    Ok(())
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
+                    let val = EfwMonitor::get_mute(unit, dst, src)?;
+                    Ok(val)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::MONITOR_SOLO_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![false; self.captures];
-                vals.iter_mut().enumerate().try_for_each(|(src, val)| {
-                    *val = EfwMonitor::get_solo(unit, dst, src)?;
-                    Ok(())
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
+                    let val = EfwMonitor::get_solo(unit, dst, src)?;
+                    Ok(val)
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             Self::MONITOR_PAN_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![0; self.captures];
-                vals.iter_mut().enumerate().try_for_each(|(src, val)| {
-                    *val = EfwMonitor::get_pan(unit, dst, src)? as i32;
-                    Ok(())
+                ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
+                    let val = EfwMonitor::get_pan(unit, dst, src)? as i32;
+                    Ok(val)
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::ENABLE_MIXER=> {
-                let flags = EfwHwCtl::get_flags(unit)?;
-                let state = flags.iter().find(|&flag| *flag == HwCtlFlag::MixerEnabled).is_some();
-                elem_value.set_bool(&[state]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    let flags = EfwHwCtl::get_flags(unit)?;
+                    Ok(flags.iter().find(|&flag| *flag == HwCtlFlag::MixerEnabled).is_some())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -187,110 +173,71 @@ impl<'a> MixerCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::PLAYBACK_VOL_NAME => {
-                let mut vals = vec![0; self.playbacks * 2];
-                new.get_int(&mut vals[..self.playbacks]);
-                old.get_int(&mut vals[self.playbacks..]);
-                (0..self.playbacks).try_for_each(|i| {
-                    if vals[i] != vals[self.playbacks + i] {
-                        EfwPlayback::set_vol(unit, i, vals[i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<i32>::get_vals(new, old, self.playbacks, |idx, val| {
+                    EfwPlayback::set_vol(unit, idx, val)
                 })?;
                 Ok(true)
             }
             Self::PLAYBACK_MUTE_NAME => {
-                let mut vals = vec![false; self.playbacks * 2];
-                new.get_bool(&mut vals[..self.playbacks]);
-                old.get_bool(&mut vals[self.playbacks..]);
-                (0..self.playbacks).try_for_each(|i| {
-                    if vals[i] != vals[self.playbacks + i] {
-                        EfwPlayback::set_mute(unit, i, vals[i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<bool>::get_vals(new, old, self.playbacks, |idx, val| {
+                    EfwPlayback::set_mute(unit, idx, val)
                 })?;
                 Ok(true)
             }
             Self::PLAYBACK_SOLO_NAME => {
-                let mut vals = vec![false; self.playbacks * 2];
-                new.get_bool(&mut vals[..self.playbacks]);
-                old.get_bool(&mut vals[self.playbacks..]);
-                (0..self.playbacks).try_for_each(|i| {
-                    if vals[i] != vals[self.playbacks + i] {
-                        EfwPlayback::set_solo(unit, i, vals[i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<bool>::get_vals(new, old, self.playbacks, |idx, val| {
+                    EfwPlayback::set_solo(unit, idx, val)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_GAIN_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![0; self.captures * 2];
-                new.get_int(&mut vals[..self.captures]);
-                old.get_int(&mut vals[self.captures..]);
-                (0..self.captures).try_for_each(|i| {
-                    if vals[i] != vals[self.captures + i] {
-                        EfwMonitor::set_vol(unit, dst, i, vals[i])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
+                    EfwMonitor::set_vol(unit, dst, src, val)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_MUTE_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![false; self.captures * 2];
-                new.get_bool(&mut vals[..self.captures]);
-                old.get_bool(&mut vals[self.captures..]);
-                (0..self.captures).try_for_each(|src| {
-                    if vals[src] != vals[self.captures + src] {
-                        EfwMonitor::set_mute(unit, dst, src, vals[src])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
+                    EfwMonitor::set_mute(unit, dst, src, val)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_SOLO_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![false; self.captures * 2];
-                new.get_bool(&mut vals[..self.captures]);
-                old.get_bool(&mut vals[self.captures..]);
-                (0..self.captures).try_for_each(|src| {
-                    if vals[src] != vals[self.captures + src] {
-                        EfwMonitor::set_solo(unit, dst, src, vals[src])?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
+                    EfwMonitor::set_solo(unit, dst, src, val)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_PAN_NAME => {
                 let dst = elem_id.get_index() as usize;
-                let mut vals = vec![0; self.captures * 2];
-                new.get_int(&mut vals[..self.captures]);
-                old.get_int(&mut vals[self.captures..]);
-                (0..self.captures).try_for_each(|src| {
-                    if vals[src] != vals[self.captures + src] {
-                        EfwMonitor::set_pan(unit, dst, src, vals[src] as u8)?;
-                    }
-                    Ok(())
+                ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
+                    EfwMonitor::set_pan(unit, dst, src, val as u8)
                 })?;
                 Ok(true)
             }
             Self::ENABLE_MIXER=> {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                if vals[0] {
-                    EfwHwCtl::set_flags(unit, &[HwCtlFlag::MixerEnabled], &[])?;
-                } else {
-                    EfwHwCtl::set_flags(unit, &[], &[HwCtlFlag::MixerEnabled])?;
-                }
-                // The above operation immediately has an effect for DSP model, but not for FPGA
-                // model. For workaround, configure each monitor with input 0 to activate the
-                // configuration.
-                if self.has_fpga {
-                    (0..self.playbacks).try_for_each(|i| {
-                        let vol = EfwMonitor::get_vol(unit, 0, i)?;
-                        EfwMonitor::set_vol(unit, 0, i, vol)
-                    })?;
-                }
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    if val {
+                        EfwHwCtl::set_flags(unit, &[HwCtlFlag::MixerEnabled], &[])?;
+                    } else {
+                        EfwHwCtl::set_flags(unit, &[], &[HwCtlFlag::MixerEnabled])?;
+                    }
+
+                    // The above operation immediately has an effect for DSP model, but not for FPGA
+                    // model. For workaround, configure each monitor with input 0 to activate the
+                    // configuration.
+                    if self.has_fpga {
+                        (0..self.playbacks).try_for_each(|i| {
+                            let vol = EfwMonitor::get_vol(unit, 0, i)?;
+                            EfwMonitor::set_vol(unit, 0, i, vol)
+                        })?;
+                    }
+
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),

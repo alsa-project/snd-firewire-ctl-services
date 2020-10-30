@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use hinawa::SndUnitExt;
-
-use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use super::transactions::{ClkSrc, HwInfo, EfwHwCtl};
 
@@ -61,22 +60,28 @@ impl<'a> ClkCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
-                let (src, _) = EfwHwCtl::get_clock(unit)?;
-                if let Some(pos) = self.srcs.iter().position(|s| *s == src) {
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let (src, _) = EfwHwCtl::get_clock(unit)?;
+                    if let Some(pos) = self.srcs.iter().position(|s| *s == src) {
+                        Ok(pos as u32)
+                    } else {
+                        let label = "Unexpected value for source of clock";
+                        Err(Error::new(FileError::Io, &label))
+                    }
+                })?;
+                Ok(true)
             }
             Self::RATE_NAME => {
-                let (_, rate) = EfwHwCtl::get_clock(unit)?;
-                if let Some(pos) = self.rates.iter().position(|r| *r == rate) {
-                    elem_value.set_enum(&[pos as u32]);
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let (_, rate) = EfwHwCtl::get_clock(unit)?;
+                    if let Some(pos) = self.rates.iter().position(|r| *r == rate) {
+                        Ok(pos as u32)
+                    } else {
+                        let label = "Unexpected value for rate of clock";
+                        Err(Error::new(FileError::Io, &label))
+                    }
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -91,34 +96,32 @@ impl<'a> ClkCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                if let Some(&src) = self.srcs.iter().nth(vals[0] as usize) {
-                    unit.lock()?;
-                    let res = EfwHwCtl::set_clock(unit, Some(src), None);
-                    let _ = unit.unlock();
-                    match res {
-                        Err(err) => Err(err),
-                        Ok(()) => Ok(true),
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    if let Some(&src) = self.srcs.iter().nth(val as usize) {
+                        unit.lock()?;
+                        let res = EfwHwCtl::set_clock(unit, Some(src), None);
+                        let _ = unit.unlock();
+                        res
+                    } else {
+                        let label = "Invalid value for source of clock";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                } else {
-                    Ok(false)
-                }
+                })?;
+                Ok(true)
             }
             Self::RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                if let Some(&rate) = self.rates.iter().nth(vals[0] as usize) {
-                    unit.lock()?;
-                    let res = EfwHwCtl::set_clock(unit, None, Some(rate));
-                    let _ = unit.unlock();
-                    match res {
-                        Err(err) => Err(err),
-                        Ok(()) => Ok(true),
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    if let Some(&rate) = self.rates.iter().nth(val as usize) {
+                        unit.lock()?;
+                        let res = EfwHwCtl::set_clock(unit, None, Some(rate));
+                        let _ = unit.unlock();
+                        res
+                    } else {
+                        let label = "Invalid value for rate of clock";
+                        Err(Error::new(FileError::Io, &label))
                     }
-                } else {
-                    Ok(false)
-                }
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }
