@@ -7,6 +7,7 @@ use hinawa::SndUnitExt;
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
@@ -95,15 +96,15 @@ impl<'a> HwCtl {
     {
         match elem_id.get_name().as_str() {
             Self::STREAM_MODE_NAME => {
-                elem_value.set_enum(&[self.stream]);
+                ElemValueAccessor::set_val(elem_value, || Ok(self.stream))?;
                 Ok(true)
             }
             Self::CD_MODE_NAME => {
-                elem_value.set_bool(&[self.cd]);
+                ElemValueAccessor::set_val(elem_value, || Ok(self.cd))?;
                 Ok(true)
             }
             Self::SPDIF_OUT_BYPASS_NAME => {
-                elem_value.set_enum(&[self.spdif_out_bypass]);
+                ElemValueAccessor::set_val(elem_value, || Ok(self.spdif_out_bypass))?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -116,31 +117,34 @@ impl<'a> HwCtl {
     {
         match elem_id.get_name().as_str() {
             Self::STREAM_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::StreamMode),
-                                            &[vals[0] as u8]);
-                unit.lock()?;
-                let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
-                unit.unlock()?;
-                res.and(Ok(true))
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::StreamMode),
+                                                &[val as u8]);
+                    unit.lock()?;
+                    let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
+                    unit.unlock()?;
+                    res
+                })?;
+                Ok(true)
             }
             Self::CD_MODE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::CdMode),
-                                            &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.cd = vals[0];
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::CdMode),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.cd = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::SPDIF_OUT_BYPASS_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Downgrade,
-                                            &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.spdif_out_bypass = vals[0] as u32;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Downgrade,
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.spdif_out_bypass = val as u32;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -216,19 +220,19 @@ impl<'a> DisplayCtl {
     {
         match elem_id.get_name().as_str() {
             Self::ILLUMINATE_NAME => {
-                elem_value.set_bool(&[self.illuminate]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.illuminate))?;
                 Ok(true)
             }
             Self::MODE_NAME => {
-                elem_value.set_bool(&[self.mode]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.mode))?;
                 Ok(true)
             }
             Self::TARGET_NAME => {
-                elem_value.set_enum(&[self.target]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.target))?;
                 Ok(true)
             }
             Self::OVERHOLD_NAME => {
-                elem_value.set_bool(&[self.overhold]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.overhold))?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -241,39 +245,43 @@ impl<'a> DisplayCtl {
     {
         match elem_id.get_name().as_str() {
             Self::ILLUMINATE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
-                                            &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.illuminate = vals[0];
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.illuminate = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::MODE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayMode),
-                                            &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.mode = vals[0];
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayMode),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.mode = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::TARGET_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayTarget),
-                                            &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.target = vals[0];
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayTarget),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.target = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::OVERHOLD_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayOverhold),
-                                            &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.overhold = vals[0];
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayOverhold),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.overhold = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -325,11 +333,11 @@ impl<'a> OpticalCtl {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MODE_NAME => {
-                elem_value.set_enum(&[self.output]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.output))?;
                 Ok(true)
             }
             Self::IN_MODE_NAME => {
-                elem_value.set_enum(&[self.input]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.input))?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -342,19 +350,23 @@ impl<'a> OpticalCtl {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x00), &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.output = vals[0];
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x00),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.output = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::IN_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x01), &[vals[0] as u8]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                self.input = vals[0];
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x01),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.input = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -471,69 +483,43 @@ impl<'a> InputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::IN_LIMIT_NAME => {
-                let len = Self::IN_LABELS.len();
-                let mut vals = vec![false;len * 2];
-                new.get_bool(&mut vals[..len]);
-                old.get_bool(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::InputLimit(i as u8),
-                                                    &[*n as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        self.limits[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::InputLimit(idx as u8),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.limits[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::IN_LEVEL_NAME => {
-                let len = Self::IN_LABELS.len();
-                let mut vals = vec![0;len * 2];
-                new.get_enum(&mut vals[..len]);
-                old.get_enum(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x01),
-                                                    &[*n as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        self.levels[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(idx as u8, 0x01),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.levels[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::MIC_PHANTOM_NAME => {
-                let len = Self::MIC_LABELS.len();
-                let mut vals = vec![false;len * 2];
-                new.get_bool(&mut vals[..len]);
-                old.get_bool(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter())
-                    .enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPower(i as u8),
-                                                    &[*n as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        self.phantoms[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPower(idx as u8),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.phantoms[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::MIC_POLARITY_NAME => {
-                let len = Self::MIC_LABELS.len();
-                let mut vals = vec![false;len * 2];
-                new.get_bool(&mut vals[0..len]);
-                old.get_bool(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter())
-                    .enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPolarity(i as u8),
-                                                    &[*n as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        self.polarities[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPolarity(idx as u8),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.polarities[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -597,20 +583,13 @@ impl<'a> OutputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_LEVEL_NAME => {
-                let len = Self::OUT_LABELS.len();
-                let mut vals = vec![0;len * 2];
-                new.get_enum(&mut vals[..len]);
-                old.get_enum(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter())
-                    .enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x00),
-                                                    &[*n as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        self.levels[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(idx as u8, 0x00),
+                                                &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    self.levels[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -936,48 +915,30 @@ impl<'a> RouteCtl {
     {
         match elem_id.get_name().as_str() {
             OUT_SRC_NAME => {
-                let len = Self::OUT_LABELS.len();
-                let mut vals = vec![0;len * 2];
-                new.get_enum(&mut vals[..len]);
-                old.get_enum(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let dst = Self::OUT_LABELS[i];
-                        let src = Self::OUT_SRC_LABELS[*n as usize];
-                        self.update_route(avc, dst, src, timeout_ms)?;
-                        self.out[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
+                    let dst = Self::OUT_LABELS[idx];
+                    let src = Self::OUT_SRC_LABELS[val as usize];
+                    self.update_route(avc, dst, src, timeout_ms)?;
+                    self.out[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             Self::CAP_SRC_NAME => {
-                let len = Self::CAP_LABELS.len();
-                let mut vals = vec![0;len * 2];
-                new.get_enum(&mut vals[..len]);
-                old.get_enum(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        let dst = Self::CAP_LABELS[i];
-                        let src = Self::CAP_SRC_LABELS[*n as usize];
-                        self.update_route(avc, dst, src, timeout_ms)?;
-                        self.cap[i] = *n;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, Self::CAP_LABELS.len(), |idx, val| {
+                    let dst = Self::CAP_LABELS[idx];
+                    let src = Self::CAP_SRC_LABELS[val as usize];
+                    self.update_route(avc, dst, src, timeout_ms)?;
+                    self.cap[idx] = val;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             HP_SRC_NAME => {
-                let len = Self::HP_LABELS.len();
-                let mut vals = vec![0;len * 2];
-                new.get_enum(&mut vals[..len]);
-                old.get_enum(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (n, _))| {
-                        self.update_hp_source(avc, i, *n as usize, timeout_ms)?;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, Self::HP_LABELS.len(), |idx, val| {
+                    self.update_hp_source(avc, idx, val as usize, timeout_ms)?;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -1047,19 +1008,19 @@ impl<'a> ResamplerCtl {
     {
         match elem_id.get_name().as_str() {
             Self::ENABLE_NAME => {
-                elem_value.set_bool(&[self.enabled]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.enabled))?;
                 Ok(true)
             }
             Self::IFACE_NAME => {
-                elem_value.set_enum(&[self.iface as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.iface as u32))?;
                 Ok(true)
             }
             Self::DIRECTION_NAME => {
-                elem_value.set_enum(&[self.direction as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.direction as u32))?;
                 Ok(true)
             }
             Self::RATE_NAME => {
-                elem_value.set_enum(&[self.rate as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.rate as u32))?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -1072,31 +1033,31 @@ impl<'a> ResamplerCtl {
     {
         match elem_id.get_name().as_str() {
             Self::ENABLE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                self.enabled = vals[0] as bool;
-                self.send(avc, timeout_ms)?;
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    self.enabled = val;
+                    self.send(avc, timeout_ms)
+                })?;
                 Ok(true)
             }
             Self::IFACE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                self.iface = vals[0] as u8;
-                self.send(avc, timeout_ms)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    self.iface = val as u8;
+                    self.send(avc, timeout_ms)
+                })?;
                 Ok(true)
             }
             Self::DIRECTION_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                self.direction = vals[0] as u8;
-                self.send(avc, timeout_ms)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    self.direction = val as u8;
+                    self.send(avc, timeout_ms)
+                })?;
                 Ok(true)
             }
             Self::RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                self.rate = vals[0] as u8;
-                self.send(avc, timeout_ms)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    self.rate = val as u8;
+                    self.send(avc, timeout_ms)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -1232,54 +1193,43 @@ impl<'a> MeterCtl {
     {
         match elem_id.get_name().as_str() {
             Self::IN_KNOB_TARGET_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let idx = vals[0] as usize;
-                let target = Self::IN_KNOB_VAL_TARGETS[idx];
-                let val = self.cache[Self::IN_GAIN_POS[idx]] as u8;
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target), &[val]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let idx = val as usize;
+                    let target = Self::IN_KNOB_VAL_TARGETS[idx];
+                    let pos = Self::IN_GAIN_POS[idx];
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target),
+                                                &self.cache[pos..(pos + 1)]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                })?;
                 Ok(true)
             }
             Self::IN_GAIN_NAME => {
-                let mut vals = [0;Self::IN_KNOB_VAL_TARGETS.len() * 2];
-                new.get_int(&mut vals[..Self::IN_KNOB_VAL_TARGETS.len()]);
-                old.get_int(&mut vals[Self::IN_KNOB_VAL_TARGETS.len()..]);
-                vals[..Self::IN_KNOB_VAL_TARGETS.len()].iter().zip(vals[Self::IN_KNOB_VAL_TARGETS.len()..].iter())
-                    .enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let target = Self::IN_KNOB_VAL_TARGETS[i];
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target), &[*v as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, Self::IN_KNOB_VAL_TARGETS.len(), |idx, val| {
+                    let target = Self::IN_KNOB_VAL_TARGETS[idx];
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target), &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                })?;
                 Ok(true)
             }
             Self::OUT_KNOB_TARGET_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let idx = vals[0] as usize;
-                let target = Self::OUT_KNOB_VAL_TARGETS[idx];
-                let val = self.cache[Self::OUT_VOL_POS[idx]];
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target), &[val]);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let idx = val as usize;
+                    let target = Self::OUT_KNOB_VAL_TARGETS[idx];
+                    let pos = Self::OUT_VOL_POS[idx];
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target),
+                                                &self.cache[pos..(pos + 1)]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                })?;
                 Ok(true)
             }
             OUT_VOL_NAME => {
-                let mut vals = [0;Self::OUT_KNOB_VAL_TARGETS.len() * 2];
-                new.get_int(&mut vals[..Self::OUT_KNOB_VAL_TARGETS.len()]);
-                old.get_int(&mut vals[Self::OUT_KNOB_VAL_TARGETS.len()..]);
-                vals[..Self::OUT_KNOB_VAL_TARGETS.len()].iter().zip(vals[Self::OUT_KNOB_VAL_TARGETS.len()..].iter())
-                    .enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let target = Self::OUT_KNOB_VAL_TARGETS[i];
-                        let val = - *v;
-                        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target), &[val as u8]);
-                        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                        Ok(())
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, Self::OUT_KNOB_VAL_TARGETS.len(), |idx, val| {
+                    let target = Self::OUT_KNOB_VAL_TARGETS[idx];
+                    let val = -val;
+                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target), &[val as u8]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                    Ok(())
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -1298,21 +1248,24 @@ impl<'a> MeterCtl {
     {
         match elem_id.get_name().as_str() {
             Self::IN_KNOB_TARGET_NAME => {
-                let val = (self.cache[Self::SELECT_POS] >> Self::IN_KNOB_TARGET_SHIFT) & Self::IN_KNOB_TARGET_MASK;
-                match Self::IN_KNOB_TARGET_VALS.iter().position(|v| *v == val) {
-                    Some(pos) => {
-                        elem_value.set_enum(&[pos as u32]);
-                        Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::SELECT_POS;
+                    let val = (self.cache[pos] >> Self::IN_KNOB_TARGET_SHIFT) & Self::IN_KNOB_TARGET_MASK;
+                    match Self::IN_KNOB_TARGET_VALS.iter().position(|v| *v == val) {
+                        Some(pos) => Ok(pos as u32),
+                        None => {
+                            let label = format!("Unexpected value for flag of input knob: {}", val);
+                            Err(Error::new(FileError::Io, &label))
+                        }
                     }
-                    None => {
-                        let label = format!("Unexpected value for flag of input knob: {}", val);
-                        Err(Error::new(FileError::Io, &label))
-                    }
-                }
+                })?;
+                Ok(true)
             }
             Self::IN_GAIN_NAME => {
-                let vals = Self::IN_GAIN_POS.iter().map(|p| self.cache[*p] as i32).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::IN_GAIN_POS.len(), |idx| {
+                    let pos = Self::IN_GAIN_POS[idx];
+                    Ok(self.cache[pos] as i32)
+                })?;
                 Ok(true)
             }
             Self::OUT_KNOB_TARGET_NAME => {
@@ -1329,18 +1282,24 @@ impl<'a> MeterCtl {
                 }
             }
             OUT_VOL_NAME => {
-                let vals = Self::OUT_VOL_POS.iter().map(|p| -1 * (self.cache[*p] as i32)).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::OUT_VOL_POS.len(), |idx| {
+                    let pos = Self::OUT_VOL_POS[idx];
+                    Ok(self.cache[pos] as i32)
+                })?;
                 Ok(true)
             }
             IN_METER_NAME => {
-                let vals = Self::IN_METER_POS.iter().map(|p| self.cache[*p] as i32).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::IN_METER_POS.len(), |idx| {
+                    let pos = Self::IN_METER_POS[idx];
+                    Ok(self.cache[pos] as i32)
+                })?;
                 Ok(true)
             }
             OUT_METER_NAME => {
-                let vals = Self::OUT_METER_POS.iter().map(|p| self.cache[*p] as i32).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::OUT_METER_POS.len(), |idx| {
+                    let pos = Self::OUT_METER_POS[idx];
+                    Ok(self.cache[pos] as i32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),

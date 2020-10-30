@@ -4,10 +4,9 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
 use ta1394::general::UnitInfo;
@@ -192,9 +191,11 @@ trait SpdifOutCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             SPDIF_OUT_SRC_NAME => {
-                let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, 0xff);
-                self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.input_plug_id as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, 0xff);
+                    self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    Ok(op.input_plug_id as u32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -206,10 +207,10 @@ trait SpdifOutCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             SPDIF_OUT_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, vals[0] as u8);
-                self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, val as u8);
+                    self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),

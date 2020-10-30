@@ -2,9 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 use ta1394::{AvcOp, AvcControl};
@@ -229,12 +228,13 @@ impl<'a> MeterCtl<'a> {
         match elem_id.get_name().as_str() {
             Self::SWITCH_NAME => {
                 if let Some(s) = &mut self.switch {
-                    let mut val = [0];
-                    new.get_enum(&mut val);
-                    let switch = SwitchState::from(val[0] as u8);
-                    let mut op = LedSwitch::new(&avc.company_id, switch);
-                    avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-                    *s = switch;
+                    ElemValueAccessor::<u32>::get_val(new, |val| {
+                        let switch = SwitchState::from(val as u8);
+                        let mut op = LedSwitch::new(&avc.company_id, switch);
+                        avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
+                        *s = switch;
+                        Ok(())
+                    })?;
                     Ok(true)
                 } else {
                     Ok(false)
@@ -314,13 +314,12 @@ impl<'a> MeterCtl<'a> {
     }
 
     fn parse_meters(&self, elem_value: &mut alsactl::ElemValue, offset: usize, labels: &[&str]) {
-        let vals = (0..labels.len()).map(|i| {
-            let pos = (offset + i) * std::mem::size_of::<i32>();
-            let mut quadlet = [0;std::mem::size_of::<i32>()];
-            quadlet.copy_from_slice(&self.cache[pos..(pos + std::mem::size_of::<i32>())]);
-            i32::from_be_bytes(quadlet)
-        }).collect::<Vec<i32>>();
-        elem_value.set_int(&vals);
+        let mut quadlet = [0;4];
+        ElemValueAccessor::<i32>::set_vals(elem_value, labels.len(), |idx| {
+            let pos = (offset + idx) * 4;
+            quadlet.copy_from_slice(&self.cache[pos..(pos + 4)]);
+            Ok(i32::from_be_bytes(quadlet))
+        }).unwrap();
     }
 
     pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
@@ -355,7 +354,7 @@ impl<'a> MeterCtl<'a> {
             }
             Self::SWITCH_NAME => {
                 if let Some(s) = &self.switch {
-                    elem_value.set_enum(&[u8::from(*s) as u32]);
+                    ElemValueAccessor::<u32>::set_val(elem_value, || Ok(u8::from(*s) as u32))?;
                     Ok(true)
                 } else {
                     Ok(false)
@@ -363,7 +362,7 @@ impl<'a> MeterCtl<'a> {
             }
             Self::ROTARY0_NAME => {
                 if let Some(rotary0) = &self.rotary0 {
-                    elem_value.set_int(&[*rotary0 as i32]);
+                    ElemValueAccessor::<i32>::set_val(elem_value, || Ok(*rotary0 as i32))?;
                     Ok(true)
                 } else {
                     Ok(false)
@@ -371,7 +370,7 @@ impl<'a> MeterCtl<'a> {
             }
             Self::ROTARY1_NAME => {
                 if let Some(rotary1) = &self.rotary1 {
-                    elem_value.set_int(&[*rotary1 as i32]);
+                    ElemValueAccessor::<i32>::set_val(elem_value, || Ok(*rotary1 as i32))?;
                     Ok(true)
                 } else {
                     Ok(false)
@@ -379,7 +378,7 @@ impl<'a> MeterCtl<'a> {
             }
             Self::SYNC_STATUS_NAME => {
                 if let Some(sync_status) = &self.sync_status {
-                    elem_value.set_bool(&[*sync_status]);
+                    ElemValueAccessor::<bool>::set_val(elem_value, || Ok(*sync_status))?;
                     Ok(true)
                 } else {
                     Ok(false)
@@ -467,21 +466,18 @@ impl<'a> MixerCtl<'a> {
                 src_fb_ids.extend_from_slice(&self.stream_src_fb_ids);
                 src_fb_ids.extend_from_slice(&self.phys_src_fb_ids);
 
-                let mut vals = vec![false;src_fb_ids.len()];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let (src_fb, src_ch) = get_fb_id_and_ch(&src_fb_ids, i * 2);
+                ElemValueAccessor::<bool>::set_vals(elem_value, src_fb_ids.len(), |idx| {
+                    let (src_fb, src_ch) = get_fb_id_and_ch(&src_fb_ids, idx * 2);
                     let mut op = AudioProcessing::new(dst_fb, CtlAttr::Current, src_fb,
                                                       AudioCh::Each(src_ch), AudioCh::Each(dst_ch),
                                                       ProcessingCtl::Mixer(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let ProcessingCtl::Mixer(data) = op.ctl {
-                        *v = data[0] == ON;
-                        Ok(())
+                        Ok(data[0] == ON)
                     } else {
                         unreachable!();
                     }
                 })?;
-                elem_value.set_bool(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -501,19 +497,14 @@ impl<'a> MixerCtl<'a> {
                 src_fb_ids.extend_from_slice(&self.stream_src_fb_ids);
                 src_fb_ids.extend_from_slice(&self.phys_src_fb_ids);
 
-                let mut vals = vec![false;src_fb_ids.len() * 2];
-                new.get_bool(&mut vals[..src_fb_ids.len()]);
-                old.get_bool(&mut vals[src_fb_ids.len()..]);
-                vals[..src_fb_ids.len()].iter().zip(vals[src_fb_ids.len()..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        // Left channel is a representative.
-                        let (src_fb, src_ch) = get_fb_id_and_ch(&src_fb_ids, i * 2);
-                        let mut op = AudioProcessing::new(dst_fb, CtlAttr::Current, src_fb,
-                                                AudioCh::Each(src_ch), AudioCh::Each(dst_ch),
-                                                ProcessingCtl::Mixer(vec![if *v { ON } else { OFF }]));
-                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<bool>::get_vals(new, old, src_fb_ids.len(), |idx, val| {
+                    // Left channel is a representative.
+                    let (src_fb, src_ch) = get_fb_id_and_ch(&src_fb_ids, idx * 2);
+                    let mut op = AudioProcessing::new(dst_fb, CtlAttr::Current, src_fb,
+                                            AudioCh::Each(src_ch), AudioCh::Each(dst_ch),
+                                            ProcessingCtl::Mixer(vec![if val { ON } else { OFF }]));
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -608,20 +599,17 @@ impl<'a> InputCtl<'a> {
     pub fn read_gain(&mut self, avc: &BebobAvc, elem_value: &mut alsactl::ElemValue, fb_ids: &[u8])
         -> Result<bool, Error>
     {
-        let mut vals = vec![0;fb_ids.len()];
-        vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
+        ElemValueAccessor::<i32>::set_vals(elem_value, fb_ids.len(), |idx| {
+            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, idx);
             let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
                                            FeatureCtl::Volume(vec![-1]));
             avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
             if let FeatureCtl::Volume(data) = op.ctl {
-                *v = data[0] as i32;
-                Ok(())
+                Ok(data[0] as i32)
             } else {
                 unreachable!();
             }
         })?;
-        elem_value.set_int(&vals);
         Ok(true)
     }
 
@@ -629,39 +617,29 @@ impl<'a> InputCtl<'a> {
                       fb_ids: &[u8])
         -> Result<bool, Error>
     {
-        let len = fb_ids.len() * 2;
-        let mut vals = vec![0;len * 2];
-        new.get_int(&mut vals[0..len]);
-        old.get_int(&mut vals[len..]);
-        vals[..len].iter().zip(vals[len..].iter()).enumerate()
-            .filter(|(_, (n, o))| *n != *o)
-            .try_for_each(|(i, (v, _))| {
-                let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
-                let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
-                                               FeatureCtl::Volume(vec![*v as i16]));
-                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-            })?;
+        ElemValueAccessor::<i32>::get_vals(new, old, fb_ids.len(), |idx, val| {
+            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, idx);
+            let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
+                                           FeatureCtl::Volume(vec![val as i16]));
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+        })?;
         Ok(true)
     }
 
     fn read_balance(&mut self, avc: &BebobAvc, elem_value: &mut alsactl::ElemValue, fb_ids: &[u8])
         -> Result<bool, Error>
     {
-        let len = fb_ids.len() * 2;
-        let mut vals = vec![0;len];
-        vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
+        ElemValueAccessor::<i32>::set_vals(elem_value, fb_ids.len(), |idx| {
+            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, idx);
             let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
                                            FeatureCtl::LrBalance(-1));
             avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
             if let FeatureCtl::LrBalance(val) = op.ctl {
-                *v = val as i32;
-                Ok(())
+                Ok(val as i32)
             } else {
                 unreachable!();
             }
         })?;
-        elem_value.set_int(&vals);
         Ok(true)
     }
 
@@ -669,18 +647,12 @@ impl<'a> InputCtl<'a> {
                      fb_ids: &[u8])
         -> Result<bool, Error>
     {
-        let len = fb_ids.len() * 2;
-        let mut vals = vec![0; len * 2];
-        new.get_int(&mut vals[..len]);
-        old.get_int(&mut vals[len..]);
-        vals[..len].iter().zip(vals[len..].iter()).enumerate()
-            .filter(|(_, (n, o))| *n != *o)
-            .try_for_each(|(i, (v, _))| {
-                let (fb_id, ch) = get_fb_id_and_ch(fb_ids, i);
-                let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
-                                               FeatureCtl::LrBalance(*v as i16));
-                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-            })?;
+        ElemValueAccessor::<i32>::get_vals(new, old, fb_ids.len(), |idx, val| {
+            let (fb_id, ch) = get_fb_id_and_ch(fb_ids, idx);
+            let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
+                                           FeatureCtl::LrBalance(val as i16));
+            avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+        })?;
         Ok(true)
     }
 }
@@ -739,36 +711,30 @@ impl<'a> AuxCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::AUX_SRC_GAIN_NAME => {
-                let mut vals = vec![0;self.src_labels.len() * 2];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, i);
+                ElemValueAccessor::<i32>::set_vals(elem_value, self.src_labels.len(), |idx| {
+                    let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, idx);
                     let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        *v = data[0] as i32;
-                        Ok(())
+                        Ok(data[0] as i32)
                     } else {
                         unreachable!();
                     }
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::AUX_OUT_VOLUME_NAME => {
-                let mut vals = [0; 2];
-                vals.iter_mut().enumerate().try_for_each(|(ch, v)| {
-                    let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
-                                                   FeatureCtl::Volume(vec![*v as i16]));
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(idx as u8),
+                                                   FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        *v = data[0] as i32;
-                        Ok(())
+                        Ok(data[0] as i32)
                     } else {
                         unreachable!();
                     }
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -781,32 +747,20 @@ impl<'a> AuxCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             Self::AUX_SRC_GAIN_NAME => {
-                let len = self.src_labels.len() * 2;
-                let mut vals = vec![0;len * 2];
-                old.get_int(&mut vals[..len]);
-                new.get_int(&mut vals[len..]);
-
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, i);
-                        let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
-                                                       FeatureCtl::Volume(vec![*v as i16]));
-                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, self.src_labels.len(), |idx, val| {
+                    let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, idx);
+                    let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                                                   FeatureCtl::Volume(vec![val as i16]));
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::AUX_OUT_VOLUME_NAME => {
-                let mut vals = [0; 4];
-                new.get_int(&mut vals[..2]);
-                old.get_int(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(ch, (v, _))| {
-                        let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
-                                                       FeatureCtl::Volume(vec![*v as i16]));
-                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(idx as u8),
+                                                   FeatureCtl::Volume(vec![val as i16]));
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -851,32 +805,25 @@ impl<'a> OutputCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             OUT_SRC_NAME => {
-                let len = self.labels.len();
-                let mut vals = vec![0;len];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let mut op = AudioSelector::new(self.src_fb_ids[i], CtlAttr::Current, 0xff);
+                ElemValueAccessor::<u32>::set_vals(elem_value, self.labels.len(), |idx| {
+                    let mut op = AudioSelector::new(self.src_fb_ids[idx], CtlAttr::Current, 0xff);
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
-                    *v = op.input_plug_id as u32;
-                    Ok(())
+                    Ok(op.input_plug_id as u32)
                 })?;
-                elem_value.set_enum(&vals);
                 Ok(true)
             }
             OUT_VOL_NAME => {
-                let mut vals = vec![0;2 * self.labels.len()];
-                vals.iter_mut().enumerate().try_for_each(|(i, v)| {
-                    let ch = (i % 2) as u8;
-                    let mut op = AudioFeature::new(self.vol_fb_ids[i / 2], CtlAttr::Current, AudioCh::Each(ch),
+                ElemValueAccessor::<i32>::set_vals(elem_value, self.labels.len(), |idx| {
+                    let ch = (idx % 2) as u8;
+                    let mut op = AudioFeature::new(self.vol_fb_ids[idx / 2], CtlAttr::Current, AudioCh::Each(ch),
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        *v = data[0] as i32;
-                        Ok(())
+                        Ok(data[0] as i32)
                     } else {
                         unreachable!();
                     }
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -889,31 +836,19 @@ impl<'a> OutputCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             OUT_SRC_NAME => {
-                let len = self.labels.len();
-                let mut vals = vec![0; len * 2];
-                new.get_enum(&mut vals[0..len]);
-                old.get_enum(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let mut op = AudioSelector::new(self.src_fb_ids[i], CtlAttr::Current, *v as u8);
-                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, self.labels.len(), |idx, val| {
+                    let mut op = AudioSelector::new(self.src_fb_ids[idx], CtlAttr::Current, val as u8);
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             OUT_VOL_NAME => {
-                let len = self.labels.len() * 2;
-                let mut vals = vec![0; len * 2];
-                new.get_int(&mut vals[0..len]);
-                old.get_int(&mut vals[len..]);
-                vals[..len].iter().zip(vals[len..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let ch = (i % 2) as u8;
-                        let mut op = AudioFeature::new(self.vol_fb_ids[i / 2], CtlAttr::Current, AudioCh::Each(ch),
-                                                       FeatureCtl::Volume(vec![*v as i16]));
-                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<u32>::get_vals(new, old, self.labels.len(), |idx, val| {
+                    let ch = (idx % 2) as u8;
+                    let mut op = AudioFeature::new(self.vol_fb_ids[idx / 2], CtlAttr::Current, AudioCh::Each(ch),
+                                                   FeatureCtl::Volume(vec![val as i16]));
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -958,25 +893,24 @@ impl<'a> HpCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             HP_SRC_NAME => {
-                let mut op = AudioSelector::new(self.src_fb_id, CtlAttr::Current, 0xff);
-                avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
-                elem_value.set_enum(&[op.input_plug_id as u32]);
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = AudioSelector::new(self.src_fb_id, CtlAttr::Current, 0xff);
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                    Ok(op.input_plug_id as u32)
+                })?;
                 Ok(true)
             }
             Self::HP_VOL_NAME => {
-                let mut vals = [0;2];
-                vals.iter_mut().enumerate().try_for_each(|(ch, v)| {
-                    let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(idx as u8),
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        *v = data[0] as i32;
-                        Ok(())
+                        Ok(data[0] as i32)
                     } else {
                         unreachable!();
                     }
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             }
             _ => Ok(false),
@@ -989,23 +923,18 @@ impl<'a> HpCtl<'a> {
     {
         match elem_id.get_name().as_str() {
             HP_SRC_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let mut op = AudioSelector::new(self.src_fb_id, CtlAttr::Current, vals[0] as u8);
-                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mut op = AudioSelector::new(self.src_fb_id, CtlAttr::Current, val as u8);
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             Self::HP_VOL_NAME => {
-                let mut vals = [0;4];
-                new.get_int(&mut vals[..2]);
-                old.get_int(&mut vals[2..]);
-                vals[..2].iter().zip(vals[2..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(ch, (v, _))| {
-                        let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
-                                                       FeatureCtl::Volume(vec![*v as i16]));
-                        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(idx as u8),
+                                                   FeatureCtl::Volume(vec![val as i16]));
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),

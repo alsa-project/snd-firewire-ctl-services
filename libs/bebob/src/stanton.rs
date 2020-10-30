@@ -3,10 +3,10 @@
 use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
-use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
 use card_cntr::CtlModel;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr};
@@ -127,21 +127,18 @@ trait InputCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             OUT_VOL_NAME => {
-                let mut vals = vec![0;OUTPUT_LABELS.len()];
-                (0..OUTPUT_LABELS.len()).try_for_each(|i| {
-                    let func_blk_id = FB_IDS[i / 2];
-                    let audio_ch_num = AudioCh::Each((i % 2) as u8);
+                ElemValueAccessor::<i32>::set_vals(elem_value, OUTPUT_LABELS.len(), |idx| {
+                    let func_blk_id = FB_IDS[idx / 2];
+                    let audio_ch_num = AudioCh::Each((idx % 2) as u8);
                     let mut op = AudioFeature::new(func_blk_id, CtlAttr::Current, audio_ch_num,
                                                    FeatureCtl::Volume(vec![-1]));
                     self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        vals[i] = data[0] as i32;
-                        Ok(())
+                        Ok(data[0] as i32)
                     } else {
                         unreachable!();
                     }
                 })?;
-                elem_value.set_int(&vals);
                 Ok(true)
             },
             _ => Ok(false),
@@ -153,18 +150,13 @@ trait InputCtl : Ta1394Avc {
     {
         match elem_id.get_name().as_str() {
             OUT_VOL_NAME => {
-                let mut vals = vec![0;OUTPUT_LABELS.len() * 2];
-                new.get_int(&mut vals[..OUTPUT_LABELS.len()]);
-                old.get_int(&mut vals[OUTPUT_LABELS.len()..]);
-                vals[..OUTPUT_LABELS.len()].iter().zip(vals[OUTPUT_LABELS.len()..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let func_blk_id = FB_IDS[i / 2];
-                        let audio_ch_num = AudioCh::Each((i % 2) as u8);
-                        let mut op = AudioFeature::new(func_blk_id, CtlAttr::Current, audio_ch_num,
-                                                       FeatureCtl::Volume(vec![*v as i16]));
-                        self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, OUTPUT_LABELS.len(), |idx, val| {
+                    let func_blk_id = FB_IDS[idx / 2];
+                    let audio_ch_num = AudioCh::Each((idx % 2) as u8);
+                    let mut op = AudioFeature::new(func_blk_id, CtlAttr::Current, audio_ch_num,
+                                                   FeatureCtl::Volume(vec![val as i16]));
+                    self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                })?;
                 Ok(true)
             },
             _ => Ok(false),

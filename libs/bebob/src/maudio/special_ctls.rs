@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 use ta1394::{AvcOp, AvcControl};
@@ -53,17 +54,20 @@ impl<'a> ClkCtl {
     {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                let mut op = InputPlugSignalFormat::new(0);
-                avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut op = InputPlugSignalFormat::new(0);
+                    avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
 
-                let fdf = AmdtpFdf::from(op.fdf.as_ref());
-                match self.supported_clk_rates.iter().position(|r| *r == fdf.freq) {
-                    Some(p) => {
-                        elem_value.set_enum(&[p as u32]);
-                        Ok(true)
+                    let fdf = AmdtpFdf::from(op.fdf.as_ref());
+                    match self.supported_clk_rates.iter().position(|r| *r == fdf.freq) {
+                        Some(p) => Ok(p as u32),
+                        None => {
+                            let label = "Unexpected value for FDF of AMDTP";
+                            Err(Error::new(FileError::Io, &label))
+                        }
                     }
-                    None => Ok(false),
-                }
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -75,29 +79,29 @@ impl<'a> ClkCtl {
     {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let freq = self.supported_clk_rates[val as usize];
+                    let fdf = AmdtpFdf::new(AmdtpEventType::Am824, false, freq);
 
-                let freq = self.supported_clk_rates[vals[0] as usize];
-                let fdf = AmdtpFdf::new(AmdtpEventType::Am824, false, freq);
-
-                unit.lock()?;
-                let mut op = OutputPlugSignalFormat{
-                    plug_id: 0,
-                    fmt: FMT_IS_AMDTP,
-                    fdf: fdf.into(),
-                };
-                let mut res = avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS * 2);
-                if res.is_ok() {
-                    let mut op = InputPlugSignalFormat{
+                    unit.lock()?;
+                    let mut op = OutputPlugSignalFormat{
                         plug_id: 0,
                         fmt: FMT_IS_AMDTP,
                         fdf: fdf.into(),
                     };
-                    res = avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS * 2)
-                }
-                unit.unlock()?;
-                res.and(Ok(true))
+                    let mut res = avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS * 2);
+                    if res.is_ok() {
+                        let mut op = InputPlugSignalFormat{
+                            plug_id: 0,
+                            fmt: FMT_IS_AMDTP,
+                            fdf: fdf.into(),
+                        };
+                        res = avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS * 2)
+                    }
+                    unit.unlock()?;
+                    res
+                })?;
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -272,13 +276,12 @@ impl<'a> MeterCtl {
     }
 
     fn parse_meters(&self, elem_value: &mut alsactl::ElemValue, offset: usize, labels: &[&str]) {
-        let vals = (0..labels.len()).map(|i| {
-            let pos = (offset + i) * std::mem::size_of::<i16>();
-            let mut doublet = [0;std::mem::size_of::<i16>()];
-            doublet.copy_from_slice(&self.meters[pos..(pos + std::mem::size_of::<i16>())]);
-            i16::from_be_bytes(doublet) as i32
-        }).collect::<Vec<i32>>();
-        elem_value.set_int(&vals);
+        let mut doublet = [0;2];
+        ElemValueAccessor::<i32>::set_vals(elem_value, labels.len(), |idx| {
+            let pos = (offset + idx) * 2;
+            doublet.copy_from_slice(&self.meters[pos..(pos + 2)]);
+            Ok(i16::from_be_bytes(doublet) as i32)
+        }).unwrap();
     }
 
     pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
@@ -286,23 +289,23 @@ impl<'a> MeterCtl {
     {
         match elem_id.get_name().as_str() {
             Self::ROTARY0_NAME => {
-                elem_value.set_int(&[self.rotaries[0]]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.rotaries[0]))?;
                 Ok(true)
             }
             Self::ROTARY1_NAME => {
-                elem_value.set_int(&[self.rotaries[1]]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.rotaries[1]))?;
                 Ok(true)
             }
             Self::ROTARY2_NAME => {
-                elem_value.set_int(&[self.rotaries[2]]);
+                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.rotaries[2]))?;
                 Ok(true)
             }
             Self::SWITCH_NAME => {
-                elem_value.set_bool(&[self.switch]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.switch))?;
                 Ok(true)
             }
             Self::SYNC_STATUS_NAME => {
-                elem_value.set_bool(&[self.sync_status]);
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.sync_status))?;
                 Ok(true)
             }
             IN_METER_NAME => {
@@ -607,49 +610,41 @@ fn add_input_pan_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_cou
 
 impl StateCache {
     fn read_input_gain(&self, value_count: usize, pos: usize, elem_value: &mut alsactl::ElemValue) {
-        let vals = (0..value_count).map(|i| {
-            let p = pos + i * GAIN_SIZE;
-            self.get_i16(p) as i32
-        }).collect::<Vec<i32>>();
-        elem_value.set_int(&vals);
+        ElemValueAccessor::<i32>::set_vals(elem_value, value_count, |idx| {
+            let p = pos + idx * GAIN_SIZE;
+            Ok(self.get_i16(p) as i32)
+        }).unwrap();
     }
 
     fn read_input_pan(&self, value_count: usize, pos: usize, elem_value: &mut alsactl::ElemValue) {
-        let vals = (0..value_count).map(|i| {
-            let p = pos + i * PAN_SIZE;
-            self.get_i16(p) as i32
-        }).collect::<Vec<i32>>();
-        elem_value.set_int(&vals);
+        ElemValueAccessor::<i32>::set_vals(elem_value, value_count, |idx| {
+            let p = pos + idx * PAN_SIZE;
+            Ok(self.get_i16(p) as i32)
+        }).unwrap();
     }
 
     fn write_input_gain(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, value_count: usize, pos: usize,
-                        old: &alsactl::ElemValue, new: &alsactl::ElemValue) -> Result<(), Error> {
-        let mut vals = vec![0;value_count * 2];
-        new.get_int(&mut vals[..value_count]);
-        old.get_int(&mut vals[value_count..]);
-        vals[..value_count].iter().zip(vals[value_count..].iter()).enumerate()
-            .filter(|(_, (n, o))| *n != *o)
-            .try_for_each(|(i, (v, _))| {
-                let mut p = pos + i * GAIN_SIZE;
-                self.set_i16(p, *v as i16);
-                p -= p % std::mem::size_of::<u32>();
-                req.write_quadlet(unit, p, &mut self.cache)
-            })
+                        old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<(), Error>
+    {
+        ElemValueAccessor::<i32>::get_vals(new, old, value_count, |idx, val| {
+            let mut p = pos + idx * GAIN_SIZE;
+            self.set_i16(p, val as i16);
+            p -= p % 4;
+            req.write_quadlet(unit, p, &mut self.cache)
+        }).and(Ok(()))
     }
 
     fn write_input_pan(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, value_count: usize, pos: usize,
-                       old: &alsactl::ElemValue, new: &alsactl::ElemValue) -> Result<(), Error> {
-        let mut vals = vec![0;value_count * 2];
-        new.get_int(&mut vals[..value_count]);
-        old.get_int(&mut vals[value_count..]);
-        vals[..value_count].iter().zip(vals[value_count..].iter()).enumerate()
-            .filter(|(_, (n, o))| *n != *o)
-            .try_for_each(|(i, (v, _))| {
-                let mut p = pos + i * PAN_SIZE;
-                self.set_i16(p, *v as i16);
-                p -= p % std::mem::size_of::<u32>();
-                req.write_quadlet(unit, p, &mut self.cache)
-            })
+                       old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+        -> Result<(), Error>
+    {
+        ElemValueAccessor::<i32>::get_vals(new, old, value_count, |idx, val| {
+            let mut p = pos + idx * PAN_SIZE;
+            self.set_i16(p, val as i16);
+            p -= p % 4;
+            req.write_quadlet(unit, p, &mut self.cache)
+        }).and(Ok(()))
     }
 }
 
@@ -853,12 +848,10 @@ impl OutputCtl for StateCache {
     fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_VOL_NAME => {
-                let vals = (0..ANALOG_OUT_LABELS.len()).map(|i| {
-                    let pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
-                    self.get_i16(pos) as i32
-                }).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
-                Ok(true)
+                ElemValueAccessor::<i32>::set_vals(elem_value, ANALOG_OUT_LABELS.len(), |idx| {
+                    let pos = ANALOG_OUT_VOL_POS + idx * VOL_SIZE;
+                    Ok(self.get_i16(pos) as i32)
+                }).and(Ok(true))
             }
             OUT_SRC_NAME => {
                 let flags = self.get_u32(OUT_PAIR_SRC_POS);
@@ -876,17 +869,12 @@ impl OutputCtl for StateCache {
     {
         match elem_id.get_name().as_str() {
             OUT_VOL_NAME => {
-                let mut vals = [0;ANALOG_OUT_LABELS.len() * 2];
-                new.get_int(&mut vals[..ANALOG_OUT_LABELS.len()]);
-                old.get_int(&mut vals[ANALOG_OUT_LABELS.len()..]);
-                vals[..ANALOG_OUT_LABELS.len()].iter().zip(vals[ANALOG_OUT_LABELS.len()..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let mut pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
-                        self.set_i16(pos, *v as i16);
-                        pos -= pos % std::mem::size_of::<u32>();
-                        req.write_quadlet(unit, pos, &mut self.cache)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, ANALOG_OUT_LABELS.len(), |idx, val| {
+                    let mut pos = ANALOG_OUT_VOL_POS + idx * VOL_SIZE;
+                    self.set_i16(pos, val as i16);
+                    pos -= pos % 4;
+                    req.write_quadlet(unit, pos, &mut self.cache)
+                })?;
                 Ok(true)
             }
             OUT_SRC_NAME => {
@@ -950,19 +938,17 @@ impl AuxCtl for StateCache {
             AUX_SRC_PAIR_NAME => {
                 let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
                                 SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
-                let vals = (0..src_count).map(|i| {
-                    let pos = AUX_SRC_PAIR_TO_DST_POS + i * GAIN_SIZE;
-                    self.get_i16(pos) as i32
-                }).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, src_count, |idx| {
+                    let pos = AUX_SRC_PAIR_TO_DST_POS + idx * GAIN_SIZE;
+                    Ok(self.get_i16(pos) as i32)
+                })?;
                 Ok(true)
             }
             AUX_OUT_VOL_NAME => {
-                let vals = (0..AUX_OUT_LABELS.len()).map(|i| {
-                    let pos = AUX_OUT_POS + i * VOL_SIZE;
-                    self.get_i16(pos) as i32
-                }).collect::<Vec::<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, AUX_OUT_LABELS.len(), |idx| {
+                    let pos = AUX_OUT_POS + idx * VOL_SIZE;
+                    Ok(self.get_i16(pos) as i32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -976,26 +962,20 @@ impl AuxCtl for StateCache {
             AUX_SRC_PAIR_NAME => {
                 let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
                                 SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
-                let mut vals = vec![0;src_count * 2];
-                new.get_int(&mut vals[..src_count]);
-                old.get_int(&mut vals[src_count..]);
-                vals[..src_count].iter().zip(vals[src_count..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let mut pos = AUX_SRC_PAIR_TO_DST_POS + i * GAIN_SIZE;
-                        self.set_i16(pos, *v as i16);
-                        pos -= pos % std::mem::size_of::<u32>();
-                        req.write_quadlet(unit, pos, &mut self.cache)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, src_count, |idx, val| {
+                    let mut pos = AUX_SRC_PAIR_TO_DST_POS + idx * GAIN_SIZE;
+                    self.set_i16(pos, val as i16);
+                    pos -= pos % 4;
+                    req.write_quadlet(unit, pos, &mut self.cache)
+                })?;
                 Ok(true)
             }
             AUX_OUT_VOL_NAME => {
-                let mut vals = [0;AUX_OUT_LABELS.len()];
-                new.get_int(&mut vals);
-                vals.iter().enumerate().for_each(|(i, v)| {
-                    let pos = AUX_OUT_POS + i * VOL_SIZE;
-                    self.set_i16(pos, *v as i16);
-                });
+                ElemValueAccessor::<i32>::get_vals(new, old, AUX_OUT_LABELS.len(), |idx, val| {
+                    let pos = AUX_OUT_POS + idx * VOL_SIZE;
+                    self.set_i16(pos, val as i16);
+                    Ok(())
+                })?;
                 req.write_quadlet(unit, AUX_OUT_POS, &mut self.cache)?;
                 Ok(true)
             }
@@ -1085,11 +1065,10 @@ impl HpCtl for StateCache {
                 Ok(true)
             }
             HP_OUT_VOL_NAME => {
-                let vals = (0..HP_OUT_LABELS.len()).map(|i| {
-                    let pos = HP_OUT_VOL_POS + i * VOL_SIZE;
-                    self.get_i16(pos) as i32
-                }).collect::<Vec<i32>>();
-                elem_value.set_int(&vals);
+                ElemValueAccessor::<i32>::set_vals(elem_value, HP_OUT_LABELS.len(), |idx| {
+                    let pos = HP_OUT_VOL_POS + idx * VOL_SIZE;
+                    Ok(self.get_i16(pos) as i32)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -1112,17 +1091,12 @@ impl HpCtl for StateCache {
                 Ok(true)
             }
             HP_OUT_VOL_NAME => {
-                let mut vals = [0;HP_OUT_LABELS.len() * 2];
-                new.get_int(&mut vals[..HP_OUT_LABELS.len()]);
-                old.get_int(&mut vals[HP_OUT_LABELS.len()..]);
-                vals[..HP_OUT_LABELS.len()].iter().zip(vals[HP_OUT_LABELS.len()..].iter()).enumerate()
-                    .filter(|(_, (n, o))| *n != *o)
-                    .try_for_each(|(i, (v, _))| {
-                        let mut pos = HP_OUT_VOL_POS + i * VOL_SIZE;
-                        self.set_i16(pos, *v as i16);
-                        pos -= pos % std::mem::size_of::<u32>();
-                        req.write_quadlet(unit, pos, &mut self.cache)
-                    })?;
+                ElemValueAccessor::<i32>::get_vals(new, old, HP_OUT_LABELS.len(), |idx, val| {
+                    let mut pos = HP_OUT_VOL_POS + idx * VOL_SIZE;
+                    self.set_i16(pos, val as i16);
+                    pos -= pos % 4;
+                    req.write_quadlet(unit, pos, &mut self.cache)
+                })?;
                 Ok(true)
             }
             _ => Ok(false),
