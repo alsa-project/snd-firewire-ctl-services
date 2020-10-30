@@ -4,9 +4,10 @@ use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
 
-use alsactl::{CardExtManual, ElemValueExt, ElemValueExtManual};
+use alsactl::CardExtManual;
 
 use core::card_cntr;
+use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::Ta1394Avc;
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, CtlAttr, FeatureCtl, AudioCh};
@@ -93,31 +94,30 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for GriffinModel {
         } else if self.voluntary {
             match elem_id.get_name().as_str() {
                 Self::VOL_LABEL => {
-                    let mut vals = [0;Self::CHANNEL_MAP.len()];
-                    vals.iter_mut().zip(Self::CHANNEL_MAP.iter()).try_for_each(|(val, ch)|{
+                    ElemValueAccessor::<i32>::set_vals(elem_value, Self::CHANNEL_MAP.len(), |idx| {
                         let mut op = AudioFeature::new(Self::VOL_FB_ID, CtlAttr::Current,
-                                            AudioCh::Each(*ch as u8), FeatureCtl::Volume(vec![-1]));
+                                            AudioCh::Each(idx as u8), FeatureCtl::Volume(vec![-1]));
                         self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
                         if let FeatureCtl::Volume(data) = op.ctl {
-                            *val = data[0] as i32;
+                            Ok(data[0] as i32)
                         } else {
                             unreachable!();
                         }
-                        Ok(())
                     })?;
-                    elem_value.set_int(&vals);
                     Ok(true)
                 }
                 Self::MUTE_LABEL => {
-                    let mut op = AudioFeature::new(Self::MUTE_FB_ID, CtlAttr::Current,
-                                                   AudioCh::All, FeatureCtl::Mute(vec![false]));
-                    self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
-                    if let FeatureCtl::Mute(data) = op.ctl {
-                        elem_value.set_bool(&data);
-                        Ok(true)
-                    } else {
-                        Ok(false)
-                    }
+                    ElemValueAccessor::<bool>::set_val(elem_value, || {
+                        let mut op = AudioFeature::new(Self::MUTE_FB_ID, CtlAttr::Current,
+                                                       AudioCh::All, FeatureCtl::Mute(vec![false]));
+                        self.avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
+                        if let FeatureCtl::Mute(val) = op.ctl {
+                            Ok(val[0])
+                        } else {
+                            unreachable!();
+                        }
+                    })?;
+                    Ok(true)
                 }
                 _ => Ok(false),
             }
@@ -134,26 +134,19 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for GriffinModel {
         } else if self.voluntary {
             match elem_id.get_name().as_str() {
                 Self::VOL_LABEL => {
-                    let mut vals = vec![0;Self::CHANNEL_MAP.len() * 2];
-                    new.get_int(&mut vals[..Self::CHANNEL_MAP.len()]);
-                    old.get_int(&mut vals[Self::CHANNEL_MAP.len()..]);
-
-                    (0..Self::CHANNEL_MAP.len()).enumerate().filter(|(i, _)| {
-                        vals[*i] == vals[Self::CHANNEL_MAP.len() + i]
-                    }).try_for_each(|(i, ch)| {
-                        let val = vals[i] as u16;
+                    ElemValueAccessor::<i32>::get_vals(new, old, Self::CHANNEL_MAP.len(), |idx, val| {
                         let mut op = AudioFeature::new(Self::VOL_FB_ID, CtlAttr::Current,
-                                            AudioCh::Each(ch as u8), FeatureCtl::Volume(vec![val as i16]));
+                                            AudioCh::Each(idx as u8), FeatureCtl::Volume(vec![val as i16]));
                         self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)
                     })?;
                     Ok(true)
                 }
                 Self::MUTE_LABEL => {
-                    let mut vals = vec![false];
-                    new.get_bool(&mut vals);
-                    let mut op = AudioFeature::new(Self::MUTE_FB_ID, CtlAttr::Current,
-                                                   AudioCh::All, FeatureCtl::Mute(vals));
-                    self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)?;
+                    ElemValueAccessor::<bool>::get_val(new, |val| {
+                        let mut op = AudioFeature::new(Self::MUTE_FB_ID, CtlAttr::Current,
+                                                       AudioCh::All, FeatureCtl::Mute(vec![val]));
+                        self.avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, Self::FCP_TIMEOUT_MS)
+                    })?;
                     Ok(true)
                 }
                 _ => Ok(false),
