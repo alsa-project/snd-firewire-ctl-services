@@ -4,7 +4,7 @@ use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
 
-use alsa_ctl_tlv_codec::items::DbInterval;
+use alsa_ctl_tlv_codec::items::{DbInterval, CTL_VALUE_MUTE};
 
 use core::card_cntr;
 use card_cntr::CtlModel;
@@ -137,7 +137,8 @@ trait InputCtl : Ta1394Avc {
                                                    FeatureCtl::Volume(vec![-1]));
                     self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        Ok(data[0] as i32)
+                        let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                        Ok(val)
                     } else {
                         unreachable!();
                     }
@@ -156,8 +157,9 @@ trait InputCtl : Ta1394Avc {
                 ElemValueAccessor::<i32>::get_vals(new, old, OUTPUT_LABELS.len(), |idx, val| {
                     let func_blk_id = FB_IDS[idx / 2];
                     let audio_ch_num = AudioCh::Each((idx % 2) as u8);
+                    let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
                     let mut op = AudioFeature::new(func_blk_id, CtlAttr::Current, audio_ch_num,
-                                                   FeatureCtl::Volume(vec![val as i16]));
+                                                   FeatureCtl::Volume(vec![v]));
                     self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
                 })?;
                 Ok(true)

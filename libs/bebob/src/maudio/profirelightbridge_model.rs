@@ -135,7 +135,7 @@ impl<'a> MeterCtl {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = 0x007fffff;
     const METER_STEP: i32 = 256;
-    const METER_TLV: DbInterval = DbInterval{min: -14400, max: 0, linear: false, mute_avail: true};
+    const METER_TLV: DbInterval = DbInterval{min: -14400, max: 0, linear: false, mute_avail: false};
 
     fn new() -> Self {
         MeterCtl {
