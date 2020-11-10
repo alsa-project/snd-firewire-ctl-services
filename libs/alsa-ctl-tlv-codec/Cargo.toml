@@ -13,3 +13,7 @@ interface
 [[bin]]
 name = "tlv-decode"
 doc = false
+
+[[bin]]
+name = "db-calculate"
+doc = false

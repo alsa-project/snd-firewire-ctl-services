@@ -195,6 +195,55 @@
 //!     cargo run --bin tlv-decode -- raw -
 //! ...
 //! ```
+//!
+//! ### src/bin/db-calculate.rs
+//!
+//! This program calculates between dB value and raw value for control element, based on data of
+//! TLV from STDIN or command line argument. It uses double precision floating point number for
+//! dB calculation internally. For linear type of dB calculation, it uses exponentiation and logarithm.
+//!
+//! Without any command line argument, it prints help message and exit.
+//!
+//! ```sh
+//! $ cargo run --bin db-calculate
+//! Usage:
+//!   db-calculate "db" DECIMAL-FLOATING-POINT VALUE-RANGE DATA | "-"
+//!   db-calculate "value" DECIMAL | HEXADECIMAL VALUE-RANGE DATA | "-"
+//!
+//!   where:
+//!     "db":                   Use this program for db calculation.
+//!     "value":                Use this program for value calculation.
+//!     DECIMAL-FLOATING-POINT: decimal floating point number. It can be signed if needed.
+//!     DECIMAL:                decimal number. It can be signed if needed.
+//!     HEXADECIMAL:            hexadecimal number. It should have '0x' as prefix.
+//!     VALUE-RANGE:            space-separated triplet of MIN, MAX, and STEP comes from information of
+//!                             control element. All of them are DECIMAL or HEXADECIMAL.
+//!     DATA:                   space-separated DECIMAL and HEXADECIMAL array for the data of TLV.
+//!     "-":                    use STDIN to interpret DATA according to host endian.
+//!
+//!    When data of TLV has information to support mute, "-9999999" for value and "-inf" for db are
+//!    available.
+//! ```
+//!
+//! For calculation from dB to value based on data of TLV from STDIN, in the case that the machine
+//! architecture is little endian:
+//!
+//! ```sh
+//! $ echo -en "\x05\x00\x00\x00\x08\x00\x00\x00\x00\xfe\xff\xff\x80\x00\x00\x00" | \
+//!     cargo run --bin db-calculate db 1.0    128 512 1    -
+//!   ...
+//!   495
+//! ```
+//!
+//! For calculation to dB from value based on data of TLV from arguments of command line:
+//!
+//! ```sh
+//! $ cargo run --bin db-calculate value 495    128 512 1    5 8 0xfffffe00 0
+//!   ...
+//!   0.996666666666667
+//! ```
+//!
+//! The calculation has no validated numerics.
 
 #[allow(dead_code)]
 mod uapi;
