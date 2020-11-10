@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "libs/alsa-ctl-tlv-codec",
     "libs/core",
     "libs/ieee1212",
     "libs/ta1394",
