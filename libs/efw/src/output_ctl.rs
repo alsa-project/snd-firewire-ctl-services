@@ -2,6 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
@@ -20,7 +22,7 @@ impl<'a> OutputCtl {
     const COEF_MIN: i32 = 0x00000000;
     const COEF_MAX: i32 = 0x02000000;
     const COEF_STEP: i32 = 0x00000001;
-    const COEF_TLV: &'a [u32] = &[5, 8, -14400i32 as u32, 6];
+    const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 6, linear: false, mute_avail: false};
 
     const OUT_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "-10dBV"];
     const OUT_NOMINAL_LEVELS: &'a [NominalLevel] = &[NominalLevel::PlusFour, NominalLevel::MinusTen];
@@ -44,7 +46,7 @@ impl<'a> OutputCtl {
             alsactl::ElemIfaceType::Mixer, 0, 0, Self::OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1,
             Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-            self.phys_outputs, Some(Self::COEF_TLV), true)?;
+            self.phys_outputs, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(
             alsactl::ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
