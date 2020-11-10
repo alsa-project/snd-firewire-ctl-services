@@ -8,3 +8,6 @@
 //! The data of TLV style is used for several purposes. As of Linux kernel 5.10, it includes
 //! information about dB representation as well as information about channel mapping in ALSA
 //! PCM substream.
+
+#[allow(dead_code)]
+mod uapi;
