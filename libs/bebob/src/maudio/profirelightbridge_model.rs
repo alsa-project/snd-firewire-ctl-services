@@ -4,6 +4,8 @@ use glib::Error;
 
 use hinawa::{FwFcpExt, SndUnitExt};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 use core::elem_value_accessor::ElemValueAccessor;
@@ -133,7 +135,7 @@ impl<'a> MeterCtl {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = 0x007fffff;
     const METER_STEP: i32 = 256;
-    const METER_TLV: &'a [u32] = &[5, 8, -14400i32 as u32, 0];
+    const METER_TLV: DbInterval = DbInterval{min: -14400, max: 0, linear: false, mute_avail: true};
 
     fn new() -> Self {
         MeterCtl {
@@ -147,7 +149,8 @@ impl<'a> MeterCtl {
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                    Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                   Self::METER_LABELS.len(), Some(Self::METER_TLV), false)?;
+                                                   Self::METER_LABELS.len(),
+                                                   Some(&Into::<Vec<u32>>::into(Self::METER_TLV)), false)?;
         self.measure_elems.push(elem_id_list[0].clone());
 
         // For detection of sampling clock frequency.

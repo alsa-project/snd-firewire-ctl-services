@@ -4,6 +4,8 @@ use glib::Error;
 
 use hinawa::{SndUnitExt, FwFcpExt};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use card_cntr::CtlModel;
 use core::elem_value_accessor::ElemValueAccessor;
@@ -103,7 +105,7 @@ impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for ScratchampModel<'a> {
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0x0000;
 const VOL_STEP: i32 = 0x0080;
-const VOL_TLV: &[u32;4] = &[4, 8, -12800i32 as u32, 0];
+const VOL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: true};
 
 const OUTPUT_LABELS: &[&str] = &[
     "analog-1", "analog-2", "analog-3", "analog-4",
@@ -117,7 +119,8 @@ trait InputCtl : Ta1394Avc {
         // For volume of outputs.
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                        OUTPUT_LABELS.len(), Some(VOL_TLV), true)?;
+                                        OUTPUT_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
         Ok(())
     }

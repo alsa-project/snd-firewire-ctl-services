@@ -6,6 +6,8 @@ use hinawa::SndUnitExt;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
@@ -181,7 +183,7 @@ impl<'a> MeterCtl {
     const VAL_MIN: i32 = 0;
     const VAL_MAX: i32 = i16::MAX as i32;
     const VAL_STEP: i32 = 256;
-    const VAL_TLV: &'a [u32; 4] = &[5, 8, -12800i32 as u32, 0];
+    const VAL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: true};
 
     const METER_FRAME_SIZE: usize = 84;
 
@@ -200,7 +202,8 @@ impl<'a> MeterCtl {
     {
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::VAL_MIN, Self::VAL_MAX, Self::VAL_STEP,
-                                                       labels.len(), Some(Self::VAL_TLV), false)?;
+                                                       labels.len(),
+                                                       Some(&Into::<Vec<u32>>::into(Self::VAL_TLV)), false)?;
         self.measure_elems.append(&mut elem_id_list);
         Ok(())
     }
@@ -580,7 +583,7 @@ const ADAT_IN_PAN_NAME: &str = "adat-in-balance";
 const GAIN_MIN: i32 = i16::MIN as i32;
 const GAIN_MAX: i32 = 0;
 const GAIN_STEP: i32 = 256;
-const GAIN_TLV: &[u32;4] = &[5, 8, -12800i32 as u32, 0];
+const GAIN_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: true};
 
 const PAN_MIN: i32 = i16::MIN as i32;
 const PAN_MAX: i32 = i16::MAX as i32;
@@ -598,7 +601,8 @@ fn add_input_gain_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_co
     -> Result<Vec<alsactl::ElemId>, Error>
 {
     let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
-    card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, value_count, Some(GAIN_TLV), true)
+    card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, value_count,
+                            Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)
 }
 
 fn add_input_pan_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_count: usize)
@@ -796,7 +800,7 @@ const VOL_SIZE: usize = std::mem::size_of::<i16>();
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0;
 const VOL_STEP: i32 = 256;
-const VOL_TLV: &[u32;4] = &[5, 8, -12800i32 as u32, 0];
+const VOL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: true};
 
 trait OutputSrcOperation {
     fn parse_out_src_flags(&self) -> Vec<u32>;
@@ -837,7 +841,7 @@ impl OutputCtl for StateCache {
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                ANALOG_OUT_LABELS.len(), Some(VOL_TLV), true)?;
+                                ANALOG_OUT_LABELS.len(), Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, OUT_PAIR_LABELS.len(), OUT_PAIR_SRC_LABELS, None, true)?;
@@ -924,11 +928,13 @@ impl AuxCtl for StateCache {
         });
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, AUX_SRC_PAIR_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, src_count, Some(GAIN_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, src_count,
+                                        Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                        AUX_OUT_LABELS.len(), Some(VOL_TLV), true)?;
+                                        AUX_OUT_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
         Ok(())
     }
@@ -1048,7 +1054,8 @@ impl HpCtl for StateCache {
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                        HP_OUT_LABELS.len(), Some(VOL_TLV), true)?;
+                                        HP_OUT_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, HP_OUT_PAIR_LABELS.len(), HP_SRC_PAIR_LABELS, None, true)?;
