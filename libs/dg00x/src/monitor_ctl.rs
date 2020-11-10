@@ -4,6 +4,8 @@ use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
@@ -27,7 +29,7 @@ impl<'a> MonitorCtl {
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x80;
     const GAIN_STEP: i32 = 1;
-    const GAIN_TLV: &'a [u32; 4] = &[5, 8, -4800i32 as u32, 0];
+    const GAIN_TLV: DbInterval = DbInterval{min: -4800, max: 0, linear: false, mute_avail: false};
 
     const ENABLE_OFFSET: u64 = 0x0124;
 
@@ -62,7 +64,7 @@ impl<'a> MonitorCtl {
             Self::GAIN_MAX,
             Self::GAIN_STEP,
             Self::IN_LABELS.len(),
-            Some(Self::GAIN_TLV),
+            Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
             true,
         )?;
         self.notified_elems.append(&mut elem_id_list);
