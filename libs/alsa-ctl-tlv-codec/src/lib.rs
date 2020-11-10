@@ -12,6 +12,8 @@
 #[allow(dead_code)]
 mod uapi;
 
+pub mod items;
+
 /// The error type at failure to convert from array of u32 elements to TLV data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidTlvDataError{
