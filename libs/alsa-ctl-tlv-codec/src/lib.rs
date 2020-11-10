@@ -128,6 +128,73 @@
 //! assert_eq!(&raw_generated[..], &raw_expected[..]);
 //!
 //! ```
+//!
+//! ## Utilities
+//!
+//! Some programs are available under `src/bin` directory.
+//!
+//! ### src/bin/tlv-decode.rs
+//!
+//! This program decodes raw data of TLV from stdin, or numeric literals as arguments of command line,
+//! then print parsed structure.
+//!
+//! Without any command line argument, it prints help message and exit.
+//!
+//! ```sh
+//! $ cargo run --bin tlv-decode
+//! Usage:
+//!   tlv-decode MODE DATA | "-"
+//! 
+//!   where:
+//!     MODE:           The mode to process after parsing DATA:
+//!                         "structure":    prints data structures.
+//!                         "macro":        prints C macro representation
+//!                         "literal":      prints space-separated decimal array.
+//!                         "raw":          prints binary with host endian.
+//!     DATA:           space-separated DECIMAL and HEXADECIMAL array for the data of TLV.
+//!     "-":            use binary from STDIN to interpret DATA according to host endian.
+//!     DECIMAL:        decimal number. It can be signed if needed.
+//!     HEXADECIMAL:    hexadecimal number. It should have '0x' as prefix.
+//! ```
+//!
+//! For data of TLV from arguments in command line:
+//!
+//! ```sh
+//! $ cargo run --bin tlv-decode -- structure 5 8 0xfffffe00 128
+//! ...
+//! DbInterval(DbInterval { min: -512, max: 128, linear: false, mute_avail: true })
+//! ```
+//!
+//! For data of TLV from STDIN, in the case that the machine architecture is little endian:
+//!
+//! ```sh
+//! $ echo -en "\x05\x00\x00\x00\x08\x00\x00\x00\x00\xfe\xff\xff\x80\x00\x00\x00" | \
+//!     cargo run --bin tlv-decode -- structure -
+//! ...
+//! DbInterval(DbInterval { min: -512, max: 128, linear: false, mute_avail: true })
+//! ```
+//!
+//! The data of TLV can be printed in C language macro representation:
+//!
+//! ```sh
+//! $ echo -en "\x05\x00\x00\x00\x08\x00\x00\x00\x00\xfe\xff\xff\x80\x00\x00\x00" | \
+//!     cargo run --bin tlv-decode -- macro -
+//! ...
+//! SNDRV_CTL_TLVD_ITEM ( SNDRV_CTL_TLVT_DB_MINMAX_MUTE, 0xfffffe00, 0x80 ) 
+//! ```
+//!
+//! The data of TLV can be printed as both of u32 numeric literal array and u8 binary:
+//!
+//! ```sh
+//! $ echo -en "\x05\x00\x00\x00\x08\x00\x00\x00\x00\xfe\xff\xff\x80\x00\x00\x00" | \
+//!     cargo run --bin tlv-decode -- literal -
+//! ...
+//! 5 8 4294966784 128 
+//!
+//! $ echo -en "\x05\x00\x00\x00\x08\x00\x00\x00\x00\xfe\xff\xff\x80\x00\x00\x00" | \
+//!     cargo run --bin tlv-decode -- raw -
+//! ...
+//! ```
 
 #[allow(dead_code)]
 mod uapi;
