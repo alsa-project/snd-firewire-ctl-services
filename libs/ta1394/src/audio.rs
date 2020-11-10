@@ -391,6 +391,9 @@ impl FeatureCtl {
 
     const TRUE: u8 = 0x70;
     const FALSE: u8 = 0x60;
+
+    pub const INFINITY: i16 = 0x7ffeu16 as i16;
+    pub const NEG_INFINITY: i16 = 0x8000u16 as i16;
 }
 
 impl From<&FeatureCtl> for AudioFuncBlkCtl {
@@ -646,6 +649,9 @@ impl ProcessingCtl {
 
     const TRUE: u8 = 0x70;
     const FALSE: u8 = 0x60;
+
+    pub const INFINITY: i16 = 0x7ffeu16 as i16;
+    pub const NEG_INFINITY: i16 = 0x8000u16 as i16;
 }
 
 impl From<&ProcessingCtl> for AudioFuncBlkCtl {

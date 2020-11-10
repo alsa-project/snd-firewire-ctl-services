@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use alsa_ctl_tlv_codec::items::DbInterval;
+use alsa_ctl_tlv_codec::items::{DbInterval, CTL_VALUE_MUTE};
 
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
@@ -116,7 +116,7 @@ impl<'a> MeterCtl<'a> {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = i32::MAX;
     const METER_STEP: i32 = 256;
-    const METER_TLV: DbInterval = DbInterval{min: -14400, max: 0, linear: false, mute_avail: true};
+    const METER_TLV: DbInterval = DbInterval{min: -14400, max: 0, linear: false, mute_avail: false};
 
     pub fn new(in_meter_labels: &'a [&'a str], stream_meter_labels: &'a [&'a str], out_meter_labels: &'a [&'a str],
                has_switch: bool, rotary_count: usize, has_sync_status: bool)
@@ -611,7 +611,8 @@ impl<'a> InputCtl<'a> {
                                            FeatureCtl::Volume(vec![-1]));
             avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
             if let FeatureCtl::Volume(data) = op.ctl {
-                Ok(data[0] as i32)
+                let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                Ok(val)
             } else {
                 unreachable!();
             }
@@ -625,8 +626,9 @@ impl<'a> InputCtl<'a> {
     {
         ElemValueAccessor::<i32>::get_vals(new, old, fb_ids.len(), |idx, val| {
             let (fb_id, ch) = get_fb_id_and_ch(fb_ids, idx);
+            let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
             let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch),
-                                           FeatureCtl::Volume(vec![val as i16]));
+                                           FeatureCtl::Volume(vec![v]));
             avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
         })?;
         Ok(true)
@@ -725,7 +727,8 @@ impl<'a> AuxCtl<'a> {
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        Ok(data[0] as i32)
+                        let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                        Ok(val)
                     } else {
                         unreachable!();
                     }
@@ -738,7 +741,8 @@ impl<'a> AuxCtl<'a> {
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        Ok(data[0] as i32)
+                        let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                        Ok(val)
                     } else {
                         unreachable!();
                     }
@@ -757,16 +761,18 @@ impl<'a> AuxCtl<'a> {
             Self::AUX_SRC_GAIN_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, self.src_labels.len(), |idx, val| {
                     let (fb_id, ch) = get_fb_id_and_ch(&self.src_fb_ids, idx);
+                    let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
                     let mut op = AudioFeature::new(fb_id, CtlAttr::Current, AudioCh::Each(ch as u8),
-                                                   FeatureCtl::Volume(vec![val as i16]));
+                                                   FeatureCtl::Volume(vec![v]));
                     avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
                 })?;
                 Ok(true)
             }
             Self::AUX_OUT_VOLUME_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
                     let mut op = AudioFeature::new(self.out_fb_id, CtlAttr::Current, AudioCh::Each(idx as u8),
-                                                   FeatureCtl::Volume(vec![val as i16]));
+                                                   FeatureCtl::Volume(vec![v]));
                     avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
                 })?;
                 Ok(true)
@@ -828,7 +834,8 @@ impl<'a> OutputCtl<'a> {
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        Ok(data[0] as i32)
+                        let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                        Ok(val)
                     } else {
                         unreachable!();
                     }
@@ -852,10 +859,11 @@ impl<'a> OutputCtl<'a> {
                 Ok(true)
             }
             OUT_VOL_NAME => {
-                ElemValueAccessor::<u32>::get_vals(new, old, self.labels.len(), |idx, val| {
+                ElemValueAccessor::<i32>::get_vals(new, old, self.labels.len(), |idx, val| {
                     let ch = (idx % 2) as u8;
+                    let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
                     let mut op = AudioFeature::new(self.vol_fb_ids[idx / 2], CtlAttr::Current, AudioCh::Each(ch),
-                                                   FeatureCtl::Volume(vec![val as i16]));
+                                                   FeatureCtl::Volume(vec![v]));
                     avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
                 })?;
                 Ok(true)
@@ -916,7 +924,8 @@ impl<'a> HpCtl<'a> {
                                                    FeatureCtl::Volume(vec![-1]));
                     avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        Ok(data[0] as i32)
+                        let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                        Ok(val)
                     } else {
                         unreachable!();
                     }
@@ -941,8 +950,9 @@ impl<'a> HpCtl<'a> {
             }
             Self::HP_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
                     let mut op = AudioFeature::new(self.vol_fb_id, CtlAttr::Current, AudioCh::Each(idx as u8),
-                                                   FeatureCtl::Volume(vec![val as i16]));
+                                                   FeatureCtl::Volume(vec![v]));
                     avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
                 })?;
                 Ok(true)
