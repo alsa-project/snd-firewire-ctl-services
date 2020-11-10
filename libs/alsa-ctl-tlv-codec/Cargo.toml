@@ -9,3 +9,7 @@ description = """
 Encoder and Decoder for data of Type-Length-Value(TLV) style in ALSA control
 interface
 """
+
+[[bin]]
+name = "tlv-decode"
+doc = false
