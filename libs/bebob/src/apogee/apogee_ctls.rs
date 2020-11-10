@@ -6,6 +6,8 @@ use hinawa::SndUnitExt;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
@@ -629,7 +631,7 @@ impl<'a> MixerCtl {
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x7fff;
     const GAIN_STEP: i32 = 0xff;
-    const GAIN_TLV: &'a [u32; 4] = &[5, 8, -4800i32 as u32, 0];
+    const GAIN_TLV: DbInterval = DbInterval{min: -4800, max: 0, linear: false, mute_avail: true};
 
     pub fn new() -> Self {
         let mut mixers = [[0; 36]; 4];
@@ -695,7 +697,8 @@ impl<'a> MixerCtl {
                                                    0, 0, Self::MIXER_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, Self::MIXER_LABELS.len(),
                                         Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        Self::MIXER_SRC_LABELS.len(), Some(Self::GAIN_TLV), true)?;
+                                        Self::MIXER_SRC_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)), true)?;
 
         Ok(())
     }
@@ -1107,13 +1110,13 @@ impl<'a> MeterCtl {
     const GAIN_MIN: i32 = 10;
     const GAIN_MAX: i32 = 75;
     const GAIN_STEP: i32 = 1;
-    const GAIN_TLV: &'a [u32;4] = &[4, 8, 1000, 7500];
+    const GAIN_TLV: DbInterval = DbInterval{min: 1000, max: 7500, linear: false, mute_avail: false};
 
     // NOTE: actually inverted value.
     const VOL_MIN: i32 = -127;
     const VOL_MAX: i32 = 0;
     const VOL_STEP: i32 = 1;
-    const VOL_TLV: &'a [u32;4] = &[4, 8, -12700i32 as u32, 0];
+    const VOL_TLV: DbInterval = DbInterval{min: -12700, max: 0, linear: false, mute_avail: false};
 
     const SELECT_POS: usize = 4;
     const IN_GAIN_POS: &'a [usize] = &[0, 1, 2, 3];
@@ -1124,7 +1127,7 @@ impl<'a> MeterCtl {
     const METER_MIN: i32 = 0x00;
     const METER_MAX: i32 = 0xff;
     const METER_STEP: i32 = 0x01;
-    const METER_TLV: &'a [u32;4] = &[4, 8, -4800i32 as u32, 0];
+    const METER_TLV: DbInterval = DbInterval{min: -4800, max: 0, linear: false, mute_avail: false};
 
     const FRAME_SIZE: usize = 56;
 
@@ -1150,7 +1153,8 @@ impl<'a> MeterCtl {
                                                    0, 0, Self::IN_GAIN_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                         Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        Self::IN_SELECT_LABELS.len(), Some(Self::GAIN_TLV), true)?;
+                                        Self::IN_SELECT_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)), true)?;
         self.measure_elem_list.append(&mut elem_id_list);
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
@@ -1162,19 +1166,22 @@ impl<'a> MeterCtl {
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                         Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
-                                        Self::OUT_SELECT_LABELS.len(), Some(Self::VOL_TLV), true)?;
+                                        Self::OUT_SELECT_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)?;
         self.measure_elem_list.append(&mut elem_id_list);
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                        Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                       Self::IN_METER_LABELS.len(), Some(Self::METER_TLV), false)?;
+                                                       Self::IN_METER_LABELS.len(),
+                                                       Some(&Into::<Vec<u32>>::into(Self::METER_TLV)), false)?;
         self.measure_elem_list.append(&mut elem_id_list);
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                        Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                       Self::OUT_METER_LABELS.len(), Some(Self::VOL_TLV), false)?;
+                                                       Self::OUT_METER_LABELS.len(),
+                                                       Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), false)?;
         self.measure_elem_list.append(&mut elem_id_list);
 
 

@@ -2,6 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
@@ -114,7 +116,7 @@ impl<'a> MeterCtl<'a> {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = i32::MAX;
     const METER_STEP: i32 = 256;
-    const METER_TLV: &'a [u32] = &[5, 8, -14400i32 as u32, 0];
+    const METER_TLV: DbInterval = DbInterval{min: -14400, max: 0, linear: false, mute_avail: true};
 
     pub fn new(in_meter_labels: &'a [&'a str], stream_meter_labels: &'a [&'a str], out_meter_labels: &'a [&'a str],
                has_switch: bool, rotary_count: usize, has_sync_status: bool)
@@ -156,7 +158,8 @@ impl<'a> MeterCtl<'a> {
     {
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                       labels.len(), Some(Self::METER_TLV), false)?;
+                                                       labels.len(),
+                                                       Some(&Into::<Vec<u32>>::into(Self::METER_TLV)), false)?;
         self.measure_elems.append(&mut elem_id_list);
         Ok(())
     }
@@ -522,12 +525,12 @@ pub struct InputCtl<'a> {
 const GAIN_MIN: i32 = i16::MIN as i32;
 const GAIN_MAX: i32 = 0;
 const GAIN_STEP: i32 = 256;
-const GAIN_TLV: &[u32] = &[5, 8, -12800i32 as u32, 0];
+const GAIN_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: true};
 
 const PAN_MIN: i32 = i16::MIN as i32;
 const PAN_MAX: i32 = i16::MAX as i32;
 const PAN_STEP: i32 = 256;
-const PAN_TLV: &[u32] = &[5, 8, -12800i32 as u32, 12800];
+const PAN_TLV: DbInterval = DbInterval{min: -12800, max: 12800, linear: false, mute_avail: false};
 
 impl<'a> InputCtl<'a> {
     const PHYS_GAIN_NAME: &'a str = "phys-in-gain";
@@ -554,19 +557,22 @@ impl<'a> InputCtl<'a> {
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::PHYS_GAIN_NAME, 0);
         let len = 2 * self.phys_labels.len();
-        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len, Some(GAIN_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len,
+                                        Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
         // For balance of physical inputs.
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::PHYS_BALANCE_NAME, 0);
         let len = 2 * self.phys_labels.len();
-        let _ = card_cntr.add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, len, Some(PAN_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, len,
+                                        Some(&Into::<Vec<u32>>::into(PAN_TLV)), true)?;
 
         // For gain of stream inputs.
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::STREAM_GAIN_NAME, 0);
         let len = 2 * self.stream_labels.len();
-        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len, Some(GAIN_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len,
+                                        Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
         // Balance of stream inputs is not available.
 
@@ -660,7 +666,7 @@ impl<'a> InputCtl<'a> {
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0;
 const VOL_STEP: i32 = 256;
-const VOL_TLV: &[u32] = &[5, 8, -12800i32 as u32, 0];
+const VOL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: true};
 
 pub struct AuxCtl<'a> {
     out_fb_id: u8,
@@ -696,12 +702,14 @@ impl<'a> AuxCtl<'a> {
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::AUX_SRC_GAIN_NAME, 0);
         let len = 2 * self.src_labels.len();
-        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len, Some(GAIN_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len,
+                                        Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
         // For volume of output from aux.
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::AUX_OUT_VOLUME_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2, Some(VOL_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2,
+                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
         Ok(())
     }
@@ -795,7 +803,8 @@ impl<'a> OutputCtl<'a> {
         // For volume of output.
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         let len = 2 * self.labels.len();
-        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, len, Some(VOL_TLV), true)?;
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, len,
+                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
         Ok(())
     }
@@ -882,7 +891,8 @@ impl<'a> HpCtl<'a> {
 
         // For volume of headphone.
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::HP_VOL_NAME, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2, Some(VOL_TLV), true)?;
+        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2,
+                                                   Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
         self.measure_elems.push(elem_id_list[0].clone());
 
         Ok(())
