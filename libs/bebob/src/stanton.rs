@@ -103,7 +103,7 @@ impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for ScratchampModel<'a> {
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0x0000;
 const VOL_STEP: i32 = 0x0080;
-const VOL_TLV: &[i32;4] = &[4, 8, -12800, 0];
+const VOL_TLV: &[u32;4] = &[4, 8, -12800i32 as u32, 0];
 
 const OUTPUT_LABELS: &[&str] = &[
     "analog-1", "analog-2", "analog-3", "analog-4",

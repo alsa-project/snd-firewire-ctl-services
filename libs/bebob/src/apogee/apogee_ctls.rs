@@ -629,7 +629,7 @@ impl<'a> MixerCtl {
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x7fff;
     const GAIN_STEP: i32 = 0xff;
-    const GAIN_TLV: &'a [i32; 4] = &[5, 8, -4800, 0];
+    const GAIN_TLV: &'a [u32; 4] = &[5, 8, -4800i32 as u32, 0];
 
     pub fn new() -> Self {
         let mut mixers = [[0; 36]; 4];
@@ -1107,13 +1107,13 @@ impl<'a> MeterCtl {
     const GAIN_MIN: i32 = 10;
     const GAIN_MAX: i32 = 75;
     const GAIN_STEP: i32 = 1;
-    const GAIN_TLV: &'a [i32;4] = &[4, 8, 1000, 7500];
+    const GAIN_TLV: &'a [u32;4] = &[4, 8, 1000, 7500];
 
     // NOTE: actually inverted value.
     const VOL_MIN: i32 = -127;
     const VOL_MAX: i32 = 0;
     const VOL_STEP: i32 = 1;
-    const VOL_TLV: &'a [i32;4] = &[4, 8, -12700, 0];
+    const VOL_TLV: &'a [u32;4] = &[4, 8, -12700i32 as u32, 0];
 
     const SELECT_POS: usize = 4;
     const IN_GAIN_POS: &'a [usize] = &[0, 1, 2, 3];
@@ -1124,7 +1124,7 @@ impl<'a> MeterCtl {
     const METER_MIN: i32 = 0x00;
     const METER_MAX: i32 = 0xff;
     const METER_STEP: i32 = 0x01;
-    const METER_TLV: &'a [i32;4] = &[4, 8, -4800, 0];
+    const METER_TLV: &'a [u32;4] = &[4, 8, -4800i32 as u32, 0];
 
     const FRAME_SIZE: usize = 56;
 

@@ -27,7 +27,7 @@ impl<'a> MonitorCtl {
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x80;
     const GAIN_STEP: i32 = 1;
-    const GAIN_TLV: &'a [i32; 4] = &[5, 8, -4800, 0];
+    const GAIN_TLV: &'a [u32; 4] = &[5, 8, -4800i32 as u32, 0];
 
     const ENABLE_OFFSET: u64 = 0x0124;
 

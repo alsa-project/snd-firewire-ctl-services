@@ -29,7 +29,7 @@ impl<'a> MixerCtl {
     const COEF_MIN: i32 = 0x00000000;
     const COEF_MAX: i32 = 0x02000000;
     const COEF_STEP: i32 = 0x00000001;
-    const COEF_TLV: &'a [i32] = &[5, 8, -14400, 6];
+    const COEF_TLV: &'a [u32] = &[5, 8, -14400i32 as u32, 6];
 
     const PAN_MIN: i32 = 0;
     const PAN_MAX: i32 = 255;

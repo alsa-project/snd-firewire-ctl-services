@@ -114,7 +114,7 @@ impl<'a> MeterCtl<'a> {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = i32::MAX;
     const METER_STEP: i32 = 256;
-    const METER_TLV: &'a [i32] = &[5, 8, -14400, 0];
+    const METER_TLV: &'a [u32] = &[5, 8, -14400i32 as u32, 0];
 
     pub fn new(in_meter_labels: &'a [&'a str], stream_meter_labels: &'a [&'a str], out_meter_labels: &'a [&'a str],
                has_switch: bool, rotary_count: usize, has_sync_status: bool)
@@ -522,12 +522,12 @@ pub struct InputCtl<'a> {
 const GAIN_MIN: i32 = i16::MIN as i32;
 const GAIN_MAX: i32 = 0;
 const GAIN_STEP: i32 = 256;
-const GAIN_TLV: &[i32] = &[5, 8, -12800, 0];
+const GAIN_TLV: &[u32] = &[5, 8, -12800i32 as u32, 0];
 
 const PAN_MIN: i32 = i16::MIN as i32;
 const PAN_MAX: i32 = i16::MAX as i32;
 const PAN_STEP: i32 = 256;
-const PAN_TLV: &[i32] = &[5, 8, -12800, 12800];
+const PAN_TLV: &[u32] = &[5, 8, -12800i32 as u32, 12800];
 
 impl<'a> InputCtl<'a> {
     const PHYS_GAIN_NAME: &'a str = "phys-in-gain";
@@ -660,7 +660,7 @@ impl<'a> InputCtl<'a> {
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0;
 const VOL_STEP: i32 = 256;
-const VOL_TLV: &[i32] = &[5, 8, -12800, 0];
+const VOL_TLV: &[u32] = &[5, 8, -12800i32 as u32, 0];
 
 pub struct AuxCtl<'a> {
     out_fb_id: u8,
