@@ -49,3 +49,76 @@ pub trait TlvData<'a> : std::convert::TryFrom<&'a [u32]> + Into<Vec<u32>> {
     /// Generate vector with u32 element for raw data.
     fn value(&self) -> Vec<u32>;
 }
+
+use uapi::*;
+use items::*;
+use containers::*;
+
+/// Available items as data of TLV (Type-Length-Value) style in ALSA control interface.
+///
+/// When docoding from data of TLV, use implementation of `TryFrom<&[u32]>` trait.  Data assigned
+/// to each enumeration implements `TlvData`, `TryFrom<&[u32]`, and `Into<Vec<u32>>` trait. When
+/// decoding to data of TLV, use implementation of `Into<Vec<u32>>` for the data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TlvItem{
+    Container(Container),
+    DbRange(DbRange),
+    DbScale(DbScale),
+    DbInterval(DbInterval),
+    Chmap(Chmap),
+}
+
+impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
+    type Error = InvalidTlvDataError;
+
+    fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
+        let entry = match raw[0] {
+            SNDRV_CTL_TLVT_CONTAINER => {
+                let data = Container::try_from(raw)?;
+                TlvItem::Container(data)
+            }
+            SNDRV_CTL_TLVT_DB_RANGE => {
+                let data = DbRange::try_from(raw)?;
+                TlvItem::DbRange(data)
+            }
+            SNDRV_CTL_TLVT_DB_SCALE => {
+                let data = DbScale::try_from(raw)?;
+                TlvItem::DbScale(data)
+            }
+            SNDRV_CTL_TLVT_DB_LINEAR |
+            SNDRV_CTL_TLVT_DB_MINMAX |
+            SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
+                let data = DbInterval::try_from(raw)?;
+                TlvItem::DbInterval(data)
+            }
+            SNDRV_CTL_TLVT_CHMAP_FIXED |
+            SNDRV_CTL_TLVT_CHMAP_VAR |
+            SNDRV_CTL_TLVT_CHMAP_PAIRED => {
+                let data = Chmap::try_from(raw)?;
+                TlvItem::Chmap(data)
+            }
+            _ => {
+                return Err(InvalidTlvDataError::new("Invalid type of data for TlvItem"));
+            }
+        };
+        Ok(entry)
+    }
+}
+
+impl From<&TlvItem> for Vec<u32> {
+    fn from(item: &TlvItem) -> Self {
+        match item {
+            TlvItem::Container(d) => d.into(),
+            TlvItem::DbRange(d) => d.into(),
+            TlvItem::DbScale(d) => d.into(),
+            TlvItem::DbInterval(d) => d.into(),
+            TlvItem::Chmap(d) => d.into(),
+        }
+    }
+}
+
+impl From<TlvItem> for Vec<u32> {
+    fn from(item: TlvItem) -> Self {
+        (&item).into()
+    }
+}

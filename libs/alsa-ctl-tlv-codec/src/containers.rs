@@ -180,11 +180,103 @@ impl From<DbRange> for Vec<u32> {
     }
 }
 
+impl<'a> DataEntry<'a> for TlvItem {
+    fn raw_length(&self) -> usize {
+        let entry_value_length = match self {
+            TlvItem::Container(d) => d.value_length(),
+            TlvItem::DbRange(d) => d.value_length(),
+            TlvItem::DbScale(d) => d.value_length(),
+            TlvItem::DbInterval(d) => d.value_length(),
+            TlvItem::Chmap(d) => d.value_length(),
+        };
+        2 + entry_value_length
+    }
+}
+
+/// The data to represent container to aggregate multiple data for TLV (Type-Length-Value) of ALSA
+/// control interface.
+///
+/// It has `SNDRV_CTL_TLVT_CONTAINER` (=0) in its type field and has variable number of elements in
+/// value field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Container{
+    /// The entries of data for TLV.
+    pub entries: Vec<TlvItem>,
+}
+
+impl<'a> TlvData<'a> for Container {
+    fn value_type(&self) -> u32 {
+        SNDRV_CTL_TLVT_CONTAINER
+    }
+
+    fn value_length(&self) -> usize {
+        self.entries.iter().fold(0, |length, entry| length + entry.raw_length())
+    }
+
+    fn value(&self) -> Vec<u32> {
+        let mut raw = Vec::new();
+        self.entries.iter().for_each(|entry| {
+            raw.append(&mut entry.into());
+        });
+        raw
+    }
+}
+
+impl std::convert::TryFrom<&[u32]> for Container {
+    type Error = InvalidTlvDataError;
+
+    fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
+        if raw.len() < 4 {
+            Err(InvalidTlvDataError::new("Invalid length of data for Container"))
+        } else if raw[0] != SNDRV_CTL_TLVT_CONTAINER {
+            Err(InvalidTlvDataError::new("Invalid type of data for Container"))
+        } else {
+            let cntr_value_length = (raw[1] as usize) / 4;
+            if raw[2..].len() < cntr_value_length {
+                let msg = "Truncated length of data for DbRange";
+                return Err(InvalidTlvDataError::new(msg));
+            } else {
+                let mut cntr_value = &raw[2..(2 + cntr_value_length)];
+
+                let mut entries = Vec::new();
+                while cntr_value.len() > 2 {
+                    let entry_value_length = (cntr_value[1] as usize) / 4;
+                    if cntr_value[2..].len() < entry_value_length {
+                        return Err(InvalidTlvDataError::new("Invalid length of data for TlvItem"));
+                    }
+                    let entry_raw = &cntr_value[..(2 + entry_value_length)];
+                    let entry = TlvItem::try_from(entry_raw)?;
+                    entries.push(entry);
+                    cntr_value = &cntr_value[(2 + entry_value_length)..];
+                }
+                Ok(Container{entries})
+            }
+        }
+    }
+}
+
+impl From<&Container> for Vec<u32> {
+    fn from(data: &Container) -> Self {
+        let mut raw = Vec::new();
+        raw.push(data.value_type());
+        raw.push(4 * data.value_length() as u32);
+        raw.append(&mut data.value());
+        raw
+    }
+}
+
+impl From<Container> for Vec<u32> {
+    fn from(data: Container) -> Self {
+        (&data).into()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::convert::TryFrom;
     use super::{DbScale, DbInterval};
     use super::{DbRangeEntryData, DbRangeEntry, DbRange};
+    use super::{TlvItem, Container};
 
     #[test]
     fn test_dbrangeentry_dbscale() {
@@ -230,5 +322,65 @@ mod test {
             data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 20, linear: false, mute_avail: true}),
         });
         assert_eq!(&Into::<Vec<u32>>::into(range)[..], &raw[..]);
+    }
+
+    #[test]
+    fn test_containerentry_dbscale() {
+        let raw = [0u32, 32,
+                   1, 8, 0, 5,
+                   1, 8, 5, 5,
+        ];
+        let cntr = Container::try_from(&raw[..]).unwrap();
+        assert_eq!(cntr.entries[0], TlvItem::DbScale(DbScale{min: 0, step: 5, mute_avail: false}));
+        assert_eq!(cntr.entries[1], TlvItem::DbScale(DbScale{min: 5, step: 5, mute_avail: false}));
+        assert_eq!(&Into::<Vec<u32>>::into(cntr)[..], &raw);
+    }
+
+    #[test]
+    fn test_containerentry_dbrange() {
+        let raw = [0u32, 136,
+                   3, 48,
+                        0, 10, 4, 8, 0, 5,
+                        10, 20, 4, 8, 0, 10,
+                   3, 72,
+                        0, 10, 4, 8, 0, 5,
+                        10, 20, 4, 8, 5, 10,
+                        20, 40, 4, 8, 10, 20,
+        ];
+        let cntr = Container::try_from(&raw[..]).unwrap();
+        assert_eq!(cntr.entries[0], TlvItem::DbRange(DbRange{
+            entries: vec![
+                DbRangeEntry{
+                    min_val: 0,
+                    max_val: 10,
+                    data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 5, linear: false, mute_avail: false}),
+                },
+                DbRangeEntry{
+                    min_val: 10,
+                    max_val: 20,
+                    data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 10, linear: false, mute_avail: false}),
+                },
+            ],
+        }));
+        assert_eq!(cntr.entries[1], TlvItem::DbRange(DbRange{
+            entries: vec![
+                DbRangeEntry{
+                    min_val: 0,
+                    max_val: 10,
+                    data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 5, linear: false, mute_avail: false}),
+                },
+                DbRangeEntry{
+                    min_val: 10,
+                    max_val: 20,
+                    data: DbRangeEntryData::DbInterval(DbInterval{min: 5, max: 10, linear: false, mute_avail: false}),
+                },
+                DbRangeEntry{
+                    min_val: 20,
+                    max_val: 40,
+                    data: DbRangeEntryData::DbInterval(DbInterval{min: 10, max: 20, linear: false, mute_avail: false}),
+                },
+            ],
+        }));
+        assert_eq!(&Into::<Vec<u32>>::into(cntr)[..], &raw[..]);
     }
 }
