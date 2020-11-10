@@ -134,6 +134,7 @@ mod uapi;
 
 pub mod items;
 pub mod containers;
+pub mod range_utils;
 
 /// The error type at failure to convert from array of u32 elements to TLV data.
 #[derive(Debug, Clone, PartialEq, Eq)]
