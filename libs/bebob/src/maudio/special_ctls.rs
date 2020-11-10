@@ -181,7 +181,7 @@ impl<'a> MeterCtl {
     const VAL_MIN: i32 = 0;
     const VAL_MAX: i32 = i16::MAX as i32;
     const VAL_STEP: i32 = 256;
-    const VAL_TLV: &'a [i32; 4] = &[5, 8, -12800, 0];
+    const VAL_TLV: &'a [u32; 4] = &[5, 8, -12800i32 as u32, 0];
 
     const METER_FRAME_SIZE: usize = 84;
 
@@ -580,7 +580,7 @@ const ADAT_IN_PAN_NAME: &str = "adat-in-balance";
 const GAIN_MIN: i32 = i16::MIN as i32;
 const GAIN_MAX: i32 = 0;
 const GAIN_STEP: i32 = 256;
-const GAIN_TLV: &[i32;4] = &[5, 8, -12800, 0];
+const GAIN_TLV: &[u32;4] = &[5, 8, -12800i32 as u32, 0];
 
 const PAN_MIN: i32 = i16::MIN as i32;
 const PAN_MAX: i32 = i16::MAX as i32;
@@ -796,7 +796,7 @@ const VOL_SIZE: usize = std::mem::size_of::<i16>();
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0;
 const VOL_STEP: i32 = 256;
-const VOL_TLV: &[i32;4] = &[5, 8, -12800, 0];
+const VOL_TLV: &[u32;4] = &[5, 8, -12800i32 as u32, 0];
 
 trait OutputSrcOperation {
     fn parse_out_src_flags(&self) -> Vec<u32>;

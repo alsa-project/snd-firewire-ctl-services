@@ -133,7 +133,7 @@ impl<'a> MeterCtl {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = 0x007fffff;
     const METER_STEP: i32 = 256;
-    const METER_TLV: &'a [i32] = &[5, 8, -14400, 0];
+    const METER_TLV: &'a [u32] = &[5, 8, -14400i32 as u32, 0];
 
     fn new() -> Self {
         MeterCtl {

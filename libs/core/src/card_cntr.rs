@@ -82,7 +82,7 @@ impl CardCntr {
         elem_count: usize,
         value_count: usize,
         labels: &[O],
-        tlv: Option<&[i32]>,
+        tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<alsactl::ElemId>, Error>
         where O: AsRef<str>
@@ -106,7 +106,7 @@ impl CardCntr {
         elem_id: &alsactl::ElemId,
         elem_count: usize,
         value_count: usize,
-        tlv: Option<&[i32]>,
+        tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<alsactl::ElemId>, Error> {
         let elem_info = alsactl::ElemInfo::new(ElemType::Bytes)?;
@@ -131,7 +131,7 @@ impl CardCntr {
         max: i32,
         step: i32,
         value_count: usize,
-        tlv: Option<&[i32]>,
+        tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
         let elem_info = alsactl::ElemInfo::new(ElemType::Integer)?;
@@ -174,7 +174,7 @@ impl CardCntr {
         elem_id: &alsactl::ElemId,
         elem_count: usize,
         elem_info: &P,
-        tlv: Option<&[i32]>,
+        tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<alsactl::ElemId>, Error>
     where
@@ -246,8 +246,10 @@ impl CardCntr {
         })?;
 
         if let Some(cntr) = tlv {
+            // TODO: fix alsa-gobject and alsactl crate.
+            let alternative = cntr.iter().map(|&val| val as i32).collect::<Vec<_>>();
             elem_id_list.iter().try_for_each(|elem_id| {
-                self.card.write_elem_tlv(&elem_id, cntr)
+                self.card.write_elem_tlv(&elem_id, &alternative)
             })?;
         }
 
