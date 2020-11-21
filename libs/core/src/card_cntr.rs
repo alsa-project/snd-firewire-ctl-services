@@ -246,10 +246,8 @@ impl CardCntr {
         })?;
 
         if let Some(cntr) = tlv {
-            // TODO: fix alsa-gobject and alsactl crate.
-            let alternative = cntr.iter().map(|&val| val as i32).collect::<Vec<_>>();
             elem_id_list.iter().try_for_each(|elem_id| {
-                self.card.write_elem_tlv(&elem_id, &alternative)
+                self.card.write_elem_tlv(&elem_id, &cntr)
             })?;
         }
 
