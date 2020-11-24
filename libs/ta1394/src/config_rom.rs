@@ -64,7 +64,7 @@ fn detect_immediate_value(entries: &[Entry], key: KeyType) -> Option<u32> {
     })
 }
 
-fn detect_unit_directory(entries: &[Entry], directory_id: u32) -> Option<&[Entry]> {
+fn detect_unit_directory<'a>(entries: &'a [Entry], directory_id: u32) -> Option<&'a [Entry<'a>]> {
     let mut count = 0;
 
     entries.iter().find_map(|entry| {

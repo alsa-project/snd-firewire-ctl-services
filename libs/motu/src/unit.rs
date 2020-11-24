@@ -161,7 +161,7 @@ impl<'a> MotuUnit<'a> {
 }
 
 fn read_directory<'a>(entries: &'a [Entry], key_type: KeyType, field_name: &str)
-    -> Result<&'a [Entry], Error>
+    -> Result<&'a [Entry<'a>], Error>
 {
     entries.iter().find_map(|entry| {
         if entry.key == key_type as u8 {

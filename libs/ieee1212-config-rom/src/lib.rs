@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 #[derive(Debug)]
-pub struct Entry {
+pub struct Entry<'a> {
     pub key: u8,
-    pub data: EntryData,
+    pub data: EntryData<'a>,
 }
 
 #[derive(Debug)]
-pub enum EntryData {
+pub enum EntryData<'a> {
     Immediate(u32),
     CsrOffset(usize),
-    Leaf(Vec<u8>),
-    Directory(Vec<Entry>),
+    Leaf(&'a [u8]),
+    Directory(Vec<Entry<'a>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,17 +38,22 @@ pub enum KeyType {
     DirectoryId = 0x20,
 }
 
-pub fn get_root_entry_list(mut data: &[u8]) -> Vec<Entry> {
-    let bus_info = get_bus_info(data);
-    data = &data[bus_info.len()..];
+pub fn get_root_entry_list<'a>(mut data: &'a [u8]) -> Vec<Entry<'a>> {
+    // Get block of bus information.
+    let bus_info_length = 4 * data[0] as usize;
+    let bus_info = &data[..(4 + bus_info_length)];
+    data = &data[(4 + bus_info_length)..];
 
-    let root = get_root_directory(data);
-    data = &data[root.len()..];
+    // Get block of root directory.
+    let doublet = [data[0], data[1]];
+    let directory_length = 4 * u16::from_be_bytes(doublet) as usize;
+    let root = &data[..(4 + directory_length)];
+    data = &data[(4 + directory_length)..];
 
-    get_directory_entry_list(&root, data)
+    get_directory_entry_list(root, data)
 }
 
-fn get_directory_entry_list(mut directory: &[u8], data: &[u8]) -> Vec<Entry> {
+fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8]) -> Vec<Entry<'a>> {
     let mut entries = Vec::new();
 
     directory = &directory[4..];
@@ -82,7 +87,7 @@ fn get_directory_entry_list(mut directory: &[u8], data: &[u8]) -> Vec<Entry> {
                 if end_offset > data.len() {
                     break;
                 }
-                let leaf = data[start_offset..end_offset].to_vec();
+                let leaf = &data[start_offset..end_offset];
                 EntryData::Leaf(leaf)
             }
             3 => {
@@ -103,8 +108,8 @@ fn get_directory_entry_list(mut directory: &[u8], data: &[u8]) -> Vec<Entry> {
                 if end_offset > data.len() {
                     break;
                 }
-                let directory = data[start_offset..end_offset].to_vec();
-                let entries = get_directory_entry_list(&directory, &data[end_offset..]);
+                let directory = &data[start_offset..end_offset];
+                let entries = get_directory_entry_list(directory, &data[end_offset..]);
                 EntryData::Directory(entries)
             }
             _ => break,
@@ -119,17 +124,6 @@ fn get_directory_entry_list(mut directory: &[u8], data: &[u8]) -> Vec<Entry> {
     }
 
     entries
-}
-
-fn get_bus_info(data: &[u8]) -> Vec<u8> {
-    let bus_info_length = usize::from(data[0]) * 4;
-    data[0..(4 + bus_info_length)].to_vec()
-}
-
-fn get_root_directory(data: &[u8]) -> Vec<u8> {
-    let doublet = [data[0], data[1]];
-    let directory_length = usize::from(u16::from_be_bytes(doublet)) * 4 + 4;
-    data[0..directory_length].to_vec()
 }
 
 pub fn parse_leaf_entry_as_text<'a>(leaf: &'a [u8]) -> Option<&'a str> {
