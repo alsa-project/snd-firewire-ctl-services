@@ -164,13 +164,9 @@ fn read_directory<'a>(entries: &'a [Entry], key_type: KeyType, field_name: &str)
     -> Result<&'a [Entry<'a>], Error>
 {
     entries.iter().find_map(|entry| {
-        if entry.key == key_type {
-            if let EntryData::Directory(unit) = &entry.data {
-                return Some(unit.as_slice());
-            }
-        }
-        None
-    }).ok_or_else(|| {
+        EntryDataAccess::<&[Entry]>::get(entry, key_type)
+    })
+    .ok_or_else(|| {
         let label = format!("Fail to detect {} directory in configuration ROM", field_name);
         Error::new(FileError::Nxio, &label)
     })
@@ -180,13 +176,9 @@ fn read_immediate(entries: &[Entry], key_type: KeyType, field_name: &str)
     -> Result<u32, Error>
 {
     entries.iter().find_map(|entry| {
-        if entry.key == key_type {
-            if let EntryData::Immediate(val) = entry.data {
-                return Some(val)
-            }
-        }
-        None
-    }).ok_or_else(|| {
+        EntryDataAccess::<u32>::get(entry, key_type)
+    })
+    .ok_or_else(|| {
         let label = format!("Fail to detect {} in configuration ROM", field_name);
         Error::new(FileError::Nxio, &label)
     })
