@@ -11,7 +11,7 @@ use alsactl::CardExt;
 use core::dispatcher;
 use core::card_cntr;
 
-use ieee1212_config_rom::*;
+use ieee1212_config_rom::{*, entry::*};
 
 use super::model::MotuModel;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use ieee1212_config_rom::*;
+use ieee1212_config_rom::{*, entry::*};
 
 #[derive(Clone, Debug)]
 pub struct VendorData {
