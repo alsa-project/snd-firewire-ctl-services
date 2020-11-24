@@ -6,6 +6,10 @@
 //! Entry structure represents directory entry. KeyType enumerations represents key of entry.
 //! EntryData enumeration represents type of directory entry, including its content.
 
+use super::desc::*;
+
+use std::convert::TryFrom;
+
 /// The structure to represent directory entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry<'a> {
@@ -70,4 +74,105 @@ pub enum EntryData<'a> {
     CsrOffset(usize),
     Leaf(&'a [u8]),
     Directory(Vec<Entry<'a>>),
+}
+
+/// The trait to access to data of entry according to key and data type.
+pub trait EntryDataAccess<'a, T> {
+    fn get(&'a self, key_type: KeyType) -> Option<T>;
+}
+
+impl<'a> EntryDataAccess<'a, &'a u32> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<&'a u32> {
+        if self.key == key_type {
+            if let EntryData::Immediate(v) = &self.data {
+                Some(v)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> EntryDataAccess<'a, &'a usize> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<&'a usize> {
+        if self.key == key_type {
+            if let EntryData::CsrOffset(o) = &self.data {
+                Some(o)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> EntryDataAccess<'a, &'a [Entry<'a>]> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<&'a [Entry<'a>]> {
+        if self.key == key_type {
+            if let EntryData::Directory(d) = &self.data {
+                Some(d)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+// Cloned type.
+impl<'a> EntryDataAccess<'a, u32> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<u32> {
+        EntryDataAccess::<&u32>::get(self, key_type)
+            .map(|v| *v)
+    }
+}
+
+impl<'a> EntryDataAccess<'a, usize> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<usize> {
+        EntryDataAccess::<&usize>::get(self, key_type)
+            .map(|v| *v)
+    }
+}
+
+// Via descriptor data.
+impl<'a> EntryDataAccess<'a, Descriptor<'a>> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<Descriptor<'a>> {
+        if self.key == key_type {
+            Descriptor::try_from(self)
+                .ok()
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> EntryDataAccess<'a, TextualDescriptorData<'a>> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<TextualDescriptorData<'a>> {
+        EntryDataAccess::<Descriptor<'a>>::get(self, key_type)
+            .and_then(|desc| {
+                if let DescriptorData::Textual(d) = desc.data {
+                    Some(d)
+                } else {
+                    None
+                }
+            })
+    }
+}
+
+impl<'a> EntryDataAccess<'a, &'a str> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<&'a str> {
+        EntryDataAccess::<TextualDescriptorData<'a>>::get(self, key_type)
+            .map(|data| data.text)
+    }
+}
+
+impl<'a> EntryDataAccess<'a, String> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<String> {
+        EntryDataAccess::<&str>::get(self, key_type)
+            .map(|text| text.to_string())
+    }
 }
