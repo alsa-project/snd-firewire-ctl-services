@@ -11,6 +11,8 @@ use alsactl::CardExt;
 use core::dispatcher;
 use core::card_cntr;
 
+use ieee1212_config_rom::*;
+
 use super::model::MotuModel;
 
 const OUI_MOTU: u32 = 0x0001f2;
@@ -158,12 +160,12 @@ impl<'a> MotuUnit<'a> {
     }
 }
 
-fn read_directory<'a>(entries: &'a [ieee1212::Entry], key_type: ieee1212::KeyType, field_name: &str)
-    -> Result<&'a [ieee1212::Entry], Error>
+fn read_directory<'a>(entries: &'a [Entry], key_type: KeyType, field_name: &str)
+    -> Result<&'a [Entry], Error>
 {
     entries.iter().find_map(|entry| {
         if entry.key == key_type as u8 {
-            if let ieee1212::EntryData::Directory(unit) = &entry.data {
+            if let EntryData::Directory(unit) = &entry.data {
                 return Some(unit.as_slice());
             }
         }
@@ -174,12 +176,12 @@ fn read_directory<'a>(entries: &'a [ieee1212::Entry], key_type: ieee1212::KeyTyp
     })
 }
 
-fn read_immediate(entries: &[ieee1212::Entry], key_type: ieee1212::KeyType, field_name: &str)
+fn read_immediate(entries: &[Entry], key_type: KeyType, field_name: &str)
     -> Result<u32, Error>
 {
     entries.iter().find_map(|entry| {
         if entry.key == key_type as u8 {
-            if let ieee1212::EntryData::Immediate(val) = entry.data {
+            if let EntryData::Immediate(val) = entry.data {
                 return Some(val)
             }
         }
@@ -192,17 +194,17 @@ fn read_immediate(entries: &[ieee1212::Entry], key_type: ieee1212::KeyType, fiel
 
 fn detect_model(node: &hinawa::FwNode) -> Result<(u32, u32), Error> {
     let data = node.get_config_rom()?;
-    let entries = ieee1212::get_root_entry_list(&data);
+    let entries = get_root_entry_list(&data);
 
-    let vendor = read_immediate(&entries, ieee1212::KeyType::Vendor, "Vendor ID")?;
+    let vendor = read_immediate(&entries, KeyType::Vendor, "Vendor ID")?;
     if vendor != OUI_MOTU {
         let label = format!("Vendor Id is not OUI of Mark of the Unicorn: {:08x}", vendor);
         return Err(Error::new(FileError::Nxio, &label));
     }
 
-    let unit_entries = read_directory(&entries, ieee1212::KeyType::Unit, "Unit")?;
+    let unit_entries = read_directory(&entries, KeyType::Unit, "Unit")?;
 
-    let spec_id = read_immediate(&unit_entries, ieee1212::KeyType::SpecifierId, "Specifier ID")?;
+    let spec_id = read_immediate(&unit_entries, KeyType::SpecifierId, "Specifier ID")?;
     if spec_id != OUI_MOTU {
         let label = format!("Specifier ID is not OUI of Mark of the Unicorn: {:08x} ", spec_id);
         return Err(Error::new(FileError::Nxio, &label));
@@ -210,8 +212,8 @@ fn detect_model(node: &hinawa::FwNode) -> Result<(u32, u32), Error> {
 
     // NOTE: It's odd but version field is used for model ID and model field is used for version
     // in MOTU case.
-    let model_id = read_immediate(&unit_entries, ieee1212::KeyType::Version, "Version")?;
-    let version = read_immediate(&unit_entries, ieee1212::KeyType::Model, "Model ID")?;
+    let model_id = read_immediate(&unit_entries, KeyType::Version, "Version")?;
+    let version = read_immediate(&unit_entries, KeyType::Model, "Model ID")?;
 
     Ok((model_id, version))
 }

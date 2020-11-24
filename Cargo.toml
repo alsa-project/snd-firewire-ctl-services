@@ -2,7 +2,7 @@
 members = [
     "libs/alsa-ctl-tlv-codec",
     "libs/core",
-    "libs/ieee1212",
+    "libs/ieee1212-config-rom",
     "libs/ta1394",
     "libs/dg00x",
     "libs/tascam",
