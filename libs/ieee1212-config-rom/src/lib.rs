@@ -94,8 +94,8 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8]) -> Vec<
                 let offset = 0xfffff0000000 + (value as usize);
                 EntryData::CsrOffset(offset)
             }
-            2 => {
-                let offset = (value as usize) * 4;
+            2 | 3 => {
+                let offset = 4 * value as usize;
                 if offset < directory.len() {
                     break;
                 }
@@ -104,7 +104,7 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8]) -> Vec<
                     break;
                 }
                 let doublet = [data[start_offset], data[start_offset + 1]];
-                let length = (u16::from_be_bytes(doublet) as usize) * 4;
+                let length = 4 * u16::from_be_bytes(doublet) as usize;
                 if length < 8 {
                     break;
                 }
@@ -112,30 +112,14 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8]) -> Vec<
                 if end_offset > data.len() {
                     break;
                 }
-                let leaf = &data[(4 + start_offset)..end_offset];
-                EntryData::Leaf(leaf)
-            }
-            3 => {
-                let offset = (value as usize) * 4;
-                if offset < directory.len() {
-                    break;
+                if entry_type == 2 {
+                    let leaf = &data[(4 + start_offset)..end_offset];
+                    EntryData::Leaf(leaf)
+                } else {
+                    let directory = &data[start_offset..end_offset];
+                    let entries = get_directory_entry_list(directory, &data[end_offset..]);
+                    EntryData::Directory(entries)
                 }
-                let start_offset = offset - directory.len();
-                if start_offset > data.len() {
-                    break;
-                }
-                let doublet = [data[start_offset], data[start_offset + 1]];
-                let length = (u16::from_be_bytes(doublet) as usize) * 4;
-                if length == 0 {
-                    break;
-                }
-                let end_offset = start_offset + 4 + length;
-                if end_offset > data.len() {
-                    break;
-                }
-                let directory = &data[start_offset..end_offset];
-                let entries = get_directory_entry_list(directory, &data[end_offset..]);
-                EntryData::Directory(entries)
             }
             _ => break,
         };
