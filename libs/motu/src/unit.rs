@@ -4,6 +4,7 @@ use glib::{Error, FileError};
 use glib::source;
 use nix::sys::signal;
 use std::sync::mpsc;
+use std::convert::TryFrom;
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
 use alsactl::CardExt;
@@ -186,15 +187,19 @@ fn read_immediate(entries: &[Entry], key_type: KeyType, field_name: &str)
 
 fn detect_model(node: &hinawa::FwNode) -> Result<(u32, u32), Error> {
     let data = node.get_config_rom()?;
-    let entries = get_root_entry_list(&data);
+    let config_rom = ConfigRom::try_from(data)
+        .map_err(|e| {
+            let label = format!("Malformed configuration ROM detected: {}", e.to_string());
+            Error::new(FileError::Nxio, &label)
+        })?;
 
-    let vendor = read_immediate(&entries, KeyType::Vendor, "Vendor ID")?;
+    let vendor = read_immediate(&config_rom.root, KeyType::Vendor, "Vendor ID")?;
     if vendor != OUI_MOTU {
         let label = format!("Vendor Id is not OUI of Mark of the Unicorn: {:08x}", vendor);
         return Err(Error::new(FileError::Nxio, &label));
     }
 
-    let unit_entries = read_directory(&entries, KeyType::Unit, "Unit")?;
+    let unit_entries = read_directory(&config_rom.root, KeyType::Unit, "Unit")?;
 
     let spec_id = read_immediate(&unit_entries, KeyType::SpecifierId, "Specifier ID")?;
     if spec_id != OUI_MOTU {
