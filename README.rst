@@ -42,14 +42,14 @@ Build dependencies
 
   * glib crate in <https://gtk-rs.org/>
   * hinawa crate v0.3.0 in <https://github.com/alsa-project/hinawa-rs/>
-  * alsactl/alsaseq crates v0.1.0 in <https://github.com/alsa-project/alsa-gobject-rs/>
+  * alsactl/alsaseq crates v0.2.0 in <https://github.com/alsa-project/alsa-gobject-rs/>
 
 Runtime dependencies
 ====================
 
 * glib <https://developer.gnome.org/glib/>
 * libhinawa v2.2.0 or later <https://github.com/alsa-project/libhinawa>
-* alsa-gobject v0.1 or later <https://github.com/alsa-project/alsa-gobject/>
+* alsa-gobject v0.2 or later <https://github.com/alsa-project/alsa-gobject/>
 
 How to build
 ============
