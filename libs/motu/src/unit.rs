@@ -164,7 +164,7 @@ fn read_directory<'a>(entries: &'a [Entry], key_type: KeyType, field_name: &str)
     -> Result<&'a [Entry<'a>], Error>
 {
     entries.iter().find_map(|entry| {
-        if entry.key == key_type as u8 {
+        if entry.key == key_type {
             if let EntryData::Directory(unit) = &entry.data {
                 return Some(unit.as_slice());
             }
@@ -180,7 +180,7 @@ fn read_immediate(entries: &[Entry], key_type: KeyType, field_name: &str)
     -> Result<u32, Error>
 {
     entries.iter().find_map(|entry| {
-        if entry.key == key_type as u8 {
+        if entry.key == key_type {
             if let EntryData::Immediate(val) = entry.data {
                 return Some(val)
             }

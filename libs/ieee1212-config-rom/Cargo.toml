@@ -9,9 +9,6 @@ description = """
 Utilities for ROM specification in IEEE 1222
 """
 
-[dependencies]
-libc = "0.2"
-
 [[bin]]
 name = "config-rom-parser"
 doc = false

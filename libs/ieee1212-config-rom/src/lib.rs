@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 #[derive(Debug)]
 pub struct Entry<'a> {
-    pub key: u8,
+    pub key: KeyType,
     pub data: EntryData<'a>,
 }
 
@@ -15,27 +15,52 @@ pub enum EntryData<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
 pub enum KeyType {
-    Root = 0x00, // For my convenience.
-    Descriptor = 0x01,
-    BusDependentInfo = 0x02,
-    Vendor = 0x03,
-    HardwareVersion = 0x04,
-    Module = 0x07,
-    NodeCapabilities = 0x0c,
-    Eui64 = 0x0d,
-    Unit = 0x11,
-    SpecifierId = 0x12,
-    Version = 0x13,
-    DependentInfo = 0x14,
-    UnitLocation = 0x15,
-    Model = 0x17,
-    Instance = 0x18,
-    Keyword = 0x19,
-    Feature = 0x1a,
-    ModifiableDescriptor = 0x1f,
-    DirectoryId = 0x20,
+    Descriptor,
+    BusDependentInfo,
+    Vendor,
+    HardwareVersion,
+    Module,
+    NodeCapabilities,
+    Eui64,
+    Unit,
+    SpecifierId,
+    Version,
+    DependentInfo,
+    UnitLocation,
+    Model,
+    Instance,
+    Keyword,
+    Feature,
+    ModifiableDescriptor,
+    DirectoryId,
+    Reserved(u8),
+}
+
+impl From<u8> for KeyType {
+    fn from(val: u8) -> Self {
+        match val {
+            0x01 => KeyType::Descriptor,
+            0x02 => KeyType::BusDependentInfo,
+            0x03 => KeyType::Vendor,
+            0x04 => KeyType::HardwareVersion,
+            0x07 => KeyType::Module,
+            0x0c => KeyType::NodeCapabilities,
+            0x0d => KeyType::Eui64,
+            0x11 => KeyType::Unit,
+            0x12 => KeyType::SpecifierId,
+            0x13 => KeyType::Version,
+            0x14 => KeyType::DependentInfo,
+            0x15 => KeyType::UnitLocation,
+            0x17 => KeyType::Model,
+            0x18 => KeyType::Instance,
+            0x19 => KeyType::Keyword,
+            0x1a => KeyType::Feature,
+            0x1f => KeyType::ModifiableDescriptor,
+            0x20 => KeyType::DirectoryId,
+            _ => KeyType::Reserved(val),
+        }
+    }
 }
 
 pub fn get_root_entry_list<'a>(mut data: &'a [u8]) -> Vec<Entry<'a>> {
@@ -115,7 +140,7 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8]) -> Vec<
             _ => break,
         };
         let entry = Entry {
-            key: key,
+            key: KeyType::from(key),
             data: entry_data,
         };
         entries.push(entry);
