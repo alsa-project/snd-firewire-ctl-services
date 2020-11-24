@@ -3,6 +3,7 @@
 use ieee1212_config_rom;
 use std::fs::File;
 use std::io::Read;
+use std::convert::TryFrom;
 
 fn main() {
     let code = std::env::args()
@@ -34,9 +35,11 @@ fn main() {
             }
         })
         .and_then(|data| {
-            let root = ieee1212_config_rom::get_root_entry_list(&data);
-            println!("{:?}", root);
-            Ok(())
+            ieee1212_config_rom::ConfigRom::try_from(&data[..])
+                .map(|config_rom| {
+                    println!("{:?}", config_rom);
+                })
+                .map_err(|e| e.to_string())
         })
         .map(|_| 0)
         .unwrap_or_else(|msg| {
