@@ -31,7 +31,7 @@ pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
         })
 }
 
-pub fn get_unit_data(entries: &[Entry], directory_id: u32) -> Option<UnitData> {
+fn get_unit_data(entries: &[Entry], directory_id: u32) -> Option<UnitData> {
     entries.iter().filter_map(|entry| {
         EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
     })
