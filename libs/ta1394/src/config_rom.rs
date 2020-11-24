@@ -2,8 +2,6 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use ieee1212_config_rom::{*, entry::*};
 
-use std::convert::TryFrom;
-
 #[derive(Clone, Debug)]
 pub struct VendorData {
     pub vendor_id: u32,
@@ -30,44 +28,26 @@ impl<'a> Ta1394ConfigRom for ConfigRom<'a> {
     }
 
     fn get_model(&self) -> Option<UnitData> {
-        get_unit_data(&self.root, 0)
-    }
-}
-
-pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
-    ConfigRom::try_from(data)
-        .ok()
-        .and_then(|config_rom| {
-            detect_desc_text(&config_rom.root, KeyType::Vendor)
-                .map(|(vendor_id, name)| VendorData{vendor_id, vendor_name: name.to_string()})
-                .and_then(|vendor| {
-                    get_unit_data(&config_rom.root, 0)
-                        .map(|model| (vendor, model))
-                })
+        self.root.iter().find_map(|entry| {
+            EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
         })
-}
-
-fn get_unit_data(entries: &[Entry], directory_id: u32) -> Option<UnitData> {
-    entries.iter().filter_map(|entry| {
-        EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
-    })
-    .nth(directory_id as usize)
-    .and_then(|entries| {
-        entries.iter().find_map(|entry| {
-            EntryDataAccess::<u32>::get(entry, KeyType::SpecifierId)
-        })
-        .and_then(|specifier_id| {
+        .and_then(|entries| {
             entries.iter().find_map(|entry| {
-                EntryDataAccess::<u32>::get(entry, KeyType::Version)
+                EntryDataAccess::<u32>::get(entry, KeyType::SpecifierId)
             })
-            .and_then(|version| {
-                detect_desc_text(entries, KeyType::Model)
-                    .map(|(model_id, name)| {
-                        UnitData{model_id, model_name: name.to_string(), specifier_id, version}
-                    })
+            .and_then(|specifier_id| {
+                entries.iter().find_map(|entry| {
+                    EntryDataAccess::<u32>::get(entry, KeyType::Version)
+                })
+                .and_then(|version| {
+                    detect_desc_text(entries, KeyType::Model)
+                        .map(|(model_id, name)| {
+                            UnitData{model_id, model_name: name.to_string(), specifier_id, version}
+                        })
+                })
             })
         })
-    })
+    }
 }
 
 fn detect_desc_text<'a>(entries: &'a [Entry], key_type: KeyType) -> Option<(u32, &'a str)> {
