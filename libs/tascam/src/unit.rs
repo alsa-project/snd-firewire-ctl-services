@@ -10,6 +10,8 @@ use super::isoc_console_unit::IsocConsoleUnit;
 use super::isoc_rack_unit::IsocRackUnit;
 use super::async_unit::AsyncUnit;
 
+use std::convert::TryFrom;
+
 pub enum TascamUnit<'a> {
     IsocConsole(IsocConsoleUnit<'a>),
     IsocRack(IsocRackUnit<'a>),
@@ -26,8 +28,12 @@ impl<'a> TascamUnit<'a> {
 
                 let node = unit.get_node();
                 let data = node.get_config_rom()?;
-                let entries = get_root_entry_list(data);
-                let name = detect_model_name(&entries)?;
+                let config_rom = ConfigRom::try_from(data)
+                    .map_err(|e| {
+                        let label = format!("Malformed configuration ROM detected: {}", e.to_string());
+                        Error::new(FileError::Nxio, &label)
+                    })?;
+                let name = detect_model_name(&config_rom.root)?;
                 match name {
                     "FW-1884" | "FW-1082" => {
                         let console_unit = IsocConsoleUnit::new(unit, name, sysnum)?;
@@ -46,8 +52,12 @@ impl<'a> TascamUnit<'a> {
                 node.open(&devnode)?;
 
                 let data = node.get_config_rom()?;
-                let entries = get_root_entry_list(data);
-                let name = detect_model_name(&entries)?;
+                let config_rom = ConfigRom::try_from(data)
+                    .map_err(|e| {
+                        let label = format!("Malformed configuration ROM detected: {}", e.to_string());
+                        Error::new(FileError::Nxio, &label)
+                    })?;
+                let name = detect_model_name(&config_rom.root)?;
                 match name {
                     "FE-8" => {
                         let name = name.to_string();
