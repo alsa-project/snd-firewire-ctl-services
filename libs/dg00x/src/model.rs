@@ -4,8 +4,13 @@ use glib::{Error, FileError};
 
 use core::card_cntr;
 
+use ieee1212_config_rom::ConfigRom;
+use ta1394::config_rom::Ta1394ConfigRom;
+
 use super::common_ctl::CommonCtl;
 use super::monitor_ctl::MonitorCtl;
+
+use std::convert::TryFrom;
 
 pub struct Dg00xModel {
     req: hinawa::FwReq,
@@ -15,11 +20,14 @@ pub struct Dg00xModel {
 
 impl Dg00xModel {
     pub fn new(raw: &[u8]) -> Result<Self, Error> {
-        let model = ta1394::config_rom::parse_entries(raw)
-            .ok_or_else(|| {
-                Error::new(FileError::Nxio, "Malformed configuration ROM detected")
-             })
-            .map(|(_, model)| model)?;
+        let config_rom = ConfigRom::try_from(raw)
+            .map_err(|e| {
+                let label = format!("Malformed configuration ROM detected: {}", e);
+                Error::new(FileError::Nxio, &label)
+            })?;
+
+        let model = config_rom.get_model()
+            .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
 
         match model.model_id {
             0x000001 | 0x000002 => Ok(()),
