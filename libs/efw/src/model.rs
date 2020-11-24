@@ -5,6 +5,9 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
+use ieee1212_config_rom::ConfigRom;
+use ta1394::config_rom::Ta1394ConfigRom;
+
 use super::transactions::EfwInfo;
 use super::clk_ctl;
 use super::mixer_ctl;
@@ -14,6 +17,8 @@ use super::port_ctl;
 use super::meter_ctl;
 use super::guitar_ctl;
 use super::iec60958_ctl;
+
+use std::convert::TryFrom;
 
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
@@ -27,52 +32,59 @@ pub struct EfwModel {
 }
 
 impl EfwModel {
-    pub fn new(data: &[u8]) -> Result<Self, Error> {
-        match ta1394::config_rom::parse_entries(&data) {
-            Some((v, m)) => match (v.vendor_id, m.model_id) {
-                // Mackie/Loud Onyx 400F.
-                (0x000ff2, 0x00400f) |
-                // Mackie/Loud Onyx 1200F.
-                (0x000ff2, 0x01200f) |
-                // Echo Digital Audio, AudioFire 12.
-                (0x001486, 0x00af12) |
-                // Echo Digital Audio, AudioFire 12.
-                (0x001486, 0x0af12d) |
-                // Echo Digital Audio, AudioFire 12.
-                (0x001486, 0x0af12a) |
-                // Echo Digital Audio, AudioFire 8.
-                (0x001486, 0x000af8) |
-                // Echo Digital Audio, AudioFire 2.
-                (0x001486, 0x000af2) |
-                // Echo Digital Audio, AudioFire 4.
-                (0x001486, 0x000af4) |
-                // Echo Digital Audio, AudioFire 8/Pre8.
-                (0x001486, 0x000af9) |
-                // Gibson, Robot Interface Pack (RIP) for Robot Guitar series.
-                (0x00075b, 0x00afb2) |
-                // Gibson, Robot Interface Pack (RIP) for Dark Fire series.
-                (0x00075b, 0x00afb9) => {
-                    let model = EfwModel {
-                        clk_ctl: clk_ctl::ClkCtl::new(),
-                        mixer_ctl: mixer_ctl::MixerCtl::new(),
-                        output_ctl: output_ctl::OutputCtl::new(),
-                        input_ctl: input_ctl::InputCtl::new(),
-                        port_ctl: port_ctl::PortCtl::new(),
-                        meter_ctl: meter_ctl::MeterCtl::new(),
-                        guitar_ctl: guitar_ctl::GuitarCtl::new(),
-                        iec60958_ctl: iec60958_ctl::Iec60958Ctl::new(),
-                    };
-                    Ok(model)
-                },
-                _ => {
-                    let label = "Not supported.";
-                    Err(Error::new(FileError::Noent, label))
-                },
+    pub fn new(raw: &[u8]) -> Result<Self, Error> {
+        let config_rom = ConfigRom::try_from(raw)
+            .map_err(|e| {
+                let label = format!("Malformed configuration ROM detected: {}", e);
+                Error::new(FileError::Nxio, &label)
+            })?;
+
+        let (vendor, model) = config_rom.get_vendor()
+            .and_then(|vendor| {
+                config_rom.get_model()
+                    .map(|model| (vendor, model))
+            })
+            .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
+
+        match (vendor.vendor_id, model.model_id) {
+            // Mackie/Loud Onyx 400F.
+            (0x000ff2, 0x00400f) |
+            // Mackie/Loud Onyx 1200F.
+            (0x000ff2, 0x01200f) |
+            // Echo Digital Audio, AudioFire 12.
+            (0x001486, 0x00af12) |
+            // Echo Digital Audio, AudioFire 12.
+            (0x001486, 0x0af12d) |
+            // Echo Digital Audio, AudioFire 12.
+            (0x001486, 0x0af12a) |
+            // Echo Digital Audio, AudioFire 8.
+            (0x001486, 0x000af8) |
+            // Echo Digital Audio, AudioFire 2.
+            (0x001486, 0x000af2) |
+            // Echo Digital Audio, AudioFire 4.
+            (0x001486, 0x000af4) |
+            // Echo Digital Audio, AudioFire 8/Pre8.
+            (0x001486, 0x000af9) |
+            // Gibson, Robot Interface Pack (RIP) for Robot Guitar series.
+            (0x00075b, 0x00afb2) |
+            // Gibson, Robot Interface Pack (RIP) for Dark Fire series.
+            (0x00075b, 0x00afb9) => {
+                let model = EfwModel {
+                    clk_ctl: clk_ctl::ClkCtl::new(),
+                    mixer_ctl: mixer_ctl::MixerCtl::new(),
+                    output_ctl: output_ctl::OutputCtl::new(),
+                    input_ctl: input_ctl::InputCtl::new(),
+                    port_ctl: port_ctl::PortCtl::new(),
+                    meter_ctl: meter_ctl::MeterCtl::new(),
+                    guitar_ctl: guitar_ctl::GuitarCtl::new(),
+                    iec60958_ctl: iec60958_ctl::Iec60958Ctl::new(),
+                };
+                Ok(model)
             },
-            None => {
-                let label = "Fail to detect information of unit";
+            _ => {
+                let label = "Not supported.";
                 Err(Error::new(FileError::Noent, label))
-            }
+            },
         }
     }
 }
