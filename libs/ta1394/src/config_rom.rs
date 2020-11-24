@@ -28,14 +28,14 @@ pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
     }
 }
 
-pub fn get_vendor_data(entries: &Vec<Entry>) -> Option<VendorData> {
+pub fn get_vendor_data(entries: &[Entry]) -> Option<VendorData> {
     match detect_desc_text(entries, KeyType::Vendor) {
         Some((vendor_id, vendor_name)) => Some(VendorData{vendor_id, vendor_name}),
         None => None,
     }
 }
 
-pub fn get_unit_data(entries: &Vec<Entry>, directory_id: u32) -> Option<UnitData> {
+pub fn get_unit_data(entries: &[Entry], directory_id: u32) -> Option<UnitData> {
     match detect_unit_directory(entries, directory_id) {
         Some(directory) => match detect_immediate_value(directory, KeyType::SpecifierId) {
             Some(specifier_id) => match detect_immediate_value(directory, KeyType::Version) {
@@ -51,7 +51,7 @@ pub fn get_unit_data(entries: &Vec<Entry>, directory_id: u32) -> Option<UnitData
     }
 }
 
-fn detect_immediate_value(entries: &Vec<Entry>, key: KeyType) -> Option<u32> {
+fn detect_immediate_value(entries: &[Entry], key: KeyType) -> Option<u32> {
     entries.iter().find_map(|entry| {
         if entry.key == key as u8 {
             match entry.data {
@@ -64,7 +64,7 @@ fn detect_immediate_value(entries: &Vec<Entry>, key: KeyType) -> Option<u32> {
     })
 }
 
-fn detect_unit_directory(entries: &Vec<Entry>, directory_id: u32) -> Option<&Vec<Entry>> {
+fn detect_unit_directory(entries: &[Entry], directory_id: u32) -> Option<&[Entry]> {
     let mut count = 0;
 
     entries.iter().find_map(|entry| {
@@ -72,7 +72,7 @@ fn detect_unit_directory(entries: &Vec<Entry>, directory_id: u32) -> Option<&Vec
             match &entry.data {
                 EntryData::Directory(directory) => {
                     match count == directory_id {
-                        true => Some(directory),
+                        true => Some(&directory[..]),
                         false => {
                             count += 1;
                             None
@@ -87,7 +87,7 @@ fn detect_unit_directory(entries: &Vec<Entry>, directory_id: u32) -> Option<&Vec
     })
 }
 
-fn detect_desc_text(entries: &Vec<Entry>, key: KeyType) -> Option<(u32, String)> {
+fn detect_desc_text(entries: &[Entry], key: KeyType) -> Option<(u32, String)> {
     let mut peekable = entries.iter().peekable();
 
     while let Some(entry) = peekable.next() {
