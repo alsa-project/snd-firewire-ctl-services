@@ -3,31 +3,31 @@
 use ieee1212_config_rom::{*, entry::*};
 
 #[derive(Clone, Debug)]
-pub struct VendorData {
+pub struct VendorData<'a> {
     pub vendor_id: u32,
-    pub vendor_name: String,
+    pub vendor_name: &'a str,
 }
 
 #[derive(Clone, Debug)]
-pub struct UnitData {
+pub struct UnitData<'a> {
     pub model_id: u32,
-    pub model_name: String,
+    pub model_name: &'a str,
     pub specifier_id: u32,
     pub version: u32,
 }
 
-pub trait Ta1394ConfigRom {
-    fn get_vendor(&self) -> Option<VendorData>;
-    fn get_model(&self) -> Option<UnitData>;
+pub trait Ta1394ConfigRom<'a> {
+    fn get_vendor(&'a self) -> Option<VendorData<'a>>;
+    fn get_model(&'a self) -> Option<UnitData<'a>>;
 }
 
-impl<'a> Ta1394ConfigRom for ConfigRom<'a> {
-    fn get_vendor(&self) -> Option<VendorData> {
+impl<'a> Ta1394ConfigRom<'a> for ConfigRom<'a> {
+    fn get_vendor(&'a self) -> Option<VendorData<'a>> {
         detect_desc_text(&self.root, KeyType::Vendor)
-            .map(|(vendor_id, name)| VendorData{vendor_id, vendor_name: name.to_string()})
+            .map(|(vendor_id, vendor_name)| VendorData{vendor_id, vendor_name})
     }
 
-    fn get_model(&self) -> Option<UnitData> {
+    fn get_model(&'a self) -> Option<UnitData<'a>> {
         self.root.iter().find_map(|entry| {
             EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
         })
@@ -41,8 +41,8 @@ impl<'a> Ta1394ConfigRom for ConfigRom<'a> {
                 })
                 .and_then(|version| {
                     detect_desc_text(entries, KeyType::Model)
-                        .map(|(model_id, name)| {
-                            UnitData{model_id, model_name: name.to_string(), specifier_id, version}
+                        .map(|(model_id, model_name)| {
+                            UnitData{model_id, model_name, specifier_id, version}
                         })
                 })
             })
