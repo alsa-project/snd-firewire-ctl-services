@@ -132,38 +132,33 @@ fn get_root_directory(data: &[u8]) -> Vec<u8> {
     data[0..directory_length].to_vec()
 }
 
-pub fn parse_leaf_entry_as_text(leaf: &[u8]) -> Option<String> {
-    // The type of descriptor should be 'textual descriptor'.
-    if leaf[4] != 0 {
-        return None;
-    }
-
-    // The specifier_ID should be 0.
-    let mut quadlet = [0;4];
-    quadlet.copy_from_slice(&leaf[4..8]);
-    let spec_id = u32::from_be_bytes(quadlet);
-    if spec_id != 0 {
-        return None;
-    }
-
-    // The width/character_set/language fields are just ignored since being useless.
-
-    // Text string.
-    let literal = &leaf[12..];
-    match literal.iter().position(|&c| c == 0x00) {
-        Some(pos) => {
-            match std::str::from_utf8(&literal[0..pos]) {
-                Ok(t) => Some(t.to_string()),
-                Err(_) => None,
-            }
-        },
-        None => {
-            match std::str::from_utf8(literal) {
-                Ok(t) => Some(t.to_string()),
-                Err(_) => None
-            }
-        }
-    }
+pub fn parse_leaf_entry_as_text<'a>(leaf: &'a [u8]) -> Option<&'a str> {
+    Some(leaf)
+        .filter(|leaf| {
+            // The type of descriptor should be 'textual descriptor'.
+            leaf[4] == 0
+        })
+        .filter(|leaf| {
+            // The specifier_ID should be 0.
+            let mut quadlet = [0;4];
+            quadlet.copy_from_slice(&leaf[4..8]);
+            let spec_id = u32::from_be_bytes(quadlet);
+            spec_id == 0
+        })
+        // The width/character_set/language fields are just ignored since being useless.
+        .and_then(|leaf| {
+            // Text string.
+            let literal = &leaf[12..];
+            literal.iter().position(|&c| c == 0x00)
+                .and_then(|pos| {
+                    std::str::from_utf8(&literal[..pos])
+                        .ok()
+                })
+                .or_else(|| {
+                    std::str::from_utf8(&literal)
+                        .ok()
+                })
+        })
 }
 
 #[cfg(test)]
@@ -175,7 +170,7 @@ mod test {
             0x6e, 0x75, 0x78, 0x20, 0x46, 0x69, 0x72, 0x65, 0x77, 0x69, 0x72, 0x65, 0x00, 0x00,
         ];
         assert_eq!(
-            Some("Linux Firewire".to_string()),
+            Some("Linux Firewire"),
             super::parse_leaf_entry_as_text(&raw)
         );
     }

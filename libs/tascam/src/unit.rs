@@ -89,6 +89,7 @@ fn detect_model_name(node: &hinawa::FwNode) -> Result<String, Error> {
                                 if e.key == KeyType::BusDependentInfo as u8 {
                                     if let EntryData::Leaf(l) = &e.data {
                                         parse_leaf_entry_as_text(l)
+                                            .map(|s| s.to_string())
                                     } else {
                                         None
                                     }

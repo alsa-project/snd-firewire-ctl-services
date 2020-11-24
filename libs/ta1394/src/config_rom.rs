@@ -109,7 +109,7 @@ fn detect_desc_text(entries: &[Entry], key: KeyType) -> Option<(u32, String)> {
         if let EntryData::Immediate(value) = entry.data {
             if let EntryData::Leaf(leaf) = &next.data {
                 if let Some(name) = parse_leaf_entry_as_text(&leaf) {
-                    return Some((value, name));
+                    return Some((value, name.to_string()));
                 }
             }
         }
