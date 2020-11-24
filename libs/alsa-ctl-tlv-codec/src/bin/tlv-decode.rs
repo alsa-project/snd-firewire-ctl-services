@@ -5,8 +5,6 @@ use std::convert::TryFrom;
 
 use std::io::{Read, Write};
 use std::str::FromStr;
-use std::num::ParseIntError;
-
 
 fn generate_indent(level: usize) -> String {
     (0..(level * INDENTS_PER_LEVEL)).fold(String::new(), |mut l, _| {l.push(' '); l})
@@ -182,62 +180,74 @@ enum Mode {
 
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if args.len() < 2 {
-        print_help();
-        std::process::exit(0);
-    }
-
-    let mode = match args[0].as_str() {
-        "structure" => Mode::Structure,
-        "literal" => Mode::Literal,
-        "raw" => Mode::Raw,
-        "macro" => Mode::Macro,
-        _ => {
-            eprintln!("Invalid argument for mode: {}", args[0]);
-            std::process::exit(1);
-        }
-    };
-
-    let raw = if args[1] == "-" {
-        interpret_tlv_data_from_stdin().unwrap_or_else(|msg| {
-            eprintln!("{}", msg);
-            std::process::exit(1);
-        })
+    let code = (if args.len() < 2 {
+        Err("2 arguments are required in command line at least.".to_string())
     } else {
-        interpret_tlv_data_from_command_line(&args[1..]).unwrap_or_else(|msg| {
-            eprintln!("{}", msg);
-            std::process::exit(1);
-        })
-    };
+        Ok(args)
+    })
+    .and_then(|args| {
+        let mode = match args[0].as_str() {
+            "structure" => Ok(Mode::Structure),
+            "literal" => Ok(Mode::Literal),
+            "raw" => Ok(Mode::Raw),
+            "macro" => Ok(Mode::Macro),
+            _ => {
+                let label = format!("Invalid argument for mode: {}", args[0]);
+                Err(label)
+            }
+        }?;
 
-    let item = TlvItem::try_from(&raw[..]).unwrap_or_else(|msg| {
+        let raw = match args[1].as_str() {
+            "-" => interpret_tlv_data_from_stdin(),
+            _ => interpret_tlv_data_from_command_line(&args[1..]),
+        }?;
+
+        let item = TlvItem::try_from(&raw[..])
+            .map_err(|e| e.to_string())?;
+
+        Ok((mode, item))
+    })
+    .and_then(|(mode, item)| {
+        match mode {
+            Mode::Structure => {
+                println!("{:?}", item);
+                Ok(())
+            }
+            Mode::Macro => {
+                item.print_as_macro(0);
+                println!("");
+                Ok(())
+            }
+            _ => {
+                let raw: Vec<u32> = match item {
+                  TlvItem::Container(d) => d.into(),
+                  TlvItem::DbRange(d) => d.into(),
+                  TlvItem::DbScale(d) => d.into(),
+                  TlvItem::DbInterval(d) => d.into(),
+                  TlvItem::Chmap(d) => d.into(),
+                };
+
+                if mode == Mode::Literal {
+                    raw.iter().for_each(|val| print!("{} ", val));
+                    println!("");
+                    Ok(())
+                } else {
+                    let mut bytes = Vec::new();
+                    raw.iter().for_each(|val| bytes.extend_from_slice(&val.to_ne_bytes()));
+                    std::io::stdout().lock().write_all(&bytes)
+                        .map_err(|e| e.to_string())
+                }
+            }
+        }
+    })
+    .map(|_| 0)
+    .unwrap_or_else(|msg| {
         eprintln!("{}", msg);
-        std::process::exit(1);
+        print_help();
+        1
     });
 
-    if mode == Mode::Structure {
-        println!("{:?}", item);
-    } else if mode == Mode::Macro {
-        item.print_as_macro(0);
-        println!("");
-    } else {
-        let raw: Vec<u32> = match item {
-          TlvItem::Container(d) => d.into(),
-          TlvItem::DbRange(d) => d.into(),
-          TlvItem::DbScale(d) => d.into(),
-          TlvItem::DbInterval(d) => d.into(),
-          TlvItem::Chmap(d) => d.into(),
-        };
-
-        if mode == Mode::Literal {
-            raw.iter().for_each(|val| print!("{} ", val));
-            println!("")
-        } else {
-            let stdout = std::io::stdout();
-            let mut out = stdout.lock();
-            raw.iter().for_each(|val| out.write_all(&val.to_ne_bytes()).unwrap_or(()))
-        }
-    }
+    std::process::exit(code);
 }
 
 fn print_help() {
@@ -260,49 +270,49 @@ Usage:
 }
 
 fn interpret_tlv_data_from_stdin() -> Result<Vec<u32>, String> {
-    let mut raw = Vec::new();
-
-    let input = std::io::stdin();
-    let mut handle = input.lock();
-
     let mut buf = Vec::new();
-    match handle.read_to_end(&mut buf) {
-        Ok(len) => {
-            if len == 0 {
-                return Err("Nothing available via standard input.".to_string());
-            } else if len % 4 > 0 {
-                return Err("The length of data via standard input is not multiples of 4.".to_string());
-            } else {
-                let mut quadlet = [0;4];
-                (0..(buf.len() / 4)).for_each(|i| {
-                    let pos = i * 4;
-                    quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                    raw.push(u32::from_ne_bytes(quadlet));
-                });
-            }
-        }
-        Err(e) => return Err(e.to_string()),
-    };
 
-    Ok(raw)
+    std::io::stdin().lock().read_to_end(&mut buf)
+        .map_err(|e| e.to_string())
+        .and_then(|len| {
+            if len == 0 {
+                Err("Nothing available via standard input.".to_string())
+            } else if len % 4 > 0 {
+                Err("The length of data via standard input is not multiples of 4.".to_string())
+            } else {
+                Ok(())
+            }
+        })
+        .map(|_| {
+            let mut raw = Vec::new();
+
+            let mut quadlet = [0;4];
+            (0..(buf.len() / 4)).for_each(|i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                raw.push(u32::from_ne_bytes(quadlet));
+            });
+            raw
+        })
 }
 
 fn interpret_tlv_data_from_command_line(args: &[String]) -> Result<Vec<u32>, String> {
     let mut raw = Vec::new();
 
-    if let Err(e) = args.iter().try_for_each(|arg| {
-        let val = if arg.starts_with("0x") {
-            u32::from_str_radix(arg.trim_start_matches("0x"), 16)?
+    args.iter().try_for_each(|arg| {
+        (if arg.starts_with("0x") {
+            u32::from_str_radix(arg.trim_start_matches("0x"), 16)
         } else if arg.find(&['A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'][..]).is_some() {
-            u32::from_str_radix(arg, 16)?
+            u32::from_str_radix(arg, 16)
         } else {
-            u32::from_str(arg)?
-        };
-        raw.push(val);
-        Ok::<(), ParseIntError>(())
-    }) {
-        return Err(e.to_string());
-    }
+            u32::from_str(arg)
+        })
+        .map_err(|e| format!("Invalid argument for data of TLV: {}, {}", arg, e))
+        .map(|val| {
+            raw.push(val);
+            ()
+        })
+    })?;
 
     Ok(raw)
 }
