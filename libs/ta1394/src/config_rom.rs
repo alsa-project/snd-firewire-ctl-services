@@ -20,7 +20,7 @@ pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
     let entries = get_root_entry_list(&data);
 
     detect_desc_text(&entries, KeyType::Vendor)
-        .map(|(vendor_id, vendor_name)| VendorData{vendor_id, vendor_name})
+        .map(|(vendor_id, name)| VendorData{vendor_id, vendor_name: name.to_string()})
         .and_then(|vendor| {
             get_unit_data(&entries, 0)
                 .map(|model| (vendor, model))
@@ -42,15 +42,15 @@ pub fn get_unit_data(entries: &[Entry], directory_id: u32) -> Option<UnitData> {
             })
             .and_then(|version| {
                 detect_desc_text(entries, KeyType::Model)
-                    .map(|(model_id, model_name)| {
-                        UnitData{model_id, model_name, specifier_id, version}
+                    .map(|(model_id, name)| {
+                        UnitData{model_id, model_name: name.to_string(), specifier_id, version}
                     })
             })
         })
     })
 }
 
-fn detect_desc_text(entries: &[Entry], key_type: KeyType) -> Option<(u32, String)> {
+fn detect_desc_text<'a>(entries: &'a [Entry], key_type: KeyType) -> Option<(u32, &'a str)> {
     let mut peekable = entries.iter().peekable();
 
     while let Some(entry) = peekable.next()
@@ -60,7 +60,7 @@ fn detect_desc_text(entries: &[Entry], key_type: KeyType) -> Option<(u32, String
                 peekable.peek()
                     .and_then(|&next| {
                         EntryDataAccess::<&str>::get(next, KeyType::Descriptor)
-                            .map(|name| (value, name.to_string()))
+                            .map(|name| (value, name))
                     })
             });
 
