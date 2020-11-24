@@ -2,6 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use ieee1212_config_rom::{*, entry::*};
 
+use std::convert::TryFrom;
+
 #[derive(Clone, Debug)]
 pub struct VendorData {
     pub vendor_id: u32,
@@ -17,13 +19,15 @@ pub struct UnitData {
 }
 
 pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
-    let entries = get_root_entry_list(&data);
-
-    detect_desc_text(&entries, KeyType::Vendor)
-        .map(|(vendor_id, name)| VendorData{vendor_id, vendor_name: name.to_string()})
-        .and_then(|vendor| {
-            get_unit_data(&entries, 0)
-                .map(|model| (vendor, model))
+    ConfigRom::try_from(data)
+        .ok()
+        .and_then(|config_rom| {
+            detect_desc_text(&config_rom.root, KeyType::Vendor)
+                .map(|(vendor_id, name)| VendorData{vendor_id, vendor_name: name.to_string()})
+                .and_then(|vendor| {
+                    get_unit_data(&config_rom.root, 0)
+                        .map(|model| (vendor, model))
+                })
         })
 }
 
