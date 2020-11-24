@@ -418,81 +418,75 @@ enum Mode {
 
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if args.len() < 6 {
-        print_help();
-        std::process::exit(0);
-    }
-
-    let mode = if args[0] == "db" {
-        let db = f64::from_str(&args[1]).unwrap_or_else(|_| {
-            eprintln!("Invalid argument for decimal floating point value: {}", args[1]);
-            std::process::exit(1);
-        });
-        Mode::Db(db)
-    } else if args[0] == "value" {
-        let val = interpret_i32(&args[1]).unwrap_or_else(|_| {
-            eprintln!("Invalid argument for decimal value: {}", args[1]);
-            std::process::exit(1);
-        });
-        Mode::Value(val)
+    let code = (if args.len() < 6 {
+        Err("6 arguments are required in command line at least.".to_string())
     } else {
-        eprintln!("Invalid argument for operation mode: {}", args[0]);
-        print_help();
-        std::process::exit(1);
-    };
+        Ok(args)
+    })
+    .and_then(|args| {
+        let mode = match args[0].as_str() {
+            "db" => {
+                f64::from_str(&args[1])
+                    .map_err(|e| format!("Invalid argument for value of dB: {}", e))
+                    .map(|val| Mode::Db(val))
+            }
+            "value" => {
+                interpret_i32(&args[1])
+                    .map_err(|e| format!("Invalid argument for value of control: {}", e))
+                    .map(|val| Mode::Value(val))
+            }
+            _ => {
+                let label = format!("Invalid argument for operation mode: {}", args[0]);
+                Err(label)
+            }
+        }?;
 
-    let min = interpret_i32(&args[2]).unwrap_or_else(|_| {
-        eprintln!("Invalid argument for minimum value: {}", args[1]);
-        std::process::exit(1);
-    });
-    let max = interpret_i32(&args[3]).unwrap_or_else(|_| {
-        eprintln!("Invalid argument for minimum value: {}", args[1]);
-        std::process::exit(1);
-    });
-    let step = interpret_i32(&args[4]).unwrap_or_else(|_| {
-        eprintln!("Invalid argument for minimum value: {}", args[1]);
-        std::process::exit(1);
-    });
-    let range = ValueRange{min, max, step};
+        let min = interpret_i32(&args[2])
+            .map_err(|e| format!("Invalid argument for minimum value: {}, {}", args[2], e))?;
+        let max = interpret_i32(&args[3])
+            .map_err(|e| format!("Invalid argument for maximum value: {}, {}", args[3], e))?;
+        let step = interpret_i32(&args[4])
+            .map_err(|e| format!("Invalid argument for step value: {}, {}", args[4], e))?;
+        let range = ValueRange{min, max, step};
 
-    let raw = if args[5] == "-" {
-        interpret_tlv_data_from_stdin().unwrap_or_else(|msg| {
-            eprintln!("{}", msg);
-            std::process::exit(1);
+        let raw = (if args[5] == "-" {
+            interpret_tlv_data_from_stdin()
+        } else {
+            interpret_tlv_data_from_command_line(&args[5..])
+        })?;
+
+        let item = TlvItem::try_from(&raw[..])
+            .map_err(|e| e.to_string())?;
+
+        Ok((mode, range, item))
+    })
+    .and_then(|(mode, range, item)| {
+        (match mode {
+            Mode::Db(db) => {
+                item.val_from_db(db, &range)
+                    .map(|val| {
+                        println!("{}", val);
+                        ()
+                    })
+            }
+            Mode::Value(val) => {
+                item.val_to_db(val, &range)
+                    .map(|db| {
+                        println!("{}", db);
+                        ()
+                    })
+            }
         })
-    } else {
-        interpret_tlv_data_from_command_line(&args[5..]).unwrap_or_else(|msg| {
-            eprintln!("{}", msg);
-            std::process::exit(1);
-        })
-    };
-
-    let data = TlvItem::try_from(&raw[..]).unwrap_or_else(|error| {
-        eprintln!("{}", error);
-        std::process::exit(1)
-    });
-
-    if let Err(e) = match mode {
-        Mode::Db(db) => {
-            data.val_from_db(db, &range)
-                .and_then(|val| {
-                    println!("{}", val);
-                    Ok(())
-                })
-        }
-        Mode::Value(val) => {
-            data.val_to_db(val, &range)
-                .and_then(|db| {
-                    println!("{}", db);
-                    Ok(())
-                })
-        }
-    } {
+        .map_err(|e| e.to_string())
+    })
+    .map(|_| 0)
+    .unwrap_or_else(|e| {
         eprintln!("{}", e);
-        std::process::exit(1);
-    } else {
-        std::process::exit(0);
-    }
+        print_help();
+        1
+    });
+
+    std::process::exit(code);
 }
 
 fn print_help() {
@@ -529,49 +523,49 @@ fn interpret_i32(arg: &str) -> Result<i32, ParseIntError> {
 }
 
 fn interpret_tlv_data_from_stdin() -> Result<Vec<u32>, String> {
-    let mut raw = Vec::new();
-
-    let input = std::io::stdin();
-    let mut handle = input.lock();
-
     let mut buf = Vec::new();
-    match handle.read_to_end(&mut buf) {
-        Ok(len) => {
+
+    std::io::stdin().lock().read_to_end(&mut buf)
+        .map_err(|e| e.to_string())
+        .and_then(|len| {
             if len == 0 {
                 return Err("Nothing available via standard input.".to_string());
             } else if len % 4 > 0 {
                 return Err("The length of data via standard input is not multiples of 4.".to_string());
             } else {
-                let mut quadlet = [0;4];
-                (0..(buf.len() / 4)).for_each(|i| {
-                    let pos = i * 4;
-                    quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                    raw.push(u32::from_ne_bytes(quadlet));
-                });
+                Ok(())
             }
-        }
-        Err(e) => return Err(e.to_string()),
-    };
+        })
+        .map(|_| {
+            let mut raw = Vec::new();
 
-    Ok(raw)
+            let mut quadlet = [0;4];
+            (0..(buf.len() / 4)).for_each(|i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                raw.push(u32::from_ne_bytes(quadlet));
+            });
+            raw
+        })
 }
 
 fn interpret_tlv_data_from_command_line(args: &[String]) -> Result<Vec<u32>, String> {
     let mut raw = Vec::new();
 
-    if let Err(e) = args.iter().try_for_each(|arg| {
-        let val = if arg.starts_with("0x") {
-            u32::from_str_radix(arg.trim_start_matches("0x"), 16)?
+    args.iter().try_for_each(|arg| {
+        (if arg.starts_with("0x") {
+            u32::from_str_radix(arg.trim_start_matches("0x"), 16)
         } else if arg.find(&['A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'][..]).is_some() {
-            u32::from_str_radix(arg, 16)?
+            u32::from_str_radix(arg, 16)
         } else {
-            u32::from_str(arg)?
-        };
-        raw.push(val);
-        Ok::<(), ParseIntError>(())
-    }) {
-        return Err(e.to_string());
-    }
+            u32::from_str(arg)
+        })
+        .map_err(|e| format!("Invalid argument for data of TLV: {}, {}", arg, e))
+        .map(|val| {
+            raw.push(val);
+            ()
+        })
+    })?;
 
     Ok(raw)
 }
