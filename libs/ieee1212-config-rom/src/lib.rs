@@ -5,6 +5,105 @@ pub mod desc;
 
 use entry::*;
 
+use std::convert::TryFrom;
+
+/// The structure to represent content of configuration ROM in IEEE 1212.
+///
+/// The structure implements std::convert::TryFrom<&[u8]> to parse raw data of configuration ROM.
+/// The structure refers to content of the raw data, thus has the same lifetime of the raw data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigRom<'a>{
+    /// The content of bus information block.
+    pub bus_info: &'a [u8],
+    /// The directory entries in root directory block.
+    pub root: Vec<Entry<'a>>,
+}
+
+/// The structure to represent error cause to parse raw data of configuration ROM.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigRomParseError{
+    pub ctx: Vec<ConfigRomParseCtx>,
+    pub msg: String,
+}
+
+impl ConfigRomParseError {
+    fn new(ctx: ConfigRomParseCtx, msg: String) -> Self {
+        ConfigRomParseError{ctx: vec![ctx], msg}
+    }
+}
+
+impl std::fmt::Display for ConfigRomParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut ctx = String::new();
+
+        let mut ctx_iter = self.ctx.iter();
+        ctx_iter
+            .by_ref()
+            .nth(0)
+            .map(|c| ctx.push_str(&c.to_string()));
+        ctx_iter
+            .for_each(|c| {
+                ctx.push_str(" -> ");
+                ctx.push_str(&c.to_string());
+            });
+
+        write!(f, "{}: {}", ctx, self.msg)
+    }
+}
+
+/// The enumeration to represent context of parsing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigRomParseCtx {
+    BusInfo,
+    RootDirectory,
+    DirectoryEntry(u8),
+}
+
+impl std::fmt::Display for ConfigRomParseCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigRomParseCtx::BusInfo => write!(f, "bus-info"),
+            ConfigRomParseCtx::RootDirectory => write!(f, "root-directory"),
+            ConfigRomParseCtx::DirectoryEntry(key) => write!(f, "directory-entry (key: {})", key),
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
+    type Error = ConfigRomParseError;
+
+    fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
+        // Get block of bus information.
+        let ctx = ConfigRomParseCtx::BusInfo;
+        let bus_info_length = 4 * raw[0] as usize;
+        if 4 + bus_info_length > raw.len() {
+            let msg = format!("length {} is greater than {}", bus_info_length, raw.len());
+            Err(ConfigRomParseError::new(ctx, msg))?
+        }
+        let bus_info = &raw[..(4 + bus_info_length)];
+        let data = &raw[(4 + bus_info_length)..];
+
+        // Get block of root directory.
+        let ctx = ConfigRomParseCtx::RootDirectory;
+        let doublet = [data[0], data[1]];
+        let root_directory_length = 4 * u16::from_be_bytes(doublet) as usize;
+        if 4 + root_directory_length > raw.len() {
+            let msg = format!("length {} is greater than {}", root_directory_length, raw.len());
+            Err(ConfigRomParseError::new(ctx, msg))?
+        }
+        let root = &data[..(4 + root_directory_length)];
+        let data = &data[(4 + root_directory_length)..];
+
+        let root = get_directory_entry_list(root, data);
+
+        let rom = ConfigRom{
+            bus_info,
+            root,
+        };
+        Ok(rom)
+    }
+}
+
 pub fn get_root_entry_list<'a>(mut data: &'a [u8]) -> Vec<Entry<'a>> {
     // Get block of bus information.
     let bus_info_length = 4 * data[0] as usize;
