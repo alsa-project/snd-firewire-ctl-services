@@ -53,7 +53,7 @@ pub fn get_unit_data(entries: &[Entry], directory_id: u32) -> Option<UnitData> {
 
 fn detect_immediate_value(entries: &[Entry], key: KeyType) -> Option<u32> {
     entries.iter().find_map(|entry| {
-        if entry.key == key as u8 {
+        if entry.key == key {
             match entry.data {
                 EntryData::Immediate(spec_id) => Some(spec_id),
                 _ => None,
@@ -68,7 +68,7 @@ fn detect_unit_directory<'a>(entries: &'a [Entry], directory_id: u32) -> Option<
     let mut count = 0;
 
     entries.iter().find_map(|entry| {
-        if entry.key == KeyType::Unit as u8 {
+        if entry.key == KeyType::Unit {
             match &entry.data {
                 EntryData::Directory(directory) => {
                     match count == directory_id {
@@ -91,13 +91,13 @@ fn detect_desc_text(entries: &[Entry], key: KeyType) -> Option<(u32, String)> {
     let mut peekable = entries.iter().peekable();
 
     while let Some(entry) = peekable.next() {
-        if entry.key != key as u8 {
+        if entry.key != key {
             continue;
         }
 
         let next = match peekable.peek() {
             Some(n) => {
-                if n.key == KeyType::Descriptor as u8 {
+                if n.key == KeyType::Descriptor {
                     n
                 } else {
                     continue

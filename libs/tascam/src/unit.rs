@@ -80,13 +80,13 @@ fn detect_model_name(node: &hinawa::FwNode) -> Result<String, Error> {
     let data = node.get_config_rom()?;
 
     get_root_entry_list(data).iter().find_map(|entry| {
-        if entry.key == KeyType::Unit as u8 {
+        if entry.key == KeyType::Unit {
             if let EntryData::Directory(dir) = &entry.data {
                 dir.iter().find_map(|de| {
-                    if de.key == KeyType::DependentInfo as u8 {
+                    if de.key == KeyType::DependentInfo {
                         if let EntryData::Directory(d) = &de.data {
                             d.iter().find_map(|e| {
-                                if e.key == KeyType::BusDependentInfo as u8 {
+                                if e.key == KeyType::BusDependentInfo {
                                     if let EntryData::Leaf(l) = &e.data {
                                         parse_leaf_entry_as_text(l)
                                             .map(|s| s.to_string())
