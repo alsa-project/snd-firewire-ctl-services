@@ -1,9 +1,71 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use ieee1212_config_rom;
+use ieee1212_config_rom::{*, entry::*, desc::*};
 use std::fs::File;
 use std::io::Read;
 use std::convert::TryFrom;
+
+fn print_raw(raw: &[u8], level: usize) {
+    let mut indent = String::new();
+    (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
+
+    let mut iter = raw.iter();
+
+    iter.by_ref()
+        .nth(0)
+        .map(|b| print!("{}{:02x}", indent, b));
+
+    iter.for_each(|b| print!(" {:02x}", b));
+
+    println!("");
+}
+
+fn print_leaf(raw: &[u8], level: usize) -> Result<(), String> {
+    let mut indent = String::new();
+    (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
+
+    let desc = Descriptor::try_from(raw)
+        .map_err(|e| e.to_string())?;
+    match &desc.data {
+        DescriptorData::Textual(d) => {
+            println!("{}Texual descriptor:", indent);
+            println!("{}  specifier_id: {}", indent, desc.spec_id);
+            println!("{}  width: {}", indent, d.width);
+            println!("{}  character_set: {}", indent, d.character_set);
+            println!("{}  language: {}", indent, d.language);
+            println!("{}  text: {}", indent, d.text);
+        }
+        DescriptorData::Reserved(d) => {
+            println!("{}Unspecified descriptor:", indent);
+            print_raw(d, level);
+        }
+    }
+
+    Ok(())
+}
+
+const INDENT_PER_LEVEL: usize = 2;
+
+fn print_directory_entries(entries: &[Entry], level: usize) -> Result<(), String> {
+    let mut indent = String::new();
+    (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
+
+    entries.iter().try_for_each(|entry| {
+        match &entry.data {
+            EntryData::Immediate(value) => println!("{}{:?} (immediate): 0x{:08x}", indent, entry.key, value),
+            EntryData::CsrOffset(offset) => println!("{}{:?} (offset): 0x{:024x}", indent, entry.key, offset),
+            EntryData::Leaf(leaf) => {
+                println!("{}{:?} (leaf):", indent, entry.key);
+                print_leaf(leaf, level + 1)?;
+            }
+            EntryData::Directory(raw) => {
+                println!("{}{:?} (directory):", indent, entry.key);
+                print_directory_entries(&raw, level + 1)?;
+            }
+        }
+        Ok(())
+    })
+}
 
 fn main() {
     let code = std::env::args()
@@ -35,11 +97,15 @@ fn main() {
             }
         })
         .and_then(|data| {
-            ieee1212_config_rom::ConfigRom::try_from(&data[..])
-                .map(|config_rom| {
-                    println!("{:?}", config_rom);
-                })
+            ConfigRom::try_from(&data[..])
                 .map_err(|e| e.to_string())
+                .map(|config_rom| {
+                    println!("Bus information block:");
+                    print_raw(config_rom.bus_info, 1);
+
+                    println!("Root directory block:");
+                    print_directory_entries(&config_rom.root[..], 1)
+                })
         })
         .map(|_| 0)
         .unwrap_or_else(|msg| {
