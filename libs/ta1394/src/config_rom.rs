@@ -18,6 +18,22 @@ pub struct UnitData {
     pub version: u32,
 }
 
+pub trait Ta1394ConfigRom {
+    fn get_vendor(&self) -> Option<VendorData>;
+    fn get_model(&self) -> Option<UnitData>;
+}
+
+impl<'a> Ta1394ConfigRom for ConfigRom<'a> {
+    fn get_vendor(&self) -> Option<VendorData> {
+        detect_desc_text(&self.root, KeyType::Vendor)
+            .map(|(vendor_id, name)| VendorData{vendor_id, vendor_name: name.to_string()})
+    }
+
+    fn get_model(&self) -> Option<UnitData> {
+        get_unit_data(&self.root, 0)
+    }
+}
+
 pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
     ConfigRom::try_from(data)
         .ok()
