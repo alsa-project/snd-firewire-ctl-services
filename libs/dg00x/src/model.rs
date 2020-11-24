@@ -4,6 +4,8 @@ use glib::{Error, FileError};
 
 use core::card_cntr;
 
+use ieee1212_config_rom::get_root_entry_list;
+
 use super::common_ctl::CommonCtl;
 use super::monitor_ctl::MonitorCtl;
 
@@ -15,7 +17,7 @@ pub struct Dg00xModel {
 
 impl Dg00xModel {
     pub fn new(config_rom: &[u8]) -> Result<Self, Error> {
-        let entries = ieee1212::get_root_entry_list(&config_rom);
+        let entries = get_root_entry_list(&config_rom);
 
         let data = match ta1394::config_rom::get_unit_data(&entries, 0) {
             Some(d) => d,

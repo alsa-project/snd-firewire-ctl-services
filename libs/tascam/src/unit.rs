@@ -4,6 +4,8 @@ use glib::{Error, FileError};
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndTscmExt};
 
+use ieee1212_config_rom::*;
+
 use super::isoc_console_unit::IsocConsoleUnit;
 use super::isoc_rack_unit::IsocRackUnit;
 use super::async_unit::AsyncUnit;
@@ -77,16 +79,16 @@ impl<'a> TascamUnit<'a> {
 fn detect_model_name(node: &hinawa::FwNode) -> Result<String, Error> {
     let data = node.get_config_rom()?;
 
-    ieee1212::get_root_entry_list(data).iter().find_map(|entry| {
-        if entry.key == ieee1212::KeyType::Unit as u8 {
-            if let ieee1212::EntryData::Directory(dir) = &entry.data {
+    get_root_entry_list(data).iter().find_map(|entry| {
+        if entry.key == KeyType::Unit as u8 {
+            if let EntryData::Directory(dir) = &entry.data {
                 dir.iter().find_map(|de| {
-                    if de.key == ieee1212::KeyType::DependentInfo as u8 {
-                        if let ieee1212::EntryData::Directory(d) = &de.data {
+                    if de.key == KeyType::DependentInfo as u8 {
+                        if let EntryData::Directory(d) = &de.data {
                             d.iter().find_map(|e| {
-                                if e.key == ieee1212::KeyType::BusDependentInfo as u8 {
-                                    if let ieee1212::EntryData::Leaf(l) = &e.data {
-                                        ieee1212::parse_leaf_entry_as_text(l)
+                                if e.key == KeyType::BusDependentInfo as u8 {
+                                    if let EntryData::Leaf(l) = &e.data {
+                                        parse_leaf_entry_as_text(l)
                                     } else {
                                         None
                                     }

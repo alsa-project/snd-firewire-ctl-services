@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use ieee1212::{Entry, EntryData, KeyType};
+use ieee1212_config_rom::*;
 
 #[derive(Clone, Debug)]
 pub struct VendorData {
@@ -17,7 +17,7 @@ pub struct UnitData {
 }
 
 pub fn parse_entries(data: &[u8]) -> Option<(VendorData, UnitData)> {
-    let entries = ieee1212::get_root_entry_list(&data);
+    let entries = get_root_entry_list(&data);
 
     match get_vendor_data(&entries) {
         Some(vendor) => match get_unit_data(&entries, 0) {
@@ -108,7 +108,7 @@ fn detect_desc_text(entries: &[Entry], key: KeyType) -> Option<(u32, String)> {
 
         if let EntryData::Immediate(value) = entry.data {
             if let EntryData::Leaf(leaf) = &next.data {
-                if let Some(name) = ieee1212::parse_leaf_entry_as_text(&leaf) {
+                if let Some(name) = parse_leaf_entry_as_text(&leaf) {
                     return Some((value, name));
                 }
             }
