@@ -20,12 +20,12 @@ impl Drop for SeqCntr {
 impl<'a> SeqCntr {
     const SEQ_PORT_NAME: &'a str = "Control Surface";
 
-    pub fn new(name: String) -> Result<Self, Error> {
+    pub fn new(name: &str) -> Result<Self, Error> {
         let client = alsaseq::UserClient::new();
         client.open(0)?;
 
         let info = alsaseq::ClientInfo::new();
-        info.set_property_name(Some(&name));
+        info.set_property_name(Some(name));
         client.set_info(&info)?;
 
         Ok(SeqCntr {

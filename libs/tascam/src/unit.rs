@@ -25,8 +25,10 @@ impl<'a> TascamUnit<'a> {
                 unit.open(&devnode)?;
 
                 let node = unit.get_node();
-                let name = detect_model_name(&node)?;
-                match name.as_str() {
+                let data = node.get_config_rom()?;
+                let entries = get_root_entry_list(data);
+                let name = detect_model_name(&entries)?;
+                match name {
                     "FW-1884" | "FW-1082" => {
                         let console_unit = IsocConsoleUnit::new(unit, name, sysnum)?;
                         Ok(Self::IsocConsole(console_unit))
@@ -43,9 +45,12 @@ impl<'a> TascamUnit<'a> {
                 let devnode = format!("/dev/fw{}", sysnum);
                 node.open(&devnode)?;
 
-                let name = detect_model_name(&node)?;
-                match name.as_str() {
+                let data = node.get_config_rom()?;
+                let entries = get_root_entry_list(data);
+                let name = detect_model_name(&entries)?;
+                match name {
                     "FE-8" => {
+                        let name = name.to_string();
                         let async_unit = AsyncUnit::new(node, name)?;
                         Ok(Self::Async(async_unit))
                     }
@@ -76,17 +81,15 @@ impl<'a> TascamUnit<'a> {
     }
 }
 
-fn detect_model_name(node: &hinawa::FwNode) -> Result<String, Error> {
-    let data = node.get_config_rom()?;
-
-    get_root_entry_list(data).iter().find_map(|entry| {
+fn detect_model_name<'a>(entries: &'a [Entry]) -> Result<&'a str, Error> {
+    entries.iter().find_map(|entry| {
         EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
             .and_then(|entries| {
                 entries.iter().find_map(|entry| {
                     EntryDataAccess::<&[Entry]>::get(entry, KeyType::DependentInfo)
                         .and_then(|entries| {
                             entries.iter().find_map(|entry| {
-                                EntryDataAccess::<String>::get(entry, KeyType::BusDependentInfo)
+                                EntryDataAccess::<&str>::get(entry, KeyType::BusDependentInfo)
                             })
                         })
                 })
