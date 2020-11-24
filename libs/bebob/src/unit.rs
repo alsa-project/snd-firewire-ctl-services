@@ -13,7 +13,12 @@ use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 use core::dispatcher;
 use core::card_cntr;
 
+use ieee1212_config_rom::ConfigRom;
+use ta1394::config_rom::Ta1394ConfigRom;
+
 use super::model::BebobModel;
+
+use std::convert::TryFrom;
 
 enum Event {
     Shutdown,
@@ -59,11 +64,21 @@ impl<'a> BebobUnit<'a> {
         }
 
         let node = unit.get_node();
-        let data = node.get_config_rom()?;
-        let (vendor, model) = ta1394::config_rom::parse_entries(&data).ok_or_else(|| {
-            let label = "Fail to detect information of unit";
-            Error::new(FileError::Noent, label)
-        })?;
+        let raw = node.get_config_rom()?;
+
+        let config_rom = ConfigRom::try_from(raw)
+            .map_err(|e| {
+                let label = format!("Malformed configuration ROM detected: {}", e);
+                Error::new(FileError::Nxio, &label)
+            })?;
+
+        let (vendor, model) = config_rom.get_vendor()
+            .and_then(|vendor| {
+                config_rom.get_model()
+                    .map(|model| (vendor, model))
+            })
+            .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
+
         let model = BebobModel::new(vendor.vendor_id, model.model_id)?;
 
         let card_cntr = card_cntr::CardCntr::new();
