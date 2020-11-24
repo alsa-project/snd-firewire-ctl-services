@@ -112,7 +112,7 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8]) -> Vec<
                 if end_offset > data.len() {
                     break;
                 }
-                let leaf = &data[start_offset..end_offset];
+                let leaf = &data[(4 + start_offset)..end_offset];
                 EntryData::Leaf(leaf)
             }
             3 => {
@@ -155,19 +155,19 @@ pub fn parse_leaf_entry_as_text<'a>(leaf: &'a [u8]) -> Option<&'a str> {
     Some(leaf)
         .filter(|leaf| {
             // The type of descriptor should be 'textual descriptor'.
-            leaf[4] == 0
+            leaf[0] == 0
         })
         .filter(|leaf| {
             // The specifier_ID should be 0.
             let mut quadlet = [0;4];
-            quadlet.copy_from_slice(&leaf[4..8]);
+            quadlet.copy_from_slice(&leaf[..4]);
             let spec_id = u32::from_be_bytes(quadlet);
             spec_id == 0
         })
         // The width/character_set/language fields are just ignored since being useless.
         .and_then(|leaf| {
             // Text string.
-            let literal = &leaf[12..];
+            let literal = &leaf[8..];
             literal.iter().position(|&c| c == 0x00)
                 .and_then(|pos| {
                     std::str::from_utf8(&literal[..pos])
@@ -185,8 +185,8 @@ mod test {
     #[test]
     fn texual_descriptor_leaf_entry_deser() {
         let raw = [
-            0x00, 0x06, 0x4c, 0xb7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4c, 0x69,
-            0x6e, 0x75, 0x78, 0x20, 0x46, 0x69, 0x72, 0x65, 0x77, 0x69, 0x72, 0x65, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4c, 0x69, 0x6e, 0x75, 0x78, 0x20,
+            0x46, 0x69, 0x72, 0x65, 0x77, 0x69, 0x72, 0x65, 0x00, 0x00,
         ];
         assert_eq!(
             Some("Linux Firewire"),
