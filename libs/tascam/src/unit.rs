@@ -4,7 +4,7 @@ use glib::{Error, FileError};
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndTscmExt};
 
-use ieee1212_config_rom::*;
+use ieee1212_config_rom::{*, entry::*};
 
 use super::isoc_console_unit::IsocConsoleUnit;
 use super::isoc_rack_unit::IsocRackUnit;
