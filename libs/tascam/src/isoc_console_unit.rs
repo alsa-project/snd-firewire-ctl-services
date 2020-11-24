@@ -75,8 +75,8 @@ impl<'a> IsocConsoleUnit<'a> {
     const TIMER_NAME: &'a str = "metering";
     const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
-    pub fn new(unit: hinawa::SndTscm, name: String, sysnum: u32) -> Result<Self, Error> {
-        let model = match name.as_str() {
+    pub fn new(unit: hinawa::SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
+        let model = match name {
             "FW-1884" => ConsoleModel::Fw1884(Fw1884Model::new()),
             "FW-1082" => ConsoleModel::Fw1082(Fw1082Model::new()),
             _ => {

@@ -49,7 +49,7 @@ impl<'a> IsocRackUnit<'a> {
     const TIMER_NAME: &'a str = "meter";
     const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
-    pub fn new(unit: hinawa::SndTscm, _: String, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: hinawa::SndTscm, _: &str, sysnum: u32) -> Result<Self, Error> {
         let model = Fw1804Model::new();
 
         let card_cntr = card_cntr::CardCntr::new();

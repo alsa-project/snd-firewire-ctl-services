@@ -60,7 +60,7 @@ impl<'a> AsyncUnit {
     pub fn new(node: hinawa::FwNode, name: String) -> Result<Self, Error> {
         let resp = hinawa::FwResp::new();
 
-        let seq_cntr = seq_cntr::SeqCntr::new(name)?;
+        let seq_cntr = seq_cntr::SeqCntr::new(&name)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
