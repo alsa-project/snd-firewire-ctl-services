@@ -4,8 +4,6 @@ use glib::{Error, FileError};
 
 use core::card_cntr;
 
-use ieee1212_config_rom::get_root_entry_list;
-
 use super::common_ctl::CommonCtl;
 use super::monitor_ctl::MonitorCtl;
 
@@ -16,20 +14,19 @@ pub struct Dg00xModel {
 }
 
 impl Dg00xModel {
-    pub fn new(config_rom: &[u8]) -> Result<Self, Error> {
-        let entries = get_root_entry_list(&config_rom);
+    pub fn new(raw: &[u8]) -> Result<Self, Error> {
+        let model = ta1394::config_rom::parse_entries(raw)
+            .ok_or_else(|| {
+                Error::new(FileError::Nxio, "Malformed configuration ROM detected")
+             })
+            .map(|(_, model)| model)?;
 
-        let data = match ta1394::config_rom::get_unit_data(&entries, 0) {
-            Some(d) => d,
-            None => return Err(Error::new(FileError::Nxio, "Not supported.")),
-        };
+        match model.model_id {
+            0x000001 | 0x000002 => Ok(()),
+            _ => Err(Error::new(FileError::Nxio, "Not supported.")),
+        }?;
 
-        match data.model_id {
-            0x000001 | 0x000002 => (),
-            _ => return Err(Error::new(FileError::Nxio, "Not supported.")),
-        }
-
-        let has_word_bnc = data.model_name.find("003") != None;
+        let has_word_bnc = model.model_name.find("003") != None;
 
         let model = Dg00xModel{
             req: hinawa::FwReq::new(),
