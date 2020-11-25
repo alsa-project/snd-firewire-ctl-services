@@ -23,7 +23,7 @@ enum Event {
     Elem((alsactl::ElemId, alsactl::ElemEventMask)),
 }
 
-pub struct EfwUnit {
+pub struct EfwRuntime {
     unit: hinawa::SndEfw,
     model: model::EfwModel,
     card_cntr: card_cntr::CardCntr,
@@ -34,14 +34,14 @@ pub struct EfwUnit {
     measure_elems: Vec<alsactl::ElemId>,
 }
 
-impl Drop for EfwUnit {
+impl Drop for EfwRuntime {
     fn drop(&mut self) {
         // Finish I/O threads.
         self.dispatchers.clear();
     }
 }
 
-impl<'a> EfwUnit {
+impl<'a> EfwRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
@@ -67,7 +67,7 @@ impl<'a> EfwUnit {
         let timer = None;
         let measure_elems = Vec::new();
 
-        Ok(EfwUnit {
+        Ok(EfwRuntime {
             unit,
             model,
             card_cntr,

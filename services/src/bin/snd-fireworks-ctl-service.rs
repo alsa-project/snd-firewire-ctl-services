@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use efw::runtime::EfwRuntime;
 
 fn print_help() {
     println!("
@@ -29,7 +30,7 @@ fn main() {
         }
     };
 
-    let err = match efw::unit::EfwUnit::new(card_id) {
+    let err = match EfwRuntime::new(card_id) {
         Err(err) => {
             println!("The card {} is not for fireworks device: {}",
                      card_id, err);
