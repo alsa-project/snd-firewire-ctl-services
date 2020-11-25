@@ -19,24 +19,24 @@ bebob = { path = "../libs/bebob" }
 
 [[bin]]
 name = "snd-firewire-digi00x-ctl-service"
-path = "src/snd-firewire-digi00x-ctl-service.rs"
+path = "src/bin/snd-firewire-digi00x-ctl-service.rs"
 
 [[bin]]
 name = "snd-firewire-tascam-ctl-service"
-path = "src/snd-firewire-tascam-ctl-service.rs"
+path = "src/bin/snd-firewire-tascam-ctl-service.rs"
 
 [[bin]]
 name = "snd-fireworks-ctl-service"
-path = "src/snd-fireworks-ctl-service.rs"
+path = "src/bin/snd-fireworks-ctl-service.rs"
 
 [[bin]]
 name = "snd-firewire-motu-ctl-service"
-path = "src/snd-firewire-motu-ctl-service.rs"
+path = "src/bin/snd-firewire-motu-ctl-service.rs"
 
 [[bin]]
 name = "snd-oxfw-ctl-service"
-path = "src/snd-oxfw-ctl-service.rs"
+path = "src/bin/snd-oxfw-ctl-service.rs"
 
 [[bin]]
 name = "snd-bebob-ctl-service"
-path = "src/snd-bebob-ctl-service.rs"
+path = "src/bin/snd-bebob-ctl-service.rs"
