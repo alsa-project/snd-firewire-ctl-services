@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
 use motu::runtime::MotuRuntime;
+use core::RuntimeOperation;
 
 fn print_help() {
     println!("
@@ -41,8 +42,7 @@ fn main() {
                 println!("Fail to listen events: {}", err);
                 Err(err)
             } else {
-                unit.run();
-                Ok(())
+                unit.run()
             }
         }
     };
