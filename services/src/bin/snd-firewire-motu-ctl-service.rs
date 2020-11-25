@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use motu::runtime::MotuRuntime;
 
 fn print_help() {
     println!("
@@ -29,7 +30,7 @@ fn main() {
         }
     };
 
-    let err = match motu::unit::MotuUnit::new(card_id) {
+    let err = match MotuRuntime::new(card_id) {
         Err(err) => {
             println!("The card {} is not for motu device: {}",
                      card_id, err);

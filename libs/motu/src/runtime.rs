@@ -26,7 +26,7 @@ enum Event {
     Notify(u32),
 }
 
-pub struct MotuUnit<'a> {
+pub struct MotuRuntime<'a> {
     unit: hinawa::SndMotu,
     model: MotuModel<'a>,
     card_cntr: card_cntr::CardCntr,
@@ -35,14 +35,14 @@ pub struct MotuUnit<'a> {
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for MotuUnit<'a> {
+impl<'a> Drop for MotuRuntime<'a> {
     fn drop(&mut self) {
         // Finish I/O threads.
         self.dispatchers.clear();
     }
 }
 
-impl<'a> MotuUnit<'a> {
+impl<'a> MotuRuntime<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
@@ -62,7 +62,7 @@ impl<'a> MotuUnit<'a> {
 
         let dispatchers = Vec::new();
 
-        Ok(MotuUnit {
+        Ok(MotuRuntime {
             unit,
             model,
             card_cntr,
