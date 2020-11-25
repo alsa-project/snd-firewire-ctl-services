@@ -234,7 +234,7 @@ impl<'a> IsocConsoleRuntime<'a> {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), Error> {
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -286,6 +286,8 @@ impl<'a> IsocConsoleRuntime<'a> {
                 }
             }
         }
+
+        Ok(())
     }
 
     fn update_led_if_needed(&mut self, pos: u16, state: bool) -> Result<(), Error> {
