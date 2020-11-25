@@ -159,7 +159,8 @@ impl<'a> IsocRackRuntime<'a> {
             self.timer = None;
         }
     }
-    pub fn run(&mut self) {
+
+    pub fn run(&mut self) -> Result<(), Error> {
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -195,5 +196,7 @@ impl<'a> IsocRackRuntime<'a> {
                 }
             }
         }
+
+        Ok(())
     }
 }

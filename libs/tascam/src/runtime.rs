@@ -4,6 +4,8 @@ use glib::{Error, FileError};
 
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndTscmExt};
 
+use core::RuntimeOperation;
+
 use ieee1212_config_rom::{*, entry::*};
 
 use super::isoc_console_runtime::IsocConsoleRuntime;
@@ -18,8 +20,8 @@ pub enum TascamRuntime<'a> {
     Async(AsyncRuntime),
 }
 
-impl<'a> TascamRuntime<'a> {
-    pub fn new(subsystem: &String, sysnum: u32) -> Result<Self, Error> {
+impl<'a> RuntimeOperation<(String, u32)> for TascamRuntime<'a> {
+    fn new((subsystem, sysnum): (String, u32)) -> Result<Self, Error> {
         match subsystem.as_str() {
             "snd" => {
                 let unit = hinawa::SndTscm::new();
@@ -74,7 +76,7 @@ impl<'a> TascamRuntime<'a> {
         }
     }
 
-    pub fn listen(&mut self) -> Result<(), Error> {
+    fn listen(&mut self) -> Result<(), Error> {
         match self {
             Self::IsocConsole(unit) => unit.listen(),
             Self::IsocRack(unit) => unit.listen(),
@@ -82,7 +84,7 @@ impl<'a> TascamRuntime<'a> {
         }
     }
 
-    pub fn run(&mut self) {
+    fn run(&mut self) -> Result<(), Error> {
         match self {
             Self::IsocConsole(unit) => unit.run(),
             Self::IsocRack(unit) => unit.run(),

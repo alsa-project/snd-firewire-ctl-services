@@ -261,7 +261,7 @@ impl<'a> AsyncRuntime {
         Ok(())
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), Error> {
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -281,6 +281,8 @@ impl<'a> AsyncRuntime {
                 }
             }
         }
+
+        Ok(())
     }
 
     fn xfer_seq_event(&mut self, key: &(u32, u32), value: i32) -> Result<(), Error> {

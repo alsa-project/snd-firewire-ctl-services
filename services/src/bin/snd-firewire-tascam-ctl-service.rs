@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
 use tascam::runtime::TascamRuntime;
+use core::RuntimeOperation;
 
 fn print_help() {
     println!("
@@ -39,7 +40,7 @@ fn main() {
         }
     };
 
-    let err = match TascamRuntime::new(subsystem, sysnum) {
+    let err = match TascamRuntime::new((subsystem.clone(), sysnum)) {
         Err(err) => {
             println!(
                 "The {}:{} is not for Tascam device: {}",
@@ -52,8 +53,7 @@ fn main() {
                 println!("Fail to listen events: {}", err);
                 Err(err)
             } else {
-                unit.run();
-                Ok(())
+                unit.run()
             }
         }
     };
