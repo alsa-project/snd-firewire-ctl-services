@@ -9,6 +9,7 @@ use std::convert::TryFrom;
 use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
 use alsactl::CardExt;
 
+use core::RuntimeOperation;
 use core::dispatcher;
 use core::card_cntr;
 
@@ -42,11 +43,8 @@ impl<'a> Drop for MotuRuntime<'a> {
     }
 }
 
-impl<'a> MotuRuntime<'a> {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-
-    pub fn new(card_id: u32) -> Result<Self, Error> {
+impl<'a> RuntimeOperation<u32> for MotuRuntime<'a> {
+    fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndMotu::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
@@ -71,6 +69,44 @@ impl<'a> MotuRuntime<'a> {
             dispatchers,
         })
     }
+
+    fn listen(&mut self) -> Result<(), Error> {
+        self.launch_node_event_dispatcher()?;
+        self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
+
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<(), Error> {
+        loop {
+            let ev = match self.rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => continue,
+            };
+
+            match ev {
+                Event::Shutdown | Event::Disconnected => break,
+                Event::BusReset(generation) => {
+                    println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem((elem_id, events)) => {
+                    let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
+                                                           &elem_id, &events);
+                }
+                Event::Notify(msg) => {
+                    let _ = self.model.dispatch_notification(&self.unit, &msg, &mut self.card_cntr);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> MotuRuntime<'a> {
+    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
+    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
@@ -126,38 +162,6 @@ impl<'a> MotuRuntime<'a> {
         self.dispatchers.push(dispatcher);
 
         Ok(())
-    }
-
-    pub fn listen(&mut self) -> Result<(), Error> {
-        self.launch_node_event_dispatcher()?;
-        self.launch_system_event_dispatcher()?;
-
-        self.model.load(&self.unit, &mut self.card_cntr)?;
-
-        Ok(())
-    }
-
-    pub fn run(&mut self) {
-        loop {
-            let ev = match self.rx.recv() {
-                Ok(ev) => ev,
-                Err(_) => continue,
-            };
-
-            match ev {
-                Event::Shutdown | Event::Disconnected => break,
-                Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
-                }
-                Event::Elem((elem_id, events)) => {
-                    let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
-                                                           &elem_id, &events);
-                }
-                Event::Notify(msg) => {
-                    let _ = self.model.dispatch_notification(&self.unit, &msg, &mut self.card_cntr);
-                }
-            }
-        }
     }
 }
 
