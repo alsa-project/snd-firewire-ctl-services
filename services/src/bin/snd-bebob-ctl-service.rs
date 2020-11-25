@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use bebob::runtime::BebobRuntime;
 
 fn main() {
     // Check arguments in command line.
@@ -19,7 +20,7 @@ fn main() {
         }
     };
 
-    let err = match bebob::unit::BebobUnit::new(card_id) {
+    let err = match BebobRuntime::new(card_id) {
         Err(err) => {
             println!("The {} is not for BeBoB device: {}", card_id, err);
             Err(err)
