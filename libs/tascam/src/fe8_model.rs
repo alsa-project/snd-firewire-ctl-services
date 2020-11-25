@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use super::async_unit::ConsoleData;
+use super::async_runtime::ConsoleData;
 
 pub struct Fe8Model{}
 

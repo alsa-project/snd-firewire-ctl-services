@@ -12,7 +12,7 @@ use super::meter_ctl::MeterCtl;
 use super::optical_ctl::OpticalCtl;
 use super::console_ctl::ConsoleCtl;
 
-use super::isoc_console_unit::ConsoleData;
+use super::isoc_console_runtime::ConsoleData;
 
 pub struct Fw1884Model<'a> {
     req: hinawa::FwReq,

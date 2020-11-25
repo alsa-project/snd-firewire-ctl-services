@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-pub mod unit;
+pub mod runtime;
 
-mod isoc_console_unit;
-mod isoc_rack_unit;
-mod async_unit;
+mod isoc_console_runtime;
+mod isoc_rack_runtime;
+mod async_runtime;
 
 mod fw1082_model;
 mod fw1884_model;

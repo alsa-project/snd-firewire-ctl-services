@@ -24,7 +24,7 @@ enum RackUnitEvent {
     Timer,
 }
 
-pub struct IsocRackUnit<'a> {
+pub struct IsocRackRuntime<'a> {
     unit: hinawa::SndTscm,
     model: Fw1804Model<'a>,
     card_cntr: card_cntr::CardCntr,
@@ -35,13 +35,13 @@ pub struct IsocRackUnit<'a> {
     measure_elems: Vec<alsactl::ElemId>,
 }
 
-impl<'a> Drop for IsocRackUnit<'a> {
+impl<'a> Drop for IsocRackRuntime<'a> {
     fn drop(&mut self) {
         self.dispatchers.clear();
     }
 }
 
-impl<'a> IsocRackUnit<'a> {
+impl<'a> IsocRackRuntime<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
@@ -60,7 +60,7 @@ impl<'a> IsocRackUnit<'a> {
 
         let dispatchers = Vec::new();
 
-        Ok(IsocRackUnit {
+        Ok(IsocRackRuntime {
             unit,
             model,
             card_cntr,
