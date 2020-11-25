@@ -3,3 +3,11 @@
 pub mod dispatcher;
 pub mod card_cntr;
 pub mod elem_value_accessor;
+
+use glib::Error;
+
+pub trait RuntimeOperation<T> : Sized {
+    fn new(arg: T) -> Result<Self, Error>;
+    fn listen(&mut self) -> Result<(), Error>;
+    fn run(&mut self) -> Result<(), Error>;
+}
