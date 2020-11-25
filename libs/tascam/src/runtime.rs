@@ -6,19 +6,19 @@ use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndTscmExt};
 
 use ieee1212_config_rom::{*, entry::*};
 
-use super::isoc_console_unit::IsocConsoleUnit;
-use super::isoc_rack_unit::IsocRackUnit;
-use super::async_unit::AsyncUnit;
+use super::isoc_console_runtime::IsocConsoleRuntime;
+use super::isoc_rack_runtime::IsocRackRuntime;
+use super::async_runtime::AsyncRuntime;
 
 use std::convert::TryFrom;
 
-pub enum TascamUnit<'a> {
-    IsocConsole(IsocConsoleUnit<'a>),
-    IsocRack(IsocRackUnit<'a>),
-    Async(AsyncUnit),
+pub enum TascamRuntime<'a> {
+    IsocConsole(IsocConsoleRuntime<'a>),
+    IsocRack(IsocRackRuntime<'a>),
+    Async(AsyncRuntime),
 }
 
-impl<'a> TascamUnit<'a> {
+impl<'a> TascamRuntime<'a> {
     pub fn new(subsystem: &String, sysnum: u32) -> Result<Self, Error> {
         match subsystem.as_str() {
             "snd" => {
@@ -36,12 +36,12 @@ impl<'a> TascamUnit<'a> {
                 let name = detect_model_name(&config_rom.root)?;
                 match name {
                     "FW-1884" | "FW-1082" => {
-                        let console_unit = IsocConsoleUnit::new(unit, name, sysnum)?;
-                        Ok(Self::IsocConsole(console_unit))
+                        let runtime = IsocConsoleRuntime::new(unit, name, sysnum)?;
+                        Ok(Self::IsocConsole(runtime))
                     }
                     "FW-1804" => {
-                        let rack_unit = IsocRackUnit::new(unit, name, sysnum)?;
-                        Ok(Self::IsocRack(rack_unit))
+                        let runtime = IsocRackRuntime::new(unit, name, sysnum)?;
+                        Ok(Self::IsocRack(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
                 }
@@ -61,8 +61,8 @@ impl<'a> TascamUnit<'a> {
                 match name {
                     "FE-8" => {
                         let name = name.to_string();
-                        let async_unit = AsyncUnit::new(node, name)?;
-                        Ok(Self::Async(async_unit))
+                        let runtime = AsyncRuntime::new(node, name)?;
+                        Ok(Self::Async(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
                 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use tascam::runtime::TascamRuntime;
 
 fn print_help() {
     println!("
@@ -38,7 +39,7 @@ fn main() {
         }
     };
 
-    let err = match tascam::unit::TascamUnit::new(subsystem, sysnum) {
+    let err = match TascamRuntime::new(subsystem, sysnum) {
         Err(err) => {
             println!(
                 "The {}:{} is not for Tascam device: {}",

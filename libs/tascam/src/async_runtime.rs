@@ -27,7 +27,7 @@ enum AsyncUnitEvent {
     SeqAppl(alsaseq::EventDataCtl),
 }
 
-pub struct AsyncUnit {
+pub struct AsyncRuntime {
     node: hinawa::FwNode,
     resp: hinawa::FwResp,
     seq_cntr: seq_cntr::SeqCntr,
@@ -41,7 +41,7 @@ pub struct AsyncUnit {
     msg_map: Vec<(u32, u32)>,
 }
 
-impl Drop for AsyncUnit {
+impl Drop for AsyncRuntime {
     fn drop(&mut self) {
         self.led_states.iter().for_each(|(&pos, &state)| {
             if state {
@@ -54,7 +54,7 @@ impl Drop for AsyncUnit {
     }
 }
 
-impl<'a> AsyncUnit {
+impl<'a> AsyncRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
 
     pub fn new(node: hinawa::FwNode, name: String) -> Result<Self, Error> {
@@ -67,7 +67,7 @@ impl<'a> AsyncUnit {
 
         let dispatchers = Vec::new();
 
-        Ok(AsyncUnit {
+        Ok(AsyncRuntime {
             node,
             resp,
             seq_cntr,

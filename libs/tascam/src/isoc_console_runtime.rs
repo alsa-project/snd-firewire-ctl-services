@@ -37,7 +37,7 @@ enum ConsoleModel<'a> {
     Fw1082(Fw1082Model<'a>),
 }
 
-pub struct IsocConsoleUnit<'a> {
+pub struct IsocConsoleRuntime<'a> {
     unit: hinawa::SndTscm,
     model: ConsoleModel<'a>,
     card_cntr: card_cntr::CardCntr,
@@ -56,7 +56,7 @@ pub struct IsocConsoleUnit<'a> {
     transport_state: usize,
 }
 
-impl<'a> Drop for IsocConsoleUnit<'a> {
+impl<'a> Drop for IsocConsoleRuntime<'a> {
     fn drop(&mut self) {
         let node = self.unit.get_node();
         self.led_states.iter().filter(|&(_, &state)| state).for_each(|(&pos, _)|{
@@ -67,7 +67,7 @@ impl<'a> Drop for IsocConsoleUnit<'a> {
     }
 }
 
-impl<'a> IsocConsoleUnit<'a> {
+impl<'a> IsocConsoleRuntime<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
@@ -95,7 +95,7 @@ impl<'a> IsocConsoleUnit<'a> {
 
         let dispatchers = Vec::new();
 
-        Ok(IsocConsoleUnit {
+        Ok(IsocConsoleRuntime {
             unit,
             model,
             card_cntr,

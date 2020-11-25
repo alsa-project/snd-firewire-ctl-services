@@ -11,7 +11,7 @@ use super::common_ctl::CommonCtl;
 use super::meter_ctl::MeterCtl;
 use super::console_ctl::ConsoleCtl;
 
-use super::isoc_console_unit::ConsoleData;
+use super::isoc_console_runtime::ConsoleData;
 
 pub struct Fw1082Model<'a> {
     req: hinawa::FwReq,
