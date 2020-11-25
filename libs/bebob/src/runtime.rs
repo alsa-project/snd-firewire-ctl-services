@@ -10,6 +10,7 @@ use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
 
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
+use core::RuntimeOperation;
 use core::dispatcher;
 use core::card_cntr;
 
@@ -46,15 +47,8 @@ impl<'a> Drop for BebobRuntime<'a> {
     }
 }
 
-impl<'a> BebobRuntime<'a> {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
-
-    const TIMER_NAME: &'a str = "metering";
-    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
-
-    pub fn new(card_id: u32) -> Result<Self, Error> {
+impl<'a> RuntimeOperation<u32> for BebobRuntime<'a> {
+    fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndUnit::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
@@ -97,6 +91,71 @@ impl<'a> BebobRuntime<'a> {
             timer: None,
         })
     }
+
+    fn listen(&mut self) -> Result<(), Error> {
+        self.launch_node_event_dispatcher()?;
+        self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
+
+        if self.model.measure_elem_list.len() > 0 {
+            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
+                                                       Self::TIMER_NAME, 0);
+            let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        }
+
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<(), Error> {
+        loop {
+            let ev = match self.rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => continue,
+            };
+
+            match ev {
+                Event::Shutdown => break,
+                Event::Disconnected => break,
+                Event::BusReset(generation) => {
+                    println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem(elem_id, events) => {
+                    if elem_id.get_name() != Self::TIMER_NAME {
+                        let _= self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
+                                                               &elem_id, &events);
+                    } else {
+                        let mut elem_value = alsactl::ElemValue::new();
+                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                            let mut vals = [false];
+                            elem_value.get_bool(&mut vals);
+                            if vals[0] {
+                                let _ = self.start_interval_timer();
+                            } else {
+                                self.stop_interval_timer();
+                            }
+                        }
+                    }
+                }
+                Event::Timer => {
+                    let _ = self.model.measure_elems(&self.unit, &mut self.card_cntr);
+                }
+                Event::StreamLock(locked) => {
+                    let _ = self.model.dispatch_stream_lock(&self.unit, &mut self.card_cntr, locked);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> BebobRuntime<'a> {
+    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
+    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
+    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
+
+    const TIMER_NAME: &'a str = "metering";
+    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
@@ -156,21 +215,6 @@ impl<'a> BebobRuntime<'a> {
         Ok(())
     }
 
-    pub fn listen(&mut self) -> Result<(), Error> {
-        self.launch_node_event_dispatcher()?;
-        self.launch_system_event_dispatcher()?;
-
-        self.model.load(&self.unit, &mut self.card_cntr)?;
-
-        if self.model.measure_elem_list.len() > 0 {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
-                                                       Self::TIMER_NAME, 0);
-            let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-        }
-
-        Ok(())
-    }
-
     fn start_interval_timer(&mut self) -> Result<(), Error> {
         let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
@@ -188,46 +232,6 @@ impl<'a> BebobRuntime<'a> {
         if let Some(dispatcher) = &self.timer {
             drop(dispatcher);
             self.timer = None;
-        }
-    }
-
-    pub fn run(&mut self) {
-        loop {
-            let ev = match self.rx.recv() {
-                Ok(ev) => ev,
-                Err(_) => continue,
-            };
-
-            match ev {
-                Event::Shutdown => break,
-                Event::Disconnected => break,
-                Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
-                }
-                Event::Elem(elem_id, events) => {
-                    if elem_id.get_name() != Self::TIMER_NAME {
-                        let _= self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
-                                                               &elem_id, &events);
-                    } else {
-                        let mut elem_value = alsactl::ElemValue::new();
-                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
-                            let mut vals = [false];
-                            elem_value.get_bool(&mut vals);
-                            if vals[0] {
-                                let _ = self.start_interval_timer();
-                            } else {
-                                self.stop_interval_timer();
-                            }
-                        }
-                    }
-                }
-                Event::Timer => {
-                    let _ = self.model.measure_elems(&self.unit, &mut self.card_cntr);
-                }
-                Event::StreamLock(locked) => {
-                    let _ = self.model.dispatch_stream_lock(&self.unit, &mut self.card_cntr, locked);
-                }
-            }
         }
     }
 }
