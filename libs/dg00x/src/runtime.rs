@@ -14,6 +14,7 @@ use alsactl::CardExt;
 use core::dispatcher;
 use core::card_cntr;
 use card_cntr::{CtlModel, NotifyModel};
+use core::RuntimeOperation;
 
 use super::model::Dg00xModel;
 
@@ -42,11 +43,8 @@ impl<'a> Drop for Dg00xRuntime {
     }
 }
 
-impl<'a> Dg00xRuntime {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-
-    pub fn new(card_id: u32) -> Result<Self, Error> {
+impl RuntimeOperation<u32> for Dg00xRuntime {
+    fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndDg00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
@@ -73,6 +71,51 @@ impl<'a> Dg00xRuntime {
             notified_elems,
         })
     }
+
+    fn listen(&mut self) -> Result<(), Error> {
+        self.launch_node_event_dispatcher()?;
+        self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
+        self.model.get_notified_elem_list(&mut self.notified_elems);
+
+        Ok(())
+    }
+
+    fn run(&mut self) -> Result<(), Error> {
+        loop {
+            let ev = match self.rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => continue,
+            };
+
+            match ev {
+                Event::Shutdown | Event::Disconnected => break,
+                Event::BusReset(generation) => {
+                    println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                Event::Elem((elem_id, events)) => {
+                    let _ = self.card_cntr.dispatch_elem_event(
+                        &self.unit,
+                        &elem_id,
+                        &events,
+                        &mut self.model,
+                    );
+                }
+                Event::StreamLock(locked) => {
+                    let _ = self.card_cntr.dispatch_notification(&self.unit, &locked,
+                                                            &self.notified_elems, &mut self.model);
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Dg00xRuntime {
+    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
+    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
@@ -131,43 +174,5 @@ impl<'a> Dg00xRuntime {
         self.dispatchers.push(dispatcher);
 
         Ok(())
-    }
-
-    pub fn listen(&mut self) -> Result<(), Error> {
-        self.launch_node_event_dispatcher()?;
-        self.launch_system_event_dispatcher()?;
-
-        self.model.load(&self.unit, &mut self.card_cntr)?;
-        self.model.get_notified_elem_list(&mut self.notified_elems);
-
-        Ok(())
-    }
-
-    pub fn run(&mut self) {
-        loop {
-            let ev = match self.rx.recv() {
-                Ok(ev) => ev,
-                Err(_) => continue,
-            };
-
-            match ev {
-                Event::Shutdown | Event::Disconnected => break,
-                Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
-                }
-                Event::Elem((elem_id, events)) => {
-                    let _ = self.card_cntr.dispatch_elem_event(
-                        &self.unit,
-                        &elem_id,
-                        &events,
-                        &mut self.model,
-                    );
-                }
-                Event::StreamLock(locked) => {
-                    let _ = self.card_cntr.dispatch_notification(&self.unit, &locked,
-                                                            &self.notified_elems, &mut self.model);
-                }
-            }
-        }
     }
 }
