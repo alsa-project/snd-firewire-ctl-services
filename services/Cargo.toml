@@ -10,6 +10,7 @@ Service programs to control audio and music unit on IEEE 1394 bus, supported by 
 
 [dependencies]
 libc = "0.2"
+core = { path = "../libs/core" }
 dg00x = { path = "../libs/dg00x" }
 tascam = { path = "../libs/tascam" }
 efw = { path = "../libs/efw" }

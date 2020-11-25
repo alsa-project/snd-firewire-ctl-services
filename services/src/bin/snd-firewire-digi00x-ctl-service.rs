@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use core::RuntimeOperation;
 use dg00x::runtime::Dg00xRuntime;
 
 fn print_help() {
@@ -43,8 +44,7 @@ fn main() {
                 println!("Fail to listen events: {}", err);
                 Err(err)
             } else {
-                unit.run();
-                Ok(())
+                unit.run()
             }
         }
     };
