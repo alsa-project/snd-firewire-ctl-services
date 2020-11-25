@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
 use bebob::runtime::BebobRuntime;
+use core::RuntimeOperation;
 
 fn main() {
     // Check arguments in command line.
@@ -30,8 +31,7 @@ fn main() {
                 println!("Fail to listen events: {}", err);
                 Err(err)
             } else {
-                unit.run();
-                Ok(())
+                unit.run()
             }
         }
     };
