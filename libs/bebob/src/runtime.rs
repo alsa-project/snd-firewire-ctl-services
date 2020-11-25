@@ -29,7 +29,7 @@ enum Event {
     StreamLock(bool),
 }
 
-pub struct BebobUnit<'a> {
+pub struct BebobRuntime<'a> {
     unit: hinawa::SndUnit,
     model: BebobModel<'a>,
     card_cntr: card_cntr::CardCntr,
@@ -39,14 +39,14 @@ pub struct BebobUnit<'a> {
     timer: Option<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for BebobUnit<'a> {
+impl<'a> Drop for BebobRuntime<'a> {
     fn drop(&mut self) {
         // Finish I/O threads.
         self.dispatchers.clear();
     }
 }
 
-impl<'a> BebobUnit<'a> {
+impl<'a> BebobRuntime<'a> {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
@@ -87,7 +87,7 @@ impl<'a> BebobUnit<'a> {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        Ok(BebobUnit {
+        Ok(BebobRuntime {
             unit,
             model,
             card_cntr,
