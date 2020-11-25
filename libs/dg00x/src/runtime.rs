@@ -25,7 +25,7 @@ enum Event {
     StreamLock(bool),
 }
 
-pub struct Dg00xUnit {
+pub struct Dg00xRuntime {
     unit: hinawa::SndDg00x,
     model: Dg00xModel,
     card_cntr: card_cntr::CardCntr,
@@ -35,14 +35,14 @@ pub struct Dg00xUnit {
     notified_elems: Vec<alsactl::ElemId>,
 }
 
-impl<'a> Drop for Dg00xUnit {
+impl<'a> Drop for Dg00xRuntime {
     fn drop(&mut self) {
         // Finish I/O threads.
         self.dispatchers.clear();
     }
 }
 
-impl<'a> Dg00xUnit {
+impl<'a> Dg00xRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 
@@ -63,7 +63,7 @@ impl<'a> Dg00xUnit {
         let dispatchers = Vec::new();
         let notified_elems = Vec::new();
 
-        Ok(Dg00xUnit {
+        Ok(Dg00xRuntime {
             unit,
             model,
             card_cntr,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use dg00x::runtime::Dg00xRuntime;
 
 fn print_help() {
     println!("
@@ -29,7 +30,7 @@ fn main() {
         }
     };
 
-    let err = match dg00x::unit::Dg00xUnit::new(card_id) {
+    let err = match Dg00xRuntime::new(card_id) {
         Err(err) => {
             println!(
                 "The card {} is not for firwire-digi00x device: {}",
