@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use std::env;
+use oxfw::runtime::OxfwRuntime;
 
 fn main() {
     // Check arguments in command line.
@@ -19,7 +20,7 @@ fn main() {
         }
     };
 
-    let err = match oxfw::unit::OxfwUnit::new(card_id) {
+    let err = match OxfwRuntime::new(card_id) {
         Err(err) => {
             println!("The card {} is not for OXFW device: {}", card_id, err);
             Err(err)

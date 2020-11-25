@@ -28,7 +28,7 @@ enum Event {
     StreamLock(bool),
 }
 
-pub struct OxfwUnit {
+pub struct OxfwRuntime {
     unit: hinawa::SndUnit,
     model: OxfwModel,
     card_cntr: card_cntr::CardCntr,
@@ -38,14 +38,14 @@ pub struct OxfwUnit {
     timer: Option<dispatcher::Dispatcher>,
 }
 
-impl Drop for OxfwUnit {
+impl Drop for OxfwRuntime {
     fn drop(&mut self) {
         // Finish I/O threads.
         self.dispatchers.clear();
     }
 }
 
-impl<'a> OxfwUnit {
+impl<'a> OxfwRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
@@ -85,7 +85,7 @@ impl<'a> OxfwUnit {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        Ok(OxfwUnit {
+        Ok(OxfwRuntime {
             unit,
             model,
             card_cntr,
