@@ -28,7 +28,7 @@ pub trait ElemValueAccessor<T> : IsA<alsactl::ElemValue>
         -> Result<(), Error>
         where F: FnMut(usize, T) -> Result<(), Error>
     {
-        let mut vals = vec![Default::default();len];
+        let mut vals = vec![Default::default();len * 2];
         self.get(&mut vals[..len]);
         old.get(&mut vals[len..]);
         vals[..len].iter().zip(vals[len..].iter()).enumerate()
