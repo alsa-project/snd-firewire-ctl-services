@@ -7,6 +7,8 @@
 //! extension defined by TC Applied Technologies (TCAT) for ASICs of Digital Interface Communication
 //! Engine (DICE).
 
+pub mod caps_section;
+
 use super::*;
 
 /// The structure to represent sections for protocol extension.
@@ -47,12 +49,14 @@ impl From<&[u8]> for ExtensionSections {
 /// The enumeration to represent any error of protocol extension.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ProtocolExtensionError {
+    Caps,
     Invalid(i32),
 }
 
 impl std::fmt::Display for ProtocolExtensionError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let msg = match self {
+            ProtocolExtensionError::Caps => "caps",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -67,12 +71,14 @@ impl ErrorDomain for ProtocolExtensionError {
 
     fn code(self) -> i32 {
         match self {
+            ProtocolExtensionError::Caps => 0,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
 
     fn from(code: i32) -> Option<Self> {
         let enumeration = match code {
+            0 => ProtocolExtensionError::Caps,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
