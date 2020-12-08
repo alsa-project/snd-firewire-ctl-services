@@ -8,6 +8,7 @@
 //! Engine (DICE).
 
 pub mod caps_section;
+pub mod cmd_section;
 
 use super::*;
 
@@ -50,6 +51,7 @@ impl From<&[u8]> for ExtensionSections {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ProtocolExtensionError {
     Caps,
+    Cmd,
     Invalid(i32),
 }
 
@@ -57,6 +59,7 @@ impl std::fmt::Display for ProtocolExtensionError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let msg = match self {
             ProtocolExtensionError::Caps => "caps",
+            ProtocolExtensionError::Cmd => "command",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -72,6 +75,7 @@ impl ErrorDomain for ProtocolExtensionError {
     fn code(self) -> i32 {
         match self {
             ProtocolExtensionError::Caps => 0,
+            ProtocolExtensionError::Cmd => 1,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
@@ -79,6 +83,7 @@ impl ErrorDomain for ProtocolExtensionError {
     fn from(code: i32) -> Option<Self> {
         let enumeration = match code {
             0 => ProtocolExtensionError::Caps,
+            1 => ProtocolExtensionError::Cmd,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
