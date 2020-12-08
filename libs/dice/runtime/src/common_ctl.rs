@@ -19,12 +19,17 @@ pub struct CommonCtl {
     srcs: Vec<ClockSource>,
     curr_rate_idx: u32,
     curr_src_idx: u32,
+    ext_srcs: Vec<ClockSource>,
+    ext_src_states: ExtSourceStates,
     pub notified_elem_list: Vec<ElemId>,
+    pub measured_elem_list: Vec<ElemId>,
 }
 
 const CLK_RATE_NAME: & str = "clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
 const NICKNAME: &str = "nickname";
+const LOCKED_CLK_SRC_NAME: &str = "locked-clock-source";
+const SLIPPED_CLK_SRC_NAME: &str = "slipped-clock-source";
 
 impl CommonCtl {
     pub fn load(&mut self, card_cntr: &mut CardCntr, caps: &ClockCaps, src_labels: &ClockSourceLabels)
@@ -51,6 +56,19 @@ impl CommonCtl {
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, NICKNAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, NICKNAME_MAX_SIZE, None, true)?;
+
+        self.ext_srcs = ExtSourceStates::get_entries(caps, src_labels);
+        let labels = self.ext_srcs.iter()
+            .map(|s| s.get_label(src_labels, true).unwrap())
+            .collect::<Vec<_>>();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LOCKED_CLK_SRC_NAME, 0);
+        let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, labels.len(), false)?;
+        self.notified_elem_list.append(&mut elem_id_list);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SLIPPED_CLK_SRC_NAME, 0);
+        let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, labels.len(), false)?;
+        self.measured_elem_list.append(&mut elem_id_list);
 
         Ok(())
     }
@@ -196,6 +214,10 @@ impl CommonCtl {
             self.cache_clock_config(&config)?;
         }
 
+        if msg.has_ext_status_changed() {
+            self.ext_src_states = proto.read_clock_source_states(&unit.get_node(), sections, timeout_ms)?;
+        }
+
         Ok(())
     }
 
@@ -209,6 +231,32 @@ impl CommonCtl {
             }
             CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
+                .map(|_| true)
+            }
+            LOCKED_CLK_SRC_NAME => {
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.ext_srcs.len(), |idx| {
+                    Ok(self.ext_srcs[idx].is_locked(&self.ext_src_states))
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn measure_states(&mut self, unit: &SndDice, proto: &FwReq, sections: &GeneralSections,
+                          timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_clock_source_states(&unit.get_node(), sections, timeout_ms)
+            .map(|states| self.ext_src_states = states)
+    }
+
+    pub fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            SLIPPED_CLK_SRC_NAME => {
+                ElemValueAccessor::<bool>::set_vals(elem_value, self.ext_srcs.len(), |idx| {
+                    Ok(self.ext_srcs[idx].is_slipped(&self.ext_src_states))
+                })
                 .map(|_| true)
             }
             _ => Ok(false),

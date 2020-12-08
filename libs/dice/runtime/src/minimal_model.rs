@@ -60,3 +60,19 @@ impl NotifyModel<SndDice, u32> for MinimalModel {
         self.ctl.read_notified_elem(elem_id, elem_value)
     }
 }
+
+impl MeasureModel<hinawa::SndDice> for MinimalModel {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+    }
+
+    fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
+        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)
+    }
+
+    fn measure_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        self.ctl.measure_elem(elem_id, elem_value)
+    }
+}
