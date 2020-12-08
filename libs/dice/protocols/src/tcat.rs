@@ -13,6 +13,33 @@
 //! All of the protocol is implemented to trait per section in which `AsRef<hinawa::FwReq>` is
 //! used for supertrait. Any call of method in the trait initiates asynchronous transaction to
 //! operate the registers.
+//!
+//! ## Utilities
+//!
+//! Some programs are available under 'src/bin' directory.
+//!
+//! ### src/bin/tcat-general-parser.rs
+//!
+//! This program retrieves information from node of target device according to general protocol,
+//! then print the information.
+//!
+//! Without any command line argument, it prints help message and exit.
+//!
+//! ```sh
+//! $ cargo run --bin tcat-general-parser
+//! Usage:
+//!   tcat-general-parser CDEV
+//!
+//!   where:
+//!     CDEV:   The path to special file of firewire character device, typically '/dev/fw1'.
+//! ```
+//!
+//! Please run with an argument for firewire character device:
+//!
+//! ```sh
+//! $ cargo run --bin tcat-general-parser /dev/fw1
+//! ...
+//! ```
 pub mod global_section;
 pub mod tx_stream_format_section;
 pub mod rx_stream_format_section;
