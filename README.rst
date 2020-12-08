@@ -147,6 +147,7 @@ Supported protocols
    * Protocol for Oxford Semiconductor OXFW970/OXFW971 ASIC
    * Protocol for DM1000/DM1100/DM1500 ASIC in BridgeCo. Enhanced BreakOut Box (BeBoB)
    * Protocol for DiceII ASIC in Digital Interface Communication Engine (DICE)
+   * Protocol extension for TCD2210/TCD2220 ASIC in Digital Interface Communication Engine (DICE)
 
 Design note
 ===========
