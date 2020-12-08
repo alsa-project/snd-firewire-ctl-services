@@ -14,12 +14,15 @@ use dice_protocols::tcat::extension::*;
 
 use super::common_ctl::*;
 use super::tcd22xx_spec::*;
+use super::tcd22xx_ctl::*;
 
 #[derive(Default)]
 pub struct ExtensionModel{
     proto: FwReq,
     sections: GeneralSections,
+    extension_sections: ExtensionSections,
     ctl: CommonCtl,
+    tcd22xx_ctl: Tcd22xxCtl<ExtensionState>,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -31,7 +34,15 @@ impl CtlModel<SndDice> for ExtensionModel {
         self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
         let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
         let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
-        self.ctl.load(card_cntr, &caps, &src_labels)
+        self.ctl.load(card_cntr, &caps, &src_labels)?;
+
+        self.extension_sections = self.proto.read_extension_sections(&node, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.load(unit, &self.proto, &self.extension_sections, &caps, &src_labels, TIMEOUT_MS,
+                              card_cntr)?;
+        self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections,
+                               TIMEOUT_MS)?;
+
+        Ok(())
     }
 
     fn read(&mut self, unit: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
@@ -53,7 +64,8 @@ impl NotifyModel<SndDice, u32> for ExtensionModel {
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)
+        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn read_notified_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
