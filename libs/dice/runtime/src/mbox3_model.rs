@@ -27,6 +27,7 @@ pub struct Mbox3Model{
     tcd22xx_ctl: Tcd22xxCtl<Mbox3State>,
     standalone_ctl: StandaloneCtl,
     hw_ctl: HwCtl,
+    reverb_ctl: ReverbCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -45,6 +46,7 @@ impl CtlModel<SndDice> for Mbox3Model {
                           TIMEOUT_MS, card_cntr)?;
         self.standalone_ctl.load(card_cntr)?;
         self.hw_ctl.load(card_cntr)?;
+        self.reverb_ctl.load(card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -65,6 +67,9 @@ impl CtlModel<SndDice> for Mbox3Model {
         } else if self.hw_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
                                    elem_value, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.reverb_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
+                                       elem_value, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -83,6 +88,9 @@ impl CtlModel<SndDice> for Mbox3Model {
             Ok(true)
         } else if self.hw_ctl.write(unit, &self.proto, &self.extension_sections, elem_id, old, new,
                                     TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.reverb_ctl.write(unit, &self.proto, &self.extension_sections, elem_id, old, new,
+                                        TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -359,6 +367,137 @@ impl<'a> HwCtl {
             Self::OUTPUT_TRIM_NAME => {
                 ElemValueAccessor::<i32>::get_vals(old, new, Self::OUTPUT_COUNT, |idx, val| {
                     proto.write_hw_output_trim(&unit.get_node(), sections, idx, val as u8, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default)]
+struct ReverbCtl;
+
+impl<'a> ReverbCtl {
+    const TYPE_NAME: &'a str = "reverb-type";
+    const VOL_NAME: &'a str = "reverb-output-volume";
+    const DURATION_NAME: &'a str = "reverb-duration";
+    const FEEDBACK_NAME: &'a str = "reverb-feedback";
+
+    const TYPE_LABELS: &'a [&'a str] = &[
+        "Room-1", "Room-2", "Room-3", "Room-4",
+        "Hall-1", "Hall-2", "Plate", "Echo",
+        "Delay",
+    ];
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TYPE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::TYPE_LABELS, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::VOL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, u8::MIN as i32, u8::MAX as i32, 1,
+                                        1, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DURATION_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, u8::MIN as i32, u8::MAX as i32, 1,
+                                        1, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::FEEDBACK_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, u8::MIN as i32, u8::MAX as i32, 1,
+                                        1, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+            elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::TYPE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, ||{
+                    proto.read_reverb_type(&unit.get_node(), sections, timeout_ms)
+                        .map(|reverb_type| {
+                            match reverb_type {
+                                ReverbType::Room1 => 0,
+                                ReverbType::Room2 => 1,
+                                ReverbType::Room3 => 2,
+                                ReverbType::Hall1 => 3,
+                                ReverbType::Hall2 => 4,
+                                ReverbType::Plate => 5,
+                                ReverbType::Delay => 6,
+                                ReverbType::Echo => 7,
+                            }
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::VOL_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    proto.read_reverb_volume(&unit.get_node(), sections, timeout_ms)
+                        .map(|vol| vol as i32)
+                })
+                .map(|_| true)
+            }
+            Self::DURATION_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    proto.read_reverb_duration(&unit.get_node(), sections, timeout_ms)
+                        .map(|duration| duration as i32)
+                })
+                .map(|_| true)
+            }
+            Self::FEEDBACK_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    proto.read_reverb_feedback(&unit.get_node(), sections, timeout_ms)
+                        .map(|feedback| feedback as i32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+             elem_id: &ElemId, _: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::TYPE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let reverb_type = match val {
+                        0 => ReverbType::Room1,
+                        1 => ReverbType::Room2,
+                        2 => ReverbType::Room3,
+                        3 => ReverbType::Hall1,
+                        4 => ReverbType::Hall2,
+                        5 => ReverbType::Plate,
+                        6 => ReverbType::Delay,
+                        7 => ReverbType::Echo,
+                        _ => {
+                            let msg = format!("Invalid value for index of reverb type: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    proto.write_reverb_type(&unit.get_node(), sections, reverb_type, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::VOL_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    proto.write_reverb_volume(&unit.get_node(), sections, val as u8, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::DURATION_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    proto.write_reverb_duration(&unit.get_node(), sections, val as u8, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::FEEDBACK_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    proto.write_reverb_feedback(&unit.get_node(), sections, val as u8, timeout_ms)
                 })
                 .map(|_| true)
             }
