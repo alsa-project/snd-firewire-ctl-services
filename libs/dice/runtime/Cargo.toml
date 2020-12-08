@@ -8,3 +8,7 @@ publish = false
 description = """
 Implementation of service runtime for models based on ASICs of DICE.
 """
+
+[dependencies]
+glib = "0.10"
+core = { path = "../../core" }
