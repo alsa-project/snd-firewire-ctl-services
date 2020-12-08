@@ -19,6 +19,7 @@ pub struct CommonCtl {
     srcs: Vec<ClockSource>,
     curr_rate_idx: u32,
     curr_src_idx: u32,
+    pub notified_elem_list: Vec<ElemId>,
 }
 
 const CLK_RATE_NAME: & str = "clock-rate";
@@ -37,14 +38,16 @@ impl CommonCtl {
             .collect::<Vec<_>>();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
 
         let labels = self.srcs.iter()
             .map(|s| s.get_label(&src_labels, false).unwrap())
             .collect::<Vec<_>>();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, NICKNAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, NICKNAME_MAX_SIZE, None, true)?;
@@ -179,6 +182,34 @@ impl CommonCtl {
                             })
                     })
                     .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn parse_notification(&mut self, unit: &SndDice, proto: &FwReq, sections: &GeneralSections,
+                              msg: u32, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        if msg.has_clock_accepted() {
+            let config = proto.read_clock_config(&unit.get_node(), sections, timeout_ms)?;
+            self.cache_clock_config(&config)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn read_notified_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            CLK_RATE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
+                .map(|_| true)
+            }
+            CLK_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
+                .map(|_| true)
             }
             _ => Ok(false),
         }
