@@ -78,16 +78,25 @@ impl NotifyModel<SndDice, u32> for ExtensionModel {
 impl MeasureModel<hinawa::SndDice> for ExtensionModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)
+        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.measure_states(unit, &self.proto, &self.extension_sections, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.ctl.measure_elem(elem_id, elem_value)
+        if self.ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
