@@ -284,6 +284,22 @@ pub trait Tcd22xxMixerOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState
     }
 }
 
+pub trait Tcd22xxStateOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
+                                            Tcd22xxRouterOperation<'a, T, U> +  Tcd22xxMixerOperation<'a, T, U>
+    where T: AsRef<FwNode>,
+          U: CmdSectionProtocol<T> + MixerSectionProtocol<T> + RouterSectionProtocol<T> +
+             CurrentConfigSectionProtocol<T>,
+{
+    fn cache(&mut self, node: &T, proto: &U, sections: &ExtensionSections, caps: &ExtensionCaps,
+             rate_mode: RateMode, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.cache_router_entries(node, proto, sections, caps, rate_mode, timeout_ms)?;
+        self.cache_mixer_coefs(node, proto, sections, caps, rate_mode, timeout_ms)?;
+        Ok(())
+    }
+}
+
 impl<'a, O, T, U> Tcd22xxRouterOperation<'a, T, U> for O
     where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
           T: AsRef<FwNode>,
@@ -294,4 +310,12 @@ impl<'a, O, T, U> Tcd22xxMixerOperation<'a, T, U> for O
     where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
           T: AsRef<FwNode>,
           U: MixerSectionProtocol<T>,
+{}
+
+impl<'a, O, T, U> Tcd22xxStateOperation<'a, T, U> for O
+    where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
+             Tcd22xxRouterOperation<'a, T, U> +  Tcd22xxMixerOperation<'a, T, U>,
+          T: AsRef<FwNode>,
+          U: CmdSectionProtocol<T> + MixerSectionProtocol<T> + RouterSectionProtocol<T> +
+             CurrentConfigSectionProtocol<T>,
 {}
