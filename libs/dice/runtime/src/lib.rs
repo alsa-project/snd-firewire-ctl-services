@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+mod model;
+
 use glib::Error;
 use glib::source;
 
@@ -16,6 +18,8 @@ use core::RuntimeOperation;
 use core::dispatcher;
 use core::card_cntr;
 
+use model::DiceModel;
+
 enum Event {
     Shutdown,
     Disconnected,
@@ -25,6 +29,7 @@ enum Event {
 
 pub struct DiceRuntime{
     unit: SndDice,
+    model: DiceModel,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
@@ -37,6 +42,8 @@ impl RuntimeOperation<u32> for DiceRuntime {
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path)?;
 
+        let model = DiceModel::new(&unit)?;
+
         let card_cntr = card_cntr::CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
@@ -45,12 +52,14 @@ impl RuntimeOperation<u32> for DiceRuntime {
 
         let dispatchers = Vec::new();
 
-        Ok(DiceRuntime{unit, card_cntr, rx, tx, dispatchers})
+        Ok(DiceRuntime{unit, model, card_cntr, rx, tx, dispatchers})
     }
 
     fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
+
+        self.model.load(&self.unit, &mut self.card_cntr)?;
 
         Ok(())
     }
@@ -64,8 +73,9 @@ impl RuntimeOperation<u32> for DiceRuntime {
                     Event::BusReset(generation) => {
                         println!("IEEE 1394 bus is updated: {}", generation);
                     }
-                    Event::Elem(_, _) => {
-                        ()
+                    Event::Elem(elem_id, events) => {
+                        let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
+                                                               &elem_id, &events);
                     }
                 }
             }
