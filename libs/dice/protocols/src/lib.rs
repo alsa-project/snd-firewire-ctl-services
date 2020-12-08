@@ -8,3 +8,4 @@
 
 pub mod tcat;
 pub mod maudio;
+pub mod avid;
