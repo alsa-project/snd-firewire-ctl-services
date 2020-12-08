@@ -40,6 +40,29 @@
 //! $ cargo run --bin tcat-general-parser /dev/fw1
 //! ...
 //! ```
+//!
+//! ### src/bin/tcat-extension-parser.rs
+//!
+//! This program retrieves information from node of target device according to protocol extension,
+//! then print the information.
+//!
+//! Without any command line argument, it prints help message and exit.
+//!
+//! ```sh
+//! $ cargo run --bin tcat-extension-parser
+//! Usage:
+//!   tcat-extension-parser CDEV
+//!
+//!   where:
+//!     CDEV:       The path to special file of firewire character device, typically '/dev/fw1'.
+//! ```
+//!
+//! Please run with an argument for firewire character device:
+//!
+//! ```sh
+//! $ cargo run --bin tcat-extension-parser /dev/fw1
+//! ...
+//! ```
 pub mod global_section;
 pub mod tx_stream_format_section;
 pub mod rx_stream_format_section;
