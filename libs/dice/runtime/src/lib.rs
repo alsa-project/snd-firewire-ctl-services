@@ -7,27 +7,37 @@ use nix::sys::signal;
 
 use std::sync::mpsc;
 
+use hinawa::FwNodeExt;
+use hinawa::{SndDice, SndDiceExt, SndUnitExt};
+
 use core::RuntimeOperation;
 use core::dispatcher;
 
 enum Event {
     Shutdown,
+    Disconnected,
+    BusReset(u32),
 }
 
 pub struct DiceRuntime{
+    unit: SndDice,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
 impl RuntimeOperation<u32> for DiceRuntime {
-    fn new(_: u32) -> Result<Self, Error> {
+    fn new(card_id: u32) -> Result<Self, Error> {
+        let unit = SndDice::new();
+        let path = format!("/dev/snd/hwC{}D0", card_id);
+        unit.open(&path)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
         let dispatchers = Vec::new();
 
-        Ok(DiceRuntime{rx, tx, dispatchers})
+        Ok(DiceRuntime{unit, rx, tx, dispatchers})
     }
 
     fn listen(&mut self) -> Result<(), Error> {
@@ -42,6 +52,10 @@ impl RuntimeOperation<u32> for DiceRuntime {
             if let Ok(ev) = self.rx.recv() {
                 match ev {
                     Event::Shutdown => break,
+                    Event::Disconnected => break,
+                    Event::BusReset(generation) => {
+                        println!("IEEE 1394 bus is updated: {}", generation);
+                    }
                 }
             }
         }
@@ -62,7 +76,22 @@ impl<'a> DiceRuntime {
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_unit(&self.unit, move |_| {
+            let _ = tx.send(Event::Disconnected);
+        })?;
+
+        let tx = self.tx.clone();
+        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+            let _ = tx.send(Event::Disconnected);
+        })?;
+
+        let tx = self.tx.clone();
+        self.unit.get_node().connect_bus_update(move |node| {
+            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+        });
 
         self.dispatchers.push(dispatcher);
 
