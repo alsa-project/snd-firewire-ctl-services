@@ -28,6 +28,7 @@ pub struct Mbox3Model{
     standalone_ctl: StandaloneCtl,
     hw_ctl: HwCtl,
     reverb_ctl: ReverbCtl,
+    button_ctl: ButtonCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -47,6 +48,7 @@ impl CtlModel<SndDice> for Mbox3Model {
         self.standalone_ctl.load(card_cntr)?;
         self.hw_ctl.load(card_cntr)?;
         self.reverb_ctl.load(card_cntr)?;
+        self.button_ctl.load(unit, &self.proto, &self.extension_sections, TIMEOUT_MS, card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -70,6 +72,8 @@ impl CtlModel<SndDice> for Mbox3Model {
         } else if self.reverb_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
                                        elem_value, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.button_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -92,6 +96,9 @@ impl CtlModel<SndDice> for Mbox3Model {
         } else if self.reverb_ctl.write(unit, &self.proto, &self.extension_sections, elem_id, old, new,
                                         TIMEOUT_MS)? {
             Ok(true)
+        } else if self.button_ctl.write(unit, &self.proto, &self.extension_sections, elem_id, new,
+                                        TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -102,12 +109,14 @@ impl NotifyModel<SndDice, u32> for Mbox3Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.button_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
         self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
         self.tcd22xx_ctl.parse_notification(unit, &self.proto, &self.sections,
                                         &self.extension_sections, TIMEOUT_MS, *msg)?;
+        self.button_ctl.parse_notification(unit, &self.proto, &self.extension_sections, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 
@@ -117,6 +126,8 @@ impl NotifyModel<SndDice, u32> for Mbox3Model {
         if self.ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.button_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -503,5 +514,235 @@ impl<'a> ReverbCtl {
             }
             _ => Ok(false),
         }
+    }
+}
+
+#[derive(Default)]
+struct ButtonCtl{
+    button_state: ButtonLedState,
+    pub notified_elem_list: Vec<ElemId>,
+}
+
+impl<'a> ButtonCtl {
+    const MUTE_BUTTON_NAME: &'a str = "mute-button";
+    const MONO_BUTTON_NAME: &'a str = "mono-button";
+    const SPKR_BUTTON_NAME: &'a str = "spkr-button";
+
+    const MUTE_BUTTON_LABELS: &'a [&'a str] = &[
+        "Off",
+        "Blink",
+        "On",
+    ];
+
+    const MONO_BUTTON_LABELS: &'a [&'a str] = &[
+        "Off",
+        "On",
+    ];
+
+    const SPKR_BUTTON_LABELS: &'a [&'a str] = &[
+        "Off",
+        "Green",
+        "Green-Blink",
+        "Red",
+        "Red-Blink",
+        "Orange",
+        "Orange-Blink",
+    ];
+
+    fn load(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections, timeout_ms: u32,
+            card_cntr: &mut CardCntr) -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MUTE_BUTTON_NAME, 0);
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::MUTE_BUTTON_LABELS, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MONO_BUTTON_NAME, 0);
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::MONO_BUTTON_LABELS, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPKR_BUTTON_NAME, 0);
+        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::SPKR_BUTTON_LABELS, None, true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
+
+        proto.read_hw_button_led_state(&unit.get_node(), sections, timeout_ms)
+            .map(|state| self.button_state = state)?;
+
+        Ok(())
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MUTE_BUTTON_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = match self.button_state.mute {
+                        MuteLedState::Off => 0,
+                        MuteLedState::Blink => 1,
+                        MuteLedState::On => 2,
+                    };
+                    Ok(val)
+                })
+                .map(|_| true)
+            }
+            Self::MONO_BUTTON_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = match self.button_state.mono {
+                        MonoLedState::Off => 0,
+                        MonoLedState::On => 1,
+                    };
+                    Ok(val)
+                })
+                .map(|_| true)
+            }
+            Self::SPKR_BUTTON_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let val = match self.button_state.spkr {
+                        SpkrLedState::Off => 0,
+                        SpkrLedState::Green => 1,
+                        SpkrLedState::GreenBlink => 2,
+                        SpkrLedState::Red => 3,
+                        SpkrLedState::RedBlink => 4,
+                        SpkrLedState::Orange => 5,
+                        SpkrLedState::OrangeBlink => 6,
+                    };
+                    Ok(val)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+             elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32) -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MUTE_BUTTON_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    self.button_state.mute = match val {
+                        0 => MuteLedState::Off,
+                        1 => MuteLedState::Blink,
+                        2 => MuteLedState::On,
+                        _ => {
+                            let msg = format!("Invalid value for index of mute button state: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    proto.write_hw_button_led_state(&unit.get_node(), sections, &self.button_state,
+                                                    timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::MONO_BUTTON_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    self.button_state.mono = match val {
+                        0 => MonoLedState::Off,
+                        1 => MonoLedState::On,
+                        _ => {
+                            let msg = format!("Invalid value for index of mono button state: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    Ok(())
+                })
+                .map(|_| true)
+            }
+            Self::SPKR_BUTTON_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    self.button_state.spkr = match val {
+                        0 => SpkrLedState::Off,
+                        1 => SpkrLedState::GreenBlink,
+                        2 => SpkrLedState::Green,
+                        3 => SpkrLedState::RedBlink,
+                        4 => SpkrLedState::Red,
+                        5 => SpkrLedState::OrangeBlink,
+                        6 => SpkrLedState::Orange,
+                        _ => {
+                            let msg = format!("Invalid value for index of mono button state: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    Ok(())
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn parse_notification(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+                          timeout_ms: u32, msg: u32)
+        -> Result<(), Error>
+    {
+        let mut changed = false;
+
+        if msg.has_spkr_button_pushed() {
+            let state = match self.button_state.spkr {
+                SpkrLedState::Off => SpkrLedState::Green,
+                SpkrLedState::GreenBlink => SpkrLedState::Green,
+                SpkrLedState::Green => SpkrLedState::Red,
+                SpkrLedState::RedBlink => SpkrLedState::Red,
+                SpkrLedState::Red => SpkrLedState::Orange,
+                SpkrLedState::OrangeBlink => SpkrLedState::Orange,
+                SpkrLedState::Orange => SpkrLedState::Off,
+            };
+            self.button_state.spkr = state;
+            changed = true;
+        }
+
+        if msg.has_spkr_button_held() {
+            let state = match self.button_state.spkr {
+                SpkrLedState::Off => SpkrLedState::Off,
+                SpkrLedState::GreenBlink => SpkrLedState::Green,
+                SpkrLedState::Green => SpkrLedState::GreenBlink,
+                SpkrLedState::RedBlink => SpkrLedState::Red,
+                SpkrLedState::Red => SpkrLedState::RedBlink,
+                SpkrLedState::OrangeBlink => SpkrLedState::Orange,
+                SpkrLedState::Orange => SpkrLedState::OrangeBlink,
+            };
+            self.button_state.spkr = state;
+            changed = true;
+        }
+
+        if msg.has_mono_button_pushed() {
+            let state = match self.button_state.mono {
+                MonoLedState::Off => MonoLedState::On,
+                MonoLedState::On => MonoLedState::Off,
+            };
+            self.button_state.mono = state;
+            changed = true;
+        }
+
+        if msg.has_mute_button_pushed() {
+            let state = match self.button_state.mute {
+                MuteLedState::Off => MuteLedState::On,
+                MuteLedState::Blink => MuteLedState::On,
+                MuteLedState::On => MuteLedState::Off,
+            };
+            self.button_state.mute = state;
+            changed = true;
+        }
+
+        if msg.has_mute_button_held() {
+            let state = match self.button_state.mute {
+                MuteLedState::Off => MuteLedState::Off,
+                MuteLedState::Blink => MuteLedState::On,
+                MuteLedState::On => MuteLedState::Blink,
+            };
+            self.button_state.mute = state;
+            changed = true;
+        }
+
+        if changed {
+            proto.write_hw_button_led_state(&unit.get_node(), sections, &self.button_state, timeout_ms)?;
+        }
+
+        Ok(())
+    }
+
+    fn read_notified_elem(&self, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+    {
+        self.read(elem_id, elem_value)
     }
 }
