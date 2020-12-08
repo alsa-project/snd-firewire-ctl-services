@@ -14,6 +14,7 @@
 //! used for supertrait. Any call of method in the trait initiates asynchronous transaction to
 //! operate the registers.
 pub mod global_section;
+pub mod tx_stream_format_section;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
@@ -77,6 +78,7 @@ impl From<&[u8]> for GeneralSections {
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GeneralProtocolError {
     Global,
+    TxStreamFormat,
     Invalid(i32),
 }
 
@@ -84,6 +86,7 @@ impl std::fmt::Display for GeneralProtocolError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let msg = match self {
             GeneralProtocolError::Global => "global",
+            GeneralProtocolError::TxStreamFormat => "tx-stream-format",
             GeneralProtocolError::Invalid(_) => "invalid",
         };
 
@@ -99,6 +102,7 @@ impl ErrorDomain for GeneralProtocolError {
     fn code(self) -> i32 {
         match self {
             GeneralProtocolError::Global => 0,
+            GeneralProtocolError::TxStreamFormat => 1,
             GeneralProtocolError::Invalid(v) => v,
         }
     }
@@ -106,6 +110,7 @@ impl ErrorDomain for GeneralProtocolError {
     fn from(code: i32) -> Option<Self> {
         let enumeration = match code {
             0 => GeneralProtocolError::Global,
+            1 => GeneralProtocolError::TxStreamFormat,
             _ => GeneralProtocolError::Invalid(code),
         };
         Some(enumeration)
@@ -170,3 +175,10 @@ pub trait GeneralProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
 }
 
 impl<O: AsRef<FwReq>, T: AsRef<FwNode>> GeneralProtocol<T> for O {}
+
+/// The structure to represent parameter of stream format for IEC 60958.
+#[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Iec60958Param {
+    pub cap: bool,
+    pub enable: bool,
+}
