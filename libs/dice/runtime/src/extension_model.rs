@@ -10,8 +10,10 @@ use hinawa::{SndDice, SndUnitExt};
 use core::card_cntr::*;
 
 use dice_protocols::tcat::{*, global_section::*};
+use dice_protocols::tcat::extension::*;
 
 use super::common_ctl::*;
+use super::tcd22xx_spec::*;
 
 #[derive(Default)]
 pub struct ExtensionModel{
@@ -74,5 +76,53 @@ impl MeasureModel<hinawa::SndDice> for ExtensionModel {
         -> Result<bool, Error>
     {
         self.ctl.measure_elem(elem_id, elem_value)
+    }
+}
+
+#[derive(Default, Debug)]
+struct ExtensionState(Tcd22xxState);
+
+impl<'a> Tcd22xxSpec<'a> for  ExtensionState {
+    const INPUTS: &'a [Input<'a>] = &[
+        Input{id: SrcBlkId::Ins0, offset: 0, count: 16, label: None},
+        Input{id: SrcBlkId::Ins1, offset: 0, count: 16, label: None},
+        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
+        Input{id: SrcBlkId::Aes,  offset: 2, count: 2, label: None},
+        Input{id: SrcBlkId::Aes,  offset: 4, count: 2, label: None},
+        Input{id: SrcBlkId::Aes,  offset: 6, count: 2, label: None},
+        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
+        Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
+    ];
+    const OUTPUTS: &'a [Output<'a>] = &[
+        Output{id: DstBlkId::Ins0, offset: 0, count: 16, label: None},
+        Output{id: DstBlkId::Ins1, offset: 0, count: 16, label: None},
+        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
+        Output{id: DstBlkId::Aes,  offset: 2, count: 2, label: None},
+        Output{id: DstBlkId::Aes,  offset: 4, count: 2, label: None},
+        Output{id: DstBlkId::Aes,  offset: 6, count: 2, label: None},
+        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
+    ];
+    const FIXED: &'a [SrcBlk] = &[
+        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 2},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 3},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
+    ];
+}
+
+impl AsRef<Tcd22xxState> for ExtensionState {
+    fn as_ref(&self) -> &Tcd22xxState {
+        &self.0
+    }
+}
+
+impl AsMut<Tcd22xxState> for ExtensionState {
+    fn as_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }
