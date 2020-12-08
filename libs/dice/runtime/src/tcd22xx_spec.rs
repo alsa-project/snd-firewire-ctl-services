@@ -4,7 +4,7 @@ use glib::{Error, FileError};
 
 use hinawa::FwNode;
 
-use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*,
+use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*, mixer_section::*,
                                       router_section::*, current_config_section::*};
 
 use std::convert::TryFrom;
@@ -12,6 +12,7 @@ use std::convert::TryFrom;
 #[derive(Default, Debug)]
 pub struct Tcd22xxState {
     pub router_entries: Vec<RouterEntryData>,
+    pub mixer_cache: Vec<Vec<i32>>,
 
     real_blk_pair: (Vec<u8>, Vec<u8>),
     stream_blk_pair: (Vec<u8>, Vec<u8>),
@@ -240,8 +241,57 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
     }
 }
 
+pub trait Tcd22xxMixerOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
+    where T: AsRef<FwNode>,
+          U: MixerSectionProtocol<T>,
+{
+    fn update_mixer_coef(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
+                         caps: &ExtensionCaps, entries: &[Vec<i32>], timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let cache = &mut self.as_mut().mixer_cache;
+
+        (0..cache.len()).take(entries.len()).try_for_each(|dst_ch| {
+            (0..cache[dst_ch].len()).take(entries[dst_ch].len()).try_for_each(|src_ch| {
+                let coef = entries[dst_ch][src_ch];
+                if cache[dst_ch][src_ch] != coef {
+                    proto.write_coef(node, sections, caps, dst_ch, src_ch, coef as u32, timeout_ms)?;
+                    cache[dst_ch][src_ch] = coef;
+                }
+                Ok(())
+            })
+        })
+    }
+
+    fn cache_mixer_coefs(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
+                         caps: &ExtensionCaps, rate_mode: RateMode, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let output_count = Self::get_mixer_out_port_count(rate_mode);
+        let input_count = Self::get_mixer_in_port_count();
+
+        self.as_mut().mixer_cache = Vec::new();
+        (0..output_count as usize).try_for_each(|dst_ch| {
+            let mut entry = Vec::new();
+            (0..input_count as usize).try_for_each(|src_ch| {
+                let coef = proto.read_coef(node, sections, caps, dst_ch, src_ch, timeout_ms)?;
+                entry.push(coef as i32);
+                Ok(())
+            })?;
+            self.as_mut().mixer_cache.push(entry);
+            Ok(())
+        })
+    }
+}
+
 impl<'a, O, T, U> Tcd22xxRouterOperation<'a, T, U> for O
     where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
           T: AsRef<FwNode>,
           U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
+{}
+
+impl<'a, O, T, U> Tcd22xxMixerOperation<'a, T, U> for O
+    where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+          T: AsRef<FwNode>,
+          U: MixerSectionProtocol<T>,
 {}
