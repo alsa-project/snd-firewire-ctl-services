@@ -48,30 +48,53 @@ impl CtlModel<SndDice> for ExtensionModel {
     fn read(&mut self, unit: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)
+        if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
+                                        elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(&mut self, unit: &SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)
+        if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.write(unit, &self.proto, &self.extension_sections, elem_id,
+                                         old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
 impl NotifyModel<SndDice, u32> for ExtensionModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+        self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
         self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.parse_notification(unit, &self.proto, &self.sections,
+                                            &self.extension_sections, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 
     fn read_notified_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.ctl.read_notified_elem(elem_id, elem_value)
+        if self.ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
