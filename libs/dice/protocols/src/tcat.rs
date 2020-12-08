@@ -15,6 +15,7 @@
 //! operate the registers.
 pub mod global_section;
 pub mod tx_stream_format_section;
+pub mod rx_stream_format_section;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
@@ -79,6 +80,7 @@ impl From<&[u8]> for GeneralSections {
 pub enum GeneralProtocolError {
     Global,
     TxStreamFormat,
+    RxStreamFormat,
     Invalid(i32),
 }
 
@@ -87,6 +89,7 @@ impl std::fmt::Display for GeneralProtocolError {
         let msg = match self {
             GeneralProtocolError::Global => "global",
             GeneralProtocolError::TxStreamFormat => "tx-stream-format",
+            GeneralProtocolError::RxStreamFormat => "rx-stream-format",
             GeneralProtocolError::Invalid(_) => "invalid",
         };
 
@@ -103,6 +106,7 @@ impl ErrorDomain for GeneralProtocolError {
         match self {
             GeneralProtocolError::Global => 0,
             GeneralProtocolError::TxStreamFormat => 1,
+            GeneralProtocolError::RxStreamFormat => 2,
             GeneralProtocolError::Invalid(v) => v,
         }
     }
@@ -111,6 +115,7 @@ impl ErrorDomain for GeneralProtocolError {
         let enumeration = match code {
             0 => GeneralProtocolError::Global,
             1 => GeneralProtocolError::TxStreamFormat,
+            2 => GeneralProtocolError::RxStreamFormat,
             _ => GeneralProtocolError::Invalid(code),
         };
         Some(enumeration)
