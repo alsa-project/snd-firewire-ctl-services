@@ -7,3 +7,4 @@
 //! well as hardware vendors for ASICs of Digital Interface Communication Engine (DICE).
 
 pub mod tcat;
+pub mod maudio;
