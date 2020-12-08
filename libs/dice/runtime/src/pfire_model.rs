@@ -18,7 +18,7 @@ use super::tcd22xx_ctl::*;
 
 #[derive(Default)]
 pub struct PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a>,
+    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
 {
     proto: FwReq,
     sections: GeneralSections,
@@ -33,13 +33,13 @@ pub type Pfire610Model = PfireModel<Pfire610State>;
 const TIMEOUT_MS: u32 = 20;
 
 impl<S> CtlModel<SndDice> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a>,
+    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
 {
     fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let node = unit.get_node();
 
         self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
-        let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
+        let caps = ClockCaps::new(S::AVAIL_CLK_RATES, S::AVAIL_CLK_SRCS);
         let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
@@ -80,7 +80,7 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
 }
 
 impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a>,
+    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
@@ -108,7 +108,7 @@ impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
 }
 
 impl<S> MeasureModel<hinawa::SndDice> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a>,
+    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
@@ -132,6 +132,16 @@ impl<S> MeasureModel<hinawa::SndDice> for PfireModel<S>
             Ok(false)
         }
     }
+}
+
+pub trait PfireClkSpec<'a> {
+    const AVAIL_CLK_RATES: &'a [ClockRate] = &[
+        ClockRate::R32000, ClockRate::R44100, ClockRate::R48000,
+        ClockRate::R88200, ClockRate::R96000,
+        ClockRate::R176400, ClockRate::R192000,
+    ];
+
+    const AVAIL_CLK_SRCS: &'a [ClockSource];
 }
 
 #[derive(Default, Debug)]
@@ -174,6 +184,17 @@ impl AsRef<Tcd22xxState> for Pfire2626State {
     }
 }
 
+impl<'a> PfireClkSpec<'a> for Pfire2626State {
+    const AVAIL_CLK_SRCS: &'a [ClockSource] = &[
+            ClockSource::Aes1,
+            ClockSource::Aes4,
+            ClockSource::Adat,
+            ClockSource::Tdif,
+            ClockSource::WordClock,
+            ClockSource::Internal,
+    ];
+}
+
 #[derive(Default, Debug)]
 pub struct Pfire610State(Tcd22xxState);
 
@@ -202,4 +223,11 @@ impl AsMut<Tcd22xxState> for Pfire610State {
     fn as_mut(&mut self) -> &mut Tcd22xxState {
         &mut self.0
     }
+}
+
+impl<'a> PfireClkSpec<'a> for Pfire610State {
+    const AVAIL_CLK_SRCS: &'a [ClockSource] = &[
+            ClockSource::Aes1,
+            ClockSource::Internal,
+    ];
 }
