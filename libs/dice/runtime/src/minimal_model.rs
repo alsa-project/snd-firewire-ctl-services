@@ -4,27 +4,43 @@ use glib::Error;
 
 use alsactl::{ElemId, ElemValue};
 
-use hinawa::SndDice;
+use hinawa::FwReq;
+use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
 
+use dice_protocols::tcat::{*, global_section::*};
+
+use super::common_ctl::*;
+
 #[derive(Default)]
-pub struct MinimalModel;
+pub struct MinimalModel{
+    proto: FwReq,
+    sections: GeneralSections,
+    ctl: CommonCtl,
+}
+
+const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<SndDice> for MinimalModel {
-    fn load(&mut self, _: &SndDice, _: &mut CardCntr) -> Result<(), Error> {
-        Ok(())
+    fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let node = unit.get_node();
+
+        self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
+        let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
+        self.ctl.load(card_cntr, &caps, &src_labels)
     }
 
-    fn read(&mut self, _: &SndDice, _: &ElemId, _: &mut ElemValue)
+    fn read(&mut self, unit: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)
     }
 
-    fn write(&mut self, _: &SndDice, _: &ElemId, _: &ElemValue, _: &ElemValue)
+    fn write(&mut self, unit: &SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)
     }
 }
