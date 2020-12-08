@@ -62,6 +62,10 @@ impl DiceModel {
             Model::Minimal(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
+        match &mut self.model {
+            Model::Minimal(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+        }
+
         Ok(())
     }
 
@@ -82,9 +86,11 @@ impl DiceModel {
         }
     }
 
-    pub fn measure_elems(&mut self, _: &hinawa::SndDice, _: &mut CardCntr)
+    pub fn measure_elems(&mut self, unit: &hinawa::SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        Ok(())
+        match &mut self.model {
+            Model::Minimal(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+        }
     }
 }
