@@ -21,6 +21,7 @@ enum Model {
 pub struct DiceModel{
     model: Model,
     notified_elem_list: Vec<alsactl::ElemId>,
+    pub measured_elem_list: Vec<alsactl::ElemId>,
 }
 
 impl DiceModel {
@@ -46,8 +47,9 @@ impl DiceModel {
         };
 
         let notified_elem_list = Vec::new();
+        let measured_elem_list = Vec::new();
 
-        Ok(DiceModel{model, notified_elem_list})
+        Ok(DiceModel{model, notified_elem_list, measured_elem_list})
     }
     pub fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
@@ -78,5 +80,11 @@ impl DiceModel {
         match &mut self.model {
             Model::Minimal(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
         }
+    }
+
+    pub fn measure_elems(&mut self, _: &hinawa::SndDice, _: &mut CardCntr)
+        -> Result<(), Error>
+    {
+        Ok(())
     }
 }
