@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
@@ -26,6 +26,7 @@ pub struct Mbox3Model{
     ctl: CommonCtl,
     tcd22xx_ctl: Tcd22xxCtl<Mbox3State>,
     standalone_ctl: StandaloneCtl,
+    hw_ctl: HwCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -43,6 +44,7 @@ impl CtlModel<SndDice> for Mbox3Model {
         self.tcd22xx_ctl.load(unit, &self.proto, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
         self.standalone_ctl.load(card_cntr)?;
+        self.hw_ctl.load(card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -60,6 +62,9 @@ impl CtlModel<SndDice> for Mbox3Model {
         } else if self.standalone_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
                                            elem_value, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.hw_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
+                                   elem_value, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -75,6 +80,9 @@ impl CtlModel<SndDice> for Mbox3Model {
             Ok(true)
         } else if self.standalone_ctl.write(unit, &self.proto, &self.extension_sections, elem_id,
                                             old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hw_ctl.write(unit, &self.proto, &self.extension_sections, elem_id, old, new,
+                                    TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -226,6 +234,131 @@ impl<'a> StandaloneCtl {
                         }
                     };
                     proto.write_standalone_use_case(&unit.get_node(), sections, usecase, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default)]
+struct HwCtl;
+
+impl<'a> HwCtl {
+    const MASTER_KNOB_ASSIGN_NAME: &'a str = "master-knob-assign";
+    const DIM_LED_USAGE_NAME: &'a str = "dim-led";
+    const HOLD_DURATION_NAME: &'a str = "hold-duration";
+    const INPUT_HPF_NAME: &'a str = "input-hp-filter";
+    const OUTPUT_TRIM_NAME: &'a str = "output-trim";
+
+    const HOLD_DURATION_MAX: i32 = 1000;
+    const HOLD_DURATION_MIN: i32 = 0;
+    const HOLD_DURATION_STEP: i32 = 1;
+
+    const INPUT_COUNT: usize = 4;
+    const OUTPUT_COUNT: usize = 6;
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MASTER_KNOB_ASSIGN_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::OUTPUT_COUNT, true);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::DIM_LED_USAGE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HOLD_DURATION_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1,
+                    Self::HOLD_DURATION_MIN, Self::HOLD_DURATION_MAX, Self::HOLD_DURATION_STEP,
+                    1, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_HPF_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_COUNT, true);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUTPUT_TRIM_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, u8::MIN as i32, u8::MAX as i32, 1, 1, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+            elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MASTER_KNOB_ASSIGN_NAME => {
+                let mut assigns = MasterKnobAssigns::default();
+                proto.read_hw_master_knob_assign(&unit.get_node(), sections, &mut assigns, timeout_ms)
+                    .map(|_| {
+                        elem_value.set_bool(&assigns);
+                        true
+                    })
+            }
+            Self::DIM_LED_USAGE_NAME => {
+                proto.read_hw_dim_led_usage(&unit.get_node(), sections, timeout_ms)
+                    .map(|usage| {
+                        elem_value.set_bool(&[usage]);
+                        true
+                    })
+            }
+            Self::HOLD_DURATION_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    proto.read_hw_hold_duration(&unit.get_node(), sections, timeout_ms)
+                        .map(|duration| duration as i32)
+                })
+                .map(|_| true)
+            }
+            Self::INPUT_HPF_NAME => {
+                let mut vals = [false;Self::INPUT_COUNT];
+                proto.read_hw_hpf_enable(&unit.get_node(), sections, &mut vals, timeout_ms)
+                    .map(|_| {
+                        elem_value.set_bool(&vals);
+                        true
+                    })
+            }
+            Self::OUTPUT_TRIM_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::OUTPUT_COUNT, |idx| {
+                    proto.read_hw_output_trim(&unit.get_node(), sections, idx, timeout_ms)
+                        .map(|trim| trim as i32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+             elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MASTER_KNOB_ASSIGN_NAME => {
+                let mut assign = MasterKnobAssigns::default();
+                new.get_bool(&mut assign);
+                proto.write_hw_master_knob_assign(&unit.get_node(), sections, &assign, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::DIM_LED_USAGE_NAME => {
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    proto.write_hw_dim_led_usage(&unit.get_node(), sections, val, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::HOLD_DURATION_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    proto.write_hw_hold_duration(&unit.get_node(), sections, val as u8, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::INPUT_HPF_NAME => {
+                let mut vals = [false;Self::INPUT_COUNT];
+                new.get_bool(&mut vals);
+                proto.write_hw_hpf_enable(&unit.get_node(), sections, vals, timeout_ms)?;
+                Ok(true)
+            }
+            Self::OUTPUT_TRIM_NAME => {
+                ElemValueAccessor::<i32>::get_vals(old, new, Self::OUTPUT_COUNT, |idx, val| {
+                    proto.write_hw_output_trim(&unit.get_node(), sections, idx, val as u8, timeout_ms)
                 })
                 .map(|_| true)
             }
