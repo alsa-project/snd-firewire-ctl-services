@@ -129,6 +129,9 @@ your device, please contact to developer.
   * Behringer FIREPOWER FCA610
   * Stanton ScratchAmp in Final Scratch version 2
 
+* snd-dice-ctl-service
+  * For the others, common controls are available.
+
 Supported protocols
 ===================
 
