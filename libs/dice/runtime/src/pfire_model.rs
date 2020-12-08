@@ -28,6 +28,7 @@ pub struct PfireModel<S>
 }
 
 pub type Pfire2626Model = PfireModel<Pfire2626State>;
+pub type Pfire610Model = PfireModel<Pfire610State>;
 
 const TIMEOUT_MS: u32 = 20;
 
@@ -170,5 +171,35 @@ impl AsMut<Tcd22xxState> for Pfire2626State {
 impl AsRef<Tcd22xxState> for Pfire2626State {
     fn as_ref(&self) -> &Tcd22xxState {
         &self.0
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct Pfire610State(Tcd22xxState);
+
+impl<'a> Tcd22xxSpec<'a> for Pfire610State {
+    const INPUTS: &'a [Input<'a>] = &[
+        Input{id: SrcBlkId::Ins0, offset: 0, count: 4, label: None},
+        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
+    ];
+    const OUTPUTS: &'a [Output<'a>] = &[
+        Output{id: DstBlkId::Ins0, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
+    ];
+    const FIXED: &'a [SrcBlk] = &[
+        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+    ];
+}
+
+impl AsRef<Tcd22xxState> for Pfire610State {
+    fn as_ref(&self) -> &Tcd22xxState {
+        &self.0
+    }
+}
+
+impl AsMut<Tcd22xxState> for Pfire610State {
+    fn as_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }

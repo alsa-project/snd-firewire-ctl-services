@@ -20,6 +20,7 @@ enum Model {
     Minimal(MinimalModel),
     Extension(ExtensionModel),
     MaudioPfire2626(Pfire2626Model),
+    MaudioPfire610(Pfire610Model),
 }
 
 pub struct DiceModel{
@@ -48,6 +49,7 @@ impl DiceModel {
 
         let model = match data {
             (0x000d6c, 0x000010) => Model::MaudioPfire2626(Pfire2626Model::default()),
+            (0x000d6c, 0x000011) => Model::MaudioPfire610(Pfire610Model::default()),
             _ => Model::Minimal(MinimalModel::default()),
         };
 
@@ -75,18 +77,21 @@ impl DiceModel {
             Model::Minimal(m) => m.load(unit, card_cntr),
             Model::Extension(m) => m.load(unit, card_cntr),
             Model::MaudioPfire2626(m) => m.load(unit, card_cntr),
+            Model::MaudioPfire610(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.model {
             Model::Minimal(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::Extension(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioPfire2626(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioPfire610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         match &mut self.model {
             Model::Minimal(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::Extension(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::MaudioPfire2626(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::MaudioPfire610(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
 
         Ok(())
@@ -100,6 +105,7 @@ impl DiceModel {
             Model::Minimal(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::Extension(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioPfire2626(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioPfire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -110,6 +116,7 @@ impl DiceModel {
             Model::Minimal(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::Extension(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::MaudioPfire2626(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+            Model::MaudioPfire610(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
         }
     }
 
@@ -120,6 +127,7 @@ impl DiceModel {
             Model::Minimal(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::Extension(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::MaudioPfire2626(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::MaudioPfire610(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
         }
     }
 }
