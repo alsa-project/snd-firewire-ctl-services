@@ -70,6 +70,8 @@ pub mod ext_sync_section;
 
 pub mod extension;
 
+pub mod config_rom;
+
 use glib::{Error, error::ErrorDomain, Quark};
 
 use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
