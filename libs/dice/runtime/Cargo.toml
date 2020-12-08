@@ -11,4 +11,5 @@ Implementation of service runtime for models based on ASICs of DICE.
 
 [dependencies]
 glib = "0.10"
+nix = "0.17"
 core = { path = "../../core" }
