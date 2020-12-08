@@ -10,5 +10,6 @@ members = [
     "libs/motu",
     "libs/oxfw",
     "libs/bebob",
+    "libs/dice/protocols",
     "services",
 ]
