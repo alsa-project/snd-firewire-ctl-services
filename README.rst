@@ -131,6 +131,7 @@ your device, please contact to developer.
 
 * snd-dice-ctl-service
   * M-Audio ProFire 2626
+  * M-Audio ProFire 610
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
