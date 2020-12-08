@@ -182,7 +182,7 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
             let msg = format!("length {} is greater than {}", bus_info_length, raw.len());
             Err(ConfigRomParseError::new(ctx, msg))?
         }
-        let bus_info = &raw[..(4 + bus_info_length)];
+        let bus_info = &raw[4..(4 + bus_info_length)];
         let data = &raw[(4 + bus_info_length)..];
 
         // Get block of root directory.
