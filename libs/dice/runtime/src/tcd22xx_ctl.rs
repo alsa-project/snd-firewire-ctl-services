@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
@@ -15,7 +15,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*, mixer_section::*};
 use dice_protocols::tcat::extension::peak_section::*;
-use dice_protocols::tcat::extension::current_config_section::*;
+use dice_protocols::tcat::extension::{current_config_section::*, standalone_section::*};
 
 use super::tcd22xx_spec::{Tcd22xxState, Tcd22xxSpec, Tcd22xxRouterOperation, Tcd22xxMixerOperation, Tcd22xxStateOperation};
 
@@ -28,13 +28,14 @@ pub struct Tcd22xxCtl<S>
     meter_ctl: MeterCtl,
     router_ctl: RouterCtl,
     mixer_ctl: MixerCtl,
+    standalone_ctl: StandaloneCtl,
 }
 
 impl<S> Tcd22xxCtl<S>
     where for<'a> S: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
 {
     pub fn load(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
-                _: &ClockCaps, _: &ClockSourceLabels, timeout_ms: u32, card_cntr: &mut CardCntr)
+                caps: &ClockCaps, src_labels: &ClockSourceLabels, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         let node = unit.get_node();
@@ -44,6 +45,7 @@ impl<S> Tcd22xxCtl<S>
         self.meter_ctl.load(&node, proto, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
         self.router_ctl.load(&node, proto, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
         self.mixer_ctl.load(&self.caps, &self.state, card_cntr)?;
+        self.standalone_ctl.load(caps, src_labels, card_cntr)?;
 
         Ok(())
     }
@@ -59,13 +61,16 @@ impl<S> Tcd22xxCtl<S>
         self.state.cache(&node, proto, extension_sections, &self.caps, rate_mode, timeout_ms)
     }
 
-    pub fn read(&self, _: &SndDice, _: &FwReq, _: &ExtensionSections, elem_id: &ElemId,
-                elem_value: &mut ElemValue, _: u32)
+    pub fn read(&self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections, elem_id: &ElemId,
+                elem_value: &mut ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
     {
         if self.router_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.standalone_ctl.read(&unit.get_node(), proto, sections, elem_id, elem_value,
+                                           timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -83,6 +88,8 @@ impl<S> Tcd22xxCtl<S>
             Ok(true)
         } else if self.mixer_ctl.write(&node, proto, sections, &self.caps, &mut self.state, elem_id,
                                        old, new, timeout_ms)? {
+            Ok(true)
+        } else if self.standalone_ctl.write(&node, proto, sections, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -497,6 +504,259 @@ impl<'a> MixerCtl {
                     None => false,
                 };
                 Ok(res)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct StandaloneCtl {
+    rates: Vec<ClockRate>,
+    srcs: Vec<ClockSource>,
+}
+
+impl<'a> StandaloneCtl {
+    const CLK_SRC_NAME: &'a str = "standalone-clock-source";
+    const SPDIF_HIGH_RATE_NAME: &'a str = "standalone-spdif-high-rate";
+    const ADAT_MODE_NAME: &'a str = "standalone-adat-mode";
+    const WC_MODE_NAME: &'a str = "standalone-word-clock-mode";
+    const WC_RATE_NUMERATOR_NAME: &'a str = "standalone-word-clock-rate-numerator";
+    const WC_RATE_DENOMINATOR_NAME: &'a str = "standalone-word-clock-rate-denominator";
+    const INTERNAL_CLK_RATE_NAME: &'a str = "standalone-internal-clock-rate";
+
+    const ADAT_MODE_LABELS: &'a [&'a str] = &["Normal", "S/MUX2", "S/MUX4", "Auto"];
+
+    const WC_MODE_LABELS: &'a [&'a str] = &["Normal", "Low", "Middle", "High"];
+
+    pub fn load(&mut self, caps: &ClockCaps, src_labels: &ClockSourceLabels, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+    {
+        self.rates = caps.get_rate_entries();
+        self.srcs = caps.get_src_entries(src_labels);
+
+        let labels = self.srcs.iter()
+            .map(|s| s.get_label(&src_labels, false).unwrap())
+            .collect::<Vec<_>>();
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::CLK_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        if self.srcs.iter()
+            .find(|&s| {
+                *s == ClockSource::Aes1 || *s == ClockSource::Aes2 ||
+                *s == ClockSource::Aes3 || *s == ClockSource::Aes4
+            }).is_some() {
+            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                       0, 0, Self::SPDIF_HIGH_RATE_NAME, 0);
+            let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        }
+
+        if self.srcs.iter().find(|&s| *s == ClockSource::Adat).is_some() {
+            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                       0, 0, Self::ADAT_MODE_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::ADAT_MODE_LABELS, None, true)?;
+        }
+
+        if self.srcs.iter().find(|&s| *s == ClockSource::WordClock).is_some() {
+                let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                           0, 0, Self::WC_MODE_NAME, 0);
+                let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::WC_MODE_LABELS, None, true)?;
+
+                let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                           0, 0, Self::WC_RATE_NUMERATOR_NAME, 0);
+                let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 4095, 1, 1, None, true)?;
+
+                let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                           0, 0, Self::WC_RATE_DENOMINATOR_NAME, 0);
+                let _ = card_cntr.add_int_elems(&elem_id, 1, 1, std::u16::MAX as i32, 1, 1, None, true)?;
+        }
+
+        let labels = self.rates.iter()
+            .map(|r| r.to_string())
+            .collect::<Vec<_>>();
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+                                                   0, 0, Self::INTERNAL_CLK_RATE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
+                elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::CLK_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.read_standalone_clock_source(node, sections, timeout_ms)
+                        .and_then(|src| {
+                            self.srcs.iter()
+                                .position(|&s| s == src)
+                                .ok_or_else(|| {
+                                    let msg = format!("Unexpected value for source: {}", src);
+                                    Error::new(FileError::Nxio, &msg)
+                                })
+                        })
+                        .map(|pos| pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::SPDIF_HIGH_RATE_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    proto.read_standalone_aes_high_rate(node, sections, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::ADAT_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.read_standalone_adat_mode(node, sections, timeout_ms)
+                        .map(|mode| {
+                            match mode {
+                                AdatParam::Normal => 0,
+                                AdatParam::SMUX2 => 1,
+                                AdatParam::SMUX4 => 2,
+                                AdatParam::Auto => 3,
+                            }
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::WC_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.read_standalone_word_clock_param(node, sections, timeout_ms)
+                        .map(|param| {
+                            match param.mode {
+                                WordClockMode::Normal => 0,
+                                WordClockMode::Low => 1,
+                                WordClockMode::Middle => 2,
+                                WordClockMode::High => 3,
+                            }
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::WC_RATE_NUMERATOR_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    proto.read_standalone_word_clock_param(node, sections, timeout_ms)
+                        .map(|param| param.rate.numerator as i32)
+                })
+                .map(|_| true)
+            }
+            Self::WC_RATE_DENOMINATOR_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    proto.read_standalone_word_clock_param(node, sections, timeout_ms)
+                        .map(|param| param.rate.denominator as i32)
+                })
+                .map(|_| true)
+            }
+            Self::INTERNAL_CLK_RATE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.read_standalone_internal_rate(node, sections, timeout_ms)
+                        .and_then(|rate| {
+                            self.rates.iter()
+                                .position(|&r| r == rate)
+                                .ok_or_else(|| {
+                                    let msg = format!("Unexpected value for rate: {}", rate);
+                                    Error::new(FileError::Nxio, &msg)
+                                })
+                                .map(|pos| pos as u32)
+                        })
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
+                 elem_id: &ElemId, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::CLK_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    self.srcs.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&s| {
+                            proto.write_standalone_clock_source(node, &sections, s, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::SPDIF_HIGH_RATE_NAME => {
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    proto.write_standalone_aes_high_rate(node, &sections, val, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::ADAT_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mode = match val {
+                        1 => AdatParam::SMUX2,
+                        2 => AdatParam::SMUX4,
+                        3 => AdatParam::Auto,
+                        _ => AdatParam::Normal,
+                    };
+                    proto.write_standalone_adat_mode(node, &sections, mode, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::WC_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mode = match val {
+                        1 => WordClockMode::Low,
+                        2 => WordClockMode::Middle,
+                        3 => WordClockMode::High,
+                        _ => WordClockMode::Normal,
+                    };
+                    proto.read_standalone_word_clock_param(node, &sections, timeout_ms)
+                        .and_then(|mut param| {
+                            param.mode = mode;
+                            proto.write_standalone_word_clock_param(node, &sections, param, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::WC_RATE_NUMERATOR_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    proto.read_standalone_word_clock_param(node, &sections, timeout_ms)
+                        .and_then(|mut param| {
+                            param.rate.numerator = val as u16;
+                            proto.write_standalone_word_clock_param(node, &sections, param, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::WC_RATE_DENOMINATOR_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    proto.read_standalone_word_clock_param(node, &sections, timeout_ms)
+                        .and_then(|mut param| {
+                            param.rate.denominator = val as u16;
+                            proto.write_standalone_word_clock_param(node, &sections, param, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::INTERNAL_CLK_RATE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    self.rates.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of rate: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&r| {
+                            proto.write_standalone_internal_rate(node, &sections, r, timeout_ms)
+                        })
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
