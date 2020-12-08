@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 mod model;
+mod minimal_model;
 
 use glib::Error;
 use glib::source;

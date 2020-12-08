@@ -13,8 +13,14 @@ use dice_protocols::tcat::config_rom::*;
 
 use std::convert::TryFrom;
 
+use super::minimal_model::MinimalModel;
+
+enum Model {
+    Minimal(MinimalModel),
+}
+
 pub struct DiceModel{
-    model: (),
+    model: Model,
 }
 
 impl DiceModel {
@@ -36,21 +42,25 @@ impl DiceModel {
             })?;
 
         let model = match data {
-            _ => (),
+            _ => Model::Minimal(MinimalModel::default()),
         };
 
         Ok(DiceModel{model})
     }
-    pub fn load(&mut self, _: &SndDice, _: &mut CardCntr)
+    pub fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        Ok(())
+        match &mut self.model {
+            Model::Minimal(m) => m.load(unit, card_cntr),
+        }
     }
 
-    pub fn dispatch_elem_event(&mut self, _: &SndDice, _: &mut CardCntr,
-                               _: &alsactl::ElemId, _: &alsactl::ElemEventMask)
+    pub fn dispatch_elem_event(&mut self, unit: &SndDice, card_cntr: &mut CardCntr,
+                               elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
         -> Result<(), Error>
     {
-        Ok(())
+        match &mut self.model {
+            Model::Minimal(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+        }
     }
 }
