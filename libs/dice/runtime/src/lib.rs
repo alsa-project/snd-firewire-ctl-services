@@ -27,6 +27,7 @@ enum Event {
     Disconnected,
     BusReset(u32),
     Elem(alsactl::ElemId, alsactl::ElemEventMask),
+    Notify(u32),
 }
 
 pub struct DiceRuntime{
@@ -79,6 +80,9 @@ impl RuntimeOperation<u32> for DiceRuntime {
                         let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
                                                                &elem_id, &events);
                     }
+                    Event::Notify(msg) => {
+                        let _ = self.model.dispatch_msg(&self.unit, &mut self.card_cntr, msg);
+                    }
                 }
             }
         }
@@ -114,6 +118,11 @@ impl<'a> DiceRuntime {
         let tx = self.tx.clone();
         self.unit.get_node().connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
+        });
+
+        let tx = self.tx.clone();
+        self.unit.connect_notified(move |_, msg| {
+            let _ = tx.send(Event::Notify(msg));
         });
 
         self.dispatchers.push(dispatcher);
