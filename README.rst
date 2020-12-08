@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2020/07/07
+2020/12/08
 Takashi Sakamoto
 
 Introduction
@@ -132,6 +132,7 @@ your device, please contact to developer.
 * snd-dice-ctl-service
   * M-Audio ProFire 2626
   * M-Audio ProFire 610
+  * Avid Mbox 3 Pro
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
