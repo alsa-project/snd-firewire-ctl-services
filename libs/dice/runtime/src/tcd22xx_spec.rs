@@ -1,8 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*};
+use glib::{Error, FileError};
+
+use hinawa::FwNode;
+
+use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*,
+                                      router_section::*, current_config_section::*};
 
 use std::convert::TryFrom;
+
+#[derive(Default, Debug)]
+pub struct Tcd22xxState {
+    pub router_entries: Vec<RouterEntryData>,
+
+    real_blk_pair: (Vec<u8>, Vec<u8>),
+    stream_blk_pair: (Vec<u8>, Vec<u8>),
+    mixer_blk_pair: (Vec<u8>, Vec<u8>),
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Input<'a> {
@@ -178,3 +192,56 @@ pub trait Tcd22xxSpec<'a> {
             })
     }
 }
+
+pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
+    where T: AsRef<FwNode>,
+          U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
+{
+    fn update_router_entries(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
+                             caps: &ExtensionCaps, rate_mode: RateMode, entries: Vec<RouterEntryData>,
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        if entries.len() > caps.router.maximum_entry_count as usize {
+            let msg = format!("The number of entries for router section should be less than {} but {}",
+                              caps.router.maximum_entry_count, entries.len());
+            Err(Error::new(FileError::Inval, &msg))?
+        }
+
+        let state = self.as_mut();
+        if entries != state.router_entries {
+            proto.write_router_entries(node, sections, caps, &entries, timeout_ms)?;
+            proto.initiate(node, sections, caps, Opcode::LoadRouter(rate_mode), timeout_ms)?;
+            state.router_entries = entries;
+        }
+
+        Ok(())
+    }
+
+    fn cache_router_entries(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
+                            caps: &ExtensionCaps, rate_mode: RateMode, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let real_blk_pair = self.compute_avail_real_blk_pair(rate_mode);
+
+        let (tx_entries, rx_entries) = proto.read_current_stream_format_entries(node, sections, caps,
+                                                                                rate_mode, timeout_ms)?;
+        let stream_blk_pair = self.compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+
+        let mixer_blk_pair = self.compute_avail_mixer_blk_pair(caps, rate_mode);
+
+        let state = self.as_mut();
+        state.real_blk_pair = real_blk_pair;
+        state.stream_blk_pair = stream_blk_pair;
+        state.mixer_blk_pair = mixer_blk_pair;
+
+        let entries = proto.read_current_router_entries(node, sections, caps, rate_mode, timeout_ms)?;
+        self.update_router_entries(node, proto, sections, caps, rate_mode, entries, timeout_ms)
+    }
+}
+
+impl<'a, O, T, U> Tcd22xxRouterOperation<'a, T, U> for O
+    where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+          T: AsRef<FwNode>,
+          U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
+{}
