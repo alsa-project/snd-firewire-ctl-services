@@ -21,3 +21,7 @@ doc = false
 [[bin]]
 name = "tcat-extension-parser"
 doc = false
+
+[[bin]]
+name = "tcat-config-rom-parser"
+doc = false

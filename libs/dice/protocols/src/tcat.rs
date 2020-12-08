@@ -63,6 +63,39 @@
 //! $ cargo run --bin tcat-extension-parser /dev/fw1
 //! ...
 //! ```
+//!
+//! ### src/bin/tcat-config-rom-parser.rs
+//!
+//! This program parse the content of configuration ROM, then print information in it.
+//!
+//! Without any command line argument, it prints help message and exit.
+//!
+//! ```sh
+//! $ cargo run --bin tcat-config-rom-parser
+//! Usage:
+//!   tcat-config-rom-parser CDEV | "-"
+//!
+//!   where:
+//!     CDEV:       the path to special file of firewire character device, typically '/dev/fw1'.
+//!     "-"         use STDIN for the content of configuration ROM to parse. It should be aligned to big endian.
+//! ```
+//!
+//! Please run with an argument for firewire character device:
+//!
+//! ```sh
+//! $ cargo run --bin tcat-config-rom-parser -- /dev/fw1
+//! ...
+//! ```
+//!
+//! Or give content of configuration ROM via STDIN:
+//!
+//! ```sh
+//! $ cat /sys/bus/firewire/devices/fw0/config_rom  | cargo run --bin tcat-config-rom-parser -- -
+//! ...
+//! ```
+//!
+//! In the above case, the content should be aligned to big-endian order.
+
 pub mod global_section;
 pub mod tx_stream_format_section;
 pub mod rx_stream_format_section;
@@ -77,6 +110,8 @@ use glib::{Error, error::ErrorDomain, Quark};
 use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
 
 mod utils;
+
+use std::ops::BitAnd;
 
 /// The structure to represent section in control and status register (CSR) of node.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
