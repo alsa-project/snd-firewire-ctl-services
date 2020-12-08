@@ -16,6 +16,7 @@ pub mod peak_section;
 pub mod router_section;
 #[doc(hidden)]
 mod stream_format_entry;
+pub mod stream_format_section;
 
 use super::{*, utils::*};
 
@@ -66,6 +67,7 @@ pub enum ProtocolExtensionError {
     Peak,
     Router,
     StreamFormatEntry,
+    StreamFormat,
     Invalid(i32),
 }
 
@@ -79,6 +81,7 @@ impl std::fmt::Display for ProtocolExtensionError {
             ProtocolExtensionError::Peak => "peak",
             ProtocolExtensionError::Router => "router",
             ProtocolExtensionError::StreamFormatEntry => "stream-format-entry",
+            ProtocolExtensionError::StreamFormat => "stream-format",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -100,6 +103,7 @@ impl ErrorDomain for ProtocolExtensionError {
             ProtocolExtensionError::Peak => 4,
             ProtocolExtensionError::Router => 5,
             ProtocolExtensionError::StreamFormatEntry => 6,
+            ProtocolExtensionError::StreamFormat => 7,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
@@ -112,7 +116,7 @@ impl ErrorDomain for ProtocolExtensionError {
             3 => ProtocolExtensionError::RouterEntry,
             4 => ProtocolExtensionError::Peak,
             5 => ProtocolExtensionError::Router,
-            6 => ProtocolExtensionError::StreamFormatEntry,
+            7 => ProtocolExtensionError::StreamFormat,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
