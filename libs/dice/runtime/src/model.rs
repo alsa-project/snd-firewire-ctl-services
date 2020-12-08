@@ -2,20 +2,22 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use hinawa::FwNodeExtManual;
+use hinawa::{FwReq, FwNodeExtManual};
 use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
 
 use ieee1212_config_rom::*;
-use dice_protocols::tcat::config_rom::*;
+use dice_protocols::tcat::{*, config_rom::*, extension::*};
 
 use std::convert::TryFrom;
 
 use super::minimal_model::MinimalModel;
+use super::extension_model::ExtensionModel;
 
 enum Model {
     Minimal(MinimalModel),
+    Extension(ExtensionModel),
 }
 
 pub struct DiceModel{
@@ -54,16 +56,31 @@ impl DiceModel {
     pub fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
+        // Replace model data when protocol extension is available.
+        if let Model::Minimal(_) = &mut self.model {
+            let proto = FwReq::default();
+            if proto.read_extension_sections(&unit.get_node(), 100).is_ok() {
+                self.model = Model::Extension(ExtensionModel::default());
+            } else {
+                // MEMO: workaround for old firmware. Invalidate a negative effect by failure of
+                // previous transaction.
+                let _ = proto.read_general_sections(&unit.get_node(), 100);
+            }
+        }
+
         match &mut self.model {
             Model::Minimal(m) => m.load(unit, card_cntr),
+            Model::Extension(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.model {
             Model::Minimal(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::Extension(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         match &mut self.model {
             Model::Minimal(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::Extension(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
 
         Ok(())
@@ -75,6 +92,7 @@ impl DiceModel {
     {
         match &mut self.model {
             Model::Minimal(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::Extension(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -83,6 +101,7 @@ impl DiceModel {
     {
         match &mut self.model {
             Model::Minimal(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+            Model::Extension(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
         }
     }
 
@@ -91,6 +110,7 @@ impl DiceModel {
     {
         match &mut self.model {
             Model::Minimal(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::Extension(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
         }
     }
 }
