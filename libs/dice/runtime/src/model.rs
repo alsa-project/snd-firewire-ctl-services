@@ -54,12 +54,16 @@ impl DiceModel {
         }
     }
 
-    pub fn dispatch_elem_event(&mut self, unit: &SndDice, card_cntr: &mut CardCntr,
-                               elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
+    pub fn dispatch_elem_event(&mut self, _: &SndDice, _: &mut CardCntr,
+                               _: &alsactl::ElemId, _: &alsactl::ElemEventMask)
         -> Result<(), Error>
     {
-        match &mut self.model {
-            Model::Minimal(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-        }
+        Ok(())
+    }
+
+    pub fn dispatch_msg(&mut self, _: &SndDice, _: &mut CardCntr, _: u32)
+        -> Result<(), Error>
+    {
+        Ok(())
     }
 }
