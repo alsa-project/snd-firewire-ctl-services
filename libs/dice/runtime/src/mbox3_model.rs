@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcat::extension::*;
+use dice_protocols::avid::*;
 
 use super::common_ctl::*;
 use super::tcd22xx_spec::*;
@@ -23,6 +25,7 @@ pub struct Mbox3Model{
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
     tcd22xx_ctl: Tcd22xxCtl<Mbox3State>,
+    standalone_ctl: StandaloneCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -39,6 +42,7 @@ impl CtlModel<SndDice> for Mbox3Model {
         self.extension_sections = self.proto.read_extension_sections(&node, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(unit, &self.proto, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
+        self.standalone_ctl.load(card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -53,6 +57,9 @@ impl CtlModel<SndDice> for Mbox3Model {
         } else if self.tcd22xx_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
                                     elem_value, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.standalone_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
+                                           elem_value, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -65,6 +72,9 @@ impl CtlModel<SndDice> for Mbox3Model {
             Ok(true)
         } else if self.tcd22xx_ctl.write(unit, &self.proto, &self.extension_sections, elem_id,
                                      old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.standalone_ctl.write(unit, &self.proto, &self.extension_sections, elem_id,
+                                            old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -156,5 +166,70 @@ impl AsRef<Tcd22xxState> for Mbox3State {
 impl AsMut<Tcd22xxState> for Mbox3State {
     fn as_mut(&mut self) -> &mut Tcd22xxState {
         &mut self.0
+    }
+}
+
+#[derive(Default)]
+struct StandaloneCtl;
+
+impl<'a> StandaloneCtl {
+    const USE_CASE_NAME: &'a str = "standalone-usecase";
+
+    const USE_CASE_LABELS: [&'a str;3] = [
+        "Mixer",
+        "AD/DA",
+        "Preamp",
+    ];
+
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::USE_CASE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::USE_CASE_LABELS, None, true)?;
+        Ok(())
+    }
+
+    fn read(&self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+            elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::USE_CASE_NAME=> {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let usecase = proto.read_standalone_use_case(&unit.get_node(), sections, timeout_ms)?;
+                    let val = match usecase {
+                        StandaloneUseCase::Mixer => 0,
+                        StandaloneUseCase::AdDa => 1,
+                        StandaloneUseCase::Preamp => 2,
+                    };
+                    Ok(val)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
+             elem_id: &ElemId, _: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::USE_CASE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let usecase = match val {
+                        0 => StandaloneUseCase::Mixer,
+                        1 => StandaloneUseCase::AdDa,
+                        2 => StandaloneUseCase::Preamp,
+                        _ => {
+                            let msg = format!("Invalid value for standalone usecase: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    proto.write_standalone_use_case(&unit.get_node(), sections, usecase, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
     }
 }
