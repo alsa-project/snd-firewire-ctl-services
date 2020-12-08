@@ -17,3 +17,4 @@ efw = { path = "../libs/efw" }
 motu = { path = "../libs/motu" }
 oxfw = { path = "../libs/oxfw" }
 bebob = { path = "../libs/bebob" }
+dice-runtime = { path = "../libs/dice/runtime" }

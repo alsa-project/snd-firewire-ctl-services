@@ -27,6 +27,8 @@ snd-oxfw-ctl-service
    For sound card bound to ALSA oxfw driver (snd-oxfw)
 snd-bebob-ctl-service
    For sound card bound to ALSA bebob driver (snd-bebob)
+snd-dice-ctl-service
+   For sound card bound to ALSA dice driver (snd-dice)
 
 License
 =======
