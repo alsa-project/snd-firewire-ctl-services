@@ -10,6 +10,7 @@ use glib::{Error, FileError};
 
 use hinawa::{FwReq, FwNode};
 
+use super::tcat::*;
 use super::tcat::extension::{*, appl_section::*};
 
 /// The enumeration to represent usecase of standalone mode.
@@ -561,3 +562,39 @@ pub trait AvidMbox3ReverbProtocol<T> : ApplSectionProtocol<T>
 }
 
 impl<O: AsRef<FwReq>, T: AsRef<FwNode>> AvidMbox3ReverbProtocol<T> for O {}
+
+/// The trait and its implementation to parse notification defined by Avid.
+pub trait AvidMbox3Notification : TcatNotification {
+    const PHANTOM_BUTTON_PUSHED: u32 = 0x10000000;
+    const SPKR_BUTTON_PUSHED: u32 = 0x04000000;
+    const SPKR_BUTTON_HELD: u32 = 0x02000000;
+    const MONO_BUTTON_PUSHED: u32 = 0x00800000;
+    const MUTE_BUTTON_PUSHED: u32 = 0x00400000;
+    const MUTE_BUTTON_HELD: u32 = 0x00200000;
+
+    fn has_phantom_button_pushed(self) -> bool {
+        self.bitand(Self::PHANTOM_BUTTON_PUSHED) > 0
+    }
+
+    fn has_spkr_button_pushed(self) -> bool {
+        self.bitand(Self::SPKR_BUTTON_PUSHED) > 0
+    }
+
+    fn has_spkr_button_held(self) -> bool {
+        self.bitand(Self::SPKR_BUTTON_HELD) > 0
+    }
+
+    fn has_mono_button_pushed(self) -> bool {
+        self.bitand(Self::MONO_BUTTON_PUSHED) > 0
+    }
+
+    fn has_mute_button_pushed(self) -> bool {
+        self.bitand(Self::MUTE_BUTTON_PUSHED) > 0
+    }
+
+    fn has_mute_button_held(self) -> bool {
+        self.bitand(Self::MUTE_BUTTON_HELD) > 0
+    }
+}
+
+impl<O: TcatNotification> AvidMbox3Notification for O {}
