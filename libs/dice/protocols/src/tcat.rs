@@ -13,10 +13,13 @@
 //! All of the protocol is implemented to trait per section in which `AsRef<hinawa::FwReq>` is
 //! used for supertrait. Any call of method in the trait initiates asynchronous transaction to
 //! operate the registers.
+pub mod global_section;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
 use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
+
+mod utils;
 
 /// The structure to represent section in control and status register (CSR) of node.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
@@ -73,12 +76,14 @@ impl From<&[u8]> for GeneralSections {
 /// The enumeration to represent any error of general protocol.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GeneralProtocolError {
+    Global,
     Invalid(i32),
 }
 
 impl std::fmt::Display for GeneralProtocolError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let msg = match self {
+            GeneralProtocolError::Global => "global",
             GeneralProtocolError::Invalid(_) => "invalid",
         };
 
@@ -93,12 +98,14 @@ impl ErrorDomain for GeneralProtocolError {
 
     fn code(self) -> i32 {
         match self {
+            GeneralProtocolError::Global => 0,
             GeneralProtocolError::Invalid(v) => v,
         }
     }
 
     fn from(code: i32) -> Option<Self> {
         let enumeration = match code {
+            0 => GeneralProtocolError::Global,
             _ => GeneralProtocolError::Invalid(code),
         };
         Some(enumeration)
