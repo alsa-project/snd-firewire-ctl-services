@@ -130,6 +130,7 @@ your device, please contact to developer.
   * Stanton ScratchAmp in Final Scratch version 2
 
 * snd-dice-ctl-service
+  * M-Audio ProFire 2626
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
