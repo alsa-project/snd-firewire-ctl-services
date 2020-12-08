@@ -16,6 +16,7 @@
 pub mod global_section;
 pub mod tx_stream_format_section;
 pub mod rx_stream_format_section;
+pub mod ext_sync_section;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
