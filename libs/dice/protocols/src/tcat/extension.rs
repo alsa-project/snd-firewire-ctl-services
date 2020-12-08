@@ -9,6 +9,7 @@
 
 pub mod caps_section;
 pub mod cmd_section;
+pub mod mixer_section;
 
 use super::*;
 
@@ -52,6 +53,7 @@ impl From<&[u8]> for ExtensionSections {
 pub enum ProtocolExtensionError {
     Caps,
     Cmd,
+    Mixer,
     Invalid(i32),
 }
 
@@ -60,6 +62,7 @@ impl std::fmt::Display for ProtocolExtensionError {
         let msg = match self {
             ProtocolExtensionError::Caps => "caps",
             ProtocolExtensionError::Cmd => "command",
+            ProtocolExtensionError::Mixer => "mixer",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -76,6 +79,7 @@ impl ErrorDomain for ProtocolExtensionError {
         match self {
             ProtocolExtensionError::Caps => 0,
             ProtocolExtensionError::Cmd => 1,
+            ProtocolExtensionError::Mixer => 2,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
@@ -84,6 +88,7 @@ impl ErrorDomain for ProtocolExtensionError {
         let enumeration = match code {
             0 => ProtocolExtensionError::Caps,
             1 => ProtocolExtensionError::Cmd,
+            2 => ProtocolExtensionError::Mixer,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
