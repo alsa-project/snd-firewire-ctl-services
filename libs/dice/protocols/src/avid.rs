@@ -432,3 +432,132 @@ pub trait AvidMbox3HwProtocol<T> : ApplSectionProtocol<T>
 }
 
 impl<O: AsRef<FwReq>, T: AsRef<FwNode>> AvidMbox3HwProtocol<T> for O {}
+
+/// The enumration to represent type of reverb DSP.
+pub enum ReverbType {
+    Room1,
+    Room2,
+    Room3,
+    Hall1,
+    Hall2,
+    Plate,
+    Delay,
+    Echo,
+}
+
+impl ReverbType {
+    const ROOM_1: u32 = 0x01;
+    const ROOM_2: u32 = 0x04;
+    const ROOM_3: u32 = 0x05;
+    const HALL_1: u32 = 0x06;
+    const HALL_2: u32 = 0x08;
+    const PLATE: u32 = 0x0b;
+    const DELAY: u32 = 0x13;
+    const ECHO: u32 = 0x14;
+}
+
+impl From<u32> for ReverbType {
+    fn from(val: u32) -> Self {
+        match val {
+            ReverbType::ROOM_1 => ReverbType::Room1,
+            ReverbType::ROOM_2 => ReverbType::Room2,
+            ReverbType::ROOM_3 => ReverbType::Room3,
+            ReverbType::HALL_1 => ReverbType::Hall1,
+            ReverbType::HALL_2 => ReverbType::Hall2,
+            ReverbType::PLATE => ReverbType::Plate,
+            ReverbType::DELAY => ReverbType::Delay,
+            _ => ReverbType::Echo,
+        }
+    }
+}
+
+impl From<ReverbType> for u32 {
+    fn from(reverb_type: ReverbType) -> Self {
+        match reverb_type {
+            ReverbType::Room1 => ReverbType::ROOM_1,
+            ReverbType::Room2 => ReverbType::ROOM_2,
+            ReverbType::Room3 => ReverbType::ROOM_3,
+            ReverbType::Hall1 => ReverbType::HALL_1,
+            ReverbType::Hall2 => ReverbType::HALL_2,
+            ReverbType::Plate => ReverbType::PLATE,
+            ReverbType::Delay => ReverbType::DELAY,
+            ReverbType::Echo => ReverbType::ECHO,
+        }
+    }
+}
+
+/// The trait and its implementation to represent reverb protocol for Avid Mbox 3 pro.
+pub trait AvidMbox3ReverbProtocol<T> : ApplSectionProtocol<T>
+    where T: AsRef<FwNode>,
+{
+    const REVERB_TYPE_OFFSET: usize = 0x40;
+    const REVERB_VOLUME_OFFSET: usize = 0x44;
+    const REVERB_DURATION_OFFSET: usize = 0x48;
+    const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
+
+    fn read_reverb_type(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
+        -> Result<ReverbType, Error>
+    {
+        let mut data = [0;4];
+        self.read_appl_data(node, sections, Self::REVERB_TYPE_OFFSET, &mut data, timeout_ms)
+            .map(|_| ReverbType::from(u32::from_be_bytes(data)))
+    }
+
+    fn write_reverb_type(&self, node: &T, sections: &ExtensionSections, reverb_type: ReverbType,
+                         timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut data = u32::from(reverb_type).to_be_bytes().clone();
+        self.write_appl_data(node, sections, Self::REVERB_TYPE_OFFSET, &mut data, timeout_ms)
+    }
+
+    fn read_reverb_volume(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
+        -> Result<u8, Error>
+    {
+        let mut data = [0;4];
+        self.read_appl_data(node, sections, Self::REVERB_VOLUME_OFFSET, &mut data, timeout_ms)
+            .map(|_| u32::from_be_bytes(data) as u8)
+    }
+
+    fn write_reverb_volume(&self, node: &T, sections: &ExtensionSections, volume: u8,
+                           timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut data = (volume as u32).to_be_bytes().clone();
+        self.write_appl_data(node, sections, Self::REVERB_VOLUME_OFFSET, &mut data, timeout_ms)
+    }
+
+    fn read_reverb_duration(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
+        -> Result<u8, Error>
+    {
+        let mut data = [0;4];
+        self.read_appl_data(node, sections, Self::REVERB_DURATION_OFFSET, &mut data, timeout_ms)
+            .map(|_| u32::from_be_bytes(data) as u8)
+    }
+
+    fn write_reverb_duration(&self, node: &T, sections: &ExtensionSections, duration: u8,
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut data = (duration as u32).to_be_bytes().clone();
+        self.write_appl_data(node, sections, Self::REVERB_DURATION_OFFSET, &mut data, timeout_ms)
+    }
+
+    fn read_reverb_feedback(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
+        -> Result<u8, Error>
+    {
+        let mut data = [0;4];
+        self.read_appl_data(node, sections, Self::REVERB_FEEDBACK_OFFSET, &mut data, timeout_ms)
+            .map(|_| u32::from_be_bytes(data) as u8)
+    }
+
+    fn write_reverb_feedback(&self, node: &T, sections: &ExtensionSections, feedback: u8,
+                              timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut data = (feedback as u32).to_be_bytes().clone();
+        self.write_appl_data(node, sections, Self::REVERB_FEEDBACK_OFFSET, &mut data, timeout_ms)
+    }
+}
+
+impl<O: AsRef<FwReq>, T: AsRef<FwNode>> AvidMbox3ReverbProtocol<T> for O {}
