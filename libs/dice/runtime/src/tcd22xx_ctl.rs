@@ -10,12 +10,14 @@ use hinawa::{SndDice, SndUnitExt};
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*, mixer_section::*};
 use dice_protocols::tcat::extension::peak_section::*;
 use dice_protocols::tcat::extension::current_config_section::*;
 
-use super::tcd22xx_spec::{Tcd22xxState, Tcd22xxSpec, Tcd22xxStateOperation, Tcd22xxRouterOperation};
+use super::tcd22xx_spec::{Tcd22xxState, Tcd22xxSpec, Tcd22xxRouterOperation, Tcd22xxMixerOperation, Tcd22xxStateOperation};
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtl<S>
@@ -25,6 +27,7 @@ pub struct Tcd22xxCtl<S>
     caps: ExtensionCaps,
     meter_ctl: MeterCtl,
     router_ctl: RouterCtl,
+    mixer_ctl: MixerCtl,
 }
 
 impl<S> Tcd22xxCtl<S>
@@ -40,6 +43,7 @@ impl<S> Tcd22xxCtl<S>
 
         self.meter_ctl.load(&node, proto, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
         self.router_ctl.load(&node, proto, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
+        self.mixer_ctl.load(&self.caps, &self.state, card_cntr)?;
 
         Ok(())
     }
@@ -59,7 +63,13 @@ impl<S> Tcd22xxCtl<S>
                 elem_value: &mut ElemValue, _: u32)
         -> Result<bool, Error>
     {
-        self.router_ctl.read(&self.state, elem_id, elem_value)
+        if self.router_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn write(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
@@ -67,8 +77,16 @@ impl<S> Tcd22xxCtl<S>
         -> Result<bool, Error>
     {
         let node = unit.get_node();
-        self.router_ctl.write(&node, proto, sections, &self.caps, &mut self.state, elem_id,
-                              old, new, timeout_ms)
+
+        if self.router_ctl.write(&node, proto, sections, &self.caps, &mut self.state, elem_id,
+                              old, new, timeout_ms)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(&node, proto, sections, &self.caps, &mut self.state, elem_id,
+                                       old, new, timeout_ms)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn get_measured_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
@@ -105,6 +123,8 @@ impl<S> Tcd22xxCtl<S>
     {
         if self.router_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
+        } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -134,7 +154,7 @@ impl<'a> MeterCtl {
     const INPUT_SATURATION_NAME: &'a str = "mixer-out-saturation";
 
     const COEF_MIN: i32 = 0;
-    const COEF_MAX: i32 = 0x00000fffi32; // 2:14 Fixed-point.
+    const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
     const COEF_STEP: i32 = 1;
 
     pub fn load<T>(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
@@ -400,5 +420,85 @@ impl<'a> RouterCtl {
         })?;
 
         state.update_router_entries(node, proto, sections, caps, RateMode::Low, entries, timeout_ms)
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct MixerCtl {
+    // Maximum number block in low rate mode.
+    mixer_blk_pair: (Vec<u8>, Vec<u8>),
+    pub notified_elem_list: Vec<alsactl::ElemId>,
+}
+
+impl<'a> MixerCtl {
+    const SRC_GAIN_NAME: &'a str = "mixer-source-gain";
+
+    const COEF_MIN: i32 = 0;
+    const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
+    const COEF_STEP: i32 = 1;
+    const COEF_TLV: DbInterval = DbInterval{min: -6000, max: 4, linear: false, mute_avail: false};
+
+    pub fn load<T>(&mut self, caps: &ExtensionCaps, state: &T, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    {
+        self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
+
+        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+                                                   0, 0, Self::SRC_GAIN_NAME, 0);
+        let mut elem_id_list = card_cntr.add_int_elems(&elem_id, self.mixer_blk_pair.0.len(),
+                                            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
+                                            self.mixer_blk_pair.1.len(),
+                                            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
+        self.notified_elem_list.append(&mut elem_id_list);
+
+        Ok(())
+    }
+
+    pub fn read<T>(&self, state: &T, elem_id: &alsactl::ElemId, elem_value: &alsactl::ElemValue)
+        -> Result<bool, Error>
+        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::SRC_GAIN_NAME => {
+                let dst_ch = elem_id.get_index() as usize;
+                let res = state.as_ref().mixer_cache.iter()
+                    .nth(dst_ch)
+                    .map(|entries| {
+                        elem_value.set_int(entries);
+                        true
+                    })
+                    .unwrap_or(false);
+                Ok(res)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<T>(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
+                   caps: &ExtensionCaps, state: &mut T, elem_id: &ElemId,
+                   old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::SRC_GAIN_NAME => {
+                let dst_ch = elem_id.get_index() as usize;
+                let mut cache = state.as_mut().mixer_cache.clone();
+                let res = match cache.iter_mut().nth(dst_ch) {
+                    Some(entries) => {
+                        let _ = ElemValueAccessor::<i32>::get_vals(new, old, entries.len(), |src_ch, val| {
+                            entries[src_ch] = val;
+                            Ok(())
+                        });
+                        state.update_mixer_coef(node, proto, sections, caps, &cache, timeout_ms)?;
+                        true
+                    }
+                    None => false,
+                };
+                Ok(res)
+            }
+            _ => Ok(false),
+        }
     }
 }
