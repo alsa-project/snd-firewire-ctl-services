@@ -19,6 +19,7 @@ mod stream_format_entry;
 pub mod stream_format_section;
 pub mod current_config_section;
 pub mod appl_section;
+pub mod standalone_section;
 
 use super::{*, utils::*};
 
@@ -72,6 +73,7 @@ pub enum ProtocolExtensionError {
     StreamFormat,
     CurrentConfig,
     Appl,
+    Standalone,
     Invalid(i32),
 }
 
@@ -88,6 +90,7 @@ impl std::fmt::Display for ProtocolExtensionError {
             ProtocolExtensionError::StreamFormat => "stream-format",
             ProtocolExtensionError::CurrentConfig => "current-config",
             ProtocolExtensionError::Appl => "application",
+            ProtocolExtensionError::Standalone => "standalone",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -112,6 +115,7 @@ impl ErrorDomain for ProtocolExtensionError {
             ProtocolExtensionError::StreamFormat => 7,
             ProtocolExtensionError::CurrentConfig => 8,
             ProtocolExtensionError::Appl => 9,
+            ProtocolExtensionError::Standalone => 10,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
@@ -127,6 +131,7 @@ impl ErrorDomain for ProtocolExtensionError {
             7 => ProtocolExtensionError::StreamFormat,
             8 => ProtocolExtensionError::CurrentConfig,
             9 => ProtocolExtensionError::Appl,
+            10 => ProtocolExtensionError::Standalone,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
