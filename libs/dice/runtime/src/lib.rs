@@ -3,6 +3,7 @@
 mod model;
 mod minimal_model;
 mod extension_model;
+mod tcd22xx_spec;
 mod common_ctl;
 
 use glib::Error;
