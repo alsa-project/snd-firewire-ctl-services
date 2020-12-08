@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 mod model;
 mod minimal_model;
+mod common_ctl;
 
 use glib::Error;
 use glib::source;

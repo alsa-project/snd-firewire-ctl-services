@@ -3,8 +3,7 @@
 use glib::{Error, FileError};
 
 use hinawa::FwNodeExtManual;
-use hinawa::SndUnitExt;
-use hinawa::SndDice;
+use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
 
