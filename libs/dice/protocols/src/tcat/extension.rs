@@ -12,6 +12,7 @@ pub mod cmd_section;
 pub mod mixer_section;
 #[doc(hidden)]
 mod router_entry;
+pub mod peak_section;
 
 use super::*;
 
@@ -57,6 +58,7 @@ pub enum ProtocolExtensionError {
     Cmd,
     Mixer,
     RouterEntry,
+    Peak,
     Invalid(i32),
 }
 
@@ -67,6 +69,7 @@ impl std::fmt::Display for ProtocolExtensionError {
             ProtocolExtensionError::Cmd => "command",
             ProtocolExtensionError::Mixer => "mixer",
             ProtocolExtensionError::RouterEntry => "router-entry",
+            ProtocolExtensionError::Peak => "peak",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -85,6 +88,7 @@ impl ErrorDomain for ProtocolExtensionError {
             ProtocolExtensionError::Cmd => 1,
             ProtocolExtensionError::Mixer => 2,
             ProtocolExtensionError::RouterEntry => 3,
+            ProtocolExtensionError::Peak => 4,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
@@ -95,6 +99,7 @@ impl ErrorDomain for ProtocolExtensionError {
             1 => ProtocolExtensionError::Cmd,
             2 => ProtocolExtensionError::Mixer,
             3 => ProtocolExtensionError::RouterEntry,
+            4 => ProtocolExtensionError::Peak,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
