@@ -20,6 +20,7 @@ enum Model {
 
 pub struct DiceModel{
     model: Model,
+    notified_elem_list: Vec<alsactl::ElemId>,
 }
 
 impl DiceModel {
@@ -44,26 +45,38 @@ impl DiceModel {
             _ => Model::Minimal(MinimalModel::default()),
         };
 
-        Ok(DiceModel{model})
+        let notified_elem_list = Vec::new();
+
+        Ok(DiceModel{model, notified_elem_list})
     }
     pub fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         match &mut self.model {
             Model::Minimal(m) => m.load(unit, card_cntr),
+        }?;
+
+        match &mut self.model {
+            Model::Minimal(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+        }
+
+        Ok(())
+    }
+
+    pub fn dispatch_elem_event(&mut self, unit: &SndDice, card_cntr: &mut CardCntr,
+                               elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
+        -> Result<(), Error>
+    {
+        match &mut self.model {
+            Model::Minimal(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
-    pub fn dispatch_elem_event(&mut self, _: &SndDice, _: &mut CardCntr,
-                               _: &alsactl::ElemId, _: &alsactl::ElemEventMask)
+    pub fn dispatch_msg(&mut self, unit: &SndDice, card_cntr: &mut CardCntr, msg: u32)
         -> Result<(), Error>
     {
-        Ok(())
-    }
-
-    pub fn dispatch_msg(&mut self, _: &SndDice, _: &mut CardCntr, _: u32)
-        -> Result<(), Error>
-    {
-        Ok(())
+        match &mut self.model {
+            Model::Minimal(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+        }
     }
 }

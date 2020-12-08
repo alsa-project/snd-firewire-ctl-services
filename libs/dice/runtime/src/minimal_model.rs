@@ -44,3 +44,19 @@ impl CtlModel<SndDice> for MinimalModel {
         self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)
     }
 }
+
+impl NotifyModel<SndDice, u32> for MinimalModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+    }
+
+    fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)
+    }
+
+    fn read_notified_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        self.ctl.read_notified_elem(elem_id, elem_value)
+    }
+}
