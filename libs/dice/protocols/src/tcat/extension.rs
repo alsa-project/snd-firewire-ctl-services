@@ -17,6 +17,7 @@ pub mod router_section;
 #[doc(hidden)]
 mod stream_format_entry;
 pub mod stream_format_section;
+pub mod current_config_section;
 
 use super::{*, utils::*};
 
@@ -68,6 +69,7 @@ pub enum ProtocolExtensionError {
     Router,
     StreamFormatEntry,
     StreamFormat,
+    CurrentConfig,
     Invalid(i32),
 }
 
@@ -82,6 +84,7 @@ impl std::fmt::Display for ProtocolExtensionError {
             ProtocolExtensionError::Router => "router",
             ProtocolExtensionError::StreamFormatEntry => "stream-format-entry",
             ProtocolExtensionError::StreamFormat => "stream-format",
+            ProtocolExtensionError::CurrentConfig => "current-config",
             ProtocolExtensionError::Invalid(_) => "invalid",
         };
 
@@ -104,6 +107,7 @@ impl ErrorDomain for ProtocolExtensionError {
             ProtocolExtensionError::Router => 5,
             ProtocolExtensionError::StreamFormatEntry => 6,
             ProtocolExtensionError::StreamFormat => 7,
+            ProtocolExtensionError::CurrentConfig => 8,
             ProtocolExtensionError::Invalid(v) => v,
         }
     }
@@ -117,6 +121,7 @@ impl ErrorDomain for ProtocolExtensionError {
             4 => ProtocolExtensionError::Peak,
             5 => ProtocolExtensionError::Router,
             7 => ProtocolExtensionError::StreamFormat,
+            8 => ProtocolExtensionError::CurrentConfig,
             _ => ProtocolExtensionError::Invalid(code),
         };
         Some(enumeration)
