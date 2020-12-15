@@ -49,7 +49,7 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
         self.extension_sections = self.proto.read_extension_sections(&node, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(unit, &self.proto, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
-        self.specific_ctl.load(unit, &self.proto, &self.extension_sections, TIMEOUT_MS, card_cntr)?;
+        self.specific_ctl.load(card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -64,7 +64,8 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
         } else if self.tcd22xx_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
                                     elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.specific_ctl.read(elem_id, elem_value)? {
+        } else if self.specific_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
+                                         elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -257,21 +258,22 @@ impl<'a> SpecificCtl {
         "analog-out-7/8",
     ];
 
-    fn load(&self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections, timeout_ms: u32,
-            card_cntr: &mut CardCntr)
+    fn load(&self, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        let node = unit.get_node();
-        proto.write_knob_assign(&node, sections, &self.targets, timeout_ms)?;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MASTER_KNOB_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MASTER_KNOB_TARGET_LABELS.len(), true)?;
         Ok(())
     }
 
-    fn read(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    fn read(&self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections, elem_id: &ElemId,
+            elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
         match elem_id.get_name().as_str() {
             Self::MASTER_KNOB_NAME => {
+                let mut assigns = [false;KNOB_COUNT];
+                proto.read_knob_assign(&unit.get_node(), sections, &mut assigns, timeout_ms)?;
                 elem_value.set_bool(&self.targets);
                 Ok(true)
             }
