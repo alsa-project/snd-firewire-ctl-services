@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 
@@ -49,7 +49,7 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
         self.extension_sections = self.proto.read_extension_sections(&node, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(unit, &self.proto, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
-        self.specific_ctl.load(card_cntr)?;
+        self.specific_ctl.load(&caps, &src_labels, card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -249,6 +249,8 @@ struct SpecificCtl{
 
 impl<'a> SpecificCtl {
     const MASTER_KNOB_NAME: &'a str = "master-knob-target";
+    const OPT_IFACE_B_MODE_NAME: &'a str = "optical-iface-b-mode";
+    const STANDALONE_CONVERTER_MODE_NAME: &'a str = "standalone-converter-mode";
 
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
     const MASTER_KNOB_TARGET_LABELS: &'a [&'a str] = &[
@@ -257,12 +259,24 @@ impl<'a> SpecificCtl {
         "analog-out-5/6",
         "analog-out-7/8",
     ];
+    const OPT_IFACE_B_MODE_LABELS: &'a [&'a str] = &["ADAT", "S/PDIF"];
+    const STANDALONE_CONVERTER_MODE_LABELS: &'a [&'a str] = &["A/D-D/A", "A/D-only"];
 
-    fn load(&self, card_cntr: &mut CardCntr)
+    fn load(&self, caps: &ClockCaps, src_labels: &ClockSourceLabels, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MASTER_KNOB_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MASTER_KNOB_TARGET_LABELS.len(), true)?;
+
+        // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
+        if ClockSource::Tdif.is_supported(caps, src_labels) {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_IFACE_B_MODE_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::OPT_IFACE_B_MODE_LABELS, None, true)?;
+
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STANDALONE_CONVERTER_MODE_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::STANDALONE_CONVERTER_MODE_LABELS, None, true)?;
+        }
+
         Ok(())
     }
 
@@ -276,6 +290,30 @@ impl<'a> SpecificCtl {
                 proto.read_knob_assign(&unit.get_node(), sections, &mut assigns, timeout_ms)?;
                 elem_value.set_bool(&self.targets);
                 Ok(true)
+            }
+            Self::OPT_IFACE_B_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.read_opt_iface_b_mode(&unit.get_node(), sections, timeout_ms)
+                        .map(|mode| {
+                            match mode {
+                                OptIfaceMode::Adat => 0,
+                                OptIfaceMode::Spdif => 1,
+                            }
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::STANDALONE_CONVERTER_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.read_standalone_converter_mode(&unit.get_node(), sections, timeout_ms)
+                        .map(|mode| {
+                            match mode {
+                                StandaloneConerterMode::AdDa => 0,
+                                StandaloneConerterMode::AdOnly => 1,
+                            }
+                        })
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -294,6 +332,34 @@ impl<'a> SpecificCtl {
                 let node = unit.get_node();
                 proto.write_knob_assign(&node, sections, &self.targets, timeout_ms)?;
                 Ok(true)
+            }
+            Self::OPT_IFACE_B_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mode = match val {
+                        0 => OptIfaceMode::Adat,
+                        1 => OptIfaceMode::Spdif,
+                        _ => {
+                            let msg = format!("Invalid value for index of optical interface mode: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    proto.write_opt_iface_b_mode(&unit.get_node(), sections, mode, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::STANDALONE_CONVERTER_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let mode = match val {
+                        0 => StandaloneConerterMode::AdDa,
+                        1 => StandaloneConerterMode::AdOnly,
+                        _ => {
+                            let msg = format!("Invalid value for index of standalone converter mode: {}", val);
+                            Err(Error::new(FileError::Inval, &msg))?
+                        }
+                    };
+                    proto.write_standalone_converter_mode(&unit.get_node(), sections, mode, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
