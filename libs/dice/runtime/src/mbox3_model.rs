@@ -376,7 +376,7 @@ impl<'a> HwCtl {
                 Ok(true)
             }
             Self::OUTPUT_TRIM_NAME => {
-                ElemValueAccessor::<i32>::get_vals(old, new, Self::OUTPUT_COUNT, |idx, val| {
+                ElemValueAccessor::<i32>::get_vals(new, old, Self::OUTPUT_COUNT, |idx, val| {
                     proto.write_hw_output_trim(&unit.get_node(), sections, idx, val as u8, timeout_ms)
                 })
                 .map(|_| true)
