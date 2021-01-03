@@ -63,7 +63,8 @@
 //! `TlvItem` enumeration is a good start to use the crate. It implements `TryFrom<&[u32]>` to
 //! decode raw data of TLV which is array of u32 elements. The type of data is retrieved by a shape
 //! of Rust enumeration items. Each item has associated value. Both of enumeration itself and the
-//! structure of associated value implements `Into<Vec<u32>>` to generate raw data of TLV.
+//! structure of associated value has trait boundary to `Vec::<u32>: From(&Self)` to generate raw
+//! data of TLV.
 //!
 //! The associated value can be instantiated directly, then raw data can be generated:
 //!
@@ -274,9 +275,11 @@ impl std::error::Error for InvalidTlvDataError {}
 
 /// The trait for common methods to data of TLV (Type-Length-Value) in ALSA control interface.
 /// The TryFrom supertrait should be implemented to parse the array of u32 elements and it
-/// can return InvalidTlvDataError at failure. The Into supertrait should be implemented as well
-/// to build the array of u32 element.
-pub trait TlvData<'a> : std::convert::TryFrom<&'a [u32]> + Into<Vec<u32>> {
+/// can return InvalidTlvDataError at failure. The trait boundary to Vec::<u32>::From(&Self)
+/// should be implemented as well to build the array of u32 element.
+pub trait TlvData<'a> : std::convert::TryFrom<&'a [u32]>
+    where for<'b> Vec<u32>: From<&'b Self>,
+{
     /// Return the value of type field. It should come from UAPI of Linux kernel.
     fn value_type(&self) -> u32;
 
@@ -293,9 +296,9 @@ use containers::*;
 
 /// Available items as data of TLV (Type-Length-Value) style in ALSA control interface.
 ///
-/// When docoding from data of TLV, use implementation of `TryFrom<&[u32]>` trait.  Data assigned
-/// to each enumeration implements `TlvData`, `TryFrom<&[u32]`, and `Into<Vec<u32>>` trait. When
-/// decoding to data of TLV, use implementation of `Into<Vec<u32>>` for the data.
+/// When decoding from data of TLV, use implementation of `TryFrom<&[u32]>` trait.  Data assigned
+/// to each enumeration implements `TlvData`, `TryFrom<&[u32]`, and `Vec::<u32>::from(&Self)` trait.
+/// When decoding to data of TLV, use implementation of `Vec::<u32>::from(&Self)` for the data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TlvItem{
     Container(Container),

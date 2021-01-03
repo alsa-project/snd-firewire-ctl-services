@@ -62,7 +62,8 @@ match TlvItem::try_from(&raw[..]) {
 `TlvItem` enumeration is a good start to use the crate. It implements `TryFrom<&[u32]>` to
 decode raw data of TLV which is array of u32 elements. The type of data is retrieved by a shape
 of Rust enumeration items. Each item has associated value. Both of enumeration itself and the
-structure of associated value implements `Into<Vec<u32>>` to generate raw data of TLV.
+structure of associated value has trait boundary to `Vec::<u32>: From(&Self)` to generate raw
+data of TLV.
 
 The associated value can be instantiated directly, then raw data can be generated:
 
