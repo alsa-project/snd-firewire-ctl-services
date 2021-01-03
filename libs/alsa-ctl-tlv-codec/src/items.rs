@@ -502,7 +502,7 @@ mod test {
         assert_eq!(item.min, -10);
         assert_eq!(item.step, 16);
         assert_eq!(item.mute_avail, false);
-        assert_eq!(&Into::<Vec<u32>>::into(item)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(item)[..], &raw[..]);
     }
 
     #[test]
@@ -512,7 +512,7 @@ mod test {
         assert_eq!(item.min, 10);
         assert_eq!(item.step, 16);
         assert_eq!(item.mute_avail, true);
-        assert_eq!(&Into::<Vec<u32>>::into(item)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(item)[..], &raw[..]);
     }
 
     #[test]
@@ -523,7 +523,7 @@ mod test {
         assert_eq!(item.max, 100);
         assert_eq!(item.linear, false);
         assert_eq!(item.mute_avail, false);
-        assert_eq!(&Into::<Vec<u32>>::into(item)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(item)[..], &raw[..]);
     }
 
     #[test]
@@ -534,7 +534,7 @@ mod test {
         assert_eq!(item.max, 100);
         assert_eq!(item.linear, false);
         assert_eq!(item.mute_avail, true);
-        assert_eq!(&Into::<Vec<u32>>::into(item)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(item)[..], &raw[..]);
     }
 
     #[test]
@@ -545,7 +545,7 @@ mod test {
         assert_eq!(item.max, 100);
         assert_eq!(item.linear, true);
         assert_eq!(item.mute_avail, true);
-        assert_eq!(&Into::<Vec<u32>>::into(item)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(item)[..], &raw[..]);
     }
 
     #[test]
@@ -592,7 +592,7 @@ mod test {
             ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft), phase_inverse: false},
             ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontRight), phase_inverse: false},
         ]);
-        assert_eq!(&Into::<Vec<u32>>::into(map)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(map)[..], &raw[..]);
     }
 
     #[test]
@@ -605,7 +605,7 @@ mod test {
             ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontRight), phase_inverse: false},
             ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::LowFrequencyEffect), phase_inverse: false},
         ][..]);
-        assert_eq!(&Into::<Vec<u32>>::into(map)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(map)[..], &raw[..]);
     }
 
     #[test]
@@ -619,6 +619,6 @@ mod test {
             ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::RearLeft), phase_inverse: false},
             ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::RearRight), phase_inverse: false},
         ][..]);
-        assert_eq!(&Into::<Vec<u32>>::into(map)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(map)[..], &raw[..]);
     }
 }

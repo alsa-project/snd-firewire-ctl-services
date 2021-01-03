@@ -85,9 +85,9 @@ impl From<&DbRangeEntry> for Vec<u32> {
         raw.push(entry.min_val as u32);
         raw.push(entry.max_val as u32);
         let mut data_raw = match &entry.data {
-            DbRangeEntryData::DbScale(d) => Into::<Vec<u32>>::into(d),
-            DbRangeEntryData::DbRange(d) => Into::<Vec<u32>>::into(d),
-            DbRangeEntryData::DbInterval(d) => Into::<Vec<u32>>::into(d),
+            DbRangeEntryData::DbScale(d) => Vec::<u32>::from(d),
+            DbRangeEntryData::DbRange(d) => Vec::<u32>::from(d),
+            DbRangeEntryData::DbInterval(d) => Vec::<u32>::from(d),
         };
         raw.append(&mut data_raw);
         raw
@@ -121,7 +121,7 @@ impl<'a> TlvData<'a> for DbRange {
     fn value(&self) -> Vec<u32> {
         let mut raw = Vec::new();
         self.entries.iter().for_each(|entry| {
-            let mut entry_raw = Into::<Vec<u32>>::into(entry);
+            let mut entry_raw = Vec::<u32>::from(entry);
             raw.append(&mut entry_raw);
         });
         raw
@@ -285,7 +285,7 @@ mod test {
         assert_eq!(entry.min_val, -9);
         assert_eq!(entry.max_val, 100);
         assert_eq!(entry.data, DbRangeEntryData::DbScale(DbScale{min: 0, step: 10, mute_avail: false}));
-        assert_eq!(&Into::<Vec<u32>>::into(entry)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(entry)[..], &raw[..]);
     }
 
     #[test]
@@ -295,7 +295,7 @@ mod test {
         assert_eq!(entry.min_val, -9);
         assert_eq!(entry.max_val, 100);
         assert_eq!(entry.data, DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 10, linear: true, mute_avail: true}));
-        assert_eq!(&Into::<Vec<u32>>::into(entry)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(entry)[..], &raw[..]);
     }
 
     #[test]
@@ -321,7 +321,7 @@ mod test {
             max_val: 30,
             data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 20, linear: false, mute_avail: true}),
         });
-        assert_eq!(&Into::<Vec<u32>>::into(range)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(range)[..], &raw[..]);
     }
 
     #[test]
@@ -333,7 +333,7 @@ mod test {
         let cntr = Container::try_from(&raw[..]).unwrap();
         assert_eq!(cntr.entries[0], TlvItem::DbScale(DbScale{min: 0, step: 5, mute_avail: false}));
         assert_eq!(cntr.entries[1], TlvItem::DbScale(DbScale{min: 5, step: 5, mute_avail: false}));
-        assert_eq!(&Into::<Vec<u32>>::into(cntr)[..], &raw);
+        assert_eq!(&Vec::<u32>::from(cntr)[..], &raw);
     }
 
     #[test]
@@ -381,6 +381,6 @@ mod test {
                 },
             ],
         }));
-        assert_eq!(&Into::<Vec<u32>>::into(cntr)[..], &raw[..]);
+        assert_eq!(&Vec::<u32>::from(cntr)[..], &raw[..]);
     }
 }
