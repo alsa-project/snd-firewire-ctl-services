@@ -90,8 +90,8 @@ impl CommonCtl {
             .map(|pos| self.curr_src_idx = pos as u32)
     }
 
-    pub fn read(&mut self, unit: &SndDice, proto: &FwReq, sections: &GeneralSections,
-                elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+    pub fn read<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T, sections: &GeneralSections,
+                                 elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -147,8 +147,8 @@ impl CommonCtl {
         Ok(())
     }
 
-    pub fn write(&mut self, unit: &SndDice, proto: &FwReq, sections: &GeneralSections,
-                 elem_id: &ElemId, _: &ElemValue, new: &ElemValue, timeout_ms: u32)
+    pub fn write<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T, sections: &GeneralSections,
+                                  elem_id: &ElemId, _: &ElemValue, new: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -205,8 +205,8 @@ impl CommonCtl {
         }
     }
 
-    pub fn parse_notification(&mut self, unit: &SndDice, proto: &FwReq, sections: &GeneralSections,
-                              msg: u32, timeout_ms: u32)
+    pub fn parse_notification<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T,
+                                               sections: &GeneralSections, msg: u32, timeout_ms: u32)
         -> Result<(), Error>
     {
         if msg.has_clock_accepted() {
@@ -243,8 +243,8 @@ impl CommonCtl {
         }
     }
 
-    pub fn measure_states(&mut self, unit: &SndDice, proto: &FwReq, sections: &GeneralSections,
-                          timeout_ms: u32)
+    pub fn measure_states<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T,
+                                           sections: &GeneralSections, timeout_ms: u32)
         -> Result<(), Error>
     {
         proto.read_clock_source_states(&unit.get_node(), sections, timeout_ms)
