@@ -7,11 +7,13 @@
 //! defined by TC Electronic for Konnekt 24d.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*};
+use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*};
 
 /// The structure to represent segments in memory space of Konnekt 24d.
 #[derive(Default, Debug)]
 pub struct K24dSegments{
+    /// Segment for configuration. 0x0028..0x0073 (76 quads).
+    pub config: TcKonnektSegment<K24dConfig>,
     /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
     pub mixer_state: TcKonnektSegment<K24dMixerState>,
     /// Segment for state of reverb effect. 0x01d0..0x0213. (17 quads)
@@ -26,6 +28,98 @@ pub struct K24dSegments{
     pub reverb_meter: TcKonnektSegment<K24dReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10d0..0x110b (15 quads).
     pub ch_strip_meter: TcKonnektSegment<K24dChStripMeters>,
+}
+
+#[derive(Default, Debug)]
+pub struct K24dConfig{
+    pub opt: ShellOptIfaceConfig,
+    pub coax_out_src: ShellCoaxOutPairSrc,
+    pub out_23_src: ShellPhysOutSrc,
+    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_rate: TcKonnektStandaloneClkRate,
+}
+
+impl AsRef<ShellOptIfaceConfig> for K24dConfig {
+    fn as_ref(&self) -> &ShellOptIfaceConfig {
+        &self.opt
+    }
+}
+
+impl AsMut<ShellOptIfaceConfig> for K24dConfig {
+    fn as_mut(&mut self) -> &mut ShellOptIfaceConfig {
+        &mut self.opt
+    }
+}
+
+impl AsRef<ShellCoaxOutPairSrc> for K24dConfig {
+    fn as_ref(&self) -> &ShellCoaxOutPairSrc {
+        &self.coax_out_src
+    }
+}
+
+impl AsMut<ShellCoaxOutPairSrc> for K24dConfig {
+    fn as_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
+        &mut self.coax_out_src
+    }
+}
+
+impl AsRef<ShellStandaloneClkSrc> for K24dConfig {
+    fn as_ref(&self) -> &ShellStandaloneClkSrc {
+        &self.standalone_src
+    }
+}
+
+impl AsMut<ShellStandaloneClkSrc> for K24dConfig {
+    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
+        &mut self.standalone_src
+    }
+}
+
+impl<'a> ShellStandaloneClkSpec<'a> for K24dConfig {
+    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+        ShellStandaloneClkSrc::Optical,
+        ShellStandaloneClkSrc::Coaxial,
+        ShellStandaloneClkSrc::Internal,
+    ];
+}
+
+impl AsRef<TcKonnektStandaloneClkRate> for K24dConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClkRate> for K24dConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
+        &mut self.standalone_rate
+    }
+}
+
+impl TcKonnektSegmentData for K24dConfig {
+    fn build(&self, raw: &mut [u8]) {
+        self.opt.build(&mut raw[..12]);
+        self.coax_out_src.0.build_quadlet(&mut raw[12..16]);
+        self.out_23_src.build_quadlet(&mut raw[16..20]);
+        self.standalone_src.build_quadlet(&mut raw[20..24]);
+        self.standalone_rate.build_quadlet(&mut raw[24..28]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.opt.parse(&raw[..12]);
+        self.coax_out_src.0.parse_quadlet(&raw[12..16]);
+        self.out_23_src.parse_quadlet(&raw[16..20]);
+        self.standalone_src.parse_quadlet(&raw[20..24]);
+        self.standalone_rate.parse_quadlet(&raw[24..28]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K24dConfig> {
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 76;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dConfig> {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
 /// The structure to represent state of mixer.
