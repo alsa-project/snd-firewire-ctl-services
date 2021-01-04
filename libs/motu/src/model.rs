@@ -14,6 +14,7 @@ use super::f828mk3::F828mk3;
 use super::h4pre::H4pre;
 
 pub struct MotuModel<'a> {
+    #[allow(dead_code)]
     firmware_version: u32,
     ctl_model: MotuCtlModel<'a>,
     notified_elems: Vec<alsactl::ElemId>,
