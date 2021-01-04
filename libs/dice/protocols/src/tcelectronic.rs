@@ -12,6 +12,8 @@ pub mod shell;
 pub mod studio;
 pub mod desktop;
 
+pub mod ch_strip;
+
 use glib::Error;
 
 use hinawa::FwNode;
