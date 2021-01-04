@@ -12,6 +12,8 @@ use crate::*;
 /// The structure to represent segments in memory space of Studio Konnekt 48.
 #[derive(Default, Debug)]
 pub struct StudioSegments{
+    /// Segment for state of mixer. 0x00a8..0x03db (205 quads).
+    pub mixer_state: TcKonnektSegment<StudioMixerState>,
     /// Segment for physical output. 0x03dc..0x0593 (110 quads).
     pub phys_out: TcKonnektSegment<StudioPhysOut>,
     /// Segment for state of reverb effect. 0x0594..0x05d7. (17 quads)
@@ -20,12 +22,15 @@ pub struct StudioSegments{
     pub ch_strip_state: TcKonnektSegment<StudioChStripStates>,
     /// Segment for state of hardware. 0x2008..0x204b (17 quads).
     pub hw_state: TcKonnektSegment<StudioHwState>,
+    /// Segment for meter of mixer. 0x20b8..0x2137 (32 quads).
+    pub mixer_meter: TcKonnektSegment<StudioMixerMeter>,
     /// Segment for meter of reverb effect. 0x2164..0x217b (6 quads).
     pub reverb_meter: TcKonnektSegment<StudioReverbMeter>,
     /// Segment for meters of channel strip effect. 0x217c..0x21b7 (30 quads).
     pub ch_strip_meter: TcKonnektSegment<StudioChStripMeters>,
 }
 
+const STUDIO_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00080000;
 const STUDIO_PHYS_OUT_NOTIFY_FLAG: u32 = 0x00100000;
 const STUDIO_REVERB_NOTIFY_CHANGE: u32 = 0x00200000;
 const STUDIO_CH_STRIP_NOTIFY_01_CHANGE: u32 = 0x00400000;
@@ -128,6 +133,202 @@ impl OutPair {
         self.vol.parse_quadlet(&raw[4..8]);
         self.dim_vol.parse_quadlet(&raw[8..12]);
     }
+}
+
+/// The mode of entry for pair of source of monitor.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum MonitorSrcPairMode {
+    Inactive,
+    Active,
+    Fixed,
+}
+
+impl Default for MonitorSrcPairMode {
+    fn default() -> Self {
+        Self::Inactive
+    }
+}
+
+impl From<u32> for MonitorSrcPairMode {
+    fn from(val: u32) -> Self {
+        match val {
+            2 => Self::Fixed,
+            1 => Self::Active,
+            _ => Self::Inactive,
+        }
+    }
+}
+
+impl From<MonitorSrcPairMode> for u32 {
+    fn from(mode: MonitorSrcPairMode) -> Self {
+        match mode {
+            MonitorSrcPairMode::Inactive => 0,
+            MonitorSrcPairMode::Active => 1,
+            MonitorSrcPairMode::Fixed => 2,
+        }
+    }
+}
+
+/// The structure to represent parameters of source of monitor.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MonitorSrcParam{
+    pub src: SrcEntry,
+    pub gain_to_main: i32,
+    pub pan_to_main: i32,
+    pub gain_to_reverb: i32,
+    pub gain_to_aux0: i32,
+    pub gain_to_aux1: i32,
+}
+
+impl MonitorSrcParam {
+    const SIZE: usize = 24;
+
+    fn build(&self, raw: &mut [u8]) {
+        assert_eq!(raw.len(), Self::SIZE, "Programming error");
+
+        self.src.build_quadlet(&mut raw[..4]);
+        self.gain_to_main.build_quadlet(&mut raw[4..8]);
+        self.pan_to_main.build_quadlet(&mut raw[8..12]);
+        self.gain_to_reverb.build_quadlet(&mut raw[12..16]);
+        self.gain_to_aux0.build_quadlet(&mut raw[16..20]);
+        self.gain_to_aux1.build_quadlet(&mut raw[20..24]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        assert_eq!(raw.len(), Self::SIZE, "Programming error");
+
+        self.src.parse_quadlet(&raw[..4]);
+        self.gain_to_main.parse_quadlet(&raw[4..8]);
+        self.pan_to_main.parse_quadlet(&raw[8..12]);
+        self.gain_to_reverb.parse_quadlet(&raw[12..16]);
+        self.gain_to_aux0.parse_quadlet(&raw[16..20]);
+        self.gain_to_aux1.parse_quadlet(&raw[20..24]);
+    }
+}
+
+/// The structure to represent source of monitor.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MonitorSrcPair{
+    pub mode: MonitorSrcPairMode,
+    pub stereo_link: bool,
+    pub left: MonitorSrcParam,
+    pub right: MonitorSrcParam,
+}
+
+impl MonitorSrcPair {
+    const SIZE: usize = 56;
+
+    fn build(&self, raw: &mut [u8]) {
+        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+
+        self.mode.build_quadlet(&mut raw[..4]);
+        self.stereo_link.build_quadlet(&mut raw[4..8]);
+        self.left.build(&mut raw[8..32]);
+        self.right.build(&mut raw[32..56]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+
+        self.mode.parse_quadlet(&raw[..4]);
+        self.stereo_link.parse_quadlet(&raw[4..8]);
+        self.left.parse(&raw[8..32]);
+        self.right.parse(&raw[32..56]);
+    }
+}
+
+/// The number of pairs for source of monitor.
+pub const STUDIO_MIXER_SRC_PAIR_COUNT: usize = 12;
+
+/// The structure to represent state of mixer.
+#[derive(Default, Debug)]
+pub struct StudioMixerState{
+    pub src_pairs: [MonitorSrcPair;STUDIO_MIXER_SRC_PAIR_COUNT],
+    pub mutes: [bool;STUDIO_MIXER_SRC_PAIR_COUNT],
+    pub reverb_return_mute: [bool;3],
+    pub reverb_return_gain: [i32;3],
+    pub ch_strip_as_plugin: [bool;2],
+    pub ch_strip_src: [SrcEntry;4],
+    pub ch_strip_23_at_mid_rate: bool,
+    pub mixer_out: [OutPair;3],
+    pub post_fader: [bool;3],
+    pub enabled: bool,
+}
+
+impl StudioMixerState {
+    const SIZE: usize = 820;
+}
+
+impl TcKonnektSegmentData for StudioMixerState {
+    fn build(&self, raw: &mut [u8]) {
+        self.src_pairs.iter()
+            .enumerate()
+            .for_each(|(i, p)| {
+                let pos = i * MonitorSrcPair::SIZE;
+                p.build(&mut raw[pos..(pos + MonitorSrcPair::SIZE)]);
+            });
+        let mut val = 0u32;
+        self.mutes.iter()
+            .enumerate()
+            .filter(|(_, &m)| m)
+            .for_each(|(i, _)| {
+                val |= 1 << i;
+            });
+        val.build_quadlet(&mut raw[672..676]);
+        self.reverb_return_mute[0].build_quadlet(&mut raw[712..716]);
+        self.reverb_return_gain[0].build_quadlet(&mut raw[716..720]);
+        self.reverb_return_mute[1].build_quadlet(&mut raw[720..724]);
+        self.reverb_return_gain[1].build_quadlet(&mut raw[724..728]);
+        self.reverb_return_mute[2].build_quadlet(&mut raw[728..732]);
+        self.reverb_return_gain[2].build_quadlet(&mut raw[732..736]);
+        self.ch_strip_as_plugin.build_quadlet_block(&mut raw[736..744]);
+        self.ch_strip_src.build_quadlet_block(&mut raw[744..760]);
+        self.ch_strip_23_at_mid_rate.build_quadlet(&mut raw[760..764]);
+        self.mixer_out[0].build(&mut raw[764..776]);
+        self.mixer_out[1].build(&mut raw[776..788]);
+        self.mixer_out[2].build(&mut raw[788..800]);
+        self.post_fader.build_quadlet_block(&mut raw[800..812]);
+        self.enabled.build_quadlet(&mut raw[812..816]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.src_pairs.iter_mut()
+            .enumerate()
+            .for_each(|(i, p)| {
+                let pos = i * MonitorSrcPair::SIZE;
+                p.parse(&raw[pos..(pos + MonitorSrcPair::SIZE)]);
+            });
+        let mut val = 0u32;
+        val.parse_quadlet(&raw[672..676]);
+        self.mutes.iter_mut()
+            .enumerate()
+            .for_each(|(i, m)| {
+                *m = (val & 1 << i) > 0;
+            });
+        self.reverb_return_mute[0].parse_quadlet(&raw[712..716]);
+        self.reverb_return_gain[0].parse_quadlet(&raw[716..720]);
+        self.reverb_return_mute[1].parse_quadlet(&raw[720..724]);
+        self.reverb_return_gain[1].parse_quadlet(&raw[724..728]);
+        self.reverb_return_mute[2].parse_quadlet(&raw[728..732]);
+        self.reverb_return_gain[2].parse_quadlet(&raw[732..736]);
+        self.ch_strip_as_plugin.parse_quadlet_block(&raw[736..744]);
+        self.ch_strip_src.parse_quadlet_block(&raw[744..760]);
+        self.ch_strip_23_at_mid_rate.parse_quadlet(&raw[760..764]);
+        self.mixer_out[0].parse(&raw[764..776]);
+        self.mixer_out[1].parse(&raw[776..788]);
+        self.mixer_out[2].parse(&raw[788..800]);
+        self.post_fader.parse_quadlet_block(&raw[800..812]);
+        self.enabled.parse_quadlet(&raw[812..816]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<StudioMixerState> {
+    const OFFSET: usize = 0x00a8;
+    const SIZE: usize = StudioMixerState::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioMixerState> {
+    const NOTIFY_FLAG: u32 = STUDIO_MIXER_STATE_NOTIFY_FLAG;
 }
 
 /// The structure to represent parameter of each channel for source of physical output.
@@ -482,6 +683,37 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<StudioHwState> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioHwState> {
     const NOTIFY_FLAG: u32 = STUDIO_HW_STATE_NOTIFY_FLAG;
+}
+
+/// The structure to represent meter for input/output of mixer.
+#[derive(Default, Debug)]
+pub struct StudioMixerMeter{
+    pub src_inputs: [i32;24],
+    pub mixer_outputs: [i32;2],
+    pub aux_outputs: [i32;4],
+}
+
+impl StudioMixerMeter {
+    const SIZE: usize = 128;
+}
+
+impl TcKonnektSegmentData for StudioMixerMeter {
+    fn build(&self, raw: &mut [u8]) {
+        self.src_inputs.build_quadlet_block(&mut raw[4..100]);
+        self.mixer_outputs.build_quadlet_block(&mut raw[100..108]);
+        self.aux_outputs.build_quadlet_block(&mut raw[108..124]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.src_inputs.parse_quadlet_block(&raw[4..100]);
+        self.mixer_outputs.parse_quadlet_block(&raw[100..108]);
+        self.aux_outputs.parse_quadlet_block(&raw[108..124]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<StudioMixerMeter> {
+    const OFFSET: usize = 0x20b8;
+    const SIZE: usize = StudioMixerMeter::SIZE;
 }
 
 #[derive(Default, Debug)]
