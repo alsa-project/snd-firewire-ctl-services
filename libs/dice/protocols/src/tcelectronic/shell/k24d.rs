@@ -7,11 +7,13 @@
 //! defined by TC Electronic for Konnekt 24d.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*};
+use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*, prog::*};
 
 /// The structure to represent segments in memory space of Konnekt 24d.
 #[derive(Default, Debug)]
 pub struct K24dSegments{
+    /// Segment for knob. 0x0000..0x0027 (36 quads).
+    pub knob: TcKonnektSegment<K24dKnob>,
     /// Segment for configuration. 0x0028..0x0073 (76 quads).
     pub config: TcKonnektSegment<K24dConfig>,
     /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
@@ -20,6 +22,7 @@ pub struct K24dSegments{
     pub reverb_state: TcKonnektSegment<K24dReverbState>,
     /// Segment for states of channel strip effect. 0x0214..0x0337 (73 quads).
     pub ch_strip_state: TcKonnektSegment<K24dChStripStates>,
+    // NOTE: Segment for tuner. 0x0338..0x033b (8 quads).
     /// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
     pub mixer_meter: TcKonnektSegment<K24dMixerMeter>,
     /// Segment for state of hardware. 0x100c..0x1027 (7 quads).
@@ -28,6 +31,82 @@ pub struct K24dSegments{
     pub reverb_meter: TcKonnektSegment<K24dReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10d0..0x110b (15 quads).
     pub ch_strip_meter: TcKonnektSegment<K24dChStripMeters>,
+}
+
+/// The structure to represent state of knob.
+#[derive(Default, Debug)]
+pub struct K24dKnob{
+    pub target: ShellKnobTarget,
+    pub knob2_target: ShellKnob2Target,
+    pub prog: TcKonnektLoadedProgram,
+}
+
+impl AsRef<ShellKnobTarget> for K24dKnob {
+    fn as_ref(&self) -> &ShellKnobTarget {
+        &self.target
+    }
+}
+
+impl AsMut<ShellKnobTarget> for K24dKnob {
+    fn as_mut(&mut self) -> &mut ShellKnobTarget {
+        &mut self.target
+    }
+}
+
+impl ShellKnobTargetSpec for K24dKnob {
+    const HAS_SPDIF: bool = false;
+    const HAS_EFFECTS: bool = false;
+}
+
+impl AsRef<ShellKnob2Target> for K24dKnob {
+    fn as_ref(&self) -> &ShellKnob2Target {
+        &self.knob2_target
+    }
+}
+
+impl AsMut<ShellKnob2Target> for K24dKnob {
+    fn as_mut(&mut self) -> &mut ShellKnob2Target {
+        &mut self.knob2_target
+    }
+}
+
+impl ShellKnob2TargetSpec for K24dKnob {
+    const KNOB2_TARGET_COUNT: usize = 8;
+}
+
+impl AsRef<TcKonnektLoadedProgram> for K24dKnob {
+    fn as_ref(&self) -> &TcKonnektLoadedProgram {
+        &self.prog
+    }
+}
+
+impl AsMut<TcKonnektLoadedProgram> for K24dKnob {
+    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
+        &mut self.prog
+    }
+}
+
+impl TcKonnektSegmentData for K24dKnob {
+    fn build(&self, raw: &mut [u8]) {
+        self.target.0.build_quadlet(&mut raw[..4]);
+        self.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        self.prog.build(&mut raw[8..12]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.target.0.parse_quadlet(&raw[..4]);
+        self.knob2_target.0.parse_quadlet(&raw[4..8]);
+        self.prog.parse(&raw[8..12]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K24dKnob> {
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dKnob> {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]

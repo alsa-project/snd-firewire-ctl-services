@@ -12,6 +12,8 @@ use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*};
 /// The structure to represent segments in memory space of Impact Twin.
 #[derive(Default, Debug)]
 pub struct ItwinSegments{
+    /// Segment for knob. 0x0000..0x0027 (36 quads).
+    pub knob: TcKonnektSegment<ItwinKnob>,
     /// Segment for configuration. 0x0028..0x00cf (168 quads).
     pub config: TcKonnektSegment<ItwinConfig>,
     /// Segment for state of mixer. 0x00d0..0x0243 (93 quads).
@@ -20,6 +22,7 @@ pub struct ItwinSegments{
     pub reverb_state: TcKonnektSegment<ItwinReverbState>,
     /// Segment for states of channel strip effect. 0x0288..0x03ab (73 quads).
     pub ch_strip_state: TcKonnektSegment<ItwinChStripStates>,
+    // NOTE: Segment for tuner. 0x03ac..0x03c8 (8 quads).
     /// Segment for mixer meter. 0x106c..0x10c7 (23 quads).
     pub mixer_meter: TcKonnektSegment<ItwinMixerMeter>,
     /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
@@ -28,6 +31,51 @@ pub struct ItwinSegments{
     pub reverb_meter: TcKonnektSegment<ItwinReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10e0..0x111b (15 quads).
     pub ch_strip_meter: TcKonnektSegment<ItwinChStripMeters>,
+}
+
+/// The structure to represent state of knob.
+#[derive(Default, Debug)]
+pub struct ItwinKnob{
+    pub target: ShellKnobTarget,
+    pub clock_recovery: bool,
+}
+
+impl AsRef<ShellKnobTarget> for ItwinKnob {
+    fn as_ref(&self) -> &ShellKnobTarget {
+        &self.target
+    }
+}
+
+impl AsMut<ShellKnobTarget> for ItwinKnob {
+    fn as_mut(&mut self) -> &mut ShellKnobTarget {
+        &mut self.target
+    }
+}
+
+impl TcKonnektSegmentData for ItwinKnob {
+    fn build(&self, raw: &mut [u8]) {
+        self.target.0.build_quadlet(&mut raw[..4]);
+        self.clock_recovery.build_quadlet(&mut raw[8..12]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.target.0.parse_quadlet(&raw[..4]);
+        self.clock_recovery.parse_quadlet(&raw[8..12]);
+    }
+}
+
+impl ShellKnobTargetSpec for ItwinKnob {
+    const HAS_SPDIF: bool = false;
+    const HAS_EFFECTS: bool = true;
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinKnob> {
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinKnob> {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
 /// The number of pair for physical output.
