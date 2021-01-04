@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcelectronic::*;
@@ -36,6 +37,7 @@ pub struct K24dModel{
     knob_ctl: ShellKnobCtl,
     knob2_ctl: ShellKnob2Ctl,
     prog_ctl: TcKonnektProgramCtl,
+    specific_ctl: K24dSpecificCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -69,6 +71,7 @@ impl CtlModel<SndDice> for K24dModel {
         self.knob_ctl.load(&self.segments.knob, card_cntr)?;
         self.knob2_ctl.load(&self.segments.knob, card_cntr)?;
         self.prog_ctl.load(card_cntr)?;
+        self.specific_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -102,6 +105,8 @@ impl CtlModel<SndDice> for K24dModel {
         } else if self.knob2_ctl.read(&self.segments.knob, elem_id, elem_value)? {
             Ok(true)
         } else if self.prog_ctl.read(&self.segments.knob, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.specific_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -144,6 +149,9 @@ impl CtlModel<SndDice> for K24dModel {
             Ok(true)
         } else if self.prog_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
                                       TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new,
+                                          TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -241,5 +249,114 @@ struct K24dProto(FwReq);
 impl AsRef<FwReq> for K24dProto {
     fn as_ref(&self) -> &FwReq {
         &self.0
+    }
+}
+
+#[derive(Default, Debug)]
+struct K24dSpecificCtl(Vec<ElemId>);
+
+impl<'a> K24dSpecificCtl {
+    const OUT_23_SRC_NAME: &'a str = "output-3/4-source";
+    const USE_CH_STRIP_AS_PLUGIN_NAME: &'a str = "use-channel-strip-as-plugin";
+    const USE_REVERB_AT_MID_RATE: &'a str = "use-reverb-at-mid-rate";
+    const MIXER_ENABLE_NAME: &'a str = "mixer-enable";
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = PHYS_OUT_SRCS.iter()
+            .map(|s| phys_out_src_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_23_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_CH_STRIP_AS_PLUGIN_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_REVERB_AT_MID_RATE, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, segments: &K24dSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_23_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = PHYS_OUT_SRCS.iter()
+                        .position(|s| s.eq(&segments.config.data.out_23_src))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    Ok(segments.mixer_state.data.use_ch_strip_as_plugin)
+                })
+                .map(|_| true)
+            }
+            Self::USE_REVERB_AT_MID_RATE => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    Ok(segments.mixer_state.data.use_reverb_at_mid_rate)
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    Ok(segments.mixer_state.data.enabled)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &K24dProto, segments: &mut K24dSegments, elem_id: &ElemId,
+             elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_23_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    PHYS_OUT_SRCS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of output source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&s| {
+                            segments.config.data.out_23_src = s;
+                            proto.write_segment(&unit.get_node(), &mut segments.config, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                    segments.mixer_state.data.use_ch_strip_as_plugin = val;
+                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::USE_REVERB_AT_MID_RATE => {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                    segments.mixer_state.data.use_reverb_at_mid_rate = val;
+                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                    segments.mixer_state.data.enabled = val;
+                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
     }
 }
