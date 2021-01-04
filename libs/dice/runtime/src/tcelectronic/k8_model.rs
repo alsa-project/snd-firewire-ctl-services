@@ -2,12 +2,13 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcelectronic::*;
@@ -28,6 +29,7 @@ pub struct K8Model{
     coax_iface_ctl: ShellCoaxIfaceCtl,
     knob_ctl: ShellKnobCtl,
     knob2_ctl: ShellKnob2Ctl,
+    specific_ctl: K8SpecificCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -53,6 +55,7 @@ impl CtlModel<SndDice> for K8Model {
         self.coax_iface_ctl.load(card_cntr)?;
         self.knob_ctl.load(&self.segments.knob, card_cntr)?;
         self.knob2_ctl.load(&self.segments.knob, card_cntr)?;
+        self.specific_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -74,6 +77,8 @@ impl CtlModel<SndDice> for K8Model {
         } else if self.knob_ctl.read(&self.segments.knob, elem_id, elem_value)? {
             Ok(true)
         } else if self.knob2_ctl.read(&self.segments.knob, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.specific_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -103,6 +108,9 @@ impl CtlModel<SndDice> for K8Model {
         } else if self.knob2_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
                                        TIMEOUT_MS)? {
             Ok(true)
+        } else if self.specific_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new,
+                                          TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -115,6 +123,7 @@ impl NotifyModel<SndDice, u32> for K8Model {
         elem_id_list.extend_from_slice(&self.hw_state_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.knob_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.specific_ctl.0);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
@@ -138,6 +147,8 @@ impl NotifyModel<SndDice, u32> for K8Model {
         } else if self.mixer_ctl.read_notified_elem(&self.segments.mixer_state, elem_id, elem_value)? {
             Ok(true)
         } else if self.knob_ctl.read(&self.segments.knob, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.specific_ctl.read_notified_elem(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -177,5 +188,69 @@ struct K8Proto(FwReq);
 impl AsRef<FwReq> for K8Proto {
     fn as_ref(&self) -> &FwReq {
         &self.0
+    }
+}
+
+#[derive(Default, Debug)]
+struct K8SpecificCtl(Vec<ElemId>);
+
+impl<'a> K8SpecificCtl {
+    const MIXER_ENABLE_NAME: &'a str = "mixer-enable";
+    const AUX_IN_ENABLED_NAME: &'a str = "aux-input-enable";
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUX_IN_ENABLED_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, false)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, segments: &K8Segments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    Ok(segments.mixer_state.data.enabled)
+                })
+                .map(|_| true)
+            }
+            _ => self.read_notified_elem(segments, elem_id, elem_value),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &K8Proto, segments: &mut K8Segments, elem_id: &ElemId,
+             elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                    segments.mixer_state.data.enabled = val;
+                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn read_notified_elem(&mut self, segments: &K8Segments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::AUX_IN_ENABLED_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    Ok(segments.hw_state.data.aux_input_enabled)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
     }
 }
