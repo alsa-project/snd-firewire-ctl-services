@@ -7,11 +7,13 @@
 //! defined by TC Electronic for Konnekt Live.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*};
+use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*, midi_send::*};
 
 /// The structure to represent segments in memory space of Konnekt Live.
 #[derive(Default, Debug)]
 pub struct KliveSegments{
+    /// Segment for configuration. 0x0028..0x00ab (33 quads).
+    pub config: TcKonnektSegment<KliveConfig>,
     /// Segment for state of mixer. 0x00ac..0x0217 (91 quads).
     pub mixer_state: TcKonnektSegment<KliveMixerState>,
     /// Segment for state of reverb effect. 0x0218..0x025b. (17 quads)
@@ -26,6 +28,136 @@ pub struct KliveSegments{
     pub reverb_meter: TcKonnektSegment<KliveReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10dc..0x1117 (15 quads).
     pub ch_strip_meter: TcKonnektSegment<KliveChStripMeters>,
+}
+
+/// The structure to represent configuration.
+#[derive(Default, Debug)]
+pub struct KliveConfig{
+    pub opt: ShellOptIfaceConfig,
+    pub coax_out_src: ShellCoaxOutPairSrc,
+    pub out_01_src: ShellPhysOutSrc,
+    pub out_23_src: ShellPhysOutSrc,
+    pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
+    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub midi_sender: TcKonnektMidiSender,
+}
+
+impl AsRef<ShellOptIfaceConfig> for KliveConfig {
+    fn as_ref(&self) -> &ShellOptIfaceConfig {
+        &self.opt
+    }
+}
+
+impl AsMut<ShellOptIfaceConfig> for KliveConfig {
+    fn as_mut(&mut self) -> &mut ShellOptIfaceConfig {
+        &mut self.opt
+    }
+}
+
+impl AsRef<ShellCoaxOutPairSrc> for KliveConfig {
+    fn as_ref(&self) -> &ShellCoaxOutPairSrc {
+        &self.coax_out_src
+    }
+}
+
+impl AsMut<ShellCoaxOutPairSrc> for KliveConfig {
+    fn as_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
+        &mut self.coax_out_src
+    }
+}
+
+impl AsRef<ShellMixerStreamSrcPair> for KliveConfig {
+    fn as_ref(&self) -> &ShellMixerStreamSrcPair {
+        &self.mixer_stream_src_pair
+    }
+}
+
+impl AsMut<ShellMixerStreamSrcPair> for KliveConfig {
+    fn as_mut(&mut self) -> &mut ShellMixerStreamSrcPair {
+        &mut self.mixer_stream_src_pair
+    }
+}
+
+impl ShellMixerStreamSrcPairSpec for KliveConfig {
+    const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize = 6;
+}
+
+impl AsRef<ShellStandaloneClkSrc> for KliveConfig {
+    fn as_ref(&self) -> &ShellStandaloneClkSrc {
+        &self.standalone_src
+    }
+}
+
+impl AsMut<ShellStandaloneClkSrc> for KliveConfig {
+    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
+        &mut self.standalone_src
+    }
+}
+
+impl<'a> ShellStandaloneClkSpec<'a> for KliveConfig {
+    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+        ShellStandaloneClkSrc::Optical,
+        ShellStandaloneClkSrc::Coaxial,
+        ShellStandaloneClkSrc::Internal,
+    ];
+}
+
+impl AsRef<TcKonnektStandaloneClkRate> for KliveConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClkRate> for KliveConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
+        &mut self.standalone_rate
+    }
+}
+
+impl AsRef<TcKonnektMidiSender> for KliveConfig {
+    fn as_ref(&self) -> &TcKonnektMidiSender {
+        &self.midi_sender
+    }
+}
+
+impl AsMut<TcKonnektMidiSender> for KliveConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektMidiSender {
+        &mut self.midi_sender
+    }
+}
+
+impl TcKonnektSegmentData for KliveConfig {
+    fn build(&self, raw: &mut [u8]) {
+        self.opt.build(&mut raw[..12]);
+        self.coax_out_src.0.build_quadlet(&mut raw[12..16]);
+        self.out_01_src.build_quadlet(&mut raw[16..20]);
+        self.out_23_src.build_quadlet(&mut raw[20..24]);
+        self.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
+        self.standalone_src.build_quadlet(&mut raw[28..32]);
+        self.standalone_rate.build_quadlet(&mut raw[32..36]);
+        self.midi_sender.build(&mut raw[84..120]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.opt.parse(&raw[..12]);
+        self.coax_out_src.0.parse_quadlet(&raw[12..16]);
+        self.out_01_src.parse_quadlet(&raw[16..20]);
+        self.out_23_src.parse_quadlet(&raw[20..24]);
+        self.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
+        self.standalone_src.parse_quadlet(&raw[28..32]);
+        self.standalone_rate.parse_quadlet(&raw[32..36]);
+        self.midi_sender.parse(&raw[84..120]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<KliveConfig> {
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 132;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveConfig> {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
 /// The source of channel strip effect.

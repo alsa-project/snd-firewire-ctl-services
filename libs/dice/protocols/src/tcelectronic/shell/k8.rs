@@ -7,17 +7,93 @@
 //! defined by TC Electronic for Konnekt 8.
 
 use super::*;
-use crate::tcelectronic::*;
+use crate::tcelectronic::{*, standalone::*};
 
 /// The structure to represent segments in memory space of Konnekt 8.
 #[derive(Default, Debug)]
 pub struct K8Segments{
+    /// Segment for configuration. 0x0028..0x0073 (19 quads).
+    pub config: TcKonnektSegment<K8Config>,
     /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
     pub mixer_state: TcKonnektSegment<K8MixerState>,
     /// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
     pub mixer_meter: TcKonnektSegment<K8MixerMeter>,
     /// Segment tor state of hardware. 0x100c..0x1027 (7 quads).
     pub hw_state: TcKonnektSegment<K8HwState>,
+}
+
+/// The structure to represent configuration.
+#[derive(Default, Debug)]
+pub struct K8Config{
+    pub coax_out_src: ShellCoaxOutPairSrc,
+    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_rate: TcKonnektStandaloneClkRate,
+}
+
+impl AsRef<ShellCoaxOutPairSrc> for K8Config {
+    fn as_ref(&self) -> &ShellCoaxOutPairSrc {
+        &self.coax_out_src
+    }
+}
+
+impl AsMut<ShellCoaxOutPairSrc> for K8Config {
+    fn as_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
+        &mut self.coax_out_src
+    }
+}
+
+impl AsRef<ShellStandaloneClkSrc> for K8Config {
+    fn as_ref(&self) -> &ShellStandaloneClkSrc {
+        &self.standalone_src
+    }
+}
+
+impl AsMut<ShellStandaloneClkSrc> for K8Config {
+    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
+        &mut self.standalone_src
+    }
+}
+
+impl<'a> ShellStandaloneClkSpec<'a> for K8Config {
+    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+        ShellStandaloneClkSrc::Coaxial,
+        ShellStandaloneClkSrc::Internal,
+    ];
+}
+
+impl AsRef<TcKonnektStandaloneClkRate> for K8Config {
+    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClkRate> for K8Config {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
+        &mut self.standalone_rate
+    }
+}
+
+impl TcKonnektSegmentData for K8Config {
+    fn build(&self, raw: &mut [u8]) {
+        self.coax_out_src.0.build_quadlet(&mut raw[12..16]);
+        self.standalone_src.build_quadlet(&mut raw[20..24]);
+        self.standalone_rate.build_quadlet(&mut raw[24..28]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.coax_out_src.0.parse_quadlet(&raw[12..16]);
+        self.standalone_src.parse_quadlet(&raw[20..24]);
+        self.standalone_rate.parse_quadlet(&raw[24..28]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K8Config> {
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 76;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Config> {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
 /// The structureto represent state of mixer.

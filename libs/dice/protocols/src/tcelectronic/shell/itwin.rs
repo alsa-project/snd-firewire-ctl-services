@@ -7,11 +7,13 @@
 //! defined by TC Electronic for Impact Twin.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*};
+use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*};
 
 /// The structure to represent segments in memory space of Impact Twin.
 #[derive(Default, Debug)]
 pub struct ItwinSegments{
+    /// Segment for configuration. 0x0028..0x00cf (168 quads).
+    pub config: TcKonnektSegment<ItwinConfig>,
     /// Segment for state of mixer. 0x00d0..0x0243 (93 quads).
     pub mixer_state: TcKonnektSegment<ItwinMixerState>,
     /// Segment for state of reverb effect. 0x0244..0x0287. (17 quads)
@@ -26,6 +28,163 @@ pub struct ItwinSegments{
     pub reverb_meter: TcKonnektSegment<ItwinReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10e0..0x111b (15 quads).
     pub ch_strip_meter: TcKonnektSegment<ItwinChStripMeters>,
+}
+
+/// The number of pair for physical output.
+pub const ITWIN_PHYS_OUT_PAIR_COUNT: usize = 7;
+
+/// The enumeration to represent source of stream for mixer.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ItwinOutputPairSrc {
+    MixerOut01,
+    Analog01,
+    Analog23,
+    Spdif01,
+    Adat01,
+    Adat23,
+    Adat45,
+    Adat67,
+    Stream01,
+    Stream23,
+    Stream45,
+    Stream67,
+    Stream89,
+    Stream1011,
+    Stream1213,
+    MixerSend01,
+}
+
+impl Default for ItwinOutputPairSrc {
+    fn default() -> Self {
+        Self::MixerOut01
+    }
+}
+
+impl From<ItwinOutputPairSrc> for u32 {
+    fn from(src: ItwinOutputPairSrc) -> Self {
+        match src {
+            ItwinOutputPairSrc::MixerSend01 => 15,
+            ItwinOutputPairSrc::Stream1213 => 14,
+            ItwinOutputPairSrc::Stream1011 => 13,
+            ItwinOutputPairSrc::Stream89 => 12,
+            ItwinOutputPairSrc::Stream67 => 11,
+            ItwinOutputPairSrc::Stream45 => 10,
+            ItwinOutputPairSrc::Stream23 => 9,
+            ItwinOutputPairSrc::Stream01 => 8,
+            ItwinOutputPairSrc::Adat67 => 7,
+            ItwinOutputPairSrc::Adat45 => 6,
+            ItwinOutputPairSrc::Adat23 => 5,
+            ItwinOutputPairSrc::Adat01 => 4,
+            ItwinOutputPairSrc::Spdif01 => 3,
+            ItwinOutputPairSrc::Analog23 => 2,
+            ItwinOutputPairSrc::Analog01 => 1,
+            ItwinOutputPairSrc::MixerOut01 => 0,
+        }
+    }
+}
+
+impl From<u32> for ItwinOutputPairSrc {
+    fn from(val: u32) -> Self {
+        match val {
+            15 => ItwinOutputPairSrc::MixerSend01,
+            14 => ItwinOutputPairSrc::Stream1213,
+            13 => ItwinOutputPairSrc::Stream1011,
+            12 => ItwinOutputPairSrc::Stream89,
+            11 => ItwinOutputPairSrc::Stream67,
+            10 => ItwinOutputPairSrc::Stream45,
+            9 => ItwinOutputPairSrc::Stream23,
+            8 => ItwinOutputPairSrc::Stream01,
+            7 => ItwinOutputPairSrc::Adat67,
+            6 => ItwinOutputPairSrc::Adat45,
+            5 => ItwinOutputPairSrc::Adat23,
+            4 => ItwinOutputPairSrc::Adat01,
+            3 => ItwinOutputPairSrc::Spdif01,
+            2 => ItwinOutputPairSrc::Analog23,
+            1 => ItwinOutputPairSrc::Analog01,
+            _ => ItwinOutputPairSrc::MixerOut01,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct ItwinConfig{
+    pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
+    pub standalone_src: ShellStandaloneClkSrc,
+    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub output_pair_src: [ItwinOutputPairSrc;ITWIN_PHYS_OUT_PAIR_COUNT],
+}
+
+impl AsRef<ShellMixerStreamSrcPair> for ItwinConfig {
+    fn as_ref(&self) -> &ShellMixerStreamSrcPair {
+        &self.mixer_stream_src_pair
+    }
+}
+
+impl AsMut<ShellMixerStreamSrcPair> for ItwinConfig {
+    fn as_mut(&mut self) -> &mut ShellMixerStreamSrcPair {
+        &mut self.mixer_stream_src_pair
+    }
+}
+
+impl ShellMixerStreamSrcPairSpec for ItwinConfig {
+    const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize = 7;
+}
+
+impl AsRef<ShellStandaloneClkSrc> for ItwinConfig {
+    fn as_ref(&self) -> &ShellStandaloneClkSrc {
+        &self.standalone_src
+    }
+}
+
+impl AsMut<ShellStandaloneClkSrc> for ItwinConfig {
+    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
+        &mut self.standalone_src
+    }
+}
+
+impl<'a> ShellStandaloneClkSpec<'a> for ItwinConfig {
+    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+        ShellStandaloneClkSrc::Optical,
+        ShellStandaloneClkSrc::Coaxial,
+        ShellStandaloneClkSrc::Internal,
+    ];
+}
+
+impl AsRef<TcKonnektStandaloneClkRate> for ItwinConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClkRate> for ItwinConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
+        &mut self.standalone_rate
+    }
+}
+
+impl TcKonnektSegmentData for ItwinConfig {
+    fn build(&self, raw: &mut [u8]) {
+        self.mixer_stream_src_pair.build_quadlet(&mut raw[24..28]);
+        self.standalone_src.build_quadlet(&mut raw[28..32]);
+        self.standalone_rate.build_quadlet(&mut raw[32..36]);
+        self.output_pair_src.build_quadlet_block(&mut raw[120..148]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.mixer_stream_src_pair.parse_quadlet(&raw[24..28]);
+        self.standalone_src.parse_quadlet(&raw[28..32]);
+        self.standalone_rate.parse_quadlet(&raw[32..36]);
+        self.output_pair_src.parse_quadlet_block(&raw[120..148]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinConfig> {
+    const OFFSET: usize = 0x0028;
+    const SIZE: usize = 168;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinConfig> {
+    const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
 #[derive(Debug)]
