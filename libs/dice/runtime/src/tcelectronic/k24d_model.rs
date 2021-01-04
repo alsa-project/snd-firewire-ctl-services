@@ -16,6 +16,7 @@ use dice_protocols::tcelectronic::shell::k24d::*;
 use crate::common_ctl::*;
 use super::ch_strip_ctl::*;
 use super::reverb_ctl::*;
+use super::shell_ctl::*;
 
 #[derive(Default)]
 pub struct K24dModel{
@@ -25,6 +26,7 @@ pub struct K24dModel{
     ctl: CommonCtl,
     ch_strip_ctl: ChStripCtl,
     reverb_ctl: ReverbCtl,
+    hw_state_ctl: HwStateCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -43,6 +45,11 @@ impl CtlModel<SndDice> for K24dModel {
         self.reverb_ctl.load(unit, &self.proto, &mut self.segments.reverb_state, &mut self.segments.reverb_meter,
                              TIMEOUT_MS, card_cntr)?;
 
+        let node = unit.get_node();
+        self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
+
+        self.hw_state_ctl.load(card_cntr)?;
+
         Ok(())
     }
 
@@ -56,6 +63,8 @@ impl CtlModel<SndDice> for K24dModel {
             Ok(true)
         } else if self.reverb_ctl.read(&self.segments.reverb_state, &self.segments.reverb_meter,
                                        elem_id, elem_value)? {
+            Ok(true)
+        } else if self.hw_state_ctl.read(&self.segments.hw_state, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -73,6 +82,8 @@ impl CtlModel<SndDice> for K24dModel {
         } else if self.reverb_ctl.write(unit, &self.proto, &mut self.segments.reverb_state, elem_id,
                                         new, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.hw_state_ctl.write(unit, &self.proto, &mut self.segments.hw_state, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -84,6 +95,7 @@ impl NotifyModel<SndDice, u32> for K24dModel {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.reverb_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.hw_state_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
@@ -92,6 +104,7 @@ impl NotifyModel<SndDice, u32> for K24dModel {
         let node = unit.get_node();
         self.proto.parse_notification(&node, &mut self.segments.ch_strip_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
+        self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 
@@ -103,6 +116,8 @@ impl NotifyModel<SndDice, u32> for K24dModel {
         } else if self.ch_strip_ctl.read_notified_elem(&self.segments.ch_strip_state, elem_id, elem_value)? {
             Ok(true)
         } else if self.reverb_ctl.read_notified_elem(&self.segments.reverb_state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.hw_state_ctl.read(&self.segments.hw_state, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
