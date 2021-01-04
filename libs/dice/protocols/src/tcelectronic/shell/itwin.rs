@@ -12,16 +12,90 @@ use crate::tcelectronic::{*, ch_strip::*, reverb::*};
 /// The structure to represent segments in memory space of Impact Twin.
 #[derive(Default, Debug)]
 pub struct ItwinSegments{
+    /// Segment for state of mixer. 0x00d0..0x0243 (93 quads).
+    pub mixer_state: TcKonnektSegment<ItwinMixerState>,
     /// Segment for state of reverb effect. 0x0244..0x0287. (17 quads)
     pub reverb_state: TcKonnektSegment<ItwinReverbState>,
     /// Segment for states of channel strip effect. 0x0288..0x03ab (73 quads).
     pub ch_strip_state: TcKonnektSegment<ItwinChStripStates>,
+    /// Segment for mixer meter. 0x106c..0x10c7 (23 quads).
+    pub mixer_meter: TcKonnektSegment<ItwinMixerMeter>,
     /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
     pub hw_state: TcKonnektSegment<ItwinHwState>,
     /// Segment for meter of reverb effect. 0x10c8..0x010df (6 quads).
     pub reverb_meter: TcKonnektSegment<ItwinReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10e0..0x111b (15 quads).
     pub ch_strip_meter: TcKonnektSegment<ItwinChStripMeters>,
+}
+
+#[derive(Debug)]
+pub struct ItwinMixerState{
+    pub mixer: ShellMixerState,
+    /// The balance between analog and stream inputs to mix. 0..1000.
+    pub stream_mix_balance: u32,
+    pub enabled: bool,
+}
+
+impl AsRef<ShellMixerState> for ItwinMixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for ItwinMixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
+impl Default for ItwinMixerState {
+    fn default() -> Self {
+        ItwinMixerState{
+            mixer: Self::create_mixer_state(),
+            enabled: Default::default(),
+            stream_mix_balance: Default::default(),
+        }
+    }
+}
+
+impl ShellMixerConvert for ItwinMixerState {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT] = [
+        Some(ShellMixerMonitorSrcType::Stream),
+        None,
+        None,
+        Some(ShellMixerMonitorSrcType::Spdif),
+        Some(ShellMixerMonitorSrcType::Analog),
+        Some(ShellMixerMonitorSrcType::Analog),
+        Some(ShellMixerMonitorSrcType::AdatSpdif),
+        Some(ShellMixerMonitorSrcType::Adat),
+        Some(ShellMixerMonitorSrcType::Adat),
+        Some(ShellMixerMonitorSrcType::Adat),
+    ];
+}
+
+impl TcKonnektSegmentData for ItwinMixerState {
+    fn build(&self, raw: &mut [u8]) {
+        ShellMixerConvert::build(self, raw);
+
+        self.stream_mix_balance.build_quadlet(&mut raw[348..352]);
+        self.enabled.build_quadlet(&mut raw[352..356]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        ShellMixerConvert::parse(self, raw);
+
+        self.stream_mix_balance.parse_quadlet(&raw[348..352]);
+        self.enabled.parse_quadlet(&raw[352..356]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinMixerState> {
+    const OFFSET: usize = 0x00d0;
+    const SIZE: usize = ShellMixerState::SIZE + 56;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinMixerState> {
+    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]
@@ -181,6 +255,47 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinHwState> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinHwState> {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+}
+
+#[derive(Debug)]
+pub struct ItwinMixerMeter(ShellMixerMeter);
+
+impl AsRef<ShellMixerMeter> for ItwinMixerMeter {
+    fn as_ref(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ShellMixerMeter> for ItwinMixerMeter {
+    fn as_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
+}
+
+impl Default for ItwinMixerMeter {
+    fn default() -> Self {
+        ItwinMixerMeter(Self::create_meter_state())
+    }
+}
+
+impl ShellMixerMeterConvert for ItwinMixerMeter {
+    const ANALOG_INPUT_COUNT: usize = 4;
+    const DIGITAL_INPUT_COUNT: usize = 8;
+}
+
+impl TcKonnektSegmentData for ItwinMixerMeter {
+    fn build(&self, raw: &mut [u8]) {
+        ShellMixerMeterConvert::build(self, raw)
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        ShellMixerMeterConvert::parse(self, raw)
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinMixerMeter> {
+    const OFFSET: usize = 0x106c;
+    const SIZE: usize = ShellMixerMeter::SIZE;
 }
 
 #[derive(Default, Debug)]

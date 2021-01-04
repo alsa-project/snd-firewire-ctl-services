@@ -12,8 +12,80 @@ use crate::tcelectronic::*;
 /// The structure to represent segments in memory space of Konnekt 8.
 #[derive(Default, Debug)]
 pub struct K8Segments{
+    /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
+    pub mixer_state: TcKonnektSegment<K8MixerState>,
+    /// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
+    pub mixer_meter: TcKonnektSegment<K8MixerMeter>,
     /// Segment tor state of hardware. 0x100c..0x1027 (7 quads).
     pub hw_state: TcKonnektSegment<K8HwState>,
+}
+
+/// The structureto represent state of mixer.
+#[derive(Debug)]
+pub struct K8MixerState{
+    /// The common structure for state of mixer.
+    pub mixer: ShellMixerState,
+    /// Whether to use mixer function.
+    pub enabled: bool,
+}
+
+impl AsRef<ShellMixerState> for K8MixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for K8MixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
+impl Default for K8MixerState {
+    fn default() -> Self {
+        K8MixerState{
+            mixer: Self::create_mixer_state(),
+            enabled: Default::default(),
+        }
+    }
+}
+
+impl ShellMixerConvert for K8MixerState {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT] = [
+        Some(ShellMixerMonitorSrcType::Stream),
+        None,
+        None,
+        None,
+        Some(ShellMixerMonitorSrcType::Analog),
+        None,
+        None,
+        None,
+        None,
+        Some(ShellMixerMonitorSrcType::Spdif),
+    ];
+}
+
+impl TcKonnektSegmentData for K8MixerState {
+    fn build(&self, raw: &mut [u8]) {
+        ShellMixerConvert::build(self, raw);
+
+        self.enabled.build_quadlet(&mut raw[340..344]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        ShellMixerConvert::parse(self, raw);
+
+        self.enabled.parse_quadlet(&raw[340..344]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K8MixerState> {
+    const OFFSET: usize = 0x0074;
+    const SIZE: usize = ShellMixerState::SIZE + 32;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8MixerState> {
+    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]
@@ -65,4 +137,48 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<K8HwState> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8HwState> {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+}
+
+const K8_METER_ANALOG_INPUT_COUNT: usize = 2;
+const K8_METER_DIGITAL_INPUT_COUNT: usize = 2;
+
+#[derive(Debug)]
+pub struct K8MixerMeter(ShellMixerMeter);
+
+impl AsRef<ShellMixerMeter> for K8MixerMeter {
+    fn as_ref(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ShellMixerMeter> for K8MixerMeter {
+    fn as_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
+}
+
+impl Default for K8MixerMeter {
+    fn default() -> Self {
+        K8MixerMeter(Self::create_meter_state())
+    }
+}
+
+impl ShellMixerMeterConvert for K8MixerMeter {
+    const ANALOG_INPUT_COUNT: usize = K8_METER_ANALOG_INPUT_COUNT;
+    const DIGITAL_INPUT_COUNT: usize = K8_METER_DIGITAL_INPUT_COUNT;
+}
+
+impl TcKonnektSegmentData for K8MixerMeter {
+    fn build(&self, raw: &mut [u8]) {
+        ShellMixerMeterConvert::build(self, raw)
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        ShellMixerMeterConvert::parse(self, raw)
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K8MixerMeter> {
+    const OFFSET: usize = 0x105c;
+    const SIZE: usize = ShellMixerMeter::SIZE;
 }
