@@ -91,3 +91,55 @@ impl<O, T, U> TcKonnektSegmentProtocol<T, U> for O
           U: TcKonnektSegmentData,
           TcKonnektSegment<U>: TcKonnektSegmentSpec,
 {}
+
+/// The trait to represent specification for segment in which any change is notified to controller.
+pub trait TcKonnektNotifiedSegmentSpec {
+    const NOTIFY_FLAG: u32;
+
+    fn get_flag(&self) -> u32 {
+        Self::NOTIFY_FLAG
+    }
+}
+
+/// The trait to represent notification for segment in which any change is notified to controller.
+pub trait TcKonnektSegmentNotification<U> : TcatNotification
+    where U: TcKonnektSegmentData,
+          TcKonnektSegment<U>: TcKonnektNotifiedSegmentSpec,
+{
+    fn has_segment_change(self, segment: &TcKonnektSegment<U>) -> bool {
+        self.bitand(segment.get_flag()) > 0
+    }
+}
+
+impl<O, U> TcKonnektSegmentNotification<U> for O
+    where O: TcatNotification,
+          U: TcKonnektSegmentData,
+          TcKonnektSegment<U>: TcKonnektNotifiedSegmentSpec,
+{}
+
+
+/// The trait to parse notification.
+pub trait TcKonnektNotifiedSegmentProtocol<T, U, V> : TcKonnektSegmentProtocol<T, U>
+    where T: AsRef<FwNode>,
+          U: TcKonnektSegmentData,
+          TcKonnektSegment<U>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
+          V: TcKonnektSegmentNotification<U>,
+{
+    fn parse_notification(&self, node: &T, segment: &mut TcKonnektSegment<U>, timeout_ms: u32, msg: V)
+        -> Result<(), Error>
+    {
+        if msg.has_segment_change(segment) {
+            self.read_segment(node, segment, timeout_ms)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<O, T, U, V> TcKonnektNotifiedSegmentProtocol<T, U, V> for O
+    where O: TcKonnektSegmentProtocol<T, U>,
+          T: AsRef<FwNode>,
+          U: TcKonnektSegmentData,
+          TcKonnektSegment<U>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
+          V: TcKonnektSegmentNotification<U>,
+{}
