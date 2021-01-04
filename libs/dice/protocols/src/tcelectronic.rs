@@ -14,6 +14,7 @@ pub mod desktop;
 
 pub mod ch_strip;
 pub mod reverb;
+pub mod fw_led;
 
 use glib::Error;
 
