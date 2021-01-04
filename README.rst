@@ -139,6 +139,7 @@ your device, please contact to developer.
   * TC Electronic Studio Konnekt 48
   * TC Electronic Konnekt Live
   * TC Electronic Desktop Konnekt 6
+  * TC Electronic Impact Twin
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
