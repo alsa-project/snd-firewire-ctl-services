@@ -11,6 +11,7 @@ pub mod k24d;
 pub mod klive;
 pub mod itwin;
 
+use super::*;
 use super::fw_led::*;
 
 use crate::*;
@@ -462,4 +463,231 @@ pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMete
                 m.parse_quadlet(&raw[pos..(pos + 4)]);
             });
     }
+}
+
+/// The enumeration to represent available source for sampling clock.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ShellPhysOutSrc {
+    Stream,
+    Analog01,
+    MixerOut01,
+    MixerSend01,
+}
+
+impl Default for ShellPhysOutSrc {
+    fn default() -> Self {
+        Self::Stream
+    }
+}
+
+impl From<u32> for ShellPhysOutSrc {
+    fn from(val: u32) -> Self {
+        match val {
+            3 => Self::MixerSend01,
+            2 => Self::MixerOut01,
+            1 => Self::Analog01,
+            _ => Self::Stream,
+        }
+    }
+}
+
+impl From<ShellPhysOutSrc> for u32 {
+    fn from(src: ShellPhysOutSrc) -> Self {
+        match src {
+            ShellPhysOutSrc::MixerSend01 => 3,
+            ShellPhysOutSrc::MixerOut01 => 2,
+            ShellPhysOutSrc::Analog01 => 1,
+            ShellPhysOutSrc::Stream => 0,
+        }
+    }
+}
+
+/// The enumeration to represent format of optical input interface.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ShellOptInputIfaceFormat {
+    Adat0to7,
+    Adat0to5Spdif01,
+    Toslink01Spdif01,
+}
+
+impl Default for ShellOptInputIfaceFormat {
+    fn default() -> Self {
+        ShellOptInputIfaceFormat::Adat0to7
+    }
+}
+
+impl From<u32> for ShellOptInputIfaceFormat {
+    fn from(val: u32) -> Self {
+        match val {
+            2 => Self::Toslink01Spdif01,
+            1 => Self::Adat0to5Spdif01,
+            _ => Self::Adat0to7,
+        }
+    }
+}
+
+impl From<ShellOptInputIfaceFormat> for u32 {
+    fn from(fmt: ShellOptInputIfaceFormat) -> Self {
+        match fmt {
+            ShellOptInputIfaceFormat::Toslink01Spdif01 => 2,
+            ShellOptInputIfaceFormat::Adat0to5Spdif01 => 1,
+            ShellOptInputIfaceFormat::Adat0to7 => 0,
+        }
+    }
+}
+
+/// The enumeration to represent format of optical output interface.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ShellOptOutputIfaceFormat {
+    Adat,
+    Spdif,
+}
+
+impl Default for ShellOptOutputIfaceFormat {
+    fn default() -> Self {
+        Self::Adat
+    }
+}
+
+impl From<u32> for ShellOptOutputIfaceFormat {
+    fn from(val: u32) -> Self {
+        match val {
+            1 => Self::Spdif,
+            _ => Self::Adat,
+        }
+    }
+}
+
+impl From<ShellOptOutputIfaceFormat> for u32 {
+    fn from(fmt: ShellOptOutputIfaceFormat) -> Self {
+        match fmt {
+            ShellOptOutputIfaceFormat::Spdif => 1,
+            ShellOptOutputIfaceFormat::Adat => 0,
+        }
+    }
+}
+
+/// The enumeration to represent source for optical output interface.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct ShellOptOutputSrc(pub ShellPhysOutSrc);
+
+/// The structure to represent configuration for optical interface.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct ShellOptIfaceConfig{
+    pub input_format: ShellOptInputIfaceFormat,
+    pub output_format: ShellOptOutputIfaceFormat,
+    pub output_source: ShellOptOutputSrc,
+}
+
+impl ShellOptIfaceConfig {
+    const SIZE: usize = 12;
+
+    pub fn build(&self, raw: &mut [u8]) {
+        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+
+        self.input_format.build_quadlet(&mut raw[..4]);
+        self.output_format.build_quadlet(&mut raw[4..8]);
+        self.output_source.0.build_quadlet(&mut raw[8..]);
+    }
+
+    pub fn parse(&mut self, raw: &[u8]) {
+        assert_eq!(raw.len(), Self::SIZE, "Programming error...");
+
+        self.input_format.parse_quadlet(&raw[..4]);
+        self.output_format.parse_quadlet(&raw[4..8]);
+        self.output_source.0.parse_quadlet(&raw[8..]);
+    }
+}
+
+/// The structure to represent source of coaxial output interface.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct ShellCoaxOutPairSrc(pub ShellPhysOutSrc);
+
+/// The enumeration to represent available source for sampling clock.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ShellStandaloneClkSrc{
+    Optical,
+    Coaxial,
+    Internal,
+}
+
+impl Default for ShellStandaloneClkSrc {
+    fn default() -> Self {
+        Self::Internal
+    }
+}
+
+impl From<ShellStandaloneClkSrc> for u32 {
+    fn from(src: ShellStandaloneClkSrc) -> Self {
+        match src {
+            ShellStandaloneClkSrc::Optical => 0,
+            ShellStandaloneClkSrc::Coaxial => 1,
+            ShellStandaloneClkSrc::Internal => 2,
+        }
+    }
+}
+
+impl From<u32> for ShellStandaloneClkSrc {
+    fn from(val: u32) -> Self {
+        match val {
+            2 => ShellStandaloneClkSrc::Internal,
+            1 => ShellStandaloneClkSrc::Coaxial,
+            _ => ShellStandaloneClkSrc::Optical,
+        }
+    }
+}
+
+pub trait ShellStandaloneClkSpec<'a> : TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + AsMut<ShellStandaloneClkSrc> {
+    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc];
+}
+
+/// The structure to represent source pair of stream to mixer.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ShellMixerStreamSrcPair {
+    Stream01,
+    Stream23,
+    Stream45,
+    Stream67,
+    Stream89,
+    Stream1011,
+    Stream1213,
+}
+
+impl Default for ShellMixerStreamSrcPair {
+    fn default() -> Self {
+        ShellMixerStreamSrcPair::Stream01
+    }
+}
+
+impl From<u32> for ShellMixerStreamSrcPair {
+    fn from(val: u32) -> Self {
+        match val {
+            6 => Self::Stream1213,
+            5 => Self::Stream1011,
+            4 => Self::Stream89,
+            3 => Self::Stream67,
+            2 => Self::Stream45,
+            1 => Self::Stream23,
+            _ => Self::Stream01,
+        }
+    }
+}
+
+impl From<ShellMixerStreamSrcPair> for u32 {
+    fn from(pair: ShellMixerStreamSrcPair) -> Self {
+        match pair {
+            ShellMixerStreamSrcPair::Stream01 => 0,
+            ShellMixerStreamSrcPair::Stream23 => 1,
+            ShellMixerStreamSrcPair::Stream45 => 2,
+            ShellMixerStreamSrcPair::Stream67 => 3,
+            ShellMixerStreamSrcPair::Stream89 => 4,
+            ShellMixerStreamSrcPair::Stream1011 => 5,
+            ShellMixerStreamSrcPair::Stream1213 => 6,
+        }
+    }
+}
+
+/// The trait to represent specification for source pair of stream to mixer.
+pub trait ShellMixerStreamSrcPairSpec {
+    const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize;
 }

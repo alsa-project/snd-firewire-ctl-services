@@ -15,6 +15,8 @@ pub mod desktop;
 pub mod ch_strip;
 pub mod reverb;
 pub mod fw_led;
+pub mod midi_send;
+pub mod standalone;
 
 use glib::Error;
 
