@@ -130,6 +130,7 @@ your device, please contact to developer.
   * Stanton ScratchAmp in Final Scratch version 2
 
 * snd-dice-ctl-service
+
   * M-Audio ProFire 2626
   * M-Audio ProFire 610
   * Avid Mbox 3 Pro
