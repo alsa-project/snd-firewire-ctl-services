@@ -20,6 +20,8 @@ use crate::common_ctl::*;
 use super::ch_strip_ctl::*;
 use super::reverb_ctl::*;
 use super::fw_led_ctl::*;
+use super::standalone_ctl::*;
+use super::midi_send_ctl::*;
 
 #[derive(Default)]
 pub struct Studiok48Model{
@@ -32,6 +34,7 @@ pub struct Studiok48Model{
     hw_state_ctl: HwStateCtl,
     phys_out_ctl: PhysOutCtl,
     mixer_ctl: MixerCtl,
+    config_ctl: ConfigCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -54,10 +57,12 @@ impl CtlModel<SndDice> for Studiok48Model {
         self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.phys_out, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.phys_out_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments, card_cntr)?;
+        self.config_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -78,6 +83,8 @@ impl CtlModel<SndDice> for Studiok48Model {
         } else if self.phys_out_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.config_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -103,6 +110,8 @@ impl CtlModel<SndDice> for Studiok48Model {
             Ok(true)
         } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
                                        TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.config_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1145,6 +1154,161 @@ impl<'a> MixerCtl {
                 Ok(true)
             }
             _ => Ok(false),
+        }
+    }
+}
+
+fn opt_iface_mode_to_string(mode: &OptIfaceMode) -> String {
+    match mode {
+        OptIfaceMode::Adat => "ADAT",
+        OptIfaceMode::Spdif => "S/PDIF",
+    }.to_string()
+}
+
+fn standalone_clk_src_to_string(src: &StudioStandaloneClkSrc) -> String {
+    match src {
+        StudioStandaloneClkSrc::Adat => "ADAT",
+        StudioStandaloneClkSrc::SpdifOnOpt01 => "S/PDIF-opt-1/2",
+        StudioStandaloneClkSrc::SpdifOnOpt23 => "S/PDIF-opt-3/4",
+        StudioStandaloneClkSrc::SpdifOnCoax => "S/PDIF-coax",
+        StudioStandaloneClkSrc::WordClock => "Word-clock",
+        StudioStandaloneClkSrc::Internal => "Internal",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct ConfigCtl{
+    standalone_rate: TcKonnektStandaloneCtl,
+    midi_send: MidiSendCtl,
+}
+
+impl<'a> ConfigCtl {
+    const OPT_IFACE_MODE_NAME: &'a str = "opt-iface-mode";
+    const STANDALONE_CLK_SRC_NAME: &'a str = "standalone-clock-source";
+    const CLOCK_RECOVERY_NAME: &'a str = "clock-recovery";
+
+    const OPT_IFACE_MODES: [OptIfaceMode;2] = [OptIfaceMode::Adat, OptIfaceMode::Spdif];
+
+    const STANDALONE_CLK_SRCS: [StudioStandaloneClkSrc;6] = [
+        StudioStandaloneClkSrc::Adat,
+        StudioStandaloneClkSrc::SpdifOnOpt01,
+        StudioStandaloneClkSrc::SpdifOnOpt23,
+        StudioStandaloneClkSrc::SpdifOnCoax,
+        StudioStandaloneClkSrc::WordClock,
+        StudioStandaloneClkSrc::Internal,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = Self::OPT_IFACE_MODES.iter()
+            .map(|m| opt_iface_mode_to_string(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_IFACE_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<String> = Self::STANDALONE_CLK_SRCS.iter()
+            .map(|r| standalone_clk_src_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STANDALONE_CLK_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        self.standalone_rate.load(card_cntr)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::CLOCK_RECOVERY_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        self.midi_send.load(card_cntr)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OPT_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::OPT_IFACE_MODES.iter()
+                        .position(|m| m.eq(&segments.config.data.opt_iface_mode))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::STANDALONE_CLK_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::STANDALONE_CLK_SRCS.iter()
+                        .position(|s| s.eq(&segments.config.data.standalone_src))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::CLOCK_RECOVERY_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(segments.config.data.clock_recovery))
+                .map(|_| true)
+            }
+            _ => {
+                if self.standalone_rate.read(&segments.config, elem_id, elem_value)? {
+                    Ok(true)
+                } else if self.midi_send.read(&segments.config, elem_id, elem_value)? {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+             elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OPT_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::OPT_IFACE_MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of standalone clock source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&m| segments.config.data.opt_iface_mode = m)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.config, timeout_ms))
+                .map(|_| true)
+            }
+            Self::STANDALONE_CLK_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::STANDALONE_CLK_SRCS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of standalone clock source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&s| segments.config.data.standalone_src = s)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.config, timeout_ms))
+                .map(|_| true)
+            }
+            Self::CLOCK_RECOVERY_NAME => {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                    segments.config.data.clock_recovery = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.config, timeout_ms))
+                .map(|_| true)
+            }
+            _ => {
+                if self.standalone_rate.write(unit, proto, &mut segments.config, elem_id, elem_value,
+                                              timeout_ms)? {
+                    Ok(true)
+                } else if self.midi_send.write(unit, proto, &mut segments.config, elem_id, elem_value,
+                                               timeout_ms)? {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
         }
     }
 }
