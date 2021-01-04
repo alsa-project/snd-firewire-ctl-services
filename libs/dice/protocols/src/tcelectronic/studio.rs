@@ -6,12 +6,14 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{*, ch_strip::*, reverb::*, fw_led::*};
+use super::{*, ch_strip::*, reverb::*, fw_led::*, standalone::*, midi_send::*};
 use crate::*;
 
 /// The structure to represent segments in memory space of Studio Konnekt 48.
 #[derive(Default, Debug)]
 pub struct StudioSegments{
+    /// Segment for configuration. 0x0044..0x00a7 (25 quads).
+    pub config: TcKonnektSegment<StudioConfig>,
     /// Segment for state of mixer. 0x00a8..0x03db (205 quads).
     pub mixer_state: TcKonnektSegment<StudioMixerState>,
     /// Segment for physical output. 0x03dc..0x0593 (110 quads).
@@ -30,12 +32,150 @@ pub struct StudioSegments{
     pub ch_strip_meter: TcKonnektSegment<StudioChStripMeters>,
 }
 
+const STUDIO_CONFIG_NOTIFY_FLAG: u32 = 0x00040000;
 const STUDIO_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00080000;
 const STUDIO_PHYS_OUT_NOTIFY_FLAG: u32 = 0x00100000;
 const STUDIO_REVERB_NOTIFY_CHANGE: u32 = 0x00200000;
 const STUDIO_CH_STRIP_NOTIFY_01_CHANGE: u32 = 0x00400000;
 const STUDIO_CH_STRIP_NOTIFY_23_CHANGE: u32 = 0x00800000;
 const STUDIO_HW_STATE_NOTIFY_FLAG: u32 = 0x04000000;
+
+/// The enumeration to represent mode of optical interface.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum OptIfaceMode {
+    Adat,
+    Spdif,
+}
+
+impl Default for OptIfaceMode {
+    fn default() -> Self {
+        Self::Adat
+    }
+}
+
+impl From<u32> for OptIfaceMode {
+    fn from(val: u32) -> Self {
+        if val > 0 {
+            Self::Spdif
+        } else {
+            Self::Adat
+        }
+    }
+}
+
+impl From<OptIfaceMode> for u32 {
+    fn from(mode: OptIfaceMode) -> Self {
+        (mode == OptIfaceMode::Spdif) as u32
+    }
+}
+
+/// The enumeration to represent source of standalone clock.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum StudioStandaloneClkSrc {
+    Adat,
+    SpdifOnOpt01,
+    SpdifOnOpt23,
+    SpdifOnCoax,
+    WordClock,
+    Internal,
+}
+
+impl Default for StudioStandaloneClkSrc {
+    fn default() -> Self {
+        Self::Internal
+    }
+}
+
+impl From<u32> for StudioStandaloneClkSrc {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Self::Adat,
+            1 => Self::SpdifOnOpt01,
+            2 => Self::SpdifOnOpt23,
+            3 => Self::SpdifOnCoax,
+            4 => Self::WordClock,
+            _ => Self::Internal,
+        }
+    }
+}
+
+impl From<StudioStandaloneClkSrc> for u32 {
+    fn from(src: StudioStandaloneClkSrc) -> Self {
+        match src {
+            StudioStandaloneClkSrc::Adat => 0,
+            StudioStandaloneClkSrc::SpdifOnOpt01 => 1,
+            StudioStandaloneClkSrc::SpdifOnOpt23 => 2,
+            StudioStandaloneClkSrc::SpdifOnCoax => 3,
+            StudioStandaloneClkSrc::WordClock => 4,
+            StudioStandaloneClkSrc::Internal => 5,
+        }
+    }
+}
+
+/// The structure to represent configuration.
+#[derive(Default, Debug)]
+pub struct StudioConfig{
+    pub opt_iface_mode: OptIfaceMode,
+    pub standalone_src: StudioStandaloneClkSrc,
+    pub standalone_rate: TcKonnektStandaloneClkRate,
+    pub clock_recovery: bool,
+    pub midi_send: TcKonnektMidiSender,
+}
+
+impl StudioConfig {
+    const SIZE: usize = 100;
+}
+
+impl AsRef<TcKonnektStandaloneClkRate> for StudioConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClkRate> for StudioConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
+        &mut self.standalone_rate
+    }
+}
+
+impl AsRef<TcKonnektMidiSender> for StudioConfig {
+    fn as_ref(&self) -> &TcKonnektMidiSender{
+        &self.midi_send
+    }
+}
+
+impl AsMut<TcKonnektMidiSender> for StudioConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektMidiSender{
+        &mut self.midi_send
+    }
+}
+
+impl TcKonnektSegmentData for StudioConfig {
+    fn build(&self, raw: &mut [u8]) {
+        self.opt_iface_mode.build_quadlet(&mut raw[..4]);
+        self.standalone_src.build_quadlet(&mut raw[4..8]);
+        self.standalone_rate.build_quadlet(&mut raw[8..12]);
+        self.clock_recovery.build_quadlet(&mut raw[16..20]);
+        self.midi_send.build(&mut raw[52..84]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.opt_iface_mode.parse_quadlet(&raw[..4]);
+        self.standalone_src.parse_quadlet(&raw[4..8]);
+        self.standalone_rate.parse_quadlet(&raw[8..12]);
+        self.clock_recovery.parse_quadlet(&raw[16..20]);
+        self.midi_send.parse(&raw[52..84]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<StudioConfig> {
+    const OFFSET: usize = 0x0044;
+    const SIZE: usize = StudioConfig::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioConfig> {
+    const NOTIFY_FLAG: u32 = STUDIO_CONFIG_NOTIFY_FLAG;
+}
 
 /// The enumeration to represent entry of signal source.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
