@@ -8,6 +8,8 @@
 //!
 //! In Konnekt series, the accessible memory space is separated to several segments.
 
+pub mod shell;
+
 use glib::Error;
 
 use hinawa::FwNode;
