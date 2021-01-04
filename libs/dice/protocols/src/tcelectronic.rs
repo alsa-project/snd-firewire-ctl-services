@@ -10,6 +10,7 @@
 
 pub mod shell;
 pub mod studio;
+pub mod desktop;
 
 use glib::Error;
 
