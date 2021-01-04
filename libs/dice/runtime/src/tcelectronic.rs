@@ -12,4 +12,5 @@ pub mod reverb_ctl;
 pub mod fw_led_ctl;
 pub mod midi_send_ctl;
 pub mod standalone_ctl;
+pub mod prog_ctl;
 pub mod shell_ctl;
