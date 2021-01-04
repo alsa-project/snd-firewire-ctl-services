@@ -5,6 +5,7 @@ mod minimal_model;
 mod extension_model;
 mod pfire_model;
 mod mbox3_model;
+mod tcelectronic;
 mod tcd22xx_spec;
 mod common_ctl;
 mod tcd22xx_ctl;

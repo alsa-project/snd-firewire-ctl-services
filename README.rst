@@ -134,6 +134,7 @@ your device, please contact to developer.
   * M-Audio ProFire 2626
   * M-Audio ProFire 610
   * Avid Mbox 3 Pro
+  * TC Electronic Konnekt 24d
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
