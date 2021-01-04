@@ -8,3 +8,4 @@ pub mod desktopk6_model;
 pub mod itwin_model;
 
 pub mod ch_strip_ctl;
+pub mod reverb_ctl;
