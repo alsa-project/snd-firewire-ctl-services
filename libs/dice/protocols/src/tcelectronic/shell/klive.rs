@@ -16,6 +16,8 @@ pub struct KliveSegments{
     pub reverb_state: TcKonnektSegment<KliveReverbState>,
     /// Segment for states of channel strip effect. 0x025c..0x037f (73 quads).
     pub ch_strip_state: TcKonnektSegment<KliveChStripStates>,
+    /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
+    pub hw_state: TcKonnektSegment<KliveHwState>,
     /// Segment for meter of reverb effect. 0x10c4..0x010db (6 quads).
     pub reverb_meter: TcKonnektSegment<KliveReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10dc..0x1117 (15 quads).
@@ -88,6 +90,52 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<KliveChStripStates> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveChStripStates> {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+}
+
+#[derive(Default, Debug)]
+pub struct KliveHwState(ShellHwState);
+
+impl AsRef<[ShellAnalogJackState]> for KliveHwState {
+    fn as_ref(&self) -> &[ShellAnalogJackState] {
+        &self.0.analog_jack_states
+    }
+}
+
+impl AsMut<[ShellAnalogJackState]> for KliveHwState {
+    fn as_mut(&mut self) -> &mut [ShellAnalogJackState] {
+        &mut self.0.analog_jack_states
+    }
+}
+
+impl AsRef<FireWireLedState> for KliveHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.0.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for KliveHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.0.firewire_led
+    }
+}
+
+impl TcKonnektSegmentData for KliveHwState {
+    fn build(&self, raw: &mut [u8]) {
+        self.0.build(raw)
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.0.parse(raw)
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<KliveHwState> {
+    const OFFSET: usize = 0x1008;
+    const SIZE: usize = ShellHwState::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveHwState> {
+    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]

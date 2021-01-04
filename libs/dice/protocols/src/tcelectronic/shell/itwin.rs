@@ -16,6 +16,8 @@ pub struct ItwinSegments{
     pub reverb_state: TcKonnektSegment<ItwinReverbState>,
     /// Segment for states of channel strip effect. 0x0288..0x03ab (73 quads).
     pub ch_strip_state: TcKonnektSegment<ItwinChStripStates>,
+    /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
+    pub hw_state: TcKonnektSegment<ItwinHwState>,
     /// Segment for meter of reverb effect. 0x10c8..0x010df (6 quads).
     pub reverb_meter: TcKonnektSegment<ItwinReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10e0..0x111b (15 quads).
@@ -88,6 +90,97 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinChStripStates> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinChStripStates> {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+}
+
+/// The mode to listen for analog outputs.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ListeningMode {
+    Monaural,
+    Stereo,
+    Side,
+}
+
+impl ListeningMode {
+    const MONAURAL: u32 = 0x00;
+    const STEREO: u32 = 0x01;
+    const SIDE: u32 = 0x02;
+}
+
+impl Default for ListeningMode {
+    fn default() -> Self {
+        Self::Monaural
+    }
+}
+
+impl From<u32> for ListeningMode {
+    fn from(val: u32) -> Self {
+        match val & 0x03 {
+            Self::STEREO => Self::Stereo,
+            Self::SIDE => Self::Side,
+            _ => Self::Monaural,
+        }
+    }
+}
+
+impl From<ListeningMode> for u32 {
+    fn from(mode: ListeningMode) -> u32 {
+        match mode {
+            ListeningMode::Monaural => ListeningMode::MONAURAL,
+            ListeningMode::Stereo => ListeningMode::STEREO,
+            ListeningMode::Side => ListeningMode::SIDE,
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct ItwinHwState{
+    pub hw_state: ShellHwState,
+    pub listening_mode: ListeningMode,
+}
+
+impl AsRef<[ShellAnalogJackState]> for ItwinHwState {
+    fn as_ref(&self) -> &[ShellAnalogJackState] {
+        &self.hw_state.analog_jack_states
+    }
+}
+
+impl AsMut<[ShellAnalogJackState]> for ItwinHwState {
+    fn as_mut(&mut self) -> &mut [ShellAnalogJackState] {
+        &mut self.hw_state.analog_jack_states
+    }
+}
+
+impl AsRef<FireWireLedState> for ItwinHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.hw_state.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for ItwinHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.hw_state.firewire_led
+    }
+}
+
+impl TcKonnektSegmentData for ItwinHwState {
+    fn build(&self, raw: &mut [u8]) {
+        self.hw_state.build(raw);
+        self.listening_mode.build_quadlet(&mut raw[8..12]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.hw_state.parse(raw);
+        self.listening_mode.parse_quadlet(&raw[8..12]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinHwState> {
+    const OFFSET: usize = 0x1008;
+    const SIZE: usize = ShellHwState::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinHwState> {
+    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]
