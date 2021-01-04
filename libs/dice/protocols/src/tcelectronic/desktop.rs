@@ -8,20 +8,64 @@
 
 use crate::*;
 
-use crate::tcelectronic::{*, fw_led::*};
+use crate::tcelectronic::{*, fw_led::*, standalone::*};
 
+const DESKTOP_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;
 const DESKTOP_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00040000;
 const DESKTOP_PANEL_NOTIFY_FLAG: u32 = 0x00080000;
 
 /// The structure to represent segments in memory space of Desktop Konnekt 6.
 #[derive(Default, Debug)]
 pub struct DesktopSegments{
+    /// Segment for configuration. 0x0098..0x00b7 (8 quads).
+    pub config: TcKonnektSegment<DesktopConfig>,
     /// Segment for state of mixer. 0x00b8..0x0367 (172 quads).
     pub mixer: TcKonnektSegment<DesktopMixerState>,
     /// Segment for panel. 0x2008..0x2047 (15 quads).
     pub panel: TcKonnektSegment<DesktopPanel>,
     /// Segment for meter. 0x20e4..0x213f (23 quads).
     pub meter: TcKonnektSegment<DesktopMeter>,
+}
+
+/// The structure to represent configuration.
+#[derive(Default, Debug)]
+pub struct DesktopConfig{
+    pub standalone_rate: TcKonnektStandaloneClkRate,
+}
+
+impl DesktopConfig {
+    const SIZE: usize = 32;
+}
+
+impl AsRef<TcKonnektStandaloneClkRate> for DesktopConfig {
+    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
+        &self.standalone_rate
+    }
+}
+
+impl AsMut<TcKonnektStandaloneClkRate> for DesktopConfig {
+    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
+        &mut self.standalone_rate
+    }
+}
+
+impl TcKonnektSegmentData for DesktopConfig {
+    fn build(&self, raw: &mut [u8]) {
+        self.standalone_rate.build_quadlet(&mut raw[4..8]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.standalone_rate.parse_quadlet(&raw[4..8]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<DesktopConfig> {
+    const OFFSET: usize = 0x0098;
+    const SIZE: usize = DesktopConfig::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopConfig> {
+    const NOTIFY_FLAG: u32 = DESKTOP_CONFIG_NOTIFY_FLAG;
 }
 
 /// The enumeration to represent source of headphone.
