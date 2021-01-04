@@ -29,6 +29,9 @@ pub struct K24dModel{
     hw_state_ctl: HwStateCtl,
     mixer_ctl: ShellMixerCtl,
     reverb_return_ctl: ShellReverbReturnCtl,
+    standalone_ctl: ShellStandaloneCtl,
+    coax_iface_ctl: ShellCoaxIfaceCtl,
+    opt_iface_ctl: ShellOptIfaceCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -50,10 +53,14 @@ impl CtlModel<SndDice> for K24dModel {
         let node = unit.get_node();
         self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments.mixer_state, &self.segments.mixer_meter, card_cntr)?;
         self.reverb_return_ctl.load(card_cntr)?;
+        self.standalone_ctl.load(&self.segments.config, card_cntr)?;
+        self.coax_iface_ctl.load(card_cntr)?;
+        self.opt_iface_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -75,6 +82,12 @@ impl CtlModel<SndDice> for K24dModel {
                                       elem_value)? {
             Ok(true)
         } else if self.reverb_return_ctl.read(&self.segments.mixer_state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.standalone_ctl.read(&self.segments.config, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.coax_iface_ctl.read(&self.segments.config, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.read(&self.segments.config, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -100,6 +113,15 @@ impl CtlModel<SndDice> for K24dModel {
         } else if self.reverb_return_ctl.write(unit, &self.proto, &mut self.segments.mixer_state, elem_id, new,
                                                TIMEOUT_MS)? {
             Ok(true)
+        } else if self.standalone_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+                                            TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.coax_iface_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+                                            TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+                                           TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -124,6 +146,7 @@ impl NotifyModel<SndDice, u32> for K24dModel {
         self.proto.parse_notification(&node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.mixer_state, TIMEOUT_MS, *msg)?;
+        self.proto.parse_notification(&node, &mut self.segments.config, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 

@@ -10,4 +10,6 @@ pub mod itwin_model;
 pub mod ch_strip_ctl;
 pub mod reverb_ctl;
 pub mod fw_led_ctl;
+pub mod midi_send_ctl;
+pub mod standalone_ctl;
 pub mod shell_ctl;
