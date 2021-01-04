@@ -16,7 +16,7 @@ use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcelectronic::{*, desktop::*};
 
 use crate::common_ctl::*;
-use super::fw_led_ctl::*;
+use super::{fw_led_ctl::*, standalone_ctl::*};
 
 #[derive(Default)]
 pub struct Desktopk6Model{
@@ -27,6 +27,7 @@ pub struct Desktopk6Model{
     meter_ctl: MeterCtl,
     panel_ctl: PanelCtl,
     mixer_ctl: MixerCtl,
+    standalone_ctl: TcKonnektStandaloneCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -43,10 +44,12 @@ impl CtlModel<SndDice> for Desktopk6Model {
         self.proto.read_segment(&node, &mut self.segments.meter, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.panel, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.mixer, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
 
         self.meter_ctl.load(&self.segments, card_cntr)?;
         self.panel_ctl.load(card_cntr)?;
         self.mixer_ctl.load(card_cntr)?;
+        self.standalone_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -62,6 +65,8 @@ impl CtlModel<SndDice> for Desktopk6Model {
             Ok(true)
         } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
+        } else if self.standalone_ctl.read(&self.segments.config, elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -76,6 +81,9 @@ impl CtlModel<SndDice> for Desktopk6Model {
             Ok(true)
         } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
                                        TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.standalone_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+                                            TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
