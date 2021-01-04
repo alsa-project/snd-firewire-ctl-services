@@ -26,6 +26,8 @@ pub struct K8Model{
     mixer_ctl: ShellMixerCtl,
     standalone_ctl: ShellStandaloneCtl,
     coax_iface_ctl: ShellCoaxIfaceCtl,
+    knob_ctl: ShellKnobCtl,
+    knob2_ctl: ShellKnob2Ctl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -43,11 +45,14 @@ impl CtlModel<SndDice> for K8Model {
         self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.knob, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments.mixer_state, &self.segments.mixer_meter, card_cntr)?;
         self.standalone_ctl.load(&self.segments.config, card_cntr)?;
         self.coax_iface_ctl.load(card_cntr)?;
+        self.knob_ctl.load(&self.segments.knob, card_cntr)?;
+        self.knob2_ctl.load(&self.segments.knob, card_cntr)?;
 
         Ok(())
     }
@@ -65,6 +70,10 @@ impl CtlModel<SndDice> for K8Model {
         } else if self.standalone_ctl.read(&self.segments.config, elem_id, elem_value)? {
             Ok(true)
         } else if self.coax_iface_ctl.read(&self.segments.config, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.knob_ctl.read(&self.segments.knob, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.knob2_ctl.read(&self.segments.knob, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -88,6 +97,12 @@ impl CtlModel<SndDice> for K8Model {
         } else if self.coax_iface_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
                                             TIMEOUT_MS)? {
             Ok(true)
+        } else if self.knob_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
+                                      TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.knob2_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
+                                       TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -99,6 +114,7 @@ impl NotifyModel<SndDice, u32> for K8Model {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.knob_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
@@ -108,6 +124,7 @@ impl NotifyModel<SndDice, u32> for K8Model {
         self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.mixer_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.config, TIMEOUT_MS, *msg)?;
+        self.proto.parse_notification(&node, &mut self.segments.knob, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 
@@ -119,6 +136,8 @@ impl NotifyModel<SndDice, u32> for K8Model {
         } else if self.hw_state_ctl.read(&self.segments.hw_state, elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read_notified_elem(&self.segments.mixer_state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.knob_ctl.read(&self.segments.knob, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

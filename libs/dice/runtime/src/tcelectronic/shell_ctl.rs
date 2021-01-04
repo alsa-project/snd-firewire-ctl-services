@@ -1022,3 +1022,189 @@ impl<'a> ShellOptIfaceCtl {
         }
     }
 }
+
+#[derive(Default, Debug)]
+pub struct ShellKnobCtl{
+    pub notified_elem_list: Vec<ElemId>,
+}
+
+impl<'a> ShellKnobCtl {
+    const TARGET_NAME: &'a str = "knob-target";
+
+    const K8_TARGETS: &'a [&'a str] = &[
+        "Analog-1",
+        "Analog-2",
+        "S/PDIF-1/2",
+        "Configurable",
+    ];
+    const K24D_KLIVE_TARGETS: &'a [&'a str] = &[
+        "Analog-1",
+        "Analog-2",
+        "Analog-3/4",
+        "Configurable",
+    ];
+    const ITWIN_TARGETS: &'a [&'a str] = &[
+        "Channel-strip-1",
+        "Channel-strip-2",
+        "Reverb-1/2",
+        "Mixer-1/2",
+    ];
+    const TARGET_COUNT: u32 = 4;
+
+    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where S: TcKonnektSegmentData + ShellKnobTargetSpec,
+    {
+        let labels = if S::HAS_SPDIF {
+            Self::K8_TARGETS
+        } else if S::HAS_EFFECTS {
+            Self::ITWIN_TARGETS
+        } else {
+            Self::K24D_KLIVE_TARGETS
+        };
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::TARGET_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
+    }
+
+    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+        where S: TcKonnektSegmentData + AsRef<ShellKnobTarget>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::TARGET_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let state = segment.data.as_ref();
+                    if state.0 >= Self::TARGET_COUNT {
+                        let msg = format!("Unexpected value for index of program: {}", state.0);
+                        Err(Error::new(FileError::Io, &msg))
+                    } else {
+                        Ok(state.0)
+                    }
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
+                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where T: TcKonnektSegmentProtocol<FwNode, S>,
+              for<'b> S: TcKonnektSegmentData + AsMut<ShellKnobTarget>,
+              TcKonnektSegment<S>: TcKonnektSegmentSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::TARGET_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    if val >= Self::TARGET_COUNT {
+                        let msg = format!("Invalid value for index of program: {}", val);
+                        Err(Error::new(FileError::Io, &msg))
+                    } else {
+                        segment.data.as_mut().0 = val;
+                        proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                    }
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct ShellKnob2Ctl;
+
+impl<'a> ShellKnob2Ctl {
+    const KNOB2_NAME: &'a str = "configurable-knob-target";
+
+    const K8_LABELS: &'a [&'a str] = &[
+        "Stream-input-1/2",
+        "Mixer-1/2",
+    ];
+    const K24D_LABELS: &'a [&'a str] = &[
+        "Digital-1/2",
+        "Digital-3/4",
+        "Digital-5/6",
+        "Digital-7/8",
+        "Stream",
+        "Reverb-1/2",
+        "Mixer-1/2",
+        "Tune-pitch-tone",
+    ];
+    const KLIVE_LABELS: &'a [&'a str] = &[
+        "Digital-1/2",
+        "Digital-3/4",
+        "Digital-5/6",
+        "Digital-7/8",
+        "Stream",
+        "Reverb-1/2",
+        "Mixer-1/2",
+        "Tune-pitch-tone",
+        "Midi-send",
+    ];
+
+    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where S: TcKonnektSegmentData + ShellKnob2TargetSpec,
+    {
+        let labels = if S::KNOB2_TARGET_COUNT == 9 {
+            Self::KLIVE_LABELS
+        } else if S::KNOB2_TARGET_COUNT == 8 {
+            Self::K24D_LABELS
+        } else if S::KNOB2_TARGET_COUNT == 2 {
+            Self::K8_LABELS
+        } else {
+            unreachable!();
+        };
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::KNOB2_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|_| ())
+    }
+
+    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+        where S: TcKonnektSegmentData + AsRef<ShellKnob2Target> + ShellKnob2TargetSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::KNOB2_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let state = segment.data.as_ref();
+                    if state.0 >= S::KNOB2_TARGET_COUNT as u32 {
+                        let msg = format!("Unexpected value for index of program: {}", state.0);
+                        Err(Error::new(FileError::Io, &msg))
+                    } else {
+                        Ok(state.0)
+                    }
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
+                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where T: TcKonnektSegmentProtocol<FwNode, S>,
+              for<'b> S: TcKonnektSegmentData + AsMut<ShellKnob2Target> + ShellKnob2TargetSpec,
+              TcKonnektSegment<S>: TcKonnektSegmentSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::KNOB2_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    if val >= S::KNOB2_TARGET_COUNT as u32 {
+                        let msg = format!("Invalid value for index of program: {}", val);
+                        Err(Error::new(FileError::Io, &msg))
+                    } else {
+                        segment.data.as_mut().0 = val;
+                        proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                    }
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
