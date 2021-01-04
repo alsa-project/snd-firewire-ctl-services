@@ -22,6 +22,7 @@ use super::reverb_ctl::*;
 use super::fw_led_ctl::*;
 use super::standalone_ctl::*;
 use super::midi_send_ctl::*;
+use super::prog_ctl::*;
 
 #[derive(Default)]
 pub struct Studiok48Model{
@@ -35,6 +36,7 @@ pub struct Studiok48Model{
     phys_out_ctl: PhysOutCtl,
     mixer_ctl: MixerCtl,
     config_ctl: ConfigCtl,
+    remote_ctl: RemoteCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -58,11 +60,13 @@ impl CtlModel<SndDice> for Studiok48Model {
         self.proto.read_segment(&node, &mut self.segments.phys_out, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.remote, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.phys_out_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments, card_cntr)?;
         self.config_ctl.load(card_cntr)?;
+        self.remote_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -85,6 +89,8 @@ impl CtlModel<SndDice> for Studiok48Model {
         } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else if self.config_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.remote_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -113,6 +119,8 @@ impl CtlModel<SndDice> for Studiok48Model {
             Ok(true)
         } else if self.config_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.remote_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -127,6 +135,7 @@ impl NotifyModel<SndDice, u32> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.hw_state_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.phys_out_ctl.0);
         elem_id_list.extend_from_slice(&self.mixer_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.remote_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
@@ -138,6 +147,7 @@ impl NotifyModel<SndDice, u32> for Studiok48Model {
         self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.phys_out, TIMEOUT_MS, msg)?;
         self.proto.parse_notification(&node, &mut self.segments.mixer_state, TIMEOUT_MS, msg)?;
+        self.proto.parse_notification(&node, &mut self.segments.remote, TIMEOUT_MS, msg)?;
 
         Ok(())
     }
@@ -156,6 +166,8 @@ impl NotifyModel<SndDice, u32> for Studiok48Model {
         } else if self.phys_out_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.remote_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1309,6 +1321,207 @@ impl<'a> ConfigCtl {
                     Ok(false)
                 }
             }
+        }
+    }
+}
+
+fn effect_button_mode_to_string(mode: &RemoteEffectButtonMode) -> String {
+    match mode {
+        RemoteEffectButtonMode::Reverb => "Reverb",
+        RemoteEffectButtonMode::Midi => "Midi",
+    }.to_string()
+}
+
+fn knob_push_mode_to_string(mode: &KnobPushMode) -> String {
+    match mode {
+        KnobPushMode::Pan => "Pan",
+        KnobPushMode::GainToReverb => "Reverb",
+        KnobPushMode::GainToAux0 => "Aux-1/2",
+        KnobPushMode::GainToAux1 => "Aux-3/4",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct RemoteCtl{
+    notified_elem_list: Vec<ElemId>,
+    prog_ctl: TcKonnektProgramCtl,
+}
+
+impl<'a> RemoteCtl {
+    const USER_ASSIGN_NAME: &'a str = "remote-user-assign";
+    const EFFECT_BUTTON_MODE_NAME: &'a str = "remote-effect-button-mode";
+    const FALLBACK_TO_MASTER_ENABLE_NAME: &'a str = "remote-fallback-to-master-enable";
+    const FALLBACK_TO_MASTER_DURATION_NAME: &'a str = "remote-fallback-to-master-duration";
+    const KNOB_PUSH_MODE_NAME: &'a str = "remote-knob-push-mode";
+
+    const EFFECT_BUTTON_MODES: [RemoteEffectButtonMode;2] = [
+        RemoteEffectButtonMode::Reverb,
+        RemoteEffectButtonMode::Midi,
+    ];
+
+    // NOTE: by milisecond.
+    const DURATION_MIN: i32 = 10;
+    const DURATION_MAX: i32 = 1000;
+    const DURATION_STEP: i32 = 1;
+
+    const KNOB_PUSH_MODES: [KnobPushMode;4] = [
+        KnobPushMode::Pan,
+        KnobPushMode::GainToReverb,
+        KnobPushMode::GainToAux0,
+        KnobPushMode::GainToAux1,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        self.prog_ctl.load(card_cntr)?;
+        self.notified_elem_list.extend_from_slice(&self.prog_ctl.0);
+
+        let labels: Vec<String> = MixerCtl::SRC_PAIR_ENTRIES.iter()
+            .map(|src| src_pair_entry_to_string(src))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USER_ASSIGN_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, STUDIO_REMOTE_USER_ASSIGN_COUNT, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = Self::EFFECT_BUTTON_MODES.iter()
+            .map(|m| effect_button_mode_to_string(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EFFECT_BUTTON_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::FALLBACK_TO_MASTER_ENABLE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::FALLBACK_TO_MASTER_DURATION_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::DURATION_MIN, Self::DURATION_MAX, Self::DURATION_STEP,
+                                1, None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = Self::KNOB_PUSH_MODES.iter()
+            .map(|m| knob_push_mode_to_string(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::KNOB_PUSH_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        self.read_notified_elem(segments, elem_id, elem_value)
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+             elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::USER_ASSIGN_NAME => {
+                ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_REMOTE_USER_ASSIGN_COUNT, |idx, val| {
+                    MixerCtl::SRC_PAIR_ENTRIES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of source of user assignment: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&s| segments.remote.data.user_assigns[idx] = s)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.remote, timeout_ms))
+                .map(|_| true)
+            }
+            Self::EFFECT_BUTTON_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    Self::EFFECT_BUTTON_MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of source of user assignment: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&m| segments.remote.data.effect_button_mode = m)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.remote, timeout_ms))
+                .map(|_| true)
+            }
+            Self::FALLBACK_TO_MASTER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    segments.remote.data.fallback_to_master_enable = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.remote, timeout_ms))
+                .map(|_| true)
+            }
+            Self::FALLBACK_TO_MASTER_DURATION_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    segments.remote.data.fallback_to_master_duration = val as u32;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.remote, timeout_ms))
+                .map(|_| true)
+            }
+            Self::KNOB_PUSH_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    Self::KNOB_PUSH_MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of source of user assignment: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&m| segments.remote.data.knob_push_mode = m)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.remote, timeout_ms))
+                .map(|_| true)
+            }
+            _ => self.prog_ctl.write(unit, proto, &mut segments.remote, elem_id, new, timeout_ms)
+        }
+    }
+
+    fn read_notified_elem(&mut self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::USER_ASSIGN_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_REMOTE_USER_ASSIGN_COUNT, |idx| {
+                    let pos = MixerCtl::SRC_PAIR_ENTRIES.iter()
+                        .position(|p| p.eq(&segments.remote.data.user_assigns[idx]))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::EFFECT_BUTTON_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::EFFECT_BUTTON_MODES.iter()
+                        .position(|m| m.eq(&segments.remote.data.effect_button_mode))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::FALLBACK_TO_MASTER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || {
+                    Ok(segments.remote.data.fallback_to_master_enable)
+                })
+                .map(|_| true)
+            }
+            Self::FALLBACK_TO_MASTER_DURATION_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    Ok(segments.remote.data.fallback_to_master_duration as i32)
+                })
+                .map(|_| true)
+            }
+            Self::KNOB_PUSH_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::KNOB_PUSH_MODES.iter()
+                        .position(|m| m.eq(&segments.remote.data.knob_push_mode))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => self.prog_ctl.read(&segments.remote, elem_id, elem_value),
         }
     }
 }
