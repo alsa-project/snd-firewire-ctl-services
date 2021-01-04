@@ -692,3 +692,24 @@ impl From<ShellMixerStreamSrcPair> for u32 {
 pub trait ShellMixerStreamSrcPairSpec {
     const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize;
 }
+
+/// The wrapper to represent target of knob.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct ShellKnobTarget(pub u32);
+
+/// The trait to represent maximum value of knob 2.
+pub trait ShellKnobTargetSpec {
+    const HAS_SPDIF: bool;
+    const HAS_EFFECTS: bool;
+}
+
+/// The wrapper to represent target of knob 2.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct ShellKnob2Target(pub u32);
+
+/// The trait to represent maximum value of knob 2.
+pub trait ShellKnob2TargetSpec {
+    const KNOB2_TARGET_COUNT: usize;
+}
+
+pub const SHELL_KNOB_SIZE: usize = 36;

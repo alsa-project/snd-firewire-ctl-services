@@ -17,6 +17,7 @@ pub mod reverb;
 pub mod fw_led;
 pub mod midi_send;
 pub mod standalone;
+pub mod prog;
 
 use glib::Error;
 
