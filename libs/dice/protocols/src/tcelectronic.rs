@@ -9,6 +9,7 @@
 //! In Konnekt series, the accessible memory space is separated to several segments.
 
 pub mod shell;
+pub mod studio;
 
 use glib::Error;
 
