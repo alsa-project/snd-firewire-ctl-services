@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
@@ -12,11 +12,13 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use dice_protocols::tcelectronic::*;
 use dice_protocols::tcelectronic::fw_led::*;
 use dice_protocols::tcelectronic::shell::*;
+use dice_protocols::tcelectronic::standalone::*;
 
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
 use super::fw_led_ctl::*;
+use super::standalone_ctl::*;
 
 fn analog_jack_state_to_string(state: &ShellAnalogJackState) -> String {
     match state {
@@ -615,6 +617,404 @@ impl<'a> ShellReverbReturnCtl {
             Self::MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segment.data.as_ref().return_mute)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn standalone_src_to_string(src: &ShellStandaloneClkSrc) -> String {
+    match src {
+        ShellStandaloneClkSrc::Optical => "Optical",
+        ShellStandaloneClkSrc::Coaxial => "Coaxial",
+        ShellStandaloneClkSrc::Internal => "Internal",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct ShellStandaloneCtl(TcKonnektStandaloneCtl);
+
+impl<'a> ShellStandaloneCtl {
+    const SRC_NAME: &'a str = "standalone-clock-source";
+
+    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where for<'b> S: TcKonnektSegmentData + ShellStandaloneClkSpec<'b>,
+    {
+        let labels: Vec<String> = S::STANDALONE_CLOCK_SOURCES.iter()
+            .map(|r| standalone_src_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        self.0.load(card_cntr)?;
+
+        Ok(())
+    }
+
+    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+        where for<'b> S: TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + ShellStandaloneClkSpec<'b> +
+                         AsRef<TcKonnektStandaloneClkRate>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let src = segment.data.as_ref();
+                    let pos = S::STANDALONE_CLOCK_SOURCES.iter()
+                        .position(|s| s.eq(&src))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => self.0.read(segment, elem_id, elem_value),
+        }
+    }
+
+    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
+                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where T: TcKonnektSegmentProtocol<FwNode, S>,
+              for<'b> S: TcKonnektSegmentData + AsMut<ShellStandaloneClkSrc> + ShellStandaloneClkSpec<'b> +
+                         AsMut<TcKonnektStandaloneClkRate>,
+              TcKonnektSegment<S>: TcKonnektSegmentSpec
+    {
+        match elem_id.get_name().as_str() {
+            Self::SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    S::STANDALONE_CLOCK_SOURCES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of clock source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&s| *segment.data.as_mut() = s)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+                .map(|_| true)
+            }
+            _ => self.0.write(unit, proto, segment, elem_id, elem_value, timeout_ms),
+        }
+    }
+}
+
+fn mixer_stream_src_pair_to_string(src: &ShellMixerStreamSrcPair) -> String {
+    match src {
+        ShellMixerStreamSrcPair::Stream01 => "Stream-1/2",
+        ShellMixerStreamSrcPair::Stream23 => "Stream-3/4",
+        ShellMixerStreamSrcPair::Stream45 => "Stream-5/6",
+        ShellMixerStreamSrcPair::Stream67 => "Stream-7/8",
+        ShellMixerStreamSrcPair::Stream89 => "Stream-9/10",
+        ShellMixerStreamSrcPair::Stream1011 => "Stream-11/12",
+        ShellMixerStreamSrcPair::Stream1213 => "Stream-13/14",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct MixerStreamSrcPairCtl;
+
+impl<'a> MixerStreamSrcPairCtl {
+    const MIXER_STREAM_SRC_NAME: &'a str = "mixer-stream-soruce";
+    const MIXER_STREAM_SRC_PAIRS: [ShellMixerStreamSrcPair;7] = [
+        ShellMixerStreamSrcPair::Stream01,
+        ShellMixerStreamSrcPair::Stream23,
+        ShellMixerStreamSrcPair::Stream45,
+        ShellMixerStreamSrcPair::Stream67,
+        ShellMixerStreamSrcPair::Stream89,
+        ShellMixerStreamSrcPair::Stream1011,
+        ShellMixerStreamSrcPair::Stream1213,
+    ];
+
+    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where S: TcKonnektSegmentData + ShellMixerStreamSrcPairSpec,
+    {
+        let labels: Vec<String> = Self::MIXER_STREAM_SRC_PAIRS.iter()
+            .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
+            .map(|s| mixer_stream_src_pair_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STREAM_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+        where S: TcKonnektSegmentData + AsRef<ShellMixerStreamSrcPair> + ShellMixerStreamSrcPairSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_STREAM_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::MIXER_STREAM_SRC_PAIRS.iter()
+                        .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
+                        .position(|s| s == segment.data.as_ref())
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
+                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where T: TcKonnektSegmentProtocol<FwNode, S>,
+              S: TcKonnektSegmentData + AsMut<ShellMixerStreamSrcPair> + ShellMixerStreamSrcPairSpec,
+              TcKonnektSegment<S>: TcKonnektSegmentSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_STREAM_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::MIXER_STREAM_SRC_PAIRS.iter()
+                        .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of stream src pair: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&s| {
+                            *segment.data.as_mut() = s;
+                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+pub fn phys_out_src_to_string(src: &ShellPhysOutSrc) -> String {
+    match src {
+        ShellPhysOutSrc::Stream => "Stream-input",
+        ShellPhysOutSrc::Analog01 => "Analog-input-1/2",
+        ShellPhysOutSrc::MixerOut01 => "Mixer-output-1/2",
+        ShellPhysOutSrc::MixerSend01 => "Mixer-send/1/2",
+    }.to_string()
+}
+
+pub const PHYS_OUT_SRCS: [ShellPhysOutSrc;4] = [
+    ShellPhysOutSrc::Stream,
+    ShellPhysOutSrc::Analog01,
+    ShellPhysOutSrc::MixerOut01,
+    ShellPhysOutSrc::MixerSend01,
+];
+
+#[derive(Default, Debug)]
+pub struct ShellCoaxIfaceCtl;
+
+impl<'a> ShellCoaxIfaceCtl {
+    const OUT_SRC_NAME: &'a str = "coaxial-output-source";
+
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = PHYS_OUT_SRCS.iter()
+            .map(|s| phys_out_src_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|_| ())
+    }
+
+    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+        where for<'b> S: TcKonnektSegmentData + AsRef<ShellCoaxOutPairSrc>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = PHYS_OUT_SRCS.iter()
+                        .position(|s| s.eq(&segment.data.as_ref().0))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
+                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where T: TcKonnektSegmentProtocol<FwNode, S>,
+              for<'b> S: TcKonnektSegmentData + AsMut<ShellCoaxOutPairSrc>,
+              TcKonnektSegment<S>: TcKonnektSegmentSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    PHYS_OUT_SRCS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of clock rate: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&s| {
+                            segment.data.as_mut().0 = s;
+                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn opt_in_fmt_to_string(fmt: &ShellOptInputIfaceFormat) -> String {
+    match fmt {
+        ShellOptInputIfaceFormat::Adat0to7 => "ADAT-1:8",
+        ShellOptInputIfaceFormat::Adat0to5Spdif01 => "ADAT-1:6+S/PDIF-1/2",
+        ShellOptInputIfaceFormat::Toslink01Spdif01 => "TOSLINK-1/2+S/PDIF-1/2",
+    }.to_string()
+}
+
+fn opt_out_fmt_to_string(fmt: &ShellOptOutputIfaceFormat) -> String {
+    match fmt {
+        ShellOptOutputIfaceFormat::Adat => "ADAT",
+        ShellOptOutputIfaceFormat::Spdif => "S/PDIF",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct ShellOptIfaceCtl;
+
+impl<'a> ShellOptIfaceCtl {
+    const IN_FMT_NAME: &'a str = "optical-input-format";
+    const OUT_FMT_NAME: &'a str = "optical-output-format";
+    const OUT_SRC_NAME: &'a str = "optical-output-source";
+
+    const IN_FMTS: [ShellOptInputIfaceFormat;3] = [
+        ShellOptInputIfaceFormat::Adat0to7,
+        ShellOptInputIfaceFormat::Adat0to5Spdif01,
+        ShellOptInputIfaceFormat::Toslink01Spdif01,
+    ];
+
+    const OUT_FMTS: [ShellOptOutputIfaceFormat;2] = [
+        ShellOptOutputIfaceFormat::Adat,
+        ShellOptOutputIfaceFormat::Spdif,
+    ];
+
+    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = Self::IN_FMTS.iter()
+            .map(|s| opt_in_fmt_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::IN_FMT_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<String> = Self::OUT_FMTS.iter()
+            .map(|s| opt_out_fmt_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_FMT_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<String> = PHYS_OUT_SRCS.iter()
+            .map(|s| phys_out_src_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+        where for<'b> S: TcKonnektSegmentData + AsRef<ShellOptIfaceConfig>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::IN_FMT_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let state = segment.data.as_ref();
+                    let pos = Self::IN_FMTS.iter()
+                        .position(|f| f.eq(&state.input_format))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_FMT_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let state = segment.data.as_ref();
+                    let pos = Self::OUT_FMTS.iter()
+                        .position(|f| f.eq(&state.output_format))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let state = segment.data.as_ref();
+                    let pos = PHYS_OUT_SRCS.iter()
+                        .position(|s| s.eq(&state.output_source.0))
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
+                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where T: TcKonnektSegmentProtocol<FwNode, S>,
+              for<'b> S: TcKonnektSegmentData + AsMut<ShellOptIfaceConfig>,
+              TcKonnektSegment<S>: TcKonnektSegmentSpec,
+    {
+        match elem_id.get_name().as_str() {
+            Self::IN_FMT_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::IN_FMTS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of clock rate: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&f| {
+                            let mut state = segment.data.as_mut();
+                            state.input_format = f;
+                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::OUT_FMT_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::OUT_FMTS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of clock rate: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&f| {
+                            let mut state = segment.data.as_mut();
+                            state.output_format = f;
+                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            Self::OUT_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    PHYS_OUT_SRCS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of clock rate: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&s| {
+                            let mut state = segment.data.as_mut();
+                            state.output_source.0 = s;
+                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        })
                 })
                 .map(|_| true)
             }
