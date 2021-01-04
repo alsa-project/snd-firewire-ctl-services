@@ -12,6 +12,8 @@ use crate::*;
 /// The structure to represent segments in memory space of Studio Konnekt 48.
 #[derive(Default, Debug)]
 pub struct StudioSegments{
+    /// Segment for output level. 0x0000..0x0013 (4 quads).
+    pub out_level: TcKonnektSegment<StudioLineOutLevel>,
     /// Segment for remote controller. 0x0014..0x0043 (12 quads).
     pub remote: TcKonnektSegment<StudioRemote>,
     /// Segment for configuration. 0x0044..0x00a7 (25 quads).
@@ -24,16 +26,20 @@ pub struct StudioSegments{
     pub reverb_state: TcKonnektSegment<StudioReverbState>,
     /// Segment for states of channel strip effect. 0x05d8..0x081f (146 quads).
     pub ch_strip_state: TcKonnektSegment<StudioChStripStates>,
+    // NOTE: Segment for tuner. 0x0820..0x083f (8 quads).
     /// Segment for state of hardware. 0x2008..0x204b (17 quads).
     pub hw_state: TcKonnektSegment<StudioHwState>,
+    // NOTE: Segment for meter of remote controller. 0x204c..0x205b (4 quads).
     /// Segment for meter of mixer. 0x20b8..0x2137 (32 quads).
     pub mixer_meter: TcKonnektSegment<StudioMixerMeter>,
+    // NOTE: Segment for inidentified meter. 0x2138..0x2163 (11 quads).
     /// Segment for meter of reverb effect. 0x2164..0x217b (6 quads).
     pub reverb_meter: TcKonnektSegment<StudioReverbMeter>,
     /// Segment for meters of channel strip effect. 0x217c..0x21b7 (30 quads).
     pub ch_strip_meter: TcKonnektSegment<StudioChStripMeters>,
 }
 
+const STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG: u32 = 0x00010000;
 const STUDIO_REMOTE_NOTIFY_FLAG: u32 = 0x00020000;
 const STUDIO_CONFIG_NOTIFY_FLAG: u32 = 0x00040000;
 const STUDIO_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00080000;
@@ -41,7 +47,82 @@ const STUDIO_PHYS_OUT_NOTIFY_FLAG: u32 = 0x00100000;
 const STUDIO_REVERB_NOTIFY_CHANGE: u32 = 0x00200000;
 const STUDIO_CH_STRIP_NOTIFY_01_CHANGE: u32 = 0x00400000;
 const STUDIO_CH_STRIP_NOTIFY_23_CHANGE: u32 = 0x00800000;
+// NOTE: 0x01000000 is for tuner.
+// NOTE: 0x02000000 is unidentified.
 const STUDIO_HW_STATE_NOTIFY_FLAG: u32 = 0x04000000;
+// NOTE: 0x08000000 is for remote controller.
+
+/// The enumeration to represent line output level.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum NominalSignalLevel{
+    /// +4dBu.
+    Professional,
+    /// -10dBV.
+    Consumer,
+}
+
+impl Default for NominalSignalLevel {
+    fn default() -> Self {
+        NominalSignalLevel::Professional
+    }
+}
+
+impl From<u32> for NominalSignalLevel {
+    fn from(val: u32) -> Self {
+        if val > 0 {
+            Self::Professional
+        } else {
+            Self::Consumer
+        }
+    }
+}
+
+impl From<NominalSignalLevel> for u32 {
+    fn from(level: NominalSignalLevel) -> Self {
+        match level {
+            NominalSignalLevel::Consumer => 0,
+            NominalSignalLevel::Professional => 1,
+        }
+    }
+}
+
+/// The structure to represent a set of line output levels.
+#[derive(Default, Debug)]
+pub struct StudioLineOutLevel{
+    pub line_45: NominalSignalLevel,
+    pub line_67: NominalSignalLevel,
+    pub line_89: NominalSignalLevel,
+    pub line_1011: NominalSignalLevel,
+}
+
+impl StudioLineOutLevel {
+    const SIZE: usize = 16;
+}
+
+impl TcKonnektSegmentData for StudioLineOutLevel {
+    fn build(&self, raw: &mut [u8]) {
+        self.line_45.build_quadlet(&mut raw[..4]);
+        self.line_67.build_quadlet(&mut raw[4..8]);
+        self.line_89.build_quadlet(&mut raw[8..12]);
+        self.line_1011.build_quadlet(&mut raw[12..16]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.line_45.parse_quadlet(&raw[..4]);
+        self.line_67.parse_quadlet(&raw[4..8]);
+        self.line_89.parse_quadlet(&raw[8..12]);
+        self.line_1011.parse_quadlet(&raw[12..16]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<StudioLineOutLevel> {
+    const OFFSET: usize = 0x0000;
+    const SIZE: usize = StudioLineOutLevel::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioLineOutLevel> {
+    const NOTIFY_FLAG: u32 = STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG;
+}
 
 /// The enumeration to represent mode of remote effect button.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
