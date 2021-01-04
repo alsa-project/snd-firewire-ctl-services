@@ -6,12 +6,14 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{*, ch_strip::*, reverb::*, fw_led::*, standalone::*, midi_send::*};
+use super::{*, ch_strip::*, reverb::*, fw_led::*, standalone::*, midi_send::*, prog::*};
 use crate::*;
 
 /// The structure to represent segments in memory space of Studio Konnekt 48.
 #[derive(Default, Debug)]
 pub struct StudioSegments{
+    /// Segment for remote controller. 0x0014..0x0043 (12 quads).
+    pub remote: TcKonnektSegment<StudioRemote>,
     /// Segment for configuration. 0x0044..0x00a7 (25 quads).
     pub config: TcKonnektSegment<StudioConfig>,
     /// Segment for state of mixer. 0x00a8..0x03db (205 quads).
@@ -32,6 +34,7 @@ pub struct StudioSegments{
     pub ch_strip_meter: TcKonnektSegment<StudioChStripMeters>,
 }
 
+const STUDIO_REMOTE_NOTIFY_FLAG: u32 = 0x00020000;
 const STUDIO_CONFIG_NOTIFY_FLAG: u32 = 0x00040000;
 const STUDIO_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00080000;
 const STUDIO_PHYS_OUT_NOTIFY_FLAG: u32 = 0x00100000;
@@ -39,6 +42,134 @@ const STUDIO_REVERB_NOTIFY_CHANGE: u32 = 0x00200000;
 const STUDIO_CH_STRIP_NOTIFY_01_CHANGE: u32 = 0x00400000;
 const STUDIO_CH_STRIP_NOTIFY_23_CHANGE: u32 = 0x00800000;
 const STUDIO_HW_STATE_NOTIFY_FLAG: u32 = 0x04000000;
+
+/// The enumeration to represent mode of remote effect button.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum RemoteEffectButtonMode {
+    Reverb,
+    Midi,
+}
+
+impl Default for RemoteEffectButtonMode {
+    fn default() -> Self {
+        Self::Reverb
+    }
+}
+
+impl From<u32> for RemoteEffectButtonMode {
+    fn from(val: u32) -> Self {
+        if val > 0 {
+            Self::Midi
+        } else {
+            Self::Reverb
+        }
+    }
+}
+
+impl From<RemoteEffectButtonMode> for u32 {
+    fn from(mode: RemoteEffectButtonMode) -> Self {
+        match mode {
+            RemoteEffectButtonMode::Reverb => 0,
+            RemoteEffectButtonMode::Midi => 1,
+        }
+    }
+}
+
+/// The enumeration to represent mode of knob target at pushed state.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum KnobPushMode {
+    Pan,
+    GainToReverb,
+    GainToAux0,
+    GainToAux1,
+}
+
+impl Default for KnobPushMode {
+    fn default() -> Self {
+        Self::Pan
+    }
+}
+
+impl From<u32> for KnobPushMode {
+    fn from(val: u32) -> Self {
+        match val {
+            3 => Self::GainToAux1,
+            2 => Self::GainToAux0,
+            1 => Self::GainToReverb,
+            _ => Self::Pan,
+        }
+    }
+}
+
+impl From<KnobPushMode> for u32 {
+    fn from(mode: KnobPushMode) -> Self {
+        match mode {
+            KnobPushMode::Pan => 0,
+            KnobPushMode::GainToReverb => 1,
+            KnobPushMode::GainToAux0 => 2,
+            KnobPushMode::GainToAux1 => 3,
+        }
+    }
+}
+
+/// The number of entries for user-assigned button.
+pub const STUDIO_REMOTE_USER_ASSIGN_COUNT: usize = 6;
+
+/// The structure to represent state of remote controller.
+#[derive(Default, Debug)]
+pub struct StudioRemote{
+    pub prog: TcKonnektLoadedProgram,
+    pub user_assigns: [SrcEntry;STUDIO_REMOTE_USER_ASSIGN_COUNT],
+    pub effect_button_mode: RemoteEffectButtonMode,
+    pub fallback_to_master_enable: bool,
+    pub fallback_to_master_duration: u32,
+    pub knob_push_mode: KnobPushMode,
+}
+
+impl StudioRemote {
+    const SIZE: usize = 48;
+}
+
+impl AsRef<TcKonnektLoadedProgram> for StudioRemote {
+    fn as_ref(&self) -> &TcKonnektLoadedProgram {
+        &self.prog
+    }
+}
+
+impl AsMut<TcKonnektLoadedProgram> for StudioRemote {
+    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
+        &mut self.prog
+    }
+}
+
+impl TcKonnektSegmentData for StudioRemote {
+    fn build(&self, raw: &mut [u8]) {
+        self.prog.build(&mut raw[..4]);
+        self.user_assigns.build_quadlet_block(&mut raw[4..28]);
+        self.effect_button_mode.build_quadlet(&mut raw[28..32]);
+        self.fallback_to_master_enable.build_quadlet(&mut raw[32..36]);
+        self.fallback_to_master_duration.build_quadlet(&mut raw[36..40]);
+        self.knob_push_mode.build_quadlet(&mut raw[40..44]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.prog.parse(&raw[..4]);
+        self.user_assigns.parse_quadlet_block(&raw[4..28]);
+        self.effect_button_mode.parse_quadlet(&raw[28..32]);
+        self.fallback_to_master_enable.parse_quadlet(&raw[32..36]);
+        self.fallback_to_master_duration.parse_quadlet(&raw[36..40]);
+        self.knob_push_mode.parse_quadlet(&raw[40..44]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<StudioRemote> {
+    const OFFSET: usize = 0x0014;
+    const SIZE: usize = StudioRemote::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioRemote> {
+    const NOTIFY_FLAG: u32 = STUDIO_REMOTE_NOTIFY_FLAG;
+}
 
 /// The enumeration to represent mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
