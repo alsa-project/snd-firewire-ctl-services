@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
 
@@ -26,6 +26,7 @@ pub struct Desktopk6Model{
     ctl: CommonCtl,
     meter_ctl: MeterCtl,
     panel_ctl: PanelCtl,
+    mixer_ctl: MixerCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -41,9 +42,11 @@ impl CtlModel<SndDice> for Desktopk6Model {
 
         self.proto.read_segment(&node, &mut self.segments.meter, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.panel, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.mixer, TIMEOUT_MS)?;
 
         self.meter_ctl.load(&self.segments, card_cntr)?;
         self.panel_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -57,6 +60,8 @@ impl CtlModel<SndDice> for Desktopk6Model {
             Ok(true)
         } else if self.panel_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
+        } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -68,6 +73,9 @@ impl CtlModel<SndDice> for Desktopk6Model {
         if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.panel_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
+                                       TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -315,6 +323,250 @@ impl<'a> PanelCtl {
                 .map(|_| true)
             }
             _ => self.fw_led_ctl.write(unit, proto, &mut segments.panel, elem_id, elem_value, timeout_ms),
+        }
+    }
+}
+
+fn hp_src_to_string(src: DesktopHpSrc) -> String {
+    match src {
+        DesktopHpSrc::Stream23 => "Stream-3/4",
+        DesktopHpSrc::Mixer01 => "Mixer-out-1/2",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+struct MixerCtl;
+
+impl<'a> MixerCtl {
+    const MIXER_MIC_INST_SRC_LEVEL_NAME: &'a str = "mixer-mic-inst-source-level";
+    const MIXER_MIC_INST_SRC_BALANCE_NAME: &'a str = "mixer-mic-inst-source-pan";
+    const MIXER_MIC_INST_SRC_SEND_NAME: &'a str = "mixer-mic-inst-source-send";
+
+    const MIXER_DUAL_INST_SRC_LEVEL_NAME: &'a str = "mixer-dual-inst-source-level";
+    const MIXER_DUAL_INST_SRC_BALANCE_NAME: &'a str = "mixer-dual-inst-source-pan";
+    const MIXER_DUAL_INST_SRC_SEND_NAME: &'a str = "mixer-dual-inst-source-send";
+
+    const MIXER_STEREO_IN_SRC_LEVEL_NAME: &'a str = "mixer-stereo-input-source-level";
+    const MIXER_STEREO_IN_SRC_BALANCE_NAME: &'a str = "mixer-stereo-input-source-pan";
+    const MIXER_STEREO_IN_SRC_SEND_NAME: &'a str = "mixer-stereo-input-source-send";
+
+    const HP_SRC_NAME: &'a str = "headphone-source";
+
+    const LEVEL_MIN: i32 = -1000;
+    const LEVEL_MAX: i32 = 0;
+    const LEVEL_STEP: i32 = 1;
+    const LEVEL_TLV: DbInterval = DbInterval{min: -9400, max: 0, linear: false, mute_avail: false};
+
+    const BALANCE_MIN: i32 = -50;
+    const BALANCE_MAX: i32 = 50;
+    const BALANCE_STEP: i32 = 1;
+
+    const HP_SRCS: [DesktopHpSrc;2] = [DesktopHpSrc::Stream23, DesktopHpSrc::Mixer01];
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_MIC_INST_SRC_LEVEL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_MIC_INST_SRC_BALANCE_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
+                                        2, None, true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_MIC_INST_SRC_SEND_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_DUAL_INST_SRC_LEVEL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_DUAL_INST_SRC_BALANCE_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
+                                        2, None, true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_DUAL_INST_SRC_SEND_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STEREO_IN_SRC_LEVEL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        1, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STEREO_IN_SRC_BALANCE_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
+                                        1, None, true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STEREO_IN_SRC_SEND_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        1, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
+
+        let labels: Vec<String> = Self::HP_SRCS.iter()
+            .map(|&s| hp_src_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, segments: &DesktopSegments, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_MIC_INST_SRC_LEVEL_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    Ok(segments.mixer.data.mic_inst_level[idx])
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_MIC_INST_SRC_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    Ok(segments.mixer.data.mic_inst_pan[idx])
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_MIC_INST_SRC_SEND_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    Ok(segments.mixer.data.mic_inst_send[idx])
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_DUAL_INST_SRC_LEVEL_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    Ok(segments.mixer.data.dual_inst_level[idx])
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_DUAL_INST_SRC_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    Ok(segments.mixer.data.dual_inst_pan[idx])
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_DUAL_INST_SRC_SEND_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
+                    Ok(segments.mixer.data.dual_inst_send[idx])
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_STEREO_IN_SRC_LEVEL_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    Ok(segments.mixer.data.stereo_in_level)
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_STEREO_IN_SRC_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    Ok(segments.mixer.data.stereo_in_pan)
+                })
+                .map(|_| true)
+            }
+            Self::MIXER_STEREO_IN_SRC_SEND_NAME => {
+                ElemValueAccessor::<i32>::set_val(elem_value, || {
+                    Ok(segments.mixer.data.stereo_in_send)
+                })
+                .map(|_| true)
+            }
+            Self::HP_SRC_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::HP_SRCS.iter()
+                        .position(|&s| s == segments.mixer.data.hp_src)
+                        .expect("Programming error");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &Desktopk6Proto, segments: &mut DesktopSegments,
+             elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_MIC_INST_SRC_LEVEL_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    segments.mixer.data.mic_inst_level[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_MIC_INST_SRC_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    segments.mixer.data.mic_inst_pan[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_MIC_INST_SRC_SEND_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    segments.mixer.data.mic_inst_send[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_DUAL_INST_SRC_LEVEL_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    segments.mixer.data.dual_inst_level[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_DUAL_INST_SRC_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    segments.mixer.data.dual_inst_pan[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_DUAL_INST_SRC_SEND_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
+                    segments.mixer.data.dual_inst_send[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_STEREO_IN_SRC_LEVEL_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    segments.mixer.data.stereo_in_level = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_STEREO_IN_SRC_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    segments.mixer.data.stereo_in_pan = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::MIXER_STEREO_IN_SRC_SEND_NAME => {
+                ElemValueAccessor::<i32>::get_val(new, |val| {
+                    segments.mixer.data.stereo_in_send = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .map(|_| true)
+            }
+            Self::HP_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    Self::HP_SRCS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of headphone source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|&s| {
+                            segments.mixer.data.hp_src = s;
+                            proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms)
+                        })
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
         }
     }
 }
