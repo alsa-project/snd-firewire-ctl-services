@@ -13,6 +13,7 @@ pub mod studio;
 pub mod desktop;
 
 pub mod ch_strip;
+pub mod reverb;
 
 use glib::Error;
 
