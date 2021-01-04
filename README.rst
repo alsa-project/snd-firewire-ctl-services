@@ -136,6 +136,7 @@ your device, please contact to developer.
   * Avid Mbox 3 Pro
   * TC Electronic Konnekt 24d
   * TC Electronic Konnekt 8
+  * TC Electronic Studio Konnekt 48
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
