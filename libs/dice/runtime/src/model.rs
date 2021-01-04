@@ -71,6 +71,7 @@ impl DiceModel {
             (0x000d6c, 0x000010) => Model::MaudioPfire2626(Pfire2626Model::default()),
             (0x000d6c, 0x000011) => Model::MaudioPfire610(Pfire610Model::default()),
             (0x00a07e, 0x000004) => Model::AvidMbox3(Mbox3Model::default()),
+            (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
             _ => Model::Minimal(MinimalModel::default()),
         };
 
