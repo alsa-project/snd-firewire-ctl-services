@@ -7,11 +7,13 @@
 //! defined by TC Electronic for Konnekt Live.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*, midi_send::*};
+use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*, midi_send::*, prog::*};
 
 /// The structure to represent segments in memory space of Konnekt Live.
 #[derive(Default, Debug)]
 pub struct KliveSegments{
+    /// Segment for knob. 0x0000..0x0027 (36 quads).
+    pub knob: TcKonnektSegment<KliveKnob>,
     /// Segment for configuration. 0x0028..0x00ab (33 quads).
     pub config: TcKonnektSegment<KliveConfig>,
     /// Segment for state of mixer. 0x00ac..0x0217 (91 quads).
@@ -20,6 +22,7 @@ pub struct KliveSegments{
     pub reverb_state: TcKonnektSegment<KliveReverbState>,
     /// Segment for states of channel strip effect. 0x025c..0x037f (73 quads).
     pub ch_strip_state: TcKonnektSegment<KliveChStripStates>,
+    // NOTE: Segment for tuner. 0x0384..0x039c (8 quads).
     /// Segment for mixer meter. 0x1068..0x10c3 (23 quads).
     pub mixer_meter: TcKonnektSegment<KliveMixerMeter>,
     /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
@@ -28,6 +31,85 @@ pub struct KliveSegments{
     pub reverb_meter: TcKonnektSegment<KliveReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10dc..0x1117 (15 quads).
     pub ch_strip_meter: TcKonnektSegment<KliveChStripMeters>,
+}
+
+/// The structure to represent state of knob.
+#[derive(Default, Debug)]
+pub struct KliveKnob{
+    pub target: ShellKnobTarget,
+    pub knob2_target: ShellKnob2Target,
+    pub prog: TcKonnektLoadedProgram,
+    pub out_impedance: [OutputImpedance;2],
+}
+
+impl TcKonnektSegmentData for KliveKnob {
+    fn build(&self, raw: &mut [u8]) {
+        self.target.0.build_quadlet(&mut raw[..4]);
+        self.knob2_target.0.build_quadlet(&mut raw[4..8]);
+        self.prog.build(&mut raw[8..12]);
+        self.out_impedance.build_quadlet_block(&mut raw[12..20]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.target.0.parse_quadlet(&raw[..4]);
+        self.knob2_target.0.parse_quadlet(&raw[4..8]);
+        self.prog.parse(&raw[8..12]);
+        self.out_impedance.parse_quadlet_block(&raw[12..20]);
+    }
+}
+
+impl AsRef<ShellKnobTarget> for KliveKnob {
+    fn as_ref(&self) -> &ShellKnobTarget {
+        &self.target
+    }
+}
+
+impl AsMut<ShellKnobTarget> for KliveKnob {
+    fn as_mut(&mut self) -> &mut ShellKnobTarget {
+        &mut self.target
+    }
+}
+
+impl ShellKnobTargetSpec for KliveKnob {
+    const HAS_SPDIF: bool = false;
+    const HAS_EFFECTS: bool = false;
+}
+
+impl AsRef<ShellKnob2Target> for KliveKnob {
+    fn as_ref(&self) -> &ShellKnob2Target {
+        &self.knob2_target
+    }
+}
+
+impl AsMut<ShellKnob2Target> for KliveKnob {
+    fn as_mut(&mut self) -> &mut ShellKnob2Target {
+        &mut self.knob2_target
+    }
+}
+
+impl ShellKnob2TargetSpec for KliveKnob {
+    const KNOB2_TARGET_COUNT: usize = 9;
+}
+
+impl AsRef<TcKonnektLoadedProgram> for KliveKnob {
+    fn as_ref(&self) -> &TcKonnektLoadedProgram {
+        &self.prog
+    }
+}
+
+impl AsMut<TcKonnektLoadedProgram> for KliveKnob {
+    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
+        &mut self.prog
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<KliveKnob> {
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveKnob> {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
 /// The structure to represent configuration.
@@ -568,4 +650,35 @@ impl TcKonnektSegmentData for KliveChStripMeters {
 impl TcKonnektSegmentSpec for TcKonnektSegment<KliveChStripMeters> {
     const OFFSET: usize = 0x10dc;
     const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
+}
+
+/// The enumeration to represent impedance of output.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum OutputImpedance {
+    Unbalance,
+    Balance,
+}
+
+impl Default for OutputImpedance {
+    fn default() -> Self {
+        Self::Unbalance
+    }
+}
+
+impl From<u32> for OutputImpedance {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Self::Unbalance,
+            _ => Self::Balance,
+        }
+    }
+}
+
+impl From<OutputImpedance> for u32 {
+    fn from(impedance: OutputImpedance) -> Self {
+        match impedance {
+            OutputImpedance::Unbalance => 0,
+            OutputImpedance::Balance => 1,
+        }
+    }
 }

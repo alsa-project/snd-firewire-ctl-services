@@ -12,6 +12,8 @@ use crate::tcelectronic::{*, standalone::*};
 /// The structure to represent segments in memory space of Konnekt 8.
 #[derive(Default, Debug)]
 pub struct K8Segments{
+    /// Segment for knob. 0x0000..0x0027 (36 quads).
+    pub knob: TcKonnektSegment<K8Knob>,
     /// Segment for configuration. 0x0028..0x0073 (19 quads).
     pub config: TcKonnektSegment<K8Config>,
     /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
@@ -20,6 +22,67 @@ pub struct K8Segments{
     pub mixer_meter: TcKonnektSegment<K8MixerMeter>,
     /// Segment tor state of hardware. 0x100c..0x1027 (7 quads).
     pub hw_state: TcKonnektSegment<K8HwState>,
+}
+
+/// The structure to represent state of knob.
+#[derive(Default, Debug)]
+pub struct K8Knob{
+    pub target: ShellKnobTarget,
+    pub knob2_target: ShellKnob2Target,
+}
+
+impl AsRef<ShellKnobTarget> for K8Knob {
+    fn as_ref(&self) -> &ShellKnobTarget {
+        &self.target
+    }
+}
+
+impl AsMut<ShellKnobTarget> for K8Knob {
+    fn as_mut(&mut self) -> &mut ShellKnobTarget {
+        &mut self.target
+    }
+}
+
+impl ShellKnobTargetSpec for K8Knob {
+    const HAS_SPDIF: bool = true;
+    const HAS_EFFECTS: bool = false;
+}
+
+impl AsRef<ShellKnob2Target> for K8Knob {
+    fn as_ref(&self) -> &ShellKnob2Target {
+        &self.knob2_target
+    }
+}
+
+impl AsMut<ShellKnob2Target> for K8Knob {
+    fn as_mut(&mut self) -> &mut ShellKnob2Target {
+        &mut self.knob2_target
+    }
+}
+
+impl ShellKnob2TargetSpec for K8Knob {
+    const KNOB2_TARGET_COUNT: usize = 2;
+}
+
+impl TcKonnektSegmentData for K8Knob {
+    fn build(&self, raw: &mut [u8]) {
+        self.target.0.build_quadlet(&mut raw[..4]);
+        self.knob2_target.0.build_quadlet(&mut raw[4..8]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.target.0.parse_quadlet(&raw[..4]);
+        self.knob2_target.0.parse_quadlet(&raw[4..8]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K8Knob> {
+    const OFFSET: usize = 0x0004;
+    const SIZE: usize = SHELL_KNOB_SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Knob> {
+    const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
 /// The structure to represent configuration.
