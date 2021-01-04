@@ -8,6 +8,7 @@ use ta1394::{Ta1394AvcError, AvcAddr};
 use ta1394::{AvcOp, AvcStatus, AvcControl};
 use ta1394::general::VendorDependent;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 // Usually 5 params.
 pub enum VendorCmd {
