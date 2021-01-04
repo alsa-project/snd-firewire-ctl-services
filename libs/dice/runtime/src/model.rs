@@ -17,6 +17,7 @@ use super::tcelectronic::k24d_model::*;
 use super::tcelectronic::k8_model::*;
 use super::tcelectronic::studiok48_model::*;
 use super::tcelectronic::klive_model::*;
+use super::tcelectronic::desktopk6_model::*;
 use super::extension_model::ExtensionModel;
 use super::pfire_model::*;
 use super::mbox3_model::*;
@@ -27,6 +28,7 @@ enum Model {
     TcK8(K8Model),
     TcStudiok48(Studiok48Model),
     TcKlive(KliveModel),
+    TcDesktopk6(Desktopk6Model),
     Extension(ExtensionModel),
     MaudioPfire2626(Pfire2626Model),
     MaudioPfire610(Pfire610Model),
@@ -62,6 +64,7 @@ impl DiceModel {
             (0x000166, 0x000021) => Model::TcK8(K8Model::default()),
             (0x000166, 0x000022) => Model::TcStudiok48(Studiok48Model::default()),
             (0x000166, 0x000023) => Model::TcKlive(KliveModel::default()),
+            (0x000166, 0x000024) => Model::TcDesktopk6(Desktopk6Model::default()),
             (0x000d6c, 0x000010) => Model::MaudioPfire2626(Pfire2626Model::default()),
             (0x000d6c, 0x000011) => Model::MaudioPfire610(Pfire610Model::default()),
             (0x00a07e, 0x000004) => Model::AvidMbox3(Mbox3Model::default()),
@@ -94,6 +97,7 @@ impl DiceModel {
             Model::TcK8(m) => m.load(unit, card_cntr),
             Model::TcStudiok48(m) => m.load(unit, card_cntr),
             Model::TcKlive(m) => m.load(unit, card_cntr),
+            Model::TcDesktopk6(m) => m.load(unit, card_cntr),
             Model::Extension(m) => m.load(unit, card_cntr),
             Model::MaudioPfire2626(m) => m.load(unit, card_cntr),
             Model::MaudioPfire610(m) => m.load(unit, card_cntr),
@@ -106,6 +110,7 @@ impl DiceModel {
             Model::TcK8(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::TcStudiok48(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::TcKlive(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::TcDesktopk6(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::Extension(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioPfire2626(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioPfire610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -118,6 +123,7 @@ impl DiceModel {
             Model::TcK8(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::TcStudiok48(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::TcKlive(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::TcDesktopk6(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::Extension(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::MaudioPfire2626(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::MaudioPfire610(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
@@ -137,6 +143,7 @@ impl DiceModel {
             Model::TcK8(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TcStudiok48(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TcKlive(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcDesktopk6(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::Extension(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioPfire2626(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioPfire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
@@ -153,6 +160,7 @@ impl DiceModel {
             Model::TcK8(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::TcStudiok48(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::TcKlive(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+            Model::TcDesktopk6(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::Extension(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::MaudioPfire2626(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::MaudioPfire610(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
@@ -169,6 +177,7 @@ impl DiceModel {
             Model::TcK8(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::TcStudiok48(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::TcKlive(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcDesktopk6(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::Extension(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::MaudioPfire2626(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::MaudioPfire610(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
