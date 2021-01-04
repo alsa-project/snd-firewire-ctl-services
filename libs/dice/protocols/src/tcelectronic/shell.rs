@@ -11,6 +11,7 @@ pub mod k24d;
 pub mod klive;
 pub mod itwin;
 
+const SHELL_REVERB_NOTIFY_FLAG: u32 = 0x00080000;
 const SHELL_CH_STRIP_NOTIFY_FLAG: u32 = 0x00100000;
 
 const SHELL_CH_STRIP_COUNT: usize = 2;
