@@ -12,16 +12,116 @@ use crate::tcelectronic::{*, ch_strip::*, reverb::*};
 /// The structure to represent segments in memory space of Konnekt 24d.
 #[derive(Default, Debug)]
 pub struct K24dSegments{
+    /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
+    pub mixer_state: TcKonnektSegment<K24dMixerState>,
     /// Segment for state of reverb effect. 0x01d0..0x0213. (17 quads)
     pub reverb_state: TcKonnektSegment<K24dReverbState>,
     /// Segment for states of channel strip effect. 0x0214..0x0337 (73 quads).
     pub ch_strip_state: TcKonnektSegment<K24dChStripStates>,
+    /// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
+    pub mixer_meter: TcKonnektSegment<K24dMixerMeter>,
     /// Segment for state of hardware. 0x100c..0x1027 (7 quads).
     pub hw_state: TcKonnektSegment<K24dHwState>,
     /// Segment for meter of reverb effect. 0x10b8..0x010cf (6 quads).
     pub reverb_meter: TcKonnektSegment<K24dReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10d0..0x110b (15 quads).
     pub ch_strip_meter: TcKonnektSegment<K24dChStripMeters>,
+}
+
+/// The structure to represent state of mixer.
+#[derive(Debug)]
+pub struct K24dMixerState{
+    /// The common structure for state of mixer.
+    pub mixer: ShellMixerState,
+    /// The parameter of return from reverb effect.
+    pub reverb_return: ShellReverbReturn,
+    /// Whether to use channel strip effect as plugin. It results in output of channel strip effect
+    /// on tx stream.
+    pub use_ch_strip_as_plugin: bool,
+    /// Whether to use reverb effect at middle sampling rate (88.2/96.0 kHz).
+    pub use_reverb_at_mid_rate: bool,
+    /// Whether to use mixer function.
+    pub enabled: bool,
+}
+
+impl Default for K24dMixerState {
+    fn default() -> Self {
+        K24dMixerState{
+            mixer: Self::create_mixer_state(),
+            reverb_return: Default::default(),
+            use_ch_strip_as_plugin: Default::default(),
+            use_reverb_at_mid_rate: Default::default(),
+            enabled: Default::default(),
+        }
+    }
+}
+
+impl AsRef<ShellMixerState> for K24dMixerState {
+    fn as_ref(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+}
+
+impl AsMut<ShellMixerState> for K24dMixerState {
+    fn as_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
+}
+
+impl AsRef<ShellReverbReturn> for K24dMixerState {
+    fn as_ref(&self) -> &ShellReverbReturn {
+        &self.reverb_return
+    }
+}
+
+impl AsMut<ShellReverbReturn> for K24dMixerState {
+    fn as_mut(&mut self) -> &mut ShellReverbReturn {
+        &mut self.reverb_return
+    }
+}
+
+impl ShellMixerConvert for K24dMixerState {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT] = [
+        Some(ShellMixerMonitorSrcType::Stream),
+        None,
+        None,
+        None,
+        Some(ShellMixerMonitorSrcType::Analog),
+        Some(ShellMixerMonitorSrcType::Analog),
+        Some(ShellMixerMonitorSrcType::AdatSpdif),
+        Some(ShellMixerMonitorSrcType::Adat),
+        Some(ShellMixerMonitorSrcType::Adat),
+        Some(ShellMixerMonitorSrcType::AdatSpdif),
+    ];
+}
+
+impl TcKonnektSegmentData for K24dMixerState {
+    fn build(&self, raw: &mut [u8]) {
+        ShellMixerConvert::build(self, raw);
+
+        self.reverb_return.build(&mut raw[316..328]);
+        self.use_ch_strip_as_plugin.build_quadlet(&mut raw[328..332]);
+        self.use_reverb_at_mid_rate.build_quadlet(&mut raw[332..336]);
+        self.enabled.build_quadlet(&mut raw[340..344]);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        ShellMixerConvert::parse(self, raw);
+
+        self.reverb_return.parse(&raw[316..328]);
+        self.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
+        self.use_reverb_at_mid_rate.parse_quadlet(&raw[332..336]);
+        self.enabled.parse_quadlet(&raw[340..344]);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K24dMixerState> {
+    const OFFSET: usize = 0x0074;
+    const SIZE: usize = ShellMixerState::SIZE + 32;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dMixerState> {
+    const NOTIFY_FLAG: u32 = SHELL_MIXER_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]
@@ -135,6 +235,50 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<K24dHwState> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dHwState> {
     const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
+}
+
+const K24D_METER_ANALOG_INPUT_COUNT: usize = 2;
+const K24D_METER_DIGITAL_INPUT_COUNT: usize = 2;
+
+#[derive(Debug)]
+pub struct K24dMixerMeter(ShellMixerMeter);
+
+impl AsRef<ShellMixerMeter> for K24dMixerMeter {
+    fn as_ref(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+}
+
+impl AsMut<ShellMixerMeter> for K24dMixerMeter {
+    fn as_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
+}
+
+impl Default for K24dMixerMeter {
+    fn default() -> Self {
+        K24dMixerMeter(Self::create_meter_state())
+    }
+}
+
+impl ShellMixerMeterConvert for K24dMixerMeter {
+    const ANALOG_INPUT_COUNT: usize = K24D_METER_ANALOG_INPUT_COUNT;
+    const DIGITAL_INPUT_COUNT: usize = K24D_METER_DIGITAL_INPUT_COUNT;
+}
+
+impl TcKonnektSegmentData for K24dMixerMeter {
+    fn build(&self, raw: &mut [u8]) {
+        ShellMixerMeterConvert::build(self, raw)
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        ShellMixerMeterConvert::parse(self, raw)
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K24dMixerMeter> {
+    const OFFSET: usize = 0x105c;
+    const SIZE: usize = ShellMixerMeter::SIZE;
 }
 
 #[derive(Default, Debug)]
