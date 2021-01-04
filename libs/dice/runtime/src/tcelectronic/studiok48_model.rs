@@ -37,6 +37,7 @@ pub struct Studiok48Model{
     mixer_ctl: MixerCtl,
     config_ctl: ConfigCtl,
     remote_ctl: RemoteCtl,
+    lineout_ctl: LineoutCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -61,12 +62,14 @@ impl CtlModel<SndDice> for Studiok48Model {
         self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.remote, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.out_level, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.phys_out_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments, card_cntr)?;
         self.config_ctl.load(card_cntr)?;
         self.remote_ctl.load(card_cntr)?;
+        self.lineout_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -91,6 +94,8 @@ impl CtlModel<SndDice> for Studiok48Model {
         } else if self.config_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else if self.remote_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.lineout_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -120,6 +125,8 @@ impl CtlModel<SndDice> for Studiok48Model {
         } else if self.config_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.remote_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.lineout_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1523,5 +1530,126 @@ impl<'a> RemoteCtl {
             }
             _ => self.prog_ctl.read(&segments.remote, elem_id, elem_value),
         }
+    }
+}
+
+fn nominal_signal_level_to_string(level: &NominalSignalLevel) -> String {
+    match level {
+        NominalSignalLevel::Professional => "+4dBu",
+        NominalSignalLevel::Consumer => "-10dBV",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct LineoutCtl;
+
+impl<'a> LineoutCtl {
+    const LINE_OUT_45_LEVEL_NAME: &'a str = "line-out-5/6-level";
+    const LINE_OUT_67_LEVEL_NAME: &'a str = "line-out-7/8-level";
+    const LINE_OUT_89_LEVEL_NAME: &'a str = "line-out-9/10-level";
+    const LINE_OUT_1011_LEVEL_NAME: &'a str = "line-out-11/12-level";
+
+    const NOMINAL_SIGNAL_LEVELS: [NominalSignalLevel;2] = [
+        NominalSignalLevel::Professional,
+        NominalSignalLevel::Consumer,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = Self::NOMINAL_SIGNAL_LEVELS.iter()
+            .map(|m| nominal_signal_level_to_string(m))
+            .collect();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_45_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_67_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_89_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_1011_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::LINE_OUT_45_LEVEL_NAME => {
+                Self::read_as_index(elem_value, segments.out_level.data.line_45)
+            }
+            Self::LINE_OUT_67_LEVEL_NAME => {
+                Self::read_as_index(elem_value, segments.out_level.data.line_67)
+            }
+            Self::LINE_OUT_89_LEVEL_NAME => {
+                Self::read_as_index(elem_value, segments.out_level.data.line_89)
+            }
+            Self::LINE_OUT_1011_LEVEL_NAME => {
+                Self::read_as_index(elem_value, segments.out_level.data.line_1011)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn read_as_index(elem_value: &mut ElemValue, level: NominalSignalLevel)
+        -> Result<bool, Error>
+    {
+        ElemValueAccessor::<u32>::set_val(elem_value, || {
+            let pos = Self::NOMINAL_SIGNAL_LEVELS.iter()
+                .position(|l| l.eq(&level))
+                .expect("Programming error.");
+            Ok(pos as u32)
+        })
+        .map(|_| true)
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+             elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::LINE_OUT_45_LEVEL_NAME => {
+                Self::write_as_index(unit, proto, segments, elem_value, timeout_ms, |data, level| {
+                    data.line_45 = level
+                })
+            }
+            Self::LINE_OUT_67_LEVEL_NAME => {
+                Self::write_as_index(unit, proto, segments, elem_value, timeout_ms, |data, level| {
+                    data.line_67 = level
+                })
+            }
+            Self::LINE_OUT_89_LEVEL_NAME => {
+                Self::write_as_index(unit, proto, segments, elem_value, timeout_ms, |data, level| {
+                    data.line_89 = level
+                })
+            }
+            Self::LINE_OUT_1011_LEVEL_NAME => {
+                Self::write_as_index(unit, proto, segments, elem_value, timeout_ms, |data, level| {
+                    data.line_1011 = level
+                })
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_as_index<F>(unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+                         elem_value: &ElemValue, timeout_ms: u32, cb: F)
+        -> Result<bool, Error>
+        where F: Fn(&mut StudioLineOutLevel, NominalSignalLevel),
+    {
+        ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+            Self::NOMINAL_SIGNAL_LEVELS.iter()
+                .nth(val as usize)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid value for index of nominal level: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })
+                .map(|&l| cb(&mut segments.out_level.data, l))
+        })
+        .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.out_level, timeout_ms))
+        .map(|_| true)
     }
 }
