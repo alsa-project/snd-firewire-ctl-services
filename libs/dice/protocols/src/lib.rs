@@ -9,6 +9,7 @@
 pub mod tcat;
 pub mod maudio;
 pub mod avid;
+pub mod tcelectronic;
 
 const QUADLET_SIZE: usize = 4;
 
