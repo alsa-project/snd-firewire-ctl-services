@@ -16,6 +16,8 @@ pub struct K24dSegments{
     pub reverb_state: TcKonnektSegment<K24dReverbState>,
     /// Segment for states of channel strip effect. 0x0214..0x0337 (73 quads).
     pub ch_strip_state: TcKonnektSegment<K24dChStripStates>,
+    /// Segment for state of hardware. 0x100c..0x1027 (7 quads).
+    pub hw_state: TcKonnektSegment<K24dHwState>,
     /// Segment for meter of reverb effect. 0x10b8..0x010cf (6 quads).
     pub reverb_meter: TcKonnektSegment<K24dReverbMeter>,
     /// Segment for meters of channel strip effect. 0x10d0..0x110b (15 quads).
@@ -87,6 +89,52 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<K24dChStripStates> {
 
 impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dChStripStates> {
     const NOTIFY_FLAG: u32 = SHELL_CH_STRIP_NOTIFY_FLAG;
+}
+
+#[derive(Default, Debug)]
+pub struct K24dHwState(ShellHwState);
+
+impl AsRef<[ShellAnalogJackState]> for K24dHwState {
+    fn as_ref(&self) -> &[ShellAnalogJackState] {
+        &self.0.analog_jack_states
+    }
+}
+
+impl AsMut<[ShellAnalogJackState]> for K24dHwState {
+    fn as_mut(&mut self) -> &mut [ShellAnalogJackState] {
+        &mut self.0.analog_jack_states
+    }
+}
+
+impl AsRef<FireWireLedState> for K24dHwState {
+    fn as_ref(&self) -> &FireWireLedState {
+        &self.0.firewire_led
+    }
+}
+
+impl AsMut<FireWireLedState> for K24dHwState {
+    fn as_mut(&mut self) -> &mut FireWireLedState {
+        &mut self.0.firewire_led
+    }
+}
+
+impl TcKonnektSegmentData for K24dHwState {
+    fn build(&self, raw: &mut [u8]) {
+        self.0.build(raw);
+    }
+
+    fn parse(&mut self, raw: &[u8]) {
+        self.0.parse(raw);
+    }
+}
+
+impl TcKonnektSegmentSpec for TcKonnektSegment<K24dHwState> {
+    const OFFSET: usize = 0x100c;
+    const SIZE: usize = ShellHwState::SIZE;
+}
+
+impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dHwState> {
+    const NOTIFY_FLAG: u32 = SHELL_HW_STATE_NOTIFY_FLAG;
 }
 
 #[derive(Default, Debug)]
