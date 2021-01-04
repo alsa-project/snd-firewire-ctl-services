@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
@@ -31,6 +31,7 @@ pub struct Studiok48Model{
     reverb_ctl: ReverbCtl,
     hw_state_ctl: HwStateCtl,
     phys_out_ctl: PhysOutCtl,
+    mixer_ctl: MixerCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -52,9 +53,11 @@ impl CtlModel<SndDice> for Studiok48Model {
         let node = unit.get_node();
         self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
         self.proto.read_segment(&node, &mut self.segments.phys_out, TIMEOUT_MS)?;
+        self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.phys_out_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(&self.segments, card_cntr)?;
 
         Ok(())
     }
@@ -73,6 +76,8 @@ impl CtlModel<SndDice> for Studiok48Model {
         } else if self.hw_state_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else if self.phys_out_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -96,6 +101,9 @@ impl CtlModel<SndDice> for Studiok48Model {
         } else if self.phys_out_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
                                           TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
+                                       TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -109,6 +117,7 @@ impl NotifyModel<SndDice, u32> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.reverb_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.phys_out_ctl.0);
+        elem_id_list.extend_from_slice(&self.mixer_ctl.notified_elem_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
@@ -119,6 +128,7 @@ impl NotifyModel<SndDice, u32> for Studiok48Model {
         self.proto.parse_notification(&node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
         self.proto.parse_notification(&node, &mut self.segments.phys_out, TIMEOUT_MS, msg)?;
+        self.proto.parse_notification(&node, &mut self.segments.mixer_state, TIMEOUT_MS, msg)?;
 
         Ok(())
     }
@@ -136,6 +146,8 @@ impl NotifyModel<SndDice, u32> for Studiok48Model {
             Ok(true)
         } else if self.phys_out_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
+        } else if self.mixer_ctl.read(&self.segments, elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -147,6 +159,7 @@ impl MeasureModel<hinawa::SndDice> for Studiok48Model {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.reverb_ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.mixer_ctl.measured_elem_list);
     }
 
     fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
@@ -155,6 +168,10 @@ impl MeasureModel<hinawa::SndDice> for Studiok48Model {
                                          &mut self.segments.ch_strip_meter, TIMEOUT_MS)?;
         self.reverb_ctl.measure_states(unit, &self.proto, &self.segments.reverb_state,
                                        &mut self.segments.reverb_meter, TIMEOUT_MS)?;
+
+        let node = unit.get_node();
+        self.proto.read_segment(&node, &mut self.segments.mixer_meter, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -166,6 +183,8 @@ impl MeasureModel<hinawa::SndDice> for Studiok48Model {
         } else if self.ch_strip_ctl.read_measured_elem(&self.segments.ch_strip_meter, elem_id, elem_value)? {
             Ok(true)
         } else if self.reverb_ctl.read_measured_elem(&self.segments.reverb_meter, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read_measured_elem(&self.segments, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -586,5 +605,546 @@ impl<'a> PhysOutCtl {
         })
         .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
         .map(|_| true)
+    }
+}
+
+fn src_pair_mode_to_string(entry: &MonitorSrcPairMode) -> String {
+    match entry {
+        MonitorSrcPairMode::Inactive => "Inactive",
+        MonitorSrcPairMode::Active => "Active",
+        MonitorSrcPairMode::Fixed => "Fixed",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+pub struct MixerCtl{
+    notified_elem_list: Vec<ElemId>,
+    measured_elem_list: Vec<ElemId>,
+}
+
+impl<'a> MixerCtl {
+    const SRC_PAIR_MODE_NAME: &'a str = "mixer-input-mode";
+    const SRC_ENTRY_NAME: &'a str = "mixer-input-source";
+    const SRC_STEREO_LINK_NAME: &'a str = "mixer-input-stereo-link";
+    const SRC_GAIN_NAME: &'a str = "mixer-input-gain";
+    const SRC_PAN_NAME: &'a str = "mixer-input-pan";
+    const REVERB_SRC_GAIN_NAME: &'a str = "reverb-input-gain";
+    const AUX01_SRC_GAIN_NAME: &'a str = "aux-1/2-input-gain";
+    const AUX23_SRC_GAIN_NAME: &'a str = "aux-3/4-input-gain";
+    const SRC_MUTE_NAME: &'a str = "mixer-input-mute";
+
+    const OUT_DIM_NAME: &'a str = "mixer-output-dim";
+    const OUT_VOL_NAME: &'a str = "mixer-output-volume";
+    const OUT_DIM_VOL_NAME: &'a str = "mixer-output-dim-volume";
+    const REVERB_RETURN_MUTE_NAME: &'a str = "reverb-return-mute";
+    const REVERB_RETURN_GAIN_NAME: &'a str = "reverb-return-gain";
+
+    const POST_FADER_NAME: &'a str = "mixer-post-fader";
+
+    const CH_STRIP_AS_PLUGIN_NAME: &'a str = "channel-strip-as-plugin";
+    const CH_STRIP_SRC_NAME: &'a str = "channel-strip-source";
+    const CH_STRIP_23_AT_MID_RATE: &'a str = "channel-strip-3/4-at-mid-rate";
+
+    const MIXER_ENABLE_NAME: &'a str = "mixer-direct-monitoring";
+
+    const MIXER_INPUT_METER_NAME: &'a str = "mixer-input-meter";
+    const MIXER_OUTPUT_METER_NAME: &'a str = "mixer-output-meter";
+    const AUX_OUTPUT_METER_NAME: &'a str = "aux-output-meter";
+
+    const SRC_PAIR_MODES: [MonitorSrcPairMode;3] = [
+        MonitorSrcPairMode::Inactive,
+        MonitorSrcPairMode::Active,
+        MonitorSrcPairMode::Fixed,
+    ];
+
+    const SRC_PAIR_ENTRIES: &'a [SrcEntry] = &[
+        SrcEntry::Unused,
+        SrcEntry::Analog(0), SrcEntry::Analog(1), SrcEntry::Analog(2), SrcEntry::Analog(3),
+        SrcEntry::Analog(4), SrcEntry::Analog(5), SrcEntry::Analog(6), SrcEntry::Analog(7),
+        SrcEntry::Analog(8), SrcEntry::Analog(9), SrcEntry::Analog(10), SrcEntry::Analog(11),
+        SrcEntry::Spdif(0), SrcEntry::Spdif(1),
+        SrcEntry::Adat(0), SrcEntry::Adat(1), SrcEntry::Adat(2), SrcEntry::Adat(3),
+        SrcEntry::Adat(4), SrcEntry::Adat(5), SrcEntry::Adat(6), SrcEntry::Adat(7),
+        SrcEntry::StreamA(0), SrcEntry::StreamA(1), SrcEntry::StreamA(2), SrcEntry::StreamA(3),
+        SrcEntry::StreamA(4), SrcEntry::StreamA(5), SrcEntry::StreamA(6), SrcEntry::StreamA(7),
+        SrcEntry::StreamA(8), SrcEntry::StreamA(9), SrcEntry::StreamA(10), SrcEntry::StreamA(11),
+        SrcEntry::StreamA(12), SrcEntry::StreamA(13), SrcEntry::StreamA(14), SrcEntry::StreamA(15),
+        SrcEntry::StreamB(0), SrcEntry::StreamB(1), SrcEntry::StreamB(2), SrcEntry::StreamB(3),
+        SrcEntry::StreamB(4), SrcEntry::StreamB(5), SrcEntry::StreamB(6), SrcEntry::StreamB(7),
+        SrcEntry::StreamB(8), SrcEntry::StreamB(9), SrcEntry::StreamB(10), SrcEntry::StreamB(11),
+    ];
+
+    const OUT_LABELS: [&'a str;3] = ["Main-1/2", "Aux-1/2", "Aux-3/4"];
+    const SEND_TARGET_LABELS: [&'a str;3] = ["Reverb-1/2", "Aux-1/2", "Aux-3/4"];
+
+    const LEVEL_MIN: i32 = -1000;
+    const LEVEL_MAX: i32 = 0;
+    const LEVEL_STEP: i32 = 1;
+    const LEVEL_TLV: DbInterval = DbInterval{min: -7200, max: 0, linear: false, mute_avail: false};
+
+    const PAN_MIN: i32 = -50;
+    const PAN_MAX: i32 = 50;
+    const PAN_STEP: i32 = 1;
+
+    fn load(&mut self, segments: &StudioSegments, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let state = &segments.mixer_state.data;
+        let labels: Vec<String> = (0..state.src_pairs.len())
+            .map(|i| format!("Mixer-source-{}/{}", i + 1, i + 2))
+            .collect();
+        let item_labels: Vec<String> = Self::SRC_PAIR_MODES.iter()
+            .map(|m| src_pair_mode_to_string(m))
+            .collect();
+        self.state_add_elem_enum(card_cntr, Self::SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
+        self.state_add_elem_bool(card_cntr, Self::SRC_STEREO_LINK_NAME, 1, labels.len())?;
+
+        let labels: Vec<String> = (0..(state.src_pairs.len() * 2))
+            .map(|i| format!("Mixer-source-{}", i + 1))
+            .collect();
+        let item_labels: Vec<String> = Self::SRC_PAIR_ENTRIES.iter()
+            .map(|s| src_pair_entry_to_string(s))
+            .collect();
+        self.state_add_elem_enum(card_cntr, Self::SRC_ENTRY_NAME, 1, labels.len(), &item_labels)?;
+        self.state_add_elem_level(card_cntr, Self::SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_pan(card_cntr, Self::SRC_PAN_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, Self::REVERB_SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, Self::AUX01_SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, Self::AUX23_SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, Self::SRC_MUTE_NAME, 1, labels.len())?;
+
+        let labels = &Self::OUT_LABELS;
+        self.state_add_elem_bool(card_cntr, Self::REVERB_RETURN_MUTE_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, Self::REVERB_RETURN_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, Self::OUT_DIM_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, Self::OUT_VOL_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, Self::OUT_DIM_VOL_NAME, 1, labels.len())?;
+
+        let labels = &Self::SEND_TARGET_LABELS;
+        self.state_add_elem_bool(card_cntr, Self::POST_FADER_NAME, 1, labels.len())?;
+
+        let labels: Vec<String> = (0..2)
+            .map(|i| format!("Channel-strip-{}/{}", i + 1, i + 2))
+            .collect();
+        self.state_add_elem_bool(card_cntr, Self::CH_STRIP_AS_PLUGIN_NAME, 1, labels.len())?;
+        let labels: Vec<String> = (0..4)
+            .map(|i| format!("Channel-strip-{}", i))
+            .collect();
+        self.state_add_elem_enum(card_cntr, Self::CH_STRIP_SRC_NAME, 1, labels.len(), &item_labels)?; 
+        self.state_add_elem_bool(card_cntr, Self::CH_STRIP_23_AT_MID_RATE, 1, 1)?;
+
+        self.state_add_elem_bool(card_cntr, Self::MIXER_ENABLE_NAME, 1, 1)?;
+
+        // For metering.
+        let meter = &segments.mixer_meter.data;
+        let labels: Vec<String> = (0..meter.src_inputs.len())
+            .map(|i| format!("mixer-input-{}", i))
+            .collect();
+        self.meter_add_elem_level(card_cntr, Self::MIXER_INPUT_METER_NAME, labels.len())?;
+
+        let labels: Vec<String> = (0..meter.mixer_outputs.len())
+            .map(|i| format!("mixer-output-{}", i))
+            .collect();
+        self.meter_add_elem_level(card_cntr, Self::MIXER_OUTPUT_METER_NAME, labels.len())?;
+
+        let labels: Vec<String> = (0..meter.mixer_outputs.len())
+            .map(|i| format!("aux-output-{}", i))
+            .collect();
+        self.meter_add_elem_level(card_cntr, Self::AUX_OUTPUT_METER_NAME, labels.len())?;
+
+        Ok(())
+    }
+
+    fn state_add_elem_enum<T: AsRef<str>>(&mut self, card_cntr: &mut CardCntr, name: &str,
+                                          count: usize, value_count: usize, labels: &[T])
+        -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr.add_enum_elems(&elem_id, count, value_count, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
+    }
+
+    fn state_add_elem_bool(&mut self, card_cntr: &mut CardCntr, name: &str, count: usize, value_count: usize)
+        -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr.add_bool_elems(&elem_id, count, value_count, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
+    }
+
+    fn state_add_elem_level(&mut self, card_cntr: &mut CardCntr, name: &str, count: usize, value_count: usize)
+        -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr.add_int_elems(&elem_id, count, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                value_count, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
+    }
+
+    fn state_add_elem_pan(&mut self, card_cntr: &mut CardCntr, name: &str, count: usize, value_count: usize)
+        -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr.add_int_elems(&elem_id, count, Self::PAN_MIN, Self::PAN_MAX, Self::PAN_STEP, value_count,
+                                None, true)
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
+    }
+
+    fn meter_add_elem_level(&mut self, card_cntr: &mut CardCntr, name: &str, value_count: usize)
+        -> Result<(), Error>
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                value_count, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+    }
+
+    fn read(&mut self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.read_notified_elem(segments, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.read_measured_elem(segments, elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn state_read_src_param<T, F>(segments: &StudioSegments, elem_value: &ElemValue, cb: F)
+        -> Result<bool, Error>
+        where T: Default + Copy + Eq,
+              F: Fn(&MonitorSrcParam) -> Result<T, Error>,
+              ElemValue: ElemValueAccessor<T>,
+    {
+        let count = segments.mixer_state.data.src_pairs.len() * 2;
+        ElemValueAccessor::<T>::set_vals(elem_value, count, |idx| {
+            let i = idx / 2;
+            let ch = idx % 2;
+            let param = if ch == 0 {
+                &segments.mixer_state.data.src_pairs[i].left
+            } else {
+                &segments.mixer_state.data.src_pairs[i].right
+            };
+            cb(param)
+        })
+        .map(|_| true)
+    }
+
+    fn state_read_out_pair<T, F>(segments: &StudioSegments, elem_value: &ElemValue, cb: F)
+        -> Result<bool, Error>
+        where T: Copy + Default + Eq + PartialEq,
+              F: Fn(&OutPair) -> Result<T, Error>,
+              ElemValue: ElemValueAccessor<T>,
+    {
+        ElemValueAccessor::<T>::set_vals(elem_value, Self::OUT_LABELS.len(), |idx| {
+            cb(&segments.mixer_state.data.mixer_out[idx])
+        })
+        .map(|_| true)
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+             elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::SRC_PAIR_MODE_NAME => {
+                let state = &mut segments.mixer_state.data;
+                ElemValueAccessor::<u32>::get_vals(new, old, state.src_pairs.len(), |idx, val| {
+                    if let Some(m) = Self::SRC_PAIR_MODES.iter().nth(val as usize) {
+                        if state.src_pairs[idx].mode != MonitorSrcPairMode::Fixed {
+                            if *m != MonitorSrcPairMode::Fixed {
+                                state.src_pairs[idx].mode = *m;
+                                Ok(())
+                            } else {
+                                let msg = format!("The fixed mode is not newly available: {}", idx);
+                                Err(Error::new(FileError::Inval, &msg))
+                            }
+                        } else {
+                            let msg = format!("The source of mixer is immutable: {}", idx);
+                            Err(Error::new(FileError::Inval, &msg))
+                        }
+                    } else {
+                        let msg = format!("Invalid value for index of mixer source: {}", val);
+                        Err(Error::new(FileError::Inval, &msg))
+                    }
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+                .map(|_| true)
+            }
+            Self::SRC_ENTRY_NAME => {
+                Self::state_write_src_param(unit, proto, segments, new, old, timeout_ms, |param, val: u32| {
+                    Self::SRC_PAIR_ENTRIES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of mixer source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&s| param.src = s)
+                })
+            }
+            Self::SRC_STEREO_LINK_NAME => {
+                let pair_count = segments.mixer_state.data.src_pairs.len();
+                ElemValueAccessor::<bool>::get_vals(new, old, pair_count, |idx, val| {
+                    segments.mixer_state.data.src_pairs[idx].stereo_link = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+                .map(|_| true)
+            }
+            Self::SRC_GAIN_NAME => {
+                Self::state_write_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
+                    param.gain_to_main = val;
+                    Ok(())
+                })
+            }
+            Self::SRC_PAN_NAME => {
+                Self::state_write_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
+                    param.pan_to_main = val;
+                    Ok(())
+                })
+            }
+            Self::REVERB_SRC_GAIN_NAME => {
+                Self::state_write_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
+                    param.gain_to_reverb = val;
+                    Ok(())
+                })
+            }
+            Self::AUX01_SRC_GAIN_NAME => {
+                Self::state_write_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
+                    param.gain_to_aux0 = val;
+                    Ok(())
+                })
+            }
+            Self::AUX23_SRC_GAIN_NAME => {
+                Self::state_write_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
+                    param.gain_to_aux1 = val;
+                    Ok(())
+                })
+            }
+            Self::SRC_MUTE_NAME => {
+                new.get_bool(&mut segments.mixer_state.data.mutes);
+                proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::OUT_DIM_NAME => {
+                Self::state_write_out_pair(unit, proto, segments, new, old, timeout_ms, |pair, val| {
+                    pair.dim_enabled = val;
+                    Ok(())
+                })
+            }
+            Self::OUT_VOL_NAME=> {
+                Self::state_write_out_pair(unit, proto, segments, new, old, timeout_ms, |pair, val| {
+                    pair.vol = val;
+                    Ok(())
+                })
+            }
+            Self::OUT_DIM_VOL_NAME => {
+                Self::state_write_out_pair(unit, proto, segments, new, old, timeout_ms, |pair, val| {
+                    pair.dim_vol = val;
+                    Ok(())
+                })
+            }
+            Self::REVERB_RETURN_MUTE_NAME => {
+                new.get_bool(&mut segments.mixer_state.data.reverb_return_mute);
+                proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::REVERB_RETURN_GAIN_NAME => {
+                new.get_int(&mut segments.mixer_state.data.reverb_return_gain);
+                proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::CH_STRIP_AS_PLUGIN_NAME => {
+                new.get_bool(&mut segments.mixer_state.data.ch_strip_as_plugin);
+                proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::CH_STRIP_SRC_NAME => {
+                let count = segments.mixer_state.data.ch_strip_src.len();
+                ElemValueAccessor::<u32>::get_vals(new, old, count, |idx, val| {
+                    Self::SRC_PAIR_ENTRIES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of ch strip source: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&s| segments.mixer_state.data.ch_strip_src[idx] = s)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+                .map(|_| true)
+            }
+            Self::CH_STRIP_23_AT_MID_RATE => {
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    segments.mixer_state.data.ch_strip_23_at_mid_rate = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+                .map(|_| true)
+            }
+            Self::POST_FADER_NAME => {
+                new.get_bool(&mut segments.mixer_state.data.post_fader);
+                proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::MIXER_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    segments.mixer_state.data.enabled = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn state_write_src_param<T, F>(unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+                                  new: &ElemValue, old: &ElemValue, timeout_ms: u32, cb: F)
+        -> Result<bool, Error>
+        where T: Default + Copy + Eq,
+              F: Fn(&mut MonitorSrcParam, T) -> Result<(), Error>,
+              ElemValue: ElemValueAccessor<T>,
+    {
+        let count = segments.mixer_state.data.src_pairs.len() * 2;
+        ElemValueAccessor::<T>::get_vals(new, old, count, |idx, val| {
+            let i = idx / 2;
+            let ch = idx % 2;
+            let param = if ch == 0 {
+                &mut segments.mixer_state.data.src_pairs[i].left
+            } else {
+                &mut segments.mixer_state.data.src_pairs[i].right
+            };
+            cb(param, val)
+        })
+        .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+        .map(|_| true)
+    }
+
+    fn state_write_out_pair<T, F>(unit: &SndDice, proto: &Studiok48Proto, segments: &mut StudioSegments,
+                                  new: &ElemValue, old: &ElemValue, timeout_ms: u32, cb: F)
+        -> Result<bool, Error>
+        where T: Default + Copy + Eq,
+              F: Fn(&mut OutPair, T) -> Result<(), Error>,
+              ElemValue: ElemValueAccessor<T>,
+    {
+        ElemValueAccessor::<T>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
+            cb(&mut segments.mixer_state.data.mixer_out[idx], val)
+        })
+        .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms))
+        .map(|_| true)
+    }
+
+    fn read_notified_elem(&self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::SRC_PAIR_MODE_NAME => {
+                let pair_count = segments.mixer_state.data.src_pairs.len();
+                ElemValueAccessor::<u32>::set_vals(elem_value, pair_count, |idx| {
+                    let pos = Self::SRC_PAIR_MODES.iter()
+                        .position(|m| m.eq(&segments.mixer_state.data.src_pairs[idx].mode))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::SRC_STEREO_LINK_NAME => {
+                let pair_count = segments.mixer_state.data.src_pairs.len();
+                ElemValueAccessor::<bool>::set_vals(elem_value, pair_count, |idx| {
+                    Ok(segments.mixer_state.data.src_pairs[idx].stereo_link)
+                })
+                .map(|_| true)
+            }
+            Self::SRC_ENTRY_NAME => {
+                Self::state_read_src_param(segments, elem_value, |param| {
+                    let pos = Self::SRC_PAIR_ENTRIES.iter()
+                        .position(|m| m.eq(&param.src))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+            }
+            Self::SRC_GAIN_NAME => {
+                Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_main))
+            }
+            Self::SRC_PAN_NAME => {
+                Self::state_read_src_param(segments, elem_value, |param| Ok(param.pan_to_main))
+            }
+            Self::REVERB_SRC_GAIN_NAME => {
+                Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_reverb))
+            }
+            Self::AUX01_SRC_GAIN_NAME => {
+                Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_aux0))
+            }
+            Self::AUX23_SRC_GAIN_NAME => {
+                Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_aux1))
+            }
+            Self::SRC_MUTE_NAME => {
+                elem_value.set_bool(&segments.mixer_state.data.mutes);
+                Ok(true)
+            }
+            Self::OUT_DIM_NAME => {
+                Self::state_read_out_pair(segments, elem_value, |pair| Ok(pair.dim_enabled))
+            }
+            Self::OUT_VOL_NAME => {
+                Self::state_read_out_pair(segments, elem_value, |pair| Ok(pair.vol))
+            }
+            Self::OUT_DIM_VOL_NAME => {
+                Self::state_read_out_pair(segments, elem_value, |pair| Ok(pair.dim_vol))
+            }
+            Self::REVERB_RETURN_MUTE_NAME => {
+                elem_value.set_bool(&segments.mixer_state.data.reverb_return_mute);
+                Ok(true)
+            }
+            Self::REVERB_RETURN_GAIN_NAME => {
+                elem_value.set_int(&segments.mixer_state.data.reverb_return_gain);
+                Ok(true)
+            }
+            Self::POST_FADER_NAME => {
+                elem_value.set_bool(&segments.mixer_state.data.post_fader);
+                Ok(true)
+            }
+            Self::CH_STRIP_AS_PLUGIN_NAME => {
+                elem_value.set_bool(&segments.mixer_state.data.ch_strip_as_plugin);
+                Ok(true)
+            }
+            Self::CH_STRIP_SRC_NAME => {
+                let count = segments.mixer_state.data.ch_strip_src.len();
+                ElemValueAccessor::<u32>::set_vals(elem_value, count, |idx| {
+                    let pos = Self::SRC_PAIR_ENTRIES.iter()
+                        .position(|s| s.eq(&segments.mixer_state.data.ch_strip_src[idx]))
+                        .expect("Programming error...");
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::CH_STRIP_23_AT_MID_RATE => {
+                elem_value.set_bool(&[segments.mixer_state.data.ch_strip_23_at_mid_rate]);
+                Ok(true)
+            }
+            Self::MIXER_ENABLE_NAME => {
+                elem_value.set_bool(&[segments.mixer_state.data.enabled]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn read_measured_elem(&self, segments: &StudioSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MIXER_INPUT_METER_NAME => {
+                elem_value.set_int(&segments.mixer_meter.data.src_inputs);
+                Ok(true)
+            }
+            Self::MIXER_OUTPUT_METER_NAME => {
+                elem_value.set_int(&segments.mixer_meter.data.mixer_outputs);
+                Ok(true)
+            }
+            Self::AUX_OUTPUT_METER_NAME => {
+                elem_value.set_int(&segments.mixer_meter.data.aux_outputs);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
