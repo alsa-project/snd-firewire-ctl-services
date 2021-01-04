@@ -2,3 +2,4 @@
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod k24d_model;
 pub mod k8_model;
+pub mod studiok48_model;
