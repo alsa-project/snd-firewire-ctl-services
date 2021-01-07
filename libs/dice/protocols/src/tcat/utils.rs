@@ -67,15 +67,16 @@ pub fn parse_labels(raw: &[u8]) -> Result<Vec<String>, std::str::Utf8Error> {
     let mut raw = raw.to_vec();
     raw.as_mut_slice().to_ne();
 
-    raw.push(0x00);
-    std::str::from_utf8(&raw)
-        .map(|text| {
-            if let Some(pos) = text.find("\\\\") {
-                text[..pos].split("\\").map(|l| l.to_string()).collect()
-            } else {
-                Vec::new()
-            }
-        })
+    let mut labels = Vec::new();
+    raw.split(|&b| b == '\\' as u8)
+        .filter(|chunk| chunk.len() > 0 && chunk[0] != '\0' as u8)
+        .fuse()
+        .try_for_each(|chunk| {
+            std::str::from_utf8(&chunk)
+                .map(|label| labels.push(label.to_string()))
+        })?;
+
+    Ok(labels)
 }
 
 pub const STREAM_NAMES_SIZE: usize = 256;
