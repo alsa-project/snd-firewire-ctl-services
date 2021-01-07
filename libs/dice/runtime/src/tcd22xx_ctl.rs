@@ -42,7 +42,7 @@ impl<S> Tcd22xxCtl<S>
         self.caps = proto.read_caps(&node, sections, timeout_ms)?;
 
         self.meter_ctl.load(&node, proto, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
-        self.router_ctl.load(&node, proto, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
+        self.router_ctl.load(&node, proto, sections, &self.caps, &self.state, caps, timeout_ms, card_cntr)?;
         self.mixer_ctl.load(&self.caps, &self.state, card_cntr)?;
         self.standalone_ctl.load(caps, src_labels, card_cntr)?;
 
@@ -273,14 +273,38 @@ impl<'a> RouterCtl {
     const NONE_SRC_LABEL: &'a str = "None";
 
     pub fn load<T>(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
-                   caps: &ExtensionCaps, state: &T, timeout_ms: u32, card_cntr: &mut CardCntr)
+                   caps: &ExtensionCaps, state: &T, clk_caps: &ClockCaps, timeout_ms: u32,
+                   card_cntr: &mut CardCntr)
         -> Result<(), Error>
         where for<'b> T: Tcd22xxSpec<'b>,
     {
         self.real_blk_pair = state.compute_avail_real_blk_pair(RateMode::Low);
-        let (tx_entries, rx_entries) = proto.read_current_stream_format_entries(node, sections, caps,
-                                                                                RateMode::Low, timeout_ms)?;
-        self.stream_blk_pair = state.compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
+
+        // Compute the pair of blocks for tx/rx streams at each of available mode of rate. It's for
+        // such models that second rx or tx stream is not available at mode of low rate.
+        let mut rate_modes: Vec<RateMode> = Vec::default();
+        clk_caps.get_rate_entries().iter()
+            .map(|&r| RateMode::from(r))
+            .for_each(|m| {
+                if rate_modes.iter().find(|&&mode| mode.eq(&m)).is_none() {
+                    rate_modes.push(m);
+                }
+            });
+        rate_modes.iter()
+            .try_for_each(|&m| {
+                proto.read_current_stream_format_entries(node, sections, caps, m, timeout_ms)
+                    .map(|(tx, rx)| {
+                        let (mut tx_blk, mut rx_blk) = state.compute_avail_stream_blk_pair(&tx, &rx);
+                        self.stream_blk_pair.0.append(&mut tx_blk);
+                        self.stream_blk_pair.1.append(&mut rx_blk);
+                        ()
+                    })
+            })?;
+        self.stream_blk_pair.0.sort();
+        self.stream_blk_pair.0.dedup();
+        self.stream_blk_pair.1.sort();
+        self.stream_blk_pair.1.dedup();
+
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
         let mut elem_id_list = Self::add_an_elem_for_src(card_cntr, Self::OUT_SRC_NAME, &self.real_blk_pair.1,
