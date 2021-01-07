@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-//! Application protocol specific to Avid Mbox 3 Pro
+//! Hardware specification and application protocol specific to Avid Mbox 3 Pro
 //!
-//! The module includes structure, enumeration, and trait and its implementation for application
-//! protocol specific to Avid Mbox 3 Pro.
+//! The module includes structure, enumeration, and trait and its implementation for hardware
+//! specification and application protocol specific to Avid Mbox 3 Pro.
 
 use glib::{Error, FileError};
 
@@ -12,6 +12,44 @@ use hinawa::{FwReq, FwNode};
 
 use super::tcat::*;
 use super::tcat::extension::{*, appl_section::*};
+use super::tcat::tcd22xx_spec::*;
+
+/// The structure to represent state of TCD22xx on Mbox 3 Pro.
+#[derive(Default, Debug)]
+pub struct Mbox3State(Tcd22xxState);
+
+impl<'a> Tcd22xxSpec<'a> for  Mbox3State {
+    const INPUTS: &'a [Input<'a>] = &[
+        Input{id: SrcBlkId::Ins0, offset: 0, count: 6, label: None},
+        Input{id: SrcBlkId::Ins1, offset: 0, count: 2, label: Some("Reverb")},
+        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
+    ];
+    const OUTPUTS: &'a [Output<'a>] = &[
+        Output{id: DstBlkId::Ins0, offset: 0, count: 6, label: None},
+        Output{id: DstBlkId::Ins1, offset: 0, count: 4, label: Some("Headphone")},
+        Output{id: DstBlkId::Ins1, offset: 4, count: 2, label: Some("Reverb")},
+        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
+        Output{id: DstBlkId::Reserved(0x08), offset: 0, count: 2, label: Some("ControlRoom")},
+    ];
+    const FIXED: &'a [SrcBlk] = &[
+        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 2},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 3},
+    ];
+}
+
+impl AsRef<Tcd22xxState> for Mbox3State {
+    fn as_ref(&self) -> &Tcd22xxState {
+        &self.0
+    }
+}
+
+impl AsMut<Tcd22xxState> for Mbox3State {
+    fn as_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
+    }
+}
 
 /// The enumeration to represent usecase of standalone mode.
 pub enum StandaloneUseCase {
