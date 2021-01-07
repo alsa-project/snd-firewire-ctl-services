@@ -1,16 +1,120 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-//! Application protocol specific to M-Audio ProFire series.
+//! Hardware specification and application protocol specific to M-Audio ProFire series.
 //!
-//! The modules includes trait and its implementation for application protocol specific to M-Audio
-//! ProFire series.
+//! The modules includes structure, enumeration, and trait and its implementation for hardware
+//! specification and application protocol specific to M-Audio ProFire series.
 
 use glib::Error;
 
 use hinawa::{FwReq, FwNode};
 
+use super::tcat::global_section::*;
+use super::tcat::tcd22xx_spec::*;
 use super::tcat::extension::{*, appl_section::*};
+
+/// The trait to represent available rate and source of sampling clock.
+pub trait PfireClkSpec<'a> {
+    const AVAIL_CLK_RATES: &'a [ClockRate] = &[
+        ClockRate::R32000, ClockRate::R44100, ClockRate::R48000,
+        ClockRate::R88200, ClockRate::R96000,
+        ClockRate::R176400, ClockRate::R192000,
+    ];
+
+    const AVAIL_CLK_SRCS: &'a [ClockSource];
+}
+
+/// The structure to represent state of TCD22xx on ProFire 2626.
+#[derive(Default, Debug)]
+pub struct Pfire2626State(Tcd22xxState);
+
+impl<'a> Tcd22xxSpec<'a> for Pfire2626State {
+    const INPUTS: &'a [Input<'a>] = &[
+        Input{id: SrcBlkId::Ins1, offset: 0, count: 8, label: None},
+        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
+        Input{id: SrcBlkId::Adat, offset: 8, count: 16, label: None},
+        Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: None},
+    ];
+    const OUTPUTS: &'a [Output<'a>] = &[
+        Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Adat, offset: 8, count: 16, label: None},
+        Output{id: DstBlkId::Aes, offset: 0, count: 2, label: None},
+    ];
+    const FIXED: &'a [SrcBlk] = &[
+        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 4},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 5},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 6},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 7},
+    ];
+}
+
+impl AsMut<Tcd22xxState> for Pfire2626State {
+    fn as_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
+    }
+}
+
+impl AsRef<Tcd22xxState> for Pfire2626State {
+    fn as_ref(&self) -> &Tcd22xxState {
+        &self.0
+    }
+}
+
+impl<'a> PfireClkSpec<'a> for Pfire2626State {
+    const AVAIL_CLK_SRCS: &'a [ClockSource] = &[
+            ClockSource::Aes1,
+            ClockSource::Aes4,
+            ClockSource::Adat,
+            ClockSource::Tdif,
+            ClockSource::WordClock,
+            ClockSource::Internal,
+    ];
+}
+
+/// The structure to represent state of TCD22xx on ProFire 610.
+#[derive(Default, Debug)]
+pub struct Pfire610State(Tcd22xxState);
+
+// NOTE: the second rx stream is firstly available at higher sampling rate.
+impl<'a> Tcd22xxSpec<'a> for Pfire610State {
+    const INPUTS: &'a [Input<'a>] = &[
+        Input{id: SrcBlkId::Ins0, offset: 0, count: 4, label: None},
+        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
+    ];
+    const OUTPUTS: &'a [Output<'a>] = &[
+        Output{id: DstBlkId::Ins0, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
+    ];
+    const FIXED: &'a [SrcBlk] = &[
+        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+    ];
+}
+
+impl AsRef<Tcd22xxState> for Pfire610State {
+    fn as_ref(&self) -> &Tcd22xxState {
+        &self.0
+    }
+}
+
+impl AsMut<Tcd22xxState> for Pfire610State {
+    fn as_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
+    }
+}
+
+impl<'a> PfireClkSpec<'a> for Pfire610State {
+    const AVAIL_CLK_SRCS: &'a [ClockSource] = &[
+            ClockSource::Aes1,
+            ClockSource::Internal,
+    ];
+}
 
 /// The number of targets available to knob master.
 pub const KNOB_COUNT: usize = 4;
