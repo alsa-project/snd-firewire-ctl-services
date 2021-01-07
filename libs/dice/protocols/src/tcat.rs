@@ -102,6 +102,7 @@ pub mod rx_stream_format_section;
 pub mod ext_sync_section;
 
 pub mod extension;
+pub mod tcd22xx_spec;
 
 pub mod config_rom;
 

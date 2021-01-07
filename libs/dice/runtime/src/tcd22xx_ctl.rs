@@ -16,8 +16,7 @@ use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*, mixer_section::*};
 use dice_protocols::tcat::extension::peak_section::*;
 use dice_protocols::tcat::extension::{current_config_section::*, standalone_section::*};
-
-use super::tcd22xx_spec::{Tcd22xxState, Tcd22xxSpec, Tcd22xxRouterOperation, Tcd22xxMixerOperation, Tcd22xxStateOperation};
+use dice_protocols::tcat::tcd22xx_spec::*;
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtl<S>
