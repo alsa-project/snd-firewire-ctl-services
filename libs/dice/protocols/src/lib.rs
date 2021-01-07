@@ -7,9 +7,10 @@
 //! well as hardware vendors for ASICs of Digital Interface Communication Engine (DICE).
 
 pub mod tcat;
+pub mod tcelectronic;
 pub mod maudio;
 pub mod avid;
-pub mod tcelectronic;
+pub mod loud;
 
 const QUADLET_SIZE: usize = 4;
 

@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 mod model;
+
+mod common_ctl;
 mod minimal_model;
+mod tcelectronic;
+
+mod tcd22xx_ctl;
 mod extension_model;
 mod pfire_model;
 mod mbox3_model;
-mod tcelectronic;
-mod common_ctl;
-mod tcd22xx_ctl;
+mod blackbird_model;
 
 use glib::Error;
 use glib::source;

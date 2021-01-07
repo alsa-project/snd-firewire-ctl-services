@@ -22,6 +22,7 @@ use super::tcelectronic::itwin_model::*;
 use super::extension_model::ExtensionModel;
 use super::pfire_model::*;
 use super::mbox3_model::*;
+use super::blackbird_model::*;
 
 enum Model {
     Minimal(MinimalModel),
@@ -35,6 +36,7 @@ enum Model {
     MaudioPfire2626(Pfire2626Model),
     MaudioPfire610(Pfire610Model),
     AvidMbox3(Mbox3Model),
+    LoudBlackbird(BlackbirdModel),
 }
 
 pub struct DiceModel{
@@ -71,6 +73,7 @@ impl DiceModel {
             (0x000d6c, 0x000010) => Model::MaudioPfire2626(Pfire2626Model::default()),
             (0x000d6c, 0x000011) => Model::MaudioPfire610(Pfire610Model::default()),
             (0x00a07e, 0x000004) => Model::AvidMbox3(Mbox3Model::default()),
+            (0x000ff2, 0x000007) => Model::LoudBlackbird(BlackbirdModel::default()),
             (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
             _ => Model::Minimal(MinimalModel::default()),
         };
@@ -107,6 +110,7 @@ impl DiceModel {
             Model::MaudioPfire2626(m) => m.load(unit, card_cntr),
             Model::MaudioPfire610(m) => m.load(unit, card_cntr),
             Model::AvidMbox3(m) => m.load(unit, card_cntr),
+            Model::LoudBlackbird(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.model {
@@ -121,6 +125,7 @@ impl DiceModel {
             Model::MaudioPfire2626(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioPfire610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::AvidMbox3(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::LoudBlackbird(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         match &mut self.model {
@@ -135,6 +140,7 @@ impl DiceModel {
             Model::MaudioPfire2626(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::MaudioPfire610(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::AvidMbox3(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::LoudBlackbird(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
 
         Ok(())
@@ -156,6 +162,7 @@ impl DiceModel {
             Model::MaudioPfire2626(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioPfire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::AvidMbox3(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::LoudBlackbird(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -174,6 +181,7 @@ impl DiceModel {
             Model::MaudioPfire2626(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::MaudioPfire610(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::AvidMbox3(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+            Model::LoudBlackbird(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
         }
     }
 
@@ -192,6 +200,7 @@ impl DiceModel {
             Model::MaudioPfire2626(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::MaudioPfire610(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::AvidMbox3(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::LoudBlackbird(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
         }
     }
 }
