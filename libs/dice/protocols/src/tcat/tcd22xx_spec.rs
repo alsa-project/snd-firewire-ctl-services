@@ -4,8 +4,8 @@ use glib::{Error, FileError};
 
 use hinawa::FwNode;
 
-use dice_protocols::tcat::extension::{*, caps_section::*, cmd_section::*, mixer_section::*,
-                                      router_section::*, current_config_section::*};
+use super::extension::{*, caps_section::*, cmd_section::*, mixer_section::*, router_section::*,
+                       current_config_section::*};
 
 use std::convert::TryFrom;
 
