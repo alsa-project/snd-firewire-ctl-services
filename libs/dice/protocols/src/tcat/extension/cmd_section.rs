@@ -19,6 +19,12 @@ pub enum RateMode {
     High,
 }
 
+impl Default for RateMode {
+    fn default() -> Self {
+        Self::Low
+    }
+}
+
 impl std::fmt::Display for RateMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let label = match self {

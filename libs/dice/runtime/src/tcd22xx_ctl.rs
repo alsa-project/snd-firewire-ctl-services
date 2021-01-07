@@ -425,7 +425,7 @@ impl<'a> RouterCtl {
             Ok(())
         })?;
 
-        state.update_router_entries(node, proto, sections, caps, RateMode::Low, entries, timeout_ms)
+        state.update_router_entries(node, proto, sections, caps, entries, timeout_ms)
     }
 }
 
