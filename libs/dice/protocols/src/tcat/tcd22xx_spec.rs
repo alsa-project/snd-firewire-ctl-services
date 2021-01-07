@@ -14,6 +14,7 @@ pub struct Tcd22xxState {
     pub router_entries: Vec<RouterEntryData>,
     pub mixer_cache: Vec<Vec<i32>>,
 
+    rate_mode: RateMode,
     real_blk_pair: (Vec<u8>, Vec<u8>),
     stream_blk_pair: (Vec<u8>, Vec<u8>),
     mixer_blk_pair: (Vec<u8>, Vec<u8>),
@@ -199,8 +200,7 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
           U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
 {
     fn update_router_entries(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
-                             caps: &ExtensionCaps, rate_mode: RateMode, entries: Vec<RouterEntryData>,
-                             timeout_ms: u32)
+                             caps: &ExtensionCaps, entries: Vec<RouterEntryData>, timeout_ms: u32)
         -> Result<(), Error>
     {
         if entries.len() > caps.router.maximum_entry_count as usize {
@@ -211,6 +211,7 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
 
         let state = self.as_mut();
         if entries != state.router_entries {
+            let rate_mode = state.rate_mode;
             proto.write_router_entries(node, sections, caps, &entries, timeout_ms)?;
             proto.initiate(node, sections, caps, Opcode::LoadRouter(rate_mode), timeout_ms)?;
             state.router_entries = entries;
@@ -220,9 +221,11 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
     }
 
     fn cache_router_entries(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
-                            caps: &ExtensionCaps, rate_mode: RateMode, timeout_ms: u32)
+                            caps: &ExtensionCaps, timeout_ms: u32)
         -> Result<(), Error>
     {
+        let rate_mode = self.as_ref().rate_mode;
+
         let real_blk_pair = self.compute_avail_real_blk_pair(rate_mode);
 
         let (tx_entries, rx_entries) = proto.read_current_stream_format_entries(node, sections, caps,
@@ -237,7 +240,7 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
         state.mixer_blk_pair = mixer_blk_pair;
 
         let entries = proto.read_current_router_entries(node, sections, caps, rate_mode, timeout_ms)?;
-        self.update_router_entries(node, proto, sections, caps, rate_mode, entries, timeout_ms)
+        self.update_router_entries(node, proto, sections, caps, entries, timeout_ms)
     }
 }
 
@@ -264,9 +267,11 @@ pub trait Tcd22xxMixerOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState
     }
 
     fn cache_mixer_coefs(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
-                         caps: &ExtensionCaps, rate_mode: RateMode, timeout_ms: u32)
+                         caps: &ExtensionCaps, timeout_ms: u32)
         -> Result<(), Error>
     {
+        let rate_mode = self.as_ref().rate_mode;
+
         let output_count = Self::get_mixer_out_port_count(rate_mode);
         let input_count = Self::get_mixer_in_port_count();
 
@@ -294,8 +299,9 @@ pub trait Tcd22xxStateOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState
              rate_mode: RateMode, timeout_ms: u32)
         -> Result<(), Error>
     {
-        self.cache_router_entries(node, proto, sections, caps, rate_mode, timeout_ms)?;
-        self.cache_mixer_coefs(node, proto, sections, caps, rate_mode, timeout_ms)?;
+        self.as_mut().rate_mode = rate_mode;
+        self.cache_router_entries(node, proto, sections, caps, timeout_ms)?;
+        self.cache_mixer_coefs(node, proto, sections, caps, timeout_ms)?;
         Ok(())
     }
 }
