@@ -12,7 +12,6 @@ use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcat::extension::*;
-use dice_protocols::tcat::tcd22xx_spec::*;
 use dice_protocols::avid::*;
 
 use super::common_ctl::*;
@@ -157,42 +156,6 @@ impl MeasureModel<hinawa::SndDice> for Mbox3Model {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct Mbox3State(Tcd22xxState);
-
-impl<'a> Tcd22xxSpec<'a> for  Mbox3State {
-    const INPUTS: &'a [Input<'a>] = &[
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 6, label: None},
-        Input{id: SrcBlkId::Ins1, offset: 0, count: 2, label: Some("Reverb")},
-        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
-    ];
-    const OUTPUTS: &'a [Output<'a>] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 6, label: None},
-        Output{id: DstBlkId::Ins1, offset: 0, count: 4, label: Some("Headphone")},
-        Output{id: DstBlkId::Ins1, offset: 4, count: 2, label: Some("Reverb")},
-        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
-        Output{id: DstBlkId::Reserved(0x08), offset: 0, count: 2, label: Some("ControlRoom")},
-    ];
-    const FIXED: &'a [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 3},
-    ];
-}
-
-impl AsRef<Tcd22xxState> for Mbox3State {
-    fn as_ref(&self) -> &Tcd22xxState {
-        &self.0
-    }
-}
-
-impl AsMut<Tcd22xxState> for Mbox3State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
     }
 }
 
