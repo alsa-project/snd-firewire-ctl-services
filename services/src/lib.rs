@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+use glib::FileError;
+use hinawa::{FwNodeError, SndUnitError};
+use alsactl::CardError;
+use alsaseq::UserClientError;
+
 use core::RuntimeOperation;
 
 use std::str::FromStr;
@@ -46,7 +51,38 @@ Usage:
             })
             .and_then(|args| {
                 R::new(args)
-                    .map_err(|e| format!("Unsupported sound card: {}", e))
+                    .map_err(|e| {
+                        let (domain, cause) = if let Some(error) = e.kind::<FileError>() {
+                            ("Linux file operation error", match error {
+                                FileError::Acces => "Access permission",
+                                FileError::Isdir => "Is directory",
+                                FileError::Noent => "Not exists",
+                                _ => "",
+                            })
+                        } else if let Some(error) = e.kind::<SndUnitError>() {
+                            ("ALSA HwDep operation error", match error {
+                                SndUnitError::Disconnected => "Sound card is disconnected",
+                                SndUnitError::Used => "ALSA Hwdep device is already used",
+                                SndUnitError::WrongClass => "Unit is not for the runtime",
+                                _ => "",
+                            })
+                        } else if let Some(error) = e.kind::<FwNodeError>() {
+                            ("Linux FireWire node operation error", match error {
+                                FwNodeError::Disconnected => "Node is disconnected",
+                                _ => "",
+                            })
+                        } else if let Some(error) = e.kind::<CardError>() {
+                            ("ALSA control operation error", match error {
+                                CardError::Disconnected => "Sound card is disconnected",
+                                _ => "",
+                            })
+                        } else if e.is::<UserClientError>() {
+                            ("ALSA Sequencer operation error", "")
+                        } else {
+                            ("Unknown domain error", "")
+                        };
+                        format!("{}: {}, {}", domain, cause, e)
+                    })
             })
             .and_then(|mut runtime| {
                 runtime.listen()
