@@ -7,6 +7,7 @@
 //! defined by Alesis for iO FireWire series.
 
 pub mod meter;
+pub mod mixer;
 
 use glib::Error;
 use hinawa::FwNode;
