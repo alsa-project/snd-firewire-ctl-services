@@ -8,6 +8,7 @@
 
 pub mod tcat;
 pub mod tcelectronic;
+pub mod alesis;
 pub mod maudio;
 pub mod avid;
 pub mod loud;
