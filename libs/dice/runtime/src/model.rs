@@ -78,6 +78,7 @@ impl DiceModel {
             (0x00a07e, 0x000004) => Model::AvidMbox3(Mbox3Model::default()),
             (0x000ff2, 0x000007) => Model::LoudBlackbird(BlackbirdModel::default()),
             (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
+            (0x000595, 0x000000) |  // Alesis MultiMix 8/12/16 FireWire.
             _ => Model::Minimal(MinimalModel::default()),
         };
 
