@@ -79,6 +79,7 @@ impl DiceModel {
             (0x000ff2, 0x000007) => Model::LoudBlackbird(BlackbirdModel::default()),
             (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
             (0x000595, 0x000000) |  // Alesis MultiMix 8/12/16 FireWire.
+            (0x000595, 0x000002) |  // Alesis MasterControl.
             _ => Model::Minimal(MinimalModel::default()),
         };
 

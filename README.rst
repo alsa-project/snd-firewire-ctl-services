@@ -144,6 +144,7 @@ your device, please contact to developer.
   * Alesis MultiMix 8/12/16 FireWire
   * Alesis iO 14
   * Alesis iO 26
+  * Alesis MasterControl
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
