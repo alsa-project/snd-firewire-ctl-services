@@ -141,6 +141,7 @@ your device, please contact to developer.
   * TC Electronic Desktop Konnekt 6
   * TC Electronic Impact Twin
   * TC Electronic Digital Konnekt x32
+  * Alesis MultiMix 8/12/16 FireWire
   * Alesis iO 14
   * Alesis iO 26
   * For the others, common controls are available. If supported, control extension is also available.
