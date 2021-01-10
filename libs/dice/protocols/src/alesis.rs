@@ -8,6 +8,7 @@
 
 pub mod meter;
 pub mod mixer;
+pub mod output;
 
 use glib::Error;
 use hinawa::FwNode;
