@@ -9,9 +9,10 @@ use hinawa::{FwNode, FwReq, SndDice, SndUnitExt};
 use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*, tx_stream_format_section::*};
-use dice_protocols::alesis::{meter::*, mixer::*};
+use dice_protocols::alesis::{meter::*, mixer::*, output::*};
 
 use crate::common_ctl::*;
 
@@ -23,6 +24,7 @@ pub struct IoFwModel{
     state: AlesisIoFwState,
     meter_ctl: MeterCtl,
     mixer_ctl: MixerCtl,
+    out_ctl: OutCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -39,6 +41,7 @@ impl CtlModel<SndDice> for IoFwModel {
         self.state = AlesisIoFwState::new(&node, &self.proto, &self.sections, TIMEOUT_MS)?;
         self.meter_ctl.load(card_cntr, unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
         self.mixer_ctl.load(card_cntr, unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
+        self.out_ctl.load(card_cntr, &mut self.state)?;
 
         Ok(())
     }
@@ -49,6 +52,8 @@ impl CtlModel<SndDice> for IoFwModel {
         if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read(unit, &self.proto, &self.state, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -61,6 +66,8 @@ impl CtlModel<SndDice> for IoFwModel {
         if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_ctl.write(unit, &self.proto, &mut self.state, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.out_ctl.write(unit, &self.proto, &self.state, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -214,6 +221,7 @@ struct IoFwState<M, S>
 {
     meter: M,
     mixer: S,
+    out: OutCtl,
 }
 
 #[derive(Default, Debug)]
@@ -527,6 +535,190 @@ impl<'a> MixerCtl {
                 let s = AsRef::<IoMixerState>::as_ref(state);
                 elem_value.set_int(&[s.knobs.main_level as i32]);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn nominal_signal_level_to_string(level: &NominalSignalLevel) -> String {
+    match level {
+        NominalSignalLevel::Consumer => "-10dBV",
+        NominalSignalLevel::Professional => "+4dBu",
+    }.to_string()
+}
+
+fn digital_b_67_src_to_string(src: &DigitalB67Src) -> String {
+    match src {
+        DigitalB67Src::Spdif12 => "S/PDIF-input-1/2",
+        DigitalB67Src::Adat67 => "ADAT-input-7/8",
+    }.to_string()
+}
+
+fn mixer_out_pair_to_string(pair: &MixerOutPair) -> String {
+    match pair {
+        MixerOutPair::Mixer01 => "Mixer-output-1/2",
+        MixerOutPair::Mixer23 => "Mixer-output-3/4",
+        MixerOutPair::Mixer45 => "Mixer-output-5/6",
+        MixerOutPair::Mixer67 => "Mixer-output-7/8",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+struct OutCtl;
+
+impl<'a> OutCtl {
+    const OUT_LEVEL_NAME: &'a str = "output-level";
+    const DIGITAL_B_67_SRC_NAME: &'a str = "monitor-digital-b-7/8-source";
+    const SPDIF_OUT_SRC_NAME: &'a str = "S/PDIF-1/2-output-source";
+    const HP23_SRC_NAME: &'a str = "Headphone-3/4-output-source";
+
+    const OUT_LEVELS: [NominalSignalLevel;2] = [
+        NominalSignalLevel::Consumer,
+        NominalSignalLevel::Professional,
+    ];
+
+    const DIGITAL_B_67_SRCS: [DigitalB67Src;2] = [
+        DigitalB67Src::Spdif12,
+        DigitalB67Src::Adat67,
+    ];
+
+    const MIXER_OUT_PAIRS: [MixerOutPair;4] = [
+        MixerOutPair::Mixer01,
+        MixerOutPair::Mixer23,
+        MixerOutPair::Mixer45,
+        MixerOutPair::Mixer67,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr, state: &AlesisIoFwState) -> Result<(), Error> {
+        let m = AsRef::<IoMeter>::as_ref(state);
+        let labels: Vec<String> = Self::OUT_LEVELS.iter()
+            .map(|l| nominal_signal_level_to_string(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, m.analog_inputs.len(), &labels, None, true)?;
+
+        if m.digital_b_inputs.len() == 8 {
+            let labels: Vec<String> = Self::DIGITAL_B_67_SRCS.iter()
+                .map(|s| digital_b_67_src_to_string(s))
+                .collect();
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DIGITAL_B_67_SRC_NAME, 0);
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        }
+
+        let labels: Vec<String> = Self::MIXER_OUT_PAIRS.iter()
+            .map(|p| mixer_out_pair_to_string(p))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP23_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&self, unit: &SndDice, proto: &FwReq, state: &AlesisIoFwState, elem_id: &ElemId,
+            elem_value: &mut ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_LEVEL_NAME => {
+                let m = &AsRef::<IoMeter>::as_ref(state);
+                let mut levels = vec![NominalSignalLevel::default();m.analog_inputs.len()];
+                proto.read_out_levels(&unit.get_node(), &mut levels, timeout_ms)?;
+                let vals: Vec<u32> = levels.iter()
+                    .map(|level| {
+                        let pos = Self::OUT_LEVELS.iter()
+                            .position(|l| l.eq(level))
+                            .expect("Programming error...");
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            Self::DIGITAL_B_67_SRC_NAME => {
+                let mut src = DigitalB67Src::default();
+                proto.read_mixer_digital_b_67_src(&unit.get_node(), &mut src, timeout_ms)?;
+                let pos = Self::DIGITAL_B_67_SRCS.iter()
+                    .position(|s| s.eq(&src))
+                    .expect("Programming error...");
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::SPDIF_OUT_SRC_NAME => {
+                let mut pair = MixerOutPair::default();
+                proto.read_spdif_out_src(&unit.get_node(), &mut pair, timeout_ms)?;
+                let pos = Self::MIXER_OUT_PAIRS.iter()
+                    .position(|p| p.eq(&pair))
+                    .expect("Programming error...");
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::HP23_SRC_NAME => {
+                let mut pair = MixerOutPair::default();
+                proto.read_hp23_out_src(&unit.get_node(), &mut pair, timeout_ms)?;
+                let pos = Self::MIXER_OUT_PAIRS.iter()
+                    .position(|p| p.eq(&pair))
+                    .expect("Programming error...");
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&self, unit: &SndDice, proto: &FwReq, state: &AlesisIoFwState, elem_id: &ElemId,
+             elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::OUT_LEVEL_NAME => {
+                let m = &AsRef::<IoMeter>::as_ref(state);
+                let mut vals = vec![0;m.analog_inputs.len()];
+                elem_value.get_enum(&mut vals);
+                let levels: Vec<NominalSignalLevel> = vals.iter()
+                    .map(|v| NominalSignalLevel::from(*v))
+                    .collect();
+                proto.write_out_levels(&unit.get_node(), &levels, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::DIGITAL_B_67_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::DIGITAL_B_67_SRCS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of source of digital B 7/8: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|s| proto.write_mixer_digital_b_67_src(&unit.get_node(), s, timeout_ms))
+                })
+                .map(|_| true)
+            }
+            Self::SPDIF_OUT_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::MIXER_OUT_PAIRS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of pair of mixer output: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|p| proto.write_spdif_out_src(&unit.get_node(), p, timeout_ms))
+                })
+                .map(|_| true)
+            }
+            Self::HP23_SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    Self::MIXER_OUT_PAIRS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of pair of mixer output: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .and_then(|p| proto.write_hp23_out_src(&unit.get_node(), p, timeout_ms))
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
