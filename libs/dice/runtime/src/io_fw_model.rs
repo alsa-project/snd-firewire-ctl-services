@@ -2,13 +2,16 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
 
 use hinawa::{FwNode, FwReq, SndDice, SndUnitExt};
+
+use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
 
 use dice_protocols::tcat::{*, global_section::*, tx_stream_format_section::*};
+use dice_protocols::alesis::meter::*;
 
 use crate::common_ctl::*;
 
@@ -18,6 +21,7 @@ pub struct IoFwModel{
     sections: GeneralSections,
     ctl: CommonCtl,
     state: AlesisIoFwState,
+    meter_ctl: MeterCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -32,6 +36,7 @@ impl CtlModel<SndDice> for IoFwModel {
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.state = AlesisIoFwState::new(&node, &self.proto, &self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr, unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -68,23 +73,32 @@ impl NotifyModel<SndDice, u32> for IoFwModel {
 impl MeasureModel<hinawa::SndDice> for IoFwModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)
+        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.ctl.measure_elem(elem_id, elem_value)
+        if self.ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read_measured_elem(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
 #[derive(Debug)]
 enum AlesisIoFwState{
-    Io14(IoFwState),
-    Io26(IoFwState),
+    Io14(IoFwState<Io14Meter>),
+    Io26(IoFwState<Io26Meter>),
 }
 
 impl Default for AlesisIoFwState {
@@ -139,5 +153,107 @@ impl AlesisIoFwState {
     }
 }
 
+impl AsRef<IoMeter> for AlesisIoFwState {
+    fn as_ref(&self) -> &IoMeter {
+        match self {
+            Self::Io14(s) => s.meter.as_ref(),
+            Self::Io26(s) => s.meter.as_ref(),
+        }
+    }
+}
+
+impl AsMut<IoMeter> for AlesisIoFwState {
+    fn as_mut(&mut self) -> &mut IoMeter {
+        match self {
+            Self::Io14(s) => s.meter.as_mut(),
+            Self::Io26(s) => s.meter.as_mut(),
+        }
+    }
+}
+
 #[derive(Default, Debug)]
-struct IoFwState;
+struct IoFwState<M>
+    where M: Default + AsRef<IoMeter> + AsMut<IoMeter>,
+{
+    meter: M,
+}
+
+#[derive(Default, Debug)]
+struct MeterCtl(Vec<ElemId>);
+
+impl<'a> MeterCtl {
+    const ANALOG_INPUT_METER_NAME: &'a str = "analog-input-meters";
+    const DIGITAL_A_INPUT_METER_NAME: &'a str = "digital-a-input-meters";
+    const DIGITAL_B_INPUT_METER_NAME: &'a str = "digital-b-input-meters";
+    const MIXER_OUT_METER_NAME: &'a str = "mixer-output-meters";
+
+    const LEVEL_MIN: i32 = 0;
+    const LEVEL_MAX: i32 = 0x007fff00;
+    const LEVEL_STEP: i32 = 0x100;
+    const LEVEL_TLV: DbInterval = DbInterval{min: -9000, max: 0, linear: false, mute_avail: false};
+
+    fn load(&mut self, card_cntr: &mut CardCntr, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState,
+            timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_meter(&unit.get_node(), state, timeout_ms)?;
+
+        let m = AsRef::<IoMeter>::as_ref(state);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ANALOG_INPUT_METER_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                m.analog_inputs.len(), Some(&Vec::<u32>::from(Self::LEVEL_TLV)), false)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DIGITAL_A_INPUT_METER_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                m.digital_a_inputs.len(), Some(&Vec::<u32>::from(Self::LEVEL_TLV)), false)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DIGITAL_B_INPUT_METER_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                m.digital_b_inputs.len(), Some(&Vec::<u32>::from(Self::LEVEL_TLV)), false)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_OUT_METER_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                m.mixer_outputs.len(), Some(&Vec::<u32>::from(Self::LEVEL_TLV)), false)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn measure_states(&mut self, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_meter(&unit.get_node(), state, timeout_ms)
+    }
+
+    fn read_measured_elem(&self, state: &AlesisIoFwState, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::ANALOG_INPUT_METER_NAME => {
+                let m = AsRef::<IoMeter>::as_ref(state);
+                elem_value.set_int(&m.analog_inputs);
+                Ok(true)
+            }
+            Self::DIGITAL_A_INPUT_METER_NAME => {
+                let m = AsRef::<IoMeter>::as_ref(state);
+                elem_value.set_int(&m.digital_a_inputs);
+                Ok(true)
+            }
+            Self::DIGITAL_B_INPUT_METER_NAME => {
+                let m = AsRef::<IoMeter>::as_ref(state);
+                elem_value.set_int(&m.digital_b_inputs);
+                Ok(true)
+            }
+            Self::MIXER_OUT_METER_NAME => {
+                let m = AsRef::<IoMeter>::as_ref(state);
+                elem_value.set_int(&m.mixer_outputs);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
