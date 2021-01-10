@@ -5,6 +5,7 @@ mod model;
 mod common_ctl;
 mod minimal_model;
 mod tcelectronic;
+mod io_fw_model;
 
 mod tcd22xx_ctl;
 mod extension_model;
