@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Alesis for iO FireWire series.
 
+pub mod meter;
+
 use glib::Error;
 use hinawa::FwNode;
 
