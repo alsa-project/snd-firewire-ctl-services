@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemValue};
 
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
+use hinawa::{FwNode, FwReq, SndDice, SndUnitExt};
 
 use core::card_cntr::*;
 
-use dice_protocols::tcat::{*, global_section::*};
+use dice_protocols::tcat::{*, global_section::*, tx_stream_format_section::*};
 
 use crate::common_ctl::*;
 
@@ -18,6 +17,7 @@ pub struct IoFwModel{
     proto: FwReq,
     sections: GeneralSections,
     ctl: CommonCtl,
+    state: AlesisIoFwState,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -30,6 +30,8 @@ impl CtlModel<SndDice> for IoFwModel {
         let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
         let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
+
+        self.state = AlesisIoFwState::new(&node, &self.proto, &self.sections, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -78,3 +80,64 @@ impl MeasureModel<hinawa::SndDice> for IoFwModel {
         self.ctl.measure_elem(elem_id, elem_value)
     }
 }
+
+#[derive(Debug)]
+enum AlesisIoFwState{
+    Io14(IoFwState),
+    Io26(IoFwState),
+}
+
+impl Default for AlesisIoFwState {
+    fn default() -> Self {
+        Self::Io14(Default::default())
+    }
+}
+
+impl AlesisIoFwState {
+    fn new(node: &FwNode, proto: &FwReq, sections: &GeneralSections, timeout_ms: u32)
+        -> Result<Self, Error>
+    {
+        let config = proto.read_clock_config(node, sections, timeout_ms)?;
+        match config.rate {
+            ClockRate::R32000 |
+            ClockRate::R44100 |
+            ClockRate::R48000 |
+            ClockRate::AnyLow => {
+                let entries = proto.read_tx_stream_format_entries(node, sections, timeout_ms)?;
+                if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 16 {
+                    Ok(Self::Io26(Default::default()))
+                } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 8 {
+                    Ok(Self::Io14(Default::default()))
+                } else {
+                    Err(Error::new(FileError::Nxio, "Unexpected combination of stream format."))
+                }
+            }
+            ClockRate::R88200 |
+            ClockRate::R96000 |
+            ClockRate::AnyMid => {
+                let entries = proto.read_tx_stream_format_entries(node, sections, timeout_ms)?;
+                if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 4 {
+                    Ok(Self::Io26(Default::default()))
+                } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 4 {
+                    Ok(Self::Io14(Default::default()))
+                } else {
+                    Err(Error::new(FileError::Nxio, "Unexpected combination of stream format."))
+                }
+            }
+            ClockRate::R176400 |
+            ClockRate::R192000 |
+            ClockRate::AnyHigh => {
+                let nickname = proto.read_nickname(node, sections, timeout_ms)?;
+                match nickname.as_str() {
+                    "iO 26" => Ok(Self::Io26(Default::default())),
+                    "iO 14" => Ok(Self::Io14(Default::default())),
+                    _ => Err(Error::new(FileError::Nxio, "Fail to detect type of iO model due to changed nickname")),
+                }
+            }
+            _ => Err(Error::new(FileError::Nxio, "Unexpected value of rate of sampling clock.")),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct IoFwState;
