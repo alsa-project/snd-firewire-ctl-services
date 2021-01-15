@@ -2,14 +2,17 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::Error;
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr::*;
 
 use dice_protocols::tcat::{*, global_section::*};
+use dice_protocols::lexicon::meter::*;
 
 use crate::common_ctl::*;
 
@@ -18,6 +21,7 @@ pub struct IonixModel{
     proto: FwReq,
     sections: GeneralSections,
     ctl: CommonCtl,
+    meter_ctl: MeterCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -30,6 +34,8 @@ impl CtlModel<SndDice> for IonixModel {
         let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
         let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
+
+        self.meter_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -66,15 +72,91 @@ impl NotifyModel<SndDice, u32> for IonixModel {
 impl MeasureModel<hinawa::SndDice> for IonixModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        elem_id_list.extend_from_slice(&self.meter_ctl.measured_elem_list);
     }
 
     fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)
+        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.ctl.measure_elem(elem_id, elem_value)
+        if self.ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct MeterCtl{
+    meters: IonixMeter,
+    measured_elem_list: Vec<ElemId>,
+}
+
+impl<'a> MeterCtl {
+    const SPDIF_INPUT_NAME: &'a str = "spdif-input-meter";
+    const STREAM_INPUT_NAME: &'a str = "stream-input-meter";
+    const ANALOG_INPUT_NAME: &'a str = "analog-input-meter";
+    const BUS_OUTPUT_NAME: &'a str = "bus-output-meter";
+    const MAIN_OUTPUT_NAME: &'a str = "main-output-meter";
+
+    const LEVEL_MIN: i32 = 0;
+    const LEVEL_MAX: i32 = 0x00000fff;
+    const LEVEL_STEP: i32 = 1;
+    const LEVEL_TLV: DbInterval = DbInterval{min: -6000, max: 0, linear: false, mute_avail: false};
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        [
+            (Self::SPDIF_INPUT_NAME, 2),
+            (Self::STREAM_INPUT_NAME, 10),
+            (Self::ANALOG_INPUT_NAME, 8),
+            (Self::BUS_OUTPUT_NAME, 8),
+            (Self::MAIN_OUTPUT_NAME, 2),
+        ].iter()
+            .try_for_each(|&(name, count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        count, Some(&Vec::<u32>::from(Self::LEVEL_TLV)), false)
+                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+            })?;
+
+        Ok(())
+    }
+
+    fn measure_states(&mut self, unit: &SndDice, proto: &FwReq, timeout_ms: u32) -> Result<(), Error> {
+        proto.read_meters(&unit.get_node(), &mut self.meters, timeout_ms)
+    }
+
+    fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            Self::SPDIF_INPUT_NAME => {
+                elem_value.set_int(&self.meters.spdif_inputs);
+                Ok(true)
+            }
+            Self::STREAM_INPUT_NAME => {
+                elem_value.set_int(&self.meters.stream_inputs);
+                Ok(true)
+            }
+            Self::ANALOG_INPUT_NAME => {
+                elem_value.set_int(&self.meters.analog_inputs);
+                Ok(true)
+            }
+            Self::BUS_OUTPUT_NAME => {
+                elem_value.set_int(&self.meters.bus_outputs);
+                Ok(true)
+            }
+            Self::MAIN_OUTPUT_NAME => {
+                elem_value.set_int(&self.meters.main_outputs);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 }
