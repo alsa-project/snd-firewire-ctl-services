@@ -7,6 +7,7 @@
 //! defined by Lexicon for I-ONIX FW810s.
 
 pub mod meter;
+pub mod mixer;
 
 use glib::Error;
 use hinawa::FwNode;
