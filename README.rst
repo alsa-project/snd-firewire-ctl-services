@@ -145,6 +145,7 @@ your device, please contact to developer.
   * Alesis iO 14
   * Alesis iO 26
   * Alesis MasterControl
+  * Lexicon I-ONIX FW810s
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
