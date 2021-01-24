@@ -7,3 +7,4 @@
 //! defined by Focusrite for Saffire series.
 
 pub mod spro40;
+pub mod liquids56;
