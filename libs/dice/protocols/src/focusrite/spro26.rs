@@ -9,10 +9,22 @@
 use crate::tcat::extension::*;
 use crate::tcat::tcd22xx_spec::*;
 
+use super::*;
+
 /// The structure to represent state of TCD22xx on Saffire Pro 26.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct SPro26State{
     tcd22xx: Tcd22xxState,
+    out_grp: OutGroupState,
+}
+
+impl Default for SPro26State {
+    fn default() -> Self {
+        SPro26State{
+            tcd22xx: Tcd22xxState::default(),
+            out_grp: Self::create_out_group_state(),
+        }
+    }
 }
 
 impl<'a> Tcd22xxSpec<'a> for SPro26State {
@@ -48,5 +60,32 @@ impl AsMut<Tcd22xxState> for SPro26State {
 impl AsRef<Tcd22xxState> for SPro26State {
     fn as_ref(&self) -> &Tcd22xxState {
         &self.tcd22xx
+    }
+}
+
+const SW_NOTICE_OFFSET: usize = 0x000c;
+
+const SRC_SW_NOTICE: u32 = 0x00000001;
+const DIM_MUTE_SW_NOTICE: u32 = 0x00000002;
+
+impl OutGroupSpec for SPro26State {
+    const ENTRY_COUNT: usize = 6;
+    const HAS_VOL_HWCTL: bool = false;
+    const OUT_CTL_OFFSET: usize = 0x0010;
+    const SW_NOTICE_OFFSET: usize = SW_NOTICE_OFFSET;
+
+    const SRC_NOTICE: u32 = SRC_SW_NOTICE;
+    const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
+}
+
+impl AsMut<OutGroupState> for SPro26State {
+    fn as_mut(&mut self) -> &mut OutGroupState {
+        &mut self.out_grp
+    }
+}
+
+impl AsRef<OutGroupState> for SPro26State {
+    fn as_ref(&self) -> &OutGroupState {
+        &self.out_grp
     }
 }
