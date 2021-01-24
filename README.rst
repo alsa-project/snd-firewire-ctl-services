@@ -148,6 +148,7 @@ your device, please contact to developer.
   * Lexicon I-ONIX FW810s
   * Focusrite Saffire Pro 40
   * Focusrite Liquid Saffire 56
+  * Focusrite Saffire Pro 26
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
