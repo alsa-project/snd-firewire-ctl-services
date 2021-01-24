@@ -146,6 +146,7 @@ your device, please contact to developer.
   * Alesis iO 26
   * Alesis MasterControl
   * Lexicon I-ONIX FW810s
+  * Focusrite Saffire Pro 40
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
