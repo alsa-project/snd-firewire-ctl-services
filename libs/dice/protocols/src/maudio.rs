@@ -33,13 +33,13 @@ impl<'a> Tcd22xxSpec<'a> for Pfire2626State {
     const INPUTS: &'a [Input<'a>] = &[
         Input{id: SrcBlkId::Ins1, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Adat, offset: 8, count: 16, label: None},
+        Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
         Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: None},
     ];
     const OUTPUTS: &'a [Output<'a>] = &[
         Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Adat, offset: 8, count: 16, label: None},
+        Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
         Output{id: DstBlkId::Aes, offset: 0, count: 2, label: None},
     ];
     const FIXED: &'a [SrcBlk] = &[
