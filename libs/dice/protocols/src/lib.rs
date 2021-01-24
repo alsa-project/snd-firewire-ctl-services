@@ -13,6 +13,7 @@ pub mod lexicon;
 pub mod maudio;
 pub mod avid;
 pub mod loud;
+pub mod focusrite;
 
 const QUADLET_SIZE: usize = 4;
 

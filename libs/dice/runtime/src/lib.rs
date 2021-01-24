@@ -13,6 +13,7 @@ mod extension_model;
 mod pfire_model;
 mod mbox3_model;
 mod blackbird_model;
+mod focusrite;
 
 use glib::Error;
 use glib::source;
