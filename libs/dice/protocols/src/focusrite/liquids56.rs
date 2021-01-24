@@ -9,10 +9,22 @@
 use crate::tcat::extension::*;
 use crate::tcat::tcd22xx_spec::*;
 
+use super::*;
+
 /// The structure to represent state of TCD22xx on Liquid Saffire 56.
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct LiquidS56State{
     tcd22xx: Tcd22xxState,
+    out_grp: OutGroupState,
+}
+
+impl Default for LiquidS56State {
+    fn default() -> Self {
+        LiquidS56State{
+            tcd22xx: Tcd22xxState::default(),
+            out_grp: Self::create_out_group_state(),
+        }
+    }
 }
 
 impl<'a> Tcd22xxSpec<'a> for LiquidS56State {
@@ -75,5 +87,32 @@ impl AsMut<Tcd22xxState> for LiquidS56State {
 impl AsRef<Tcd22xxState> for LiquidS56State {
     fn as_ref(&self) -> &Tcd22xxState {
         &self.tcd22xx
+    }
+}
+
+const SW_NOTICE_OFFSET: usize = 0x02c8;
+
+const SRC_SW_NOTICE: u32 = 0x00000001;
+const DIM_MUTE_SW_NOTICE: u32 = 0x00000003;
+
+impl OutGroupSpec for LiquidS56State {
+    const ENTRY_COUNT: usize = 10;
+    const HAS_VOL_HWCTL: bool = true;
+    const OUT_CTL_OFFSET: usize = 0x000c;
+    const SW_NOTICE_OFFSET: usize = SW_NOTICE_OFFSET;
+
+    const SRC_NOTICE: u32 = SRC_SW_NOTICE;
+    const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
+}
+
+impl AsMut<OutGroupState> for LiquidS56State {
+    fn as_mut(&mut self) -> &mut OutGroupState {
+        &mut self.out_grp
+    }
+}
+
+impl AsRef<OutGroupState> for LiquidS56State {
+    fn as_ref(&self) -> &OutGroupState {
+        &self.out_grp
     }
 }
