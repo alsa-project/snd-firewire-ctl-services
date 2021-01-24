@@ -16,6 +16,8 @@ use dice_protocols::focusrite::liquids56::*;
 use crate::common_ctl::*;
 use crate::tcd22xx_ctl::*;
 
+use super::out_grp_ctl::*;
+
 #[derive(Default)]
 pub struct LiquidS56Model {
     proto: FwReq,
@@ -23,6 +25,7 @@ pub struct LiquidS56Model {
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
     tcd22xx_ctl: Tcd22xxCtl<LiquidS56State>,
+    out_grp_ctl: OutGroupCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -42,6 +45,9 @@ impl CtlModel<SndDice> for LiquidS56Model {
 
         self.tcd22xx_ctl.cache(unit, &self.proto, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
+        self.out_grp_ctl.load(card_cntr, unit, &self.proto, &self.extension_sections,
+                              &mut self.tcd22xx_ctl.state, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -52,6 +58,8 @@ impl CtlModel<SndDice> for LiquidS56Model {
             Ok(true)
         } else if self.tcd22xx_ctl.read(unit, &self.proto, &self.extension_sections, elem_id,
                                     elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.out_grp_ctl.read(&self.tcd22xx_ctl.state, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -66,6 +74,9 @@ impl CtlModel<SndDice> for LiquidS56Model {
         } else if self.tcd22xx_ctl.write(unit, &self.proto, &self.extension_sections, elem_id,
                                      old, new, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.out_grp_ctl.write(unit, &self.proto, &self.extension_sections,
+                                         &mut self.tcd22xx_ctl.state, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -76,12 +87,15 @@ impl NotifyModel<SndDice, u32> for LiquidS56Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
+        self.out_grp_ctl.get_notified_elem_list(elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
         self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
         self.tcd22xx_ctl.parse_notification(unit, &self.proto, &self.sections,
                                         &self.extension_sections, TIMEOUT_MS, *msg)?;
+        self.out_grp_ctl.parse_notification(unit, &self.proto, &self.extension_sections,
+                                            &mut self.tcd22xx_ctl.state, *msg, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -91,6 +105,8 @@ impl NotifyModel<SndDice, u32> for LiquidS56Model {
         if self.ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_grp_ctl.read_notified_elem(&self.tcd22xx_ctl.state, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

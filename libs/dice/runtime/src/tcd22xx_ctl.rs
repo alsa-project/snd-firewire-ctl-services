@@ -22,7 +22,7 @@ use dice_protocols::tcat::tcd22xx_spec::*;
 pub struct Tcd22xxCtl<S>
     where for<'a> S: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
 {
-    state: S,
+    pub state: S,
     caps: ExtensionCaps,
     meter_ctl: MeterCtl,
     router_ctl: RouterCtl,
