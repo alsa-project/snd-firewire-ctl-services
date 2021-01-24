@@ -3,3 +3,4 @@
 
 pub mod spro40_model;
 pub mod liquids56_model;
+pub mod spro26_model;

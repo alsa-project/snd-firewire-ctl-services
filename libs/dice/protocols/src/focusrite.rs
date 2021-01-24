@@ -8,3 +8,4 @@
 
 pub mod spro40;
 pub mod liquids56;
+pub mod spro26;
