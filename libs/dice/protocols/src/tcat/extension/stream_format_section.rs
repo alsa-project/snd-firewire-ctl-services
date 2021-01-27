@@ -13,7 +13,7 @@ pub trait StreamFormatSectionProtocol<T> : ProtocolExtension<T>
 {
     fn read_stream_format_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
                                   timeout_ms: u32)
-        -> Result<(Vec<FormatEntryData>, Vec<FormatEntryData>), Error>
+        -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error>
     {
         StreamFormatEntryProtocol::read_stream_format_entries(&self, node, caps, sections.stream_format.offset,
                                                               timeout_ms)
