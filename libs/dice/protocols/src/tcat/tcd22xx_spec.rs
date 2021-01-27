@@ -187,6 +187,21 @@ pub trait Tcd22xxSpec<'a> {
                 format!("{}-{}", name, dst_blk.ch)
             })
     }
+
+    fn refine_router_entries(&self, mut entries: Vec<RouterEntry>) -> Vec<RouterEntry> {
+        Self::FIXED.iter()
+            .enumerate()
+            .for_each(|(i, &src)| {
+                match entries.iter().position(|entry| entry.src.eq(&src)) {
+                    Some(pos) => entries.swap(i, pos),
+                    None => {
+                        let dst = DstBlk{id: DstBlkId::Reserved(0xff), ch: 0xff};
+                        entries.insert(i, RouterEntry{dst, src, ..Default::default()})
+                    }
+                }
+            });
+        entries
+    }
 }
 
 pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
@@ -197,6 +212,7 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
                              caps: &ExtensionCaps, entries: Vec<RouterEntry>, timeout_ms: u32)
         -> Result<(), Error>
     {
+        let entries = self.refine_router_entries(entries);
         if entries.len() > caps.router.maximum_entry_count as usize {
             let msg = format!("The number of entries for router section should be less than {} but {}",
                               caps.router.maximum_entry_count, entries.len());
