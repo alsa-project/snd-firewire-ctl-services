@@ -140,9 +140,9 @@ impl<S> Tcd22xxCtl<S>
 #[derive(Default, Debug)]
 pub struct MeterCtl {
     // Maximum number block at low rate mode.
-    real_blk_dsts: Vec<u8>,
-    stream_blk_dsts: Vec<u8>,
-    mixer_blk_dsts: Vec<u8>,
+    real_blk_dsts: Vec<DstBlk>,
+    stream_blk_dsts: Vec<DstBlk>,
+    mixer_blk_dsts: Vec<DstBlk>,
 
     real_meter: Vec<i32>,
     stream_meter: Vec<i32>,
@@ -199,7 +199,7 @@ impl<'a> MeterCtl {
         Ok(())
     }
 
-    fn add_an_elem_for_meter(card_cntr: &mut CardCntr, label: &str, targets: &Vec<u8>)
+    fn add_an_elem_for_meter(card_cntr: &mut CardCntr, label: &str, targets: &Vec<DstBlk>)
         -> Result<Vec<ElemId>, Error>
     {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, label, 0);
@@ -217,12 +217,11 @@ impl<'a> MeterCtl {
 
         self.real_meter.iter_mut().chain(self.stream_meter.iter_mut()).chain(self.mixer_meter.iter_mut())
             .zip(self.real_blk_dsts.iter().chain(self.stream_blk_dsts.iter()).chain(self.mixer_blk_dsts.iter()))
-            .for_each(|(val, &dst)| {
-                *val = entries.iter().find(|data| data[RouterEntry::DST_OFFSET] == dst)
-                    .map(|data| {
-                        let entry = RouterEntry::from(data);
-                        entry.peak as i32
-                    })
+            .for_each(|(val, dst)| {
+                *val = entries.iter()
+                    .map(|data| RouterEntry::from(data))
+                    .find(|entry| entry.dst.eq(dst))
+                    .map(|entry| entry.peak as i32)
                     .unwrap_or(0);
             });
 
@@ -259,9 +258,9 @@ impl<'a> MeterCtl {
 #[derive(Default, Debug)]
 pub struct RouterCtl {
     // Maximum number block in low rate mode.
-    real_blk_pair: (Vec<u8>, Vec<u8>),
-    stream_blk_pair: (Vec<u8>, Vec<u8>),
-    mixer_blk_pair: (Vec<u8>, Vec<u8>),
+    real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
+    stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
+    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
@@ -294,16 +293,24 @@ impl<'a> RouterCtl {
             .try_for_each(|&m| {
                 proto.read_current_stream_format_entries(node, sections, caps, m, timeout_ms)
                     .map(|(tx, rx)| {
-                        let (mut tx_blk, mut rx_blk) = state.compute_avail_stream_blk_pair(&tx, &rx);
-                        self.stream_blk_pair.0.append(&mut tx_blk);
-                        self.stream_blk_pair.1.append(&mut rx_blk);
-                        ()
+                        let (tx_blk, rx_blk) = state.compute_avail_stream_blk_pair(&tx, &rx);
+                        tx_blk.iter()
+                            .for_each(|src| {
+                                if self.stream_blk_pair.0.iter().find(|s| s.eq(&src)).is_none() {
+                                    self.stream_blk_pair.0.push(*src);
+                                }
+                            });
+                        rx_blk.iter()
+                            .for_each(|dst| {
+                                if self.stream_blk_pair.1.iter().find(|d| d.eq(&dst)).is_none() {
+                                    self.stream_blk_pair.1.push(*dst);
+                                }
+                            });
                     })
             })?;
+
         self.stream_blk_pair.0.sort();
-        self.stream_blk_pair.0.dedup();
         self.stream_blk_pair.1.sort();
-        self.stream_blk_pair.1.dedup();
 
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
@@ -376,14 +383,15 @@ impl<'a> RouterCtl {
         }
     }
 
-    fn add_an_elem_for_src<T>(card_cntr: &mut CardCntr, label: &'a str, dsts: &[u8], srcs: &[&[u8]], state: &T)
+    fn add_an_elem_for_src<T>(card_cntr: &mut CardCntr, label: &'a str, dsts: &[DstBlk],
+                              srcs: &[&[SrcBlk]], state: &T)
         -> Result<Vec<ElemId>, Error>
         where for<'b> T: Tcd22xxSpec<'b>,
     {
         let targets = dsts.iter().map(|&dst| state.get_dst_blk_label(dst)).collect::<Vec<String>>();
         let mut sources = srcs.iter()
             .flat_map(|srcs| srcs.iter())
-            .map(|&src| state.get_src_blk_label(src))
+            .map(|src| state.get_src_blk_label(src))
             .collect::<Vec<String>>();
         sources.insert(0, Self::NONE_SRC_LABEL.to_string());
 
@@ -392,18 +400,19 @@ impl<'a> RouterCtl {
         Ok(elem_id_list)
     }
 
-    fn read_elem_src<T>(state: &T, elem_value: &alsactl::ElemValue, dsts: &[u8], srcs: &[&[u8]])
+    fn read_elem_src<T>(state: &T, elem_value: &alsactl::ElemValue, dsts: &[DstBlk], srcs: &[&[SrcBlk]])
         where T: AsRef<Tcd22xxState>,
     {
         let _ = ElemValueAccessor::<u32>::set_vals(elem_value, dsts.len(), |idx| {
             let dst = dsts[idx];
 
             let val = state.as_ref().router_entries.iter()
-                .find(|data| data[RouterEntry::DST_OFFSET] == dst)
-                .and_then(|data| {
+                .map(|data| RouterEntry::from(data))
+                .find(|entry| entry.dst.eq(&dst))
+                .and_then(|entry| {
                     srcs.iter()
-                        .flat_map(|srcs| srcs.iter().map(|&s| u8::from(s)))
-                        .position(|src| data[RouterEntry::SRC_OFFSET] == src)
+                        .flat_map(|srcs| srcs.iter())
+                        .position(|src| entry.src.eq(src))
                         .map(|pos| 1 + pos as u32)
                 })
                 .unwrap_or(0);
@@ -413,7 +422,7 @@ impl<'a> RouterCtl {
 
     fn write_elem_src<T>(node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
                          caps: &ExtensionCaps, state: &mut T, old: &ElemValue, new: &ElemValue,
-                         dsts: &[u8], srcs: &[&[u8]], timeout_ms: u32)
+                         dsts: &[DstBlk], srcs: &[&[SrcBlk]], timeout_ms: u32)
         -> Result<(), Error>
         where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
@@ -456,7 +465,7 @@ impl<'a> RouterCtl {
 #[derive(Default, Debug)]
 pub struct MixerCtl {
     // Maximum number block in low rate mode.
-    mixer_blk_pair: (Vec<u8>, Vec<u8>),
+    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 

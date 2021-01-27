@@ -24,6 +24,7 @@ pub mod standalone_section;
 use super::{*, utils::*};
 
 use std::convert::TryFrom;
+use std::cmp::Ordering;
 
 /// The structure to represent sections for protocol extension.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
@@ -246,6 +247,18 @@ impl From<DstBlk> for u8 {
     }
 }
 
+impl Ord for DstBlk {
+    fn cmp(&self, other: &Self) -> Ordering {
+        u8::from(*self).cmp(&u8::from(*other))
+    }
+}
+
+impl PartialOrd for DstBlk {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(u8::from(*self).cmp(&u8::from(*other)))
+    }
+}
+
 /// The enumeration to represent ID of source block.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum SrcBlkId {
@@ -327,6 +340,18 @@ impl From<u8> for SrcBlk {
 impl From<SrcBlk> for u8 {
     fn from(blk: SrcBlk) -> Self {
         (u8::from(blk.id) << SrcBlk::ID_SHIFT) | blk.ch
+    }
+}
+
+impl Ord for SrcBlk {
+    fn cmp(&self, other: &Self) -> Ordering {
+        u8::from(*self).cmp(&u8::from(*other))
+    }
+}
+
+impl PartialOrd for SrcBlk {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(u8::from(*self).cmp(&u8::from(*other)))
     }
 }
 
