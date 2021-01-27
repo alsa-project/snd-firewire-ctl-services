@@ -15,9 +15,9 @@ pub struct Tcd22xxState {
     pub mixer_cache: Vec<Vec<i32>>,
 
     rate_mode: RateMode,
-    real_blk_pair: (Vec<u8>, Vec<u8>),
-    stream_blk_pair: (Vec<u8>, Vec<u8>),
-    mixer_blk_pair: (Vec<u8>, Vec<u8>),
+    real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
+    stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
+    mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -71,9 +71,9 @@ pub trait Tcd22xxSpec<'a> {
         Self::MIXER_IN_PORTS.iter().fold(0, |accum, (_, count)| accum + count)
     }
 
-    fn compute_avail_real_blk_pair(&self, rate_mode: RateMode) -> (Vec<u8>, Vec<u8>)
+    fn compute_avail_real_blk_pair(&self, rate_mode: RateMode) -> (Vec<SrcBlk>, Vec<DstBlk>)
     {
-        let mut srcs = Vec::<u8>::new();
+        let mut srcs = Vec::<SrcBlk>::new();
         Self::INPUTS.iter().for_each(|entry| {
             let offset = match entry.id {
                 SrcBlkId::Adat => srcs.iter().filter(|&d| SrcBlk::from(*d).id == entry.id).count() as u8,
@@ -84,11 +84,11 @@ pub trait Tcd22xxSpec<'a> {
                 _ => entry.count,
             };
             (offset..(offset + count)).for_each(|ch| {
-                srcs.push(u8::from(SrcBlk{id: entry.id, ch}));
+                srcs.push(SrcBlk{id: entry.id, ch});
             });
         });
 
-        let mut dsts = Vec::<u8>::new();
+        let mut dsts = Vec::<DstBlk>::new();
         Self::OUTPUTS.iter().for_each(|entry| {
             let offset = match entry.id {
                 DstBlkId::Adat => dsts.iter().filter(|&d| DstBlk::from(*d).id == entry.id).count() as u8,
@@ -99,7 +99,7 @@ pub trait Tcd22xxSpec<'a> {
                 _ => entry.count,
             };
             (offset..(offset + count)).for_each(|ch| {
-                dsts.push(u8::from(DstBlk{id: entry.id, ch}));
+                dsts.push(DstBlk{id: entry.id, ch});
             });
         });
 
@@ -107,13 +107,13 @@ pub trait Tcd22xxSpec<'a> {
     }
 
     fn compute_avail_stream_blk_pair(&self, tx_entries: &[FormatEntryData], rx_entries: &[FormatEntryData])
-        -> (Vec<u8>, Vec<u8>)
+        -> (Vec<SrcBlk>, Vec<DstBlk>)
     {
         let dst_blk_list = tx_entries.iter()
             .zip([DstBlkId::Avs0, DstBlkId::Avs1].iter())
             .map(|(&data, &id)| {
                 let entry = FormatEntry::try_from(data).unwrap();
-                (0..entry.pcm_count).map(move |ch| u8::from(DstBlk{id, ch}))
+                (0..entry.pcm_count).map(move |ch| DstBlk{id, ch})
             }).flatten()
             .collect();
 
@@ -121,7 +121,7 @@ pub trait Tcd22xxSpec<'a> {
             .zip([SrcBlkId::Avs0, SrcBlkId::Avs1].iter())
             .map(|(&data, &id)| {
                 let entry = FormatEntry::try_from(data).unwrap();
-                (0..entry.pcm_count).map(move |ch| u8::from(SrcBlk{id, ch}))
+                (0..entry.pcm_count).map(move |ch| SrcBlk{id, ch})
             }).flatten()
             .collect();
 
@@ -129,24 +129,23 @@ pub trait Tcd22xxSpec<'a> {
     }
 
     fn compute_avail_mixer_blk_pair(&self, caps: &ExtensionCaps, rate_mode: RateMode)
-        -> (Vec<u8>, Vec<u8>)
+        -> (Vec<SrcBlk>, Vec<DstBlk>)
     {
         let port_count = std::cmp::min(caps.mixer.output_count,
                                        Self::get_mixer_out_port_count(rate_mode));
 
         let id = SrcBlkId::Mixer;
-        let src_blk_list = (0..port_count).map(move |ch| u8::from(SrcBlk{id, ch})).collect();
+        let src_blk_list = (0..port_count).map(move |ch| SrcBlk{id, ch}).collect();
 
         let dst_blk_list = Self::MIXER_IN_PORTS.iter()
-            .flat_map(|&(id, count)| (0..count).map(move |ch| u8::from(DstBlk{id, ch})))
+            .flat_map(|&(id, count)| (0..count).map(move |ch| DstBlk{id, ch}))
             .take(caps.mixer.input_count as usize)
             .collect();
 
         (src_blk_list, dst_blk_list)
     }
 
-    fn get_src_blk_label(&self, src_blk_data: u8) -> String {
-        let src_blk = SrcBlk::from(src_blk_data);
+    fn get_src_blk_label(&self, src_blk: &SrcBlk) -> String {
         Self::INPUTS.iter()
             .find(|entry| {
                 entry.id == src_blk.id &&
@@ -169,8 +168,7 @@ pub trait Tcd22xxSpec<'a> {
             })
     }
 
-    fn get_dst_blk_label(&self, dst_blk_data: u8) -> String {
-        let dst_blk = DstBlk::from(dst_blk_data);
+    fn get_dst_blk_label(&self, dst_blk: DstBlk) -> String {
         Self::OUTPUTS.iter()
             .find(|entry| {
                 entry.id == dst_blk.id &&
