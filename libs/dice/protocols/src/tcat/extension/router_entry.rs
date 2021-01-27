@@ -7,7 +7,7 @@ pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
 {
     fn read_router_entries(&self, node: &T, caps: &ExtensionCaps, offset: usize,
                            entry_count: usize, timeout_ms: u32)
-        -> Result<Vec<RouterEntryData>, Error>
+        -> Result<Vec<RouterEntry>, Error>
     {
         if entry_count > caps.router.maximum_entry_count as usize {
             let msg = format!("Invalid entries to read: {} but greater than {}",
@@ -23,7 +23,7 @@ pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
                 let mut raw = RouterEntryData::default();
                 let pos = i * RouterEntry::SIZE;
                 raw.copy_from_slice(&data[pos..(pos + RouterEntry::SIZE)]);
-                raw
+                RouterEntry::from(&raw)
             })
             .collect::<Vec<_>>();
 
@@ -31,7 +31,7 @@ pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
     }
 
     fn write_router_entries(&self, node: &T, caps: &ExtensionCaps, offset: usize,
-                            entries: &Vec<RouterEntryData>, timeout_ms: u32)
+                            entries: &[RouterEntry], timeout_ms: u32)
         -> Result<(), Error>
     {
         if entries.len() > caps.router.maximum_entry_count as usize {
@@ -46,7 +46,8 @@ pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
 
         let mut data = Vec::new();
         entries.iter().for_each(|entry| {
-            data.extend_from_slice(entry);
+            let raw = RouterEntryData::from(entry);
+            data.extend_from_slice(&raw);
         });
         ProtocolExtension::write(self, node, offset + 4, &mut data, timeout_ms)
     }

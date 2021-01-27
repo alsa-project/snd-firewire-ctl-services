@@ -11,7 +11,7 @@ use std::convert::TryFrom;
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxState {
-    pub router_entries: Vec<RouterEntryData>,
+    pub router_entries: Vec<RouterEntry>,
     pub mixer_cache: Vec<Vec<i32>>,
 
     rate_mode: RateMode,
@@ -76,7 +76,7 @@ pub trait Tcd22xxSpec<'a> {
         let mut srcs = Vec::<SrcBlk>::new();
         Self::INPUTS.iter().for_each(|entry| {
             let offset = match entry.id {
-                SrcBlkId::Adat => srcs.iter().filter(|&d| SrcBlk::from(*d).id == entry.id).count() as u8,
+                SrcBlkId::Adat => srcs.iter().filter(|&s| s.id.eq(&entry.id)).count() as u8,
                 _ => entry.offset,
             };
             let count = match entry.id {
@@ -91,7 +91,7 @@ pub trait Tcd22xxSpec<'a> {
         let mut dsts = Vec::<DstBlk>::new();
         Self::OUTPUTS.iter().for_each(|entry| {
             let offset = match entry.id {
-                DstBlkId::Adat => dsts.iter().filter(|&d| DstBlk::from(*d).id == entry.id).count() as u8,
+                DstBlkId::Adat => dsts.iter().filter(|d| d.id.eq(&entry.id)).count() as u8,
                 _ => entry.offset,
             };
             let count = match entry.id {
@@ -198,7 +198,7 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
           U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
 {
     fn update_router_entries(&mut self, node: &T, proto: &U, sections: &ExtensionSections,
-                             caps: &ExtensionCaps, entries: Vec<RouterEntryData>, timeout_ms: u32)
+                             caps: &ExtensionCaps, entries: Vec<RouterEntry>, timeout_ms: u32)
         -> Result<(), Error>
     {
         if entries.len() > caps.router.maximum_entry_count as usize {

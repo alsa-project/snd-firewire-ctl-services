@@ -12,7 +12,7 @@ pub trait PeakSectionProtocol<T> : ProtocolExtension<T>
 {
     fn read_peak_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
                          timeout_ms: u32)
-        -> Result<Vec<RouterEntryData>, Error>
+        -> Result<Vec<RouterEntry>, Error>
     {
         if !caps.general.peak_avail {
             Err(Error::new(ProtocolExtensionError::Peak, "Peak is not available"))?
