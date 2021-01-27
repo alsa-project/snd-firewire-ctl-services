@@ -7,8 +7,6 @@ use hinawa::FwNode;
 use super::extension::{*, caps_section::*, cmd_section::*, mixer_section::*, router_section::*,
                        current_config_section::*};
 
-use std::convert::TryFrom;
-
 #[derive(Default, Debug)]
 pub struct Tcd22xxState {
     pub router_entries: Vec<RouterEntry>,
@@ -106,21 +104,19 @@ pub trait Tcd22xxSpec<'a> {
         (srcs, dsts)
     }
 
-    fn compute_avail_stream_blk_pair(&self, tx_entries: &[FormatEntryData], rx_entries: &[FormatEntryData])
+    fn compute_avail_stream_blk_pair(&self, tx_entries: &[FormatEntry], rx_entries: &[FormatEntry])
         -> (Vec<SrcBlk>, Vec<DstBlk>)
     {
         let dst_blk_list = tx_entries.iter()
             .zip([DstBlkId::Avs0, DstBlkId::Avs1].iter())
-            .map(|(&data, &id)| {
-                let entry = FormatEntry::try_from(data).unwrap();
+            .map(|(entry, &id)| {
                 (0..entry.pcm_count).map(move |ch| DstBlk{id, ch})
             }).flatten()
             .collect();
 
         let src_blk_list = rx_entries.iter()
             .zip([SrcBlkId::Avs0, SrcBlkId::Avs1].iter())
-            .map(|(&data, &id)| {
-                let entry = FormatEntry::try_from(data).unwrap();
+            .map(|(entry, &id)| {
                 (0..entry.pcm_count).map(move |ch| SrcBlk{id, ch})
             }).flatten()
             .collect();

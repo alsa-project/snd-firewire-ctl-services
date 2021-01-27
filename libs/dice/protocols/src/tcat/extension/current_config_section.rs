@@ -44,7 +44,7 @@ pub trait CurrentConfigSectionProtocol<T> : ProtocolExtension<T>
 
     fn read_current_stream_format_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
                                           mode: RateMode, timeout_ms: u32)
-        -> Result<(Vec<FormatEntryData>, Vec<FormatEntryData>), Error>
+        -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error>
     {
         let offset = match mode {
             RateMode::Low => Self::LOW_STREAM_CONFIG_OFFSET,

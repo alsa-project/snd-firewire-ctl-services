@@ -14,8 +14,6 @@ use dice_protocols::tcat::extension::standalone_section::*;
 use std::sync::Arc;
 use std::thread;
 
-use std::convert::TryFrom;
-
 const TIMEOUT_MS: u32 = 20;
 
 fn print_sections(sections: &ExtensionSections) {
@@ -134,22 +132,20 @@ fn print_current_stream_format_entries(proto: &FwReq, node: &FwNode, sections: &
     println!("Current stream format entries:");
     RATE_MODES.iter().try_for_each(|&mode| {
         proto.read_current_stream_format_entries(node, sections, caps, mode, TIMEOUT_MS)
-            .and_then(|(tx_entries, rx_entries)| {
+            .map(|(tx_entries, rx_entries)| {
                 println!("  {}:", mode);
-                tx_entries.iter().enumerate().try_for_each(|(i, data)| {
-                    FormatEntry::try_from(*data)
-                        .map(|entry| {
-                            println!("    Tx stream {}:", i);
-                            print_stream_format_entry(&entry);
-                        })
-                })?;
-                rx_entries.iter().enumerate().try_for_each(|(i, data)| {
-                    FormatEntry::try_from(*data)
-                        .map(|entry| {
-                            println!("    Rx stream {}:", i);
-                            print_stream_format_entry(&entry);
-                        })
-                })
+                tx_entries.iter()
+                    .enumerate()
+                    .for_each(|(i, entry)| {
+                        println!("    Tx stream {}:", i);
+                        print_stream_format_entry(entry);
+                    });
+                rx_entries.iter()
+                    .enumerate()
+                    .for_each(|(i, entry)| {
+                        println!("    Rx stream {}:", i);
+                        print_stream_format_entry(entry);
+                    });
             })
     })
 }

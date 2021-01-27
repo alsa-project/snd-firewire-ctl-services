@@ -239,75 +239,10 @@ pub struct FormatEntry{
 /// The number of channels in stream format for AC3 channels.
 pub const AC3_CHANNELS: usize = 32;
 
-/// The alternative type of data for stream format.
-pub type FormatEntryData = [u8;FormatEntry::SIZE];
-
-impl FormatEntry {
-    const SIZE: usize = 268;
-    const NAMES_MAX_SIZE: usize = 256;
-}
-
-impl TryFrom<FormatEntryData> for FormatEntry {
-    type Error = Error;
-
-    fn try_from(raw: FormatEntryData) -> Result<Self, Self::Error> {
-        let mut quadlet = [0;4];
-
-        quadlet.copy_from_slice(&raw[..4]);
-        let pcm_count = u32::from_be_bytes(quadlet) as u8;
-
-        quadlet.copy_from_slice(&raw[4..8]);
-        let midi_count = u32::from_be_bytes(quadlet) as u8;
-
-        let labels = parse_labels(&raw[8..264])
-            .map_err(|e| {
-                let msg = format!("Invalid data for string: {}", e);
-                Error::new(ProtocolExtensionError::StreamFormatEntry, &msg)
-            })?;
-
-        let mut enable_ac3 = [false;AC3_CHANNELS];
-        quadlet.copy_from_slice(&raw[264..268]);
-        let val = u32::from_be_bytes(quadlet);
-        enable_ac3.iter_mut()
-            .enumerate()
-            .for_each(|(i, v)| *v = (1 << i) & val > 0);
-
-        let entry = FormatEntry{
-            pcm_count,
-            midi_count,
-            labels,
-            enable_ac3,
-        };
-
-        Ok(entry)
-    }
-}
-
-impl From<FormatEntry> for FormatEntryData {
-    fn from(entry: FormatEntry) -> Self {
-        let mut raw = [0;FormatEntry::SIZE];
-        raw[..4].copy_from_slice(&(entry.pcm_count as u32).to_be_bytes());
-        raw[4..8].copy_from_slice(&(entry.midi_count as u32).to_be_bytes());
-
-        raw[8..264].copy_from_slice(&build_labels(&entry.labels, FormatEntry::NAMES_MAX_SIZE));
-
-        let val = entry.enable_ac3.iter()
-            .enumerate()
-            .filter(|(_, &enabled)| enabled)
-            .fold(0 as u32, |val, (i, _)| val | (1 << i));
-        raw[264..268].copy_from_slice(&val.to_be_bytes());
-
-        raw
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::Section;
     use super::ExtensionSections;
-    use super::{FormatEntry, FormatEntryData, AC3_CHANNELS};
-
-    use std::convert::TryFrom;
 
     #[test]
     fn section_from() {
@@ -331,22 +266,5 @@ mod test {
             application: Section{offset: 0x04, size: 0x00},
         };
         assert_eq!(space, ExtensionSections::from(&raw[..]));
-    }
-
-    #[test]
-    fn stream_format_entry_from() {
-        let entry = FormatEntry{
-            pcm_count: 0xfe,
-            midi_count: 0x3c,
-            labels: vec![
-                "To say".to_string(),
-                "Good bye".to_string(),
-                "is to die".to_string(),
-                "a little.".to_string(),
-            ],
-            enable_ac3: [true;AC3_CHANNELS],
-        };
-        let data = Into::<FormatEntryData>::into(entry.clone());
-        assert_eq!(entry, FormatEntry::try_from(data).unwrap());
     }
 }
