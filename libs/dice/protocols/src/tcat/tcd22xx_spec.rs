@@ -188,7 +188,11 @@ pub trait Tcd22xxSpec<'a> {
             })
     }
 
-    fn refine_router_entries(&self, mut entries: Vec<RouterEntry>) -> Vec<RouterEntry> {
+    fn refine_router_entries(&self, mut entries: Vec<RouterEntry>, srcs: &[&SrcBlk], dsts: &[&DstBlk])
+        -> Vec<RouterEntry>
+    {
+        entries.retain(|entry| srcs.iter().find(|src| entry.src.eq(src)).is_some());
+        entries.retain(|entry| dsts.iter().find(|dst| entry.dst.eq(dst)).is_some());
         Self::FIXED.iter()
             .enumerate()
             .for_each(|(i, &src)| {
@@ -212,7 +216,17 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
                              caps: &ExtensionCaps, entries: Vec<RouterEntry>, timeout_ms: u32)
         -> Result<(), Error>
     {
-        let entries = self.refine_router_entries(entries);
+        let state = self.as_ref();
+        let srcs: Vec<_> = state.real_blk_pair.0.iter()
+            .chain(state.stream_blk_pair.0.iter())
+            .chain(state.mixer_blk_pair.0.iter())
+            .collect();
+        let dsts: Vec<_> = state.real_blk_pair.1.iter()
+            .chain(state.stream_blk_pair.1.iter())
+            .chain(state.mixer_blk_pair.1.iter())
+            .collect();
+
+        let entries = self.refine_router_entries(entries, &srcs, &dsts);
         if entries.len() > caps.router.maximum_entry_count as usize {
             let msg = format!("The number of entries for router section should be less than {} but {}",
                               caps.router.maximum_entry_count, entries.len());
