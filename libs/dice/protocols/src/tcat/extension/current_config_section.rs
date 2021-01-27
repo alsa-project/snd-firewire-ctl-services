@@ -22,7 +22,7 @@ pub trait CurrentConfigSectionProtocol<T> : ProtocolExtension<T>
 
     fn read_current_router_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
                                    mode: RateMode, timeout_ms: u32)
-        -> Result<Vec<RouterEntryData>, Error>
+        -> Result<Vec<RouterEntry>, Error>
     {
         let offset = match mode {
             RateMode::Low => Self::LOW_ROUTER_CONFIG_OFFSET,

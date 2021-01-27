@@ -219,7 +219,6 @@ impl<'a> MeterCtl {
             .zip(self.real_blk_dsts.iter().chain(self.stream_blk_dsts.iter()).chain(self.mixer_blk_dsts.iter()))
             .for_each(|(val, dst)| {
                 *val = entries.iter()
-                    .map(|data| RouterEntry::from(data))
                     .find(|entry| entry.dst.eq(dst))
                     .map(|entry| entry.peak as i32)
                     .unwrap_or(0);
@@ -407,7 +406,6 @@ impl<'a> RouterCtl {
             let dst = dsts[idx];
 
             let val = state.as_ref().router_entries.iter()
-                .map(|data| RouterEntry::from(data))
                 .find(|entry| entry.dst.eq(&dst))
                 .and_then(|entry| {
                     srcs.iter()
@@ -429,31 +427,25 @@ impl<'a> RouterCtl {
         let mut entries = state.as_ref().router_entries.clone();
 
         ElemValueAccessor::<u32>::get_vals(new, old, dsts.len(), |idx, val| {
-            let dst = u8::from(dsts[idx]);
+            let dst = dsts[idx];
 
             let src = if val > 0 {
                 let pos = (val as usize) - 1;
                 srcs.iter()
-                    .flat_map(|srcs| srcs.iter().map(|&s| u8::from(s)))
+                    .flat_map(|srcs| srcs.iter())
                     .nth(pos)
+                    .cloned()
                     .unwrap_or_else(|| {
-                        let entry = SrcBlk{id: SrcBlkId::Reserved(0xff), ch: 0xff};
-                        u8::from(entry)
+                        SrcBlk{id: SrcBlkId::Reserved(0xff), ch: 0xff}
                     })
             } else {
-                let entry = SrcBlk{id: SrcBlkId::Reserved(0xff), ch: 0xff};
-                u8::from(entry)
+                SrcBlk{id: SrcBlkId::Reserved(0xff), ch: 0xff}
             };
 
-            entries.iter_mut()
-                .find(|data| data[RouterEntry::DST_OFFSET] == dst)
-                .map(|data| data[RouterEntry::SRC_OFFSET] = src)
-                .unwrap_or_else(|| {
-                    let mut entry = RouterEntryData::default();
-                    entry[RouterEntry::DST_OFFSET] = dst;
-                    entry[RouterEntry::SRC_OFFSET] = src;
-                    entries.push(RouterEntryData::from(entry))
-                });
+            match entries.iter_mut().find(|entry| entry.dst.eq(&dst)) {
+                Some(entry) => entry.src = src,
+                None => entries.push(RouterEntry{dst, src, ..Default::default()}),
+            }
 
             Ok(())
         })?;

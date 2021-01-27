@@ -13,7 +13,7 @@ pub trait RouterSectionProtocol<T> : ProtocolExtension<T>
 {
     fn read_router_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
                            timeout_ms: u32)
-        -> Result<Vec<RouterEntryData>, Error>
+        -> Result<Vec<RouterEntry>, Error>
     {
         let mut data = [0;4];
         ProtocolExtension::read(self, node, sections.router.offset, &mut data, timeout_ms)
@@ -27,7 +27,7 @@ pub trait RouterSectionProtocol<T> : ProtocolExtension<T>
     }
 
     fn write_router_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                            entries: &Vec<RouterEntryData>, timeout_ms: u32)
+                            entries: &[RouterEntry], timeout_ms: u32)
         -> Result<(), Error>
     {
         RouterEntryProtocol::write_router_entries(&self, node, caps, sections.router.offset,

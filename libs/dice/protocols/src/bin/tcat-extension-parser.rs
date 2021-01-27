@@ -88,8 +88,9 @@ fn print_peak(proto: &FwReq, node: &FwNode, sections: &ExtensionSections, caps: 
     proto.read_peak_entries(node, sections, caps, TIMEOUT_MS)
         .map(|entries| {
             println!("Peak:");
-            entries.iter().enumerate().for_each(|(i, data)| {
-                let entry = RouterEntry::from(data);
+            entries.iter()
+                .enumerate()
+                .for_each(|(i, entry)| {
                 println!("  entry {}: 0x{:04x}", i, entry.peak);
             })
         })
@@ -106,8 +107,7 @@ fn print_current_router_entries(proto: &FwReq, node: &FwNode, sections: &Extensi
         proto.read_current_router_entries(node, sections, caps, mode, TIMEOUT_MS)
             .map(|entries| {
                 println!("  {}:", mode);
-                entries.iter().enumerate().for_each(|(i, data)| {
-                    let entry = RouterEntry::from(data);
+                entries.iter().enumerate().for_each(|(i, entry)| {
                     println!("    entry {}: {:?} <- {:?}", i, entry.dst, entry.src);
                 });
             })
