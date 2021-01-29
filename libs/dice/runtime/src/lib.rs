@@ -7,6 +7,7 @@ mod minimal_model;
 mod tcelectronic;
 mod io_fw_model;
 mod ionix_model;
+mod presonus;
 
 mod tcd22xx_ctl;
 mod extension_model;
