@@ -9,6 +9,7 @@ use hinawa::{SndDice, SndUnitExt};
 use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::*;
 use dice_protocols::tcat::global_section::*;
@@ -23,6 +24,7 @@ pub struct FStudioModel{
     ctl: CommonCtl,
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
+    assign_ctl: AssignCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -58,6 +60,7 @@ impl CtlModel<SndDice> for FStudioModel {
 
         self.meter_ctl.load(card_cntr, unit, &self.proto, TIMEOUT_MS)?;
         self.out_ctl.load(card_cntr, unit, &self.proto, TIMEOUT_MS)?;
+        self.assign_ctl.load(card_cntr)?;
 
         Ok(())
     }
@@ -68,6 +71,8 @@ impl CtlModel<SndDice> for FStudioModel {
         if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.out_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -80,6 +85,8 @@ impl CtlModel<SndDice> for FStudioModel {
         if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -369,6 +376,119 @@ impl<'a> OutputCtl {
                 elem_value.get_bool(&mut vals);
                 proto.write_bnc_terminalte(&unit.get_node(), vals[0], timeout_ms)
                     .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn assign_target_to_string(target: &AssignTarget) -> String {
+    (match target {
+        AssignTarget::Analog01 => "Analog-output-1/2",
+        AssignTarget::Analog23 => "Analog-output-3/4",
+        AssignTarget::Analog56 => "Analog-output-5/6",
+        AssignTarget::Analog78 => "Analog-output-7/8",
+        AssignTarget::AdatA01 => "ADAT-output-1/2",
+        AssignTarget::AdatA23 => "ADAT-output-3/4",
+        AssignTarget::AdatA45 => "ADAT-output-5/6",
+        AssignTarget::AdatA67 => "ADAT-output-7/8",
+        AssignTarget::Spdif01 => "S/PDIF-output-1/2",
+        AssignTarget::Reserved(_) => "Reserved",
+    }).to_string()
+}
+
+#[derive(Default, Debug)]
+struct AssignCtl;
+
+impl<'a> AssignCtl {
+    const MAIN_NAME: &'a str = "main-assign";
+    const HP_NAME: &'a str = "headphone-assign";
+
+    const HP_LABELS: [&'a str;3] = [
+        "HP-1/2",
+        "HP-3/4",
+        "HP-5/6",
+    ];
+
+    const TARGETS: [AssignTarget;9] = [
+        AssignTarget::Analog01, AssignTarget::Analog23,
+        AssignTarget::Analog56, AssignTarget::Analog78,
+        AssignTarget::AdatA01, AssignTarget::AdatA23,
+        AssignTarget::AdatA45, AssignTarget::AdatA67,
+        AssignTarget::Spdif01,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = Self::TARGETS.iter()
+            .map(|s| assign_target_to_string(s))
+            .collect();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MAIN_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, Self::HP_LABELS.len(), &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, unit: &SndDice, proto: &FStudioProto,elem_id: &ElemId,
+            elem_value: &mut ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MAIN_NAME => {
+                let target = proto.read_main_assign_target(&unit.get_node(), timeout_ms)?;
+                let pos = Self::TARGETS.iter()
+                    .position(|t| t.eq(&target))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::HP_NAME => {
+                let node = unit.get_node();
+                ElemValueAccessor::<u32>::set_vals(elem_value, 3, |idx| {
+                    let target = proto.read_hp_assign_target(&node, idx, timeout_ms)?;
+                    let pos = Self::TARGETS.iter()
+                        .position(|t| t.eq(&target))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &FStudioProto, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::MAIN_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let target = Self::TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of assignment target: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                proto.write_main_assign_target(&unit.get_node(), *target, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::HP_NAME => {
+                let node = unit.get_node();
+                ElemValueAccessor::<u32>::get_vals(new, old, 3, |idx, val| {
+                    let target = Self::TARGETS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of assignment target: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+                    proto.write_hp_assign_target(&node, idx, *target, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
