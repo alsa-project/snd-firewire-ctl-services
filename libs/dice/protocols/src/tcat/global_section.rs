@@ -461,7 +461,7 @@ impl From<u32> for ClockCaps {
 /// The structure with labels for source of sampling clock.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ClockSourceLabels{
-    entries: Vec<String>,
+    pub entries: Vec<String>,
 }
 
 /// The maximum size of nickname in bytes.

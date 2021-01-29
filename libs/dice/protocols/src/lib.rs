@@ -14,6 +14,7 @@ pub mod maudio;
 pub mod avid;
 pub mod loud;
 pub mod focusrite;
+pub mod presonus;
 
 const QUADLET_SIZE: usize = 4;
 

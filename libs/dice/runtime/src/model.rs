@@ -28,6 +28,7 @@ use super::blackbird_model::*;
 use super::focusrite::spro40_model::*;
 use super::focusrite::liquids56_model::*;
 use super::focusrite::spro26_model::*;
+use super::presonus::fstudioproject_model::*;
 
 enum Model {
     Minimal(MinimalModel),
@@ -47,6 +48,7 @@ enum Model {
     FocusriteSPro40(SPro40Model),
     FocusriteLiquidS56(LiquidS56Model),
     FocusriteSPro26(SPro26Model),
+    PresonusFStudioProject(FStudioProjectModel),
 }
 
 pub struct DiceModel{
@@ -89,6 +91,7 @@ impl DiceModel {
             (0x00130e, 0x000005) => Model::FocusriteSPro40(SPro40Model::default()),
             (0x00130e, 0x000006) => Model::FocusriteLiquidS56(LiquidS56Model::default()),
             (0x00130e, 0x000012) => Model::FocusriteSPro26(SPro26Model::default()),
+            (0x000a92, 0x00000b) => Model::PresonusFStudioProject(FStudioProjectModel::default()),
             (0x000166, 0x000030) |  // TC Electronic Digital Konnekt x32.
             (0x000595, 0x000000) |  // Alesis MultiMix 8/12/16 FireWire.
             (0x000595, 0x000002) |  // Alesis MasterControl.
@@ -133,6 +136,7 @@ impl DiceModel {
             Model::FocusriteSPro40(m) => m.load(unit, card_cntr),
             Model::FocusriteLiquidS56(m) => m.load(unit, card_cntr),
             Model::FocusriteSPro26(m) => m.load(unit, card_cntr),
+            Model::PresonusFStudioProject(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.model {
@@ -153,6 +157,7 @@ impl DiceModel {
             Model::FocusriteSPro40(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::FocusriteLiquidS56(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::FocusriteSPro26(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::PresonusFStudioProject(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         match &mut self.model {
@@ -173,6 +178,7 @@ impl DiceModel {
             Model::FocusriteSPro40(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::FocusriteLiquidS56(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::FocusriteSPro26(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::PresonusFStudioProject(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
 
         Ok(())
@@ -200,6 +206,7 @@ impl DiceModel {
             Model::FocusriteSPro40(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteLiquidS56(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteSPro26(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::PresonusFStudioProject(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -224,6 +231,7 @@ impl DiceModel {
             Model::FocusriteSPro40(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::FocusriteLiquidS56(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::FocusriteSPro26(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+            Model::PresonusFStudioProject(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
         }
     }
 
@@ -248,6 +256,7 @@ impl DiceModel {
             Model::FocusriteSPro40(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteLiquidS56(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteSPro26(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::PresonusFStudioProject(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
         }
     }
 }
