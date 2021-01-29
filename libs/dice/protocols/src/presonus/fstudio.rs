@@ -364,3 +364,343 @@ pub trait PresonusFStudioAssignProtocol<T>  : PresonusFStudioProto<T>
 }
 
 impl<T: AsRef<FwNode>> PresonusFStudioAssignProtocol<T> for FStudioProto {}
+
+/// The enumeration to represent mode of mixer expansion.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ExpansionMode {
+    Stream10_17,
+    AdatB0_7,
+}
+
+impl From<u32> for ExpansionMode {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Self::Stream10_17,
+            _ => Self::AdatB0_7,
+        }
+    }
+}
+
+impl From<ExpansionMode> for u32 {
+    fn from(mode: ExpansionMode) -> Self {
+        match mode {
+            ExpansionMode::Stream10_17 => 0,
+            ExpansionMode::AdatB0_7 => 1,
+        }
+    }
+}
+
+/// The structure to represent params of mixer sources.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct SrcParams{
+    pub gains: [u8;18],
+    pub pans: [u8;18],
+    pub mutes: [bool;18],
+}
+
+/// The structure to represent params of mixer outputs.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct OutParams{
+    pub vols: [u8;MIXER_COUNT],
+    pub mutes: [bool;MIXER_COUNT],
+}
+
+/// The number of mixers.
+pub const MIXER_COUNT: usize = 9;
+
+/// The trait to represent mixer protocol for FireStudio.
+pub trait PresonusFStudioMixerProtocol<T>  : PresonusFStudioProto<T>
+    where T: AsRef<FwNode>,
+{
+    const PHYS_SRC_PARAMS_OFFSET: usize = 0x0038;
+    const STREAM_SRC_PARAMS_OFFSET: usize = 0x07d0;
+    const OUT_PARAMS_OFFSET: usize = 0x1040;
+    const EXPANSION_MODE_OFFSET: usize = 0x1128;
+    const SRC_LINK_OFFSET: usize = 0x112c;
+
+    fn read_mixer_src_params(&self, node: &T, params: &mut SrcParams, offset: usize, ch: usize,
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert!(ch < MIXER_COUNT);
+
+        let quad_count = 3 * (8 + 8 + 2);
+        let mut raw = vec![0;quad_count * 4];
+        let pos = ch * quad_count * 4;
+        PresonusFStudioProto::read(self, node, offset + pos, &mut raw, timeout_ms)
+            .map(|_| {
+                let mut quads = vec![0u32;quad_count];
+                quads.parse_quadlet_block(&raw);
+
+                params.gains.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, gain)| {
+                        let pos = i * 3;
+                        *gain = quads[pos] as u8;
+                    });
+
+                params.pans.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, pan)| {
+                        let pos = 1 + i * 3;
+                        *pan = quads[pos] as u8;
+                    });
+
+                params.mutes.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, mute)| {
+                        let pos = 2 + i * 3;
+                        *mute = quads[pos] > 0;
+                    });
+            })
+    }
+
+    fn read_mixer_phys_src_params(&self, node: &T, params: &mut SrcParams, ch: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.read_mixer_src_params(node, params, Self::PHYS_SRC_PARAMS_OFFSET, ch, timeout_ms)
+    }
+
+    fn read_mixer_stream_src_params(&self, node: &T, params: &mut SrcParams, ch: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.read_mixer_src_params(node, params, Self::STREAM_SRC_PARAMS_OFFSET, ch, timeout_ms)
+    }
+
+    fn write_mixer_src_gains(&self, node: &T, params: &mut SrcParams, offset: usize, ch: usize, gains: &[u8],
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert!(ch < MIXER_COUNT);
+        assert_eq!(params.gains.len(), gains.len());
+
+        let mut raw = [0;4];
+        params.gains.iter_mut()
+            .zip(gains.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .try_for_each(|(i, (old, new))| {
+                new.build_quadlet(&mut raw);
+                let mut pos = ch * 3 * (8 + 8 + 2) * 4;
+                pos += i * 3 * 4;
+                PresonusFStudioProto::write(self, node, offset + pos, &mut raw, timeout_ms)
+                    .map(|_| *old = *new)
+            })
+    }
+
+    fn write_mixer_src_pans(&self, node: &T, params: &mut SrcParams, offset: usize, ch: usize, pans: &[u8],
+                            timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert!(ch < MIXER_COUNT);
+        assert_eq!(params.pans.len(), pans.len());
+
+        let mut raw = [0;4];
+        params.pans.iter_mut()
+            .zip(pans.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .try_for_each(|(i, (old, new))| {
+                (*new as u32).build_quadlet(&mut raw);
+                let mut pos = ch * 3 * (8 + 8 + 2) * 4;
+                pos += (i * 3 + 1) * 4;
+                PresonusFStudioProto::write(self, node, offset + pos, &mut raw, timeout_ms)
+                    .map(|_| *old = *new)
+            })
+    }
+
+    fn write_mixer_src_mutes(&self, node: &T, params: &mut SrcParams, offset: usize, ch: usize, mutes: &[bool],
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert!(ch < MIXER_COUNT);
+        assert_eq!(params.mutes.len(), mutes.len());
+
+        let mut raw = [0;4];
+        params.mutes.iter_mut()
+            .zip(mutes.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .try_for_each(|(i, (old, new))| {
+                (*new as u32).build_quadlet(&mut raw);
+                let mut pos = ch * 3 * (8 + 8 + 2) * 4;
+                pos += (i * 3 + 2) * 4;
+                PresonusFStudioProto::write(self, node, offset + pos, &mut raw, timeout_ms)
+                    .map(|_| *old = *new)
+            })
+    }
+    fn write_mixer_phys_src_gains(&self, node: &T, params: &mut SrcParams, ch: usize, gains: &[u8],
+                                  timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_gains(node, params, Self::PHYS_SRC_PARAMS_OFFSET, ch, gains, timeout_ms)
+    }
+
+    fn write_mixer_phys_src_pans(&self, node: &T, params: &mut SrcParams, ch: usize, pans: &[u8],
+                                 timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_pans(node, params, Self::PHYS_SRC_PARAMS_OFFSET, ch, pans, timeout_ms)
+    }
+
+    fn write_mixer_phys_src_mutes(&self, node: &T, params: &mut SrcParams, ch: usize, mutes: &[bool],
+                                  timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_mutes(node, params, Self::PHYS_SRC_PARAMS_OFFSET, ch, mutes, timeout_ms)
+    }
+
+    fn write_mixer_stream_src_gains(&self, node: &T, params: &mut SrcParams, ch: usize, gains: &[u8],
+                                    timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_gains(node, params, Self::STREAM_SRC_PARAMS_OFFSET, ch, gains, timeout_ms)
+    }
+
+    fn write_mixer_stream_src_pans(&self, node: &T, params: &mut SrcParams, ch: usize, pans: &[u8],
+                                   timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_pans(node, params, Self::STREAM_SRC_PARAMS_OFFSET, ch, pans, timeout_ms)
+    }
+
+    fn write_mixer_stream_src_mutes(&self, node: &T, params: &mut SrcParams, ch: usize, mutes: &[bool],
+                                    timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_mutes(node, params, Self::STREAM_SRC_PARAMS_OFFSET, ch, mutes, timeout_ms)
+    }
+
+    fn read_mixer_out_params(&self, node: &T, params: &mut OutParams, timeout_ms: u32) -> Result<(), Error> {
+        let mut raw = vec![0;3 * MIXER_COUNT * 4];
+        PresonusFStudioProto::read(self, node, Self::OUT_PARAMS_OFFSET, &mut raw, timeout_ms)
+            .map(|_| {
+                let mut quads = vec![0u32;3 * MIXER_COUNT];
+                quads.parse_quadlet_block(&raw);
+
+                params.vols.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, vol)| {
+                        let pos = i * 3;
+                        *vol = quads[pos] as u8;
+                    });
+
+                params.mutes.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, mute)| {
+                        let pos = i * 3 + 2;
+                        *mute = quads[pos] > 0;
+                    });
+            })
+    }
+
+    fn write_mixer_out_vol(&self, node: &T, params: &mut OutParams, vols: &[u8], timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut raw = [0;4];
+        params.vols.iter_mut()
+            .zip(vols.iter())
+            .enumerate()
+            .filter(|(_, (o, n))| !o.eq(n))
+            .try_for_each(|(i, (o, n))| {
+                (*n as u32).build_quadlet(&mut raw);
+                let offset = 3 * i * 4;
+                PresonusFStudioProto::write(self, node, Self::OUT_PARAMS_OFFSET + offset, &mut raw,
+                                            timeout_ms)
+                    .map(|_| *o = *n)
+            })
+    }
+
+    fn write_mixer_out_mute(&self, node: &T, params: &mut OutParams, mutes: &[bool], timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut raw = [0;4];
+        params.mutes.iter_mut()
+            .zip(mutes.iter())
+            .enumerate()
+            .filter(|(_, (o, n))| !o.eq(n))
+            .try_for_each(|(i, (o, n))| {
+                (*n as u32).build_quadlet(&mut raw);
+                let offset = (3 * i + 2) * 4;
+                PresonusFStudioProto::write(self, node, Self::OUT_PARAMS_OFFSET + offset, &mut raw,
+                                            timeout_ms)
+                    .map(|_| *o = *n)
+            })
+    }
+
+    fn read_mixer_expansion_mode(&self, node: &T, timeout_ms: u32) -> Result<ExpansionMode, Error> {
+        let mut raw = [0;4];
+        PresonusFStudioProto::read(self, node, Self::EXPANSION_MODE_OFFSET, &mut raw, timeout_ms)
+            .map(|_| ExpansionMode::from(u32::from_be_bytes(raw)))
+    }
+
+    fn write_mixer_expansion_mode(&self, node: &T, mode: ExpansionMode, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut raw = [0;4];
+        mode.build_quadlet(&mut raw);
+        PresonusFStudioProto::write(self, node, Self::EXPANSION_MODE_OFFSET, &mut raw, timeout_ms)
+    }
+
+    fn read_mixer_src_links(&self, node: &T, links: &mut [bool], ch: usize, shift: usize,  mask: u32,
+                            timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert!(ch < MIXER_COUNT);
+        assert_eq!(links.len(), 9);
+
+        let mut raw = [0;4];
+        let offset = ch * 4;
+        PresonusFStudioProto::read(self, node, Self::SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)
+            .map(|_| {
+                let val = u32::from_be_bytes(raw) & mask;
+                links.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, link)| *link = val & (1 << (i + shift)) > 0);
+            })
+    }
+
+    fn write_mixer_src_links(&self, node: &T, links: &[bool], ch: usize, shift: usize, mask: u32,
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut raw = [0;4];
+        let offset = ch * 4;
+        PresonusFStudioProto::read(self, node, Self::SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)?;
+
+        let mut val = u32::from_be_bytes(raw) & !mask;
+        links.iter()
+            .enumerate()
+            .filter(|(_, &link)| link)
+            .for_each(|(i, _)| val |= 1 << (i + shift));
+
+        val.build_quadlet(&mut raw);
+        PresonusFStudioProto::write(self, node, Self::SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)
+    }
+
+    fn read_mixer_phys_src_links(&self, node: &T, links: &mut [bool], ch: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.read_mixer_src_links(node, links, ch, 0, 0x0000ffff, timeout_ms)
+    }
+
+    fn read_mixer_stream_src_links(&self, node: &T, links: &mut [bool], ch: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.read_mixer_src_links(node, links, ch, 16, 0xffff0000, timeout_ms)
+    }
+
+    fn write_mixer_phys_src_links(&self, node: &T, links: &[bool], ch: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_links(node, links, ch, 0, 0x0000ffff, timeout_ms)
+    }
+
+    fn write_mixer_stream_src_links(&self, node: &T, links: &[bool], ch: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_mixer_src_links(node, links, ch, 16, 0xffff0000, timeout_ms)
+    }
+}
+
+impl<T: AsRef<FwNode>> PresonusFStudioMixerProtocol<T> for FStudioProto {}
