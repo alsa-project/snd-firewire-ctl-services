@@ -257,3 +257,110 @@ pub trait PresonusFStudioOutputProtocol<T>  : PresonusFStudioProto<T>
 }
 
 impl<T: AsRef<FwNode>> PresonusFStudioOutputProtocol<T> for FStudioProto {}
+
+/// The enumeration to represent target of output assignment.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum AssignTarget {
+    Analog01,
+    Analog23,
+    Analog56,
+    Analog78,
+    AdatA01,
+    AdatA23,
+    AdatA45,
+    AdatA67,
+    Spdif01,
+    Reserved(u32),
+}
+
+impl From<u32> for AssignTarget {
+    fn from(val: u32) -> Self {
+        match val {
+            0x00 => Self::Analog01,
+            0x02 => Self::Analog23,
+            0x04 => Self::Analog56,
+            0x06 => Self::Analog78,
+            0x08 => Self::AdatA01,
+            0x0a => Self::AdatA23,
+            0x0c => Self::AdatA45,
+            0x0e => Self::AdatA67,
+            0x10 => Self::Spdif01,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<AssignTarget> for u32 {
+    fn from(target: AssignTarget) -> Self {
+        match target {
+            AssignTarget::Analog01 => 0x00,
+            AssignTarget::Analog23 => 0x02,
+            AssignTarget::Analog56 => 0x04,
+            AssignTarget::Analog78 => 0x06,
+            AssignTarget::AdatA01 => 0x08,
+            AssignTarget::AdatA23 => 0x0a,
+            AssignTarget::AdatA45 => 0x0c,
+            AssignTarget::AdatA67 => 0x0e,
+            AssignTarget::Spdif01 => 0x10,
+            AssignTarget::Reserved(val) => val,
+        }
+    }
+}
+
+/// The trait to represent output protocol for FireStudio.
+pub trait PresonusFStudioAssignProtocol<T>  : PresonusFStudioProto<T>
+    where T: AsRef<FwNode>,
+{
+    const MAIN_OFFSET: usize = 0x10f4;
+    const HP01_OFFSET: usize = 0x10f8;
+    const HP23_OFFSET: usize = 0x10fc;
+    const HP45_OFFSET: usize = 0x1100;
+
+    fn read_assign_target(&self, node: &T, offset: usize, timeout_ms: u32) -> Result<AssignTarget, Error> {
+        let mut raw = [0;4];
+        PresonusFStudioProto::read(self, node, offset, &mut raw, timeout_ms)
+            .map(|_| AssignTarget::from(u32::from_be_bytes(raw)))
+    }
+
+    fn write_assign_target(&self, node: &T, offset: usize, target: AssignTarget, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut raw = [0;4];
+        target.build_quadlet(&mut raw);
+        PresonusFStudioProto::write(self, node, offset, &mut raw, timeout_ms)
+    }
+
+    fn read_main_assign_target(&self, node: &T, timeout_ms: u32) -> Result<AssignTarget, Error> {
+        self.read_assign_target(node, Self::MAIN_OFFSET, timeout_ms)
+    }
+
+    fn read_hp_assign_target(&self, node: &T, hp: usize, timeout_ms: u32) -> Result<AssignTarget, Error> {
+        let offset = match hp {
+            0 => Self::HP01_OFFSET,
+            1 => Self::HP23_OFFSET,
+            2 => Self::HP45_OFFSET,
+            _ => unreachable!(),
+        };
+        self.read_assign_target(node, offset, timeout_ms)
+    }
+
+    fn write_main_assign_target(&self, node: &T, target: AssignTarget, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        self.write_assign_target(node, Self::MAIN_OFFSET, target, timeout_ms)
+    }
+
+    fn write_hp_assign_target(&self, node: &T, hp: usize, target: AssignTarget, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let offset = match hp {
+            0 => Self::HP01_OFFSET,
+            1 => Self::HP23_OFFSET,
+            2 => Self::HP45_OFFSET,
+            _ => unreachable!(),
+        };
+        self.write_assign_target(node, offset, target, timeout_ms)
+    }
+}
+
+impl<T: AsRef<FwNode>> PresonusFStudioAssignProtocol<T> for FStudioProto {}
