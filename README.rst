@@ -150,6 +150,7 @@ your device, please contact to developer.
   * Focusrite Liquid Saffire 56
   * Focusrite Saffire Pro 26
   * PreSonus FireStudio Project
+  * PreSonus FireStudio Mobile
   * For the others, common controls are available. If supported, control extension is also available.
 
 Supported protocols
