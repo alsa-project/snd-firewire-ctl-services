@@ -25,6 +25,7 @@ pub struct FStudioModel{
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
     assign_ctl: AssignCtl,
+    mixer_ctl: MixerCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -61,6 +62,7 @@ impl CtlModel<SndDice> for FStudioModel {
         self.meter_ctl.load(card_cntr, unit, &self.proto, TIMEOUT_MS)?;
         self.out_ctl.load(card_cntr, unit, &self.proto, TIMEOUT_MS)?;
         self.assign_ctl.load(card_cntr)?;
+        self.mixer_ctl.load(card_cntr, unit, &self.proto, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -73,6 +75,8 @@ impl CtlModel<SndDice> for FStudioModel {
         } else if self.out_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -87,6 +91,8 @@ impl CtlModel<SndDice> for FStudioModel {
         } else if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -489,6 +495,331 @@ impl<'a> AssignCtl {
                     proto.write_hp_assign_target(&node, idx, *target, timeout_ms)
                 })
                 .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn expansion_mode_to_string(mode: &ExpansionMode) -> String {
+    match mode {
+        ExpansionMode::Stream10_17 => "Stream-11|18",
+        ExpansionMode::AdatB0_7 => "ADAT-B-1|8",
+    }.to_string()
+}
+
+#[derive(Default, Debug)]
+struct MixerCtl{
+    phys_src_params: [SrcParams;MIXER_COUNT],
+    stream_src_params: [SrcParams;MIXER_COUNT],
+    phys_src_links: [[bool;9];MIXER_COUNT],
+    stream_src_links: [[bool;9];MIXER_COUNT],
+    outs: OutParams,
+}
+
+impl<'a> MixerCtl {
+    const PHYS_SRC_GAIN_NAME: &'a str = "mixer-phys-source-gain";
+    const PHYS_SRC_PAN_NAME: &'a str = "mixer-phys-source-pan";
+    const PHYS_SRC_MUTE_NAME: &'a str = "mixer-phys-source-mute";
+    const PHYS_SRC_LINK_NAME: &'a str = "mixer-phys-source-link";
+    const STREAM_SRC_GAIN_NAME: &'a str = "mixer-stream-source-gain";
+    const STREAM_SRC_PAN_NAME: &'a str = "mixer-stream-source-pan";
+    const STREAM_SRC_MUTE_NAME: &'a str = "mixer-stream-source-mute";
+    const STREAM_SRC_LINK_NAME: &'a str = "mixer-stream-source-link";
+    const OUT_VOL_NAME: &'a str = "mixer-output-volume";
+    const OUT_MUTE_NAME: &'a str = "mixer-output-mute";
+    const EXPANSION_MODE_NAME: &'a str = "mixer-expansion-mode";
+
+    const LEVEL_MIN: i32 = 0x00;
+    const LEVEL_MAX: i32 = 0xff;
+    const LEVEL_STEP: i32 = 1;
+    const LEVEL_TLV: DbInterval = DbInterval{min: -9600, max: 0, linear: false, mute_avail: false};
+
+    const PAN_MIN: i32 = 0x00;
+    const PAN_MAX: i32 = 0x7f;
+    const PAN_STEP: i32 = 1;
+
+    const EXPANSION_MODES: [ExpansionMode;2] = [
+        ExpansionMode::Stream10_17,
+        ExpansionMode::AdatB0_7,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr, unit: &SndDice, proto: &FStudioProto, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let node = unit.get_node();
+
+        self.phys_src_params.iter_mut()
+            .enumerate()
+            .try_for_each(|(i, params)| proto.read_mixer_phys_src_params(&node, params, i, timeout_ms))?;
+
+        self.stream_src_params.iter_mut()
+            .enumerate()
+            .try_for_each(|(i, params)| proto.read_mixer_stream_src_params(&node, params, i, timeout_ms))?;
+
+        self.phys_src_links.iter_mut()
+            .enumerate()
+            .try_for_each(|(i, links)| proto.read_mixer_phys_src_links(&node, links, i, timeout_ms))?;
+
+        self.stream_src_links.iter_mut()
+            .enumerate()
+            .try_for_each(|(i, links)| proto.read_mixer_stream_src_links(&node, links, i, timeout_ms))?;
+
+        proto.read_mixer_out_params(&node, &mut self.outs, timeout_ms)?;
+
+        [
+            (Self::PHYS_SRC_GAIN_NAME, self.phys_src_params.len(), self.phys_src_params[0].gains.len()),
+            (Self::STREAM_SRC_GAIN_NAME, self.stream_src_params.len(), self.stream_src_params[0].gains.len()),
+        ].iter()
+            .try_for_each(|&(name, elem_count, value_count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_int_elems(&elem_id, elem_count, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                        value_count, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)
+                    .map(|_| ())
+            })?;
+
+        [
+            (Self::PHYS_SRC_PAN_NAME, self.phys_src_params.len(), self.phys_src_params[0].pans.len()),
+            (Self::STREAM_SRC_PAN_NAME, self.stream_src_params.len(), self.stream_src_params[0].pans.len()),
+        ].iter()
+            .try_for_each(|&(name, elem_count, value_count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_int_elems(&elem_id, elem_count, Self::PAN_MIN, Self::PAN_MAX, Self::PAN_STEP,
+                                        value_count, None, true)
+                    .map(|_| ())
+            })?;
+
+        [
+            (Self::PHYS_SRC_MUTE_NAME, self.phys_src_params.len(), self.phys_src_params[0].mutes.len()),
+            (Self::STREAM_SRC_MUTE_NAME, self.stream_src_params.len(), self.stream_src_params[0].mutes.len()),
+        ].iter()
+            .try_for_each(|&(name, elem_count, value_count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_bool_elems(&elem_id, elem_count, value_count, true)
+                    .map(|_| ())
+            })?;
+
+        [
+            (Self::PHYS_SRC_LINK_NAME, self.phys_src_links.len(), self.phys_src_links[0].len()),
+            (Self::STREAM_SRC_LINK_NAME, self.stream_src_links.len(), self.stream_src_links[0].len()),
+        ].iter()
+            .try_for_each(|&(name, elem_count, value_count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_bool_elems(&elem_id, elem_count, value_count, true)
+                    .map(|_| ())
+            })?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_VOL_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
+                                self.outs.vols.len(), Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
+                                true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, self.outs.mutes.len(), true)?;
+
+        let labels: Vec<String> = Self::EXPANSION_MODES.iter()
+            .map(|m| expansion_mode_to_string(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EXPANSION_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, unit: &SndDice, proto: &FStudioProto, elem_id: &ElemId,
+            elem_value: &mut ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::PHYS_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &self.phys_src_params[index];
+                let vals: Vec<i32> = params.gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::PHYS_SRC_PAN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &self.phys_src_params[index];
+                let vals: Vec<i32> = params.pans.iter()
+                    .map(|&pan| pan as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::PHYS_SRC_MUTE_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &self.phys_src_params[index];
+                elem_value.set_bool(&params.mutes);
+                Ok(true)
+            }
+            Self::PHYS_SRC_LINK_NAME => {
+                let index = elem_id.get_index() as usize;
+                let links = &self.phys_src_links[index];
+                elem_value.set_bool(links);
+                Ok(true)
+            }
+            Self::STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &self.stream_src_params[index];
+                let vals: Vec<i32> = params.gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::STREAM_SRC_PAN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &self.stream_src_params[index];
+                let vals: Vec<i32> = params.pans.iter()
+                    .map(|&pan| pan as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::STREAM_SRC_MUTE_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &self.stream_src_params[index];
+                elem_value.set_bool(&params.mutes);
+                Ok(true)
+            }
+            Self::STREAM_SRC_LINK_NAME => {
+                let index = elem_id.get_index() as usize;
+                let links = &self.stream_src_links[index];
+                elem_value.set_bool(links);
+                Ok(true)
+            }
+            Self::OUT_VOL_NAME => {
+                let vals: Vec<i32> = self.outs.vols.iter()
+                    .map(|&v| v as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::OUT_MUTE_NAME => {
+                elem_value.set_bool(&self.outs.mutes);
+                Ok(true)
+            }
+            Self::EXPANSION_MODE_NAME => {
+                let mode = proto.read_mixer_expansion_mode(&unit.get_node(), timeout_ms)?;
+                let pos = Self::EXPANSION_MODES.iter()
+                    .position(|m| m.eq(&mode))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, unit: &SndDice, proto: &FStudioProto, elem_id: &ElemId,
+             elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::PHYS_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &mut self.phys_src_params[index];
+                let mut vals = vec![0;params.gains.len()];
+                elem_value.get_int(&mut vals);
+                let gains: Vec<u8> = vals.iter()
+                    .map(|&v| v as u8)
+                    .collect();
+                proto.write_mixer_phys_src_gains(&unit.get_node(), params, index, &gains, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::PHYS_SRC_PAN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &mut self.phys_src_params[index];
+                let mut vals = vec![0;params.pans.len()];
+                elem_value.get_int(&mut vals);
+                let pans: Vec<u8> = vals.iter()
+                    .map(|&v| v as u8)
+                    .collect();
+                proto.write_mixer_phys_src_pans(&unit.get_node(), params, index, &pans, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::PHYS_SRC_MUTE_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &mut self.phys_src_params[index];
+                let mut vals = params.mutes.clone();
+                elem_value.get_bool(&mut vals);
+                proto.write_mixer_phys_src_mutes(&unit.get_node(), params, index, &vals, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::PHYS_SRC_LINK_NAME => {
+                let index = elem_id.get_index() as usize;
+                let links = &mut self.phys_src_links[index];
+                let mut vals = links.clone();
+                elem_value.get_bool(&mut vals);
+                proto.write_mixer_phys_src_links(&unit.get_node(), &vals, index, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &mut self.stream_src_params[index];
+                let mut vals = vec![0;params.gains.len()];
+                elem_value.get_int(&mut vals);
+                let gains: Vec<u8> = vals.iter()
+                    .map(|&v| v as u8)
+                    .collect();
+                proto.write_mixer_stream_src_gains(&unit.get_node(), params, index, &gains, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STREAM_SRC_PAN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &mut self.stream_src_params[index];
+                let mut vals = vec![0;params.pans.len()];
+                elem_value.get_int(&mut vals);
+                let pans: Vec<u8> = vals.iter()
+                    .map(|&v| v as u8)
+                    .collect();
+                proto.write_mixer_stream_src_pans(&unit.get_node(), params, index, &pans, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STREAM_SRC_MUTE_NAME => {
+                let index = elem_id.get_index() as usize;
+                let params = &mut self.stream_src_params[index];
+                let mut vals = params.mutes.clone();
+                elem_value.get_bool(&mut vals);
+                proto.write_mixer_stream_src_mutes(&unit.get_node(), params, index, &vals, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STREAM_SRC_LINK_NAME => {
+                let index = elem_id.get_index() as usize;
+                let links = &mut self.stream_src_links[index];
+                let mut vals = links.clone();
+                elem_value.get_bool(&mut vals);
+                proto.write_mixer_stream_src_links(&unit.get_node(), &vals, index, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::OUT_VOL_NAME => {
+                let mut vals = vec![0;self.outs.vols.len()];
+                elem_value.get_int(&mut vals);
+                let vols: Vec<u8> = vals.iter()
+                    .map(|&v| v as u8)
+                    .collect();
+                proto.write_mixer_out_vol(&unit.get_node(), &mut self.outs, &vols, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::OUT_MUTE_NAME => {
+                let mut vals = self.outs.mutes.clone();
+                elem_value.get_bool(&mut vals);
+                proto.write_mixer_out_mute(&unit.get_node(), &mut self.outs, &vals, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::EXPANSION_MODE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let mode = Self::EXPANSION_MODES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(||{
+                        let msg = format!("Invalid value for index of expansion mode: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                proto.write_mixer_expansion_mode(&unit.get_node(), *mode, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
