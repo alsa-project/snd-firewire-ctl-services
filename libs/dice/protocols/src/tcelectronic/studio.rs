@@ -739,26 +739,166 @@ impl PhysOutPairSrc {
     }
 }
 
+/// The enumeration to represent the highest frequency to cross over into LFE channel.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum CrossOverFreq{
+    F50,
+    F80,
+    F95,
+    F110,
+    F115,
+    F120,
+    Reserved(u32),
+}
+
+impl Default for CrossOverFreq {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
+impl From<u32> for CrossOverFreq {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Self::F50,
+            1 => Self::F80,
+            2 => Self::F95,
+            3 => Self::F110,
+            4 => Self::F115,
+            5 => Self::F120,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<CrossOverFreq> for u32 {
+    fn from(freq: CrossOverFreq) -> u32 {
+        match freq {
+            CrossOverFreq::F50 => 0,
+            CrossOverFreq::F80 => 1,
+            CrossOverFreq::F95 => 2,
+            CrossOverFreq::F110 => 3,
+            CrossOverFreq::F115 => 4,
+            CrossOverFreq::F120 => 5,
+            CrossOverFreq::Reserved(val) => val,
+        }
+    }
+}
+
+/// The enumeration to represent the frequency above cross over frequency into main channel.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum HighPassFreq{
+    Off,
+    Above12,
+    Above24,
+    Reserved(u32),
+}
+
+impl Default for HighPassFreq {
+    fn default() -> Self {
+        HighPassFreq::Reserved(0xff)
+    }
+}
+
+impl From<u32> for HighPassFreq {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Self::Off,
+            1 => Self::Above12,
+            2 => Self::Above24,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<HighPassFreq> for u32 {
+    fn from(freq: HighPassFreq) -> Self {
+        match freq {
+            HighPassFreq::Off => 0,
+            HighPassFreq::Above12 => 1,
+            HighPassFreq::Above24 => 2,
+            HighPassFreq::Reserved(val) => val,
+        }
+    }
+}
+
+/// The enumeration to represent the frequency below cross over frequency into LFE channel.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum LowPassFreq {
+    Below12,
+    Below24,
+    Reserved(u32),
+}
+
+impl Default for LowPassFreq {
+    fn default() -> Self {
+        LowPassFreq::Reserved(0xff)
+    }
+}
+
+impl From<u32> for LowPassFreq {
+    fn from(val: u32) -> Self {
+        match val {
+            1 => Self::Below12,
+            2 => Self::Below24,
+            _ => Self::Reserved(val),
+        }
+    }
+}
+
+impl From<LowPassFreq> for u32 {
+    fn from(freq: LowPassFreq) -> Self {
+        match freq {
+            LowPassFreq::Below12 => 1,
+            LowPassFreq::Below24 => 2,
+            LowPassFreq::Reserved(val) => val,
+        }
+    }
+}
+
+/// The maximum number of surround channel of which a output group consists.
+pub const STUDIO_MAX_SURROUND_CHANNELS: usize = 8;
+
 /// The group to aggregate several outputs for surround channels.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct OutGroup{
     pub assigned_phys_outs: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     pub bass_management: bool,
+    pub sub_channel: Option<usize>,
+    pub main_cross_over_freq: CrossOverFreq,
+    pub main_level_to_sub: i32,
+    pub sub_level_to_sub: i32,
+    pub main_filter_for_main: HighPassFreq,
+    pub main_filter_for_sub: LowPassFreq,
 }
 
 impl OutGroup {
     const SIZE: usize = 36;
 
     fn build(&self, raw: &mut [u8]) {
+        // NOTE: when the value has bit flags more than 8, the ASIC to read the value is going to
+        // freeze. The corruption can be recovered to recall the other program state (P1/P2/P3) by
+        // the controller at standalone mode, then connect and factory reset by software.
         let mut val = 0u32;
         self.assigned_phys_outs.iter()
             .enumerate()
             .filter(|(_, &a)| a)
+            .take(STUDIO_MAX_SURROUND_CHANNELS)
             .for_each(|(i, _)| {
                 val |= 1 << i;
             });
         val.build_quadlet(&mut raw[..4]);
         self.bass_management.build_quadlet(&mut raw[4..8]);
+        val = match self.sub_channel{
+            Some(pos) => 1 << pos,
+            None => 0,
+        };
+        val.build_quadlet(&mut raw[12..16]);
+        self.main_cross_over_freq.build_quadlet(&mut raw[16..20]);
+        self.main_level_to_sub.build_quadlet(&mut raw[20..24]);
+        self.sub_level_to_sub.build_quadlet(&mut raw[24..28]);
+        self.main_filter_for_main.build_quadlet(&mut raw[28..32]);
+        self.main_filter_for_sub.build_quadlet(&mut raw[32..]);
     }
 
     fn parse(&mut self, raw: &[u8]) {
@@ -770,6 +910,16 @@ impl OutGroup {
                 *a = val & (1 << i) > 0;
             });
         self.bass_management.parse_quadlet(&raw[4..8]);
+        val.parse_quadlet(&raw[12..16]);
+        self.sub_channel =
+            (0..self.assigned_phys_outs.len())
+                .position(|i| val & (1 << i) > 0)
+                .map(|pos| pos as usize);
+        self.main_cross_over_freq.parse_quadlet(&raw[16..20]);
+        self.main_level_to_sub.parse_quadlet(&raw[20..24]);
+        self.sub_level_to_sub.parse_quadlet(&raw[24..28]);
+        self.main_filter_for_main.parse_quadlet(&raw[28..32]);
+        self.main_filter_for_sub.parse_quadlet(&raw[32..]);
     }
 }
 
@@ -784,6 +934,8 @@ pub const STUDIO_OUTPUT_GROUP_COUNT: usize = 3;
 pub struct StudioPhysOut{
     /// The configuration for master output
     pub master_out: OutPair,
+    /// The selected output group.
+    pub selected_out_grp: usize,
     /// The source for pairs of physical output. It includes below pairs in
     /// the order:
     /// - main out 1/2
@@ -813,6 +965,7 @@ impl TcKonnektSegmentData for StudioPhysOut {
                 let pos = 16 + i * PhysOutPairSrc::SIZE;
                 p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
             });
+        (self.selected_out_grp as u32).build_quadlet(&mut raw[12..16]);
         let mut val = 0u32;
         self.out_assign_to_grp.iter()
             .enumerate()
@@ -846,6 +999,8 @@ impl TcKonnektSegmentData for StudioPhysOut {
                 p.parse(&raw[pos..(pos + PhysOutPairSrc::SIZE)]);
             });
         let mut val = 0u32;
+        val.parse_quadlet(&raw[12..16]);
+        self.selected_out_grp = val as usize;
         val.parse_quadlet(&raw[324..328]);
         self.out_assign_to_grp.iter_mut()
             .enumerate()
