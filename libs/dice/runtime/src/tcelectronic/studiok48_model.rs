@@ -358,8 +358,8 @@ impl<'a> PhysOutCtl {
     const PHYS_OUT_STEREO_LINK_NAME: &'a str = "phys-out-stereo-link";
     const PHYS_OUT_SRC_NAME: &'a str = "phys-out-source";
     const PHYS_OUT_LEVEL_NAME: &'a str = "phys-out-level";
-    const PHYS_OUT_SPKR_TRIM_NAME: &'a str = "phys-out-speaker-trim";
-    const PHYS_OUT_SPKR_DELAY_NAME: &'a str = "phys-out-speaker-delay";
+    const OUT_GRP_SRC_TRIM_NAME: &'a str = "output-group-source-trim";
+    const OUT_GRP_SRC_DELAY_NAME: &'a str = "output-group-source-delay";
 
     const PHYS_OUT_SRCS: &'a [SrcEntry] = &[
         SrcEntry::Unused,
@@ -433,12 +433,12 @@ impl<'a> PhysOutCtl {
                                  None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_OUT_SPKR_TRIM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_TRIM_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::TRIM_MIN, Self::TRIM_MAX, Self::TRIM_STEP,
                                 STUDIO_PHYS_OUT_PAIR_COUNT * 2, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_OUT_SPKR_DELAY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_DELAY_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::DELAY_MIN, Self::DELAY_MAX, Self::DELAY_STEP,
                                 STUDIO_PHYS_OUT_PAIR_COUNT * 2, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
@@ -487,7 +487,7 @@ impl<'a> PhysOutCtl {
                  ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_PHYS_OUT_PAIR_COUNT, |idx| {
                     let val = if segments.phys_out.data.muted[idx] {
                         0
-                    } else if !segments.phys_out.data.spkr_assigns[idx] {
+                    } else if !segments.phys_out.data.out_grp_assigns[idx] {
                          1
                      } else {
                         2
@@ -496,12 +496,12 @@ impl<'a> PhysOutCtl {
                  })
                  .map(|_| true)
             }
-            Self::PHYS_OUT_SPKR_TRIM_NAME => {
+            Self::OUT_GRP_SRC_TRIM_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
                     Ok(param.vol)
                 })
             }
-            Self::PHYS_OUT_SPKR_DELAY_NAME => {
+            Self::OUT_GRP_SRC_DELAY_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
                     Ok(param.delay)
                 })
@@ -584,9 +584,9 @@ impl<'a> PhysOutCtl {
                     } else {
                         segments.phys_out.data.muted[idx] = false;
                         if val == 1 {
-                            segments.phys_out.data.spkr_assigns[idx] = false;
+                            segments.phys_out.data.out_grp_assigns[idx] = false;
                         } else {
-                            segments.phys_out.data.spkr_assigns[idx] = true;
+                            segments.phys_out.data.out_grp_assigns[idx] = true;
                         }
                     }
                     Ok(())
@@ -594,7 +594,7 @@ impl<'a> PhysOutCtl {
                 .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::PHYS_OUT_SPKR_TRIM_NAME => {
+            Self::OUT_GRP_SRC_TRIM_NAME => {
                 Self::write_out_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
                     param.vol = val;
                     Ok(())
@@ -602,7 +602,7 @@ impl<'a> PhysOutCtl {
                 .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::PHYS_OUT_SPKR_DELAY_NAME => {
+            Self::OUT_GRP_SRC_DELAY_NAME => {
                 Self::write_out_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
                     param.delay = val;
                     Ok(())

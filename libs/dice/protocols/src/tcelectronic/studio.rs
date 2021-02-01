@@ -739,14 +739,14 @@ impl PhysOutPairSrc {
     }
 }
 
-/// The virtual speaker to consists of several physical outputs.
+/// The group to aggregate several outputs for surround channels.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct VirtualSpeaker{
+pub struct OutGroup{
     pub phys_out_pair_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
     pub bass_management: bool,
 }
 
-impl VirtualSpeaker {
+impl OutGroup {
     const SIZE: usize = 36;
 
     fn build(&self, raw: &mut [u8]) {
@@ -776,8 +776,8 @@ impl VirtualSpeaker {
 /// The number of pairs of physical output.
 pub const STUDIO_PHYS_OUT_PAIR_COUNT: usize = 11;
 
-/// The number of speaker sets to consists of several physical outputs.
-pub const STUDIO_VIRTUAL_SPEAKER_COUNT: usize = 3;
+/// The number of groups to aggregate several outputs for surround channels.
+pub const STUDIO_OUTPUT_GROUP_COUNT: usize = 3;
 
 /// The structure to represent data of physical out segment.
 #[derive(Default, Debug)]
@@ -792,12 +792,12 @@ pub struct StudioPhysOut{
     /// - S/PDIF out 1/2,
     /// - ADAT out 1/2, 3/4, 5/6, 7/8,
     pub out_pair_srcs: [PhysOutPairSrc;STUDIO_PHYS_OUT_PAIR_COUNT],
-    /// The state of assignment to speakers.
-    pub spkr_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
+    /// The state of assignment to output group.
+    pub out_grp_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
     /// Whether to mute any source to the physical output.
     pub muted: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
-    /// The settings of each virtual speaker.
-    pub speakers: [VirtualSpeaker;STUDIO_VIRTUAL_SPEAKER_COUNT],
+    /// The settings of each group for surround channels.
+    pub out_grps: [OutGroup;STUDIO_OUTPUT_GROUP_COUNT],
 }
 
 impl StudioPhysOut {
@@ -814,7 +814,7 @@ impl TcKonnektSegmentData for StudioPhysOut {
                 p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
             });
         let mut val = 0u32;
-        self.spkr_assigns.iter()
+        self.out_grp_assigns.iter()
             .enumerate()
             .filter(|(_, &m)| m)
             .for_each(|(i, _)| {
@@ -829,11 +829,11 @@ impl TcKonnektSegmentData for StudioPhysOut {
                 val |= 1 << i;
             });
         val.build_quadlet(&mut raw[328..332]);
-        self.speakers.iter()
+        self.out_grps.iter()
             .enumerate()
             .for_each(|(i, s)| {
-                let pos = 332 + VirtualSpeaker::SIZE * i;
-                s.build(&mut raw[pos..(pos + VirtualSpeaker::SIZE)]);
+                let pos = 332 + OutGroup::SIZE * i;
+                s.build(&mut raw[pos..(pos + OutGroup::SIZE)]);
             });
     }
 
@@ -847,7 +847,7 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         let mut val = 0u32;
         val.parse_quadlet(&raw[324..328]);
-        self.spkr_assigns.iter_mut()
+        self.out_grp_assigns.iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
                 *m = val & (1 << i) > 0;
@@ -859,11 +859,11 @@ impl TcKonnektSegmentData for StudioPhysOut {
             .for_each(|(i, d)| {
                 *d = val & (1 << i) > 0;
             });
-        self.speakers.iter_mut()
+        self.out_grps.iter_mut()
             .enumerate()
             .for_each(|(i, s)| {
-                let pos = 332 + VirtualSpeaker::SIZE * i;
-                s.parse(&raw[pos..(pos + VirtualSpeaker::SIZE)]);
+                let pos = 332 + OutGroup::SIZE * i;
+                s.parse(&raw[pos..(pos + OutGroup::SIZE)]);
             });
     }
 }
