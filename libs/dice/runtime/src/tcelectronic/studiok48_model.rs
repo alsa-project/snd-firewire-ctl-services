@@ -355,9 +355,10 @@ impl<'a> PhysOutCtl {
     const MASTER_OUT_VOL_NAME: &'a str = "master-out-volume";
     const MASTER_OUT_DIM_VOL_NAME: &'a str = "master-out-dim-volume";
 
-    const PHYS_OUT_STEREO_LINK_NAME: &'a str = "phys-out-stereo-link";
-    const PHYS_OUT_SRC_NAME: &'a str = "phys-out-source";
-    const PHYS_OUT_LEVEL_NAME: &'a str = "phys-out-level";
+    const OUT_STEREO_LINK_NAME: &'a str = "output-stereo-link";
+    const OUT_MUTE_NAME: &'a str = "output-mute";
+    const OUT_SRC_NAME: &'a str = "output-source";
+    const OUT_GRP_SRC_ENABLE_NAME: &'a str = "output-group-source-enable";
     const OUT_GRP_SRC_TRIM_NAME: &'a str = "output-group-source-trim";
     const OUT_GRP_SRC_DELAY_NAME: &'a str = "output-group-source-delay";
 
@@ -386,12 +387,6 @@ impl<'a> PhysOutCtl {
     const VOL_STEP: i32 = 1;
     const VOL_TLV: DbInterval = DbInterval{min: -7200, max: 0, linear: false, mute_avail: false};
 
-    const PHYS_OUT_LEVEL_LABELS: &'a [&'a str] = &[
-        "Muted",
-        "Line",
-        "Speaker",
-    ];
-
     const TRIM_MIN: i32 = -20;
     const TRIM_MAX: i32 = 0;
     const TRIM_STEP: i32 = 1;
@@ -417,20 +412,23 @@ impl<'a> PhysOutCtl {
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         // For source of output pair.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_OUT_STEREO_LINK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_STEREO_LINK_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::PHYS_OUT_SRCS.iter()
             .map(|src| src_pair_entry_to_string(src))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_SRC_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_OUT_LEVEL_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, Self::PHYS_OUT_LEVEL_LABELS,
-                                 None, true)
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_ENABLE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_TRIM_NAME, 0);
@@ -468,13 +466,17 @@ impl<'a> PhysOutCtl {
                 })
                 .map(|_| true)
             }
-            Self::PHYS_OUT_STEREO_LINK_NAME => {
+            Self::OUT_STEREO_LINK_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, STUDIO_PHYS_OUT_PAIR_COUNT, |idx| {
                     Ok(segments.phys_out.data.out_pair_srcs[idx].stereo_link)
                 })
                 .map(|_| true)
             }
-            Self::PHYS_OUT_SRC_NAME => {
+            Self::OUT_MUTE_NAME => {
+                elem_value.set_bool(&segments.phys_out.data.out_mutes);
+                Ok(true)
+            }
+            Self::OUT_SRC_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
                      let pos = Self::PHYS_OUT_SRCS.iter()
                         .position(|s| s.eq(&param.src))
@@ -483,18 +485,9 @@ impl<'a> PhysOutCtl {
                  })
                 .map(|_| true)
             }
-            Self::PHYS_OUT_LEVEL_NAME => {
-                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_PHYS_OUT_PAIR_COUNT * 2, |idx| {
-                    let val = if segments.phys_out.data.muted[idx] {
-                        0
-                    } else if !segments.phys_out.data.out_grp_assigns[idx] {
-                         1
-                     } else {
-                        2
-                     };
-                     Ok(val)
-                 })
-                 .map(|_| true)
+            Self::OUT_GRP_SRC_ENABLE_NAME => {
+                elem_value.set_bool(&segments.phys_out.data.out_assign_to_grp);
+                Ok(true)
             }
             Self::OUT_GRP_SRC_TRIM_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
@@ -558,7 +551,7 @@ impl<'a> PhysOutCtl {
                 .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::PHYS_OUT_STEREO_LINK_NAME => {
+            Self::OUT_STEREO_LINK_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, STUDIO_PHYS_OUT_PAIR_COUNT, |idx, val| {
                     segments.phys_out.data.out_pair_srcs[idx].stereo_link = val;
                     Ok(())
@@ -566,7 +559,12 @@ impl<'a> PhysOutCtl {
                 .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::PHYS_OUT_SRC_NAME => {
+            Self::OUT_MUTE_NAME => {
+                new.get_bool(&mut segments.phys_out.data.out_mutes);
+                proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::OUT_SRC_NAME => {
                 Self::write_out_src_param(unit, proto, segments, new, old, timeout_ms, |param, val: u32| {
                      Self::PHYS_OUT_SRCS.iter()
                          .nth(val as usize)
@@ -577,22 +575,10 @@ impl<'a> PhysOutCtl {
                         .map(|&s| param.src = s)
                  })
             }
-            Self::PHYS_OUT_LEVEL_NAME => {
-                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_PHYS_OUT_PAIR_COUNT * 2, |idx, val| {
-                    if val == 0 {
-                        segments.phys_out.data.muted[idx] = true;
-                    } else {
-                        segments.phys_out.data.muted[idx] = false;
-                        if val == 1 {
-                            segments.phys_out.data.out_grp_assigns[idx] = false;
-                        } else {
-                            segments.phys_out.data.out_grp_assigns[idx] = true;
-                        }
-                    }
-                    Ok(())
-                })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
-                .map(|_| true)
+            Self::OUT_GRP_SRC_ENABLE_NAME => {
+                new.get_bool(&mut segments.phys_out.data.out_assign_to_grp);
+                proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms)
+                    .map(|_| true)
             }
             Self::OUT_GRP_SRC_TRIM_NAME => {
                 Self::write_out_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {

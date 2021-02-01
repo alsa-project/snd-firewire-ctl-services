@@ -793,9 +793,9 @@ pub struct StudioPhysOut{
     /// - ADAT out 1/2, 3/4, 5/6, 7/8,
     pub out_pair_srcs: [PhysOutPairSrc;STUDIO_PHYS_OUT_PAIR_COUNT],
     /// The state of assignment to output group.
-    pub out_grp_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
+    pub out_assign_to_grp: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     /// Whether to mute any source to the physical output.
-    pub muted: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
+    pub out_mutes: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     /// The settings of each group for surround channels.
     pub out_grps: [OutGroup;STUDIO_OUTPUT_GROUP_COUNT],
 }
@@ -814,7 +814,7 @@ impl TcKonnektSegmentData for StudioPhysOut {
                 p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
             });
         let mut val = 0u32;
-        self.out_grp_assigns.iter()
+        self.out_assign_to_grp.iter()
             .enumerate()
             .filter(|(_, &m)| m)
             .for_each(|(i, _)| {
@@ -822,7 +822,7 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         val.build_quadlet(&mut raw[324..328]);
         let mut val = 0u32;
-        self.muted.iter()
+        self.out_mutes.iter()
             .enumerate()
             .filter(|(_, &d)| d)
             .for_each(|(i, _)| {
@@ -847,14 +847,14 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         let mut val = 0u32;
         val.parse_quadlet(&raw[324..328]);
-        self.out_grp_assigns.iter_mut()
+        self.out_assign_to_grp.iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
                 *m = val & (1 << i) > 0;
             });
         let mut val = 0u32;
         val.parse_quadlet(&raw[328..332]);
-        self.muted.iter_mut()
+        self.out_mutes.iter_mut()
             .enumerate()
             .for_each(|(i, d)| {
                 *d = val & (1 << i) > 0;
