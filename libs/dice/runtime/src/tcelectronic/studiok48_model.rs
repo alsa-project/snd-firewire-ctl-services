@@ -347,6 +347,35 @@ fn src_pair_entry_to_string(entry: &SrcEntry) -> String {
     }
 }
 
+fn cross_over_freq_to_string(freq: &CrossOverFreq) -> String {
+    match freq {
+        CrossOverFreq::F50 => "50Hz".to_string(),
+        CrossOverFreq::F80 => "80Hz".to_string(),
+        CrossOverFreq::F95 => "95Hz".to_string(),
+        CrossOverFreq::F110 => "110Hz".to_string(),
+        CrossOverFreq::F115 => "115Hz".to_string(),
+        CrossOverFreq::F120 => "120Hz".to_string(),
+        CrossOverFreq::Reserved(val) => format!("Reserved({})", val),
+    }
+}
+
+fn high_pass_freq_to_string(freq: &HighPassFreq) -> String {
+    match freq {
+        HighPassFreq::Off => "Off".to_string(),
+        HighPassFreq::Above12 => "12HzAbove".to_string(),
+        HighPassFreq::Above24 => "24HzAbove".to_string(),
+        HighPassFreq::Reserved(val) => format!("Reserved({})", val),
+    }
+}
+
+fn low_pass_freq_to_string(freq: &LowPassFreq) -> String {
+    match freq {
+        LowPassFreq::Below12 => "12HzBelow".to_string(),
+        LowPassFreq::Below24 => "24HzBelow".to_string(),
+        LowPassFreq::Reserved(val) => format!("Reserved({})", val),
+    }
+}
+
 #[derive(Default, Debug)]
 struct PhysOutCtl(pub Vec<ElemId>);
 
@@ -358,9 +387,18 @@ impl<'a> PhysOutCtl {
     const OUT_STEREO_LINK_NAME: &'a str = "output-stereo-link";
     const OUT_MUTE_NAME: &'a str = "output-mute";
     const OUT_SRC_NAME: &'a str = "output-source";
-    const OUT_GRP_SRC_ENABLE_NAME: &'a str = "output-group-source-enable";
-    const OUT_GRP_SRC_TRIM_NAME: &'a str = "output-group-source-trim";
-    const OUT_GRP_SRC_DELAY_NAME: &'a str = "output-group-source-delay";
+
+    const OUT_GRP_SELECT_NAME: &'a str = "output-group:select";
+    const OUT_GRP_SRC_ENABLE_NAME: &'a str = "output-group:source-enable";
+    const OUT_GRP_SRC_TRIM_NAME: &'a str = "output-group:source-trim";
+    const OUT_GRP_SRC_DELAY_NAME: &'a str = "output-group:source-delay";
+    const OUT_GRP_SRC_ASSIGN_NAME: &'a str = "output-group:source-assign";
+    const OUT_GRP_BASS_MANAGEMENT_NAME: &'a str = "output-group:bass-management";
+    const OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME: &'a str = "output-group:main-cross-over-frequency";
+    const OUT_GRP_MAIN_LEVEL_TO_SUB_NAME: &'a str = "output-group:main-level-to-sub";
+    const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &'a str = "output-group:sub-level-to-sub";
+    const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &'a str = "output-group:main-filter-for-main";
+    const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &'a str = "output-group:main-filter-for-sub";
 
     const PHYS_OUT_SRCS: &'a [SrcEntry] = &[
         SrcEntry::Unused,
@@ -386,6 +424,28 @@ impl<'a> PhysOutCtl {
     const VOL_MAX: i32 = 0;
     const VOL_STEP: i32 = 1;
     const VOL_TLV: DbInterval = DbInterval{min: -7200, max: 0, linear: false, mute_avail: false};
+
+    const OUT_GRPS: [&'a str;3] = ["Group-A", "Group-B", "Group-C"];
+
+    const CROSS_OVER_FREQS: [CrossOverFreq;6] = [
+        CrossOverFreq::F50,
+        CrossOverFreq::F80,
+        CrossOverFreq::F95,
+        CrossOverFreq::F110,
+        CrossOverFreq::F115,
+        CrossOverFreq::F120,
+    ];
+
+    const HIGH_PASS_FREQS: [HighPassFreq;3] = [
+        HighPassFreq::Off,
+        HighPassFreq::Above12,
+        HighPassFreq::Above24,
+    ];
+
+    const LOW_PASS_FREQS: [LowPassFreq;2] = [
+        LowPassFreq::Below12,
+        LowPassFreq::Below24,
+    ];
 
     const TRIM_MIN: i32 = -20;
     const TRIM_MAX: i32 = 0;
@@ -427,18 +487,62 @@ impl<'a> PhysOutCtl {
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_ENABLE_NAME, 0);
+        // For output group.
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SELECT_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::OUT_GRPS, None, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_ENABLE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_TRIM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_TRIM_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::TRIM_MIN, Self::TRIM_MAX, Self::TRIM_STEP,
                                 STUDIO_PHYS_OUT_PAIR_COUNT * 2, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_GRP_SRC_DELAY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_DELAY_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::DELAY_MIN, Self::DELAY_MAX, Self::DELAY_STEP,
                                 STUDIO_PHYS_OUT_PAIR_COUNT * 2, None, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_ASSIGN_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, STUDIO_OUTPUT_GROUP_COUNT, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_BASS_MANAGEMENT_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = Self::CROSS_OVER_FREQS.iter()
+            .map(|src| cross_over_freq_to_string(src))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_LEVEL_TO_SUB_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
+                                STUDIO_OUTPUT_GROUP_COUNT, Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SUB_LEVEL_TO_SUB_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
+                                STUDIO_OUTPUT_GROUP_COUNT, Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = Self::HIGH_PASS_FREQS.iter()
+            .map(|src| high_pass_freq_to_string(src))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
+            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = Self::LOW_PASS_FREQS.iter()
+            .map(|src| low_pass_freq_to_string(src))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_FILTER_FOR_SUB_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         Ok(())
@@ -485,6 +589,10 @@ impl<'a> PhysOutCtl {
                  })
                 .map(|_| true)
             }
+            Self::OUT_GRP_SELECT_NAME => {
+                elem_value.set_enum(&[segments.phys_out.data.selected_out_grp as u32]);
+                Ok(true)
+            }
             Self::OUT_GRP_SRC_ENABLE_NAME => {
                 elem_value.set_bool(&segments.phys_out.data.out_assign_to_grp);
                 Ok(true)
@@ -498,6 +606,56 @@ impl<'a> PhysOutCtl {
                 Self::read_out_src_param(segments, elem_value, |param| {
                     Ok(param.delay)
                 })
+            }
+            Self::OUT_GRP_SRC_ASSIGN_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_bool(&segments.phys_out.data.out_grps[index].assigned_phys_outs);
+                Ok(true)
+            }
+            Self::OUT_GRP_BASS_MANAGEMENT_NAME => {
+                ElemValueAccessor::<bool>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
+                    Ok(segments.phys_out.data.out_grps[idx].bass_management)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
+                    let pos = Self::CROSS_OVER_FREQS.iter()
+                        .position(|freq| freq.eq(&segments.phys_out.data.out_grps[idx].main_cross_over_freq))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
+                    Ok(segments.phys_out.data.out_grps[idx].main_level_to_sub)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
+                    Ok(segments.phys_out.data.out_grps[idx].sub_level_to_sub)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
+                    let pos = Self::HIGH_PASS_FREQS.iter()
+                        .position(|freq| freq.eq(&segments.phys_out.data.out_grps[idx].main_filter_for_main))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
+                    let pos = Self::LOW_PASS_FREQS.iter()
+                        .position(|freq| freq.eq(&segments.phys_out.data.out_grps[idx].main_filter_for_sub))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -575,6 +733,13 @@ impl<'a> PhysOutCtl {
                         .map(|&s| param.src = s)
                  })
             }
+            Self::OUT_GRP_SELECT_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                segments.phys_out.data.selected_out_grp = vals[0] as usize;
+                proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms)
+                    .map(|_| true)
+            }
             Self::OUT_GRP_SRC_ENABLE_NAME => {
                 new.get_bool(&mut segments.phys_out.data.out_assign_to_grp);
                 proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms)
@@ -592,6 +757,84 @@ impl<'a> PhysOutCtl {
                 Self::write_out_src_param(unit, proto, segments, new, old, timeout_ms, |param, val| {
                     param.delay = val;
                     Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
+                .map(|_| true)
+            }
+            Self::OUT_GRP_SRC_ASSIGN_NAME => {
+                let mut vals = [false;STUDIO_PHYS_OUT_PAIR_COUNT * 2];
+                new.get_bool(&mut vals);
+                let count = vals.iter().filter(|&v| *v).count();
+                if count > STUDIO_MAX_SURROUND_CHANNELS {
+                    let msg = format!("Maximum {} channels are supported for surround channels, but {} given",
+                                      STUDIO_MAX_SURROUND_CHANNELS, count);
+                    Err(Error::new(FileError::Inval, &msg))
+                } else {
+                    let index = elem_id.get_index() as usize;
+                    segments.phys_out.data.out_grps[index].assigned_phys_outs.copy_from_slice(&vals);
+                    proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms)
+                        .map(|_| true)
+                }
+            }
+            Self::OUT_GRP_BASS_MANAGEMENT_NAME => {
+                ElemValueAccessor::<bool>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
+                    segments.phys_out.data.out_grps[idx].bass_management = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
+                ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
+                    Self::CROSS_OVER_FREQS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of cross over frequency: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&freq| segments.phys_out.data.out_grps[idx].main_cross_over_freq = freq)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
+                    segments.phys_out.data.out_grps[idx].main_level_to_sub = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
+                .map(|_| true)
+            }
+            Self::OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
+                    segments.phys_out.data.out_grps[idx].sub_level_to_sub = val;
+                    Ok(())
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
+                ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
+                    Self::HIGH_PASS_FREQS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of high pass frequency: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&freq| segments.phys_out.data.out_grps[idx].main_filter_for_main = freq)
+                })
+                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
+                .map(|_| true)
+            }
+            Self::OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
+                ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
+                    Self::LOW_PASS_FREQS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of low pass frequency: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&freq| segments.phys_out.data.out_grps[idx].main_filter_for_sub = freq)
                 })
                 .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
