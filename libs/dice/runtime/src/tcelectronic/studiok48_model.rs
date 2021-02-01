@@ -484,7 +484,7 @@ impl<'a> PhysOutCtl {
                 .map(|_| true)
             }
             Self::PHYS_OUT_LEVEL_NAME => {
-                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_PHYS_OUT_PAIR_COUNT, |idx| {
+                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_PHYS_OUT_PAIR_COUNT * 2, |idx| {
                     let val = if segments.phys_out.data.muted[idx] {
                         0
                     } else if !segments.phys_out.data.out_grp_assigns[idx] {
@@ -578,7 +578,7 @@ impl<'a> PhysOutCtl {
                  })
             }
             Self::PHYS_OUT_LEVEL_NAME => {
-                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_PHYS_OUT_PAIR_COUNT, |idx, val| {
+                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_PHYS_OUT_PAIR_COUNT * 2, |idx, val| {
                     if val == 0 {
                         segments.phys_out.data.muted[idx] = true;
                     } else {
