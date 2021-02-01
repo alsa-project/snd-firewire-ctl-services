@@ -742,7 +742,7 @@ impl PhysOutPairSrc {
 /// The group to aggregate several outputs for surround channels.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct OutGroup{
-    pub phys_out_pair_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
+    pub assigned_phys_outs: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     pub bass_management: bool,
 }
 
@@ -751,7 +751,7 @@ impl OutGroup {
 
     fn build(&self, raw: &mut [u8]) {
         let mut val = 0u32;
-        self.phys_out_pair_assigns.iter()
+        self.assigned_phys_outs.iter()
             .enumerate()
             .filter(|(_, &a)| a)
             .for_each(|(i, _)| {
@@ -764,7 +764,7 @@ impl OutGroup {
     fn parse(&mut self, raw: &[u8]) {
         let mut val = 0u32;
         val.parse_quadlet(&raw[..4]);
-        self.phys_out_pair_assigns.iter_mut()
+        self.assigned_phys_outs.iter_mut()
             .enumerate()
             .for_each(|(i, a)| {
                 *a = val & (1 << i) > 0;
@@ -793,9 +793,9 @@ pub struct StudioPhysOut{
     /// - ADAT out 1/2, 3/4, 5/6, 7/8,
     pub out_pair_srcs: [PhysOutPairSrc;STUDIO_PHYS_OUT_PAIR_COUNT],
     /// The state of assignment to output group.
-    pub out_grp_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
+    pub out_grp_assigns: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     /// Whether to mute any source to the physical output.
-    pub muted: [bool;STUDIO_PHYS_OUT_PAIR_COUNT],
+    pub muted: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     /// The settings of each group for surround channels.
     pub out_grps: [OutGroup;STUDIO_OUTPUT_GROUP_COUNT],
 }
