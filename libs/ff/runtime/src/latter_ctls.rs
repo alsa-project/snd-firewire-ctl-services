@@ -130,6 +130,8 @@ pub struct FfLatterDspCtl<V>
     input_ctl: FfLatterInputCtl,
     output_ctl: FfLatterOutputCtl,
     mixer_ctl: FfLatterMixerCtl,
+    input_ch_strip_ctl: FfLatterInputChStripCtl,
+    output_ch_strip_ctl: FfLatterOutputChStripCtl,
 }
 
 impl<'a, V> FfLatterDspCtl<V>
@@ -139,10 +141,14 @@ impl<'a, V> FfLatterDspCtl<V>
         -> Result<(), Error>
         where U: RmeFfLatterDspProtocol<FwNode, V> + RmeFfLatterInputProtocol<FwNode, V> +
                  RmeFfLatterOutputProtocol<FwNode, V> + RmeFfLatterMixerProtocol<FwNode, V> +
+                 RmeFfLatterChStripProtocol<FwNode, V, FfLatterInputChStripState> +
+                 RmeFfLatterChStripProtocol<FwNode, V, FfLatterOutputChStripState> +
     {
         self.input_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
         self.output_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
         self.mixer_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
+        self.input_ch_strip_ctl.load(unit, proto, &mut self.state.as_mut().input_ch_strip, timeout_ms, card_cntr)?;
+        self.output_ch_strip_ctl.load(unit, proto, &mut self.state.as_mut().output_ch_strip, timeout_ms, card_cntr)?;
         Ok(())
     }
 
@@ -152,6 +158,10 @@ impl<'a, V> FfLatterDspCtl<V>
         } else if self.output_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ch_strip_ctl.read(&self.state.as_ref().input_ch_strip, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ch_strip_ctl.read(&self.state.as_ref().output_ch_strip, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -163,12 +173,20 @@ impl<'a, V> FfLatterDspCtl<V>
         -> Result<bool, Error>
         where U: RmeFfLatterDspProtocol<FwNode, V> + RmeFfLatterInputProtocol<FwNode, V> +
                  RmeFfLatterOutputProtocol<FwNode, V> + RmeFfLatterMixerProtocol<FwNode, V> +
+                 RmeFfLatterChStripProtocol<FwNode, V, FfLatterInputChStripState> +
+                 RmeFfLatterChStripProtocol<FwNode, V, FfLatterOutputChStripState> +
     {
         if self.input_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else if self.output_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else if self.mixer_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.input_ch_strip_ctl.write(unit, proto, &mut self.state.as_mut().input_ch_strip,
+                                                elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.output_ch_strip_ctl.write(unit, proto, &mut self.state.as_mut().output_ch_strip,
+                                                 elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -683,4 +701,720 @@ impl<'a> FfLatterMixerCtl {
             _ => Ok(false),
         }
     }
+}
+
+fn hpf_roll_off_level_to_string(level: &FfLatterHpfRollOffLevel) -> String {
+    match level {
+        FfLatterHpfRollOffLevel::L6 => "6dB/octave",
+        FfLatterHpfRollOffLevel::L12 => "12dB/octave",
+        FfLatterHpfRollOffLevel::L18 => "18dB/octave",
+        FfLatterHpfRollOffLevel::L24 => "24dB/octave",
+    }.to_string()
+}
+
+fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
+    match eq_type {
+        FfLatterChStripEqType::Peak => "Peak",
+        FfLatterChStripEqType::Shelf => "Shelf",
+        FfLatterChStripEqType::LowPass => "Lowpass",
+    }.to_string()
+}
+
+trait RmeFfLatterChStripCtl<'a, T>
+    where T: AsMut<FfLatterChStripState> + AsRef<FfLatterChStripState>,
+{
+    const HPF_ACTIVATE_NAME: &'a str;
+    const HPF_CUT_OFF_NAME: &'a str;
+    const HPF_ROLL_OFF_NAME: &'a str;
+
+    const EQ_ACTIVATE_NAME: &'a str;
+    const EQ_LOW_TYPE_NAME: &'a str;
+    const EQ_LOW_GAIN_NAME: &'a str;
+    const EQ_LOW_FREQ_NAME: &'a str;
+    const EQ_LOW_QUALITY_NAME: &'a str;
+    const EQ_MIDDLE_GAIN_NAME: &'a str;
+    const EQ_MIDDLE_FREQ_NAME: &'a str;
+    const EQ_MIDDLE_QUALITY_NAME: &'a str;
+    const EQ_HIGH_TYPE_NAME: &'a str;
+    const EQ_HIGH_GAIN_NAME: &'a str;
+    const EQ_HIGH_FREQ_NAME: &'a str;
+    const EQ_HIGH_QUALITY_NAME: &'a str;
+
+    const DYN_ACTIVATE_NAME: &'a str;
+    const DYN_GAIN_NAME: &'a str;
+    const DYN_ATTACK_NAME: &'a str;
+    const DYN_RELEASE_NAME: &'a str;
+    const DYN_COMP_THRESHOLD_NAME: &'a str;
+    const DYN_COMP_RATIO_NAME: &'a str;
+    const DYN_EX_THRESHOLD_NAME: &'a str;
+    const DYN_EX_RATIO_NAME: &'a str;
+
+    const AUTOLEVEL_ACTIVATE_NAME: &'a str;
+    const AUTOLEVEL_MAX_GAIN_NAME: &'a str;
+    const AUTOLEVEL_HEAD_ROOM_NAME: &'a str;
+    const AUTOLEVEL_RISE_TIME_NAME: &'a str;
+
+    const HPF_ROLL_OFF_LEVELS: [FfLatterHpfRollOffLevel;4] = [
+        FfLatterHpfRollOffLevel::L6,
+        FfLatterHpfRollOffLevel::L12,
+        FfLatterHpfRollOffLevel::L18,
+        FfLatterHpfRollOffLevel::L24,
+    ];
+
+    const EQ_TYPES: [FfLatterChStripEqType;3] = [
+        FfLatterChStripEqType::Peak,
+        FfLatterChStripEqType::Shelf,
+        FfLatterChStripEqType::LowPass,
+    ];
+
+    fn load<U, V>(&mut self, unit: &SndUnit, proto: &U, state: &mut T, timeout_ms: u32,
+                  card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where U: RmeFfLatterChStripProtocol<FwNode, V, T>,
+              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+    {
+        proto.init_ch_strip(&unit.get_node(), state, timeout_ms)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ACTIVATE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().hpf.activates.len(), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_CUT_OFF_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 500, 1, state.as_ref().hpf.cut_offs.len(),
+                                        None, true)?;
+
+        let labels: Vec<String> = Self::HPF_ROLL_OFF_LEVELS.iter()
+            .map(|l| hpf_roll_off_level_to_string(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ROLL_OFF_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, state.as_ref().hpf.roll_offs.len(), &labels,
+                                         None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_ACTIVATE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().eq.activates.len(), true)?;
+
+        let labels: Vec<String> = Self::EQ_TYPES.iter()
+            .map(|t| eq_type_to_string(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_TYPE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, state.as_ref().eq.low_types.len(), &labels,
+                                         None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_TYPE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, state.as_ref().eq.high_types.len(), &labels,
+                                         None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, -20, 20, 1, state.as_ref().eq.low_gains.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, -20, 20, 1, state.as_ref().eq.middle_gains.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, -20, 20, 1, state.as_ref().eq.high_gains.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_FREQ_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 20000, 1, state.as_ref().eq.low_freqs.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_FREQ_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 20000, 1, state.as_ref().eq.middle_freqs.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_FREQ_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 20000, 1, state.as_ref().eq.high_freqs.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_QUALITY_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 7, 50, 1, state.as_ref().eq.low_qualities.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_QUALITY_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 7, 50, 1, state.as_ref().eq.middle_qualities.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_QUALITY_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 7, 50, 1, state.as_ref().eq.high_qualities.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ACTIVATE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().dynamics.activates.len(), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, -300, 300, 1,
+                                        state.as_ref().dynamics.gains.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ATTACK_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 200, 1,
+                                        state.as_ref().dynamics.attacks.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_RELEASE_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 100, 999, 1,
+                                        state.as_ref().dynamics.releases.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_THRESHOLD_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, -600, 0, 1,
+                                        state.as_ref().dynamics.compressor_thresholds.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_RATIO_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 10, 100, 1,
+                                        state.as_ref().dynamics.compressor_ratios.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_THRESHOLD_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, -990, -200, 1,
+                                        state.as_ref().dynamics.expander_thresholds.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_RATIO_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 10, 100, 1,
+                                        state.as_ref().dynamics.expander_ratios.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_ACTIVATE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().autolevel.activates.len(), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_MAX_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 180, 1, state.as_ref().autolevel.max_gains.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_HEAD_ROOM_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 30, 120, 1, state.as_ref().autolevel.headrooms.len(),
+                                        None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_RISE_TIME_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 99, 1, state.as_ref().autolevel.rise_times.len(),
+                                        None, true)?;
+        Ok(())
+    }
+
+    fn read(&mut self, state: &T, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        let n = elem_id.get_name();
+
+        if n == Self::HPF_ACTIVATE_NAME {
+           elem_value.set_bool(&state.as_ref().hpf.activates);
+           Ok(true)
+        } else if n == Self::HPF_CUT_OFF_NAME {
+            let vals: Vec<i32> = state.as_ref().hpf.cut_offs.iter()
+                .map(|&cut_off| cut_off as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::HPF_ROLL_OFF_NAME {
+            let vals: Vec<u32> = state.as_ref().hpf.roll_offs.iter()
+                .map(|roll_off| {
+                    let pos = Self::HPF_ROLL_OFF_LEVELS.iter()
+                        .position(|l| l.eq(roll_off))
+                        .unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
+        } else if n == Self::EQ_ACTIVATE_NAME {
+            elem_value.set_bool(&state.as_ref().eq.activates);
+            Ok(true)
+        } else if n == Self::EQ_LOW_TYPE_NAME {
+            let vals: Vec<u32> = state.as_ref().eq.low_types.iter()
+                .map(|eq_type| {
+                    let pos = Self::EQ_TYPES.iter()
+                        .position(|t| t.eq(eq_type))
+                        .unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_TYPE_NAME {
+            let vals: Vec<u32> = state.as_ref().eq.high_types.iter()
+                .map(|eq_type| {
+                    let pos = Self::EQ_TYPES.iter()
+                        .position(|t| t.eq(eq_type))
+                        .unwrap();
+                    pos as u32
+                })
+                .collect();
+            elem_value.set_enum(&vals);
+            Ok(true)
+        } else if n == Self::EQ_LOW_GAIN_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.low_gains.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_MIDDLE_GAIN_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.middle_gains.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_GAIN_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.high_gains.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_LOW_FREQ_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.low_freqs.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_MIDDLE_FREQ_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.middle_freqs.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_FREQ_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.high_freqs.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_LOW_QUALITY_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.low_qualities.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.middle_qualities.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::EQ_HIGH_QUALITY_NAME {
+            let vals: Vec<i32> = state.as_ref().eq.high_qualities.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_ACTIVATE_NAME {
+            elem_value.set_bool(&state.as_ref().dynamics.activates);
+            Ok(true)
+        } else if n == Self::DYN_GAIN_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.gains.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_ATTACK_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.attacks.iter()
+                .map(|&attack| attack as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_RELEASE_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.releases.iter()
+                .map(|&release| release as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_COMP_THRESHOLD_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.compressor_thresholds.iter()
+                .map(|&th| th as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_COMP_RATIO_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.compressor_ratios.iter()
+                .map(|&ratio| ratio as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_EX_THRESHOLD_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.expander_thresholds.iter()
+                .map(|&th| th as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::DYN_EX_RATIO_NAME {
+            let vals: Vec<i32> = state.as_ref().dynamics.expander_ratios.iter()
+                .map(|&ratio| ratio as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
+            let vals = state.as_ref().autolevel.activates.clone();
+            elem_value.set_bool(&vals);
+            Ok(true)
+        } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
+            let vals: Vec<i32> = state.as_ref().autolevel.max_gains.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
+            let vals: Vec<i32> = state.as_ref().autolevel.headrooms.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
+            let vals: Vec<i32> = state.as_ref().autolevel.rise_times.iter()
+                .map(|&gain| gain as i32)
+                .collect();
+            elem_value.set_int(&vals);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write<U, V>(&mut self, unit: &SndUnit, proto: &U, state: &mut T, elem_id: &ElemId,
+                   elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where U: RmeFfLatterChStripProtocol<FwNode, V, T>,
+              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+    {
+        let n = elem_id.get_name();
+
+        if n == Self::HPF_ACTIVATE_NAME {
+            let mut vals = state.as_ref().hpf.activates.clone();
+            elem_value.get_bool(&mut vals);
+            Self::update_hpf(unit, proto, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&vals)))
+                .map(|_| true)
+        } else if n == Self::HPF_CUT_OFF_NAME {
+            let mut vals = vec![0;state.as_ref().hpf.cut_offs.len()];
+            elem_value.get_int(&mut vals);
+            let cut_offs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_hpf(unit, proto, state, timeout_ms, |s| Ok(s.cut_offs.copy_from_slice(&cut_offs)))
+                .map(|_| true)
+        } else if n == Self::HPF_ROLL_OFF_NAME {
+            let mut vals = vec![0;state.as_ref().hpf.roll_offs.len()];
+            elem_value.get_enum(&mut vals);
+            let mut roll_offs = Vec::new();
+            vals.iter()
+                .try_for_each(|&pos| {
+                    Self::HPF_ROLL_OFF_LEVELS.iter()
+                        .nth(pos as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of roll off levels: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&l| roll_offs.push(l))
+                })?;
+            Self::update_hpf(unit, proto, state, timeout_ms, |s| Ok(s.roll_offs.copy_from_slice(&roll_offs)))
+                .map(|_| true)
+        } else if n == Self::EQ_ACTIVATE_NAME {
+            let mut activates = state.as_ref().eq.activates.clone();
+            elem_value.get_bool(&mut activates);
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&activates)))
+                .map(|_| true)
+        } else if n == Self::EQ_LOW_TYPE_NAME {
+            let mut vals = vec![0;state.as_ref().eq.low_types.len()];
+            elem_value.get_enum(&mut vals);
+            let mut eq_types = Vec::new();
+            vals.iter()
+                .try_for_each(|&pos| {
+                    Self::EQ_TYPES.iter()
+                        .nth(pos as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of equalizer types: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&t| eq_types.push(t))
+                })?;
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.low_types.copy_from_slice(&eq_types)))
+                .map(|_| true)
+        } else if n == Self::EQ_HIGH_TYPE_NAME {
+            let mut vals = vec![0;state.as_ref().eq.high_types.len()];
+            elem_value.get_enum(&mut vals);
+            let mut eq_types = Vec::new();
+            vals.iter()
+                .try_for_each(|&pos| {
+                    Self::EQ_TYPES.iter()
+                        .nth(pos as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of equalizer types: {}", pos);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&t| eq_types.push(t))
+                })?;
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.high_types.copy_from_slice(&eq_types)))
+                .map(|_| true)
+        } else if n == Self::EQ_LOW_GAIN_NAME {
+            let mut vals = vec![0;state.as_ref().eq.low_gains.len()];
+            elem_value.get_int(&mut vals);
+            let gains: Vec<i16> = vals.iter()
+                .map(|&val| val as i16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.low_gains.copy_from_slice(&gains)))
+                .map(|_| true)
+        } else if n == Self::EQ_MIDDLE_GAIN_NAME {
+            let mut vals = vec![0;state.as_ref().eq.middle_gains.len()];
+            elem_value.get_int(&mut vals);
+            let gains: Vec<i16> = vals.iter()
+                .map(|&val| val as i16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.middle_gains.copy_from_slice(&gains)))
+                .map(|_| true)
+        } else if n == Self::EQ_HIGH_GAIN_NAME {
+            let mut vals = vec![0;state.as_ref().eq.high_gains.len()];
+            elem_value.get_int(&mut vals);
+            let gains: Vec<i16> = vals.iter()
+                .map(|&val| val as i16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.high_gains.copy_from_slice(&gains)))
+                .map(|_| true)
+        } else if n == Self::EQ_LOW_FREQ_NAME {
+            let mut vals = vec![0;state.as_ref().eq.low_freqs.len()];
+            elem_value.get_int(&mut vals);
+            let freqs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.low_freqs.copy_from_slice(&freqs)))
+                .map(|_| true)
+        } else if n == Self::EQ_MIDDLE_FREQ_NAME {
+            let mut vals = vec![0;state.as_ref().eq.middle_freqs.len()];
+            elem_value.get_int(&mut vals);
+            let freqs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.middle_freqs.copy_from_slice(&freqs)))
+                .map(|_| true)
+        } else if n == Self::EQ_HIGH_FREQ_NAME {
+            let mut vals = vec![0;state.as_ref().eq.high_freqs.len()];
+            elem_value.get_int(&mut vals);
+            let freqs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.high_freqs.copy_from_slice(&freqs)))
+                .map(|_| true)
+        } else if n == Self::EQ_LOW_QUALITY_NAME {
+            let mut vals = vec![0;state.as_ref().eq.low_qualities.len()];
+            elem_value.get_int(&mut vals);
+            let freqs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.low_qualities.copy_from_slice(&freqs)))
+                .map(|_| true)
+        } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
+            let mut vals = vec![0;state.as_ref().eq.middle_qualities.len()];
+            elem_value.get_int(&mut vals);
+            let freqs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.middle_qualities.copy_from_slice(&freqs)))
+                .map(|_| true)
+        } else if n == Self::EQ_HIGH_QUALITY_NAME {
+            let mut vals = vec![0;state.as_ref().eq.high_qualities.len()];
+            elem_value.get_int(&mut vals);
+            let freqs: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_eq(unit, proto, state, timeout_ms, |s| Ok(s.high_qualities.copy_from_slice(&freqs)))
+                .map(|_| true)
+        } else if n == Self::DYN_ACTIVATE_NAME {
+            let mut activates = state.as_ref().dynamics.activates.clone();
+            elem_value.get_bool(&mut activates);
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&activates)))
+                .map(|_| true)
+        } else if n == Self::DYN_GAIN_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.gains.len()];
+            elem_value.get_int(&mut vals);
+            let gains: Vec<i16> = vals.iter()
+                .map(|&val| val as i16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.gains.copy_from_slice(&gains)))
+                .map(|_| true)
+        } else if n == Self::DYN_ATTACK_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.attacks.len()];
+            elem_value.get_int(&mut vals);
+            let attacks: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.attacks.copy_from_slice(&attacks)))
+                .map(|_| true)
+        } else if n == Self::DYN_RELEASE_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.releases.len()];
+            elem_value.get_int(&mut vals);
+            let release: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.releases.copy_from_slice(&release)))
+                .map(|_| true)
+        } else if n == Self::DYN_COMP_THRESHOLD_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.compressor_thresholds.len()];
+            elem_value.get_int(&mut vals);
+            let ths: Vec<i16> = vals.iter()
+                .map(|&val| val as i16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.compressor_thresholds.copy_from_slice(&ths)))
+                .map(|_| true)
+        } else if n == Self::DYN_COMP_RATIO_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.compressor_ratios.len()];
+            elem_value.get_int(&mut vals);
+            let ratios: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.compressor_ratios.copy_from_slice(&ratios)))
+                .map(|_| true)
+        } else if n == Self::DYN_EX_THRESHOLD_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.expander_thresholds.len()];
+            elem_value.get_int(&mut vals);
+            let ths: Vec<i16> = vals.iter()
+                .map(|&val| val as i16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.expander_thresholds.copy_from_slice(&ths)))
+                .map(|_| true)
+        } else if n == Self::DYN_EX_RATIO_NAME {
+            let mut vals = vec![0;state.as_ref().dynamics.compressor_ratios.len()];
+            elem_value.get_int(&mut vals);
+            let ratios: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_dynamics(unit, proto, state, timeout_ms, |s| Ok(s.expander_ratios.copy_from_slice(&ratios)))
+                .map(|_| true)
+        } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
+            let mut activates = state.as_ref().autolevel.activates.clone();
+            elem_value.get_bool(&mut activates);
+            Self::update_autolevel(unit, proto, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&activates)))
+                .map(|_| true)
+        } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
+            let mut vals = vec![0;state.as_ref().autolevel.max_gains.len()];
+            elem_value.get_int(&mut vals);
+            let gains: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_autolevel(unit, proto, state, timeout_ms, |s| Ok(s.max_gains.copy_from_slice(&gains)))
+                .map(|_| true)
+        } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
+            let mut vals = vec![0;state.as_ref().autolevel.headrooms.len()];
+            elem_value.get_int(&mut vals);
+            let rooms: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_autolevel(unit, proto, state, timeout_ms, |s| Ok(s.headrooms.copy_from_slice(&rooms)))
+                .map(|_| true)
+        } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
+            let mut vals = vec![0;state.as_ref().autolevel.rise_times.len()];
+            elem_value.get_int(&mut vals);
+            let times: Vec<u16> = vals.iter()
+                .map(|&val| val as u16)
+                .collect();
+            Self::update_autolevel(unit, proto, state, timeout_ms, |s| Ok(s.rise_times.copy_from_slice(&times)))
+                .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn update_hpf<U, V, F>(unit: &SndUnit, proto: &U, state: &mut T, timeout_ms: u32, cb: F)
+        -> Result<(), Error>
+        where U: RmeFfLatterChStripProtocol<FwNode, V, T>,
+              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+              F: Fn(&mut FfLatterHpfState) -> Result<(), Error>,
+    {
+        let mut s = state.as_ref().hpf.clone();
+        cb(&mut s)?;
+        proto.write_ch_strip_hpf(&unit.get_node(), state, s, timeout_ms)
+    }
+
+    fn update_eq<U, V, F>(unit: &SndUnit, proto: &U, state: &mut T, timeout_ms: u32, cb: F)
+        -> Result<(), Error>
+        where U: RmeFfLatterChStripProtocol<FwNode, V, T>,
+              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+              F: Fn(&mut FfLatterEqState) -> Result<(), Error>,
+    {
+        let mut s = state.as_ref().eq.clone();
+        cb(&mut s)?;
+        proto.write_ch_strip_eq(&unit.get_node(), state, s, timeout_ms)
+    }
+
+    fn update_dynamics<U, V, F>(unit: &SndUnit, proto: &U, state: &mut T, timeout_ms: u32, cb: F)
+        -> Result<(), Error>
+        where U: RmeFfLatterChStripProtocol<FwNode, V, T>,
+              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+              F: Fn(&mut FfLatterDynState) -> Result<(), Error>,
+    {
+        let mut s = state.as_ref().dynamics.clone();
+        cb(&mut s)?;
+        proto.write_ch_strip_dynamics(&unit.get_node(), state, s, timeout_ms)
+    }
+
+    fn update_autolevel<U, V, F>(unit: &SndUnit, proto: &U, state: &mut T, timeout_ms: u32, cb: F)
+        -> Result<(), Error>
+        where U: RmeFfLatterChStripProtocol<FwNode, V, T>,
+              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+              F: Fn(&mut FfLatterAutolevelState) -> Result<(), Error>,
+    {
+        let mut s = state.as_ref().autolevel.clone();
+        cb(&mut s)?;
+        proto.write_ch_strip_autolevel(&unit.get_node(), state, s, timeout_ms)
+    }
+}
+
+#[derive(Default, Debug)]
+struct FfLatterInputChStripCtl;
+
+impl<'a> RmeFfLatterChStripCtl<'a, FfLatterInputChStripState> for FfLatterInputChStripCtl {
+    const HPF_ACTIVATE_NAME: &'a str = "input:hpf-activate";
+    const HPF_CUT_OFF_NAME: &'a str = "input:hpf-cut-off";
+    const HPF_ROLL_OFF_NAME: &'a str = "input:hpf-roll-off";
+
+    const EQ_ACTIVATE_NAME: &'a str = "input:eq-activate";
+    const EQ_LOW_TYPE_NAME: &'a str = "input:eq-low-type";
+    const EQ_LOW_GAIN_NAME: &'a str = "input:eq-low-gain";
+    const EQ_LOW_FREQ_NAME: &'a str = "input:eq-low-freq";
+    const EQ_LOW_QUALITY_NAME: &'a str = "input:eq-low-quality";
+    const EQ_MIDDLE_GAIN_NAME: &'a str = "input:eq-middle-gain";
+    const EQ_MIDDLE_FREQ_NAME: &'a str = "input:eq-middle-freq";
+    const EQ_MIDDLE_QUALITY_NAME: &'a str = "input:eq-middle-quality";
+    const EQ_HIGH_TYPE_NAME: &'a str = "input:eq-high-type";
+    const EQ_HIGH_GAIN_NAME: &'a str = "input:eq-high-gain";
+    const EQ_HIGH_FREQ_NAME: &'a str = "input:eq-high-freq";
+    const EQ_HIGH_QUALITY_NAME: &'a str = "input:eq-high-quality";
+
+    const DYN_ACTIVATE_NAME: &'a str = "input:dyn-activate";
+    const DYN_GAIN_NAME: &'a str = "input:dyn-gain";
+    const DYN_ATTACK_NAME: &'a str = "input:dyn-attack";
+    const DYN_RELEASE_NAME: &'a str = "input:dyn-release";
+    const DYN_COMP_THRESHOLD_NAME: &'a str = "input:dyn-compressor-threshold";
+    const DYN_COMP_RATIO_NAME: &'a str = "input:dyn-compressor-ratio";
+    const DYN_EX_THRESHOLD_NAME: &'a str = "input:dyn-expander-threshold";
+    const DYN_EX_RATIO_NAME: &'a str =  "input:dyn-expander-ratio";
+
+    const AUTOLEVEL_ACTIVATE_NAME: &'a str = "input:autolevel-activate";
+    const AUTOLEVEL_MAX_GAIN_NAME: &'a str = "input:autolevel-max-gain";
+    const AUTOLEVEL_HEAD_ROOM_NAME: &'a str = "input:autolevel-head-room";
+    const AUTOLEVEL_RISE_TIME_NAME: &'a str = "input:autolevel-rise-time";
+}
+
+#[derive(Default, Debug)]
+struct FfLatterOutputChStripCtl;
+
+impl<'a> RmeFfLatterChStripCtl<'a, FfLatterOutputChStripState> for FfLatterOutputChStripCtl {
+    const HPF_ACTIVATE_NAME: &'a str = "output:hpf-activate";
+    const HPF_CUT_OFF_NAME: &'a str = "output:hpf-cut-off";
+    const HPF_ROLL_OFF_NAME: &'a str = "output:hpf-roll-off";
+
+    const EQ_ACTIVATE_NAME: &'a str = "output:eq-activate";
+    const EQ_LOW_TYPE_NAME: &'a str = "output:eq-low-type";
+    const EQ_LOW_GAIN_NAME: &'a str = "output:eq-low-gain";
+    const EQ_LOW_FREQ_NAME: &'a str = "output:eq-low-freq";
+    const EQ_LOW_QUALITY_NAME: &'a str = "output:eq-low-quality";
+    const EQ_MIDDLE_GAIN_NAME: &'a str = "output:eq-middle-gain";
+    const EQ_MIDDLE_FREQ_NAME: &'a str = "output:eq-middle-freq";
+    const EQ_MIDDLE_QUALITY_NAME: &'a str = "output:eq-middle-quality";
+    const EQ_HIGH_TYPE_NAME: &'a str = "output:eq-high-type";
+    const EQ_HIGH_GAIN_NAME: &'a str = "output:eq-high-gain";
+    const EQ_HIGH_FREQ_NAME: &'a str = "output:eq-high-freq";
+    const EQ_HIGH_QUALITY_NAME: &'a str = "output:eq-high-quality";
+
+    const DYN_ACTIVATE_NAME: &'a str = "output:dyn-activate";
+    const DYN_GAIN_NAME: &'a str = "output:dyn-gain";
+    const DYN_ATTACK_NAME: &'a str = "output:dyn-attack";
+    const DYN_RELEASE_NAME: &'a str = "output:dyn-release";
+    const DYN_COMP_THRESHOLD_NAME: &'a str = "output:dyn-compressor-threshold";
+    const DYN_COMP_RATIO_NAME: &'a str = "output:dyn-compressor-ratio";
+    const DYN_EX_THRESHOLD_NAME: &'a str = "output:dyn-expander-threshold";
+    const DYN_EX_RATIO_NAME: &'a str =  "output:dyn-expander-ratio";
+
+    const AUTOLEVEL_ACTIVATE_NAME: &'a str = "output:autolevel-activate";
+    const AUTOLEVEL_MAX_GAIN_NAME: &'a str = "output:autolevel-max-gain";
+    const AUTOLEVEL_HEAD_ROOM_NAME: &'a str = "output:autolevel-head-room";
+    const AUTOLEVEL_RISE_TIME_NAME: &'a str = "output:autolevel-rise-time";
 }
