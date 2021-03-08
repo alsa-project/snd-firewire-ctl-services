@@ -3,7 +3,9 @@
 
 //! Protocol defined by RME GmbH for Fireface 400.
 
-use hinawa::FwReq;
+use glib::Error;
+
+use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
 
 use super::*;
 
@@ -18,6 +20,7 @@ impl AsRef<FwReq> for Ff400Protocol {
 }
 
 const METER_OFFSET: usize       = 0x000080100000;
+const AMP_OFFSET: usize         = 0x0000801c0180;
 
 const ANALOG_INPUT_COUNT: usize = 8;
 const SPDIF_INPUT_COUNT: usize = 2;
@@ -67,3 +70,16 @@ impl<T, O> RmeFfFormerMeterProtocol<T, Ff400MeterState> for O
 {
     const METER_OFFSET: usize = METER_OFFSET;
 }
+
+/// The trait to represent amplifier protocol of Fireface 400.
+pub trait RmeFf400AmpProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
+    fn write_amp_cmd(&self, node: &T, ch: u8, level: i8, timeout_ms: u32) -> Result<(), Error> {
+        let cmd = ((ch as u32) << 16) | ((level as u32) & 0xff);
+        let mut raw = [0;4];
+        raw.copy_from_slice(&cmd.to_le_bytes());
+        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteQuadletRequest,
+                                       AMP_OFFSET as u64, raw.len(), &mut raw, timeout_ms)
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFf400AmpProtocol<T> for Ff400Protocol {}
