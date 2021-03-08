@@ -296,6 +296,7 @@ pub struct FfLatterDspState{
     pub output: FfLatterOutputState,
     pub mixer: Vec<FfLatterMixerState>,
     pub input_ch_strip: FfLatterInputChStripState,
+    pub output_ch_strip: FfLatterOutputChStripState,
 }
 
 /// The trait to represent specification of input and output of DSP.
@@ -379,6 +380,43 @@ pub trait RmeFfLatterDspSpec {
                     max_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
                     headrooms: vec![Default::default();Self::PHYS_INPUT_COUNT],
                     rise_times: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                },
+            }),
+            output_ch_strip: FfLatterOutputChStripState(FfLatterChStripState{
+                hpf: FfLatterHpfState{
+                    activates: vec![Default::default();Self::OUTPUT_COUNT],
+                    cut_offs: vec![Default::default();Self::OUTPUT_COUNT],
+                    roll_offs: vec![Default::default();Self::OUTPUT_COUNT],
+                },
+                eq: FfLatterEqState{
+                    activates: vec![Default::default();Self::OUTPUT_COUNT],
+                    low_types: vec![Default::default();Self::OUTPUT_COUNT],
+                    low_gains: vec![Default::default();Self::OUTPUT_COUNT],
+                    low_freqs: vec![Default::default();Self::OUTPUT_COUNT],
+                    low_qualities: vec![Default::default();Self::OUTPUT_COUNT],
+                    middle_gains: vec![Default::default();Self::OUTPUT_COUNT],
+                    middle_freqs: vec![Default::default();Self::OUTPUT_COUNT],
+                    middle_qualities: vec![Default::default();Self::OUTPUT_COUNT],
+                    high_types: vec![Default::default();Self::OUTPUT_COUNT],
+                    high_gains: vec![Default::default();Self::OUTPUT_COUNT],
+                    high_freqs: vec![Default::default();Self::OUTPUT_COUNT],
+                    high_qualities: vec![Default::default();Self::OUTPUT_COUNT],
+                },
+                dynamics: FfLatterDynState{
+                    activates: vec![Default::default();Self::OUTPUT_COUNT],
+                    gains: vec![Default::default();Self::OUTPUT_COUNT],
+                    attacks: vec![Default::default();Self::OUTPUT_COUNT],
+                    releases: vec![Default::default();Self::OUTPUT_COUNT],
+                    compressor_thresholds: vec![Default::default();Self::OUTPUT_COUNT],
+                    compressor_ratios: vec![Default::default();Self::OUTPUT_COUNT],
+                    expander_thresholds: vec![Default::default();Self::OUTPUT_COUNT],
+                    expander_ratios: vec![Default::default();Self::OUTPUT_COUNT],
+                },
+                autolevel: FfLatterAutolevelState{
+                    activates: vec![Default::default();Self::OUTPUT_COUNT],
+                    max_gains: vec![Default::default();Self::OUTPUT_COUNT],
+                    headrooms: vec![Default::default();Self::OUTPUT_COUNT],
+                    rise_times: vec![Default::default();Self::OUTPUT_COUNT],
                 },
             }),
         }
@@ -1081,4 +1119,29 @@ impl<T, U, O> RmeFfLatterChStripProtocol<T, U, FfLatterInputChStripState> for O
           O: RmeFfLatterDspProtocol<T, U>,
 {
     const CH_OFFSET: u8 = 0x00;
+}
+
+/// The structure to represent state of output channel strip effect.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
+
+impl AsMut<FfLatterChStripState> for FfLatterOutputChStripState {
+    fn as_mut(&mut self) -> &mut FfLatterChStripState {
+        &mut self.0
+    }
+}
+
+impl AsRef<FfLatterChStripState> for FfLatterOutputChStripState {
+    fn as_ref(&self) -> &FfLatterChStripState {
+        &self.0
+    }
+}
+
+impl<T, U, O> RmeFfLatterChStripProtocol<T, U, FfLatterOutputChStripState> for O
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+          O: RmeFfLatterDspProtocol<T, U>,
+{
+    const CH_OFFSET: u8 =
+        (U::LINE_INPUT_COUNT + U::MIC_INPUT_COUNT + U::SPDIF_INPUT_COUNT + U::ADAT_INPUT_COUNT) as u8;
 }
