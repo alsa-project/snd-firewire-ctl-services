@@ -6,6 +6,8 @@
 //! The crate includes various kind of protocols defined by RME GmbH for models of its Fireface
 //! series. The protocols are categorized by two generations; i.e. former and latter.
 
+pub mod former;
+
 use ieee1212_config_rom::{*, entry::*};
 
 const RME_OUI: u32 = 0x00000a35;
