@@ -4,6 +4,8 @@ mod model;
 
 mod ff800_model;
 
+mod former_ctls;
+
 use glib::Error;
 use glib::source;
 
