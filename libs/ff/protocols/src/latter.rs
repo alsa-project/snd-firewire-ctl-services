@@ -291,7 +291,9 @@ pub trait RmeFfLatterMeterProtocol<T, U> : AsRef<FwReq>
 
 /// The structure to represent state of send effects (reverb and echo).
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterDspState;
+pub struct FfLatterDspState{
+    pub input: FfLatterInputState,
+}
 
 /// The trait to represent specification of input and output of DSP.
 pub trait RmeFfLatterDspSpec {
@@ -316,7 +318,16 @@ pub trait RmeFfLatterDspSpec {
     const MIXER_STEP: u16 = Self::STREAM_OFFSET * 2;
 
     fn create_dsp_state() -> FfLatterDspState {
-        FfLatterDspState{}
+        FfLatterDspState{
+            input: FfLatterInputState{
+                stereo_links: vec![Default::default();Self::PHYS_INPUT_COUNT / 2],
+                invert_phases: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                line_gains: vec![Default::default();Self::LINE_INPUT_COUNT],
+                line_levels: vec![Default::default();Self::LINE_INPUT_COUNT],
+                mic_powers: vec![Default::default();Self::MIC_INPUT_COUNT],
+                mic_insts: vec![Default::default();Self::MIC_INPUT_COUNT],
+            },
+        }
     }
 }
 
@@ -357,3 +368,134 @@ pub trait RmeFfLatterDspProtocol<T, U> : AsRef<FwReq>
             .try_for_each(|(&cmd, _)| self.write_dsp_cmd(node, cmd, timeout_ms))
     }
 }
+
+const INPUT_STEREO_LINK_CMD: u8         = 0x02;
+const INPUT_INVERT_PHASE_CMD: u8        = 0x06;
+const INPUT_LINE_GAIN_CMD: u8           = 0x07;
+const INPUT_LINE_LEVEL_CMD: u8          = 0x08;
+const INPUT_MIC_POWER_CMD: u8           = 0x08;
+const INPUT_MIC_INST_CMD: u8            = 0x09;
+
+/// The structure to represent nominal level of analog input.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum LatterInNominalLevel {
+    Low,
+    /// +4 dBu.
+    Professional,
+}
+
+impl Default for LatterInNominalLevel {
+    fn default() -> Self {
+        Self::Low
+    }
+}
+
+impl From<LatterInNominalLevel> for i16 {
+    fn from(level: LatterInNominalLevel) -> Self {
+        match level {
+            LatterInNominalLevel::Low => 0x0000,
+            LatterInNominalLevel::Professional => 0x0001,
+        }
+    }
+}
+
+/// The structure to represent state of inputs.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterInputState{
+    /// Whether to link each pair of left and right ports.
+    pub stereo_links: Vec<bool>,
+    /// Whether to inverse the phase of analog, spdif, and adat inputs.
+    pub invert_phases: Vec<bool>,
+    /// The gain of analog line input. The value is between 0 and 120 to represent 0.00 dB and 12.00 dB.
+    pub line_gains: Vec<i16>,
+    /// The nominal level of analog line input.
+    pub line_levels: Vec<LatterInNominalLevel>,
+    /// Whether to enable powering for mic input.
+    pub mic_powers: Vec<bool>,
+    /// Whether to use mic input for instrument.
+    pub mic_insts: Vec<bool>,
+
+}
+
+fn input_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterInputState) -> Vec<u32> {
+    assert_eq!(state.stereo_links.len(), T::PHYS_INPUT_COUNT / 2);
+    assert_eq!(state.invert_phases.len(), T::PHYS_INPUT_COUNT);
+    assert_eq!(state.line_gains.len(), T::LINE_INPUT_COUNT);
+    assert_eq!(state.line_levels.len(), T::LINE_INPUT_COUNT);
+    assert_eq!(state.mic_powers.len(), T::MIC_INPUT_COUNT);
+    assert_eq!(state.mic_insts.len(), T::MIC_INPUT_COUNT);
+
+    let mut cmds = Vec::new();
+
+    state.stereo_links.iter()
+        .enumerate()
+        .for_each(|(i, &link)| {
+            let ch = (i * 2) as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_STEREO_LINK_CMD, link as i16));
+        });
+
+    state.invert_phases.iter()
+        .enumerate()
+        .for_each(|(i, &invert_phase)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_INVERT_PHASE_CMD, invert_phase as i16));
+        });
+
+    state.line_gains.iter()
+        .enumerate()
+        .for_each(|(i, &gain)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
+        });
+
+    state.line_levels.iter()
+        .enumerate()
+        .for_each(|(i, &level)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
+        });
+
+    state.mic_powers.iter()
+        .enumerate()
+        .for_each(|(i, &power)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, power as i16));
+        });
+
+    state.mic_insts.iter()
+        .enumerate()
+        .for_each(|(i, &inst)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch as u8, INPUT_MIC_INST_CMD, inst as i16));
+        });
+
+    cmds
+}
+
+/// The trait to represent input protocol.
+pub trait RmeFfLatterInputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    fn init_input(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+        let cmds = input_state_to_cmds::<U>(&state.as_ref().input);
+        cmds.iter()
+            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+    }
+
+    fn write_input(&self, node: &T, state: &mut U, input: FfLatterInputState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = input_state_to_cmds::<U>(&state.as_ref().input);
+        let new = input_state_to_cmds::<U>(&input);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().input = input)
+    }
+}
+
+impl<T, U, O> RmeFfLatterInputProtocol<T, U> for O
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspProtocol<T, U>,
+{}
