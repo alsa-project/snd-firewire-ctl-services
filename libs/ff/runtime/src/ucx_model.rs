@@ -13,11 +13,14 @@ use ff_protocols::{*, latter::{*, ucx::*}};
 
 use super::model::*;
 
+use super::latter_ctls::*;
+
 #[derive(Default, Debug)]
 pub struct UcxModel{
     proto: FfUcxProtocol,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
+    meter_ctl: FfLatterMeterCtl<FfUcxMeterState>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -26,13 +29,18 @@ impl CtlModel<SndUnit> for UcxModel {
     fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.cfg_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
+        self.meter_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         Ok(())
     }
 
     fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.cfg_ctl.read(elem_id, elem_value)
+        if self.cfg_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
@@ -45,17 +53,25 @@ impl CtlModel<SndUnit> for UcxModel {
 impl MeasureModel<SndUnit> for UcxModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
+        self.meter_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
         self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
         Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.status_ctl.read_measured_elem(elem_id, elem_value)
+        if self.status_ctl.read_measured_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read_measured_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
