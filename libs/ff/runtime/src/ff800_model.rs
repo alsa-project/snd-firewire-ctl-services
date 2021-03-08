@@ -13,11 +13,14 @@ use super::model::*;
 
 use ff_protocols::{*, former::{*, ff800::*}};
 
+use super::former_ctls::*;
+
 #[derive(Default, Debug)]
 pub struct Ff800Model{
     proto: Ff800Protocol,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
+    out_ctl: FormerOutCtl<Ff800OutputVolumeState>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -26,6 +29,7 @@ impl CtlModel<SndUnit> for Ff800Model {
     fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
+        self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -33,13 +37,25 @@ impl CtlModel<SndUnit> for Ff800Model {
     fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.cfg_ctl.read(elem_id, elem_value)
+        if self.cfg_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)
+        if self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
