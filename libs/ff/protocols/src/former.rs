@@ -125,3 +125,121 @@ pub trait RmeFormerOutputProtocol<T, U> : AsRef<FwReq>
             })
     }
 }
+
+/// The structure to represent source of mixer specific to former models of RME Fireface.
+///
+/// The value is between 0x00000000 and 0x00010000 through 0x00008000 to represent -90.30 and 6.02 dB
+/// through 0x00008000.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FormerMixerSrc {
+    pub analog_gains: Vec<i32>,
+    pub spdif_gains: Vec<i32>,
+    pub adat_gains: Vec<i32>,
+    pub stream_gains: Vec<i32>,
+}
+
+/// The trait to represent specification of mixers specific to former models of RME Fireface.
+pub trait RmeFormerMixerSpec : AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]> {
+    const ANALOG_INPUT_COUNT: usize;
+    const SPDIF_INPUT_COUNT: usize;
+    const ADAT_INPUT_COUNT: usize;
+    const STREAM_INPUT_COUNT: usize;
+
+    const ANALOG_OUTPUT_COUNT: usize;
+    const SPDIF_OUTPUT_COUNT: usize;
+    const ADAT_OUTPUT_COUNT: usize;
+
+    fn create_mixer_state() -> Vec<FormerMixerSrc> {
+        let dst_count = Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
+        vec![FormerMixerSrc{
+            analog_gains: vec![0;Self::ANALOG_INPUT_COUNT],
+            spdif_gains: vec![0;Self::SPDIF_INPUT_COUNT],
+            adat_gains: vec![0;Self::ADAT_INPUT_COUNT],
+            stream_gains: vec![0;Self::STREAM_INPUT_COUNT],
+        };dst_count]
+    }
+}
+
+/// The trait to represent mixer protocol specific to former models of RME Fireface.
+pub trait RmeFormerMixerProtocol<T, U> : AsRef<FwReq>
+    where T: AsRef<FwNode>,
+          U: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
+{
+    const MIXER_OFFSET: usize;
+    const AVAIL_COUNT: usize;
+
+    fn write_mixer_src_gains(&self, node: &T, mixer: usize, src_offset: usize, gains: &[i32],
+                             timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let mut raw = vec![0;gains.len() * 4];
+        gains.iter()
+            .enumerate()
+            .for_each(|(i, gain)| {
+                let pos = i * 4;
+                raw[pos..(pos + 4)].copy_from_slice(&gain.to_le_bytes());
+            });
+
+        let offset = ((Self::AVAIL_COUNT * mixer * 2) + src_offset) * 4;
+        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteBlockRequest,
+                                       (Self::MIXER_OFFSET + offset) as u64, raw.len(), &mut raw,
+                                       timeout_ms)
+    }
+
+    fn init_mixer_src_gains(&self, node: &T, state: &mut U, mixer: usize, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let m = &state.as_ref()[mixer];
+
+        [
+            (&m.analog_gains, 0),
+            (&m.spdif_gains, U::ANALOG_INPUT_COUNT),
+            (&m.adat_gains, U::ANALOG_INPUT_COUNT + U::SPDIF_INPUT_COUNT),
+            (&m.stream_gains, Self::AVAIL_COUNT)
+        ].iter()
+            .try_for_each(|(gains, src_offset)| {
+                self.write_mixer_src_gains(node, mixer, *src_offset, gains, timeout_ms)
+            })
+    }
+
+    fn write_mixer_analog_gains(&self, node: &T, state: &mut U, mixer: usize, gains: &[i32],
+                                timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert_eq!(state.as_ref()[mixer].analog_gains.len(), gains.len());
+
+        self.write_mixer_src_gains(node, mixer, 0, gains, timeout_ms)
+            .map(|_| state.as_mut()[mixer].analog_gains.copy_from_slice(&gains))
+    }
+
+    fn write_mixer_spdif_gains(&self, node: &T, state: &mut U, mixer: usize, gains: &[i32],
+                               timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert_eq!(state.as_ref()[mixer].spdif_gains.len(), gains.len());
+
+        self.write_mixer_src_gains(node, mixer, U::ANALOG_INPUT_COUNT, gains, timeout_ms)
+            .map(|_| state.as_mut()[mixer].spdif_gains.copy_from_slice(&gains))
+    }
+
+    fn write_mixer_adat_gains(&self, node: &T, state: &mut U, mixer: usize, gains: &[i32],
+                              timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert_eq!(state.as_ref()[mixer].adat_gains.len(), gains.len());
+
+        self.write_mixer_src_gains(node, mixer, U::ANALOG_INPUT_COUNT + U::SPDIF_INPUT_COUNT, gains,
+                                   timeout_ms)
+            .map(|_| state.as_mut()[mixer].adat_gains.copy_from_slice(&gains))
+    }
+
+    fn write_mixer_stream_gains(&self, node: &T, state: &mut U, mixer: usize, gains: &[i32],
+                                timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        assert_eq!(state.as_ref()[mixer].stream_gains.len(), gains.len());
+
+        self.write_mixer_src_gains(node, mixer, Self::AVAIL_COUNT, gains, timeout_ms)
+            .map(|_| state.as_mut()[mixer].stream_gains.copy_from_slice(&gains))
+    }
+}
