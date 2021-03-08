@@ -156,6 +156,10 @@ your device, please contact to developer.
   * PreSonus FireStudio Mobile
   * For the others, common controls are available. If supported, control extension is also available.
 
+* snd-fireface-ctl-service
+
+  * Fireface 800
+
 Supported protocols
 ===================
 

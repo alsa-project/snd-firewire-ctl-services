@@ -2,6 +2,8 @@
 // Copyright (c) 2021 Takashi Sakamoto
 mod model;
 
+mod ff800_model;
+
 use glib::Error;
 use glib::source;
 
