@@ -119,3 +119,32 @@ impl<'a, V> FfLatterMeterCtl<V>
         }
     }
 }
+
+#[derive(Default, Debug)]
+pub struct FfLatterDspCtl<V>
+    where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    state: V,
+}
+
+impl<'a, V> FfLatterDspCtl<V>
+    where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    pub fn load<U>(&mut self, _: &SndUnit, _: &U, _: u32, _: &mut CardCntr)
+        -> Result<(), Error>
+        where U: RmeFfLatterDspProtocol<FwNode, V>,
+    {
+        Ok(())
+    }
+
+    pub fn read(&mut self, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
+        Ok(false)
+    }
+
+    pub fn write<U>(&mut self, _: &SndUnit, _: &U, _: &ElemId, _: &ElemValue, _: u32)
+        -> Result<bool, Error>
+        where U: RmeFfLatterDspProtocol<FwNode, V>,
+    {
+        Ok(false)
+    }
+}
