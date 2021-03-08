@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use hinawa::{SndUnit, SndUnitExt};
 
@@ -17,6 +17,7 @@ use super::model::*;
 pub struct UcxModel{
     proto: FfUcxProtocol,
     cfg_ctl: CfgCtl,
+    status_ctl: StatusCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -24,6 +25,7 @@ const TIMEOUT_MS: u32 = 100;
 impl CtlModel<SndUnit> for UcxModel {
     fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.cfg_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
+        self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         Ok(())
     }
 
@@ -41,17 +43,19 @@ impl CtlModel<SndUnit> for UcxModel {
 }
 
 impl MeasureModel<SndUnit> for UcxModel {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
     }
 
-    fn measure_states(&mut self, _: &SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
+        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
         Ok(())
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, _: &ElemId, _: &mut ElemValue)
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        self.status_ctl.read_measured_elem(elem_id, elem_value)
     }
 }
 
@@ -90,6 +94,18 @@ impl<'a> CfgCtl {
         FfUcxClkSrc::Coax,
         FfUcxClkSrc::Opt,
         FfUcxClkSrc::WordClk,
+    ];
+
+    const CLK_RATES: [ClkNominalRate;9] = [
+        ClkNominalRate::R32000,
+        ClkNominalRate::R44100,
+        ClkNominalRate::R48000,
+        ClkNominalRate::R64000,
+        ClkNominalRate::R88200,
+        ClkNominalRate::R96000,
+        ClkNominalRate::R128000,
+        ClkNominalRate::R176400,
+        ClkNominalRate::R192000,
     ];
 
     const OPT_OUT_SIGNALS: [OpticalOutputSignal;2] = [
@@ -256,6 +272,137 @@ impl<'a> CfgCtl {
                     })
                 })
                 .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct StatusCtl{
+    status: FfUcxStatus,
+    measured_elem_list: Vec<ElemId>,
+}
+
+impl<'a> StatusCtl {
+    const EXT_SRC_LOCK_NAME: &'a str = "external-source-lock";
+    const EXT_SRC_SYNC_NAME: &'a str = "external-source-sync";
+    const EXT_SRC_RATE_NAME: &'a str = "external-source-rate";
+    const ACTIVE_CLK_RATE_NAME: &'a str = "active-clock-rate";
+    const ACTIVE_CLK_SRC_NAME: &'a str = "active-clock-source";
+
+    const EXT_CLK_SRCS: [FfUcxClkSrc;3] = [
+        FfUcxClkSrc::Coax,
+        FfUcxClkSrc::Opt,
+        FfUcxClkSrc::WordClk,
+    ];
+
+    const EXT_CLK_RATES: [Option<ClkNominalRate>;10] = [
+        None,
+        Some(ClkNominalRate::R32000),
+        Some(ClkNominalRate::R44100),
+        Some(ClkNominalRate::R48000),
+        Some(ClkNominalRate::R64000),
+        Some(ClkNominalRate::R88200),
+        Some(ClkNominalRate::R96000),
+        Some(ClkNominalRate::R128000),
+        Some(ClkNominalRate::R176400),
+        Some(ClkNominalRate::R192000),
+    ];
+
+    fn load(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+    {
+        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)?;
+
+        [Self::EXT_SRC_LOCK_NAME, Self::EXT_SRC_SYNC_NAME].iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
+                card_cntr.add_bool_elems(&elem_id, 1, Self::EXT_CLK_SRCS.len(), false)
+                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+            })?;
+
+        let labels: Vec<String> = Self::EXT_CLK_RATES.iter()
+            .map(|r| optional_clk_nominal_rate_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::EXT_SRC_RATE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, Self::EXT_CLK_SRCS.len(), &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
+            .map(|r| clk_src_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_SRC_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<String> = CfgCtl::CLK_RATES.iter()
+            .map(|r| clk_nominal_rate_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_RATE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn measure_states(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)
+    }
+
+    fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            Self::EXT_SRC_LOCK_NAME => {
+                let vals = [
+                    self.status.ext_lock.coax_iface,
+                    self.status.ext_lock.opt_iface,
+                    self.status.ext_lock.word_clk,
+                ];
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::EXT_SRC_SYNC_NAME => {
+                let vals = [
+                    self.status.ext_sync.coax_iface,
+                    self.status.ext_sync.opt_iface,
+                    self.status.ext_sync.word_clk,
+                ];
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::EXT_SRC_RATE_NAME => {
+                let vals: Vec<u32> = [
+                    self.status.ext_rate.coax_iface,
+                    self.status.ext_rate.opt_iface,
+                    self.status.ext_rate.word_clk,
+                ].iter()
+                    .map(|rate| {
+                        Self::EXT_CLK_RATES.iter()
+                            .position(|r| r.eq(rate))
+                            .map(|pos| pos as u32)
+                            .unwrap()
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            Self::ACTIVE_CLK_SRC_NAME => {
+                let pos = CfgCtl::CLK_SRCS.iter()
+                    .position(|r| r.eq(&self.status.active_clk_src))
+                    .map(|p| p as u32)
+                    .unwrap();
+                elem_value.set_enum(&[pos]);
+                Ok(true)
+            }
+            Self::ACTIVE_CLK_RATE_NAME => {
+                let pos = CfgCtl::CLK_RATES.iter()
+                    .position(|r| r.eq(&self.status.active_clk_rate))
+                    .map(|p| p as u32)
+                    .unwrap();
+                elem_value.set_enum(&[pos]);
+                Ok(true)
             }
             _ => Ok(false),
         }
