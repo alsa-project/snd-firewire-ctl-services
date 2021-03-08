@@ -17,6 +17,7 @@ impl AsRef<FwReq> for Ff800Protocol {
 }
 
 
+const MIXER_OFFSET: usize       = 0x000080080000;
 const OUTPUT_OFFSET: usize      = 0x000080081f80;
 const METER_OFFSET: usize       = 0x000080100000;
 
@@ -96,4 +97,45 @@ impl<T: AsRef<FwNode>> RmeFormerOutputProtocol<T, Ff800OutputVolumeState> for Ff
                                        (OUTPUT_OFFSET + ch * 4) as u64, raw.len(), &mut raw,
                                        timeout_ms)
     }
+}
+
+/// The structure to represent state of mixer for RME Fireface 800.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Ff800MixerState(pub Vec<FormerMixerSrc>);
+
+impl AsRef<[FormerMixerSrc]> for Ff800MixerState {
+    fn as_ref(&self) -> &[FormerMixerSrc] {
+        &self.0
+    }
+}
+
+impl AsMut<[FormerMixerSrc]> for Ff800MixerState {
+    fn as_mut(&mut self) -> &mut [FormerMixerSrc] {
+        &mut self.0
+    }
+}
+
+impl RmeFormerMixerSpec for Ff800MixerState {
+    const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
+    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
+    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
+    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
+
+    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
+    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
+    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
+}
+
+impl Default for Ff800MixerState {
+    fn default() -> Self {
+        Self(Self::create_mixer_state())
+    }
+}
+
+impl<T, U> RmeFormerMixerProtocol<T, U> for Ff800Protocol
+    where T: AsRef<FwNode>,
+          U: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
+{
+    const MIXER_OFFSET: usize = MIXER_OFFSET;
+    const AVAIL_COUNT: usize = 32;
 }
