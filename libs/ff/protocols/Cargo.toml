@@ -7,3 +7,6 @@ license = "GPL-3.0-or-later"
 description = """
 Implementation of protocols defined by RME GmbH for its Fireface series.
 """
+
+[dependencies]
+ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
