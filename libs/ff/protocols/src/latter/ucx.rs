@@ -350,3 +350,40 @@ impl Default for FfUcxMeterState {
 }
 
 impl<T: AsRef<FwNode>> RmeFfLatterMeterProtocol<T, FfUcxMeterState> for FfUcxProtocol {}
+
+/// The structure to represent state of DSP.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfUcxDspState(FfLatterDspState);
+
+impl AsRef<FfLatterDspState> for FfUcxDspState {
+    fn as_ref(&self) -> &FfLatterDspState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterDspState> for FfUcxDspState {
+    fn as_mut(&mut self) -> &mut FfLatterDspState {
+        &mut self.0
+    }
+}
+
+impl RmeFfLatterDspSpec for FfUcxDspState {
+    const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
+    const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
+    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
+    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
+    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
+
+    const LINE_OUTPUT_COUNT: usize = LINE_OUTPUT_COUNT;
+    const HP_OUTPUT_COUNT: usize = HP_OUTPUT_COUNT;
+    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
+    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
+}
+
+impl Default for FfUcxDspState {
+    fn default() -> Self {
+        Self(Self::create_dsp_state())
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFfLatterDspProtocol<T, FfUcxDspState> for FfUcxProtocol {}
