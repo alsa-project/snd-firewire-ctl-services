@@ -9,6 +9,8 @@ use glib::Error;
 
 use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
 
+use super::*;
+
 /// The structure to represent state of hardware meter.
 ///
 /// Each value of 32 bit integer is between 0x00000000 and 0x7fffff00 to represent -90.03 and
@@ -242,4 +244,15 @@ pub trait RmeFormerMixerProtocol<T, U> : AsRef<FwReq>
         self.write_mixer_src_gains(node, mixer, Self::AVAIL_COUNT, gains, timeout_ms)
             .map(|_| state.as_mut()[mixer].stream_gains.copy_from_slice(&gains))
     }
+}
+
+/// The structure to represent configuration of S/PDIF output.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct FormerSpdifOutput {
+    /// The format of S/PDIF signal.
+    pub format: SpdifFormat,
+    /// Whether to boost signal.
+    pub emphasis: bool,
+    /// Whether to transfer non-audio bit in preemble.
+    pub non_audio: bool,
 }
