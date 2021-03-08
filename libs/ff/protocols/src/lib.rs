@@ -103,3 +103,19 @@ impl Default for OpticalOutputSignal {
         Self::Adat
     }
 }
+
+/// The enumeration to represent nominal level of line outputs.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum LineOutNominalLevel {
+    High,
+    /// -10 dBV.
+    Consumer,
+    /// +4 dBu.
+    Professional,
+}
+
+impl Default for LineOutNominalLevel {
+    fn default() -> Self {
+        Self::High
+    }
+}
