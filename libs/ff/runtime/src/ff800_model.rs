@@ -22,6 +22,7 @@ pub struct Ff800Model{
     status_ctl: StatusCtl,
     out_ctl: FormerOutCtl<Ff800OutputVolumeState>,
     mixer_ctl: FormerMixerCtl<Ff800MixerState>,
+    meter_ctl: FormerMeterCtl<Ff800MeterState>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -32,6 +33,7 @@ impl CtlModel<SndUnit> for Ff800Model {
         self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
         self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.meter_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -68,16 +70,25 @@ impl CtlModel<SndUnit> for Ff800Model {
 impl MeasureModel<SndUnit> for Ff800Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
+        self.meter_ctl.get_measured_elem_list(elem_id_list);
     }
 
     fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
-        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)
+        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.status_ctl.measure_elem(elem_id, elem_value)
+        if self.status_ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
