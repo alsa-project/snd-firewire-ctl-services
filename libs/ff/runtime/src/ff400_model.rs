@@ -24,6 +24,7 @@ pub struct Ff400Model{
     out_ctl: FormerOutCtl<Ff400OutputVolumeState>,
     input_gain_ctl: InputGainCtl,
     mixer_ctl: FormerMixerCtl<Ff400MixerState>,
+    status_ctl: StatusCtl,
     cfg_ctl: CfgCtl,
 }
 
@@ -35,7 +36,8 @@ impl CtlModel<SndUnit> for Ff400Model {
         self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
         self.input_gain_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.cfg_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.status_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -75,16 +77,25 @@ impl CtlModel<SndUnit> for Ff400Model {
 impl MeasureModel<SndUnit> for Ff400Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         self.meter_ctl.get_measured_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
     }
 
     fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)
+        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.meter_ctl.measure_elem(elem_id, elem_value)
+        if self.meter_ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.status_ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -192,6 +203,123 @@ fn update_cfg<F>(unit: &SndUnit, proto: &Ff400Protocol, cfg: &mut Ff400Config, t
 }
 
 #[derive(Default, Debug)]
+struct StatusCtl{
+    status: Ff400Status,
+    measured_elem_list: Vec<ElemId>,
+}
+
+impl<'a> StatusCtl {
+    const EXT_SRC_LOCK_NAME: &'a str = "external-source-lock";
+    const EXT_SRC_SYNC_NAME: &'a str = "external-source-sync";
+    const SPDIF_SRC_RATE_NAME: &'a str = "spdif-source-rate";
+    const EXT_SRC_RATE_NAME: &'a str = "external-source-rate";
+    const ACTIVE_CLK_SRC_NAME: &'a str = "active-clock-source";
+
+    const EXT_SRCS: [Ff400ClkSrc;4] = [
+        Ff400ClkSrc::Spdif,
+        Ff400ClkSrc::Adat,
+        Ff400ClkSrc::WordClock,
+        Ff400ClkSrc::Ltc,
+    ];
+
+    const EXT_SRC_RATES: [Option<ClkNominalRate>;10] = [
+        None,
+        Some(ClkNominalRate::R32000),
+        Some(ClkNominalRate::R44100),
+        Some(ClkNominalRate::R48000),
+        Some(ClkNominalRate::R64000),
+        Some(ClkNominalRate::R88200),
+        Some(ClkNominalRate::R96000),
+        Some(ClkNominalRate::R128000),
+        Some(ClkNominalRate::R176400),
+        Some(ClkNominalRate::R192000),
+    ];
+
+    fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)?;
+
+        let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
+            .map(|s| clk_src_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)?;
+
+        [Self::EXT_SRC_LOCK_NAME, Self::EXT_SRC_SYNC_NAME].iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
+                card_cntr.add_bool_elems(&elem_id, 1, Self::EXT_SRCS.len(), false)
+                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+            })?;
+
+        let labels: Vec<String> = Self::EXT_SRC_RATES.iter()
+            .map(|r| optional_clk_nominal_rate_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_SRC_RATE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::EXT_SRC_RATE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn measure_states(&mut self, unit: &SndUnit, proto: &Ff400Protocol, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)
+    }
+
+    fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            Self::EXT_SRC_LOCK_NAME => {
+                let vals = [
+                    self.status.lock.spdif,
+                    self.status.lock.adat,
+                    self.status.lock.word_clock,
+                ];
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::EXT_SRC_SYNC_NAME => {
+                let vals = [
+                    self.status.sync.spdif,
+                    self.status.sync.adat,
+                    self.status.sync.word_clock,
+                ];
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::SPDIF_SRC_RATE_NAME => {
+                let pos = Self::EXT_SRC_RATES.iter()
+                    .position(|r| r.eq(&self.status.spdif_rate))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::EXT_SRC_RATE_NAME => {
+                let pos = Self::EXT_SRC_RATES.iter()
+                    .position(|r| r.eq(&self.status.external_clk_rate))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::ACTIVE_CLK_SRC_NAME => {
+                let pos = CfgCtl::CLK_SRCS.iter()
+                    .position(|s| s.eq(&self.status.active_clk_src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false)
+        }
+    }
+}
+
+#[derive(Default, Debug)]
 struct CfgCtl(Ff400Config);
 
 impl<'a> CfgCtl {
@@ -245,9 +373,11 @@ impl<'a> CfgCtl {
         OpticalOutputSignal::Spdif,
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
+    fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, status: &Ff400Status, card_cntr: &mut CardCntr,
+            timeout_ms: u32)
         -> Result<(), Error>
     {
+        self.0.init(&status);
         proto.write_cfg(&unit.get_node(), &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS.iter()
