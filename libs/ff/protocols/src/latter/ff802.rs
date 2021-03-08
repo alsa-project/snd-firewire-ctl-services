@@ -155,3 +155,184 @@ impl RmeFfLatterRegisterValueOperation for Ff802Config{
 }
 
 impl<T: AsRef<FwNode>> RmeFfLatterConfigProtocol<T, Ff802Config> for Ff802Protocol {}
+
+// For status register (0x'ffff'0000'001c).
+#[allow(dead_code)]
+const STATUS_ACTIVE_CLK_RATE_MASK: u32              = 0xf0000000;
+#[allow(dead_code)]
+const STATUS_ADAT_B_RATE_MASK: u32                  = 0x0f000000;
+#[allow(dead_code)]
+const STATUS_ADAT_A_RATE_MASK: u32                  = 0x00f00000;
+#[allow(dead_code)]
+const STATUS_SPDIF_RATE_MASK: u32                   = 0x000f0000;
+#[allow(dead_code)]
+const STATUS_WORD_CLK_RATE_MASK: u32                = 0x0000f000;
+const STATUS_ACTIVE_CLK_SRC_MASK: u32               = 0x00000e00;
+const   STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32    = 0x00000e00;
+const   STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG: u32      = 0x00000800;
+const   STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG: u32      = 0x00000600;
+const   STATUS_ACTIVE_CLK_SRC_AESEBU_FLAG: u32      = 0x00000400;
+const   STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32    = 0x00000200;
+const STATUS_SYNC_ADAT_B_MASK: u32                  = 0x00000080;
+const STATUS_SYNC_ADAT_A_MASK: u32                  = 0x00000040;
+const STATUS_SYNC_SPDIF_MASK: u32                   = 0x00000020;
+const STATUS_SYNC_WORD_CLK_MASK: u32                = 0x00000010;
+const STATUS_LOCK_ADAT_B_MASK: u32                  = 0x00000008;
+const STATUS_LOCK_ADAT_A_MASK: u32                  = 0x00000004;
+const STATUS_LOCK_SPDIF_MASK: u32                   = 0x00000002;
+const STATUS_LOCK_WORD_CLK_MASK: u32                = 0x00000001;
+
+/// The structure to represent lock status of 802.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Ff802ExtLockStatus{
+    pub word_clk: bool,
+    pub spdif: bool,
+    pub adat_b: bool,
+    pub adat_a: bool,
+}
+
+impl Ff802ExtLockStatus {
+    fn build(&self, quad: &mut u32) {
+        if self.word_clk {
+            *quad |= STATUS_LOCK_WORD_CLK_MASK;
+        }
+        if self.spdif {
+            *quad |= STATUS_LOCK_SPDIF_MASK;
+        }
+        if self.adat_b {
+            *quad |= STATUS_LOCK_ADAT_B_MASK;
+        }
+        if self.adat_a {
+            *quad |= STATUS_LOCK_ADAT_A_MASK;
+        }
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        self.word_clk = *quad & STATUS_LOCK_WORD_CLK_MASK > 0;
+        self.spdif = *quad & STATUS_LOCK_SPDIF_MASK > 0;
+        self.adat_b = *quad & STATUS_LOCK_ADAT_B_MASK > 0;
+        self.adat_a = *quad & STATUS_LOCK_ADAT_A_MASK > 0;
+    }
+}
+
+/// The structure to represent sync status of 802.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Ff802ExtSyncStatus{
+    pub word_clk: bool,
+    pub spdif: bool,
+    pub adat_b: bool,
+    pub adat_a: bool,
+}
+
+impl Ff802ExtSyncStatus {
+    fn build(&self, quad: &mut u32) {
+        if self.word_clk {
+            *quad |= STATUS_SYNC_WORD_CLK_MASK;
+        }
+        if self.spdif {
+            *quad |= STATUS_SYNC_SPDIF_MASK;
+        }
+        if self.adat_b {
+            *quad |= STATUS_SYNC_ADAT_B_MASK;
+        }
+        if self.adat_a {
+            *quad |= STATUS_SYNC_ADAT_A_MASK;
+        }
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        self.word_clk = *quad & STATUS_SYNC_WORD_CLK_MASK > 0;
+        self.spdif = *quad & STATUS_SYNC_SPDIF_MASK > 0;
+        self.adat_b = *quad & STATUS_SYNC_ADAT_B_MASK > 0;
+        self.adat_a = *quad & STATUS_SYNC_ADAT_A_MASK > 0;
+    }
+}
+
+/// The structure to represent sync status of 802.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Ff802ExtRateStatus{
+    pub word_clk: Option<ClkNominalRate>,
+    pub spdif: Option<ClkNominalRate>,
+    pub adat_b: Option<ClkNominalRate>,
+    pub adat_a: Option<ClkNominalRate>,
+}
+
+impl Ff802ExtRateStatus {
+    fn build(&self, quad: &mut u32) {
+        optional_val_from_clk_rate(&self.word_clk, quad, 12);
+        optional_val_from_clk_rate(&self.spdif, quad, 16);
+        optional_val_from_clk_rate(&self.adat_b, quad, 24);
+        optional_val_from_clk_rate(&self.adat_a, quad, 20);
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        if *quad & (STATUS_SYNC_WORD_CLK_MASK | STATUS_LOCK_WORD_CLK_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.word_clk, quad, 12);
+        } else {
+            self.word_clk = None;
+        }
+        if *quad & (STATUS_SYNC_SPDIF_MASK | STATUS_LOCK_SPDIF_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.spdif, quad, 16);
+        } else {
+            self.spdif = None;
+        }
+        if *quad & (STATUS_SYNC_ADAT_B_MASK | STATUS_LOCK_ADAT_B_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.adat_b, quad, 24);
+        } else {
+            self.adat_b = None;
+        }
+        if *quad & (STATUS_SYNC_ADAT_A_MASK | STATUS_LOCK_ADAT_A_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.adat_a, quad, 20);
+        } else {
+            self.adat_a = None;
+        }
+    }
+}
+
+/// The structure to represent status of 802.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct Ff802Status{
+    pub ext_lock: Ff802ExtLockStatus,
+    pub ext_sync: Ff802ExtSyncStatus,
+    pub ext_rate: Ff802ExtRateStatus,
+    pub active_clk_src: Ff802ClkSrc,
+    pub active_clk_rate: ClkNominalRate,
+}
+
+impl RmeFfLatterRegisterValueOperation for Ff802Status {
+    fn build(&self, quad: &mut u32) {
+        self.ext_lock.build(quad);
+        self.ext_sync.build(quad);
+        self.ext_rate.build(quad);
+
+        val_from_clk_rate(&self.active_clk_rate, quad, 28);
+
+        let val = match self.active_clk_src {
+            Ff802ClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
+            Ff802ClkSrc::AdatA => STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG,
+            Ff802ClkSrc::AdatB => STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG,
+            Ff802ClkSrc::AesEbu => STATUS_ACTIVE_CLK_SRC_AESEBU_FLAG,
+            Ff802ClkSrc::WordClk => STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
+        };
+        *quad |= val;
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        self.ext_lock.parse(quad);
+        self.ext_sync.parse(quad);
+        self.ext_rate.parse(quad);
+
+        val_to_clk_rate(&mut self.active_clk_rate, quad, 28);
+
+        self.active_clk_src = match *quad & STATUS_ACTIVE_CLK_SRC_MASK {
+            STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff802ClkSrc::Internal,
+            STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG => Ff802ClkSrc::AdatA,
+            STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG => Ff802ClkSrc::AdatB,
+            STATUS_ACTIVE_CLK_SRC_AESEBU_FLAG => Ff802ClkSrc::AesEbu,
+            STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff802ClkSrc::WordClk,
+            _ => unreachable!(),
+        };
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFfLatterStatusProtocol<T, Ff802Status> for Ff802Protocol {}
