@@ -159,6 +159,7 @@ your device, please contact to developer.
 * snd-fireface-ctl-service
 
   * Fireface 800
+  * Fireface 400
 
 Supported protocols
 ===================

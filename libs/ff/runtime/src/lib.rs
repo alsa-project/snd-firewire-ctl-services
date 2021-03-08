@@ -3,6 +3,7 @@
 mod model;
 
 mod ff800_model;
+mod ff400_model;
 
 mod former_ctls;
 
