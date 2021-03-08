@@ -9,7 +9,7 @@ use core::card_cntr::*;
 
 use ieee1212_config_rom::*;
 
-use ff_protocols::{*, former::*};
+use ff_protocols::{*, former::*, latter::*};
 
 use super::ff800_model::*;
 use super::ff400_model::*;
@@ -147,4 +147,11 @@ pub fn optional_clk_nominal_rate_to_string(rate: &Option<ClkNominalRate>) -> Str
     } else {
         "not-detected".to_string()
     }
+}
+
+pub fn latter_line_in_nominal_level_to_string(level: &LatterInNominalLevel) -> String {
+    match level {
+        LatterInNominalLevel::Low => "Low",
+        LatterInNominalLevel::Professional => "+4dBu",
+    }.to_string()
 }
