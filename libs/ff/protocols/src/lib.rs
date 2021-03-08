@@ -7,6 +7,7 @@
 //! series. The protocols are categorized by two generations; i.e. former and latter.
 
 pub mod former;
+pub mod latter;
 
 use ieee1212_config_rom::{*, entry::*};
 
