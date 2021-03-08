@@ -21,6 +21,7 @@ pub struct UcxModel{
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     meter_ctl: FfLatterMeterCtl<FfUcxMeterState>,
+    dsp_ctl: FfLatterDspCtl<FfUcxDspState>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -30,6 +31,7 @@ impl CtlModel<SndUnit> for UcxModel {
         self.cfg_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         self.meter_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
+        self.dsp_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         Ok(())
     }
 
@@ -37,6 +39,8 @@ impl CtlModel<SndUnit> for UcxModel {
         -> Result<bool, Error>
     {
         if self.cfg_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.dsp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -46,7 +50,13 @@ impl CtlModel<SndUnit> for UcxModel {
     fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        self.cfg_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)
+        if self.cfg_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.dsp_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
