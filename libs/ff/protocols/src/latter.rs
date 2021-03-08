@@ -293,6 +293,7 @@ pub trait RmeFfLatterMeterProtocol<T, U> : AsRef<FwReq>
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState{
     pub input: FfLatterInputState,
+    pub output: FfLatterOutputState,
 }
 
 /// The trait to represent specification of input and output of DSP.
@@ -326,6 +327,13 @@ pub trait RmeFfLatterDspSpec {
                 line_levels: vec![Default::default();Self::LINE_INPUT_COUNT],
                 mic_powers: vec![Default::default();Self::MIC_INPUT_COUNT],
                 mic_insts: vec![Default::default();Self::MIC_INPUT_COUNT],
+            },
+            output: FfLatterOutputState{
+                vols: vec![Default::default();Self::OUTPUT_COUNT],
+                stereo_balance: vec![Default::default();Self::OUTPUT_COUNT / 2],
+                stereo_links: vec![Default::default();Self::OUTPUT_COUNT / 2],
+                invert_phases: vec![Default::default();Self::OUTPUT_COUNT],
+                line_levels: vec![Default::default();Self::LINE_OUTPUT_COUNT],
             },
         }
     }
@@ -375,6 +383,12 @@ const INPUT_LINE_GAIN_CMD: u8           = 0x07;
 const INPUT_LINE_LEVEL_CMD: u8          = 0x08;
 const INPUT_MIC_POWER_CMD: u8           = 0x08;
 const INPUT_MIC_INST_CMD: u8            = 0x09;
+
+const OUTPUT_VOL_CMD: u8                = 0x00;
+const OUTPUT_STEREO_BALANCE_CMD: u8     = 0x01;
+const OUTPUT_STEREO_LINK_CMD: u8        = 0x04;
+const OUTPUT_INVERT_PHASE_CMD: u8       = 0x07;
+const OUTPUT_LINE_LEVEL_CMD: u8         = 0x08;
 
 /// The structure to represent nominal level of analog input.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -495,6 +509,109 @@ pub trait RmeFfLatterInputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
 }
 
 impl<T, U, O> RmeFfLatterInputProtocol<T, U> for O
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspProtocol<T, U>,
+{}
+
+impl From<LineOutNominalLevel> for i16 {
+    fn from(level: LineOutNominalLevel) -> Self {
+        match level {
+            LineOutNominalLevel::Consumer => 0x0000,
+            LineOutNominalLevel::Professional => 0x0001,
+            LineOutNominalLevel::High => 0x0002,
+        }
+    }
+}
+
+/// The structure to represent state of inputs.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterOutputState{
+    /// The level of volume. Each value is between -650 (0xfd76) and 60 (0x003c) to represent
+    /// -65.00 dB and 6.00 dB.
+    pub vols: Vec<i16>,
+    /// The balance between left and right. The value is between -100 (0xff9c) and 100 (0x0064).
+    pub stereo_balance: Vec<i16>,
+    /// Whether to link each pair of left and right ports.
+    pub stereo_links: Vec<bool>,
+    /// Whether to inverse the phase of analog, spdif, and adat outputs.
+    pub invert_phases: Vec<bool>,
+    /// The nominal level of analog line output.
+    pub line_levels: Vec<LineOutNominalLevel>,
+}
+
+fn output_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterOutputState) -> Vec<u32> {
+    assert_eq!(state.vols.len(), T::PHYS_INPUT_COUNT);
+    assert_eq!(state.stereo_balance.len(), T::PHYS_INPUT_COUNT / 2);
+    assert_eq!(state.stereo_links.len(), T::PHYS_INPUT_COUNT / 2);
+    assert_eq!(state.invert_phases.len(), T::PHYS_INPUT_COUNT);
+    assert_eq!(state.line_levels.len(), T::LINE_OUTPUT_COUNT);
+
+    let mut cmds = Vec::new();
+
+    state.vols.iter()
+        .enumerate()
+        .for_each(|(i, &vol)| {
+            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_VOL_CMD, vol));
+        });
+
+    state.stereo_balance.iter()
+        .enumerate()
+        .for_each(|(i, &balance)| {
+            let ch = (T::PHYS_INPUT_COUNT + i * 2) as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
+        });
+
+    state.stereo_links.iter()
+        .enumerate()
+        .for_each(|(i, &link)| {
+            let ch = (T::PHYS_INPUT_COUNT + i * 2) as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_LINK_CMD, link as i16));
+        });
+
+    state.invert_phases.iter()
+        .enumerate()
+        .for_each(|(i, &invert_phase)| {
+            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_INVERT_PHASE_CMD, invert_phase as i16));
+        });
+
+    state.line_levels.iter()
+        .enumerate()
+        .for_each(|(i, &line_level)| {
+            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_LINE_LEVEL_CMD, line_level as i16));
+        });
+
+    cmds
+}
+
+/// The trait to represent output protocol.
+pub trait RmeFfLatterOutputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    const CH_OFFSET: u8 = U::PHYS_INPUT_COUNT as u8;
+
+    fn init_output(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+        let cmds = output_state_to_cmds::<U>(&state.as_ref().output);
+        cmds.iter()
+            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+    }
+
+    fn write_output(&self, node: &T, state: &mut U, output: FfLatterOutputState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = output_state_to_cmds::<U>(&state.as_ref().output);
+        let new = output_state_to_cmds::<U>(&output);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().output = output)
+    }
+}
+
+impl<T, U, O> RmeFfLatterOutputProtocol<T, U> for O
     where T: AsRef<FwNode>,
           U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
           O: RmeFfLatterDspProtocol<T, U>,
