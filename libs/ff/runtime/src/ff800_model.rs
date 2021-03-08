@@ -17,13 +17,15 @@ use ff_protocols::{*, former::{*, ff800::*}};
 pub struct Ff800Model{
     proto: Ff800Protocol,
     cfg_ctl: CfgCtl,
+    status_ctl: StatusCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for Ff800Model {
     fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.cfg_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
+        self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -38,6 +40,22 @@ impl CtlModel<SndUnit> for Ff800Model {
         -> Result<bool, Error>
     {
         self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)
+    }
+}
+
+impl MeasureModel<SndUnit> for Ff800Model {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
+    }
+
+    fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
+        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)
+    }
+
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        self.status_ctl.measure_elem(elem_id, elem_value)
     }
 }
 
@@ -71,7 +89,129 @@ fn line_in_jack_to_string(jack: &Ff800AnalogInputJack) -> String {
 }
 
 #[derive(Default, Debug)]
-struct CfgCtl(cfg: Ff800Config);
+struct StatusCtl{
+    status: Ff800Status,
+    measured_elem_list: Vec<ElemId>,
+}
+
+impl<'a> StatusCtl {
+    const EXT_SRC_LOCK_NAME: &'a str = "external-source-lock";
+    const EXT_SRC_SYNC_NAME: &'a str = "external-source-sync";
+    const SPDIF_SRC_RATE_NAME: &'a str = "spdif-source-rate";
+    const EXT_SRC_RATE_NAME: &'a str = "external-source-rate";
+    const ACTIVE_CLK_SRC_NAME: &'a str = "active-clock-source";
+
+    const EXT_SRCS: [Ff800ClkSrc;5] = [
+        Ff800ClkSrc::Spdif,
+        Ff800ClkSrc::AdatA,
+        Ff800ClkSrc::AdatB,
+        Ff800ClkSrc::WordClock,
+        Ff800ClkSrc::Tco,
+    ];
+
+    const EXT_SRC_RATES: [Option<ClkNominalRate>;10] = [
+        None,
+        Some(ClkNominalRate::R32000),
+        Some(ClkNominalRate::R44100),
+        Some(ClkNominalRate::R48000),
+        Some(ClkNominalRate::R64000),
+        Some(ClkNominalRate::R88200),
+        Some(ClkNominalRate::R96000),
+        Some(ClkNominalRate::R128000),
+        Some(ClkNominalRate::R176400),
+        Some(ClkNominalRate::R192000),
+    ];
+
+    fn load(&mut self, unit: &SndUnit, proto: &Ff800Protocol, timeout_ms: u32, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+    {
+        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)?;
+
+        let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
+            .map(|s| clk_src_to_string(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)?;
+
+        [Self::EXT_SRC_LOCK_NAME, Self::EXT_SRC_SYNC_NAME].iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
+                card_cntr.add_bool_elems(&elem_id, 1, Self::EXT_SRCS.len(), false)
+                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+            })?;
+
+        let labels: Vec<String> = Self::EXT_SRC_RATES.iter()
+            .map(|r| optional_clk_nominal_rate_to_string(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_SRC_RATE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::EXT_SRC_RATE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn measure_states(&mut self, unit: &SndUnit, proto: &Ff800Protocol, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)
+    }
+
+    fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            Self::EXT_SRC_LOCK_NAME => {
+                let vals = [
+                    self.status.lock.spdif,
+                    self.status.lock.adat_a,
+                    self.status.lock.adat_b,
+                    self.status.lock.word_clock,
+                    self.status.lock.tco,
+                ];
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::EXT_SRC_SYNC_NAME => {
+                let vals = [
+                    self.status.sync.spdif,
+                    self.status.sync.adat_a,
+                    self.status.sync.adat_b,
+                    self.status.sync.word_clock,
+                    self.status.sync.tco,
+                ];
+                elem_value.set_bool(&vals);
+                Ok(true)
+            }
+            Self::SPDIF_SRC_RATE_NAME => {
+                let pos = Self::EXT_SRC_RATES.iter()
+                    .position(|r| r.eq(&self.status.spdif_rate))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::EXT_SRC_RATE_NAME => {
+                let pos = Self::EXT_SRC_RATES.iter()
+                    .position(|r| r.eq(&self.status.external_clk_rate))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            Self::ACTIVE_CLK_SRC_NAME => {
+                let pos = CfgCtl::CLK_SRCS.iter()
+                    .position(|s| s.eq(&self.status.active_clk_src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false)
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct CfgCtl(Ff800Config);
 
 impl<'a> CfgCtl {
     const PRIMARY_CLK_SRC_NAME: &'a str = "primary-clock-source";
@@ -145,14 +285,12 @@ impl<'a> CfgCtl {
         OpticalOutputSignal::Spdif,
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff800Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
+    fn load(&mut self, unit: &SndUnit, proto: &Ff800Protocol, status: &Ff800Status, card_cntr: &mut CardCntr,
+            timeout_ms: u32)
         -> Result<(), Error>
     {
-        let node = unit.get_node();
-
-        //proto.read_status(&node, &mut self.status, timeout_ms)?;
-        //self.cfg.init(&self.status);
-        proto.write_cfg(&node, &self.0, timeout_ms)?;
+        self.0.init(&status);
+        proto.write_cfg(&unit.get_node(), &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))

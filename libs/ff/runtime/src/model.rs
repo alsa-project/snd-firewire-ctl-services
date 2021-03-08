@@ -112,3 +112,25 @@ pub fn line_out_nominal_level_to_string(level: &LineOutNominalLevel) -> String {
         LineOutNominalLevel::Professional => "+4dBu",
     }.to_string()
 }
+
+pub fn clk_nominal_rate_to_string(rate: &ClkNominalRate) -> String {
+    match rate {
+        ClkNominalRate::R32000 => "32000",
+        ClkNominalRate::R44100 => "44100",
+        ClkNominalRate::R48000 => "48000",
+        ClkNominalRate::R64000 => "64000",
+        ClkNominalRate::R88200 => "88200",
+        ClkNominalRate::R96000 => "96000",
+        ClkNominalRate::R128000 => "128000",
+        ClkNominalRate::R176400 => "176400",
+        ClkNominalRate::R192000 => "192000",
+    }.to_string()
+}
+
+pub fn optional_clk_nominal_rate_to_string(rate: &Option<ClkNominalRate>) -> String {
+    if let Some(r) = rate {
+        clk_nominal_rate_to_string(r)
+    } else {
+        "not-detected".to_string()
+    }
+}
