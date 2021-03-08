@@ -12,5 +12,6 @@ members = [
     "libs/bebob",
     "libs/dice/protocols",
     "libs/dice/runtime",
+    "libs/ff/protocols",
     "services",
 ]
