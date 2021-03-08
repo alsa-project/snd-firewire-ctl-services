@@ -29,6 +29,8 @@ snd-bebob-ctl-service
    For sound card bound to ALSA bebob driver (snd-bebob)
 snd-dice-ctl-service
    For sound card bound to ALSA dice driver (snd-dice)
+snd-fireface-ctl-service
+   For sound card bound to ALSA fireface driver (snd-fireface)
 
 License
 =======
