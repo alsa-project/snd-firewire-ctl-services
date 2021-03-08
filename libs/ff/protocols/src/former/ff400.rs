@@ -22,6 +22,7 @@ impl AsRef<FwReq> for Ff400Protocol {
 const MIXER_OFFSET: usize       = 0x000080080000;
 const OUTPUT_OFFSET: usize      = 0x000080080f80;
 const METER_OFFSET: usize       = 0x000080100000;
+const STATUS_OFFSET: usize      = 0x0000801c0000;
 const AMP_OFFSET: usize         = 0x0000801c0180;
 
 const ANALOG_INPUT_COUNT: usize = 8;
@@ -237,3 +238,244 @@ impl<T, U> RmeFormerMixerProtocol<T, U> for Ff400Protocol
     const MIXER_OFFSET: usize = MIXER_OFFSET as usize;
     const AVAIL_COUNT: usize = 18;
 }
+
+/// The enumeration to represent source of sampling clock.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Ff400ClkSrc{
+    Internal,
+    WordClock,
+    Adat,
+    Spdif,
+    Ltc,
+}
+
+impl Default for Ff400ClkSrc {
+    fn default() -> Self {
+        Self::Adat
+    }
+}
+
+// NOTE: for first quadlet of status quadlets.
+const Q0_SYNC_WORD_CLOCK_MASK: u32          = 0x40000000;
+const Q0_LOCK_WORD_CLOCK_MASK: u32          = 0x20000000;
+const Q0_EXT_CLK_RATE_MASK: u32             = 0x1e000000;
+const  Q0_EXT_CLK_RATE_192000_FLAG: u32     = 0x12000000;
+const  Q0_EXT_CLK_RATE_176400_FLAG: u32     = 0x10000000;
+const  Q0_EXT_CLK_RATE_128000_FLAG: u32     = 0x0c000000;
+const  Q0_EXT_CLK_RATE_96000_FLAG: u32      = 0x0e000000;
+const  Q0_EXT_CLK_RATE_88200_FLAG: u32      = 0x0a000000;
+const  Q0_EXT_CLK_RATE_64000_FLAG: u32      = 0x08000000;
+const  Q0_EXT_CLK_RATE_48000_FLAG: u32      = 0x06000000;
+const  Q0_EXT_CLK_RATE_44100_FLAG: u32      = 0x04000000;
+const  Q0_EXT_CLK_RATE_32000_FLAG: u32      = 0x02000000;
+const Q0_ACTIVE_CLK_SRC_MASK: u32           = 0x01c00000;
+const  Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32 = 0x01c00000;
+const  Q0_ACTIVE_CLK_SRC_LTC_FLAG: u32      = 0x01400000;
+const  Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32 = 0x01000000;
+const  Q0_ACTIVE_CLK_SRC_SPDIF_FLAG: u32    = 0x00c00000;
+const  Q0_ACTIVE_CLK_SRC_ADAT_FLAG: u32     = 0x00000000;
+const Q0_SYNC_SPDIF_MASK: u32               = 0x00100000;
+const Q0_LOCK_SPDIF_MASK: u32               = 0x00040000;
+const Q0_SPDIF_RATE_MASK: u32               = 0x0003c000;
+const  Q0_SPDIF_RATE_192000_FLAG: u32       = 0x00024000;
+const  Q0_SPDIF_RATE_176400_FLAG: u32       = 0x00020000;
+const  Q0_SPDIF_RATE_128000_FLAG: u32       = 0x0001c000;
+const  Q0_SPDIF_RATE_96000_FLAG: u32        = 0x00018000;
+const  Q0_SPDIF_RATE_88200_FLAG: u32        = 0x00014000;
+const  Q0_SPDIF_RATE_64000_FLAG: u32        = 0x00010000;
+const  Q0_SPDIF_RATE_48000_FLAG: u32        = 0x0000c000;
+const  Q0_SPDIF_RATE_44100_FLAG: u32        = 0x00008000;
+const  Q0_SPDIF_RATE_32000_FLAG: u32        = 0x00004000;
+const Q0_LOCK_ADAT_MASK: u32                = 0x00001000;
+const Q0_SYNC_ADAT_MASK: u32                = 0x00000400;
+
+// NOTE: for second quadlet of status quadlets.
+const Q1_WORD_OUT_SINGLE_MASK: u32          = 0x00002000;
+const Q1_CONF_CLK_SRC_MASK: u32             = 0x00001c01;
+const  Q1_CONF_CLK_SRC_LTC_FLAG: u32        = 0x00001400;
+const  Q1_CONF_CLK_SRC_WORD_CLK_FLAG: u32   = 0x00001000;
+const  Q1_CONF_CLK_SRC_SPDIF_FLAG: u32      = 0x00000c00;
+const  Q1_CONF_CLK_SRC_INTERNAL_FLAG: u32   = 0x00000001;
+const  Q1_CONF_CLK_SRC_ADAT_FLAG: u32       = 0x00000000;
+const Q1_SPDIF_IN_IFACE_MASK: u32           = 0x00000200;
+const Q1_OPT_OUT_SIGNAL_MASK: u32           = 0x00000100;
+const Q1_SPDIF_OUT_EMPHASIS_MASK: u32       = 0x00000040;
+const Q1_SPDIF_OUT_FMT_MASK: u32            = 0x00000020;
+const Q1_CONF_CLK_RATE_MASK: u32            = 0x0000001e;
+const  Q1_CONF_CLK_RATE_192000_FLAG: u32    = 0x00000016;
+const  Q1_CONF_CLK_RATE_176400_FLAG: u32    = 0x00000010;
+const  Q1_CONF_CLK_RATE_128000_FLAG: u32    = 0x00000012;
+const  Q1_CONF_CLK_RATE_96000_FLAG: u32     = 0x0000000e;
+const  Q1_CONF_CLK_RATE_88200_FLAG: u32     = 0x00000008;
+const  Q1_CONF_CLK_RATE_64000_FLAG: u32     = 0x0000000a;
+const  Q1_CONF_CLK_RATE_48000_FLAG: u32     = 0x00000006;
+const  Q1_CONF_CLK_RATE_44100_FLAG: u32     = 0x00000000;
+const  Q1_CONF_CLK_RATE_32000_FLAG: u32     = 0x00000002;
+
+/// The structure to represent status of clock locking.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Ff400ClkLockStatus {
+    pub adat: bool,
+    pub spdif: bool,
+    pub word_clock: bool,
+}
+
+impl Ff400ClkLockStatus {
+    fn parse(&mut self, quads: &[u32]) {
+        self.adat = quads[0] & Q0_LOCK_ADAT_MASK > 0;
+        self.spdif = quads[0] & Q0_LOCK_SPDIF_MASK > 0;
+        self.word_clock = quads[0] & Q0_LOCK_WORD_CLOCK_MASK > 0;
+
+    }
+}
+
+/// The structure to represent status of clock synchronization.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Ff400ClkSyncStatus {
+    pub adat: bool,
+    pub spdif: bool,
+    pub word_clock: bool,
+}
+
+impl Ff400ClkSyncStatus {
+    fn parse(&mut self, quads: &[u32]) {
+        self.adat = quads[0] & Q0_SYNC_ADAT_MASK > 0;
+        self.spdif = quads[0] & Q0_SYNC_SPDIF_MASK > 0;
+        self.word_clock = quads[0] & Q0_SYNC_WORD_CLOCK_MASK > 0;
+    }
+}
+
+/// The structure to represent status of clock synchronization.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Ff400Status {
+    /// For S/PDIF input.
+    pub spdif_in: SpdifInput,
+    /// For S/PDIF output.
+    pub spdif_out: FormerSpdifOutput,
+    /// The type of signal to optical output interface.
+    pub opt_out_signal: OpticalOutputSignal,
+    /// Whether to fix speed to single even if at double/quadruple rate.
+    pub word_out_single: bool,
+    /// For status of synchronization to external clocks.
+    pub sync: Ff400ClkSyncStatus,
+    /// For status of locking to external clocks.
+    pub lock: Ff400ClkLockStatus,
+
+    pub spdif_rate: Option<ClkNominalRate>,
+    pub active_clk_src: Ff400ClkSrc,
+    pub external_clk_rate: Option<ClkNominalRate>,
+    pub configured_clk_src: Ff400ClkSrc,
+    pub configured_clk_rate: ClkNominalRate,
+}
+
+impl Ff400Status {
+    const QUADLET_COUNT: usize = 2;
+
+    fn parse(&mut self, quads: &[u32]) {
+        assert_eq!(quads.len(), Self::QUADLET_COUNT);
+
+        self.lock.parse(&quads);
+        self.sync.parse(&quads);
+
+        self.spdif_rate = match quads[0] & Q0_SPDIF_RATE_MASK {
+            Q0_SPDIF_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
+            Q0_SPDIF_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
+            Q0_SPDIF_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
+            Q0_SPDIF_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
+            Q0_SPDIF_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
+            Q0_SPDIF_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
+            Q0_SPDIF_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
+            Q0_SPDIF_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
+            Q0_SPDIF_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
+            _ => None,
+        };
+
+        self.active_clk_src = match quads[0] & Q0_ACTIVE_CLK_SRC_MASK {
+            Q0_ACTIVE_CLK_SRC_ADAT_FLAG => Ff400ClkSrc::Adat,
+            Q0_ACTIVE_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+            Q0_ACTIVE_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+            Q0_ACTIVE_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+            Q0_ACTIVE_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+            _ => unreachable!(),
+        };
+
+        self.external_clk_rate = match quads[0] & Q0_EXT_CLK_RATE_MASK {
+            Q0_EXT_CLK_RATE_32000_FLAG => Some(ClkNominalRate::R32000),
+            Q0_EXT_CLK_RATE_44100_FLAG => Some(ClkNominalRate::R44100),
+            Q0_EXT_CLK_RATE_48000_FLAG => Some(ClkNominalRate::R48000),
+            Q0_EXT_CLK_RATE_64000_FLAG => Some(ClkNominalRate::R64000),
+            Q0_EXT_CLK_RATE_88200_FLAG => Some(ClkNominalRate::R88200),
+            Q0_EXT_CLK_RATE_96000_FLAG => Some(ClkNominalRate::R96000),
+            Q0_EXT_CLK_RATE_128000_FLAG => Some(ClkNominalRate::R128000),
+            Q0_EXT_CLK_RATE_176400_FLAG => Some(ClkNominalRate::R176400),
+            Q0_EXT_CLK_RATE_192000_FLAG => Some(ClkNominalRate::R192000),
+            _ => None,
+        };
+
+        self.spdif_in.iface = if quads[1] & Q1_SPDIF_IN_IFACE_MASK > 0 {
+            SpdifIface::Optical
+        } else {
+            SpdifIface::Coaxial
+        };
+
+        self.spdif_out.format = if quads[1] & Q1_SPDIF_OUT_FMT_MASK > 0 {
+            SpdifFormat::Professional
+        } else {
+            SpdifFormat::Consumer
+        };
+
+        self.spdif_out.emphasis = quads[1] & Q1_SPDIF_OUT_EMPHASIS_MASK > 0;
+
+        self.opt_out_signal = if quads[1] & Q1_OPT_OUT_SIGNAL_MASK > 0 {
+            OpticalOutputSignal::Spdif
+        } else {
+            OpticalOutputSignal::Adat
+        };
+
+        self.word_out_single = quads[1] & Q1_WORD_OUT_SINGLE_MASK > 0;
+
+        self.configured_clk_src = match quads[1] & Q1_CONF_CLK_SRC_MASK {
+            Q1_CONF_CLK_SRC_INTERNAL_FLAG => Ff400ClkSrc::Internal,
+            Q1_CONF_CLK_SRC_SPDIF_FLAG => Ff400ClkSrc::Spdif,
+            Q1_CONF_CLK_SRC_WORD_CLK_FLAG => Ff400ClkSrc::WordClock,
+            Q1_CONF_CLK_SRC_LTC_FLAG => Ff400ClkSrc::Ltc,
+            Q1_CONF_CLK_SRC_ADAT_FLAG | _ => Ff400ClkSrc::Adat,
+        };
+
+        self.configured_clk_rate = match quads[1] & Q1_CONF_CLK_RATE_MASK {
+            Q1_CONF_CLK_RATE_32000_FLAG => ClkNominalRate::R32000,
+            Q1_CONF_CLK_RATE_48000_FLAG => ClkNominalRate::R48000,
+            Q1_CONF_CLK_RATE_64000_FLAG => ClkNominalRate::R64000,
+            Q1_CONF_CLK_RATE_88200_FLAG => ClkNominalRate::R88200,
+            Q1_CONF_CLK_RATE_96000_FLAG => ClkNominalRate::R96000,
+            Q1_CONF_CLK_RATE_128000_FLAG => ClkNominalRate::R128000,
+            Q1_CONF_CLK_RATE_176400_FLAG => ClkNominalRate::R176400,
+            Q1_CONF_CLK_RATE_192000_FLAG => ClkNominalRate::R192000,
+            Q1_CONF_CLK_RATE_44100_FLAG | _ => ClkNominalRate::R44100,
+        };
+
+    }
+}
+
+/// The trait to represent status protocol specific to RME Fireface 800.
+pub trait RmeFf400StatusProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
+    fn read_status(&self, node: &T, status: &mut Ff400Status, timeout_ms: u32) -> Result<(), Error> {
+        let mut raw = [0;8];
+        self.as_ref().transaction_sync(node.as_ref(), FwTcode::ReadBlockRequest, STATUS_OFFSET as u64,
+                                       raw.len(), &mut raw, timeout_ms)
+            .map(|_| {
+                let mut quadlet = [0;4];
+                let mut quads = [0u32;2];
+                quads.iter_mut()
+                    .enumerate()
+                    .for_each(|(i, quad)| {
+                        let pos = i * 4;
+                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                        *quad = u32::from_le_bytes(quadlet);
+                    });
+                status.parse(&quads)
+            })
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFf400StatusProtocol<T> for Ff400Protocol {}
