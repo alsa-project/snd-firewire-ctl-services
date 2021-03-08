@@ -129,6 +129,7 @@ pub struct FfLatterDspCtl<V>
     state: V,
     input_ctl: FfLatterInputCtl,
     output_ctl: FfLatterOutputCtl,
+    mixer_ctl: FfLatterMixerCtl,
 }
 
 impl<'a, V> FfLatterDspCtl<V>
@@ -137,10 +138,11 @@ impl<'a, V> FfLatterDspCtl<V>
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
         where U: RmeFfLatterDspProtocol<FwNode, V> + RmeFfLatterInputProtocol<FwNode, V> +
-                 RmeFfLatterOutputProtocol<FwNode, V>,
+                 RmeFfLatterOutputProtocol<FwNode, V> + RmeFfLatterMixerProtocol<FwNode, V> +
     {
         self.input_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
         self.output_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
+        self.mixer_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
         Ok(())
     }
 
@@ -148,6 +150,8 @@ impl<'a, V> FfLatterDspCtl<V>
         if self.input_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -158,11 +162,13 @@ impl<'a, V> FfLatterDspCtl<V>
                     timeout_ms: u32)
         -> Result<bool, Error>
         where U: RmeFfLatterDspProtocol<FwNode, V> + RmeFfLatterInputProtocol<FwNode, V> +
-                 RmeFfLatterOutputProtocol<FwNode, V>,
+                 RmeFfLatterOutputProtocol<FwNode, V> + RmeFfLatterMixerProtocol<FwNode, V> +
     {
         if self.input_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else if self.output_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -494,6 +500,184 @@ impl<'a> FfLatterOutputCtl {
                             .map(|&l| s.line_levels[i] = l) 
                     })?;
                 proto.write_output(&unit.get_node(), state, s, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct FfLatterMixerCtl;
+
+impl<'a> FfLatterMixerCtl {
+    const LINE_SRC_GAIN_NAME: &'a str = "mixer:line-source-gain";
+    const MIC_SRC_GAIN_NAME: &'a str = "mixer:mic-source-gain";
+    const SPDIF_SRC_GAIN_NAME: &'a str = "mixer:spdif-source-gain";
+    const ADAT_SRC_GAIN_NAME: &'a str = "mixer:adat-source-gain";
+    const STREAM_SRC_GAIN_NAME: &'a str = "mixer:stream-source-gain";
+
+    const GAIN_MIN: i32 = 0x0000 as i32;
+    const GAIN_ZERO: i32 = 0x9000 as i32;
+    const GAIN_MAX: i32 = 0xa000 as i32;
+    const GAIN_STEP: i32 = 1;
+    const GAIN_TLV: DbInterval = DbInterval{min: -6500, max: 600, linear: false, mute_avail: false};
+
+    fn load<U, V>(&mut self, unit: &SndUnit, proto: &U, state: &mut V, timeout_ms: u32,
+                  card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where U: RmeFfLatterMixerProtocol<FwNode, V>,
+              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+    {
+        state.as_mut().mixer.iter_mut()
+            .enumerate()
+            .for_each(|(i, mixer)| {
+                mixer.stream_gains.iter_mut()
+                    .nth(i)
+                    .map(|gain| *gain = Self::GAIN_ZERO as u16);
+            });
+
+        proto.init_mixers(&unit.get_node(), state, timeout_ms)?;
+
+        let s = &state.as_ref().mixer;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        s[0].line_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                                        true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIC_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        s[0].mic_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                                        true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SPDIF_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        s[0].spdif_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                                        true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ADAT_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        s[0].adat_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                                        true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
+                                        s[0].stream_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                                        true)?;
+
+        Ok(())
+    }
+
+    fn read<V>(&mut self, state: &V, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+        where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::LINE_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let vals: Vec<i32> = state.as_ref().mixer[index].line_gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::MIC_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let vals: Vec<i32> = state.as_ref().mixer[index].mic_gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::SPDIF_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let vals: Vec<i32> = state.as_ref().mixer[index].spdif_gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::ADAT_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let vals: Vec<i32> = state.as_ref().mixer[index].adat_gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let vals: Vec<i32> = state.as_ref().mixer[index].stream_gains.iter()
+                    .map(|&gain| gain as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write<U, V>(&mut self, unit: &SndUnit, proto: &U, state: &mut V, elem_id: &ElemId,
+                   new: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where U: RmeFfLatterMixerProtocol<FwNode, V>,
+              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::LINE_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut s = state.as_ref().mixer[index].clone();
+                let mut vals = vec![0;s.line_gains.len()];
+                new.get_int(&mut vals);
+                s.line_gains.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as u16);
+                proto.write_mixer(&unit.get_node(), state, index, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::MIC_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut s = state.as_ref().mixer[index].clone();
+                let mut vals = vec![0;s.mic_gains.len()];
+                new.get_int(&mut vals);
+                s.mic_gains.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as u16);
+                proto.write_mixer(&unit.get_node(), state, index, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::SPDIF_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut s = state.as_ref().mixer[index].clone();
+                let mut vals = vec![0;s.spdif_gains.len()];
+                new.get_int(&mut vals);
+                s.spdif_gains.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as u16);
+                proto.write_mixer(&unit.get_node(), state, index, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::ADAT_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut s = state.as_ref().mixer[index].clone();
+                let mut vals = vec![0;s.adat_gains.len()];
+                new.get_int(&mut vals);
+                s.adat_gains.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as u16);
+                proto.write_mixer(&unit.get_node(), state, index, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut s = state.as_ref().mixer[index].clone();
+                let mut vals = vec![0;s.stream_gains.len()];
+                new.get_int(&mut vals);
+                s.stream_gains.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as u16);
+                proto.write_mixer(&unit.get_node(), state, index, s, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
