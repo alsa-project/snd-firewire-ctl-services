@@ -72,3 +72,135 @@ impl<'a, V> FormerOutCtl<V>
         }
     }
 }
+
+const GAIN_MIN: i32 = 0x00000000;
+const GAIN_ZERO: i32 = 0x00008000;
+const GAIN_MAX: i32 = 0x00010000;
+const GAIN_STEP: i32 = 1;
+const GAIN_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
+
+#[derive(Default, Debug)]
+pub struct FormerMixerCtl<V>
+    where V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
+{
+    state: V,
+}
+
+impl<'a, V> FormerMixerCtl<V>
+    where V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
+{
+    const ANALOG_SRC_GAIN_NAME: &'a str = "mixer:analog-source-gain";
+    const SPDIF_SRC_GAIN_NAME: &'a str = "mixer:spdif-source-gain";
+    const ADAT_SRC_GAIN_NAME: &'a str = "mixer:adat-source-gain";
+    const STREAM_SRC_GAIN_NAME: &'a str = "mixer:stream-source-gain";
+
+    pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+        where U: RmeFormerMixerProtocol<FwNode, V>,
+              V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
+    {
+        self.state.as_mut().iter_mut()
+            .enumerate()
+            .for_each(|(i, mixer)| {
+                mixer.analog_gains.iter_mut()
+                    .for_each(|gain| *gain = GAIN_MIN);
+                mixer.spdif_gains.iter_mut()
+                    .for_each(|gain| *gain = GAIN_MIN);
+                mixer.adat_gains.iter_mut()
+                    .for_each(|gain| *gain = GAIN_MIN);
+                mixer.stream_gains.iter_mut()
+                    .nth(i)
+                    .map(|gain| *gain = GAIN_ZERO);
+            });
+
+        (0..self.state.as_ref().len())
+            .try_for_each(|i| {
+                proto.init_mixer_src_gains(&unit.get_node(), &mut self.state, i, timeout_ms)
+            })?;
+
+        let mixers = self.state.as_ref();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ANALOG_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
+                                        mixers[0].analog_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SPDIF_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
+                                        mixers[0].spdif_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ADAT_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
+                                        mixers[0].adat_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
+                                        mixers[0].stream_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            Self::ANALOG_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state.as_ref()[index].analog_gains);
+                Ok(true)
+            }
+            Self::SPDIF_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state.as_ref()[index].spdif_gains);
+                Ok(true)
+            }
+            Self::ADAT_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state.as_ref()[index].adat_gains);
+                Ok(true)
+            }
+            Self::STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state.as_ref()[index].stream_gains);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<U>(&mut self, unit: &SndUnit, proto: &U, elem_id: &ElemId, new: &alsactl::ElemValue,
+                    timeout_ms: u32)
+        -> Result<bool, Error>
+        where U: RmeFormerMixerProtocol<FwNode, V>,
+              V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::ANALOG_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut gains = self.state.as_mut()[index].analog_gains.clone();
+                new.get_int(&mut gains);
+                proto.write_mixer_analog_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::SPDIF_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut gains = self.state.as_mut()[index].spdif_gains.clone();
+                new.get_int(&mut gains);
+                proto.write_mixer_spdif_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::ADAT_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut gains = self.state.as_mut()[index].adat_gains.clone();
+                new.get_int(&mut gains);
+                proto.write_mixer_adat_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut gains = self.state.as_mut()[index].stream_gains.clone();
+                new.get_int(&mut gains);
+                proto.write_mixer_stream_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
