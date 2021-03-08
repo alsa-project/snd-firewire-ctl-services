@@ -204,3 +204,102 @@ impl<'a, V> FormerMixerCtl<V>
         }
     }
 }
+
+#[derive(Default, Debug)]
+pub struct FormerMeterCtl<V>
+    where V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
+{
+    state: V,
+    measured_elem_list: Vec<ElemId>,
+}
+
+const LEVEL_MIN: i32 = 0x00000000;
+const LEVEL_MAX: i32 = 0x7fffff00;
+const LEVEL_STEP: i32 = 0x100;
+const LEVEL_TLV: DbInterval = DbInterval{min: -9003, max: 600, linear: false, mute_avail: false};
+
+impl<'a, V> FormerMeterCtl<V>
+    where V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
+{
+    const ANALOG_INPUT_NAME: &'a str = "meter:analog-input";
+    const SPDIF_INPUT_NAME: &'a str = "meter:spdif-input";
+    const ADAT_INPUT_NAME: &'a str = "meter:adat-input";
+    const STREAM_INPUT_NAME: &'a str = "meter:stream-input";
+
+    const ANALOG_OUTPUT_NAME: &'a str = "meter:analog-output";
+    const SPDIF_OUTPUT_NAME: &'a str = "meter:spdif-output";
+    const ADAT_OUTPUT_NAME: &'a str = "meter:adat-output";
+
+    pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
+        -> Result<(), Error>
+        where U: RmeFfFormerMeterProtocol<FwNode, V>,
+              V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
+    {
+        proto.read_meter(&unit.get_node(), &mut self.state, timeout_ms)?;
+
+        let s = self.state.as_ref();
+        [
+            (Self::ANALOG_INPUT_NAME, s.analog_inputs.len()),
+            (Self::SPDIF_INPUT_NAME, s.spdif_inputs.len()),
+            (Self::ADAT_INPUT_NAME, s.adat_inputs.len()),
+            (Self::STREAM_INPUT_NAME, s.stream_inputs.len()),
+            (Self::ANALOG_OUTPUT_NAME, s.analog_outputs.len()),
+            (Self::SPDIF_OUTPUT_NAME, s.spdif_outputs.len()),
+            (Self::ADAT_OUTPUT_NAME, s.adat_outputs.len()),
+        ].iter()
+            .try_for_each(|&(name, count)| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_int_elems(&elem_id, 1, LEVEL_MIN, LEVEL_MAX, LEVEL_STEP, count,
+                                        Some(&Vec::<u32>::from(&LEVEL_TLV)), false)
+                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+            })
+    }
+
+    pub fn get_measured_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.measured_elem_list);
+    }
+
+    pub fn measure_states<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32)
+        -> Result<(), Error>
+        where U: RmeFfFormerMeterProtocol<FwNode, V>,
+              V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
+    {
+        proto.read_meter(&unit.get_node(), &mut self.state, timeout_ms)
+    }
+
+    pub fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            Self::ANALOG_INPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().analog_inputs);
+                Ok(true)
+            }
+            Self::SPDIF_INPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().spdif_inputs);
+                Ok(true)
+            }
+            Self::ADAT_INPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().adat_inputs);
+                Ok(true)
+            }
+            Self::STREAM_INPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().stream_inputs);
+                Ok(true)
+            }
+            Self::ANALOG_OUTPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().analog_outputs);
+                Ok(true)
+            }
+            Self::SPDIF_OUTPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().spdif_outputs);
+                Ok(true)
+            }
+            Self::ADAT_OUTPUT_NAME => {
+                elem_value.set_int(&self.state.as_ref().adat_outputs);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
