@@ -297,6 +297,7 @@ pub struct FfLatterDspState{
     pub mixer: Vec<FfLatterMixerState>,
     pub input_ch_strip: FfLatterInputChStripState,
     pub output_ch_strip: FfLatterOutputChStripState,
+    pub fx: FfLatterFxState,
 }
 
 /// The trait to represent specification of input and output of DSP.
@@ -419,6 +420,19 @@ pub trait RmeFfLatterDspSpec {
                     rise_times: vec![Default::default();Self::OUTPUT_COUNT],
                 },
             }),
+            fx: FfLatterFxState{
+                line_input_gains: vec![0;Self::LINE_INPUT_COUNT],
+                mic_input_gains: vec![0;Self::MIC_INPUT_COUNT],
+                spdif_input_gains: vec![0;Self::SPDIF_INPUT_COUNT],
+                adat_input_gains: vec![0;Self::ADAT_INPUT_COUNT],
+                stream_input_gains: vec![0;Self::STREAM_INPUT_COUNT],
+                line_output_vols: vec![0;Self::LINE_OUTPUT_COUNT],
+                hp_output_vols: vec![0;Self::HP_OUTPUT_COUNT],
+                spdif_output_vols: vec![0;Self::SPDIF_OUTPUT_COUNT],
+                adat_output_vols: vec![0;Self::ADAT_OUTPUT_COUNT],
+                reverb: Default::default(),
+                echo: Default::default(),
+            }
         }
     }
 }
@@ -461,6 +475,7 @@ pub trait RmeFfLatterDspProtocol<T, U> : AsRef<FwReq>
     }
 }
 
+const INPUT_TO_FX_CMD: u8               = 0x01;
 const INPUT_STEREO_LINK_CMD: u8         = 0x02;
 const INPUT_INVERT_PHASE_CMD: u8        = 0x06;
 const INPUT_LINE_GAIN_CMD: u8           = 0x07;
@@ -470,6 +485,7 @@ const INPUT_MIC_INST_CMD: u8            = 0x09;
 
 const OUTPUT_VOL_CMD: u8                = 0x00;
 const OUTPUT_STEREO_BALANCE_CMD: u8     = 0x01;
+const OUTPUT_FROM_FX_CMD: u8            = 0x03;
 const OUTPUT_STEREO_LINK_CMD: u8        = 0x04;
 const OUTPUT_INVERT_PHASE_CMD: u8       = 0x07;
 const OUTPUT_LINE_LEVEL_CMD: u8         = 0x08;
@@ -501,6 +517,29 @@ const AUTOLEVEL_ACTIVATE_CMD: u8        = 0x80;
 const AUTOLEVEL_MAX_GAIN_CMD: u8        = 0x81;
 const AUTOLEVEL_HEADROOM_CMD: u8        = 0x82;
 const AUTOLEVEL_RISE_TIME_CMD: u8       = 0x83;
+
+const FX_REVERB_ACTIVATE_CMD: u8        = 0x00;
+const FX_REVERB_TYPE_CMD: u8            = 0x01;
+const FX_REVERB_PRE_DELAY_CMD: u8       = 0x02;
+const FX_REVERB_PRE_HPF_FREQ_CMD: u8    = 0x03;
+const FX_REVERB_ROOM_SCALE_CMD: u8      = 0x04;
+const FX_REVERB_ATTACK_CMD: u8          = 0x05;
+const FX_REVERB_HOLD_CMD: u8            = 0x06;
+const FX_REVERB_RELEASE_CMD: u8         = 0x07;
+const FX_REVERB_POST_LPF_FREQ_CMD: u8   = 0x08;
+const FX_REVERB_TIME_CMD: u8            = 0x09;
+const FX_REVERB_DAMPING_FREQ_CMD: u8    = 0x0a;
+const FX_REVERB_SMOOTH_CMD: u8          = 0x0b;
+const FX_REVERB_VOLUME_CMD: u8          = 0x0c;
+const FX_REVERB_STEREO_WIDTH_CMD: u8    = 0x0d;
+
+const FX_ECHO_ACTIVATE_CMD: u8          = 0x20;
+const FX_ECHO_TYPE_CMD: u8              = 0x21;
+const FX_ECHO_DELAY_CMD: u8             = 0x22;
+const FX_ECHO_FEEDBACK_CMD: u8          = 0x23;
+const FX_ECHO_LPF_FREQ_CMD: u8          = 0x24;
+const FX_ECHO_VOLUME_CMD: u8            = 0x25;
+const FX_ECHO_STEREO_WIDTH_CMD: u8      = 0x26;
 
 /// The structure to represent nominal level of analog input.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -1145,3 +1184,339 @@ impl<T, U, O> RmeFfLatterChStripProtocol<T, U, FfLatterOutputChStripState> for O
     const CH_OFFSET: u8 =
         (U::LINE_INPUT_COUNT + U::MIC_INPUT_COUNT + U::SPDIF_INPUT_COUNT + U::ADAT_INPUT_COUNT) as u8;
 }
+
+/// The enumeration to represent type of reverb effect.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum FfLatterFxReverbType {
+    SmallRoom,
+    MediumRoom,
+    LargeRoom,
+    Walls,
+    Shorty,
+    Attack,
+    Swagger,
+    OldSchool,
+    Echoistic,
+    EightPlusNine,
+    GrandWide,
+    Thicker,
+    Envelope,
+    Gated,
+    Space,
+}
+
+impl Default for FfLatterFxReverbType {
+    fn default() -> Self {
+        Self::SmallRoom
+    }
+}
+
+impl From<FfLatterFxReverbType> for i16 {
+    fn from(reverb_type: FfLatterFxReverbType) -> Self {
+        match reverb_type {
+            FfLatterFxReverbType::SmallRoom => 0x0000,
+            FfLatterFxReverbType::MediumRoom => 0x0001,
+            FfLatterFxReverbType::LargeRoom => 0x0002,
+            FfLatterFxReverbType::Walls => 0x0003,
+            FfLatterFxReverbType::Shorty => 0x0004,
+            FfLatterFxReverbType::Attack => 0x0005,
+            FfLatterFxReverbType::Swagger => 0x0006,
+            FfLatterFxReverbType::OldSchool => 0x0007,
+            FfLatterFxReverbType::Echoistic => 0x0008,
+            FfLatterFxReverbType::EightPlusNine => 0x0009,
+            FfLatterFxReverbType::GrandWide => 0x000a,
+            FfLatterFxReverbType::Thicker => 0x000b,
+            FfLatterFxReverbType::Envelope => 0x000c,
+            FfLatterFxReverbType::Gated => 0x000d,
+            FfLatterFxReverbType::Space => 0x000e,
+        }
+    }
+}
+
+/// The enumeration to represent type of echo effect.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum FfLatterFxEchoType {
+    StereoEcho,
+    StereoCross,
+    PongEcho,
+}
+
+impl Default for FfLatterFxEchoType {
+    fn default() -> Self {
+        Self::StereoEcho
+    }
+}
+
+impl From<FfLatterFxEchoType> for i16 {
+    fn from(echo_type: FfLatterFxEchoType) -> Self {
+        match echo_type {
+            FfLatterFxEchoType::StereoEcho => 0x0000,
+            FfLatterFxEchoType::StereoCross => 0x0001,
+            FfLatterFxEchoType::PongEcho => 0x0002,
+        }
+    }
+}
+
+/// The enumeration to represent frequency of low pass filter for echo effect.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum FfLatterFxEchoLpfFreq {
+    Off,
+    H2000,
+    H4000,
+    H8000,
+    H12000,
+    H16000,
+}
+
+impl Default for FfLatterFxEchoLpfFreq {
+    fn default() -> Self {
+        Self::Off
+    }
+}
+
+impl From<FfLatterFxEchoLpfFreq> for i16 {
+    fn from(lpf_freq: FfLatterFxEchoLpfFreq) -> Self {
+        match lpf_freq {
+            FfLatterFxEchoLpfFreq::Off => 0x0000,
+            FfLatterFxEchoLpfFreq::H2000 => 0x0005,
+            FfLatterFxEchoLpfFreq::H4000 => 0x0004,
+            FfLatterFxEchoLpfFreq::H8000 => 0x0003,
+            FfLatterFxEchoLpfFreq::H12000 => 0x0002,
+            FfLatterFxEchoLpfFreq::H16000 => 0x0001,
+        }
+    }
+}
+
+/// The structure to represent state of reverb in send effect.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FfLatterFxReverbState{
+    /// Whether to activate reverb effect.
+    pub activate: bool,
+    /// The type of reverb effect.
+    pub reverb_type: FfLatterFxReverbType,
+    /// The pre-delay of reverb effect between 0 and 999.
+    pub pre_delay: u16,
+    /// The frequency of high pass filter before reverb generation between 20 and 500 Hz.
+    pub pre_hpf: u16,
+    /// The scale of room between 50 and 300, displayed by 1/10.
+    pub room_scale: u16,
+    /// The time for increase volume between 5 and 400 ms.
+    pub attack: u16,
+    /// The time for fixed volume between 5 and 400 ms.
+    pub hold: u16,
+    /// The time for volume decrease between 5 and 500 ms.
+    pub release: u16,
+    /// The frequency of low pass filter after reverb generation between 200 and 20000 Hz.
+    pub post_lpf: u16,
+    /// The time for volume drop between 1 and 49, displayed by 1/10 sec.
+    pub time: u16,
+    /// The frequency of treble dampling for reverb generation between 2000 and 20000 Hz.
+    pub damping: u16,
+    /// The level of softener between 0 and 100.
+    pub smooth: u16,
+    /// The level of output between -650 and 60, displayed by 1/10.
+    pub volume: i16,
+    /// The stereo width between 0(monaural) and 100(stereo).
+    pub stereo_width: u16,
+}
+
+const FX_CH: u8 = 0x3c;
+
+fn reverb_state_to_cmds(state: &FfLatterFxReverbState) -> Vec<u32> {
+    let mut cmds = Vec::new();
+
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_ACTIVATE_CMD, state.activate as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_TYPE_CMD, i16::from(state.reverb_type)));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_PRE_DELAY_CMD, state.pre_delay as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_PRE_HPF_FREQ_CMD, state.pre_hpf as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_ROOM_SCALE_CMD, state.room_scale as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_ATTACK_CMD, state.attack as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_HOLD_CMD, state.hold as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_RELEASE_CMD, state.release as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_POST_LPF_FREQ_CMD, state.post_lpf as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_TIME_CMD, state.time as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_DAMPING_FREQ_CMD, state.damping as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_SMOOTH_CMD, state.smooth as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_VOLUME_CMD, state.volume));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_REVERB_STEREO_WIDTH_CMD, state.stereo_width as i16));
+
+    cmds
+}
+
+/// The structure to represent state of echo in send effect.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FfLatterFxEchoState{
+    /// Whether to activate echo effect.
+    pub activate: bool,
+    /// The type of echo effect.
+    pub echo_type: FfLatterFxEchoType,
+    /// The time to delay for echo between 0 and 100.
+    pub delay: u16,
+    /// The level of feedback for further echo between 0 and 100.
+    pub feedback: u16,
+    /// The frequency of low pass filter.
+    pub lpf: FfLatterFxEchoLpfFreq,
+    /// The level of output between -650 and 0, displayed by 1/10.
+    pub volume: i16,
+    /// The stereo width between 0(monaural) and 100(stereo).
+    pub stereo_width: u16,
+}
+
+fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
+    let mut cmds = Vec::new();
+
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_ACTIVATE_CMD, state.activate as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_TYPE_CMD, i16::from(state.echo_type)));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_DELAY_CMD, state.delay as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_FEEDBACK_CMD, state.feedback as i16));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_LPF_FREQ_CMD, i16::from(state.lpf)));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_VOLUME_CMD, state.volume));
+    cmds.push(create_phys_port_cmd(FX_CH, FX_ECHO_STEREO_WIDTH_CMD, state.stereo_width as i16));
+
+    cmds
+}
+
+/// The structure to represent state of send effects (reverb and echo).
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterFxState{
+    /// The gain of line inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub line_input_gains: Vec<i16>,
+    /// The gain of mic inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub mic_input_gains: Vec<i16>,
+    /// The gain of S/PDIF inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub spdif_input_gains: Vec<i16>,
+    /// The gain of ADAT inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub adat_input_gains: Vec<i16>,
+    /// The gain of stream inputs. Each value is between 0x0000 (-65.0 dB) and 0x8b5c (0.0 dB).
+    pub stream_input_gains: Vec<u16>,
+    /// The volume to line outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub line_output_vols: Vec<i16>,
+    /// The volume to hp outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub hp_output_vols: Vec<i16>,
+    /// The volume to S/PDIF outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub spdif_output_vols: Vec<i16>,
+    /// The volume to ADAT outputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
+    pub adat_output_vols: Vec<i16>,
+    /// The state of reverb effect.
+    pub reverb: FfLatterFxReverbState,
+    /// The state of echo effect.
+    pub echo: FfLatterFxEchoState,
+}
+
+const FX_MIXER_0: u16 = 0x1e;
+const FX_MIXER_1: u16 = 0x1f;
+
+fn fx_input_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterFxState) -> Vec<u32> {
+    assert_eq!(state.line_input_gains.len(), T::LINE_INPUT_COUNT);
+    assert_eq!(state.mic_input_gains.len(), T::MIC_INPUT_COUNT);
+    assert_eq!(state.spdif_input_gains.len(), T::SPDIF_INPUT_COUNT);
+    assert_eq!(state.adat_input_gains.len(), T::ADAT_INPUT_COUNT);
+    assert_eq!(state.stream_input_gains.len(), T::STREAM_INPUT_COUNT);
+
+    let mut cmds = Vec::new();
+
+    state.line_input_gains.iter()
+        .chain(state.mic_input_gains.iter())
+        .chain(state.spdif_input_gains.iter())
+        .chain(state.adat_input_gains.iter())
+        .enumerate()
+        .for_each(|(i, &gain)| {
+            let ch = i as u8;
+            cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
+        });
+
+    state.stream_input_gains.iter()
+        .enumerate()
+        .for_each(|(i, &gain)| {
+            cmds.push(create_virt_port_cmd(T::MIXER_STEP, FX_MIXER_0, T::STREAM_OFFSET + i as u16, gain));
+            cmds.push(create_virt_port_cmd(T::MIXER_STEP, FX_MIXER_1, T::STREAM_OFFSET + i as u16, gain));
+        });
+
+    cmds
+}
+
+fn fx_output_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterFxState) -> Vec<u32> {
+    assert_eq!(state.line_output_vols.len(), T::LINE_OUTPUT_COUNT);
+    assert_eq!(state.hp_output_vols.len(), T::HP_OUTPUT_COUNT);
+    assert_eq!(state.spdif_output_vols.len(), T::SPDIF_OUTPUT_COUNT);
+    assert_eq!(state.adat_output_vols.len(), T::ADAT_OUTPUT_COUNT);
+
+    let mut cmds = Vec::new();
+
+    state.line_output_vols.iter()
+        .chain(state.hp_output_vols.iter())
+        .chain(state.spdif_output_vols.iter())
+        .chain(state.adat_output_vols.iter())
+        .enumerate()
+        .for_each(|(i, &gain)| {
+            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
+            cmds.push(create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain));
+        });
+
+    cmds
+}
+
+/// The trait to represent mixer protocol.
+pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    fn init_fx(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+        let s = state.as_ref();
+
+        let mut cmds = Vec::new();
+        cmds.append(&mut fx_input_state_to_cmds::<U>(&s.fx));
+        cmds.append(&mut fx_output_state_to_cmds::<U>(&s.fx));
+        cmds.append(&mut reverb_state_to_cmds(&s.fx.reverb));
+        cmds.append(&mut echo_state_to_cmds(&s.fx.echo));
+
+        cmds.iter()
+            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+    }
+
+    fn write_fx_input_gains(&self, node: &T, state: &mut U, fx: FfLatterFxState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = fx_input_state_to_cmds::<U>(&state.as_ref().fx);
+        let new = fx_input_state_to_cmds::<U>(&fx);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().fx = fx)
+    }
+
+    fn write_fx_output_volumes(&self, node: &T, state: &mut U, fx: FfLatterFxState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = fx_output_state_to_cmds::<U>(&state.as_ref().fx);
+        let new = fx_output_state_to_cmds::<U>(&fx);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().fx = fx)
+    }
+
+    fn write_fx_reverb(&self, node: &T, state: &mut U, reverb: &FfLatterFxReverbState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = reverb_state_to_cmds(&state.as_ref().fx.reverb);
+        let new = reverb_state_to_cmds(reverb);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().fx.reverb = *reverb)
+    }
+
+    fn write_fx_echo(&self, node: &T, state: &mut U, echo: &FfLatterFxEchoState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = echo_state_to_cmds(&state.as_ref().fx.echo);
+        let new = echo_state_to_cmds(echo);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().fx.echo = *echo)
+    }
+}
+
+impl<T, U, O> RmeFfLatterFxProtocol<T, U> for O
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspProtocol<T, U>,
+{}
