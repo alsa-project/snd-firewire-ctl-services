@@ -8,10 +8,11 @@ pub mod ff802;
 use glib::Error;
 use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
 
-use crate::*;
+use super::*;
 
 const CFG_OFFSET: usize = 0xffff00000014;
 const DSP_OFFSET: usize = 0xffff0000001c;
+const METER_OFFSET: usize = 0xffffff000000;
 
 // For configuration register (0x'ffff'0000'0014).
 const CFG_MIDI_TX_LOW_OFFSET_MASK: u32          = 0x0001e000;
@@ -155,5 +156,135 @@ pub trait RmeFfLatterStatusProtocol<T, U> : AsRef<FwReq>
                 let quad = u32::from_le_bytes(raw);
                 status.parse(&quad)
             })
+    }
+}
+
+/// The structure to represent state of meters.
+///
+/// Each value is between 0x'0000'0000'0000'0000 and 0x'3fff'ffff'ffff'ffff. 0x'0000'0000'0000'001f
+/// represents negative infinite.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterMeterState{
+    pub line_inputs: Vec<i32>,
+    pub mic_inputs: Vec<i32>,
+    pub spdif_inputs: Vec<i32>,
+    pub adat_inputs: Vec<i32>,
+    pub stream_inputs: Vec<i32>,
+    pub line_outputs: Vec<i32>,
+    pub hp_outputs: Vec<i32>,
+    pub spdif_outputs: Vec<i32>,
+    pub adat_outputs: Vec<i32>,
+}
+
+const METER32_MASK: i32 = 0x07fffff0;
+
+// Read data retrieved by each block read transaction consists of below chunks in the order:
+//  32 octlets for meters detected by DSP.
+//  32 quadlets for meters detected by DSP.
+//  2 quadlets for unknown meters.
+//  2 quadlets for tags.
+//
+// The first tag represents the set of content:
+//  0x11111111 - hardware outputs
+//  0x22222222 - channel strip for hardware inputs
+//  0x33333333 - stream inputs
+//  0x55555555 - fx bus
+//  0x66666666 - hardware inputs
+//
+//  The maximum value for quadlet is 0x07fffff0. The byte in LSB is 0xf at satulated.
+fn parse_meter<U: RmeFfLatterMeterSpec>(s: &mut FfLatterMeterState, raw: &[u8]) {
+    let mut quadlet = [0;4];
+    quadlet.copy_from_slice(&raw[388..]);
+    let target = u32::from_le_bytes(quadlet);
+
+    match target {
+        // For phys outputs.
+        0x11111111 => {
+            [
+                (s.line_outputs.iter_mut(), 0),
+                (s.hp_outputs.iter_mut(), U::LINE_OUTPUT_COUNT),
+                (s.spdif_outputs.iter_mut(), U::LINE_OUTPUT_COUNT + U::HP_OUTPUT_COUNT),
+                (s.adat_outputs.iter_mut(), U::LINE_OUTPUT_COUNT + U::HP_OUTPUT_COUNT + U::SPDIF_OUTPUT_COUNT),
+            ].iter_mut()
+                .for_each(|(iter, offset)| {
+                    iter.enumerate()
+                        .for_each(|(i, meter)| {
+                            let pos = 256 + (*offset + i) * 4;
+                            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                            *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
+                        });
+                });
+        }
+        // For stream inputs.
+        0x33333333 => {
+            s.stream_inputs.iter_mut()
+                .enumerate()
+                .for_each(|(i, meter)| {
+                    let pos = 256 + i * 4;
+                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                    *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
+                });
+        }
+        // For phys inputs.
+        0x66666666 => {
+            [
+                (s.line_inputs.iter_mut(), 0),
+                (s.mic_inputs.iter_mut(), U::LINE_INPUT_COUNT),
+                (s.spdif_inputs.iter_mut(), U::LINE_INPUT_COUNT + U::MIC_INPUT_COUNT),
+                (s.adat_inputs.iter_mut(), U::LINE_INPUT_COUNT + U::MIC_INPUT_COUNT + U::SPDIF_INPUT_COUNT),
+            ].iter_mut()
+                .for_each(|(iter, offset)| {
+                    iter.enumerate()
+                        .for_each(|(i, meter)| {
+                            let pos = 256 + (*offset + i) * 4;
+                            quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                            *meter = i32::from_le_bytes(quadlet) & METER32_MASK;
+                        });
+                });
+        }
+        _ => (),
+    }
+}
+
+/// The trait to represent meter protocol.
+pub trait RmeFfLatterMeterSpec {
+    const LINE_INPUT_COUNT: usize;
+    const MIC_INPUT_COUNT: usize;
+    const SPDIF_INPUT_COUNT: usize;
+    const ADAT_INPUT_COUNT: usize;
+    const STREAM_INPUT_COUNT: usize;
+
+    const LINE_OUTPUT_COUNT: usize;
+    const HP_OUTPUT_COUNT: usize;
+    const SPDIF_OUTPUT_COUNT: usize;
+    const ADAT_OUTPUT_COUNT: usize;
+
+    fn create_meter_state() -> FfLatterMeterState {
+        FfLatterMeterState{
+            line_inputs: vec![Default::default();Self::LINE_INPUT_COUNT],
+            mic_inputs: vec![Default::default();Self::MIC_INPUT_COUNT],
+            spdif_inputs: vec![Default::default();Self::SPDIF_INPUT_COUNT],
+            adat_inputs: vec![Default::default();Self::ADAT_INPUT_COUNT],
+            stream_inputs: vec![Default::default();Self::STREAM_INPUT_COUNT],
+            line_outputs: vec![Default::default();Self::LINE_OUTPUT_COUNT],
+            hp_outputs: vec![Default::default();Self::HP_OUTPUT_COUNT],
+            spdif_outputs: vec![Default::default();Self::SPDIF_OUTPUT_COUNT],
+            adat_outputs: vec![Default::default();Self::ADAT_OUTPUT_COUNT],
+        }
+    }
+}
+
+/// The trait to represent meter protocol.
+pub trait RmeFfLatterMeterProtocol<T, U> : AsRef<FwReq>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
+{
+    fn read_meter(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+        (0..5).try_for_each(|_| {
+            let mut raw = vec![0;392];
+            self.as_ref().transaction_sync(node.as_ref(), FwTcode::ReadBlockRequest, METER_OFFSET as u64,
+                                           raw.len(), &mut raw, timeout_ms)
+                .map(|_| parse_meter::<U>(state.as_mut(), &raw))
+        })
     }
 }
