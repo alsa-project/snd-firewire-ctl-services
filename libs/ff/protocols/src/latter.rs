@@ -294,6 +294,7 @@ pub trait RmeFfLatterMeterProtocol<T, U> : AsRef<FwReq>
 pub struct FfLatterDspState{
     pub input: FfLatterInputState,
     pub output: FfLatterOutputState,
+    pub mixer: Vec<FfLatterMixerState>,
 }
 
 /// The trait to represent specification of input and output of DSP.
@@ -335,6 +336,13 @@ pub trait RmeFfLatterDspSpec {
                 invert_phases: vec![Default::default();Self::OUTPUT_COUNT],
                 line_levels: vec![Default::default();Self::LINE_OUTPUT_COUNT],
             },
+            mixer: vec![FfLatterMixerState{
+                line_gains: vec![Default::default();Self::LINE_INPUT_COUNT],
+                mic_gains: vec![Default::default();Self::MIC_INPUT_COUNT],
+                spdif_gains: vec![Default::default();Self::SPDIF_INPUT_COUNT],
+                adat_gains: vec![Default::default();Self::ADAT_INPUT_COUNT],
+                stream_gains: vec![Default::default();Self::STREAM_INPUT_COUNT],
+            };Self::OUTPUT_COUNT],
         }
     }
 }
@@ -612,6 +620,79 @@ pub trait RmeFfLatterOutputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
 }
 
 impl<T, U, O> RmeFfLatterOutputProtocol<T, U> for O
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspProtocol<T, U>,
+{}
+
+/// The structure to represent state of mixer.
+///
+/// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
+/// through 0.00 dB.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterMixerState{
+    pub line_gains: Vec<u16>,
+    pub mic_gains: Vec<u16>,
+    pub spdif_gains: Vec<u16>,
+    pub adat_gains: Vec<u16>,
+    pub stream_gains: Vec<u16>,
+}
+
+fn mixer_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterMixerState, index: u16, _: &T)
+    -> Vec<u32>
+{
+    let mut cmds = Vec::new();
+
+    state.line_gains.iter()
+        .chain(state.mic_gains.iter())
+        .chain(state.spdif_gains.iter())
+        .chain(state.adat_gains.iter())
+        .enumerate()
+        .for_each(|(i, &gain)| {
+            let ch = i as u16;
+            cmds.push(create_virt_port_cmd(T::MIXER_STEP, index, ch, gain));
+        });
+
+    state.stream_gains.iter()
+        .enumerate()
+        .for_each(|(i, &gain)| {
+            let ch = (T::STREAM_OFFSET as u16) + i as u16;
+            cmds.push(create_virt_port_cmd(T::MIXER_STEP, index, ch, gain));
+        });
+
+    cmds
+}
+
+/// The trait to represent mixer protocol.
+pub trait RmeFfLatterMixerProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    fn init_mixers(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+        let mixers = &state.as_ref().mixer;
+
+        mixers.iter()
+            .enumerate()
+            .try_for_each(|(i, mixer)| {
+                let ch = i as u16;
+                let cmds = mixer_state_to_cmds(&mixer, ch, state);
+                cmds.iter()
+                    .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+            })
+    }
+
+    fn write_mixer(&self, node: &T, state: &mut U, index: usize, mixer: FfLatterMixerState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = mixer_state_to_cmds(&state.as_ref().mixer[index], index as u16, state);
+        let new = mixer_state_to_cmds(&mixer, index as u16, state);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().mixer[index] = mixer)
+    }
+}
+
+impl<T, U, O> RmeFfLatterMixerProtocol<T, U> for O
     where T: AsRef<FwNode>,
           U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
           O: RmeFfLatterDspProtocol<T, U>,
