@@ -8,6 +8,7 @@ mod ff400_model;
 mod ff802_model;
 
 mod former_ctls;
+mod latter_ctls;
 
 use glib::Error;
 use glib::source;
