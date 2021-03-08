@@ -288,3 +288,72 @@ pub trait RmeFfLatterMeterProtocol<T, U> : AsRef<FwReq>
         })
     }
 }
+
+/// The structure to represent state of send effects (reverb and echo).
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterDspState;
+
+/// The trait to represent specification of input and output of DSP.
+pub trait RmeFfLatterDspSpec {
+    const LINE_INPUT_COUNT: usize;
+    const MIC_INPUT_COUNT: usize;
+    const SPDIF_INPUT_COUNT: usize;
+    const ADAT_INPUT_COUNT: usize;
+    const STREAM_INPUT_COUNT: usize;
+
+    const LINE_OUTPUT_COUNT: usize;
+    const HP_OUTPUT_COUNT: usize;
+    const SPDIF_OUTPUT_COUNT: usize;
+    const ADAT_OUTPUT_COUNT: usize;
+
+    const PHYS_INPUT_COUNT: usize =
+        Self::LINE_INPUT_COUNT + Self::MIC_INPUT_COUNT + Self::SPDIF_INPUT_COUNT + Self::ADAT_INPUT_COUNT;
+    const INPUT_COUNT: usize = Self::PHYS_INPUT_COUNT + Self::STREAM_INPUT_COUNT;
+    const OUTPUT_COUNT: usize =
+        Self::LINE_OUTPUT_COUNT + Self::HP_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
+
+    const STREAM_OFFSET: u16 = 0x0020;
+    const MIXER_STEP: u16 = Self::STREAM_OFFSET * 2;
+
+    fn create_dsp_state() -> FfLatterDspState {
+        FfLatterDspState{}
+    }
+}
+
+const VIRT_PORT_CMD_FLAG: u32 = 0x40000000;
+const ODD_PARITY_FLAG: u32 = 0x80000000;
+
+fn create_phys_port_cmd(ch: u8, cmd: u8, coef: i16) -> u32 {
+    ((ch as u32) << 24) | ((cmd as u32) << 16) | (u16::from_le_bytes(coef.to_le_bytes()) as u32)
+}
+
+fn create_virt_port_cmd(mixer_step: u16, mixer: u16, ch: u16, coef: u16) -> u32 {
+    VIRT_PORT_CMD_FLAG | (((mixer_step * mixer + ch) as u32) << 16) | (coef as u32)
+}
+
+/// The trait to represent DSP protocol.
+///
+/// DSP is configurable by quadlet write request with command aligned to little endian, which
+/// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
+/// bit in its most significant bit against the rest of bits.
+pub trait RmeFfLatterDspProtocol<T, U> : AsRef<FwReq>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+{
+    fn write_dsp_cmd(&self, node: &T, mut cmd: u32, timeout_ms: u32) -> Result<(), Error> {
+        // Add odd parity.
+        if (0..32).fold(0x01, |count, shift| count ^ (cmd >> shift) & 0x1) > 0 {
+            cmd |= ODD_PARITY_FLAG;
+        }
+        let mut raw = cmd.to_le_bytes();
+        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteQuadletRequest, DSP_OFFSET as u64,
+                                       raw.len(), &mut raw, timeout_ms)
+    }
+
+    fn write_dsp_cmds(&self, node: &T, curr: &[u32], cmds: &[u32], timeout_ms: u32) -> Result<(), Error> {
+        cmds.iter()
+            .zip(curr.iter())
+            .filter(|(n, o)| !n.eq(o))
+            .try_for_each(|(&cmd, _)| self.write_dsp_cmd(node, cmd, timeout_ms))
+    }
+}
