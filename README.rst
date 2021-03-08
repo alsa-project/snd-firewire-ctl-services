@@ -183,6 +183,7 @@ Supported protocols
    * Protocol for DiceII ASIC in Digital Interface Communication Engine (DICE)
    * Protocol extension for TCD2210/TCD2220 ASIC in Digital Interface Communication Engine (DICE)
    * Protocol for former models of Fireface series of RME GmbH
+   * Protocol for latter models of Fireface series of RME GmbH
 
 Design note
 ===========
