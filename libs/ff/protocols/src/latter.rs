@@ -398,6 +398,34 @@ const OUTPUT_STEREO_LINK_CMD: u8        = 0x04;
 const OUTPUT_INVERT_PHASE_CMD: u8       = 0x07;
 const OUTPUT_LINE_LEVEL_CMD: u8         = 0x08;
 
+const HPF_ACTIVATE_CMD: u8              = 0x20;
+const HPF_CUT_OFF_CMD: u8               = 0x21;
+const HPF_ROLL_OFF_CMD: u8              = 0x22;
+const EQ_ACTIVATE_CMD: u8               = 0x40;
+const EQ_LOW_TYPE_CMD: u8               = 0x41;
+const EQ_LOW_GAIN_CMD: u8               = 0x42;
+const EQ_LOW_FREQ_CMD: u8               = 0x43;
+const EQ_LOW_QUALITY_CMD: u8            = 0x44;
+const EQ_MIDDLE_GAIN_CMD: u8            = 0x45;
+const EQ_MIDDLE_FREQ_CMD: u8            = 0x46;
+const EQ_MIDDLE_QUALITY_CMD: u8         = 0x47;
+const EQ_HIGH_TYPE_CMD: u8              = 0x48;
+const EQ_HIGH_GAIN_CMD: u8              = 0x49;
+const EQ_HIGH_FREQ_CMD: u8              = 0x4a;
+const EQ_HIGH_QUALITY_CMD: u8           = 0x4b;
+const DYN_ACTIVATE_CMD: u8              = 0x60;
+const DYN_GAIN_CMD: u8                  = 0x61;
+const DYN_ATTACK_CMD: u8                = 0x62;
+const DYN_RELEASE_CMD: u8               = 0x63;
+const DYN_COMPR_THRESHOLD_CMD: u8       = 0x64;
+const DYN_COMPR_RATIO_CMD: u8           = 0x65;
+const DYN_EXPANDER_THRESHOLD_CMD: u8    = 0x66;
+const DYN_EXPANDER_RATIO_CMD: u8        = 0x67;
+const AUTOLEVEL_ACTIVATE_CMD: u8        = 0x80;
+const AUTOLEVEL_MAX_GAIN_CMD: u8        = 0x81;
+const AUTOLEVEL_HEADROOM_CMD: u8        = 0x82;
+const AUTOLEVEL_RISE_TIME_CMD: u8       = 0x83;
+
 /// The structure to represent nominal level of analog input.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LatterInNominalLevel {
@@ -697,3 +725,298 @@ impl<T, U, O> RmeFfLatterMixerProtocol<T, U> for O
           U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
           O: RmeFfLatterDspProtocol<T, U>,
 {}
+
+/// The enum to represent level of roll off in high pass filter.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum FfLatterHpfRollOffLevel {
+    L6,
+    L12,
+    L18,
+    L24,
+}
+
+impl Default for FfLatterHpfRollOffLevel {
+    fn default() -> Self {
+        Self::L6
+    }
+}
+
+impl From<FfLatterHpfRollOffLevel> for i16 {
+    fn from(freq: FfLatterHpfRollOffLevel) -> Self {
+        match freq {
+            FfLatterHpfRollOffLevel::L6 => 0,
+            FfLatterHpfRollOffLevel::L12 => 1,
+            FfLatterHpfRollOffLevel::L18 => 2,
+            FfLatterHpfRollOffLevel::L24 => 3,
+        }
+    }
+}
+
+/// The structure to represent state of high pass filter in channel strip effect.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterHpfState{
+    /// Whether to activate high pass filter.
+    pub activates: Vec<bool>,
+    /// The frequency to cut between 20 and 500 Hz.
+    pub cut_offs: Vec<u16>,
+    /// The ratio to decline gain.
+    pub roll_offs: Vec<FfLatterHpfRollOffLevel>,
+}
+
+fn hpf_state_to_cmds(state: &FfLatterHpfState, ch_offset: u8) -> Vec<u32> {
+    assert_eq!(state.cut_offs.len(), state.activates.len());
+    assert_eq!(state.roll_offs.len(), state.activates.len());
+
+    let mut cmds = Vec::new();
+
+    (0..state.activates.len())
+        .for_each(|i| {
+            let ch = ch_offset + i as u8;
+            cmds.push(create_phys_port_cmd(ch, HPF_ACTIVATE_CMD, state.activates[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, HPF_CUT_OFF_CMD, state.cut_offs[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, HPF_ROLL_OFF_CMD, i16::from(state.roll_offs[i])));
+        });
+
+    cmds
+}
+
+/// The enum to represent type of bandwidth equalizing.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum FfLatterChStripEqType {
+    Peak,
+    Shelf,
+    LowPass,
+}
+
+impl Default for FfLatterChStripEqType {
+    fn default() -> Self {
+        Self::Peak
+    }
+}
+
+impl From<FfLatterChStripEqType> for i16 {
+    fn from(eq_type: FfLatterChStripEqType) -> Self {
+        match eq_type {
+            FfLatterChStripEqType::Peak => 0x0000,
+            FfLatterChStripEqType::Shelf => 0x0001,
+            FfLatterChStripEqType::LowPass => 0x0002,
+        }
+    }
+}
+
+/// The structure to represent state of equalizer in channel strip effect.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterEqState{
+    /// Whether to activate equalizer.
+    pub activates: Vec<bool>,
+    /// The type of equalizer at low bandwidth.
+    pub low_types: Vec<FfLatterChStripEqType>,
+    /// The gain of equalizer at low bandwidth between -20 and 20.
+    pub low_gains: Vec<i16>,
+    /// The frequency of equalizer at low bandwidth between 20 and 20000.
+    pub low_freqs: Vec<u16>,
+    /// The quality of equalizer at low bandwidth between 7 and 50, displayed by 1/10.
+    pub low_qualities: Vec<u16>,
+    /// The gain of equalizer at middle bandwidth between -20 and 20.
+    pub middle_gains: Vec<i16>,
+    /// The frequency of equalizer at middle bandwidth between 20 and 20000.
+    pub middle_freqs: Vec<u16>,
+    /// The quality of equalizer at middle bandwidth between 7 and 50, displayed by 1/10.
+    pub middle_qualities: Vec<u16>,
+    /// The type of equalizer at high bandwidth.
+    pub high_types: Vec<FfLatterChStripEqType>,
+    /// The gain of equalizer at high bandwidth between -20 and 20.
+    pub high_gains: Vec<i16>,
+    /// The frequency of equalizer at high bandwidth between 20 and 20000.
+    pub high_freqs: Vec<u16>,
+    /// The quality of equalizer at high bandwidth between 7 and 50, displayed by 1/10.
+    pub high_qualities: Vec<u16>,
+}
+
+fn eq_state_to_cmds(state: &FfLatterEqState, ch_offset: u8) -> Vec<u32> {
+    assert_eq!(state.low_types.len(), state.activates.len());
+    assert_eq!(state.low_gains.len(), state.activates.len());
+    assert_eq!(state.low_freqs.len(), state.activates.len());
+    assert_eq!(state.low_qualities.len(), state.activates.len());
+    assert_eq!(state.middle_gains.len(), state.activates.len());
+    assert_eq!(state.middle_freqs.len(), state.activates.len());
+    assert_eq!(state.middle_qualities.len(), state.activates.len());
+    assert_eq!(state.high_types.len(), state.activates.len());
+    assert_eq!(state.high_gains.len(), state.activates.len());
+    assert_eq!(state.high_freqs.len(), state.activates.len());
+    assert_eq!(state.high_qualities.len(), state.activates.len());
+
+    let mut cmds = Vec::new();
+
+    (0..state.activates.len())
+        .for_each(|i| {
+            let ch = ch_offset + i as u8;
+            cmds.push(create_phys_port_cmd(ch, EQ_ACTIVATE_CMD, state.activates[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_LOW_TYPE_CMD, state.low_types[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_LOW_GAIN_CMD, state.low_gains[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_LOW_FREQ_CMD, state.low_freqs[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_LOW_QUALITY_CMD, state.low_qualities[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_MIDDLE_GAIN_CMD, state.middle_gains[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_MIDDLE_FREQ_CMD, state.middle_freqs[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_MIDDLE_QUALITY_CMD, state.middle_qualities[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_HIGH_TYPE_CMD, state.high_types[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_HIGH_GAIN_CMD, state.high_gains[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_HIGH_FREQ_CMD, state.high_freqs[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, EQ_HIGH_QUALITY_CMD, state.high_qualities[i] as i16));
+        });
+
+    cmds
+}
+
+/// The structure to represent state of dynamics in channel strip effect.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterDynState{
+    /// Whether to activate dynamics.
+    pub activates: Vec<bool>,
+    /// The gain of dynamics between -300 and 300, displayed by 1/10.
+    pub gains: Vec<i16>,
+    /// The rise time of dynamics between 0 and 200 ms.
+    pub attacks: Vec<u16>,
+    /// The release time of dynamics between 100 and 999 ms.
+    pub releases: Vec<u16>,
+    /// The threshold of compressor between -600 and 0, displayed by 1/10.
+    pub compressor_thresholds: Vec<i16>,
+    /// The ratio of compressor between 10 and 100.
+    pub compressor_ratios: Vec<u16>,
+    /// The threshold of expander between -990 and -200, displayed by 1/10.
+    pub expander_thresholds: Vec<i16>,
+    /// The ratio of expander between 10 and 100.
+    pub expander_ratios: Vec<u16>,
+}
+
+fn dyn_state_to_cmds(state: &FfLatterDynState, ch_offset: u8) -> Vec<u32> {
+    assert_eq!(state.gains.len(), state.activates.len());
+    assert_eq!(state.attacks.len(), state.activates.len());
+    assert_eq!(state.releases.len(), state.activates.len());
+    assert_eq!(state.compressor_thresholds.len(), state.activates.len());
+    assert_eq!(state.compressor_ratios.len(), state.activates.len());
+    assert_eq!(state.expander_thresholds.len(), state.activates.len());
+    assert_eq!(state.expander_ratios.len(), state.activates.len());
+
+    let mut cmds = Vec::new();
+
+    (0..state.activates.len())
+        .for_each(|i| {
+            let ch = ch_offset + i as u8;
+            cmds.push(create_phys_port_cmd(ch, DYN_ACTIVATE_CMD, state.activates[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, DYN_GAIN_CMD, state.gains[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, DYN_ATTACK_CMD, state.attacks[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, DYN_RELEASE_CMD, state.releases[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, DYN_COMPR_THRESHOLD_CMD, state.compressor_thresholds[i]));
+            cmds.push(create_phys_port_cmd(ch, DYN_COMPR_RATIO_CMD, state.compressor_ratios[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, DYN_EXPANDER_THRESHOLD_CMD, state.expander_thresholds[i]));
+            cmds.push(create_phys_port_cmd(ch, DYN_EXPANDER_RATIO_CMD, state.expander_ratios[i] as i16));
+        });
+
+    cmds
+}
+
+/// The structure to represent state of autolevel in channel strip effects.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterAutolevelState{
+    /// Whether to activate auto level.
+    pub activates: Vec<bool>,
+    /// The maximum level of amplification between 0 and 180, displayed by 1/10 for dB.
+    pub max_gains: Vec<u16>,
+    /// The level of head room to decline signal peak between 30 and 120, displayed by 1/10 for dB.
+    pub headrooms: Vec<u16>,
+    /// The speed of level increase between 1 and 99, displayed by 1/10 for seconds.
+    pub rise_times: Vec<u16>,
+}
+
+fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec<u32> {
+    assert_eq!(state.max_gains.len(), state.activates.len());
+    assert_eq!(state.headrooms.len(), state.activates.len());
+    assert_eq!(state.rise_times.len(), state.activates.len());
+
+    let mut cmds = Vec::new();
+
+    (0..state.activates.len())
+        .for_each(|i| {
+            let ch = ch_offset + i as u8;
+            cmds.push(create_phys_port_cmd(ch, AUTOLEVEL_ACTIVATE_CMD, state.activates[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, AUTOLEVEL_MAX_GAIN_CMD, state.max_gains[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, AUTOLEVEL_HEADROOM_CMD, state.headrooms[i] as i16));
+            cmds.push(create_phys_port_cmd(ch, AUTOLEVEL_RISE_TIME_CMD, state.rise_times[i] as i16));
+        });
+
+    cmds
+}
+
+/// The structure to represent state of channel strip effect.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterChStripState{
+    pub hpf: FfLatterHpfState,
+    pub eq: FfLatterEqState,
+    pub dynamics: FfLatterDynState,
+    pub autolevel: FfLatterAutolevelState,
+}
+
+/// The trait to represent channel strip protocol.
+pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+          V: AsMut<FfLatterChStripState> + AsRef<FfLatterChStripState>,
+{
+    const CH_OFFSET: u8;
+
+    fn init_ch_strip(&self, node: &T, state: &V, timeout_ms: u32) -> Result<(), Error> {
+        let s = state.as_ref();
+
+        let mut cmds = Vec::new();
+        cmds.append(&mut hpf_state_to_cmds(&s.hpf, Self::CH_OFFSET));
+        cmds.append(&mut eq_state_to_cmds(&s.eq, Self::CH_OFFSET));
+        cmds.append(&mut dyn_state_to_cmds(&s.dynamics, Self::CH_OFFSET));
+        cmds.append(&mut autolevel_state_to_cmds(&s.autolevel, Self::CH_OFFSET));
+
+        cmds.iter()
+            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+    }
+
+    fn write_ch_strip_hpf(&self, node: &T, state: &mut V, hpf: FfLatterHpfState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = hpf_state_to_cmds(&state.as_ref().hpf, Self::CH_OFFSET);
+        let new = hpf_state_to_cmds(&hpf, Self::CH_OFFSET);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().hpf = hpf)
+    }
+
+    fn write_ch_strip_eq(&self, node: &T, state: &mut V, eq: FfLatterEqState, timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = eq_state_to_cmds(&state.as_ref().eq, Self::CH_OFFSET);
+        let new = eq_state_to_cmds(&eq, Self::CH_OFFSET);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().eq = eq)
+    }
+
+    fn write_ch_strip_dynamics(&self, node: &T, state: &mut V, dynamics: FfLatterDynState,
+                               timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = dyn_state_to_cmds(&state.as_ref().dynamics, Self::CH_OFFSET);
+        let new = dyn_state_to_cmds(&dynamics, Self::CH_OFFSET);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().dynamics = dynamics)
+    }
+
+    fn write_ch_strip_autolevel(&self, node: &T, state: &mut V, autolevel: FfLatterAutolevelState,
+                                timeout_ms: u32)
+        -> Result<(), Error>
+    {
+        let old = autolevel_state_to_cmds(&state.as_ref().autolevel, Self::CH_OFFSET);
+        let new = autolevel_state_to_cmds(&autolevel, Self::CH_OFFSET);
+
+        self.write_dsp_cmds(node, &old, &new, timeout_ms)
+            .map(|_| state.as_mut().autolevel = autolevel)
+    }
+}
