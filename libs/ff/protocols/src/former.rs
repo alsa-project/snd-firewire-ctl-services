@@ -256,3 +256,19 @@ pub struct FormerSpdifOutput {
     /// Whether to transfer non-audio bit in preemble.
     pub non_audio: bool,
 }
+
+/// The enumeration to represent nominal level of line inputs.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum FormerLineInNominalLevel {
+    Low,
+    /// -10 dBV.
+    Consumer,
+    /// +4 dBu.
+    Professional,
+}
+
+impl Default for FormerLineInNominalLevel {
+    fn default() -> Self {
+        Self::Low
+    }
+}
