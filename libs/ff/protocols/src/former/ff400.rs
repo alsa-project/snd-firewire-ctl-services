@@ -19,6 +19,7 @@ impl AsRef<FwReq> for Ff400Protocol {
     }
 }
 
+const OUTPUT_OFFSET: usize      = 0x000080080f80;
 const METER_OFFSET: usize       = 0x000080100000;
 const AMP_OFFSET: usize         = 0x0000801c0180;
 
@@ -33,6 +34,7 @@ const ADAT_OUTPUT_COUNT: usize = 8;
 
 const AMP_MIC_IN_CH_OFFSET: u8 = 0;
 const AMP_LINE_IN_CH_OFFSET: u8 = 2;
+const AMP_OUT_CH_OFFSET: u8 = 4;
 
 /// The structure to represent state of hardware meter for Fireface 400.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -156,3 +158,39 @@ pub trait RmeFf400InputGainProtocol<T: AsRef<FwNode>> : RmeFf400AmpProtocol<T> {
 }
 
 impl<T: AsRef<FwNode>, O: RmeFf400AmpProtocol<T>> RmeFf400InputGainProtocol<T> for O {}
+
+/// The structure to represent volume of outputs for Fireface 400.
+///
+/// The value is between 0x00000000, 0x00010000 through 0x00000001 and 0x00008000 by step 1 to
+/// represent the range from negative infinite to + 6dB through -90.30 dB and 0 dB.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct Ff400OutputVolumeState([i32;ANALOG_OUTPUT_COUNT + SPDIF_OUTPUT_COUNT + ADAT_OUTPUT_COUNT]);
+
+impl AsMut<[i32]> for Ff400OutputVolumeState {
+    fn as_mut(&mut self) -> &mut [i32] {
+        &mut self.0
+    }
+}
+
+impl AsRef<[i32]> for Ff400OutputVolumeState {
+    fn as_ref(&self) -> &[i32] {
+        &self.0
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFormerOutputProtocol<T, Ff400OutputVolumeState> for Ff400Protocol {
+    fn write_output_vol(&self, node: &T, ch: usize, vol: i32, timeout_ms: u32) -> Result<(), Error> {
+        let mut raw = [0;4];
+        raw.copy_from_slice(&vol.to_le_bytes());
+        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteBlockRequest,
+                                       (OUTPUT_OFFSET + ch * 4) as u64, raw.len(), &mut raw,
+                                       timeout_ms)
+            .and_then(|_| {
+                // The value for level is between 0x3f to 0x00 by step 1 to represent -57 dB
+                // (=mute) to +6 dB.
+                let level = (0x3f * (vol as i64) / (0x00010000 as i64)) as i8;
+                let amp_offset = AMP_OUT_CH_OFFSET + ch as u8;
+                self.write_amp_cmd(node, amp_offset, level, timeout_ms)
+            })
+    }
+}
