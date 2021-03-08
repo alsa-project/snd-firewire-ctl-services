@@ -16,6 +16,7 @@ use super::former_ctls::*;
 pub struct Ff400Model{
     proto: Ff400Protocol,
     meter_ctl: FormerMeterCtl<Ff400MeterState>,
+    out_ctl: FormerOutCtl<Ff400OutputVolumeState>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -23,19 +24,28 @@ const TIMEOUT_MS: u32 = 100;
 impl CtlModel<SndUnit> for Ff400Model {
     fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.meter_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
         Ok(())
     }
 
-    fn read(&mut self, _: &SndUnit, _: &ElemId, _: &mut ElemValue)
+    fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        if self.out_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
-    fn write(&mut self, _: &SndUnit, _: &ElemId, _: &ElemValue, _: &ElemValue)
+    fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        Ok(false)
+        if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
