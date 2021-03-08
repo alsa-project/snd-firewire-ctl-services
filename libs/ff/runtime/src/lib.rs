@@ -6,6 +6,7 @@ mod ff800_model;
 mod ff400_model;
 
 mod ff802_model;
+mod ucx_model;
 
 mod former_ctls;
 mod latter_ctls;
