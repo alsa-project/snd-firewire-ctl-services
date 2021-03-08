@@ -14,12 +14,14 @@ use ff_protocols::{*, former::*, latter::*};
 use super::ff800_model::*;
 use super::ff400_model::*;
 use super::ff802_model::*;
+use super::ucx_model::*;
 
 use std::convert::TryFrom;
 
 pub enum Model {
     Ff800(Ff800Model),
     Ff400(Ff400Model),
+    Ucx(UcxModel),
     Ff802(Ff802Model),
 }
 
@@ -43,6 +45,7 @@ impl FfModel {
         let model = match model_id {
             0x00000001 => Model::Ff800(Ff800Model::default()),
             0x00000002 => Model::Ff400(Ff400Model::default()),
+            0x00000004 => Model::Ucx(UcxModel::default()),
             0x00000005 => Model::Ff802(Ff802Model::default()),
             _ => Err(Error::new(FileError::Nxio, "Not supported."))?,
         };
@@ -56,12 +59,14 @@ impl FfModel {
         match &mut self.model {
             Model::Ff800(m) => m.load(unit, card_cntr),
             Model::Ff400(m) => m.load(unit, card_cntr),
+            Model::Ucx(m) => m.load(unit, card_cntr),
             Model::Ff802(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.model {
             Model::Ff800(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::Ff400(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::Ucx(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::Ff802(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
 
@@ -75,6 +80,7 @@ impl FfModel {
         match &mut self.model {
             Model::Ff800(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::Ff400(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::Ucx(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::Ff802(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
@@ -85,6 +91,7 @@ impl FfModel {
         match &mut self.model {
             Model::Ff800(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::Ff400(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::Ucx(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::Ff802(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
         }
     }
