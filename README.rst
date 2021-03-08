@@ -160,6 +160,7 @@ your device, please contact to developer.
 
   * Fireface 800
   * Fireface 400
+  * Fireface 802
 
 Supported protocols
 ===================
