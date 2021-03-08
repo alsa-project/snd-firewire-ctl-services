@@ -133,3 +133,172 @@ impl RmeFfLatterRegisterValueOperation for FfUcxConfig{
 }
 
 impl<T: AsRef<FwNode>> RmeFfLatterConfigProtocol<T, FfUcxConfig> for FfUcxProtocol {}
+
+// For status register (0x'ffff'0000'001c).
+#[allow(dead_code)]
+const STATUS_ACTIVE_CLK_RATE_MASK: u32              = 0x0f000000;
+#[allow(dead_code)]
+const STATUS_WORD_CLK_RATE_MASK: u32                = 0x00f00000;
+#[allow(dead_code)]
+const STATUS_OPT_IFACE_RATE_MASK: u32               = 0x000f0000;
+#[allow(dead_code)]
+const STATUS_COAX_IFACE_RATE_MASK: u32              = 0x0000f000;
+const STATUS_ACTIVE_CLK_SRC_MASK: u32               = 0x00000e00;
+const   STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32    = 0x00000e00;
+const   STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32    = 0x00000600;
+const   STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG: u32   = 0x00000400;
+const   STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG: u32  = 0x00000200;
+const STATUS_OPT_OUT_IFACE_FOR_ADAT: u32            = 0x00000100;
+const STATUS_SYNC_WORD_CLK_MASK: u32                = 0x00000040;
+const STATUS_SYNC_OPT_IFACE_MASK: u32               = 0x00000020;
+const STATUS_SYNC_COAX_IFACE_MASK: u32              = 0x00000010;
+const STATUS_LOCK_WORD_CLK_MASK: u32                = 0x00000004;
+const STATUS_LOCK_OPT_IFACE_MASK: u32               = 0x00000002;
+const STATUS_LOCK_COAX_IFACE_MASK: u32              = 0x00000001;
+
+/// The structure to represent lock status of UCX.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FfUcxExtLockStatus{
+    pub word_clk: bool,
+    pub opt_iface: bool,
+    pub coax_iface: bool,
+}
+
+impl FfUcxExtLockStatus {
+    fn build(&self, quad: &mut u32) {
+        if self.word_clk {
+            *quad |= STATUS_LOCK_WORD_CLK_MASK;
+        }
+        if self.opt_iface {
+            *quad |= STATUS_LOCK_OPT_IFACE_MASK;
+        }
+        if self.coax_iface {
+            *quad |= STATUS_LOCK_COAX_IFACE_MASK;
+        }
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        self.word_clk = *quad & STATUS_LOCK_WORD_CLK_MASK > 0;
+        self.opt_iface = *quad & STATUS_LOCK_OPT_IFACE_MASK > 0;
+        self.coax_iface = *quad & STATUS_LOCK_COAX_IFACE_MASK > 0;
+    }
+}
+
+/// The structure to represent sync status of UCX.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FfUcxExtSyncStatus{
+    pub word_clk: bool,
+    pub opt_iface: bool,
+    pub coax_iface: bool,
+}
+
+impl FfUcxExtSyncStatus {
+    fn build(&self, quad: &mut u32) {
+        if self.word_clk {
+            *quad |= STATUS_SYNC_WORD_CLK_MASK;
+        }
+        if self.opt_iface {
+            *quad |= STATUS_SYNC_OPT_IFACE_MASK;
+        }
+        if self.coax_iface {
+            *quad |= STATUS_SYNC_COAX_IFACE_MASK;
+        }
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        self.word_clk = *quad & STATUS_SYNC_WORD_CLK_MASK > 0;
+        self.opt_iface = *quad & STATUS_SYNC_OPT_IFACE_MASK > 0;
+        self.coax_iface = *quad & STATUS_SYNC_COAX_IFACE_MASK > 0;
+    }
+}
+
+/// The structure to represent sync status of UCX.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FfUcxExtRateStatus{
+    pub word_clk: Option<ClkNominalRate>,
+    pub opt_iface: Option<ClkNominalRate>,
+    pub coax_iface: Option<ClkNominalRate>,
+}
+
+impl FfUcxExtRateStatus {
+    fn build(&self, quad: &mut u32) {
+        optional_val_from_clk_rate(&self.word_clk, quad, 20);
+        optional_val_from_clk_rate(&self.opt_iface, quad, 16);
+        optional_val_from_clk_rate(&self.coax_iface, quad, 12);
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        if *quad & (STATUS_SYNC_WORD_CLK_MASK | STATUS_LOCK_WORD_CLK_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.word_clk, quad, 20);
+        } else {
+            self.word_clk = None;
+        }
+        if *quad & (STATUS_SYNC_OPT_IFACE_MASK | STATUS_LOCK_OPT_IFACE_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.opt_iface, quad, 16);
+        } else {
+            self.opt_iface = None;
+        }
+        if *quad & (STATUS_SYNC_COAX_IFACE_MASK | STATUS_LOCK_COAX_IFACE_MASK) > 0 {
+            optional_val_to_clk_rate(&mut self.coax_iface, quad, 12);
+        } else {
+            self.coax_iface = None;
+        }
+    }
+}
+
+/// The structure to represent status of UCX.
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+pub struct FfUcxStatus{
+    pub ext_lock: FfUcxExtLockStatus,
+    pub ext_sync: FfUcxExtSyncStatus,
+    pub ext_rate: FfUcxExtRateStatus,
+    pub opt_out_signal: OpticalOutputSignal,
+    pub active_clk_src: FfUcxClkSrc,
+    pub active_clk_rate: ClkNominalRate,
+}
+
+impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
+    fn build(&self, quad: &mut u32) {
+        self.ext_lock.build(quad);
+        self.ext_sync.build(quad);
+        self.ext_rate.build(quad);
+
+        if self.opt_out_signal == OpticalOutputSignal::Adat {
+            *quad |= STATUS_OPT_OUT_IFACE_FOR_ADAT;
+        }
+
+        val_from_clk_rate(&self.active_clk_rate, quad, 24);
+
+        let val = match self.active_clk_src {
+            FfUcxClkSrc::Internal => STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG,
+            FfUcxClkSrc::Coax => STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG,
+            FfUcxClkSrc::Opt => STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG,
+            FfUcxClkSrc::WordClk => STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG,
+        };
+        *quad |= val;
+    }
+
+    fn parse(&mut self, quad: &u32) {
+        self.ext_lock.parse(quad);
+        self.ext_sync.parse(quad);
+        self.ext_rate.parse(quad);
+
+        self.opt_out_signal = if *quad & STATUS_OPT_OUT_IFACE_FOR_ADAT > 0 {
+            OpticalOutputSignal::Adat
+        } else {
+            OpticalOutputSignal::Spdif
+        };
+
+        val_to_clk_rate(&mut self.active_clk_rate, quad, 24);
+
+        self.active_clk_src = match *quad & STATUS_ACTIVE_CLK_SRC_MASK {
+            STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG => FfUcxClkSrc::Internal,
+            STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG => FfUcxClkSrc::Coax,
+            STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG => FfUcxClkSrc::Opt,
+            STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG => FfUcxClkSrc::WordClk,
+            _ => unreachable!(),
+        };
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFfLatterStatusProtocol<T, FfUcxStatus> for FfUcxProtocol {}
