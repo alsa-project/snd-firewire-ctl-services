@@ -295,6 +295,7 @@ pub struct FfLatterDspState{
     pub input: FfLatterInputState,
     pub output: FfLatterOutputState,
     pub mixer: Vec<FfLatterMixerState>,
+    pub input_ch_strip: FfLatterInputChStripState,
 }
 
 /// The trait to represent specification of input and output of DSP.
@@ -343,6 +344,43 @@ pub trait RmeFfLatterDspSpec {
                 adat_gains: vec![Default::default();Self::ADAT_INPUT_COUNT],
                 stream_gains: vec![Default::default();Self::STREAM_INPUT_COUNT],
             };Self::OUTPUT_COUNT],
+            input_ch_strip: FfLatterInputChStripState(FfLatterChStripState{
+                hpf: FfLatterHpfState{
+                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    cut_offs: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    roll_offs: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                },
+                eq: FfLatterEqState{
+                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    low_types: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    low_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    low_freqs: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    low_qualities: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    middle_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    middle_freqs: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    middle_qualities: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    high_types: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    high_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    high_freqs: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    high_qualities: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                },
+                dynamics: FfLatterDynState{
+                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    attacks: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    releases: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    compressor_thresholds: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    compressor_ratios: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    expander_thresholds: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    expander_ratios: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                },
+                autolevel: FfLatterAutolevelState{
+                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    max_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    headrooms: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    rise_times: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                },
+            }),
         }
     }
 }
@@ -1019,4 +1057,28 @@ pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
         self.write_dsp_cmds(node, &old, &new, timeout_ms)
             .map(|_| state.as_mut().autolevel = autolevel)
     }
+}
+
+/// The structure to represent state of input channel strip effect.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterInputChStripState(pub FfLatterChStripState);
+
+impl AsMut<FfLatterChStripState> for FfLatterInputChStripState {
+    fn as_mut(&mut self) -> &mut FfLatterChStripState {
+        &mut self.0
+    }
+}
+
+impl AsRef<FfLatterChStripState> for FfLatterInputChStripState {
+    fn as_ref(&self) -> &FfLatterChStripState {
+        &self.0
+    }
+}
+
+impl<T, U, O> RmeFfLatterChStripProtocol<T, U, FfLatterInputChStripState> for O
+    where T: AsRef<FwNode>,
+          U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+          O: RmeFfLatterDspProtocol<T, U>,
+{
+    const CH_OFFSET: u8 = 0x00;
 }
