@@ -9,7 +9,7 @@ use core::card_cntr::*;
 
 use ieee1212_config_rom::*;
 
-use ff_protocols::*;
+use ff_protocols::{*, former::*};
 
 use super::ff800_model::*;
 
@@ -56,4 +56,41 @@ impl FfModel {
             Model::Ff800(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
+}
+
+pub fn spdif_iface_to_string(iface: &SpdifIface) -> String {
+    match iface {
+        SpdifIface::Coaxial => "Coaxial",
+        SpdifIface::Optical => "Optical",
+    }.to_string()
+}
+
+pub fn spdif_format_to_string(fmt: &SpdifFormat) -> String {
+    match fmt {
+        SpdifFormat::Consumer => "Consumer",
+        SpdifFormat::Professional => "Professional",
+    }.to_string()
+}
+
+pub fn optical_output_signal_to_string(sig: &OpticalOutputSignal) -> String {
+    match sig {
+        OpticalOutputSignal::Adat => "ADAT",
+        OpticalOutputSignal::Spdif => "S/PDIF",
+    }.to_string()
+}
+
+pub fn former_line_in_nominal_level_to_string(level: &FormerLineInNominalLevel) -> String {
+    match level {
+        FormerLineInNominalLevel::Low => "Low",
+        FormerLineInNominalLevel::Consumer => "-10dBV",
+        FormerLineInNominalLevel::Professional => "+4dBu",
+    }.to_string()
+}
+
+pub fn line_out_nominal_level_to_string(level: &LineOutNominalLevel) -> String {
+    match level {
+        LineOutNominalLevel::High => "High",
+        LineOutNominalLevel::Consumer => "-10dBV",
+        LineOutNominalLevel::Professional => "+4dBu",
+    }.to_string()
 }
