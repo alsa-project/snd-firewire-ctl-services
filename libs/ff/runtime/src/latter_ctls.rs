@@ -9,7 +9,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
 
-use ff_protocols::latter::*;
+use ff_protocols::{*, latter::*};
 
 use super::model::*;
 
@@ -128,6 +128,7 @@ pub struct FfLatterDspCtl<V>
 {
     state: V,
     input_ctl: FfLatterInputCtl,
+    output_ctl: FfLatterOutputCtl,
 }
 
 impl<'a, V> FfLatterDspCtl<V>
@@ -136,13 +137,17 @@ impl<'a, V> FfLatterDspCtl<V>
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
         where U: RmeFfLatterDspProtocol<FwNode, V> + RmeFfLatterInputProtocol<FwNode, V> +
+                 RmeFfLatterOutputProtocol<FwNode, V>,
     {
         self.input_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
+        self.output_ctl.load(unit, proto, &mut self.state, timeout_ms, card_cntr)?;
         Ok(())
     }
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         if self.input_ctl.read(&self.state, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -153,8 +158,11 @@ impl<'a, V> FfLatterDspCtl<V>
                     timeout_ms: u32)
         -> Result<bool, Error>
         where U: RmeFfLatterDspProtocol<FwNode, V> + RmeFfLatterInputProtocol<FwNode, V> +
+                 RmeFfLatterOutputProtocol<FwNode, V>,
     {
         if self.input_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.output_ctl.write(unit, proto, &mut self.state, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -320,6 +328,172 @@ impl<'a> FfLatterInputCtl {
                 let mut s = state.as_ref().input.clone();
                 elem_value.get_bool(&mut s.invert_phases);
                 proto.write_input(&unit.get_node(), state, s, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct FfLatterOutputCtl;
+
+impl<'a> FfLatterOutputCtl {
+    const VOL_NAME: &'a str = "output:volume";
+    const STEREO_BALANCE_NAME: &'a str = "output:stereo-balance";
+    const STEREO_LINK_NAME: &'a str = "output:stereo-link";
+    const INVERT_PHASE_NAME: &'a str = "output:invert-phase";
+    const LINE_LEVEL_NAME: &'a str = "output:line-level";
+
+    const VOL_MIN: i32 = -650;
+    const VOL_MAX: i32 = 60;
+    const VOL_STEP: i32 = 1;
+    const VOL_TLV: DbInterval = DbInterval{min: -6500, max: 600, linear: false, mute_avail: false};
+
+    const BALANCE_MIN: i32 = -100;
+    const BALANCE_MAX: i32 = 100;
+    const BALANCE_STEP: i32 = 1;
+
+    const LINE_LEVELS: [LineOutNominalLevel;3] = [
+        LineOutNominalLevel::Consumer,
+        LineOutNominalLevel::Professional,
+        LineOutNominalLevel::High,
+    ];
+
+    fn load<U, V>(&mut self, unit: &SndUnit, proto: &U, state: &mut V, timeout_ms: u32,
+                  card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+        where U: RmeFfLatterOutputProtocol<FwNode, V>,
+              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+    {
+        state.as_mut().output.vols.iter_mut()
+            .for_each(|vol| *vol = Self::VOL_MAX as i16);
+        proto.init_output(&unit.get_node(), state, timeout_ms)?;
+
+        let s = &state.as_ref().output;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::VOL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
+                                        s.vols.len(), Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+                                        true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STEREO_BALANCE_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
+                                        s.stereo_balance.len(), None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STEREO_LINK_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.stereo_links.len(), true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::INVERT_PHASE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.invert_phases.len(), true)?;
+
+        let labels: Vec<String> = Self::LINE_LEVELS.iter()
+            .map(|l| line_out_nominal_level_to_string(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_LEVEL_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, s.line_levels.len(), &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read<V>(&mut self, state: &V, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+        where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::VOL_NAME => {
+                let vals: Vec<i32> = state.as_ref().output.vols.iter()
+                    .map(|&vol| vol as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::STEREO_BALANCE_NAME => {
+                let vals: Vec<i32> = state.as_ref().output.stereo_balance.iter()
+                    .map(|&balance| balance as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            Self::STEREO_LINK_NAME => {
+                elem_value.set_bool(&state.as_ref().output.stereo_links);
+                Ok(true)
+            }
+            Self::INVERT_PHASE_NAME => {
+                elem_value.set_bool(&state.as_ref().output.invert_phases);
+                Ok(true)
+            }
+            Self::LINE_LEVEL_NAME => {
+                let vals: Vec<u32> = state.as_ref().output.line_levels.iter()
+                    .map(|level| {
+                        let pos = Self::LINE_LEVELS.iter()
+                            .position(|l| l.eq(level))
+                            .unwrap();
+                        pos as u32
+                    })
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write<U, V>(&mut self, unit: &SndUnit, proto: &U, state: &mut V, elem_id: &ElemId,
+                   elem_value: &ElemValue, timeout_ms: u32)
+        -> Result<bool, Error>
+        where U: RmeFfLatterOutputProtocol<FwNode, V>,
+              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::VOL_NAME => {
+                let mut s = state.as_ref().output.clone();
+                let mut vals = vec![0;s.vols.len()];
+                elem_value.get_int(&mut vals);
+                s.vols.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as i16);
+                proto.write_output(&unit.get_node(), state, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STEREO_BALANCE_NAME  => {
+                let mut s = state.as_ref().output.clone();
+                let mut vals = vec![0;s.stereo_balance.len()];
+                elem_value.get_int(&mut vals);
+                s.stereo_balance.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(d, s)| *d = *s as i16);
+                proto.write_output(&unit.get_node(), state, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::STEREO_LINK_NAME => {
+                let mut s = state.as_ref().output.clone();
+                elem_value.get_bool(&mut s.stereo_links);
+                proto.write_output(&unit.get_node(), state, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::INVERT_PHASE_NAME => {
+                let mut s = state.as_ref().output.clone();
+                elem_value.get_bool(&mut s.invert_phases);
+                proto.write_output(&unit.get_node(), state, s, timeout_ms)
+                    .map(|_| true)
+            }
+            Self::LINE_LEVEL_NAME => {
+                let mut s = state.as_ref().output.clone();
+                let mut vals = vec![0;s.line_levels.len()];
+                elem_value.get_enum(&mut vals);
+                vals.iter()
+                    .enumerate()
+                    .try_for_each(|(i, &pos)| {
+                        Self::LINE_LEVELS.iter()
+                            .nth(pos as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid value for index of output nominal level: {}", pos);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| s.line_levels[i] = l) 
+                    })?;
+                proto.write_output(&unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
