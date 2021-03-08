@@ -1,0 +1,14 @@
+[package]
+name = "ff-runtime"
+version = "0.1.0"
+authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
+edition = "2018"
+license = "GPL-3.0-or-later"
+publish = false
+description = """
+Implementation of service runtime for models in RME Fireface series.
+"""
+
+[dependencies]
+glib = "0.10"
+core = { path = "../../core" }
