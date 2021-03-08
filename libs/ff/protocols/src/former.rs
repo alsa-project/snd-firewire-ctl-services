@@ -4,6 +4,7 @@
 //! Protocol defined by RME GmbH for former models of Firewire series.
 
 pub mod ff800;
+pub mod ff400;
 
 use glib::Error;
 
