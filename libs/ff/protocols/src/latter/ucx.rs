@@ -302,3 +302,51 @@ impl RmeFfLatterRegisterValueOperation for FfUcxStatus {
 }
 
 impl<T: AsRef<FwNode>> RmeFfLatterStatusProtocol<T, FfUcxStatus> for FfUcxProtocol {}
+
+const LINE_INPUT_COUNT: usize = 6;
+const MIC_INPUT_COUNT: usize = 2;
+const SPDIF_INPUT_COUNT: usize = 2;
+const ADAT_INPUT_COUNT: usize = 8;
+const STREAM_INPUT_COUNT: usize = 18;
+
+const LINE_OUTPUT_COUNT: usize = 6;
+const HP_OUTPUT_COUNT: usize = 2;
+const SPDIF_OUTPUT_COUNT: usize = 2;
+const ADAT_OUTPUT_COUNT: usize = 8;
+
+/// The structure to represent state of meter.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FfUcxMeterState(FfLatterMeterState);
+
+impl AsRef<FfLatterMeterState> for FfUcxMeterState {
+    fn as_ref(&self) -> &FfLatterMeterState {
+        &self.0
+    }
+}
+
+impl AsMut<FfLatterMeterState> for FfUcxMeterState {
+    fn as_mut(&mut self) -> &mut FfLatterMeterState {
+        &mut self.0
+    }
+}
+
+impl RmeFfLatterMeterSpec for FfUcxMeterState {
+    const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
+    const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
+    const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
+    const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
+    const STREAM_INPUT_COUNT: usize = STREAM_INPUT_COUNT;
+
+    const LINE_OUTPUT_COUNT: usize = LINE_OUTPUT_COUNT;
+    const HP_OUTPUT_COUNT: usize = HP_OUTPUT_COUNT;
+    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
+    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
+}
+
+impl Default for FfUcxMeterState {
+    fn default() -> Self {
+        Self(Self::create_meter_state())
+    }
+}
+
+impl<T: AsRef<FwNode>> RmeFfLatterMeterProtocol<T, FfUcxMeterState> for FfUcxProtocol {}
