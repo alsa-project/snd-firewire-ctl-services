@@ -21,6 +21,7 @@ pub struct Ff800Model{
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     out_ctl: FormerOutCtl<Ff800OutputVolumeState>,
+    mixer_ctl: FormerMixerCtl<Ff800MixerState>,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -30,6 +31,7 @@ impl CtlModel<SndUnit> for Ff800Model {
         self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
         self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.mixer_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -40,6 +42,8 @@ impl CtlModel<SndUnit> for Ff800Model {
         if self.cfg_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -52,6 +56,8 @@ impl CtlModel<SndUnit> for Ff800Model {
         if self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
