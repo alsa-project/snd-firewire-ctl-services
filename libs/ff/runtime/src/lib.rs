@@ -10,17 +10,22 @@ use std::sync::mpsc;
 use hinawa::FwNodeExt;
 use hinawa::{SndUnit, SndUnitExt, SndUnitExtManual};
 
+use alsactl::CardExt;
+
 use core::RuntimeOperation;
 use core::dispatcher;
+use core::card_cntr;
 
 enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
+    Elem(alsactl::ElemId, alsactl::ElemEventMask),
 }
 
 pub struct FfRuntime{
     unit: SndUnit,
+    card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
@@ -32,12 +37,15 @@ impl RuntimeOperation<u32> for FfRuntime {
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path)?;
 
+        let card_cntr = card_cntr::CardCntr::new();
+        card_cntr.card.open(card_id, 0)?;
+
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
         let dispatchers = Vec::new();
 
-        Ok(FfRuntime{unit, rx, tx, dispatchers})
+        Ok(FfRuntime{unit, card_cntr, rx, tx, dispatchers})
     }
 
     fn listen(&mut self) -> Result<(), Error> {
@@ -55,6 +63,9 @@ impl RuntimeOperation<u32> for FfRuntime {
                     Event::Disconnected => break,
                     Event::BusReset(generation) => {
                         println!("IEEE 1394 bus is updated: {}", generation);
+                    }
+                    Event::Elem(_, _) => {
+                        ()
                     }
                 }
             }
@@ -106,6 +117,13 @@ impl<'a> FfRuntime {
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
             let _ = tx.send(Event::Shutdown);
             source::Continue(false)
+        });
+
+        let tx = self.tx.clone();
+        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
+        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
+            let elem_id: alsactl::ElemId = elem_id.clone();
+            let _ = tx.send(Event::Elem(elem_id, events));
         });
 
         self.dispatchers.push(dispatcher);
