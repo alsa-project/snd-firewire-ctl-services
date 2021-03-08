@@ -21,6 +21,7 @@ pub enum Model {
 
 pub struct FfModel{
     model: Model,
+    pub measured_elem_list: Vec<alsactl::ElemId>,
 }
 
 impl FfModel {
@@ -40,12 +41,21 @@ impl FfModel {
             _ => Err(Error::new(FileError::Nxio, "Not supported."))?,
         };
 
-        Ok(FfModel{model})
+        let measured_elem_list = Vec::new();
+
+        Ok(FfModel{model, measured_elem_list})
     }
+
     pub fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         match &mut self.model {
             Model::Ff800(m) => m.load(unit, card_cntr),
+        }?;
+
+        match &mut self.model {
+            Model::Ff800(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
         }
+
+        Ok(())
     }
 
     pub fn dispatch_elem_event(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr,
@@ -54,6 +64,14 @@ impl FfModel {
     {
         match &mut self.model {
             Model::Ff800(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+        }
+    }
+
+    pub fn measure_elems(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr)
+        -> Result<(), Error>
+    {
+        match &mut self.model {
+            Model::Ff800(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
         }
     }
 }
