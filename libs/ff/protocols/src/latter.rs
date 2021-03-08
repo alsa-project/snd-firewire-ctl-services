@@ -3,6 +3,7 @@
 
 //! Protocol defined by RME GmbH for latter models of Fireface series.
 
+pub mod ucx;
 pub mod ff802;
 
 use glib::Error;
