@@ -13,5 +13,6 @@ members = [
     "libs/dice/protocols",
     "libs/dice/runtime",
     "libs/ff/protocols",
+    "libs/ff/runtime",
     "services",
 ]
