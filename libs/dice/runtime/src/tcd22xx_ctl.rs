@@ -467,7 +467,7 @@ impl<'a> MixerCtl {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
     const COEF_STEP: i32 = 1;
-    const COEF_TLV: DbInterval = DbInterval{min: -6000, max: 4, linear: false, mute_avail: false};
+    const COEF_TLV: DbInterval = DbInterval{min: -6000, max: 400, linear: false, mute_avail: false};
 
     pub fn load<T>(&mut self, caps: &ExtensionCaps, state: &T, card_cntr: &mut CardCntr)
         -> Result<(), Error>
