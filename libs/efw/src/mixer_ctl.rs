@@ -31,7 +31,7 @@ impl<'a> MixerCtl {
     const COEF_MIN: i32 = 0x00000000;
     const COEF_MAX: i32 = 0x02000000;
     const COEF_STEP: i32 = 0x00000001;
-    const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 6, linear: false, mute_avail: false};
+    const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 600, linear: false, mute_avail: false};
 
     const PAN_MIN: i32 = 0;
     const PAN_MAX: i32 = 255;
