@@ -117,6 +117,7 @@ your device, please contact to developer.
   * Apogee Duet FireWire
   * Griffin FireWave
   * Lacie FireWire Speakers
+  * Mackie Tapco Link.FireWire 4x6
 
 * snd-bebob-ctl-service
 

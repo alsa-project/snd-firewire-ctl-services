@@ -9,6 +9,7 @@ use super::tascam_model::TascamModel;
 use super::apogee_model::ApogeeModel;
 use super::griffin_model::GriffinModel;
 use super::lacie_model::LacieModel;
+use super::loud_model::LinkFwModel;
 use super::common_model::CommonModel;
 
 enum OxfwCtlModel {
@@ -16,6 +17,7 @@ enum OxfwCtlModel {
     Duet(ApogeeModel),
     Firewave(GriffinModel),
     Speaker(LacieModel),
+    TapcoLinkFw(LinkFwModel),
     Common(CommonModel),
 }
 
@@ -35,6 +37,7 @@ impl OxfwModel {
             (0x00d04b, 0x00f970) => OxfwCtlModel::Speaker(Default::default()),
 	        // Stanton Controllers & Systems 1 Deck (SCS.1d) has no audio functionality.
             (0x001260, 0x002000) => return Err(Error::new(FileError::Noent, "Not supported")),
+            (0x000ff2, 0x000460) => OxfwCtlModel::TapcoLinkFw(Default::default()),
             _ => OxfwCtlModel::Common(Default::default()),
         };
         let model = OxfwModel{
@@ -53,6 +56,7 @@ impl OxfwModel {
             OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Firewave(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Speaker(m) => m.load(unit, card_cntr),
+            OxfwCtlModel::TapcoLinkFw(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Common(m) => m.load(unit, card_cntr),
         }?;
 
@@ -66,6 +70,7 @@ impl OxfwModel {
             OxfwCtlModel::Duet(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             OxfwCtlModel::Firewave(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             OxfwCtlModel::Speaker(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            OxfwCtlModel::TapcoLinkFw(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             OxfwCtlModel::Common(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
@@ -81,6 +86,7 @@ impl OxfwModel {
             OxfwCtlModel::Duet(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             OxfwCtlModel::Firewave(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             OxfwCtlModel::Speaker(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+            OxfwCtlModel::TapcoLinkFw(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             OxfwCtlModel::Common(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
         }
     }
@@ -102,6 +108,7 @@ impl OxfwModel {
             OxfwCtlModel::Duet(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
             OxfwCtlModel::Firewave(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
             OxfwCtlModel::Speaker(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
+            OxfwCtlModel::TapcoLinkFw(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
             OxfwCtlModel::Common(m) => card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m),
         }
     }
