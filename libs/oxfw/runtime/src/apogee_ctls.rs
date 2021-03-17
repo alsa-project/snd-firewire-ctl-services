@@ -3,14 +3,14 @@
 use glib::Error;
 
 use hinawa::{FwNode, FwReq, FwFcp};
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
-use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd, ApogeeMeterProtocol};
+use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd, ApogeeMeter, ApogeeMeterProtocol};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -495,7 +495,7 @@ pub struct HwState {
     pub measure_elems: Vec<ElemId>,
 
     req: FwReq,
-    meters: [i32;6],
+    meters: ApogeeMeter,
     states: [u8;8],
 }
 
@@ -646,9 +646,7 @@ impl<'a> HwState {
     pub fn measure_states(&mut self, node: &FwNode, avc: &FwFcp, company_id: &[u8;3])
         -> Result<(), Error>
     {
-        let mut meters = [0;6];
-        self.req.read_meters(node, &mut meters)?;
-        self.meters.iter_mut().zip(meters.iter()).for_each(|(d, s)| *d = *s as i32);
+        self.req.read_meters(node, &mut self.meters)?;
 
         let mut op = ApogeeCmd::new(company_id, VendorCmd::HwState);
         avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
@@ -678,15 +676,15 @@ impl<'a> HwState {
                 Ok(true)
             }
             Self::ANALOG_IN_METER_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| Ok(self.meters[idx]))?;
+                elem_value.set_int(&self.meters.analog_inputs);
                 Ok(true)
             }
             Self::MIXER_SRC_METER_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| Ok(self.meters[idx + 2]))?;
+                elem_value.set_int(&self.meters.mixer_inputs);
                 Ok(true)
             }
             Self::MIXER_OUT_METER_NAME => {
-                ElemValueAccessor::<i32>::set_val(elem_value, || Ok(self.meters[4]))?;
+                elem_value.set_int(&[self.meters.mixer_output]);
                 Ok(true)
             }
             _ => Ok(false),
