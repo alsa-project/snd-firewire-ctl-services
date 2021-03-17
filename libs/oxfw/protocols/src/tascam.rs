@@ -106,6 +106,7 @@ impl AvcStatus for TascamProto {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct TascamAvc{
     pub fcp: hinawa::FwFcp,
     pub company_id: [u8;3],
