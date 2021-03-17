@@ -7,7 +7,6 @@ mod griffin_model;
 mod lacie_model;
 mod common_model;
 
-mod tascam_proto;
 mod apogee_proto;
 
 mod common_ctl;
