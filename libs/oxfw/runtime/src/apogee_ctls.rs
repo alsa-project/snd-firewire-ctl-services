@@ -11,6 +11,7 @@ use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd, ApogeeMeterProtocol};
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default, Debug)]
 pub struct OutputCtl;
 
 impl<'a> OutputCtl {
@@ -27,10 +28,6 @@ impl<'a> OutputCtl {
         "normal",
         "swapped"
     ];
-
-    pub fn new() -> Self {
-        OutputCtl {}
-    }
 
     pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
@@ -178,6 +175,7 @@ impl<'a> OutputCtl {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct MixerCtl;
 
 impl<'a> MixerCtl {
@@ -190,10 +188,6 @@ impl<'a> MixerCtl {
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x3fff;
     const GAIN_STEP: i32 = 0xff;
-
-    pub fn new() -> Self {
-        MixerCtl {}
-    }
 
     pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
@@ -246,6 +240,7 @@ impl<'a> MixerCtl {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct InputCtl;
 
 impl<'a> InputCtl {
@@ -262,10 +257,6 @@ impl<'a> InputCtl {
     const SRC_LABELS: &'a [&'a str] = &["Mic", "Phone"];
     const PHONE_LEVEL_LABELS: &'a [&'a str] = &["Instrument", "Line"];
     const LINE_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB"];
-
-    pub fn new() -> Self {
-        InputCtl{}
-    }
 
     pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
@@ -423,6 +414,7 @@ impl<'a> InputCtl {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct DisplayCtl;
 
 impl<'a> DisplayCtl {
@@ -432,10 +424,6 @@ impl<'a> DisplayCtl {
 
     const TARGET_LABELS: &'a [&'a str] = &["output", "input"];
     const OVERHOLDS_LABELS: &'a [&'a str] = &["infinite", "2 sec"];
-
-    pub fn new() -> Self {
-        DisplayCtl{}
-    }
 
     pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
@@ -525,6 +513,7 @@ impl<'a> DisplayCtl {
     }
 }
 
+#[derive(Default, Debug)]
 pub struct HwState {
     pub measure_elems: Vec<alsactl::ElemId>,
 
@@ -561,15 +550,6 @@ impl<'a> HwState {
     const METER_MIN: i32 = 0;
     const METER_MAX: i32 = i32::MAX;
     const METER_STEP: i32 = 256;
-
-    pub fn new() -> Self {
-        HwState{
-            measure_elems: Vec::new(),
-            req: hinawa::FwReq::new(),
-            meters: [0;6],
-            states: [0;8],
-        }
-    }
 
     pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>

@@ -14,6 +14,7 @@ use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, CtlAttr, FeatureCtl, Aud
 
 use super::common_ctl::CommonCtl;
 
+#[derive(Default, Debug)]
 pub struct GriffinModel {
     avc: hinawa::FwFcp,
     common_ctl: CommonCtl,
@@ -29,14 +30,6 @@ impl<'a> GriffinModel {
     const CHANNEL_MAP: &'a [usize] = &[0, 1, 4, 5, 2, 3];
     const VOL_FB_ID: u8 = 0x02;
     const MUTE_FB_ID: u8 = 0x01;
-
-    pub fn new() -> Self {
-        GriffinModel{
-            avc: hinawa::FwFcp::new(),
-            common_ctl: CommonCtl::new(),
-            voluntary: false,
-        }
-    }
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for GriffinModel {

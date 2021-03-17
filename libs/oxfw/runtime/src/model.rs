@@ -29,13 +29,13 @@ pub struct OxfwModel{
 impl OxfwModel {
     pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
-            (0x00022e, 0x800007) => OxfwCtlModel::Fireone(TascamModel::new()),
-            (0x0003db, 0x01dddd) => OxfwCtlModel::Duet(ApogeeModel::new()),
-            (0x001292, 0x00f970) => OxfwCtlModel::Firewave(GriffinModel::new()),
-            (0x00d04b, 0x00f970) => OxfwCtlModel::Speaker(LacieModel::new()),
+            (0x00022e, 0x800007) => OxfwCtlModel::Fireone(Default::default()),
+            (0x0003db, 0x01dddd) => OxfwCtlModel::Duet(Default::default()),
+            (0x001292, 0x00f970) => OxfwCtlModel::Firewave(Default::default()),
+            (0x00d04b, 0x00f970) => OxfwCtlModel::Speaker(Default::default()),
 	        // Stanton Controllers & Systems 1 Deck (SCS.1d) has no audio functionality.
             (0x001260, 0x002000) => return Err(Error::new(FileError::Noent, "Not supported")),
-            _ => OxfwCtlModel::Common(CommonModel::new()),
+            _ => OxfwCtlModel::Common(Default::default()),
         };
         let model = OxfwModel{
             ctl_model,

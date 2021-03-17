@@ -12,6 +12,7 @@ use ta1394::general::*;
 use ta1394::stream_format::*;
 use ta1394::amdtp::*;
 
+#[derive(Default, Debug)]
 pub struct CommonCtl{
     output_fmt_entries: Vec<CompoundAm824Stream>,
     input_fmt_entries: Vec<CompoundAm824Stream>,
@@ -24,16 +25,6 @@ impl<'a> CommonCtl {
     const CLK_RATE_NAME: &'a str = "sampling-rate";
 
     const SUPPORTED_RATES: &'a [u32] = &[32000, 44100, 48000, 88200, 96000, 176400, 192000];
-
-    pub fn new() -> Self {
-        CommonCtl{
-            output_fmt_entries: Vec::new(),
-            input_fmt_entries: Vec::new(),
-            supported_rates: Vec::new(),
-            assumed: false,
-            notified_elem_list: Vec::new(),
-        }
-    }
 
     pub fn load<O>(&mut self, avc: &O, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
         -> Result<(), Error>
