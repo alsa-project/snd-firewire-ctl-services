@@ -14,6 +14,7 @@ use oxfw_protocols::tascam::{TascamProto, VendorCmd, TascamAvc};
 
 use super::common_ctl::CommonCtl;
 
+#[derive(Default, Debug)]
 pub struct TascamModel{
     avc: TascamAvc,
     common_ctl: CommonCtl,
@@ -39,13 +40,6 @@ impl<'a> TascamModel {
     ];
     const MESSAGE_MODE_LABELS: &'a [&'a str] = &["native", "mackie-hui-emulation"];
     const INPUT_MODE_LABELS: &'a [&'a str] = &["stereo", "monaural"];
-
-    pub fn new() -> Self {
-        TascamModel{
-            avc: TascamAvc::new(),
-            common_ctl: CommonCtl::new(),
-        }
-    }
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {

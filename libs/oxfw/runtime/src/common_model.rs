@@ -8,6 +8,7 @@ use core::card_cntr;
 
 use super::common_ctl::CommonCtl;
 
+#[derive(Default, Debug)]
 pub struct CommonModel {
     avc: hinawa::FwFcp,
     common_ctl: CommonCtl,
@@ -15,13 +16,6 @@ pub struct CommonModel {
 
 impl<'a> CommonModel {
     const FCP_TIMEOUT_MS: u32 = 100;
-
-    pub fn new() -> Self {
-        CommonModel{
-            avc: hinawa::FwFcp::new(),
-            common_ctl: CommonCtl::new(),
-        }
-    }
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for CommonModel {

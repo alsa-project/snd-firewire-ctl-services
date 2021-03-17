@@ -12,6 +12,7 @@ use ta1394::general::UnitInfo;
 use super::common_ctl::CommonCtl;
 use super::apogee_ctls::{OutputCtl, MixerCtl, InputCtl, DisplayCtl, HwState};
 
+#[derive(Default, Debug)]
 pub struct ApogeeModel{
     avc: hinawa::FwFcp,
     company_id: [u8; 3],
@@ -25,19 +26,6 @@ pub struct ApogeeModel{
 
 impl<'a> ApogeeModel {
     const FCP_TIMEOUT_MS: u32 = 100;
-
-    pub fn new() -> Self {
-        ApogeeModel{
-            avc: hinawa::FwFcp::new(),
-            company_id: [0xff;3],
-            common_ctl: CommonCtl::new(),
-            output_ctl: OutputCtl::new(),
-            mixer_ctl: MixerCtl::new(),
-            input_ctl: InputCtl::new(),
-            display_ctl: DisplayCtl::new(),
-            hwstate: HwState::new(),
-        }
-    }
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {

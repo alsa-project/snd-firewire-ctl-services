@@ -14,6 +14,7 @@ use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, AudioFeature, CtlAttr, FeatureCtl, Aud
 
 use super::common_ctl::CommonCtl;
 
+#[derive(Default, Debug)]
 pub struct LacieModel {
     avc: hinawa::FwFcp,
     common_ctl: CommonCtl,
@@ -27,14 +28,6 @@ impl<'a> LacieModel {
     const MUTE_LABEL: &'a str = "PCM Playback Switch";
 
     const FB_ID: u8 = 0x01;
-
-    pub fn new() -> Self {
-        LacieModel{
-            avc: hinawa::FwFcp::new(),
-            common_ctl: CommonCtl::new(),
-            voluntary: false,
-        }
-    }
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
