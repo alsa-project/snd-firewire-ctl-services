@@ -7,8 +7,6 @@ mod griffin_model;
 mod lacie_model;
 mod common_model;
 
-mod apogee_proto;
-
 mod common_ctl;
 mod apogee_ctls;
 

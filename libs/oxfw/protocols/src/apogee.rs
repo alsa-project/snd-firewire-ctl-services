@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2021 Takashi Sakamoto
+
+//! Protocol defined by Apogee Electronics for Duet FireWire.
+//!
+//! The module includes protocol implementation defined by Apogee Electronics for Duet FireWire.
+
 use glib::Error;
 
 use hinawa::FwReqExtManual;
