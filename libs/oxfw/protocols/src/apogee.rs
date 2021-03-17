@@ -247,30 +247,26 @@ impl AvcStatus for ApogeeCmd {
     }
 }
 
+const METER_ADDR_BASE: u64 = 0xfffff0080000;
+
+const METER_OFFSET_ANALOG_INPUT: u32 = 0x0004;
+const METER_ANALOG_INPUT_SIZE: usize = 8;
+
+const METER_OFFSET_MIXER_SRC: u32 = 0x0404;
+const METER_MIXER_SRC_SIZE: usize = 16;
+
 /// The trait to represent meter protocol of Apogee Duet FireWire.
-pub trait ApogeeMeterProtocol : hinawa::FwReqExtManual {
-    const ADDR_BASE: u64 = 0xfffff0080000;
-
-    const OFFSET_ANALOG_INPUT: u32 = 0x0004;
-    const ANALOG_INPUT_SIZE: usize = 8;
-
-    const OFFSET_MIXER_SRC: u32 = 0x0404;
-    const MIXER_SRC_SIZE: usize = 16;
-
-    fn read_meters(&self, node: &hinawa::FwNode, meters: &mut [u32;6]) -> Result<(), Error>;
-}
-
-impl ApogeeMeterProtocol for hinawa::FwReq {
+pub trait ApogeeMeterProtocol : AsRef<hinawa::FwReq> {
     fn read_meters(&self, node: &hinawa::FwNode, meters: &mut [u32;6]) -> Result<(), Error> {
-        let mut frame = [0;Self::ANALOG_INPUT_SIZE + Self::MIXER_SRC_SIZE];
+        let mut frame = [0;METER_ANALOG_INPUT_SIZE + METER_MIXER_SRC_SIZE];
 
-        let addr = Self::ADDR_BASE + Self::OFFSET_ANALOG_INPUT as u64;
-        self.transaction_sync(node, hinawa::FwTcode::ReadBlockRequest, addr, Self::ANALOG_INPUT_SIZE,
-                              &mut frame[..Self::ANALOG_INPUT_SIZE], 10)?;
+        let addr = METER_ADDR_BASE + METER_OFFSET_ANALOG_INPUT as u64;
+        self.as_ref().transaction_sync(node, hinawa::FwTcode::ReadBlockRequest, addr, METER_ANALOG_INPUT_SIZE,
+                              &mut frame[..METER_ANALOG_INPUT_SIZE], 10)?;
 
-        let addr = Self::ADDR_BASE + Self::OFFSET_MIXER_SRC as u64;
-        self.transaction_sync(node, hinawa::FwTcode::ReadBlockRequest, addr, Self::MIXER_SRC_SIZE,
-            &mut frame[Self::ANALOG_INPUT_SIZE..(Self::ANALOG_INPUT_SIZE + Self::MIXER_SRC_SIZE)], 10)?;
+        let addr = METER_ADDR_BASE + METER_OFFSET_MIXER_SRC as u64;
+        self.as_ref().transaction_sync(node, hinawa::FwTcode::ReadBlockRequest, addr, METER_MIXER_SRC_SIZE,
+            &mut frame[METER_ANALOG_INPUT_SIZE..(METER_ANALOG_INPUT_SIZE + METER_MIXER_SRC_SIZE)], 10)?;
 
         meters.iter_mut().enumerate().for_each(|(i, meter)| {
             let mut quadlet = [0;4];
@@ -281,6 +277,8 @@ impl ApogeeMeterProtocol for hinawa::FwReq {
         Ok(())
     }
 }
+
+impl<O: AsRef<hinawa::FwReq>> ApogeeMeterProtocol for O {}
 
 #[cfg(test)]
 mod test {
