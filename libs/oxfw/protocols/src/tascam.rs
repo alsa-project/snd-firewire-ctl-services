@@ -11,6 +11,7 @@ use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
 use ta1394::{AvcOp, AvcControl, AvcStatus, AvcNotify};
 use ta1394::general::VendorDependent;
 
+/// The enumeration to represent type of command for TASCAM FireOne.
 pub enum VendorCmd {
     DisplayMode,
     MessageMode,
@@ -36,6 +37,7 @@ impl From<&VendorCmd> for u8 {
     }
 }
 
+/// The structure to represent protocol of TASCAM FireOne.
 pub struct TascamProto{
     cmd: VendorCmd,
     pub val: u8,
@@ -106,6 +108,7 @@ impl AvcStatus for TascamProto {
     }
 }
 
+/// The structure to represent AV/C protocol for TASCAM FireOne.
 #[derive(Default, Debug)]
 pub struct TascamAvc{
     pub fcp: hinawa::FwFcp,
