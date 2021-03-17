@@ -7,7 +7,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
-use super::apogee_proto::{VendorCmd, ApogeeCmd, ApogeeMeterProtocol};
+use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd, ApogeeMeterProtocol};
 
 const TIMEOUT_MS: u32 = 100;
 

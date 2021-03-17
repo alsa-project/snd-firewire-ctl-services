@@ -7,3 +7,4 @@
 //! hardware vendors for FW970/971 ASICs.
 
 pub mod tascam;
+pub mod apogee;
