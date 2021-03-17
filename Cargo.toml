@@ -8,7 +8,7 @@ members = [
     "libs/tascam",
     "libs/efw",
     "libs/motu",
-    "libs/oxfw",
+    "libs/oxfw/runtime",
     "libs/bebob",
     "libs/dice/protocols",
     "libs/dice/runtime",
