@@ -13,6 +13,7 @@ use ta1394::{Ta1394AvcError, AvcAddr};
 use ta1394::{AvcOp, AvcStatus, AvcControl};
 use ta1394::general::VendorDependent;
 
+/// The enumeration to represent type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 // Usually 5 params.
@@ -40,6 +41,7 @@ pub enum VendorCmd {
     DisplayFollow,
 }
 
+/// The structure to represent protocol of Apogee Duet FireWire.
 pub struct ApogeeCmd{
     cmd: VendorCmd,
     vals: Vec<u8>,
@@ -245,6 +247,7 @@ impl AvcStatus for ApogeeCmd {
     }
 }
 
+/// The trait to represent meter protocol of Apogee Duet FireWire.
 pub trait ApogeeMeterProtocol : hinawa::FwReqExtManual {
     const ADDR_BASE: u64 = 0xfffff0080000;
 
