@@ -2,7 +2,10 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use core::card_cntr;
+use hinawa::{FwNode, FwReq, FwFcp};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
+
+use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
@@ -29,27 +32,21 @@ impl<'a> OutputCtl {
         "swapped"
     ];
 
-    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For source of analog outputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
-                                                   Self::SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::SRC_LABELS, None, true)?;
 
         // For level of analog outputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
-                                                   Self::LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::LEVEL_LABELS, None, true)?;
 
         // For association of mute state to line output.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MUTE_FOR_LINE_OUT, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_FOR_LINE_OUT, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MUTE_LABELS, None, true)?;
 
         // For association of mute state to hp output.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MUTE_FOR_HP_OUT, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_FOR_HP_OUT, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MUTE_LABELS, None, true)?;
 
         Ok(())
@@ -69,8 +66,7 @@ impl<'a> OutputCtl {
         idx
     }
 
-    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -121,8 +117,8 @@ impl<'a> OutputCtl {
         (idx & 0x01 == 0, idx & 0x02 == 0)
     }
 
-    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                 _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, _: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -189,12 +185,9 @@ impl<'a> MixerCtl {
     const GAIN_MAX: i32 = 0x3fff;
     const GAIN_STEP: i32 = 0xff;
 
-    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For gain of mixer sources.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MIXER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, Self::TARGET_LABELS.len(),
                                         Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         Self::SRC_LABELS.len(),
@@ -203,8 +196,7 @@ impl<'a> MixerCtl {
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -221,8 +213,8 @@ impl<'a> MixerCtl {
         }
     }
 
-    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, old: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -258,49 +250,40 @@ impl<'a> InputCtl {
     const PHONE_LEVEL_LABELS: &'a [&'a str] = &["Instrument", "Line"];
     const LINE_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB"];
 
-    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For polarity of microphone.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::POLARITY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::POLARITY_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
 
         // For level of input in phone jack.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::PHONE_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHONE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1,
                                          Self::PHONE_LABELS.len(), Self::PHONE_LEVEL_LABELS,
                                          None, true)?;
 
         // For level of line input in phone jack.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::LINE_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1,
                                          Self::PHONE_LABELS.len(), Self::LINE_LEVEL_LABELS,
                                          None, true)?;
 
         // For phantom powering of microphone.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::PHANTOM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHANTOM_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
 
         // For source of analog inputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGET_LABELS.len(),
                                          Self::SRC_LABELS, None, true)?;
 
         // For input clickless.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::CLICKLESS_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::CLICKLESS_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -356,8 +339,8 @@ impl<'a> InputCtl {
         }
     }
 
-    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, old: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -425,29 +408,23 @@ impl<'a> DisplayCtl {
     const TARGET_LABELS: &'a [&'a str] = &["output", "input"];
     const OVERHOLDS_LABELS: &'a [&'a str] = &["infinite", "2 sec"];
 
-    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For target of display.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::TARGET_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::TARGET_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::TARGET_LABELS, None, true)?;
 
         // For switch to force meters followed to selected item.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::FOLLOWED_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::FOLLOWED_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         // For overholds duration.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::OVERHOLDS_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OVERHOLDS_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::OVERHOLDS_LABELS, None, true)?;
 
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -479,8 +456,8 @@ impl<'a> DisplayCtl {
         }
     }
 
-    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                 _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, _: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -515,9 +492,9 @@ impl<'a> DisplayCtl {
 
 #[derive(Default, Debug)]
 pub struct HwState {
-    pub measure_elems: Vec<alsactl::ElemId>,
+    pub measure_elems: Vec<ElemId>,
 
-    req: hinawa::FwReq,
+    req: FwReq,
     meters: [i32;6],
     states: [u8;8],
 }
@@ -551,57 +528,48 @@ impl<'a> HwState {
     const METER_MAX: i32 = i32::MAX;
     const METER_STEP: i32 = 256;
 
-    pub fn load(&mut self, _: &hinawa::FwFcp, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For mute of analog outputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::OUT_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
         let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For selection of knob.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::SELECTED_KNOB_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SELECTED_KNOB_NAME, 0);
         let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::KNOB_LABELS,
                                                     None, false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For output volume.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::OUT_VOLUME_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_VOLUME_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                     Self::DIAL_OUT_MIN, Self::DIAL_OUT_MAX, Self::DIAL_OUT_STEP,
                                     1, None, true)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For input gain.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::IN_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::IN_GAIN_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                     Self::DIAL_IN_MIN, Self::DIAL_IN_MAX, Self::DIAL_IN_STEP,
                                     Self::INPUT_LABELS.len(), None, true)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For meter of inputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::ANALOG_IN_METER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ANALOG_IN_METER_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                    Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
                                                    Self::INPUT_LABELS.len(), None, false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For meters of mixer sources.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MIXER_SRC_METER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_SRC_METER_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                    Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
                                                    MixerCtl::SRC_LABELS.len(), None, false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For meters of mixer sources.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MIXER_OUT_METER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_OUT_METER_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                    Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
                                                    MixerCtl::TARGET_LABELS.len(), None, false)?;
@@ -610,8 +578,7 @@ impl<'a> HwState {
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -643,8 +610,8 @@ impl<'a> HwState {
         }
     }
 
-    pub fn write(&mut self, avc: &hinawa::FwFcp, company_id: &[u8;3], elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, old: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -676,7 +643,7 @@ impl<'a> HwState {
         }
     }
 
-    pub fn measure_states(&mut self, node: &hinawa::FwNode, avc: &hinawa::FwFcp, company_id: &[u8;3])
+    pub fn measure_states(&mut self, node: &FwNode, avc: &FwFcp, company_id: &[u8;3])
         -> Result<(), Error>
     {
         let mut meters = [0;6];
@@ -690,7 +657,7 @@ impl<'a> HwState {
         Ok(())
     }
 
-    pub fn measure_elems(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn measure_elems(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
