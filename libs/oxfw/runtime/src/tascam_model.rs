@@ -10,7 +10,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 use ta1394::{Ta1394Avc, AvcAddr};
 use ta1394::general::UnitInfo;
 
-use super::tascam_proto::{TascamProto, VendorCmd, TascamAvc};
+use oxfw_protocols::tascam::{TascamProto, VendorCmd, TascamAvc};
 
 use super::common_ctl::CommonCtl;
 

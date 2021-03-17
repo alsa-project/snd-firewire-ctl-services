@@ -18,3 +18,4 @@ alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "
 core = { path = "../../core" }
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 ta1394 = { path = "../../ta1394" }
+oxfw-protocols = { path = "../protocols" }

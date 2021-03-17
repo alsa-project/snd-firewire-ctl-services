@@ -8,3 +8,8 @@ publish = false
 description = """
 Implementation of protocol for Oxford Semiconductor FW970/971 chipset and vendor-specific models
 """
+
+[dependencies]
+glib = "0.10"
+hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.3.0", version = "0.3" }
+ta1394 = { path = "../../ta1394" }
