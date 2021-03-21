@@ -64,9 +64,11 @@ impl<'a> SoloModel<'a> {
 
     const PHYS_IN_FB_IDS: &'a [u8] = &[0x01, 0x02];
     const STREAM_IN_FB_IDS: &'a [u8] = &[0x03, 0x04];
+}
 
-    pub fn new() -> Self {
-        SoloModel{
+impl<'a> Default for SoloModel<'a> {
+    fn default() -> Self {
+        Self{
             avc: BebobAvc::new(),
             req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),

@@ -36,16 +36,16 @@ enum BebobCtlModel<'a> {
 impl<'a> BebobModel<'a> {
     pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
-            (0x0003db, 0x01eeee) => BebobCtlModel::ApogeeEnsemble(EnsembleModel::new()),
-            (0x000d6c, 0x00000a) => BebobCtlModel::MaudioOzonic(OzonicModel::new()),
-            (0x000d6c, 0x010062) => BebobCtlModel::MaudioSolo(SoloModel::new()),
-            (0x000d6c, 0x010060) => BebobCtlModel::MaudioAudiophile(AudiophileModel::new()),
-            (0x0007f5, 0x010046) => BebobCtlModel::MaudioFw410(Fw410Model::new()),
-            (0x000d6c, 0x0100a1) => BebobCtlModel::MaudioPlb(ProfirelightbridgeModel::new()),
+            (0x0003db, 0x01eeee) => BebobCtlModel::ApogeeEnsemble(Default::default()),
+            (0x000d6c, 0x00000a) => BebobCtlModel::MaudioOzonic(Default::default()),
+            (0x000d6c, 0x010062) => BebobCtlModel::MaudioSolo(Default::default()),
+            (0x000d6c, 0x010060) => BebobCtlModel::MaudioAudiophile(Default::default()),
+            (0x0007f5, 0x010046) => BebobCtlModel::MaudioFw410(Default::default()),
+            (0x000d6c, 0x0100a1) => BebobCtlModel::MaudioPlb(Default::default()),
             (0x000d6c, 0x010071) => BebobCtlModel::MaudioSpecial(SpecialModel::new(true)),
             (0x000d6c, 0x010091) => BebobCtlModel::MaudioSpecial(SpecialModel::new(false)),
-            (0x001564, 0x000610) => BebobCtlModel::BehringerFirepower(FirepowerModel::new()),
-            (0x001260, 0x000001) => BebobCtlModel::StantonScratchamp(ScratchampModel::new()),
+            (0x001564, 0x000610) => BebobCtlModel::BehringerFirepower(Default::default()),
+            (0x001260, 0x000001) => BebobCtlModel::StantonScratchamp(Default::default()),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }

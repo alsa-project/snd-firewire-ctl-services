@@ -40,9 +40,11 @@ impl<'a> ScratchampModel<'a> {
     const CLK_LABELS: &'a [&'a str] = &[
         "Internal",
     ];
+}
 
-    pub fn new() -> Self {
-        ScratchampModel{
+impl<'a> Default for ScratchampModel<'a> {
+    fn default() -> Self {
+        Self{
             avc: BebobAvc::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
         }

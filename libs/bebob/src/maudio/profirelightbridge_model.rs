@@ -53,9 +53,11 @@ impl<'a> ProfirelightbridgeModel<'a> {
         "ADAT-4",
         "Word-clock",
     ];
+}
 
-    pub fn new() -> Self {
-        ProfirelightbridgeModel {
+impl<'a> Default for ProfirelightbridgeModel<'a> {
+    fn default() -> Self {
+        Self{
             avc: BebobAvc::new(),
             req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
