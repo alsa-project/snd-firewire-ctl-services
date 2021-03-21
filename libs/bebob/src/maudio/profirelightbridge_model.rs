@@ -58,8 +58,8 @@ impl<'a> ProfirelightbridgeModel<'a> {
 impl<'a> Default for ProfirelightbridgeModel<'a> {
     fn default() -> Self {
         Self{
-            avc: BebobAvc::new(),
-            req: hinawa::FwReq::new(),
+            avc: Default::default(),
+            req: Default::default(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
             meter_ctl: MeterCtl::new(),
             input_ctl: InputCtl::new(),

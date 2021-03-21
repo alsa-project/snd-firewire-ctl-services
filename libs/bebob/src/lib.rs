@@ -19,6 +19,7 @@ use ta1394::{AvcOp, AvcStatus, AvcControl, AvcNotify};
 use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
 use ta1394::ccm::SignalSource;
 
+#[derive(Default, Debug)]
 pub struct BebobAvc{
     pub fcp: hinawa::FwFcp,
     pub company_id: [u8;3],

@@ -40,7 +40,7 @@ impl<'a> FirepowerModel<'a> {
 impl<'a> Default for FirepowerModel<'a> {
     fn default() -> Self {
         Self{
-            avc: BebobAvc::new(),
+            avc: Default::default(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, &Self::CLK_LABELS),
         }
     }

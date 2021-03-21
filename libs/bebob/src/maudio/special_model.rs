@@ -21,8 +21,8 @@ pub struct SpecialModel {
 impl SpecialModel {
     pub fn new(is_fw1814: bool) -> Self {
         SpecialModel {
-            avc: BebobAvc::new(),
-            req: hinawa::FwReq::new(),
+            avc: Default::default(),
+            req: Default::default(),
             clk_ctl: ClkCtl::new(is_fw1814),
             meter_ctl: MeterCtl::new(),
             cache: StateCache::new(),
