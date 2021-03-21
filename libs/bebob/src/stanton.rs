@@ -45,7 +45,7 @@ impl<'a> ScratchampModel<'a> {
 impl<'a> Default for ScratchampModel<'a> {
     fn default() -> Self {
         Self{
-            avc: BebobAvc::new(),
+            avc: Default::default(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
         }
     }

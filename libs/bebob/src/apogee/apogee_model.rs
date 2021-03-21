@@ -56,7 +56,7 @@ impl<'a> EnsembleModel<'a> {
 impl<'a> Default for EnsembleModel<'a> {
     fn default() -> Self {
         Self{
-            avc: BebobAvc::new(),
+            avc: Default::default(),
             clk_ctls: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_SRC_LABELS),
             hw_ctls: HwCtl::new(),
             display_ctls: DisplayCtl::new(),

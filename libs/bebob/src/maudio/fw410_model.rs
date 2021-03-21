@@ -91,8 +91,8 @@ impl<'a> Fw410Model<'a> {
 impl<'a> Default for Fw410Model<'a> {
     fn default() -> Self {
         Self{
-            avc: BebobAvc::new(),
-            req: hinawa::FwReq::new(),
+            avc: Default::default(),
+            req: Default::default(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
             meter_ctl: MeterCtl::new(Self::IN_METER_LABELS, &[], Self::OUT_METER_LABELS, false, 1, true),
             mixer_ctl: MixerCtl::new(
