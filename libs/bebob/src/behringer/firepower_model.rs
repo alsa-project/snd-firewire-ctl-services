@@ -35,9 +35,11 @@ impl<'a> FirepowerModel<'a> {
         }),
     ];
     const CLK_LABELS: &'a [&'a str] = &["Device Internal Clock", "S/PDIF", "Firewire Bus"];
+}
 
-    pub fn new() -> Self {
-        FirepowerModel{
+impl<'a> Default for FirepowerModel<'a> {
+    fn default() -> Self {
+        Self{
             avc: BebobAvc::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, &Self::CLK_LABELS),
         }

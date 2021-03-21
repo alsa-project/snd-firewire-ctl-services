@@ -86,9 +86,11 @@ impl<'a> Fw410Model<'a> {
 
     const HP_SRC_FB_ID: u8 = 0x07;
     const HP_OUT_FB_ID: u8 = 0x0f;
+}
 
-    pub fn new() -> Self {
-        Fw410Model{
+impl<'a> Default for Fw410Model<'a> {
+    fn default() -> Self {
+        Self{
             avc: BebobAvc::new(),
             req: hinawa::FwReq::new(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),

@@ -51,9 +51,11 @@ impl<'a> EnsembleModel<'a> {
         "Optical",
         "Word Clock",
     ];
+}
 
-    pub fn new() -> Self {
-        EnsembleModel{
+impl<'a> Default for EnsembleModel<'a> {
+    fn default() -> Self {
+        Self{
             avc: BebobAvc::new(),
             clk_ctls: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_SRC_LABELS),
             hw_ctls: HwCtl::new(),
