@@ -19,6 +19,7 @@ pub struct QuatafireModel<'a>{
     avc: BebobAvc,
     clk_ctl: ClkCtl<'a>,
     input_ctl: InputCtl,
+    output_ctl: OutputCtl,
 }
 
 impl<'a> QuatafireModel<'a> {
@@ -46,6 +47,7 @@ impl<'a> Default for QuatafireModel<'a> {
             avc: Default::default(),
             clk_ctl: ClkCtl::new(&Self::CLK_DST, &Self::CLK_SRCS, &Self::CLK_LABELS),
             input_ctl: Default::default(),
+            output_ctl: Default::default(),
         }
     }
 }
@@ -55,6 +57,7 @@ impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
         self.avc.fcp.bind(&unit.get_node())?;
         self.clk_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.input_ctl.load(card_cntr)?;
+        self.output_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -64,6 +67,8 @@ impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.input_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.output_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -76,6 +81,8 @@ impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.input_ctl.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.output_ctl.write(&self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -197,6 +204,70 @@ impl InputCtl {
                     let audio_ch_num = AudioCh::Each((idx % 2) as u8);
                     let mut op = AudioFeature::new(func_blk_id, CtlAttr::Current, audio_ch_num,
                                                    FeatureCtl::LrBalance(val as i16));
+                    avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default)]
+struct OutputCtl;
+
+const OUTPUT_VOL_NAME: &str = "output-volume";
+
+const VOL_MIN: i32 = FeatureCtl::NEG_INFINITY as i32;
+const VOL_MAX: i32 = 0;
+const VOL_STEP: i32 = 1;
+const VOL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: false};
+
+const OUTPUT_COUNT: usize = 8;
+const OUTPUT_FB_ID: u8 = 4;
+
+impl OutputCtl {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_VOL_NAME, 0);
+        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, INPUT_LABELS.len(),
+                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue,
+            timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUTPUT_VOL_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, OUTPUT_COUNT, |idx| {
+                    let mut op = AudioFeature::new(OUTPUT_FB_ID, CtlAttr::Current, AudioCh::Each(idx as u8),
+                                                   FeatureCtl::Volume(vec![-1]));
+                    avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+                    if let FeatureCtl::Volume(data) = op.ctl {
+                        let val = if data[0] == FeatureCtl::NEG_INFINITY { CTL_VALUE_MUTE } else { data[0] as i32 };
+                        Ok(val)
+                    } else {
+                        unreachable!();
+                    }
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId, old: &ElemValue, new: &ElemValue,
+             timeout_ms: u32)
+        -> Result<bool, Error>
+    {
+        match elem_id.get_name().as_str() {
+            OUTPUT_VOL_NAME => {
+                ElemValueAccessor::<i32>::get_vals(new, old, OUTPUT_COUNT, |idx, val| {
+                    let v = if val == CTL_VALUE_MUTE { FeatureCtl::NEG_INFINITY } else { val as i16 };
+                    let mut op = AudioFeature::new(OUTPUT_FB_ID, CtlAttr::Current, AudioCh::Each(idx as u8),
+                                                   FeatureCtl::Volume(vec![v]));
                     avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
                 })
                 .map(|_| true)
