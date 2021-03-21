@@ -11,7 +11,7 @@ mod apogee;
 mod maudio;
 mod behringer;
 mod stanton;
-
+mod esi;
 
 use glib::Error;
 use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};

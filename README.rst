@@ -131,6 +131,7 @@ your device, please contact to developer.
   * M-Audio ProjectMix I/O
   * Behringer FIREPOWER FCA610
   * Stanton ScratchAmp in Final Scratch version 2
+  * ESI Quatafire 610
 
 * snd-dice-ctl-service
 
