@@ -243,7 +243,7 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8])
                 }
                 let doublet = [data[start_offset], data[start_offset + 1]];
                 let length = 4 * u16::from_be_bytes(doublet) as usize;
-                if length < 8 {
+                if length < 4 {
                     let msg = format!("Invalid length of block {}", length);
                     Err(ConfigRomParseError::new(ctx, msg))?
                 }
