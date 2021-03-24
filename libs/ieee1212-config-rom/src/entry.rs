@@ -195,3 +195,14 @@ impl<'a> EntryDataAccess<'a, u64> for Entry<'a> {
             .map(|data| data.0)
     }
 }
+
+impl<'a> EntryDataAccess<'a, UnitLocationLeaf> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<UnitLocationLeaf> {
+        if self.key == key_type {
+            UnitLocationLeaf::try_from(self)
+                .ok()
+        } else {
+            None
+        }
+    }
+}

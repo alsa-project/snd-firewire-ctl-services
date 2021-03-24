@@ -10,6 +10,9 @@
 //! the data of Texual descriptor.
 //!
 //! EUI-64 structure represents 64-bit EUI.
+//!
+//! Unit_Location structure represents a pair of base address and upper bound for data of specific
+//! unit.
 
 use super::*;
 
@@ -228,6 +231,80 @@ impl std::fmt::Display for Eui64LeafParseCtx {
     }
 }
 
+/// The structure to represent data of unit location leaf.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UnitLocationLeaf{
+    pub base_addr: u64,
+    pub upper_bound: u64,
+}
+
+impl TryFrom<&[u8]> for UnitLocationLeaf {
+    type Error = LeafParseError<UnitLocationParseCtx>;
+
+    fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
+        if raw.len() < 16 {
+            let msg = format!("16 bytes required but {}", raw.len());
+            Err(Self::Error::new(UnitLocationParseCtx::TooShort, msg))
+        } else {
+            let mut quadlet = [0;4];
+
+            quadlet.copy_from_slice(&raw[..4]);
+            let high = u32::from_be_bytes(quadlet) as u64;
+            quadlet.copy_from_slice(&raw[4..8]);
+            let low = u32::from_be_bytes(quadlet) as u64;
+            let base_addr = (high << 32) | low;
+
+            quadlet.copy_from_slice(&raw[8..12]);
+            let high = u32::from_be_bytes(quadlet) as u64;
+            quadlet.copy_from_slice(&raw[12..16]);
+            let low = u32::from_be_bytes(quadlet) as u64;
+            let upper_bound = (high << 32) | low;
+
+            Ok(UnitLocationLeaf{base_addr, upper_bound})
+        }
+    }
+}
+
+impl<'a> TryFrom<&Entry<'a>> for UnitLocationLeaf {
+    type Error = LeafParseError<UnitLocationParseCtx>;
+
+    fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
+        if let EntryData::Leaf(leaf) = &entry.data {
+            let unit_location = UnitLocationLeaf::try_from(&leaf[..])?;
+            Ok(unit_location)
+        } else {
+            let label = if let EntryData::Immediate(_) = &entry.data {
+                "immediate"
+            } else if let EntryData::CsrOffset(_) = &entry.data {
+                "csr-offset"
+            } else if let EntryData::Directory(_) = &entry.data {
+                "directory"
+            } else {
+                unreachable!()
+            };
+            let msg = format!("{} entry is not available", label);
+            Err(Self::Error::new(UnitLocationParseCtx::WrongDirectoryEntry, msg))
+        }
+    }
+}
+
+/// The error context to parse data of unit location leaf.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnitLocationParseCtx {
+    TooShort,
+    WrongDirectoryEntry,
+}
+
+impl std::fmt::Display for UnitLocationParseCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ctx = match self {
+            Self::TooShort => "Size of leaf too short",
+            Self::WrongDirectoryEntry => "wrong directory entry",
+        };
+        write!(f, "{}", ctx)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::leaf::*;
@@ -255,5 +332,17 @@ mod test {
         let entry = Entry{key: KeyType::Eui64, data: EntryData::Leaf(&raw[..])};
         let eui64 = Eui64Leaf::try_from(&entry).unwrap();
         assert_eq!(0x0001020304050607, eui64.0);
+    }
+
+    #[test]
+    fn unit_location_from_leaf_entry() {
+        let raw = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        ];
+        let entry = Entry{key: KeyType::UnitLocation, data: EntryData::Leaf(&raw[..])};
+        let unit_location = UnitLocationLeaf::try_from(&entry).unwrap();
+        assert_eq!(0x0001020304050607, unit_location.base_addr);
+        assert_eq!(0x08090a0b0c0d0e0f, unit_location.upper_bound);
     }
 }
