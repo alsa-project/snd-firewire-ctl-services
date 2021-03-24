@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-//! For descriptor in leaf entry, the module includes structure, enumeration and trait implementation.
+//! Leaf entry has structured data. The module includes structure, enumeration and trait
+//! implementation to parse it.
 //!
 //! Descriptor structure represents descriptor itself. The structure implements TryFrom trait to
 //! convert from the content of leaf entry. DescriptorData enumeration represents data of
@@ -159,10 +160,10 @@ impl std::fmt::Display for DescriptorParseCtx {
 
 #[cfg(test)]
 mod test {
-    use super::desc::*;
+    use super::leaf::*;
 
     #[test]
-    fn textual_desc_from_entry() {
+    fn textual_desc_from_leaf_entry() {
         let raw = [
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4c, 0x69, 0x6e, 0x75, 0x78, 0x20,
             0x46, 0x69, 0x72, 0x65, 0x77, 0x69, 0x72, 0x65, 0x00, 0x00,
