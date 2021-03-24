@@ -13,6 +13,31 @@ use super::*;
 
 use std::convert::TryFrom;
 
+/// The structure to represent error cause.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LeafParseError<T>
+    where T: std::fmt::Debug + std::fmt::Display + Clone + Copy + PartialEq + Eq,
+{
+    ctx: T,
+    msg: String
+}
+
+impl<T> LeafParseError<T>
+    where T: std::fmt::Debug + std::fmt::Display + Clone + Copy + PartialEq + Eq,
+{
+    pub fn new(ctx: T, msg: String) -> Self {
+        LeafParseError{ctx, msg}
+    }
+}
+
+impl<T> std::fmt::Display for LeafParseError<T>
+    where T: std::fmt::Debug + std::fmt::Display + Clone + Copy + PartialEq + Eq,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.ctx, self.msg)
+    }
+}
+
 /// The structure represents data of textual descriptor.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextualDescriptorData<'a>{
@@ -23,7 +48,7 @@ pub struct TextualDescriptorData<'a>{
 }
 
 impl<'a> TryFrom<&'a [u8]> for TextualDescriptorData<'a> {
-    type Error = DescriptorParseError;
+    type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
         let mut quadlet = [0;4];
@@ -44,7 +69,7 @@ impl<'a> TryFrom<&'a [u8]> for TextualDescriptorData<'a> {
                     .map_err(|e| e.to_string())
             })
             .map_err(|msg| {
-                DescriptorParseError::new(DescriptorParseCtx::InvalidTextString, msg)
+                Self::Error::new(DescriptorLeafParseCtx::InvalidTextString, msg)
             })?;
         Ok(TextualDescriptorData{width, character_set, language, text})
     }
@@ -63,7 +88,7 @@ impl<'a> DescriptorData<'a> {
 }
 
 impl<'a> TryFrom<&'a [u8]> for DescriptorData<'a> {
-    type Error = DescriptorParseError;
+    type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
         match raw[0] {
@@ -73,7 +98,7 @@ impl<'a> TryFrom<&'a [u8]> for DescriptorData<'a> {
             }
             _ => {
                 let msg = format!("{} type", raw[0]);
-                Err(DescriptorParseError::new(DescriptorParseCtx::UnsupportedType, msg))
+                Err(Self::Error::new(DescriptorLeafParseCtx::UnsupportedType, msg))
             }
         }
     }
@@ -87,7 +112,7 @@ pub struct Descriptor<'a>{
 }
 
 impl<'a> TryFrom<&'a [u8]> for Descriptor<'a> {
-    type Error = DescriptorParseError;
+    type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
         let mut quadlet = [0;4];
@@ -100,7 +125,7 @@ impl<'a> TryFrom<&'a [u8]> for Descriptor<'a> {
 }
 
 impl<'a> TryFrom<&'a Entry<'a>> for Descriptor<'a> {
-    type Error = DescriptorParseError;
+    type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(entry: &'a Entry<'a>) -> Result<Self, Self::Error> {
         if let EntryData::Leaf(leaf) = &entry.data {
@@ -117,42 +142,24 @@ impl<'a> TryFrom<&'a Entry<'a>> for Descriptor<'a> {
                 unreachable!()
             };
             let msg = format!("{} entry", label);
-            Err(DescriptorParseError::new(DescriptorParseCtx::WrongDirectoryEntry, msg))
+            Err(Self::Error::new(DescriptorLeafParseCtx::WrongDirectoryEntry, msg))
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DescriptorParseError{
-    ctx: DescriptorParseCtx,
-    msg: String,
-}
-
-impl DescriptorParseError {
-    fn new(ctx: DescriptorParseCtx, msg: String) -> Self {
-        DescriptorParseError{ctx, msg}
-    }
-}
-
-impl std::fmt::Display for DescriptorParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.ctx, self.msg)
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DescriptorParseCtx {
+pub enum DescriptorLeafParseCtx {
     InvalidTextString,
     UnsupportedType,
     WrongDirectoryEntry,
 }
 
-impl std::fmt::Display for DescriptorParseCtx {
+impl std::fmt::Display for DescriptorLeafParseCtx {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ctx = match self {
-            DescriptorParseCtx::InvalidTextString => "invalid text string in leaf",
-            DescriptorParseCtx::UnsupportedType => "unsupported type",
-            DescriptorParseCtx::WrongDirectoryEntry => "wrong directory entry",
+            DescriptorLeafParseCtx::InvalidTextString => "invalid text string in leaf",
+            DescriptorLeafParseCtx::UnsupportedType => "unsupported type",
+            DescriptorLeafParseCtx::WrongDirectoryEntry => "wrong directory entry",
         };
         write!(f, "{}", ctx)
     }
