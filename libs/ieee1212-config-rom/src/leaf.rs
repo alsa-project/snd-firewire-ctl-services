@@ -2,12 +2,14 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 //! Leaf entry has structured data. The module includes structure, enumeration and trait
-//! implementation to parse it.
+//! implementation to parse it. The structure implements TryFrom trait to convert from the
+//! content of leaf entry.
 //!
-//! Descriptor structure represents descriptor itself. The structure implements TryFrom trait to
-//! convert from the content of leaf entry. DescriptorData enumeration represents data of
-//! descriptor. At present, Textual descriptor is supported. TextualDescriptorData represents the
-//! data of Texual descriptor.
+//! Descriptor structure represents descriptor itself. DescriptorData enumeration represents data
+//! of descriptor. At present, Textual descriptor is supported. TextualDescriptorData represents
+//! the data of Texual descriptor.
+//!
+//! EUI-64 structure represents 64-bit EUI.
 
 use super::*;
 
@@ -165,6 +167,67 @@ impl std::fmt::Display for DescriptorLeafParseCtx {
     }
 }
 
+/// The structure to represent data of EUI-64 leaf.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Eui64Leaf(pub u64);
+
+impl TryFrom<&[u8]> for Eui64Leaf {
+    type Error = LeafParseError<Eui64LeafParseCtx>;
+
+    fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
+        if raw.len() < 8 {
+            let msg = format!("8 bytes required but {}", raw.len());
+            Err(Self::Error::new(Eui64LeafParseCtx::TooShort, msg))
+        } else {
+            let mut quadlet = [0;4];
+            quadlet.copy_from_slice(&raw[..4]);
+            let high = u32::from_be_bytes(quadlet) as u64;
+            quadlet.copy_from_slice(&raw[4..8]);
+            let low = u32::from_be_bytes(quadlet) as u64;
+            Ok(Eui64Leaf((high << 32) | low))
+        }
+    }
+}
+
+impl<'a> TryFrom<&Entry<'a>> for Eui64Leaf {
+    type Error = LeafParseError<Eui64LeafParseCtx>;
+
+    fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
+        if let EntryData::Leaf(leaf) = &entry.data {
+            let eui64 = Eui64Leaf::try_from(&leaf[..])?;
+            Ok(eui64)
+        } else {
+            let label = if let EntryData::Immediate(_) = &entry.data {
+                "immediate"
+            } else if let EntryData::CsrOffset(_) = &entry.data {
+                "csr-offset"
+            } else if let EntryData::Directory(_) = &entry.data {
+                "directory"
+            } else {
+                unreachable!()
+            };
+            let msg = format!("{} entry is not available", label);
+            Err(Self::Error::new(Eui64LeafParseCtx::WrongDirectoryEntry, msg))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Eui64LeafParseCtx {
+    TooShort,
+    WrongDirectoryEntry,
+}
+
+impl std::fmt::Display for Eui64LeafParseCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ctx = match self {
+            Self::TooShort => "Size of leaf too short",
+            Self::WrongDirectoryEntry => "wrong directory entry",
+        };
+        write!(f, "{}", ctx)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::leaf::*;
@@ -184,5 +247,13 @@ mod test {
             assert_eq!(0, d.language);
             assert_eq!(&"Linux Firewire", &d.text);
         }
+    }
+
+    #[test]
+    fn eui64_from_leaf_entry() {
+        let raw = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+        let entry = Entry{key: KeyType::Eui64, data: EntryData::Leaf(&raw[..])};
+        let eui64 = Eui64Leaf::try_from(&entry).unwrap();
+        assert_eq!(0x0001020304050607, eui64.0);
     }
 }

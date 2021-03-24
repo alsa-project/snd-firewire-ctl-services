@@ -176,3 +176,22 @@ impl<'a> EntryDataAccess<'a, String> for Entry<'a> {
             .map(|text| text.to_string())
     }
 }
+
+// Via EUI-64 leaf data.
+impl<'a> EntryDataAccess<'a, Eui64Leaf> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<Eui64Leaf> {
+        if self.key == key_type {
+            Eui64Leaf::try_from(self)
+                .ok()
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> EntryDataAccess<'a, u64> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<u64> {
+        EntryDataAccess::<Eui64Leaf>::get(self, key_type)
+            .map(|data| data.0)
+    }
+}
