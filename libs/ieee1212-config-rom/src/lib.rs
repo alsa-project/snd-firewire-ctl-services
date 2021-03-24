@@ -16,7 +16,7 @@
 //! for the type of key, and `data` member is typed as `EntryData` to dispatch four types
 //! of data in the entry.
 //!
-//! In IEEE 1212, text descriptor of leaf entry includes string information. `Descriptor`
+//! In IEEE 1212, text descriptor of leaf entry includes string information. `DescriptorLeaf`
 //! structure is used to parse the descriptor.
 //!
 //! For convenience, `EntryDataAccess` trait is available to access several type of data in
@@ -27,7 +27,7 @@
 //! ```rust
 //! use ieee1212_config_rom::ConfigRom;
 //! use ieee1212_config_rom::entry::{Entry, KeyType, EntryData, EntryDataAccess};
-//! use ieee1212_config_rom::leaf::{Descriptor, DescriptorData, TextualDescriptorData};
+//! use ieee1212_config_rom::leaf::{DescriptorLeaf, DescriptorData, TextualDescriptorData};
 //! use std::convert::TryFrom;
 //!
 //! // Prepare raw data of Configuration ROM as array with u8 elements aligned by big endian.
@@ -53,7 +53,7 @@
 //! } else {
 //!     unreachable!();
 //! }
-//! let desc = Descriptor::try_from(&config_rom.root[2]).unwrap();
+//! let desc = DescriptorLeaf::try_from(&config_rom.root[2]).unwrap();
 //! if let DescriptorData::Textual(d) = desc.data {
 //!     assert_eq!("Linux Firewire", d.text);
 //! } else {

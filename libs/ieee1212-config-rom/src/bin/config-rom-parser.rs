@@ -24,7 +24,7 @@ fn print_leaf(raw: &[u8], level: usize) -> Result<(), String> {
     let mut indent = String::new();
     (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
 
-    let desc = Descriptor::try_from(raw)
+    let desc = DescriptorLeaf::try_from(raw)
         .map_err(|e| e.to_string())?;
     match &desc.data {
         DescriptorData::Textual(d) => {
