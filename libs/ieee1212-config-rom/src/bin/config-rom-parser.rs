@@ -20,7 +20,16 @@ fn print_raw(raw: &[u8], level: usize) {
     println!("");
 }
 
-fn print_leaf(raw: &[u8], level: usize) -> Result<(), String> {
+fn print_eui64_leaf(raw: &[u8], level: usize) -> Result<(), String> {
+    let mut indent = String::new();
+    (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
+
+    Eui64Leaf::try_from(raw)
+        .map(|data| println!("{}0x{:016x}", indent, data.0))
+        .map_err(|e| e.to_string())
+}
+
+fn print_descriptor_leaf(raw: &[u8], level: usize) -> Result<(), String> {
     let mut indent = String::new();
     (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
 
@@ -56,7 +65,11 @@ fn print_directory_entries(entries: &[Entry], level: usize) -> Result<(), String
             EntryData::CsrOffset(offset) => println!("{}{:?} (offset): 0x{:024x}", indent, entry.key, offset),
             EntryData::Leaf(leaf) => {
                 println!("{}{:?} (leaf):", indent, entry.key);
-                print_leaf(leaf, level + 1)?;
+                if entry.key == KeyType::Eui64 {
+                    print_eui64_leaf(leaf, level + 1)?;
+                } else {
+                    print_descriptor_leaf(leaf, level + 1)?;
+                }
             }
             EntryData::Directory(raw) => {
                 println!("{}{:?} (directory):", indent, entry.key);
