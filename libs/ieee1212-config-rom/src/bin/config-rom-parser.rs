@@ -29,6 +29,18 @@ fn print_eui64_leaf(raw: &[u8], level: usize) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+fn print_unit_location_leaf(raw: &[u8], level: usize) -> Result<(), String> {
+    let mut indent = String::new();
+    (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
+
+    UnitLocationLeaf::try_from(raw)
+        .map(|data| {
+            println!("{}base address: 0x{:016x}", indent, data.base_addr);
+            println!("{}upper bound: 0x{:016x}", indent, data.upper_bound);
+        })
+        .map_err(|e| e.to_string())
+}
+
 fn print_descriptor_leaf(raw: &[u8], level: usize) -> Result<(), String> {
     let mut indent = String::new();
     (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
@@ -67,6 +79,8 @@ fn print_directory_entries(entries: &[Entry], level: usize) -> Result<(), String
                 println!("{}{:?} (leaf):", indent, entry.key);
                 if entry.key == KeyType::Eui64 {
                     print_eui64_leaf(leaf, level + 1)?;
+                } else if entry.key == KeyType::UnitLocation {
+                    print_unit_location_leaf(leaf, level + 1)?;
                 } else {
                     print_descriptor_leaf(leaf, level + 1)?;
                 }
