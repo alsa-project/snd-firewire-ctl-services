@@ -139,10 +139,10 @@ impl<'a> EntryDataAccess<'a, usize> for Entry<'a> {
 }
 
 // Via descriptor data.
-impl<'a> EntryDataAccess<'a, Descriptor<'a>> for Entry<'a> {
-    fn get(&'a self, key_type: KeyType) -> Option<Descriptor<'a>> {
+impl<'a> EntryDataAccess<'a, DescriptorLeaf<'a>> for Entry<'a> {
+    fn get(&'a self, key_type: KeyType) -> Option<DescriptorLeaf<'a>> {
         if self.key == key_type {
-            Descriptor::try_from(self)
+            DescriptorLeaf::try_from(self)
                 .ok()
         } else {
             None
@@ -152,7 +152,7 @@ impl<'a> EntryDataAccess<'a, Descriptor<'a>> for Entry<'a> {
 
 impl<'a> EntryDataAccess<'a, TextualDescriptorData<'a>> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<TextualDescriptorData<'a>> {
-        EntryDataAccess::<Descriptor<'a>>::get(self, key_type)
+        EntryDataAccess::<DescriptorLeaf<'a>>::get(self, key_type)
             .and_then(|desc| {
                 if let DescriptorData::Textual(d) = desc.data {
                     Some(d)

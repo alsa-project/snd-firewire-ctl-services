@@ -106,12 +106,12 @@ impl<'a> TryFrom<&'a [u8]> for DescriptorData<'a> {
 
 /// The structure represents descriptor in content of leaf.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Descriptor<'a>{
+pub struct DescriptorLeaf<'a>{
     pub spec_id: u32,
     pub data: DescriptorData<'a>,
 }
 
-impl<'a> TryFrom<&'a [u8]> for Descriptor<'a> {
+impl<'a> TryFrom<&'a [u8]> for DescriptorLeaf<'a> {
     type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
@@ -120,16 +120,16 @@ impl<'a> TryFrom<&'a [u8]> for Descriptor<'a> {
         let spec_id = u32::from_be_bytes(quadlet) & 0x00ffffff;
 
         let data = DescriptorData::try_from(raw)?;
-        Ok(Descriptor{spec_id, data})
+        Ok(Self{spec_id, data})
     }
 }
 
-impl<'a> TryFrom<&'a Entry<'a>> for Descriptor<'a> {
+impl<'a> TryFrom<&'a Entry<'a>> for DescriptorLeaf<'a> {
     type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(entry: &'a Entry<'a>) -> Result<Self, Self::Error> {
         if let EntryData::Leaf(leaf) = &entry.data {
-            let desc = Descriptor::try_from(&leaf[..])?;
+            let desc = Self::try_from(&leaf[..])?;
             Ok(desc)
         } else {
             let label = if let EntryData::Immediate(_) = &entry.data {
@@ -176,7 +176,7 @@ mod test {
             0x46, 0x69, 0x72, 0x65, 0x77, 0x69, 0x72, 0x65, 0x00, 0x00,
         ];
         let entry = Entry{key: KeyType::Descriptor, data: EntryData::Leaf(&raw[..])};
-        let desc = Descriptor::try_from(&entry).unwrap();
+        let desc = DescriptorLeaf::try_from(&entry).unwrap();
         assert_eq!(0, desc.spec_id);
         if let DescriptorData::Textual(d) = desc.data {
             assert_eq!(0, d.width);
