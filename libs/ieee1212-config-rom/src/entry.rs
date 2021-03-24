@@ -6,7 +6,7 @@
 //! Entry structure represents directory entry. KeyType enumerations represents key of entry.
 //! EntryData enumeration represents type of directory entry, including its content.
 
-use super::desc::*;
+use super::leaf::*;
 
 use std::convert::TryFrom;
 
