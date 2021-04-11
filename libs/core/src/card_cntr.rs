@@ -220,7 +220,23 @@ impl CardCntr {
                 // Reuse the list of element identifiers.
                 elem_id_list
             }
-            None => self.card.add_elems(elem_id, elem_count as u32, elem_info)?
+            None => {
+                self.card.add_elems(elem_id, elem_count as u32, elem_info)
+                    .map_err(|e| {
+                        if let Some(CardError::Failed) = e.kind::<CardError>() {
+                            if e.to_string() == "ioctl(ELEM_ADD) 12(Cannot allocate memory)" {
+                                let mut msg = String::new();
+                                msg.push_str("Allocation of user-defined element set reached capacity of snd.ko\n");
+                                msg.push_str("This can be fixed by using Linux kernel v5.13 or later,\n");
+                                msg.push_str("or by using snd.ko pached to extend the capacity.\n");
+                                msg.push_str("The capacity is defined as 'MAX_USER_CONTROLS'");
+                                msg.push_str("located in 'sound/core/control.c'.");
+                                eprintln!("{}", msg);
+                            }
+                        }
+                        e
+                    })?
+            }
         };
 
         elem_id_list.iter().try_for_each(|elem_id| {

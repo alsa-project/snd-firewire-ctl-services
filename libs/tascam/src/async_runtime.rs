@@ -50,6 +50,16 @@ impl Drop for AsyncRuntime {
         });
         let _ = self.req.enable_notification(&self.node, false);
         self.resp.release();
+
+        // At first, stop event loop in all of dispatchers to avoid queueing new events.
+        for dispatcher in &mut self.dispatchers {
+            dispatcher.stop();
+        }
+
+        // Next, consume all events in queue to release blocked thread for sender.
+        for _ in self.rx.try_iter() {}
+
+        // Finally Finish I/O threads.
         self.dispatchers.clear();
     }
 }

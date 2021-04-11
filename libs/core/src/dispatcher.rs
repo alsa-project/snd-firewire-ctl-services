@@ -59,6 +59,10 @@ impl Dispatcher {
         Ok(Dispatcher{name, th, ev_loop})
     }
 
+    pub fn stop(&mut self) {
+        self.ev_loop.quit();
+    }
+
     fn attach_src_to_ctx(&mut self, src: &Source) {
         let ctx = self.ev_loop.get_context();
         src.attach(Some(&ctx));
