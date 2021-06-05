@@ -5,6 +5,7 @@
 //!
 //! The crate includes protocols defined by Mark of the Unicorn for its FireWire series.
 
+pub mod config_rom;
 pub mod version_2;
 pub mod version_3;
 
