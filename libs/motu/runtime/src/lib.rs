@@ -10,17 +10,9 @@ mod traveler;
 mod f8pre;
 mod f828mk2;
 
-mod common_proto;
-mod v3_proto;
-mod v2_proto;
-
 mod common_ctls;
-
-mod v3_ctls;
-mod v3_port_ctls;
-
 mod v2_ctls;
-mod v2_port_ctls;
+mod v3_ctls;
 
 use glib::{Error, FileError};
 use glib::source;
