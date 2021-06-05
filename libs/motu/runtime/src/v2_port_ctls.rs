@@ -14,7 +14,6 @@ use super::v2_proto::V2Proto;
 pub struct V2PortCtl<'a> {
     phone_assign_labels: &'a [&'a str],
     phone_assign_vals: &'a [u8],
-    has_main_vol: bool,
     has_word_bnc: bool,
     has_opt_ifaces: bool,
     has_spdif_opt: bool,
@@ -24,18 +23,9 @@ pub struct V2PortCtl<'a> {
 
 impl<'a> V2PortCtl<'a> {
     const PHONE_ASSIGN_NAME: &'a str = "phone-assign";
-    const MAIN_VOL_TARGET_NAME: &'a str = "main-volume-target";
     const WORD_OUT_MODE_NAME: &'a str = "word-out-mode";
     const OPT_IN_IFACE_MODE_NAME: &'a str = "optical-iface-in-mode";
     const OPT_OUT_IFACE_MODE_NAME: &'a str = "optical-iface-out-mode";
-
-    const MAIN_VOL_TARGET_LABELS: &'a [&'a str] = &[
-        "Main-out-1/2",
-        "Analog-1/2/3/4/5/6",
-        "Analog-1/2/3/4/5/6/7/8",
-        "S/PDIF-1/2",
-    ];
-    const MAIN_VOL_TARGET_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x03];
 
     const WORD_OUT_MODE_LABELS: &'a [&'a str] = &[
         "Force 44.1/48.0 kHz",
@@ -50,12 +40,11 @@ impl<'a> V2PortCtl<'a> {
     ];
     const OPT_IFACE_MODE_VALS: &'a [u8] = &[0x00, 0x01, 0x02];
 
-    pub fn new(phone_assign_labels: &'a [&str], phone_assign_vals: &'a [u8], has_main_vol: bool,
+    pub fn new(phone_assign_labels: &'a [&str], phone_assign_vals: &'a [u8], _: bool,
                has_word_bnc: bool, has_opt_ifaces: bool, has_spdif_opt: bool) -> Self {
         V2PortCtl{
             phone_assign_labels,
             phone_assign_vals,
-            has_main_vol,
             has_word_bnc,
             has_opt_ifaces,
             has_spdif_opt,
@@ -70,14 +59,6 @@ impl<'a> V2PortCtl<'a> {
                                                    0, 0, Self::PHONE_ASSIGN_NAME, 0);
         let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.phone_assign_labels, None, true)?;
         self.notified_elems.extend_from_slice(&elem_id_list);
-
-        if self.has_main_vol {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                       0, 0, Self::MAIN_VOL_TARGET_NAME, 0);
-            let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::MAIN_VOL_TARGET_LABELS,
-                                                        None, true)?;
-            self.notified_elems.extend_from_slice(&elem_id_list);
-        }
 
         if self.has_word_bnc {
             let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
@@ -118,13 +99,6 @@ impl<'a> V2PortCtl<'a> {
                 })?;
                 Ok(true)
             }
-            Self::MAIN_VOL_TARGET_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = proto.as_ref().get_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS)?;
-                    Ok(val as u32)
-                })?;
-                Ok(true)
-            }
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let val = proto.as_ref().get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
@@ -159,12 +133,6 @@ impl<'a> V2PortCtl<'a> {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     proto.as_ref().set_phone_assign(unit, &self.phone_assign_vals, val as usize)
-                })?;
-                Ok(true)
-            }
-            Self::MAIN_VOL_TARGET_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.as_ref().set_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS, val as usize)
                 })?;
                 Ok(true)
             }
