@@ -16,6 +16,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct Traveler<'a> {
     proto: TravelerProtocol,
     clk_ctls: V2ClkCtl,
+    opt_iface_ctl: V2OptIfaceCtl,
     port_ctls: V2PortCtl<'a>,
     msg_cache: u32,
 }
@@ -46,6 +47,7 @@ impl<'a> Traveler<'a> {
         Traveler{
             proto: Default::default(),
             clk_ctls: Default::default(),
+            opt_iface_ctl: Default::default(),
             port_ctls: V2PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       false, true, true, true),
             msg_cache: 0,
@@ -58,6 +60,7 @@ impl<'a> CtlModel<SndMotu> for Traveler<'a> {
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.opt_iface_ctl.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -67,6 +70,8 @@ impl<'a> CtlModel<SndMotu> for Traveler<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -80,6 +85,8 @@ impl<'a> CtlModel<SndMotu> for Traveler<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
