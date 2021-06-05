@@ -16,6 +16,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct UltraLite<'a> {
     proto: UltraliteProtocol,
     clk_ctls: V2ClkCtl,
+    main_assign_ctl: V2MainAssignCtl,
     port_ctls: V2PortCtl<'a>,
     msg_cache: u32,
 }
@@ -38,6 +39,7 @@ impl<'a> UltraLite<'a> {
         UltraLite{
             proto: Default::default(),
             clk_ctls: Default::default(),
+            main_assign_ctl: Default::default(),
             port_ctls: V2PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       true, false, false, false),
             msg_cache: 0,
@@ -50,6 +52,7 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.main_assign_ctl.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -59,6 +62,8 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.main_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -73,6 +78,8 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
     {
         if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.main_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
         } else {
@@ -84,6 +91,7 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
 impl<'a> NotifyModel<SndMotu, u32> for UltraLite<'a> {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.port_ctls.notified_elems);
+        elem_id_list.extend_from_slice(&self.main_assign_ctl.0);
     }
 
     fn parse_notification(&mut self, _: &SndMotu, msg: &u32) -> Result<(), Error> {
@@ -96,8 +104,13 @@ impl<'a> NotifyModel<SndMotu, u32> for UltraLite<'a> {
         -> Result<bool, Error>
     {
         if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
-            let res = self.port_ctls.read(unit, &self.proto, elem_id, elem_value)?;
-            Ok(res)
+            if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
+                Ok(true)
+            } else if self.main_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         } else {
             Ok(false)
         }
