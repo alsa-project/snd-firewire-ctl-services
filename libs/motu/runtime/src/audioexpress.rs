@@ -8,28 +8,18 @@ use core::card_cntr::{CardCntr, CtlModel};
 
 use motu_protocols::version_3::*;
 
-use super::v3_clk_ctls::V3ClkCtl;
+use super::v3_ctls::*;
 use super::v3_port_ctls::V3PortCtl;
+
+const TIMEOUT_MS: u32 = 100;
 
 pub struct AudioExpress<'a> {
     proto: AudioExpressProtocol,
-    clk_ctls: V3ClkCtl<'a>,
+    clk_ctls: V3ClkCtl,
     port_ctls: V3PortCtl<'a>,
 }
 
 impl<'a> AudioExpress<'a> {
-    const CLK_RATE_LABELS: &'a [&'a str] = &[
-        "44100", "48000",
-        "88200", "96000",
-    ];
-    const CLK_RATE_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x03];
-
-    const CLK_SRC_LABELS: &'a [&'a str] = &[
-        "Internal",
-        "S/PDIF-on-coax",
-    ];
-    const CLK_SRC_VALS: &'a [u8] = &[0x00, 0x01];
-
     const PORT_ASSIGN_LABELS: &'a [&'a str] = &[
         "Phone-1/2",    // = Stream-1/2
         "Main-1/2",     // = Stream-5/6
@@ -42,8 +32,7 @@ impl<'a> AudioExpress<'a> {
     pub fn new() -> Self {
         AudioExpress{
             proto: Default::default(),
-            clk_ctls: V3ClkCtl::new(Self::CLK_RATE_LABELS, Self::CLK_RATE_VALS,
-                                    Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, false),
+            clk_ctls: Default::default(),
             port_ctls: V3PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       false, false, false, false),
         }
@@ -54,7 +43,7 @@ impl<'a> CtlModel<SndMotu> for AudioExpress<'a> {
     fn load(&mut self, unit: &SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        self.clk_ctls.load(unit, card_cntr)?;
+        self.clk_ctls.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -63,7 +52,7 @@ impl<'a> CtlModel<SndMotu> for AudioExpress<'a> {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value)? {
+        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -76,7 +65,7 @@ impl<'a> CtlModel<SndMotu> for AudioExpress<'a> {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new)? {
+        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)

@@ -14,7 +14,7 @@ mod common_proto;
 mod v3_proto;
 mod v2_proto;
 
-mod v3_clk_ctls;
+mod v3_ctls;
 mod v3_port_ctls;
 
 mod v2_ctls;
