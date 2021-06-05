@@ -5,7 +5,7 @@ use motu_runtime::MotuRuntime;
 
 struct MotuServiceCmd;
 
-impl<'a> ServiceCmd<'a, u32, MotuRuntime<'a>> for MotuServiceCmd {
+impl<'a> ServiceCmd<'a, u32, MotuRuntime> for MotuServiceCmd {
     const CMD_NAME: &'a str = "snd-firewire-motu-ctl-service";
     const ARGS: &'a [(&'a str, &'a str)] = &[("CARD_ID", "The numeric ID of sound card")];
 

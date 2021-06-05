@@ -15,25 +15,25 @@ use super::audioexpress::AudioExpress;
 use super::f828mk3::F828mk3;
 use super::h4pre::H4pre;
 
-pub struct MotuModel<'a> {
+pub struct MotuModel {
     #[allow(dead_code)]
     firmware_version: u32,
-    ctl_model: MotuCtlModel<'a>,
+    ctl_model: MotuCtlModel,
     notified_elems: Vec<alsactl::ElemId>,
 }
 
-enum MotuCtlModel<'a> {
-    F828mk2(F828mk2<'a>),
-    Traveler(Traveler<'a>),
-    UltraLite(UltraLite<'a>),
-    F8pre(F8pre<'a>),
-    UltraLiteMk3(UltraLiteMk3<'a>),
-    AudioExpress(AudioExpress<'a>),
-    F828mk3(F828mk3<'a>),
-    H4pre(H4pre<'a>),
+enum MotuCtlModel {
+    F828mk2(F828mk2),
+    Traveler(Traveler),
+    UltraLite(UltraLite),
+    F8pre(F8pre),
+    UltraLiteMk3(UltraLiteMk3),
+    AudioExpress(AudioExpress),
+    F828mk3(F828mk3),
+    H4pre(H4pre),
 }
 
-impl<'a> MotuModel<'a> {
+impl MotuModel {
     pub fn new(model_id: u32, version: u32) -> Result<Self, Error> {
         let ctl_model = match model_id {
             0x000003 => MotuCtlModel::F828mk2(F828mk2::new()),
