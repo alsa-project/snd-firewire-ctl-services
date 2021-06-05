@@ -13,6 +13,7 @@ use super::v2_ctls::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct Traveler {
     proto: TravelerProtocol,
     clk_ctls: V2ClkCtl,
@@ -25,17 +26,6 @@ pub struct Traveler {
 impl Traveler {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
     //const NOTIFY_FORMAT_CHANGE: u32 = 0x08000000; // The format for payload of isochronous packet is changed.
-
-    pub fn new() -> Self {
-        Traveler{
-            proto: Default::default(),
-            clk_ctls: Default::default(),
-            opt_iface_ctl: Default::default(),
-            phone_assign_ctl: Default::default(),
-            word_clk_ctl: Default::default(),
-            msg_cache: 0,
-        }
-    }
 }
 
 impl CtlModel<SndMotu> for Traveler {

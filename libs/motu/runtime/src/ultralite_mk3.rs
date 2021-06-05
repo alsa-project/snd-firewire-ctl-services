@@ -13,6 +13,7 @@ use super::v3_ctls::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct UltraLiteMk3{
     proto: UltraliteMk3Protocol,
     clk_ctls: V3ClkCtl,
@@ -25,16 +26,6 @@ impl UltraLiteMk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
     const NOTIFY_OPERATED_AND_COMPLETED: u32 = Self::NOTIFY_OPERATED | Self::NOTIFY_COMPLETED;
-
-    pub fn new() -> Self {
-        UltraLiteMk3{
-            proto: Default::default(),
-            clk_ctls: Default::default(),
-            port_assign_ctl: Default::default(),
-            phone_assign_ctl: Default::default(),
-            msg_cache: 0,
-        }
-    }
 }
 
 impl CtlModel<SndMotu> for UltraLiteMk3 {

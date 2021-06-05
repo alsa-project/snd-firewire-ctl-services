@@ -36,15 +36,15 @@ enum MotuCtlModel {
 impl MotuModel {
     pub fn new(model_id: u32, version: u32) -> Result<Self, Error> {
         let ctl_model = match model_id {
-            0x000003 => MotuCtlModel::F828mk2(F828mk2::new()),
-            0x000009 => MotuCtlModel::Traveler(Traveler::new()),
-            0x00000d => MotuCtlModel::UltraLite(UltraLite::new()),
-            0x00000f => MotuCtlModel::F8pre(F8pre::new()),
-            0x000019 => MotuCtlModel::UltraLiteMk3(UltraLiteMk3::new()),
-            0x000033 => MotuCtlModel::AudioExpress(AudioExpress::new()),
+            0x000003 => MotuCtlModel::F828mk2(Default::default()),
+            0x000009 => MotuCtlModel::Traveler(Default::default()),
+            0x00000d => MotuCtlModel::UltraLite(Default::default()),
+            0x00000f => MotuCtlModel::F8pre(Default::default()),
+            0x000019 => MotuCtlModel::UltraLiteMk3(Default::default()),
+            0x000033 => MotuCtlModel::AudioExpress(Default::default()),
             0x000015 |  // Firewire only.
-            0x000035 => MotuCtlModel::F828mk3(F828mk3::new()),
-            0x000045 => MotuCtlModel::H4pre(H4pre::new()),
+            0x000035 => MotuCtlModel::F828mk3(Default::default()),
+            0x000045 => MotuCtlModel::H4pre(Default::default()),
             _ => {
                 let label = format!("Unsupported model ID: 0x{:06x}", model_id);
                 return Err(Error::new(FileError::Noent, &label));
