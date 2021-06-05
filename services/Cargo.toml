@@ -18,7 +18,7 @@ core = { path = "../libs/core" }
 dg00x = { path = "../libs/dg00x" }
 tascam = { path = "../libs/tascam" }
 efw = { path = "../libs/efw" }
-motu = { path = "../libs/motu" }
+motu-runtime = { path = "../libs/motu/runtime" }
 oxfw-runtime = { path = "../libs/oxfw/runtime" }
 bebob = { path = "../libs/bebob" }
 dice-runtime = { path = "../libs/dice/runtime" }

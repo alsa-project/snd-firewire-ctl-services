@@ -1,12 +1,12 @@
 [package]
-name = "motu"
+name = "motu-runtime"
 version = "0.1.0"
 authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
 edition = "2018"
 license = "GPL-3.0-or-later"
 publish = false
 description = """
-Implementation of protocol for Mark of the Unicorn FireWire series
+Implementation of service runtime for models based on ASICs of DICE.
 """
 
 [dependencies]
@@ -15,5 +15,5 @@ nix = "0.17"
 glib = "0.10"
 hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.3.0", version = "0.3" }
 alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.2.0", version = "0.2" }
-core = { path = "../core" }
-ieee1212-config-rom = { path = "../ieee1212-config-rom" }
+core = { path = "../../core" }
+ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
