@@ -33,11 +33,10 @@ use core::RuntimeOperation;
 use core::dispatcher;
 use core::card_cntr;
 
-use ieee1212_config_rom::{*, entry::*};
+use ieee1212_config_rom::*;
+use motu_protocols::config_rom::*;
 
 use model::MotuModel;
-
-const OUI_MOTU: u32 = 0x0001f2;
 
 enum Event {
     Shutdown,
@@ -77,8 +76,17 @@ impl<'a> RuntimeOperation<u32> for MotuRuntime<'a> {
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
         let node = unit.get_node();
-        let (model_id, version) = detect_model(&node)?;
-        let model = MotuModel::new(model_id, version)?;
+        let data = node.get_config_rom()?;
+        let config_rom = ConfigRom::try_from(data)
+            .map_err(|e| {
+                let msg = format!("Malformed configuration ROM detected: {}", e.to_string());
+                Error::new(FileError::Nxio, &msg)
+            })?;
+        let unit_data = config_rom.get_unit_data()
+            .ok_or_else(|| {
+                Error::new(FileError::Nxio, "Unexpected content of configuration ROM.")
+            })?;
+        let model = MotuModel::new(unit_data.model_id, unit_data.version)?;
 
         let card_cntr = card_cntr::CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
@@ -191,58 +199,4 @@ impl<'a> MotuRuntime<'a> {
 
         Ok(())
     }
-}
-
-fn read_directory<'a>(entries: &'a [Entry], key_type: KeyType, field_name: &str)
-    -> Result<&'a [Entry<'a>], Error>
-{
-    entries.iter().find_map(|entry| {
-        EntryDataAccess::<&[Entry]>::get(entry, key_type)
-    })
-    .ok_or_else(|| {
-        let label = format!("Fail to detect {} directory in configuration ROM", field_name);
-        Error::new(FileError::Nxio, &label)
-    })
-}
-
-fn read_immediate(entries: &[Entry], key_type: KeyType, field_name: &str)
-    -> Result<u32, Error>
-{
-    entries.iter().find_map(|entry| {
-        EntryDataAccess::<u32>::get(entry, key_type)
-    })
-    .ok_or_else(|| {
-        let label = format!("Fail to detect {} in configuration ROM", field_name);
-        Error::new(FileError::Nxio, &label)
-    })
-}
-
-fn detect_model(node: &hinawa::FwNode) -> Result<(u32, u32), Error> {
-    let data = node.get_config_rom()?;
-    let config_rom = ConfigRom::try_from(data)
-        .map_err(|e| {
-            let label = format!("Malformed configuration ROM detected: {}", e.to_string());
-            Error::new(FileError::Nxio, &label)
-        })?;
-
-    let vendor = read_immediate(&config_rom.root, KeyType::Vendor, "Vendor ID")?;
-    if vendor != OUI_MOTU {
-        let label = format!("Vendor Id is not OUI of Mark of the Unicorn: {:08x}", vendor);
-        return Err(Error::new(FileError::Nxio, &label));
-    }
-
-    let unit_entries = read_directory(&config_rom.root, KeyType::Unit, "Unit")?;
-
-    let spec_id = read_immediate(&unit_entries, KeyType::SpecifierId, "Specifier ID")?;
-    if spec_id != OUI_MOTU {
-        let label = format!("Specifier ID is not OUI of Mark of the Unicorn: {:08x} ", spec_id);
-        return Err(Error::new(FileError::Nxio, &label));
-    }
-
-    // NOTE: It's odd but version field is used for model ID and model field is used for version
-    // in MOTU case.
-    let model_id = read_immediate(&unit_entries, KeyType::Version, "Version")?;
-    let version = read_immediate(&unit_entries, KeyType::Model, "Model ID")?;
-
-    Ok((model_id, version))
 }
