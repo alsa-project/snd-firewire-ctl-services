@@ -5,6 +5,8 @@
 //!
 //! The crate includes protocols defined by Mark of the Unicorn for its FireWire series.
 
+pub mod version_2;
+
 use glib::{Error, FileError};
 use hinawa::{FwReq, FwReqExtManual, FwTcode};
 use hinawa::{SndMotu, SndUnitExt};
