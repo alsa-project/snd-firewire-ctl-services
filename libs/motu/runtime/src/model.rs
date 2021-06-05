@@ -4,6 +4,8 @@ use glib::{Error, FileError};
 
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
+use motu_protocols::ClkRate;
+
 use super::f828mk2::F828mk2;
 use super::traveler::Traveler;
 use super::ultralite::UltraLite;
@@ -112,4 +114,15 @@ impl<'a> MotuModel<'a> {
             _ => Ok(()),
         }
     }
+}
+
+pub fn clk_rate_to_string(rate: &ClkRate) -> String {
+    match rate {
+        ClkRate::R44100 => "44100",
+        ClkRate::R48000 => "48000",
+        ClkRate::R88200 => "88200",
+        ClkRate::R96000 => "96000",
+        ClkRate::R176400 => "176400",
+        ClkRate::R192000 => "192000",
+    }.to_string()
 }

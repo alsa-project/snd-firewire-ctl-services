@@ -8,30 +8,20 @@ use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use motu_protocols::version_2::*;
 
-use super::v2_clk_ctls::V2ClkCtl;
+use super::v2_ctls::*;
 use super::v2_port_ctls::V2PortCtl;
+
+const TIMEOUT_MS: u32 = 100;
 
 pub struct UltraLite<'a> {
     proto: UltraliteProtocol,
-    clk_ctls: V2ClkCtl<'a>,
+    clk_ctls: V2ClkCtl,
     port_ctls: V2PortCtl<'a>,
     msg_cache: u32,
 }
 
 impl<'a> UltraLite<'a> {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
-
-    const CLK_RATE_LABELS: &'a [&'a str] = &[
-        "44100", "48000",
-        "88200", "96000",
-    ];
-    const CLK_RATE_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x03];
-
-    const CLK_SRC_LABELS: &'a [&'a str] = &[
-        "Internal",
-        "S/PDIF-on-coax",
-    ];
-    const CLK_SRC_VALS: &'a [u8] = &[0x00, 0x02];
 
     const PORT_ASSIGN_LABELS: &'a [&'a str] = &[
         "Phone-1/2",    // Stream-1/2
@@ -47,8 +37,7 @@ impl<'a> UltraLite<'a> {
     pub fn new() -> Self {
         UltraLite{
             proto: Default::default(),
-            clk_ctls: V2ClkCtl::new(Self::CLK_RATE_LABELS, Self::CLK_RATE_VALS,
-                                    Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, true),
+            clk_ctls: Default::default(),
             port_ctls: V2PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       true, false, false, false),
             msg_cache: 0,
@@ -60,7 +49,7 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
     fn load(&mut self, unit: &SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        self.clk_ctls.load(unit, card_cntr)?;
+        self.clk_ctls.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -69,7 +58,7 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value)? {
+        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -82,7 +71,7 @@ impl<'a> CtlModel<SndMotu> for UltraLite<'a> {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new)? {
+        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
