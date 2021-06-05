@@ -14,6 +14,8 @@ mod common_proto;
 mod v3_proto;
 mod v2_proto;
 
+mod common_ctls;
+
 mod v3_ctls;
 mod v3_port_ctls;
 
@@ -46,16 +48,16 @@ enum Event {
     Notify(u32),
 }
 
-pub struct MotuRuntime<'a> {
+pub struct MotuRuntime{
     unit: hinawa::SndMotu,
-    model: MotuModel<'a>,
+    model: MotuModel,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for MotuRuntime<'a> {
+impl<'a> Drop for MotuRuntime {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -70,7 +72,7 @@ impl<'a> Drop for MotuRuntime<'a> {
     }
 }
 
-impl<'a> RuntimeOperation<u32> for MotuRuntime<'a> {
+impl<'a> RuntimeOperation<u32> for MotuRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndMotu::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
@@ -140,7 +142,7 @@ impl<'a> RuntimeOperation<u32> for MotuRuntime<'a> {
     }
 }
 
-impl<'a> MotuRuntime<'a> {
+impl<'a> MotuRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
 

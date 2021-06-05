@@ -8,46 +8,26 @@ use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use motu_protocols::version_3::*;
 
+use super::common_ctls::*;
 use super::v3_ctls::*;
 use super::v3_port_ctls::V3PortCtl;
 
 const TIMEOUT_MS: u32 = 100;
 
-pub struct F828mk3<'a> {
+pub struct F828mk3 {
     proto: F828mk3Protocol,
     clk_ctls: V3ClkCtl,
     port_assign_ctl: V3PortAssignCtl,
     opt_iface_ctl: V3OptIfaceCtl,
-    port_ctls: V3PortCtl<'a>,
+    phone_assign_ctl: CommonPhoneCtl,
+    port_ctls: V3PortCtl,
     msg_cache: u32,
 }
 
-impl<'a> F828mk3<'a> {
+impl F828mk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
     const NOTIFY_OPERATED_AND_COMPLETED: u32 = Self::NOTIFY_OPERATED | Self::NOTIFY_COMPLETED;
-
-    const PORT_ASSIGN_LABELS: &'a [&'a str] = &[
-        "Main-1/2",         // = Stream-11/12
-        "Analog-1/2",       // = Stream-3/4
-        "Analog-3/4",       // = Stream-5/6
-        "Analog-5/6",       // = Stream-7/8
-        "Analog-7/8",       // = Stream-9/10
-        "S/PDIF-1/2",       // = Stream-13/14
-        "Phone-1/2",        // = Stream-1/2
-        "Optical-A-1/2",    // = Stream-15/16
-        "Optical-A-3/4",    // = Stream-17/18
-        "Optical-A-5/6",    // = Stream-19/20
-        "Optical-A-7/8",    // = Stream-21/22
-        "Optical-B-1/2",    // = Stream-23/24
-        "Optical-B-3/4",    // = Stream-25/26
-        "Optical-B-5/6",    // = Stream-27/28
-        "Optical-B-7/8",    // = Stream-29/30
-    ];
-    const PORT_ASSIGN_VALS: &'a [u8] = &[
-        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
-    ];
 
     pub fn new() -> Self {
         F828mk3{
@@ -55,20 +35,21 @@ impl<'a> F828mk3<'a> {
             clk_ctls: Default::default(),
             port_assign_ctl: Default::default(),
             opt_iface_ctl: Default::default(),
-            port_ctls: V3PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
-                                      true, true, true, true),
+            phone_assign_ctl: Default::default(),
+            port_ctls: V3PortCtl::new(&[], &[], true, true, true, true),
             msg_cache: 0,
         }
     }
 }
 
-impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
+impl CtlModel<SndMotu> for F828mk3 {
     fn load(&mut self, unit: &SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.port_assign_ctl.load(&self.proto, card_cntr)?;
         self.opt_iface_ctl.load(&self.proto, card_cntr)?;
+        self.phone_assign_ctl.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -82,6 +63,8 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
         } else if self.port_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -100,6 +83,8 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
             Ok(true)
         } else if self.opt_iface_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phone_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
         } else {
@@ -108,10 +93,11 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
     }
 }
 
-impl<'a> NotifyModel<SndMotu, u32> for F828mk3<'a> {
+impl NotifyModel<SndMotu, u32> for F828mk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.port_ctls.notified_elems);
         elem_id_list.extend_from_slice(&self.port_assign_ctl.0);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0);
     }
 
     fn parse_notification(&mut self, _: &SndMotu, msg: &u32) -> Result<(), Error> {
@@ -127,6 +113,8 @@ impl<'a> NotifyModel<SndMotu, u32> for F828mk3<'a> {
             if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
                 Ok(true)
             } else if self.port_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+                Ok(true)
+            } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
                 Ok(true)
             } else {
                 Ok(false)

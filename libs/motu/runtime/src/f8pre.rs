@@ -8,42 +8,39 @@ use core::card_cntr::{CardCntr, CtlModel};
 
 use motu_protocols::version_2::*;
 
+use super::common_ctls::*;
 use super::v2_ctls::*;
 use super::v2_port_ctls::V2PortCtl;
 
 const TIMEOUT_MS: u32 = 100;
 
-pub struct F8pre<'a> {
+pub struct F8pre{
     proto: F8preProtocol,
     clk_ctls: V2ClkCtl,
     opt_iface_ctl: V2OptIfaceCtl,
-    port_ctls: V2PortCtl<'a>,
+    phone_assign_ctl: CommonPhoneCtl,
+    port_ctls: V2PortCtl,
 }
 
-impl<'a> F8pre<'a> {
-    const PHONE_ASSIGN_LABELS: &'a [&'a str] = &[
-        "Phone-1/2",
-        "Main-1/2",
-    ];
-    const PHONE_ASSIGN_VALS: &'a [u8] = &[0x01, 0x02];
-
+impl F8pre {
     pub fn new() -> Self {
         F8pre{
             proto: Default::default(),
             clk_ctls: Default::default(),
             opt_iface_ctl: Default::default(),
-            port_ctls: V2PortCtl::new(Self::PHONE_ASSIGN_LABELS, Self::PHONE_ASSIGN_VALS,
-                                      false, false, true, false),
+            phone_assign_ctl: Default::default(),
+            port_ctls: V2PortCtl::new(&[], &[], false, false, true, false),
         }
     }
 }
 
-impl<'a> CtlModel<SndMotu> for F8pre<'a> {
+impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, unit: &SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.opt_iface_ctl.load(&self.proto, card_cntr)?;
+        self.phone_assign_ctl.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -55,6 +52,8 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
         if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -70,6 +69,8 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
         if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phone_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
