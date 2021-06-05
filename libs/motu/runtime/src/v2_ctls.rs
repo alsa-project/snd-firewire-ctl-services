@@ -193,3 +193,107 @@ impl<'a> V2MainAssignCtl {
         }
     }
 }
+
+fn opt_iface_mode_to_label(mode: &V2OptIfaceMode) -> String {
+    match mode {
+        V2OptIfaceMode::None => "None",
+        V2OptIfaceMode::Adat => "ADAT",
+        V2OptIfaceMode::Spdif => "S/PDIF",
+    }
+    .to_string()
+}
+
+#[derive(Default)]
+pub struct V2OptIfaceCtl {}
+
+impl<'a> V2OptIfaceCtl {
+    const OPT_IN_IFACE_MODE_NAME: &'a str = "optical-iface-in-mode";
+    const OPT_OUT_IFACE_MODE_NAME: &'a str = "optical-iface-out-mode";
+
+    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
+    where
+        for<'b> O: V2OptIfaceProtocol<'b>,
+    {
+        let labels: Vec<String> = O::OPT_IFACE_MODES
+            .iter()
+            .map(|e| opt_iface_mode_to_label(&e.0))
+            .collect();
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IN_IFACE_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_OUT_IFACE_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: V2OptIfaceProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::OPT_IN_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_opt_in_iface_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            Self::OPT_OUT_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_opt_out_iface_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: V2OptIfaceProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::OPT_IN_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = proto.set_opt_in_iface_mode(unit, val as usize, timeout_ms);
+                    unit.unlock()?;
+                    res
+                })?;
+                Ok(true)
+            }
+            Self::OPT_OUT_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    unit.lock()?;
+                    let res = proto.set_opt_out_iface_mode(unit, val as usize, timeout_ms);
+                    unit.unlock()?;
+                    res
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}

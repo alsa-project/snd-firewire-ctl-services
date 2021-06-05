@@ -16,6 +16,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F8pre<'a> {
     proto: F8preProtocol,
     clk_ctls: V2ClkCtl,
+    opt_iface_ctl: V2OptIfaceCtl,
     port_ctls: V2PortCtl<'a>,
 }
 
@@ -30,6 +31,7 @@ impl<'a> F8pre<'a> {
         F8pre{
             proto: Default::default(),
             clk_ctls: Default::default(),
+            opt_iface_ctl: Default::default(),
             port_ctls: V2PortCtl::new(Self::PHONE_ASSIGN_LABELS, Self::PHONE_ASSIGN_VALS,
                                       false, false, true, false),
         }
@@ -41,6 +43,7 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.opt_iface_ctl.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -50,6 +53,8 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -63,6 +68,8 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
         -> Result<bool, Error>
     {
         if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
