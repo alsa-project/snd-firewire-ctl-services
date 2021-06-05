@@ -2,15 +2,17 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::{SndMotu, FwReq};
+use hinawa::SndMotu;
 
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
+
+use motu_protocols::version_3::*;
 
 use super::v3_clk_ctls::V3ClkCtl;
 use super::v3_port_ctls::V3PortCtl;
 
 pub struct UltraLiteMk3<'a> {
-    req: FwReq,
+    proto: UltraliteMk3Protocol,
     clk_ctls: V3ClkCtl<'a>,
     port_ctls: V3PortCtl<'a>,
     msg_cache: u32,
@@ -46,7 +48,7 @@ impl<'a> UltraLiteMk3<'a> {
 
     pub fn new() -> Self {
         UltraLiteMk3{
-            req: FwReq::new(),
+            proto: Default::default(),
             clk_ctls: V3ClkCtl::new(Self::CLK_RATE_LABELS, Self::CLK_RATE_VALS,
                                     Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, true),
             port_ctls: V3PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
@@ -69,9 +71,9 @@ impl<'a> CtlModel<SndMotu> for UltraLiteMk3<'a> {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
-        } else if self.port_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -82,9 +84,9 @@ impl<'a> CtlModel<SndMotu> for UltraLiteMk3<'a> {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &self.req, elem_id, old, new)? {
+        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
-        } else if self.port_ctls.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -107,7 +109,7 @@ impl<'a> NotifyModel<SndMotu, u32> for UltraLiteMk3<'a> {
         -> Result<bool, Error>
     {
         if self.msg_cache & (Self::NOTIFY_OPERATED_AND_COMPLETED) == Self::NOTIFY_OPERATED_AND_COMPLETED {
-            let res = self.port_ctls.read(unit, &self.req, elem_id, elem_value)?;
+            let res = self.port_ctls.read(unit, &self.proto, elem_id, elem_value)?;
             Ok(res)
         } else {
             Ok(false)

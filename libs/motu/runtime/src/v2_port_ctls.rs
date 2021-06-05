@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::{SndUnitExt, SndMotu};
 
 use core::card_cntr::CardCntr;
@@ -104,42 +105,43 @@ impl<'a> V2PortCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, unit: &SndMotu, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
+    pub fn read<O>(&mut self, unit: &SndMotu, proto: &O, elem_id: &alsactl::ElemId,
+                   elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
+        where O: AsRef<FwReq>,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_phone_assign(unit, &self.phone_assign_vals)?;
+                    let val = proto.as_ref().get_phone_assign(unit, &self.phone_assign_vals)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS)?;
+                    let val = proto.as_ref().get_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
+                    let val = proto.as_ref().get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
+                    let val = proto.as_ref().get_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
+                    let val = proto.as_ref().get_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
@@ -148,33 +150,35 @@ impl<'a> V2PortCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, unit: &SndMotu, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-                 _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write<O>(&mut self, unit: &SndMotu, proto: &O, elem_id: &alsactl::ElemId,
+                    _: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
+        where O: AsRef<FwReq>,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_phone_assign(unit, &self.phone_assign_vals, val as usize)
+                    proto.as_ref().set_phone_assign(unit, &self.phone_assign_vals, val as usize)
                 })?;
                 Ok(true)
             }
             Self::MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS, val as usize)
+                    proto.as_ref().set_main_vol_assign(unit, &Self::MAIN_VOL_TARGET_VALS, val as usize)
                 })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_word_out(unit, &Self::WORD_OUT_MODE_VALS, val as usize)
+                    proto.as_ref().set_word_out(unit, &Self::WORD_OUT_MODE_VALS, val as usize)
                 })?;
                 Ok(true)
             }
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = req.set_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS, val as usize);
+                    let res = proto.as_ref().set_opt_in_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS,
+                                                                   val as usize);
                     unit.unlock()?;
                     res
                 })?;
@@ -183,7 +187,8 @@ impl<'a> V2PortCtl<'a> {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = req.set_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS, val as usize);
+                    let res = proto.as_ref().set_opt_out_iface_mode(unit, &Self::OPT_IFACE_MODE_VALS,
+                                                                    val as usize);
                     unit.unlock()?;
                     res
                 })?;

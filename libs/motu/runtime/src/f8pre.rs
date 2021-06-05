@@ -2,15 +2,17 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::{SndMotu, FwReq};
+use hinawa::SndMotu;
 
 use core::card_cntr::{CardCntr, CtlModel};
+
+use motu_protocols::version_2::*;
 
 use super::v2_clk_ctls::V2ClkCtl;
 use super::v2_port_ctls::V2PortCtl;
 
 pub struct F8pre<'a> {
-    req: FwReq,
+    proto: F8preProtocol,
     clk_ctls: V2ClkCtl<'a>,
     port_ctls: V2PortCtl<'a>,
 }
@@ -36,7 +38,7 @@ impl<'a> F8pre<'a> {
 
     pub fn new() -> Self {
         F8pre{
-            req: FwReq::new(),
+            proto: Default::default(),
             clk_ctls: V2ClkCtl::new(Self::CLK_RATE_LABELS, Self::CLK_RATE_VALS,
                                     Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, false),
             port_ctls: V2PortCtl::new(Self::PHONE_ASSIGN_LABELS, Self::PHONE_ASSIGN_VALS,
@@ -58,9 +60,9 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
-        } else if self.port_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -71,9 +73,9 @@ impl<'a> CtlModel<SndMotu> for F8pre<'a> {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &self.req, elem_id, old, new)? {
+        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
-        } else if self.port_ctls.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
