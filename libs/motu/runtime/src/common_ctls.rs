@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndMotu;
 
@@ -71,6 +71,101 @@ impl<'a> CommonPhoneCtl {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     proto.set_phone_assign(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn word_clk_speed_mode_to_label(mode: &WordClkSpeedMode) -> String {
+    match mode {
+        WordClkSpeedMode::ForceLowRate => "Force 44.1/48.0 kHz",
+        WordClkSpeedMode::FollowSystemClk => "Follow to system clock",
+    }
+    .to_string()
+}
+
+#[derive(Default)]
+pub struct CommonWordClkCtl(pub Vec<ElemId>);
+
+impl<'a> CommonWordClkCtl {
+    const WORD_OUT_MODE_NAME: &'a str = "word-out-mode";
+
+    const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
+        WordClkSpeedMode::ForceLowRate,
+        WordClkSpeedMode::FollowSystemClk,
+    ];
+
+    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
+    where
+        for<'b> O: WordClkProtocol<'b>,
+    {
+        let labels: Vec<String> = Self::WORD_OUT_MODES
+            .iter()
+            .map(|m| word_clk_speed_mode_to_label(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::WORD_OUT_MODE_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|elem_id_list| self.0.extend_from_slice(&elem_id_list))?;
+
+        Ok(())
+    }
+
+    pub fn read<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: WordClkProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::WORD_OUT_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto.get_word_out(unit, timeout_ms).map(|mode| {
+                        Self::WORD_OUT_MODES
+                            .iter()
+                            .position(|&m| m == mode)
+                            .map(|pos| pos as u32)
+                            .unwrap()
+                    })
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: WordClkProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::WORD_OUT_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    let idx = val as usize;
+                    if idx < Self::WORD_OUT_MODES.len() {
+                        let mode = Self::WORD_OUT_MODES[idx];
+                        proto.set_word_out(unit, mode, timeout_ms)
+                    } else {
+                        let msg =
+                            format!("Invalid argument for index of word clock speed: {}", idx);
+                        Err(Error::new(FileError::Inval, &msg))
+                    }
                 })?;
                 Ok(true)
             }
