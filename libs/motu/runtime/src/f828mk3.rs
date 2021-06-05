@@ -17,6 +17,7 @@ pub struct F828mk3<'a> {
     proto: F828mk3Protocol,
     clk_ctls: V3ClkCtl,
     port_assign_ctl: V3PortAssignCtl,
+    opt_iface_ctl: V3OptIfaceCtl,
     port_ctls: V3PortCtl<'a>,
     msg_cache: u32,
 }
@@ -53,6 +54,7 @@ impl<'a> F828mk3<'a> {
             proto: Default::default(),
             clk_ctls: Default::default(),
             port_assign_ctl: Default::default(),
+            opt_iface_ctl: Default::default(),
             port_ctls: V3PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
                                       true, true, true, true),
             msg_cache: 0,
@@ -66,6 +68,7 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.port_assign_ctl.load(&self.proto, card_cntr)?;
+        self.opt_iface_ctl.load(&self.proto, card_cntr)?;
         self.port_ctls.load(unit, card_cntr)?;
         Ok(())
     }
@@ -77,6 +80,8 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
         if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
@@ -92,6 +97,8 @@ impl<'a> CtlModel<SndMotu> for F828mk3<'a> {
         if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)

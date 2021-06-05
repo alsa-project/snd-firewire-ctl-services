@@ -214,3 +214,138 @@ impl<'a> V3PortAssignCtl {
         }
     }
 }
+
+#[derive(Default)]
+pub struct V3OptIfaceCtl {}
+
+impl<'a> V3OptIfaceCtl {
+    const OPT_IFACE_IN_MODE_NAME: &'a str = "optical-iface-in-mode";
+    const OPT_IFACE_OUT_MODE_NAME: &'a str = "optical-iface-out-mode";
+
+    const OPT_IFACE_MODE_LABELS: &'a [&'a str] = &["None", "ADAT", "S/PDIF"];
+
+    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
+    where
+        for<'b> O: V3OptIfaceProtocol<'b>,
+    {
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IFACE_IN_MODE_NAME, 0);
+        let _ =
+            card_cntr.add_enum_elems(&elem_id, 1, 2, Self::OPT_IFACE_MODE_LABELS, None, true)?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IFACE_OUT_MODE_NAME, 0);
+        let _ =
+            card_cntr.add_enum_elems(&elem_id, 1, 2, Self::OPT_IFACE_MODE_LABELS, None, true)?;
+
+        Ok(())
+    }
+
+    fn get_opt_iface_mode<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        is_out: bool,
+        is_b: bool,
+        timeout_ms: u32,
+    ) -> Result<u32, Error>
+    where
+        for<'b> O: V3OptIfaceProtocol<'b>,
+    {
+        proto
+            .get_opt_iface_mode(unit, is_out, is_b, timeout_ms)
+            .map(|(enabled, no_adat)| {
+                if enabled {
+                    0
+                } else {
+                    if no_adat {
+                        2
+                    } else {
+                        1
+                    }
+                }
+            })
+    }
+
+    fn set_opt_iface_mode<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        is_out: bool,
+        is_b: bool,
+        mode: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error>
+    where
+        for<'b> O: V3OptIfaceProtocol<'b>,
+    {
+        let (enabled, no_adat) = match mode {
+            0 => (false, false),
+            1 => (true, false),
+            2 => (true, true),
+            _ => unreachable!(),
+        };
+        proto.set_opt_iface_mode(unit, is_out, is_b, enabled, no_adat, timeout_ms)
+    }
+
+    pub fn read<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: V3OptIfaceProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::OPT_IFACE_IN_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    self.get_opt_iface_mode(unit, proto, false, idx > 0, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            Self::OPT_IFACE_OUT_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
+                    self.get_opt_iface_mode(unit, proto, true, idx > 0, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: V3OptIfaceProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::OPT_IFACE_IN_MODE_NAME => {
+                unit.lock()?;
+                let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    self.set_opt_iface_mode(unit, proto, false, idx > 0, val, timeout_ms)
+                });
+                let _ = unit.unlock();
+                res.and(Ok(true))
+            }
+            Self::OPT_IFACE_OUT_MODE_NAME => {
+                unit.lock()?;
+                let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
+                    self.set_opt_iface_mode(unit, proto, true, idx > 0, val, timeout_ms)
+                });
+                let _ = unit.unlock();
+                res.and(Ok(true))
+            }
+            _ => Ok(false),
+        }
+    }
+}
