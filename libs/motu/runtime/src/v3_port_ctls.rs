@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
+use hinawa::FwReq;
 use hinawa::{SndUnitExt, SndMotu};
 
 use core::card_cntr::CardCntr;
@@ -130,49 +131,50 @@ impl<'a> V3PortCtl<'a> {
         req.set_opt_iface_mode(unit, is_out, is_b, enabled, no_adat)
     }
 
-    pub fn read(&mut self, unit: &SndMotu, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
+    pub fn read<O>(&mut self, unit: &SndMotu, proto: &O, elem_id: &alsactl::ElemId,
+                   elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
+        where O: AsRef<FwReq>,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_phone_assign(unit, &self.assign_vals)?;
+                    let val = proto.as_ref().get_phone_assign(unit, &self.assign_vals)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::MAIN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_main_assign(unit, &self.assign_vals)?;
+                    let val = proto.as_ref().get_main_assign(unit, &self.assign_vals)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::RETURN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_return_assign(unit, &self.assign_vals)?;
+                    let val = proto.as_ref().get_return_assign(unit, &self.assign_vals)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
+                    let val = proto.as_ref().get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::OPT_IFACE_IN_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    let val = self.get_opt_iface_mode(unit, req, false, idx > 0)?;
+                    let val = self.get_opt_iface_mode(unit, proto.as_ref(), false, idx > 0)?;
                     Ok(val)
                 })?;
                 Ok(true)
             }
             Self::OPT_IFACE_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    let val = self.get_opt_iface_mode(unit, req, true, idx > 0)?;
+                    let val = self.get_opt_iface_mode(unit, proto.as_ref(), true, idx > 0)?;
                     Ok(val)
                 })?;
                 Ok(true)
@@ -181,39 +183,40 @@ impl<'a> V3PortCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, unit: &SndMotu, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write<O>(&mut self, unit: &SndMotu, proto: &O, elem_id: &alsactl::ElemId,
+                    old: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
+        where O: AsRef<FwReq>,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_phone_assign(unit, &self.assign_vals, val as usize)
+                    proto.as_ref().set_phone_assign(unit, &self.assign_vals, val as usize)
                 })?;
                 Ok(true)
             }
             Self::MAIN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_main_assign(unit, &self.assign_vals, val as usize)
+                    proto.as_ref().set_main_assign(unit, &self.assign_vals, val as usize)
                 })?;
                 Ok(true)
             }
             Self::RETURN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_return_assign(unit, &self.assign_vals, val as usize)
+                    proto.as_ref().set_return_assign(unit, &self.assign_vals, val as usize)
                 })?;
                 Ok(true)
             }
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    req.set_word_out(unit, &Self::WORD_OUT_MODE_VALS, val as usize)
+                    proto.as_ref().set_word_out(unit, &Self::WORD_OUT_MODE_VALS, val as usize)
                 })?;
                 Ok(true)
             }
             Self::OPT_IFACE_IN_MODE_NAME => {
                 unit.lock()?;
                 let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    self.set_opt_iface_mode(unit, req, false, idx > 0, val)
+                    self.set_opt_iface_mode(unit, proto.as_ref(), false, idx > 0, val)
                 });
                 let _ = unit.unlock();
                 res.and(Ok(true))
@@ -221,7 +224,7 @@ impl<'a> V3PortCtl<'a> {
             Self::OPT_IFACE_OUT_MODE_NAME => {
                 unit.lock()?;
                 let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    self.set_opt_iface_mode(unit, req, true, idx > 0, val)
+                    self.set_opt_iface_mode(unit, proto.as_ref(), true, idx > 0, val)
                 });
                 let _ = unit.unlock();
                 res.and(Ok(true))

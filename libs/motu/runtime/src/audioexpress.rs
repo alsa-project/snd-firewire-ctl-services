@@ -2,15 +2,17 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::{SndMotu, FwReq};
+use hinawa::SndMotu;
 
 use core::card_cntr::{CardCntr, CtlModel};
+
+use motu_protocols::version_3::*;
 
 use super::v3_clk_ctls::V3ClkCtl;
 use super::v3_port_ctls::V3PortCtl;
 
 pub struct AudioExpress<'a> {
-    req: FwReq,
+    proto: AudioExpressProtocol,
     clk_ctls: V3ClkCtl<'a>,
     port_ctls: V3PortCtl<'a>,
 }
@@ -39,7 +41,7 @@ impl<'a> AudioExpress<'a> {
 
     pub fn new() -> Self {
         AudioExpress{
-            req: FwReq::new(),
+            proto: Default::default(),
             clk_ctls: V3ClkCtl::new(Self::CLK_RATE_LABELS, Self::CLK_RATE_VALS,
                                     Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, false),
             port_ctls: V3PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
@@ -61,9 +63,9 @@ impl<'a> CtlModel<SndMotu> for AudioExpress<'a> {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
-        } else if self.port_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -74,9 +76,9 @@ impl<'a> CtlModel<SndMotu> for AudioExpress<'a> {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &self.req, elem_id, old, new)? {
+        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
-        } else if self.port_ctls.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)

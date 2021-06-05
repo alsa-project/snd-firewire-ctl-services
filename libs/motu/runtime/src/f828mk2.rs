@@ -2,15 +2,17 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::{SndMotu, FwReq};
+use hinawa::SndMotu;
 
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
+
+use motu_protocols::version_2::*;
 
 use super::v2_clk_ctls::V2ClkCtl;
 use super::v2_port_ctls::V2PortCtl;
 
 pub struct F828mk2<'a> {
-    req: FwReq,
+    proto: F828mk2Protocol,
     clk_ctls: V2ClkCtl<'a>,
     port_ctls: V2PortCtl<'a>,
     msg_cache: u32,
@@ -54,7 +56,7 @@ impl<'a> F828mk2<'a> {
 
     pub fn new() -> Self {
         F828mk2{
-            req: FwReq::new(),
+            proto: Default::default(),
             clk_ctls: V2ClkCtl::new(Self::CLK_RATE_LABELS, Self::CLK_RATE_VALS,
                                     Self::CLK_SRC_LABELS, Self::CLK_SRC_VALS, true),
             port_ctls: V2PortCtl::new(Self::PORT_ASSIGN_LABELS, Self::PORT_ASSIGN_VALS,
@@ -77,9 +79,9 @@ impl<'a> CtlModel<SndMotu> for F828mk2<'a> {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
-        } else if self.port_ctls.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.port_ctls.read(unit, &self.proto, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -90,9 +92,9 @@ impl<'a> CtlModel<SndMotu> for F828mk2<'a> {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &self.req, elem_id, old, new)? {
+        if self.clk_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
-        } else if self.port_ctls.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.port_ctls.write(unit, &self.proto, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -115,7 +117,7 @@ impl<'a> NotifyModel<SndMotu, u32> for F828mk2<'a> {
         -> Result<bool, Error>
     {
         if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
-            let res = self.port_ctls.read(unit, &self.req, elem_id, elem_value)?;
+            let res = self.port_ctls.read(unit, &self.proto, elem_id, elem_value)?;
             Ok(res)
         } else {
             Ok(false)

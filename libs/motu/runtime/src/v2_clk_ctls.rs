@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::{SndUnitExt, SndMotu};
 
 use core::card_cntr::CardCntr;
@@ -41,23 +42,24 @@ impl<'a> V2ClkCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, unit: &SndMotu, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
+    pub fn read<O>(&mut self, unit: &SndMotu, proto: &O, elem_id: &alsactl::ElemId,
+                   elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
+        where O: AsRef<FwReq>,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_clk_rate(unit, &self.rate_vals)?;
+                    let val = proto.as_ref().get_clk_rate(unit, &self.rate_vals)?;
                     Ok(val as u32)
                 })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = req.get_clk_src(unit, &self.src_vals)?;
+                    let val = proto.as_ref().get_clk_src(unit, &self.src_vals)?;
                     if self.has_lcd {
-                        req.update_clk_disaplay(unit, &self.src_labels[val])?;
+                        proto.as_ref().update_clk_disaplay(unit, &self.src_labels[val])?;
                     }
                     Ok(val as u32)
                 })?;
@@ -67,15 +69,16 @@ impl<'a> V2ClkCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, unit: &SndMotu, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-                 _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write<O>(&mut self, unit: &SndMotu, proto: &O, elem_id: &alsactl::ElemId,
+                    _: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
+        where O: AsRef<FwReq>,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val|{
                     unit.lock()?;
-                    let res = req.set_clk_rate(unit, &self.rate_vals, val as usize);
+                    let res = proto.as_ref().set_clk_rate(unit, &self.rate_vals, val as usize);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -83,13 +86,13 @@ impl<'a> V2ClkCtl<'a> {
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let prev_src = req.get_clk_src(unit, &self.src_vals)?;
+                    let prev_src = proto.as_ref().get_clk_src(unit, &self.src_vals)?;
                     unit.lock()?;
-                    let mut res = req.set_clk_src(unit, &self.src_vals, val as usize);
+                    let mut res = proto.as_ref().set_clk_src(unit, &self.src_vals, val as usize);
                     if res.is_ok() && self.has_lcd {
-                        res = req.update_clk_disaplay(unit, self.src_labels[val as usize]);
+                        res = proto.as_ref().update_clk_disaplay(unit, self.src_labels[val as usize]);
                         if res.is_err() {
-                            let _ = req.set_clk_src(unit, &self.src_vals, prev_src);
+                            let _ = proto.as_ref().set_clk_src(unit, &self.src_vals, prev_src);
                         }
                     }
                     let _ = unit.unlock();
