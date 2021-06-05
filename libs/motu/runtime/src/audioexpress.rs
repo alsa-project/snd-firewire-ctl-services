@@ -13,20 +13,11 @@ use super::v3_ctls::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct AudioExpress{
     proto: AudioExpressProtocol,
     clk_ctls: V3ClkCtl,
     phone_assign_ctl: CommonPhoneCtl,
-}
-
-impl AudioExpress {
-    pub fn new() -> Self {
-        AudioExpress{
-            proto: Default::default(),
-            clk_ctls: Default::default(),
-            phone_assign_ctl: Default::default(),
-        }
-    }
 }
 
 impl CtlModel<SndMotu> for AudioExpress {

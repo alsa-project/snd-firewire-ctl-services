@@ -13,6 +13,7 @@ use super::v3_ctls::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct F828mk3 {
     proto: F828mk3Protocol,
     clk_ctls: V3ClkCtl,
@@ -27,18 +28,6 @@ impl F828mk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
     const NOTIFY_OPERATED_AND_COMPLETED: u32 = Self::NOTIFY_OPERATED | Self::NOTIFY_COMPLETED;
-
-    pub fn new() -> Self {
-        F828mk3{
-            proto: Default::default(),
-            clk_ctls: Default::default(),
-            port_assign_ctl: Default::default(),
-            opt_iface_ctl: Default::default(),
-            phone_assign_ctl: Default::default(),
-            word_clk_ctl: Default::default(),
-            msg_cache: 0,
-        }
-    }
 }
 
 impl CtlModel<SndMotu> for F828mk3 {

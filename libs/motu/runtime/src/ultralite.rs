@@ -13,6 +13,7 @@ use super::v2_ctls::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct UltraLite{
     proto: UltraliteProtocol,
     clk_ctls: V2ClkCtl,
@@ -23,16 +24,6 @@ pub struct UltraLite{
 
 impl UltraLite {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
-
-    pub fn new() -> Self {
-        UltraLite{
-            proto: Default::default(),
-            clk_ctls: Default::default(),
-            main_assign_ctl: Default::default(),
-            phone_assign_ctl: Default::default(),
-            msg_cache: 0,
-        }
-    }
 }
 
 impl CtlModel<SndMotu> for UltraLite {

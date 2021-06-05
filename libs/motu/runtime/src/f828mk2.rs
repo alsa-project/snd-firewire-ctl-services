@@ -13,6 +13,7 @@ use super::v2_ctls::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct F828mk2{
     proto: F828mk2Protocol,
     clk_ctls: V2ClkCtl,
@@ -24,17 +25,6 @@ pub struct F828mk2{
 
 impl F828mk2 {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
-
-    pub fn new() -> Self {
-        F828mk2{
-            proto: Default::default(),
-            clk_ctls: Default::default(),
-            opt_iface_ctl: Default::default(),
-            phone_assign_ctl: Default::default(),
-            word_clk_ctl: Default::default(),
-            msg_cache: 0,
-        }
-    }
 }
 
 impl CtlModel<SndMotu> for F828mk2 {
