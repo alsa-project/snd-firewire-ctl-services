@@ -14,8 +14,6 @@ use super::v3_proto::V3Proto;
 pub struct V3PortCtl<'a> {
     assign_labels: &'a [&'a str],
     assign_vals: &'a [u8],
-    has_main_assign: bool,
-    has_return_assign: bool,
     has_word_bnc: bool,
     has_opt_ifaces: bool,
 
@@ -24,8 +22,6 @@ pub struct V3PortCtl<'a> {
 
 impl<'a> V3PortCtl<'a> {
     const PHONE_ASSIGN_NAME: &'a str = "phone-assign";
-    const MAIN_ASSIGN_NAME: &'a str = "main-assign";
-    const RETURN_ASSIGN_NAME: &'a str = "return-assign";
     const WORD_OUT_MODE_NAME: &'a str = "word-out-mode";
     const OPT_IFACE_IN_MODE_NAME: &'a str = "optical-iface-in-mode";
     const OPT_IFACE_OUT_MODE_NAME: &'a str = "optical-iface-out-mode";
@@ -42,13 +38,11 @@ impl<'a> V3PortCtl<'a> {
         "S/PDIF",
     ];
 
-    pub fn new(assign_labels: &'a [&'a str], assign_vals: &'a [u8], has_main_assign: bool,
-               has_return_assign: bool, has_opt_ifaces: bool, has_word_bnc: bool) -> Self {
+    pub fn new(assign_labels: &'a [&'a str], assign_vals: &'a [u8], _: bool,
+               _: bool, has_opt_ifaces: bool, has_word_bnc: bool) -> Self {
         V3PortCtl{
             assign_labels,
             assign_vals,
-            has_main_assign,
-            has_return_assign,
             has_word_bnc,
             has_opt_ifaces,
             notified_elems: Vec::new(),
@@ -62,20 +56,6 @@ impl<'a> V3PortCtl<'a> {
                                                    0, 0, Self::PHONE_ASSIGN_NAME, 0);
         let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.assign_labels, None, true)?;
         self.notified_elems.extend_from_slice(&elem_id_list);
-
-        if self.has_main_assign {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                       0, 0, Self::MAIN_ASSIGN_NAME, 0);
-            let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.assign_labels, None, true)?;
-            self.notified_elems.extend_from_slice(&elem_id_list);
-        }
-
-        if self.has_return_assign {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                       0, 0, Self::RETURN_ASSIGN_NAME, 0);
-            let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.assign_labels, None, true)?;
-            self.notified_elems.extend_from_slice(&elem_id_list);
-        }
 
         if self.has_word_bnc {
             let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
@@ -144,20 +124,6 @@ impl<'a> V3PortCtl<'a> {
                 })?;
                 Ok(true)
             }
-            Self::MAIN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = proto.as_ref().get_main_assign(unit, &self.assign_vals)?;
-                    Ok(val as u32)
-                })?;
-                Ok(true)
-            }
-            Self::RETURN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = proto.as_ref().get_return_assign(unit, &self.assign_vals)?;
-                    Ok(val as u32)
-                })?;
-                Ok(true)
-            }
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let val = proto.as_ref().get_word_out(unit, &Self::WORD_OUT_MODE_VALS)?;
@@ -192,18 +158,6 @@ impl<'a> V3PortCtl<'a> {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     proto.as_ref().set_phone_assign(unit, &self.assign_vals, val as usize)
-                })?;
-                Ok(true)
-            }
-            Self::MAIN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.as_ref().set_main_assign(unit, &self.assign_vals, val as usize)
-                })?;
-                Ok(true)
-            }
-            Self::RETURN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.as_ref().set_return_assign(unit, &self.assign_vals, val as usize)
                 })?;
                 Ok(true)
             }
