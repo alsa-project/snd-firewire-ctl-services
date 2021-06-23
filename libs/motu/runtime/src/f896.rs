@@ -21,6 +21,7 @@ pub struct F896 {
     clk_ctls: V1ClkCtl,
     monitor_input_ctl: V1MonitorInputCtl,
     word_clk_ctl: CommonWordClkCtl,
+    aesebu_rate_convert_ctl: CommonAesebuRateConvertCtl,
 }
 
 impl CtlModel<SndMotu> for F896 {
@@ -28,6 +29,7 @@ impl CtlModel<SndMotu> for F896 {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.monitor_input_ctl.load(&self.proto, card_cntr)?;
         self.word_clk_ctl.load(&self.proto, card_cntr)?;
+        self.aesebu_rate_convert_ctl.load(&self.proto, card_cntr)?;
         Ok(())
     }
 
@@ -51,6 +53,14 @@ impl CtlModel<SndMotu> for F896 {
             .word_clk_ctl
             .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
         {
+            Ok(true)
+        } else if self.aesebu_rate_convert_ctl.read(
+            unit,
+            &self.proto,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -78,6 +88,15 @@ impl CtlModel<SndMotu> for F896 {
             .word_clk_ctl
             .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
         {
+            Ok(true)
+        } else if self.aesebu_rate_convert_ctl.write(
+            unit,
+            &self.proto,
+            elem_id,
+            old,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
