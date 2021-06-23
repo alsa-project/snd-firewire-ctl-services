@@ -118,7 +118,7 @@ impl<'a> V1ClkCtl {
 }
 
 #[derive(Default)]
-pub struct V1MonitorInputCtl;
+pub struct V1MonitorInputCtl {}
 
 impl<'a> V1MonitorInputCtl {
     const MONITOR_INPUT_NAME: &'a str = "monitor-input";
