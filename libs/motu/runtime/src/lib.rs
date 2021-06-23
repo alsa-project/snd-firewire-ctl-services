@@ -13,6 +13,7 @@ mod f828;
 mod f896;
 
 mod common_ctls;
+mod v1_ctls;
 mod v2_ctls;
 mod v3_ctls;
 
