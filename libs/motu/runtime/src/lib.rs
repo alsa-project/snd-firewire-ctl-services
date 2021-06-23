@@ -9,6 +9,7 @@ mod ultralite;
 mod traveler;
 mod f8pre;
 mod f828mk2;
+mod f828;
 
 mod common_ctls;
 mod v2_ctls;
