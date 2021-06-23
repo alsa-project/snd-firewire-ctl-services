@@ -319,3 +319,219 @@ pub trait AesebuRateConvertProtocol<'a>: CommonProtocol<'a> {
         )
     }
 }
+
+/// The enumeration to express the mode of hold time for clip and peak LEDs.
+pub enum LevelMetersHoldTimeMode {
+    /// off.
+    Off,
+    /// 2 seconds.
+    Sec2,
+    /// 4 seconds.
+    Sec4,
+    /// 10 seconds.
+    Sec10,
+    /// 1 minute.
+    Sec60,
+    /// 5 minutes.
+    Sec300,
+    /// 8 minutes.
+    Sec480,
+    /// Infinite.
+    Infinite,
+}
+
+/// The enumeration to express the mode of programmable meter display.
+pub enum LevelMetersProgrammableMode {
+    AnalogOutput,
+    AdatInput,
+    AdatOutput,
+}
+
+/// The enumeration to express the mode of AES/EBU meter display.
+pub enum LevelMetersAesebuMode {
+    Input,
+    Output,
+}
+
+const LEVEL_METERS_OFFSET: u32 = 0x0b24;
+
+const LEVEL_METERS_PEAK_HOLD_TIME_MASK: u32 = 0x00003800;
+const LEVEL_METERS_PEAK_HOLD_TIME_SHIFT: usize = 11;
+
+const LEVEL_METERS_CLIP_HOLD_TIME_MASK: u32 = 0x00000700;
+const LEVEL_METERS_CLIP_HOLD_TIME_SHIFT: usize = 8;
+
+const LEVEL_METERS_HOLD_TIME_VALS: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
+
+const LEVEL_METERS_AESEBU_MASK: u32 = 0x00000004;
+const LEVEL_METERS_AESEBU_SHIFT: usize = 2;
+
+const LEVEL_METERS_AESEBU_VALS: [u8; 2] = [0x00, 0x01];
+
+const LEVEL_METERS_PROGRAMMABLE_MASK: u32 = 0x00000003;
+const LEVEL_METERS_PROGRAMMABLE_SHIFT: usize = 0;
+const LEVEL_METERS_PROGRAMMABLE_VALS: [u8; 3] = [0x00, 0x01, 0x02];
+
+const LEVEL_METERS_PEAK_HOLD_TIME_LABEL: &str = "level-meters-peak-hold-time";
+const LEVEL_METERS_CLIP_HOLD_TIME_LABEL: &str = "level-meters-clip-hold-time";
+const LEVEL_METERS_PROGRAMMABLE_LABEL: &str = "level-meters-programmable";
+const LEVEL_METERS_AESEBU_LABEL: &str = "level-meters-aesebu";
+
+/// The trait for protocol of level meter.
+pub trait LevelMetersProtocol<'a>: CommonProtocol<'a> {
+    const LEVEL_METERS_HOLD_TIME_MODES: [LevelMetersHoldTimeMode; 8] = [
+        LevelMetersHoldTimeMode::Off,
+        LevelMetersHoldTimeMode::Sec2,
+        LevelMetersHoldTimeMode::Sec4,
+        LevelMetersHoldTimeMode::Sec10,
+        LevelMetersHoldTimeMode::Sec60,
+        LevelMetersHoldTimeMode::Sec300,
+        LevelMetersHoldTimeMode::Sec480,
+        LevelMetersHoldTimeMode::Infinite,
+    ];
+
+    const LEVEL_METERS_AESEBU_MODES: [LevelMetersAesebuMode; 2] =
+        [LevelMetersAesebuMode::Output, LevelMetersAesebuMode::Input];
+
+    const LEVEL_METERS_PROGRAMMABLE_MODES: [LevelMetersProgrammableMode; 3] = [
+        LevelMetersProgrammableMode::AnalogOutput,
+        LevelMetersProgrammableMode::AdatInput,
+        LevelMetersProgrammableMode::AdatOutput,
+    ];
+
+    fn get_level_meters_peak_hold_time_mode(
+        &self,
+        unit: &SndMotu,
+        timeout_ms: u32,
+    ) -> Result<usize, Error> {
+        self.get_idx_from_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_PEAK_HOLD_TIME_MASK,
+            LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
+            LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
+            unit,
+            &LEVEL_METERS_HOLD_TIME_VALS,
+            timeout_ms,
+        )
+    }
+
+    fn set_level_meters_peak_hold_time_mode(
+        &self,
+        unit: &SndMotu,
+        idx: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.set_idx_to_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_PEAK_HOLD_TIME_MASK,
+            LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
+            LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
+            unit,
+            &LEVEL_METERS_HOLD_TIME_VALS,
+            idx,
+            timeout_ms,
+        )
+    }
+
+    fn get_level_meters_clip_hold_time_mode(
+        &self,
+        unit: &SndMotu,
+        timeout_ms: u32,
+    ) -> Result<usize, Error> {
+        self.get_idx_from_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_CLIP_HOLD_TIME_MASK,
+            LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
+            LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
+            unit,
+            &LEVEL_METERS_HOLD_TIME_VALS,
+            timeout_ms,
+        )
+    }
+
+    fn set_level_meters_clip_hold_time_mode(
+        &self,
+        unit: &SndMotu,
+        idx: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.set_idx_to_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_CLIP_HOLD_TIME_MASK,
+            LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
+            LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
+            unit,
+            &LEVEL_METERS_HOLD_TIME_VALS,
+            idx,
+            timeout_ms,
+        )
+    }
+
+    fn get_level_meters_aesebu_mode(
+        &self,
+        unit: &SndMotu,
+        timeout_ms: u32,
+    ) -> Result<usize, Error> {
+        self.get_idx_from_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_AESEBU_MASK,
+            LEVEL_METERS_AESEBU_SHIFT,
+            LEVEL_METERS_AESEBU_LABEL,
+            unit,
+            &LEVEL_METERS_AESEBU_VALS,
+            timeout_ms,
+        )
+    }
+
+    fn set_level_meters_aesebu_mode(
+        &self,
+        unit: &SndMotu,
+        idx: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.set_idx_to_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_AESEBU_MASK,
+            LEVEL_METERS_AESEBU_SHIFT,
+            LEVEL_METERS_AESEBU_LABEL,
+            unit,
+            &LEVEL_METERS_AESEBU_VALS,
+            idx,
+            timeout_ms,
+        )
+    }
+
+    fn get_level_meters_programmable_mode(
+        &self,
+        unit: &SndMotu,
+        timeout_ms: u32,
+    ) -> Result<usize, Error> {
+        self.get_idx_from_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_PROGRAMMABLE_MASK,
+            LEVEL_METERS_PROGRAMMABLE_SHIFT,
+            LEVEL_METERS_PROGRAMMABLE_LABEL,
+            unit,
+            &LEVEL_METERS_PROGRAMMABLE_VALS,
+            timeout_ms,
+        )
+    }
+
+    fn set_level_meters_programmable_mode(
+        &self,
+        unit: &SndMotu,
+        idx: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.set_idx_to_val(
+            LEVEL_METERS_OFFSET,
+            LEVEL_METERS_PROGRAMMABLE_MASK,
+            LEVEL_METERS_PROGRAMMABLE_SHIFT,
+            LEVEL_METERS_PROGRAMMABLE_LABEL,
+            unit,
+            &LEVEL_METERS_PROGRAMMABLE_VALS,
+            idx,
+            timeout_ms,
+        )
+    }
+}
