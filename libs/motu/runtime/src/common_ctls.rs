@@ -257,3 +257,167 @@ impl<'a> CommonAesebuRateConvertCtl {
         }
     }
 }
+
+fn level_meters_hold_time_mode_to_string(mode: &LevelMetersHoldTimeMode) -> String {
+    match mode {
+        LevelMetersHoldTimeMode::Off => "off",
+        LevelMetersHoldTimeMode::Sec2 => "2sec",
+        LevelMetersHoldTimeMode::Sec4 => "4sec",
+        LevelMetersHoldTimeMode::Sec10 => "10sec",
+        LevelMetersHoldTimeMode::Sec60 => "1min",
+        LevelMetersHoldTimeMode::Sec300 => "5min",
+        LevelMetersHoldTimeMode::Sec480 => "8min",
+        LevelMetersHoldTimeMode::Infinite => "infinite",
+    }
+    .to_string()
+}
+
+fn level_meters_aesebu_mode_to_string(mode: &LevelMetersAesebuMode) -> String {
+    match mode {
+        LevelMetersAesebuMode::Output => "output",
+        LevelMetersAesebuMode::Input => "input",
+    }
+    .to_string()
+}
+
+fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) -> String {
+    match mode {
+        LevelMetersProgrammableMode::AnalogOutput => "analog-output",
+        LevelMetersProgrammableMode::AdatInput => "ADAT-input",
+        LevelMetersProgrammableMode::AdatOutput => "ADAT-output",
+    }
+    .to_string()
+}
+
+#[derive(Default)]
+pub struct CommonLevelMetersCtl {}
+
+impl<'a> CommonLevelMetersCtl {
+    const PEAK_HOLD_TIME_MODE_NAME: &'a str = "meter-peak-hold-time";
+    const CLIP_HOLD_TIME_MODE_NAME: &'a str = "meter-clip-hold-time";
+    const AESEBU_MODE_NAME: &'a str = "AES/EBU-meter";
+    const PROGRAMMABLE_MODE_NAME: &'a str = "programmable-meter";
+
+    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
+    where
+        for<'b> O: LevelMetersProtocol<'b>,
+    {
+        let labels: Vec<String> = O::LEVEL_METERS_HOLD_TIME_MODES
+            .iter()
+            .map(|l| level_meters_hold_time_mode_to_string(&l))
+            .collect();
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PEAK_HOLD_TIME_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::CLIP_HOLD_TIME_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<String> = O::LEVEL_METERS_AESEBU_MODES
+            .iter()
+            .map(|l| level_meters_aesebu_mode_to_string(&l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::AESEBU_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<String> = O::LEVEL_METERS_PROGRAMMABLE_MODES
+            .iter()
+            .map(|l| level_meters_programmable_mode_to_string(&l))
+            .collect();
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PROGRAMMABLE_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: LevelMetersProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::PEAK_HOLD_TIME_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_level_meters_peak_hold_time_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            Self::CLIP_HOLD_TIME_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_level_meters_clip_hold_time_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            Self::AESEBU_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_level_meters_aesebu_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            Self::PROGRAMMABLE_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_level_meters_programmable_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: LevelMetersProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::PEAK_HOLD_TIME_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    proto.set_level_meters_peak_hold_time_mode(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            Self::CLIP_HOLD_TIME_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    proto.set_level_meters_clip_hold_time_mode(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            Self::AESEBU_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    proto.set_level_meters_aesebu_mode(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            Self::PROGRAMMABLE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    proto.set_level_meters_programmable_mode(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}

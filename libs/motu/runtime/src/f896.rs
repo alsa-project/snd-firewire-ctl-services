@@ -22,6 +22,7 @@ pub struct F896 {
     monitor_input_ctl: V1MonitorInputCtl,
     word_clk_ctl: CommonWordClkCtl,
     aesebu_rate_convert_ctl: CommonAesebuRateConvertCtl,
+    level_meters_ctl: CommonLevelMetersCtl,
 }
 
 impl CtlModel<SndMotu> for F896 {
@@ -30,6 +31,7 @@ impl CtlModel<SndMotu> for F896 {
         self.monitor_input_ctl.load(&self.proto, card_cntr)?;
         self.word_clk_ctl.load(&self.proto, card_cntr)?;
         self.aesebu_rate_convert_ctl.load(&self.proto, card_cntr)?;
+        self.level_meters_ctl.load(&self.proto, card_cntr)?;
         Ok(())
     }
 
@@ -61,6 +63,11 @@ impl CtlModel<SndMotu> for F896 {
             elem_value,
             TIMEOUT_MS,
         )? {
+            Ok(true)
+        } else if self
+            .level_meters_ctl
+            .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -97,6 +104,11 @@ impl CtlModel<SndMotu> for F896 {
             new,
             TIMEOUT_MS,
         )? {
+            Ok(true)
+        } else if self
+            .level_meters_ctl
+            .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
