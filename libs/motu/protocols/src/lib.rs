@@ -257,3 +257,65 @@ pub trait WordClkProtocol<'a>: CommonProtocol<'a> {
         )
     }
 }
+
+/// The enumeration to express the mode of rate convert for AES/EBU input/output signals.
+pub enum AesebuRateConvertMode {
+    /// Not available.
+    None,
+    /// The rate of input signal is converted to system rate.
+    InputToSystem,
+    /// The rate of output signal is slave to input, ignoring system rate.
+    OutputDependsInput,
+    /// The rate of output signal is double rate than system rate.
+    OutputDoubleSystem,
+}
+
+const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000060;
+const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
+const AESEBU_RATE_CONVERT_VALS: [u8; 4] = [0x00, 0x01, 0x02, 0x03];
+
+const AESEBU_RATE_CONVERT_LABEL: &str = "aesebu-rate-convert";
+
+/// The trait for protocol of rate convert specific to AES/EBU input/output signals.
+pub trait AesebuRateConvertProtocol<'a>: CommonProtocol<'a> {
+    const AESEBU_RATE_CONVERT_MODES: [AesebuRateConvertMode; 4] = [
+        AesebuRateConvertMode::None,
+        AesebuRateConvertMode::InputToSystem,
+        AesebuRateConvertMode::OutputDependsInput,
+        AesebuRateConvertMode::OutputDoubleSystem,
+    ];
+
+    fn get_aesebu_rate_convert_mode(
+        &self,
+        unit: &SndMotu,
+        timeout_ms: u32,
+    ) -> Result<usize, Error> {
+        self.get_idx_from_val(
+            Self::OFFSET_CLK,
+            AESEBU_RATE_CONVERT_MASK,
+            AESEBU_RATE_CONVERT_SHIFT,
+            AESEBU_RATE_CONVERT_LABEL,
+            unit,
+            &AESEBU_RATE_CONVERT_VALS,
+            timeout_ms,
+        )
+    }
+
+    fn set_aesebu_rate_convert_mode(
+        &self,
+        unit: &SndMotu,
+        idx: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        self.set_idx_to_val(
+            Self::OFFSET_CLK,
+            AESEBU_RATE_CONVERT_MASK,
+            AESEBU_RATE_CONVERT_SHIFT,
+            AESEBU_RATE_CONVERT_LABEL,
+            unit,
+            &AESEBU_RATE_CONVERT_VALS,
+            idx,
+            timeout_ms,
+        )
+    }
+}
