@@ -18,11 +18,13 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F896 {
     proto: F896Protocol,
     clk_ctls: V1ClkCtl,
+    monitor_input_ctl: V1MonitorInputCtl,
 }
 
 impl CtlModel<SndMotu> for F896 {
     fn load(&mut self, _: &SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.monitor_input_ctl.load(&self.proto, card_cntr)?;
         Ok(())
     }
 
@@ -34,6 +36,11 @@ impl CtlModel<SndMotu> for F896 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
+            .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .monitor_input_ctl
             .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
@@ -51,6 +58,11 @@ impl CtlModel<SndMotu> for F896 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
+            .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .monitor_input_ctl
             .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
