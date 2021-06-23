@@ -173,3 +173,87 @@ impl<'a> CommonWordClkCtl {
         }
     }
 }
+
+fn aesebu_rate_convert_mode_to_string(mode: &AesebuRateConvertMode) -> String {
+    match mode {
+        AesebuRateConvertMode::None => "None",
+        AesebuRateConvertMode::InputToSystem => "input-is-converted",
+        AesebuRateConvertMode::OutputDependsInput => "output-depends-on-input",
+        AesebuRateConvertMode::OutputDoubleSystem => "output-is-double",
+    }
+    .to_string()
+}
+
+#[derive(Default)]
+pub struct CommonAesebuRateConvertCtl {}
+
+impl<'a> CommonAesebuRateConvertCtl {
+    const AESEBU_RATE_CONVERT_MODE_NAME: &'a str = "AES/EBU-rate-convert";
+
+    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
+    where
+        for<'b> O: AesebuRateConvertProtocol<'b>,
+    {
+        let labels: Vec<String> = O::AESEBU_RATE_CONVERT_MODES
+            .iter()
+            .map(|l| aesebu_rate_convert_mode_to_string(&l))
+            .collect();
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Card,
+            0,
+            0,
+            Self::AESEBU_RATE_CONVERT_MODE_NAME,
+            0,
+        );
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    pub fn read<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: AesebuRateConvertProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::AESEBU_RATE_CONVERT_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_aesebu_rate_convert_mode(unit, timeout_ms)
+                        .map(|val| val as u32)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: AesebuRateConvertProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::AESEBU_RATE_CONVERT_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    proto.set_aesebu_rate_convert_mode(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
