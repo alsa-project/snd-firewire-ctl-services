@@ -6,6 +6,7 @@ use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use motu_protocols::ClkRate;
 
+use super::f828::F828;
 use super::f828mk2::F828mk2;
 use super::traveler::Traveler;
 use super::ultralite::UltraLite;
@@ -23,6 +24,7 @@ pub struct MotuModel {
 }
 
 enum MotuCtlModel {
+    F828(F828),
     F828mk2(F828mk2),
     Traveler(Traveler),
     UltraLite(UltraLite),
@@ -36,6 +38,7 @@ enum MotuCtlModel {
 impl MotuModel {
     pub fn new(model_id: u32, version: u32) -> Result<Self, Error> {
         let ctl_model = match model_id {
+            0x000001 => MotuCtlModel::F828(Default::default()),
             0x000003 => MotuCtlModel::F828mk2(Default::default()),
             0x000009 => MotuCtlModel::Traveler(Default::default()),
             0x00000d => MotuCtlModel::UltraLite(Default::default()),
@@ -62,6 +65,7 @@ impl MotuModel {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
+            MotuCtlModel::F828(m) => m.load(unit, card_cntr),
             MotuCtlModel::F828mk2(m) => m.load(unit, card_cntr),
             MotuCtlModel::Traveler(m) => m.load(unit, card_cntr),
             MotuCtlModel::UltraLite(m) => m.load(unit, card_cntr),
@@ -89,6 +93,7 @@ impl MotuModel {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
+            MotuCtlModel::F828(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::F828mk2(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::Traveler(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::UltraLite(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),

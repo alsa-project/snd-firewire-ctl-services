@@ -102,6 +102,7 @@ your device, please contact to developer.
 
 * snd-firewire-motu-ctl-service
 
+  * MOTU 828
   * MOTU Traveler
   * MOTU 828mkII
   * MOTU UltraLite
