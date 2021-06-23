@@ -116,3 +116,70 @@ impl<'a> V1ClkCtl {
         }
     }
 }
+
+#[derive(Default)]
+pub struct V1MonitorInputCtl;
+
+impl<'a> V1MonitorInputCtl {
+    const MONITOR_INPUT_NAME: &'a str = "monitor-input";
+
+    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
+    where
+        for<'b> O: V1MonitorInputProtocol<'b>,
+    {
+        let labels: Vec<String> = O::MONITOR_INPUT_MODES
+            .iter()
+            .map(|e| e.to_string())
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MONITOR_INPUT_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        Ok(())
+    }
+
+    pub fn read<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: V1MonitorInputProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::MONITOR_INPUT_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    proto
+                        .get_monitor_input(unit, timeout_ms)
+                        .map(|idx| idx as u32)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn write<O>(
+        &mut self,
+        unit: &SndMotu,
+        proto: &O,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error>
+    where
+        for<'b> O: V1MonitorInputProtocol<'b>,
+    {
+        match elem_id.get_name().as_str() {
+            Self::MONITOR_INPUT_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    proto.set_monitor_input(unit, val as usize, timeout_ms)
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
