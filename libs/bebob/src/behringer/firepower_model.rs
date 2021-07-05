@@ -47,7 +47,7 @@ impl<'a> Default for FirepowerModel<'a> {
 }
 
 impl<'a> CtlModel<hinawa::SndUnit> for FirepowerModel<'a> {
-    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
 
         self.clk_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
@@ -55,7 +55,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for FirepowerModel<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
@@ -65,7 +65,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for FirepowerModel<'a> {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {

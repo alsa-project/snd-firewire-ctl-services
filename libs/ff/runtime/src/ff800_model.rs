@@ -28,7 +28,7 @@ pub struct Ff800Model{
 const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for Ff800Model {
-    fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
         self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
@@ -38,7 +38,7 @@ impl CtlModel<SndUnit> for Ff800Model {
         Ok(())
     }
 
-    fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.cfg_ctl.read(elem_id, elem_value)? {
@@ -52,7 +52,7 @@ impl CtlModel<SndUnit> for Ff800Model {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {

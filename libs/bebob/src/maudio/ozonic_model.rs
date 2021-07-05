@@ -84,7 +84,7 @@ impl<'a> Default for OzonicModel<'a> {
 }
 
 impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
-    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
 
         let mut op = UnitInfo::new();
@@ -99,7 +99,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
@@ -115,7 +115,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
              old: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {

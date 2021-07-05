@@ -48,7 +48,7 @@ const AVAIL_CLK_SRC_LABELS: [&str;13] = [
 ];
 
 impl CtlModel<SndDice> for FStudioModel {
-    fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let node = unit.get_node();
 
         self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
@@ -67,7 +67,7 @@ impl CtlModel<SndDice> for FStudioModel {
         Ok(())
     }
 
-    fn read(&mut self, unit: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
+    fn read(&mut self, unit: &mut SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
@@ -83,7 +83,7 @@ impl CtlModel<SndDice> for FStudioModel {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
+    fn write(&mut self, unit: &mut SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {

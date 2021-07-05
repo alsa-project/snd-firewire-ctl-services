@@ -10,16 +10,16 @@ pub struct CardCntr {
 }
 
 pub trait CtlModel<O: IsA<hinawa::SndUnit>> {
-    fn load(&mut self, unit: &O, card_cntr: &mut CardCntr) -> Result<(), Error>;
+    fn load(&mut self, unit: &mut O, card_cntr: &mut CardCntr) -> Result<(), Error>;
     fn read(
         &mut self,
-        unit: &O,
+        unit: &mut O,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error>;
     fn write(
         &mut self,
-        unit: &O,
+        unit: &mut O,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,

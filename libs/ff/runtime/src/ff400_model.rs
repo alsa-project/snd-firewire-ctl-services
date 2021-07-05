@@ -31,7 +31,7 @@ pub struct Ff400Model{
 const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for Ff400Model {
-    fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.meter_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
         self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
@@ -41,7 +41,7 @@ impl CtlModel<SndUnit> for Ff400Model {
         Ok(())
     }
 
-    fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.out_ctl.read(elem_id, elem_value)? {
@@ -57,7 +57,7 @@ impl CtlModel<SndUnit> for Ff400Model {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {

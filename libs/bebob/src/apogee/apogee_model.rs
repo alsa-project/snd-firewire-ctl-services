@@ -72,7 +72,7 @@ impl<'a> Default for EnsembleModel<'a> {
 }
 
 impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
-    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
+    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
     {
         self.avc.fcp.bind(&unit.get_node())?;
@@ -95,7 +95,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctls.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
@@ -123,7 +123,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
              old: &alsactl::ElemValue, new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {

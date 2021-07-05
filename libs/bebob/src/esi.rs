@@ -53,7 +53,7 @@ impl<'a> Default for QuatafireModel<'a> {
 }
 
 impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
-    fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
         self.clk_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.input_ctl.load(card_cntr)?;
@@ -61,7 +61,7 @@ impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
@@ -75,7 +75,7 @@ impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {

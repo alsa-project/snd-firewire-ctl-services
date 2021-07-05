@@ -19,7 +19,7 @@ impl<'a> CommonModel {
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for CommonModel {
-    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.bind(&unit.get_node())?;
 
         self.common_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
@@ -27,7 +27,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for CommonModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
         if self.common_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
@@ -37,7 +37,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for CommonModel {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
              new: &alsactl::ElemValue) -> Result<bool, Error>
     {
         if self.common_ctl.write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)? {

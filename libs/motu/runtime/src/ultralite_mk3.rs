@@ -29,7 +29,7 @@ impl UltraLiteMk3 {
 }
 
 impl CtlModel<SndMotu> for UltraLiteMk3 {
-    fn load(&mut self, _: &SndMotu, card_cntr: &mut CardCntr)
+    fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
@@ -38,7 +38,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         Ok(())
     }
 
-    fn read(&mut self, unit: &SndMotu, elem_id: &alsactl::ElemId,
+    fn read(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId,
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
@@ -53,7 +53,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         }
     }
 
-    fn write(&mut self, unit: &SndMotu, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {

@@ -43,7 +43,7 @@ impl<'a> TascamModel {
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
-    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
 
         let mut op = UnitInfo::new();
@@ -68,7 +68,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
@@ -113,7 +113,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for TascamModel {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
              new: &alsactl::ElemValue) -> Result<bool, Error>
     {
         if self.common_ctl.write(unit, &self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)? {
