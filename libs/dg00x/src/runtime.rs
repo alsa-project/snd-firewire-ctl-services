@@ -104,7 +104,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                 }
                 Event::Elem((elem_id, events)) => {
                     let _ = self.card_cntr.dispatch_elem_event(
-                        &self.unit,
+                        &mut self.unit,
                         &elem_id,
                         &events,
                         &mut self.model,

@@ -279,7 +279,7 @@ impl CardCntr {
 
     pub fn dispatch_elem_event<O, T>(
         &mut self,
-        unit: &O,
+        unit: &mut O,
         elem_id: &alsactl::ElemId,
         events: &alsactl::ElemEventMask,
         ctl_model: &mut T,

@@ -196,7 +196,7 @@ impl DiceModel {
         Ok(())
     }
 
-    pub fn dispatch_elem_event(&mut self, unit: &SndDice, card_cntr: &mut CardCntr,
+    pub fn dispatch_elem_event(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr,
                                elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
         -> Result<(), Error>
     {

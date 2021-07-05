@@ -184,7 +184,7 @@ impl<'a> IsocRackRuntime<'a> {
                 }
                 RackUnitEvent::Elem((elem_id, events)) => {
                     if elem_id.get_name() != Self::TIMER_NAME {
-                        let _ = self.card_cntr.dispatch_elem_event(&self.unit, &elem_id, &events,
+                        let _ = self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events,
                                                                    &mut self.model);
                     } else {
                         let mut elem_value = alsactl::ElemValue::new();

@@ -130,8 +130,8 @@ impl<'a> RuntimeOperation<u32> for BebobRuntime<'a> {
                 }
                 Event::Elem(elem_id, events) => {
                     if elem_id.get_name() != Self::TIMER_NAME {
-                        let _= self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
-                                                               &elem_id, &events);
+                        let _= self.model.dispatch_elem_event(&mut self.unit, &mut self.card_cntr,
+                                                              &elem_id, &events);
                     } else {
                         let mut elem_value = alsactl::ElemValue::new();
                         if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {

@@ -125,7 +125,7 @@ impl<'a> RuntimeOperation<u32> for MotuRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    let _ = self.model.dispatch_elem_event(&self.unit, &mut self.card_cntr,
+                    let _ = self.model.dispatch_elem_event(&mut self.unit, &mut self.card_cntr,
                                                            &elem_id, &events);
                 }
                 Event::Notify(msg) => {
