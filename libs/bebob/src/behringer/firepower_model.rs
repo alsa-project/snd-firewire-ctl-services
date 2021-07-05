@@ -82,7 +82,7 @@ impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for FirepowerModel<'a> {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 

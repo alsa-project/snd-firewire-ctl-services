@@ -187,7 +187,7 @@ impl NotifyModel<SndDice, u32> for KliveModel {
         elem_id_list.extend_from_slice(&self.prog_ctl.0);
     }
 
-    fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
         self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
 
         let node = unit.get_node();

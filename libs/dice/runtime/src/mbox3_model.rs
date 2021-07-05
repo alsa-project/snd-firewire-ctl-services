@@ -111,7 +111,7 @@ impl NotifyModel<SndDice, u32> for Mbox3Model {
         elem_id_list.extend_from_slice(&self.button_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, unit: &SndDice, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
         self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
         self.tcd22xx_ctl.parse_notification(unit, &self.proto, &self.sections,
                                         &self.extension_sections, TIMEOUT_MS, *msg)?;

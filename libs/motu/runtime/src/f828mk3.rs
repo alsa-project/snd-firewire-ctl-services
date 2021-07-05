@@ -88,7 +88,7 @@ impl NotifyModel<SndMotu, u32> for F828mk3 {
         elem_id_list.extend_from_slice(&self.word_clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &SndMotu, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {
         self.msg_cache = *msg;
         Ok(())
     }
