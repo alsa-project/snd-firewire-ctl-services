@@ -51,7 +51,7 @@ impl card_cntr::NotifyModel<hinawa::SndDg00x, bool> for Dg00xModel {
         elem_id_list.extend_from_slice(&self.monitor.notified_elems);
     }
 
-    fn parse_notification(&mut self, _: &hinawa::SndDg00x, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut hinawa::SndDg00x, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 

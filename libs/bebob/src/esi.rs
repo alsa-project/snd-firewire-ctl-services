@@ -95,7 +95,7 @@ impl<'a> NotifyModel<SndUnit, bool> for QuatafireModel<'a> {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 

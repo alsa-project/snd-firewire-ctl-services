@@ -36,7 +36,7 @@ pub trait MeasureModel<O: IsA<hinawa::SndUnit>> {
 
 pub trait NotifyModel<O: IsA<hinawa::SndUnit>, N> {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
-    fn parse_notification(&mut self, unit: &O, notice: &N) -> Result<(), Error>;
+    fn parse_notification(&mut self, unit: &mut O, notice: &N) -> Result<(), Error>;
     fn read_notified_elem(&mut self, unit: &O, elem_id: &alsactl::ElemId,
                           elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>;
