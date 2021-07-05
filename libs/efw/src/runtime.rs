@@ -115,7 +115,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
                 Event::Elem((elem_id, events)) => {
                     if elem_id.get_name() != Self::TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &self.unit,
+                            &mut self.unit,
                             &elem_id,
                             &events,
                             &mut self.model,

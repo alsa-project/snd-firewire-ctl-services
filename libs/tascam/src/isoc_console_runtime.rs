@@ -251,9 +251,9 @@ impl<'a> IsocConsoleRuntime<'a> {
                     if elem_id.get_name() != Self::TIMER_NAME {
                         let _ = match &mut self.model {
                             ConsoleModel::Fw1884(m) =>
-                                self.card_cntr.dispatch_elem_event(&self.unit, &elem_id, &events, m),
+                                self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events, m),
                             ConsoleModel::Fw1082(m) =>
-                                self.card_cntr.dispatch_elem_event(&self.unit, &elem_id, &events, m),
+                                self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events, m),
                         };
                     } else {
                         let mut elem_value = alsactl::ElemValue::new();

@@ -77,7 +77,7 @@ impl OxfwModel {
         Ok(())
     }
 
-    pub fn dispatch_elem_event(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr,
+    pub fn dispatch_elem_event(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr,
                                elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
         -> Result<(), Error>
     {
