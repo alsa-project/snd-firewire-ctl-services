@@ -91,7 +91,7 @@ impl OxfwModel {
         }
     }
 
-    pub fn measure_elems(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
+    pub fn measure_elems(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
     {
         match &mut self.ctl_model {

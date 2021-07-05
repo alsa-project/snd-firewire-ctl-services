@@ -109,7 +109,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Timer => {
-                    let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems,
+                    let _ = self.card_cntr.measure_elems(&mut self.unit, &self.measure_elems,
                                                          &mut self.model);
                 }
                 Event::Elem((elem_id, events)) => {

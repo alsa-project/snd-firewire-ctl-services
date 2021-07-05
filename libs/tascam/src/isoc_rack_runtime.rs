@@ -200,7 +200,7 @@ impl<'a> IsocRackRuntime<'a> {
                     }
                 }
                 RackUnitEvent::Timer => {
-                    let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems,
+                    let _ = self.card_cntr.measure_elems(&mut self.unit, &self.measure_elems,
                                                          &mut self.model);
                 }
             }

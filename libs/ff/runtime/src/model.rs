@@ -85,7 +85,7 @@ impl FfModel {
         }
     }
 
-    pub fn measure_elems(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr)
+    pub fn measure_elems(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         match &mut self.model {

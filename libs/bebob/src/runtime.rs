@@ -146,7 +146,7 @@ impl<'a> RuntimeOperation<u32> for BebobRuntime<'a> {
                     }
                 }
                 Event::Timer => {
-                    let _ = self.model.measure_elems(&self.unit, &mut self.card_cntr);
+                    let _ = self.model.measure_elems(&mut self.unit, &mut self.card_cntr);
                 }
                 Event::StreamLock(locked) => {
                     let _ = self.model.dispatch_stream_lock(&self.unit, &mut self.card_cntr, locked);

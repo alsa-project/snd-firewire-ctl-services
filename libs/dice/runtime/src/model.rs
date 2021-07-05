@@ -251,7 +251,7 @@ impl DiceModel {
         }
     }
 
-    pub fn measure_elems(&mut self, unit: &hinawa::SndDice, card_cntr: &mut CardCntr)
+    pub fn measure_elems(&mut self, unit: &mut hinawa::SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         match &mut self.model {
