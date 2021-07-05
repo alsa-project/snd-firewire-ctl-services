@@ -117,7 +117,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
                         }
                     }
                     Event::Notify(msg) => {
-                        let _ = self.model.dispatch_msg(&self.unit, &mut self.card_cntr, msg);
+                        let _ = self.model.dispatch_msg(&mut self.unit, &mut self.card_cntr, msg);
                     }
                     Event::Timer => {
                         let _ = self.model.measure_elems(&mut self.unit, &mut self.card_cntr);

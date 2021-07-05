@@ -111,7 +111,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                     );
                 }
                 Event::StreamLock(locked) => {
-                    let _ = self.card_cntr.dispatch_notification(&self.unit, &locked,
+                    let _ = self.card_cntr.dispatch_notification(&mut self.unit, &locked,
                                                             &self.notified_elems, &mut self.model);
                 }
             }

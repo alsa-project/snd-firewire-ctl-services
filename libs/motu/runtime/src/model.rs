@@ -110,7 +110,7 @@ impl MotuModel {
         }
     }
 
-    pub fn dispatch_notification(&mut self, unit: &hinawa::SndMotu, msg: &u32, card_cntr: &mut CardCntr)
+    pub fn dispatch_notification(&mut self, unit: &mut hinawa::SndMotu, msg: &u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         let elem_id_list = &self.notified_elems;

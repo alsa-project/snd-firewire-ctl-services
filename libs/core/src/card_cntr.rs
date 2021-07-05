@@ -400,7 +400,7 @@ impl CardCntr {
 
     pub fn dispatch_notification<O, N, T>(
         &mut self,
-        unit: &O,
+        unit: &mut O,
         notification: &N,
         elem_id_list: &Vec<alsactl::ElemId>,
         ctl_model: &mut T,
