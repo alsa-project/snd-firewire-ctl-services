@@ -139,7 +139,7 @@ impl<'a> BebobModel<'a> {
         }
     }
 
-    pub fn dispatch_stream_lock(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, notice: bool)
+    pub fn dispatch_stream_lock(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, notice: bool)
         -> Result<(), Error>
     {
         match &mut self.ctl_model {

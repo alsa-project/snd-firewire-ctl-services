@@ -224,7 +224,7 @@ impl DiceModel {
         }
     }
 
-    pub fn dispatch_msg(&mut self, unit: &SndDice, card_cntr: &mut CardCntr, msg: u32)
+    pub fn dispatch_msg(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr, msg: u32)
         -> Result<(), Error>
     {
         match &mut self.model {

@@ -129,7 +129,7 @@ impl<'a> RuntimeOperation<u32> for MotuRuntime {
                                                            &elem_id, &events);
                 }
                 Event::Notify(msg) => {
-                    let _ = self.model.dispatch_notification(&self.unit, &msg, &mut self.card_cntr);
+                    let _ = self.model.dispatch_notification(&mut self.unit, &msg, &mut self.card_cntr);
                 }
             }
         }

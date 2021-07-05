@@ -158,7 +158,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
                     let _ = self.model.measure_elems(&mut self.unit, &mut self.card_cntr);
                 }
                 Event::StreamLock(locked) => {
-                    let _ = self.model.dispatch_notification(&self.unit, &mut self.card_cntr, locked);
+                    let _ = self.model.dispatch_notification(&mut self.unit, &mut self.card_cntr, locked);
                 }
             }
         }
