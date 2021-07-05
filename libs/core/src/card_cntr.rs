@@ -369,7 +369,7 @@ impl CardCntr {
 
     pub fn measure_elems<O, T>(
         &mut self,
-        unit: &O,
+        unit: &mut O,
         elem_id_list: &Vec<alsactl::ElemId>,
         ctl_model: &mut T,
     ) -> Result<(), Error>

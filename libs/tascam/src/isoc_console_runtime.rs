@@ -271,10 +271,10 @@ impl<'a> IsocConsoleRuntime<'a> {
                 ConsoleUnitEvent::Interval => {
                     match &mut self.model {
                         ConsoleModel::Fw1884(m) =>{
-                            let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems, m);
+                            let _ = self.card_cntr.measure_elems(&mut self.unit, &self.measure_elems, m);
                         }
                         ConsoleModel::Fw1082(m) => {
-                            let _ = self.card_cntr.measure_elems(&self.unit, &self.measure_elems, m);
+                            let _ = self.card_cntr.measure_elems(&mut self.unit, &self.measure_elems, m);
                         }
                     };
                 }
