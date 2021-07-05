@@ -109,7 +109,8 @@ impl DiceModel {
 
         Ok(DiceModel{model, notified_elem_list, measured_elem_list})
     }
-    pub fn load(&mut self, unit: &SndDice, card_cntr: &mut CardCntr)
+
+    pub fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         // Replace model data when protocol extension is available.

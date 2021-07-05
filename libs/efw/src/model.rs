@@ -90,7 +90,7 @@ impl EfwModel {
 }
 
 impl CtlModel<hinawa::SndEfw> for EfwModel {
-    fn load(&mut self, unit: &hinawa::SndEfw, card_cntr: &mut card_cntr::CardCntr)
+    fn load(&mut self, unit: &mut hinawa::SndEfw, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error> {
         let hwinfo = EfwInfo::get_hwinfo(unit)?;
         self.clk_ctl.load(&hwinfo, card_cntr)?;
@@ -104,7 +104,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         Ok(())
     }
 
-    fn read(&mut self, unit: &hinawa::SndEfw, elem_id: &alsactl::ElemId,
+    fn read(&mut self, unit: &mut hinawa::SndEfw, elem_id: &alsactl::ElemId,
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error> {
         if self.clk_ctl.read(unit, elem_id, elem_value)? {
@@ -128,7 +128,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
 
     fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,

@@ -191,8 +191,8 @@ impl<'a> IsocConsoleRuntime<'a> {
         self.seq_cntr.open_port()?;
 
         match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.load(&self.unit, &mut self.card_cntr)?,
-            ConsoleModel::Fw1082(m) => m.load(&self.unit, &mut self.card_cntr)?,
+            ConsoleModel::Fw1884(m) => m.load(&mut self.unit, &mut self.card_cntr)?,
+            ConsoleModel::Fw1082(m) => m.load(&mut self.unit, &mut self.card_cntr)?,
         }
 
         self.init_surface()?;

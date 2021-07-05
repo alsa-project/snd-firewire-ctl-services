@@ -22,7 +22,7 @@ pub struct LinkFwModel {
 const FCP_TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for LinkFwModel {
-    fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.bind(&unit.get_node())?;
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -31,7 +31,7 @@ impl CtlModel<SndUnit> for LinkFwModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.common_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
@@ -43,7 +43,7 @@ impl CtlModel<SndUnit> for LinkFwModel {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.common_ctl.write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)? {

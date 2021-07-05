@@ -79,7 +79,7 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1804Model<'a> {
 impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
     fn load(
         &mut self,
-        unit: &hinawa::SndTscm,
+        unit: &mut hinawa::SndTscm,
         card_cntr: &mut card_cntr::CardCntr,
     ) -> Result<(), Error> {
         self.common.load(unit, &self.req, card_cntr)?;
@@ -91,7 +91,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
 
     fn read(
         &mut self,
-        unit: &hinawa::SndTscm,
+        unit: &mut hinawa::SndTscm,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
@@ -108,7 +108,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
 
     fn write(
         &mut self,
-        unit: &hinawa::SndTscm,
+        unit: &mut hinawa::SndTscm,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,

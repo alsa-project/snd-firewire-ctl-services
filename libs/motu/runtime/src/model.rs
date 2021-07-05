@@ -64,7 +64,7 @@ impl MotuModel {
         Ok(model)
     }
 
-    pub fn load(&mut self, unit: &hinawa::SndMotu, card_cntr: &mut CardCntr)
+    pub fn load(&mut self, unit: &mut hinawa::SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         match &mut self.ctl_model {

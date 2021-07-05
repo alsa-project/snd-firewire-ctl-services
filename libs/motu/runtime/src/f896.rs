@@ -26,7 +26,7 @@ pub struct F896 {
 }
 
 impl CtlModel<SndMotu> for F896 {
-    fn load(&mut self, _: &SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.monitor_input_ctl.load(&self.proto, card_cntr)?;
         self.word_clk_ctl.load(&self.proto, card_cntr)?;
@@ -37,7 +37,7 @@ impl CtlModel<SndMotu> for F896 {
 
     fn read(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -76,7 +76,7 @@ impl CtlModel<SndMotu> for F896 {
 
     fn write(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,

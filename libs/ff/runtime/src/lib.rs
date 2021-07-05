@@ -72,7 +72,7 @@ impl RuntimeOperation<u32> for FfRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measured_elem_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);

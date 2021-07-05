@@ -29,7 +29,7 @@ impl<'a> ApogeeModel {
 }
 
 impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
-    fn load(&mut self, unit: &hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.bind(&unit.get_node())?;
 
         let mut op = UnitInfo{
@@ -50,7 +50,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
+    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
@@ -71,7 +71,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for ApogeeModel {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {

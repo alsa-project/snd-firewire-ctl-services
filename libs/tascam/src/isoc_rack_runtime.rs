@@ -133,7 +133,7 @@ impl<'a> IsocRackRuntime<'a> {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         let elem_id = alsactl::ElemId::new_by_name(
             alsactl::ElemIfaceType::Mixer,

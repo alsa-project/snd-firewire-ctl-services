@@ -66,7 +66,7 @@ impl card_cntr::NotifyModel<hinawa::SndDg00x, bool> for Dg00xModel {
 impl card_cntr::CtlModel<hinawa::SndDg00x> for Dg00xModel {
     fn load(
         &mut self,
-        unit: &hinawa::SndDg00x,
+        unit: &mut hinawa::SndDg00x,
         card_cntr: &mut card_cntr::CardCntr,
     ) -> Result<(), Error> {
         self.common.load(&unit, &self.req, card_cntr)?;
@@ -76,7 +76,7 @@ impl card_cntr::CtlModel<hinawa::SndDg00x> for Dg00xModel {
 
     fn read(
         &mut self,
-        unit: &hinawa::SndDg00x,
+        unit: &mut hinawa::SndDg00x,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
@@ -91,7 +91,7 @@ impl card_cntr::CtlModel<hinawa::SndDg00x> for Dg00xModel {
 
     fn write(
         &mut self,
-        unit: &hinawa::SndDg00x,
+        unit: &mut hinawa::SndDg00x,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,

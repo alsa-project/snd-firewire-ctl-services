@@ -55,7 +55,7 @@ impl FfModel {
         Ok(FfModel{model, measured_elem_list})
     }
 
-    pub fn load(&mut self, unit: &SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         match &mut self.model {
             Model::Ff800(m) => m.load(unit, card_cntr),
             Model::Ff400(m) => m.load(unit, card_cntr),
