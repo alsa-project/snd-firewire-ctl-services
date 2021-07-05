@@ -58,7 +58,7 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1804Model<'a> {
         elem_id_list.extend_from_slice(&self.meter.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &hinawa::SndTscm) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut hinawa::SndTscm) -> Result<(), Error> {
         let states = unit.get_state()?;
         self.meter.parse_states(states);
         Ok(())

@@ -28,7 +28,7 @@ pub trait CtlModel<O: IsA<hinawa::SndUnit>> {
 
 pub trait MeasureModel<O: IsA<hinawa::SndUnit>> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
-    fn measure_states(&mut self, unit: &O) -> Result<(), Error>;
+    fn measure_states(&mut self, unit: &mut O) -> Result<(), Error>;
     fn measure_elem(&mut self, unit: &O, elem_id: &alsactl::ElemId,
                     elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>;

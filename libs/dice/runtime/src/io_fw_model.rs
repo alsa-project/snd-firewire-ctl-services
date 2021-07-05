@@ -98,7 +98,7 @@ impl MeasureModel<hinawa::SndDice> for IoFwModel {
         elem_id_list.extend_from_slice(&self.mixer_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
         self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
         self.meter_ctl.measure_states(unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
         self.mixer_ctl.measure_states(unit, &self.proto, &mut self.state, TIMEOUT_MS)?;

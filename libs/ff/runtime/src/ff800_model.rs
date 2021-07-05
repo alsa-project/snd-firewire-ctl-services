@@ -73,7 +73,7 @@ impl MeasureModel<SndUnit> for Ff800Model {
         self.meter_ctl.get_measured_elem_list(elem_id_list);
     }
 
-    fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
         self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
         Ok(())

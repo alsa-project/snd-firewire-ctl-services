@@ -140,7 +140,7 @@ impl MeasureModel<hinawa::SndDice> for Mbox3Model {
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
-    fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
         self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(unit, &self.proto, &self.extension_sections, TIMEOUT_MS)?;
         Ok(())

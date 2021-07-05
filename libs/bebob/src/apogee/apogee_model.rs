@@ -158,7 +158,7 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndUnit> for EnsembleModel<'a> {
         elem_id_list.extend_from_slice(&self.meter_ctls.measure_elem_list);
     }
 
-    fn measure_states(&mut self, _: &hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, _: &mut hinawa::SndUnit) -> Result<(), Error> {
         self.meter_ctls.measure_states(&self.avc, Self::FCP_TIMEOUT_MS)
     }
 

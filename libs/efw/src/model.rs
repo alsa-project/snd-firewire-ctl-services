@@ -158,7 +158,7 @@ impl MeasureModel<hinawa::SndEfw> for EfwModel {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &hinawa::SndEfw) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut hinawa::SndEfw) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit)
     }
 
