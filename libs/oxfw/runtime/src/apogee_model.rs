@@ -98,7 +98,7 @@ impl card_cntr::MeasureModel<hinawa::SndUnit> for ApogeeModel {
         elem_id_list.extend_from_slice(&self.hwstate.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
         self.hwstate.measure_states(&unit.get_node(), &self.avc, &self.company_id)
     }
 

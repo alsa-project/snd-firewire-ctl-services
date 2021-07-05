@@ -80,7 +80,7 @@ impl MeasureModel<SndUnit> for Ff400Model {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
     }
 
-    fn measure_states(&mut self, unit: &SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
         self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
         Ok(())

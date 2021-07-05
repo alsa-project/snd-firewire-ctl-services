@@ -233,7 +233,7 @@ impl MeasureModel<hinawa::SndDice> for KliveModel {
         elem_id_list.extend_from_slice(&self.mixer_ctl.measured_elem_list);
     }
 
-    fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
         self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
         self.ch_strip_ctl.measure_states(unit, &self.proto, &self.segments.ch_strip_state,
                                          &mut self.segments.ch_strip_meter, TIMEOUT_MS)?;

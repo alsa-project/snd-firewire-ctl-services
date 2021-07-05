@@ -162,7 +162,7 @@ impl MeasureModel<hinawa::SndDice> for K8Model {
         elem_id_list.extend_from_slice(&self.mixer_ctl.measured_elem_list);
     }
 
-    fn measure_states(&mut self, unit: &SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
         self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
 
         self.proto.read_segment(&unit.get_node(), &mut self.segments.mixer_meter, TIMEOUT_MS)?;

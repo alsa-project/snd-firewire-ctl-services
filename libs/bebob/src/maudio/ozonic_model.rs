@@ -138,7 +138,7 @@ impl<'a> MeasureModel<hinawa::SndUnit> for OzonicModel<'a> {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, &self.avc, &self.req)
     }
 
