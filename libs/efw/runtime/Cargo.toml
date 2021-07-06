@@ -1,12 +1,12 @@
 [package]
-name = "efw"
+name = "efw-runtime"
 version = "0.1.0"
 authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
 edition = "2018"
 license = "GPL-3.0-or-later"
 publish = false
 description = """
-Implementation of protocol for Fireworks board module
+Implementation of service runtime for Fireworks board module
 """
 
 [dependencies]
@@ -15,7 +15,7 @@ nix = "0.17"
 glib = "0.10"
 hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.3.0", version = "0.3" }
 alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.2.0", version = "0.2" }
-alsa-ctl-tlv-codec = { path = "../alsa-ctl-tlv-codec" }
-core = { path = "../core" }
-ieee1212-config-rom = { path = "../ieee1212-config-rom" }
-ta1394 = { path = "../ta1394" }
+alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
+core = { path = "../../core" }
+ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
+ta1394 = { path = "../../ta1394" }
