@@ -5,8 +5,8 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{DigitalMode, EfwPortConf};
 use efw_protocols::hw_info::*;
+use efw_protocols::port_conf::*;
 
 fn phys_group_type_to_string(phys_group_type: &PhysGroupType) -> String {
     match phys_group_type {
@@ -152,21 +152,22 @@ impl<'a> PortCtl {
 
     pub fn read(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MIRROR_OUTPUT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pair = EfwPortConf::get_output_mirror(unit)?;
+                    let pair = unit.get_output_mirror(timeout_ms)?;
                     Ok(pair as u32)
                 })?;
                 Ok(true)
             }
             Self::DIG_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let mode = EfwPortConf::get_digital_mode(unit)?;
+                    let mode = unit.get_digital_mode(timeout_ms)?;
                     if let Some(pos) = self.dig_modes.iter().position(|&m| m == mode) {
                         Ok(pos as u32)
                     } else {
@@ -177,20 +178,19 @@ impl<'a> PortCtl {
             }
             Self::PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    let state = EfwPortConf::get_phantom_powering(unit)?;
-                    Ok(state)
+                    unit.get_phantom_powering(timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::RX_MAP_NAME => {
-                let (rx_entries, _) = EfwPortConf::get_stream_map(unit)?;
+                let (rx_entries, _) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::set_vals(elem_value, rx_entries.len(), |idx| {
                     Ok(rx_entries[idx] as u32)
                 })?;
                 Ok(true)
             }
             Self::TX_MAP_NAME => {
-                let (_, tx_entries) = EfwPortConf::get_stream_map(unit)?;
+                let (_, tx_entries) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::set_vals(elem_value, tx_entries.len(), |idx| {
                     Ok(tx_entries[idx] as u32)
                 })?;
@@ -202,22 +202,23 @@ impl<'a> PortCtl {
 
     pub fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MIRROR_OUTPUT_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    EfwPortConf::set_output_mirror(unit, val as usize)
+                    unit.set_output_mirror(val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::DIG_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if self.dig_modes.len() > val as usize {
-                        EfwPortConf::set_digital_mode(unit, self.dig_modes[val as usize])
+                        unit.set_digital_mode(self.dig_modes[val as usize], timeout_ms)
                     } else {
                         let label = "Invalid value for digital mode";
                         Err(Error::new(FileError::Inval, &label))
@@ -227,26 +228,26 @@ impl<'a> PortCtl {
             }
             Self::PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    EfwPortConf::set_phantom_powering(unit, val)
+                    unit.set_phantom_powering(val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::RX_MAP_NAME => {
-                let (mut rx_entries, _) = EfwPortConf::get_stream_map(unit)?;
+                let (mut rx_entries, _) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::get_vals(new, old, rx_entries.len(), |idx, val| {
                     rx_entries[idx] = val as usize;
                     Ok(())
                 })?;
-                EfwPortConf::set_stream_map(unit, Some(rx_entries), None)?;
+                unit.set_stream_map(Some(rx_entries), None, timeout_ms)?;
                 Ok(true)
             }
             Self::TX_MAP_NAME => {
-                let (_, mut tx_entries) = EfwPortConf::get_stream_map(unit)?;
+                let (_, mut tx_entries) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::get_vals(new, old, tx_entries.len(), |idx, val| {
                     tx_entries[idx] = val as usize;
                     Ok(())
                 })?;
-                EfwPortConf::set_stream_map(unit, None, Some(tx_entries))?;
+                unit.set_stream_map(None, Some(tx_entries), timeout_ms)?;
                 Ok(true)
             }
             _ => Ok(false),
