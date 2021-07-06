@@ -7,7 +7,19 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use hinawa::SndUnitExt;
 
-use super::transactions::{ClkSrc, HwInfo, EfwHwCtl};
+use efw_protocols::transactions::{ClkSrc, HwInfo, EfwHwCtl};
+
+fn clk_src_to_string(src: &ClkSrc) -> String {
+    match src {
+        ClkSrc::Internal => "Internal",
+        ClkSrc::WordClock => "WordClock",
+        ClkSrc::Spdif => "S/PDIF",
+        ClkSrc::Adat => "ADAT",
+        ClkSrc::Adat2 => "ADAT2",
+        ClkSrc::Continuous => "Continuous",
+        ClkSrc::Unknown(_) => "Unknown",
+    }.to_string()
+}
 
 pub struct ClkCtl {
     srcs: Vec<ClkSrc>,
@@ -34,7 +46,7 @@ impl<'a> ClkCtl {
         self.rates.extend_from_slice(&hwinfo.clk_rates);
 
         let labels = self.srcs.iter()
-            .map(|src| src.to_string())
+            .map(|src| clk_src_to_string(src))
             .collect::<Vec<String>>();
 
         let elem_id =
@@ -125,19 +137,5 @@ impl<'a> ClkCtl {
             }
             _ => Ok(false),
         }
-    }
-}
-
-impl ToString for ClkSrc {
-    fn to_string(&self) -> String {
-        match self {
-            ClkSrc::Internal => "Internal",
-            ClkSrc::WordClock => "WordClock",
-            ClkSrc::Spdif => "S/PDIF",
-            ClkSrc::Adat => "ADAT",
-            ClkSrc::Adat2 => "ADAT2",
-            ClkSrc::Continuous => "Continuous",
-            ClkSrc::Unknown(_) => "Unknown",
-        }.to_string()
     }
 }

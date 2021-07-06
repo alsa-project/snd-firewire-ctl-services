@@ -5,3 +5,5 @@
 //!
 //! The crate includes protocols defined by Echo Audio Digital Corporation for Fireworks board
 //! module.
+
+pub mod transactions;

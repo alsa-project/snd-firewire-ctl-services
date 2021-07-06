@@ -5,7 +5,33 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use super::transactions::{HwCap, DigitalMode, EfwPortConf, PhysGroupType, HwInfo};
+use efw_protocols::transactions::{HwCap, DigitalMode, EfwPortConf, PhysGroupType, HwInfo};
+
+fn phys_group_type_to_string(phys_group_type: &PhysGroupType) -> String {
+    match phys_group_type {
+        PhysGroupType::Analog       => "Analog",
+        PhysGroupType::Spdif        => "S/PDIF",
+        PhysGroupType::Adat         => "ADAT",
+        PhysGroupType::SpdifOrAdat  => "S/PDIForADAT",
+        PhysGroupType::AnalogMirror => "AnalogMirror",
+        PhysGroupType::Headphones   => "HeadPhones",
+        PhysGroupType::I2s          => "I2S",
+        PhysGroupType::Guitar       => "Guitar",
+        PhysGroupType::PiezoGuitar  => "PiezoGuitar",
+        PhysGroupType::GuitarString => "GuitarString",
+        PhysGroupType::Unknown(_)   => "Unknown",
+    }.to_string()
+}
+
+fn digital_mode_to_string(mode: &DigitalMode) -> String {
+    match mode {
+        DigitalMode::SpdifCoax  => "S/PDIF-Coaxial",
+        DigitalMode::AesebuXlr  => "AES/EBU-XLR",
+        DigitalMode::SpdifOpt   => "S/PDIF-Optical",
+        DigitalMode::AdatOpt    => "ADAT-Optical",
+        DigitalMode::Unknown(_) => "Unknown",
+    }.to_string()
+}
 
 pub struct PortCtl {
     dig_modes: Vec<DigitalMode>,
@@ -64,7 +90,10 @@ impl<'a> PortCtl {
                 .filter(|entry| entry.group_type != PhysGroupType::AnalogMirror)
                 .map(|entry| {
                     (0..(entry.group_count / 2))
-                        .map(move |i| format!("{}-{}/{}", entry.group_type.to_string(), i * 2 + 1, i * 2 + 2))
+                        .map(move |i| {
+                            format!("{}-{}/{}",
+                                    phys_group_type_to_string(&entry.group_type), i * 2 + 1, i * 2 + 2)
+                        })
                 })
                 .flatten()
                 .collect::<Vec<String>>();
@@ -81,7 +110,7 @@ impl<'a> PortCtl {
         });
         if self.dig_modes.len() > 1 {
             let labels = self.dig_modes.iter()
-                .map(|mode| mode.to_string())
+                .map(|mode| digital_mode_to_string(mode))
                 .collect::<Vec<String>>();
 
             let elem_id = alsactl::ElemId::new_by_name(
@@ -221,35 +250,5 @@ impl<'a> PortCtl {
             }
             _ => Ok(false),
         }
-    }
-}
-
-impl ToString for PhysGroupType {
-    fn to_string(&self) -> String {
-        match self {
-            PhysGroupType::Analog       => "Analog",
-            PhysGroupType::Spdif        => "S/PDIF",
-            PhysGroupType::Adat         => "ADAT",
-            PhysGroupType::SpdifOrAdat  => "S/PDIForADAT",
-            PhysGroupType::AnalogMirror => "AnalogMirror",
-            PhysGroupType::Headphones   => "HeadPhones",
-            PhysGroupType::I2s          => "I2S",
-            PhysGroupType::Guitar       => "Guitar",
-            PhysGroupType::PiezoGuitar  => "PiezoGuitar",
-            PhysGroupType::GuitarString => "GuitarString",
-            PhysGroupType::Unknown(_)   => "Unknown",
-        }.to_string()
-    }
-}
-
-impl ToString for DigitalMode {
-    fn to_string(&self) -> String {
-        match self {
-            DigitalMode::SpdifCoax  => "S/PDIF-Coaxial",
-            DigitalMode::AesebuXlr  => "AES/EBU-XLR",
-            DigitalMode::SpdifOpt   => "S/PDIF-Optical",
-            DigitalMode::AdatOpt    => "ADAT-Optical",
-            DigitalMode::Unknown(_) => "Unknown",
-        }.to_string()
     }
 }

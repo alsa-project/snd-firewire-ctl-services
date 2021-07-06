@@ -8,7 +8,7 @@ use card_cntr::{CtlModel, MeasureModel};
 use ieee1212_config_rom::ConfigRom;
 use ta1394::config_rom::Ta1394ConfigRom;
 
-use super::transactions::EfwInfo;
+use efw_protocols::transactions::EfwInfo;
 use super::clk_ctl;
 use super::mixer_ctl;
 use super::output_ctl;

@@ -6,7 +6,7 @@ use core::card_cntr;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use super::transactions::{HwMeter, EfwInfo, HwInfo, HwCap};
+use efw_protocols::transactions::{HwMeter, EfwInfo, HwInfo, HwCap};
 
 pub struct MeterCtl {
     pub measure_elems: Vec<alsactl::ElemId>,
