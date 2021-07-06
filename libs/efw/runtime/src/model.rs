@@ -100,7 +100,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         self.clk_ctl.load(&hwinfo, card_cntr)?;
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
-        self.input_ctl.load(unit, &hwinfo, card_cntr)?;
+        self.input_ctl.load(unit, &hwinfo, card_cntr, TIMEOUT_MS)?;
         self.port_ctl.load(&hwinfo, card_cntr)?;
         self.meter_ctl.load(&hwinfo, card_cntr)?;
         self.guitar_ctl.load(&hwinfo, card_cntr)?;
@@ -117,7 +117,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             Ok(true)
         } else if self.output_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_ctl.read(unit, elem_id, elem_value)? {
+        } else if self.input_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
@@ -143,7 +143,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             Ok(true)
         } else if self.output_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_ctl.write(unit, elem_id, old, new)? {
+        } else if self.input_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctl.write(unit, elem_id, old, new)? {
             Ok(true)

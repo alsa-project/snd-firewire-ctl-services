@@ -5,25 +5,30 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{EfwPhysInput, NominalLevel};
+use efw_protocols::NominalSignalLevel;
 use efw_protocols::hw_info::*;
+use efw_protocols::phys_input::*;
 
 pub struct InputCtl {
     phys_inputs: usize,
-    cache: Option<Vec::<NominalLevel>>,
+    cache: Option<Vec::<NominalSignalLevel>>,
 }
 
 impl<'a> InputCtl {
     const IN_NOMINAL_NAME: &'a str = "input-nominal";
 
     const IN_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "-10dBV"];
-    const IN_NOMINAL_LEVELS: &'a [NominalLevel] = &[NominalLevel::PlusFour, NominalLevel::MinusTen];
+    const IN_NOMINAL_LEVELS: &'a [NominalSignalLevel] = &[
+        NominalSignalLevel::Professional,
+        NominalSignalLevel::Consumer,
+    ];
 
     pub fn new() -> Self {
         InputCtl { phys_inputs: 0, cache: None}
     }
 
-    pub fn load(&mut self, unit: &hinawa::SndEfw, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
+    pub fn load(&mut self, unit: &mut hinawa::SndEfw, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr,
+                timeout_ms: u32)
         -> Result<(), Error>
     {
         self.phys_inputs = hwinfo.phys_inputs.iter().fold(0, |accm, entry| accm + entry.group_count);
@@ -39,11 +44,10 @@ impl<'a> InputCtl {
         // state instead.
         let has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
         if has_fpga {
-            let cache = vec![NominalLevel::PlusFour;self.phys_inputs];
+            let cache = vec![NominalSignalLevel::Professional;self.phys_inputs];
             cache.iter().enumerate()
                 .try_for_each( |(i, &level)| {
-                    EfwPhysInput::set_nominal(unit, i, level)?;
-                    Ok(())
+                    unit.set_nominal(i, level, timeout_ms)
                 })?;
             self.cache = Some(cache);
         }
@@ -53,9 +57,10 @@ impl<'a> InputCtl {
 
     pub fn read(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::IN_NOMINAL_NAME => {
@@ -65,7 +70,7 @@ impl<'a> InputCtl {
                         Ok(u32::from(cache[idx]))
                     } else {
                         // For models with DSP.
-                        let level = EfwPhysInput::get_nominal(unit, idx)?;
+                        let level = unit.get_nominal(idx, timeout_ms)?;
                         if let Some(pos) = Self::IN_NOMINAL_LEVELS.iter().position(|&l| l == level) {
                             Ok(pos as u32)
                         } else {
@@ -81,16 +86,17 @@ impl<'a> InputCtl {
 
     pub fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::IN_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, self.phys_inputs, |idx, val| {
                     if let Some(&level) = Self::IN_NOMINAL_LEVELS.iter().nth(val as usize) {
-                        EfwPhysInput::set_nominal(unit, idx, level)?;
+                        unit.set_nominal(idx, level, timeout_ms)?;
                         if let Some(cache) = &mut self.cache {
                             // For FPGA models.
                             cache[idx] = level;
