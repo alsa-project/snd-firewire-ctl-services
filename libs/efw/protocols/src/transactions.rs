@@ -7,7 +7,6 @@ use hinawa::SndEfwExtManual;
 const TIMEOUT: u32 = 200;
 
 enum Category {
-    PhysOutput,
     PhysInput,
     Playback,
     Monitor,
@@ -18,7 +17,6 @@ enum Category {
 impl From<Category> for u32 {
     fn from(cat: Category) -> Self {
         match cat {
-            Category::PhysOutput => 0x04,
             Category::PhysInput => 0x05,
             Category::Playback => 0x06,
             Category::Monitor => 0x08,
@@ -52,95 +50,6 @@ impl From<u32> for NominalLevel {
             1 => NominalLevel::Medium,
             _ => NominalLevel::PlusFour,
         }
-    }
-}
-
-pub struct EfwPhysOutput {}
-
-impl EfwPhysOutput {
-    const CMD_SET_VOL: u32 = 0;
-    const CMD_GET_VOL: u32 = 1;
-    const CMD_SET_MUTE: u32 = 2;
-    const CMD_GET_MUTE: u32 = 3;
-    const CMD_SET_NOMINAL: u32 = 8;
-    const CMD_GET_NOMINAL: u32 = 9;
-
-    pub fn set_vol(unit: &hinawa::SndEfw, ch: usize, vol: i32) -> Result<(), Error> {
-        let args = [ch as u32, vol as u32];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysOutput),
-            Self::CMD_SET_VOL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_vol(unit: &hinawa::SndEfw, ch: usize) -> Result<i32, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysOutput),
-            Self::CMD_GET_VOL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[1] as i32)
-    }
-
-    pub fn set_mute(unit: &hinawa::SndEfw, ch: usize, mute: bool) -> Result<(), Error> {
-        let args = [ch as u32, mute as u32];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysOutput),
-            Self::CMD_SET_MUTE,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_mute(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysOutput),
-            Self::CMD_GET_MUTE,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[1] > 0)
-    }
-
-    pub fn set_nominal(unit: &hinawa::SndEfw, ch: usize, level: NominalLevel) -> Result<(), Error> {
-        let args = [ch as u32, u32::from(level)];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysOutput),
-            Self::CMD_SET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_nominal(unit: &hinawa::SndEfw, ch: usize) -> Result<NominalLevel, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysOutput),
-            Self::CMD_GET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(NominalLevel::from(params[1]))
     }
 }
 

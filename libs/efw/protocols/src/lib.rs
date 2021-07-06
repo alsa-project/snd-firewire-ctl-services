@@ -9,6 +9,7 @@
 pub mod flash;
 pub mod hw_ctl;
 pub mod hw_info;
+pub mod phys_output;
 pub mod transactions;
 pub mod transport;
 
@@ -52,6 +53,36 @@ impl From<usize> for ClkSrc {
             5 => ClkSrc::Adat2,
             6 => ClkSrc::Continuous,
             _ => ClkSrc::Reserved(val),
+        }
+    }
+}
+
+/// The enumeration to express nominal level of audio signal.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum NominalSignalLevel {
+    /// +4 dBu.
+    Professional,
+    Medium,
+    /// -10 dBV.
+    Consumer,
+}
+
+impl From<NominalSignalLevel> for u32 {
+    fn from(level: NominalSignalLevel) -> Self {
+        match level {
+            NominalSignalLevel::Consumer => 2,
+            NominalSignalLevel::Medium => 1,
+            NominalSignalLevel::Professional => 0,
+        }
+    }
+}
+
+impl From<u32> for NominalSignalLevel {
+    fn from(val: u32) -> Self {
+        match val {
+            2 => NominalSignalLevel::Consumer,
+            1 => NominalSignalLevel::Medium,
+            _ => NominalSignalLevel::Professional,
         }
     }
 }
