@@ -6,6 +6,7 @@ members = [
     "libs/ta1394",
     "libs/dg00x",
     "libs/tascam",
+    "libs/efw/protocols",
     "libs/efw/runtime",
     "libs/motu/protocols",
     "libs/motu/runtime",
