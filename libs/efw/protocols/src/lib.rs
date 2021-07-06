@@ -6,9 +6,52 @@
 //! The crate includes protocols defined by Echo Audio Digital Corporation for Fireworks board
 //! module.
 
+pub mod hw_info;
 pub mod transactions;
 
 use hinawa::SndEfwExtManual;
+
+/// The enumeration to express source of sampling clock.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ClkSrc {
+    Internal,
+    WordClock,
+    Spdif,
+    Adat,
+    Adat2,
+    Continuous,
+    Reserved(usize),
+}
+
+impl From<ClkSrc> for usize {
+    fn from(src: ClkSrc) -> Self {
+        match src {
+            ClkSrc::Internal => 0,
+            // blank.
+            ClkSrc::WordClock => 2,
+            ClkSrc::Spdif => 3,
+            ClkSrc::Adat => 4,
+            ClkSrc::Adat2 => 5,
+            ClkSrc::Continuous => 6,
+            ClkSrc::Reserved(val) => val,
+        }
+    }
+}
+
+impl From<usize> for ClkSrc {
+    fn from(val: usize) -> Self {
+        match val {
+            0 => ClkSrc::Internal,
+            // blank.
+            2 => ClkSrc::WordClock,
+            3 => ClkSrc::Spdif,
+            4 => ClkSrc::Adat,
+            5 => ClkSrc::Adat2,
+            6 => ClkSrc::Continuous,
+            _ => ClkSrc::Reserved(val),
+        }
+    }
+}
 
 /// The trait to represent protocol for Echo Audio Fireworks board module.
 pub trait EfwProtocol {

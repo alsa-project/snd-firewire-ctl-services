@@ -7,7 +7,8 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{HwCap, PhysGroupType, NominalLevel, EfwPhysOutput, HwInfo};
+use efw_protocols::transactions::{NominalLevel, EfwPhysOutput};
+use efw_protocols::hw_info::*;
 
 pub struct OutputCtl {
     phys_outputs: usize,

@@ -5,7 +5,8 @@ use glib::Error;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{HwInfo, HwCap, EfwGuitar};
+use efw_protocols::transactions::EfwGuitar;
+use efw_protocols::hw_info::*;
 
 pub struct GuitarCtl {}
 

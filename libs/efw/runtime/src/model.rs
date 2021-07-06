@@ -8,7 +8,7 @@ use card_cntr::{CtlModel, MeasureModel};
 use ieee1212_config_rom::ConfigRom;
 use ta1394::config_rom::Ta1394ConfigRom;
 
-use efw_protocols::transactions::EfwInfo;
+use efw_protocols::hw_info::*;
 use super::clk_ctl;
 use super::mixer_ctl;
 use super::output_ctl;
@@ -19,6 +19,8 @@ use super::guitar_ctl;
 use super::iec60958_ctl;
 
 use std::convert::TryFrom;
+
+const TIMEOUT_MS: u32 = 100;
 
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
@@ -91,8 +93,10 @@ impl EfwModel {
 
 impl CtlModel<hinawa::SndEfw> for EfwModel {
     fn load(&mut self, unit: &mut hinawa::SndEfw, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error> {
-        let hwinfo = EfwInfo::get_hwinfo(unit)?;
+        -> Result<(), Error>
+    {
+        let mut hwinfo = HwInfo::default();
+        unit.get_hw_info(&mut hwinfo, TIMEOUT_MS)?;
         self.clk_ctl.load(&hwinfo, card_cntr)?;
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
@@ -159,7 +163,7 @@ impl MeasureModel<hinawa::SndEfw> for EfwModel {
     }
 
     fn measure_states(&mut self, unit: &mut hinawa::SndEfw) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit)
+        self.meter_ctl.measure_states(unit, TIMEOUT_MS)
     }
 
     fn measure_elem(&mut self, _: &hinawa::SndEfw, elem_id: &alsactl::ElemId,
