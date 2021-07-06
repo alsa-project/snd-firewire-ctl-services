@@ -7,8 +7,9 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{NominalLevel, EfwPhysOutput};
+use efw_protocols::NominalSignalLevel;
 use efw_protocols::hw_info::*;
+use efw_protocols::phys_output::*;
 
 pub struct OutputCtl {
     phys_outputs: usize,
@@ -26,7 +27,10 @@ impl<'a> OutputCtl {
     const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 600, linear: false, mute_avail: false};
 
     const OUT_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "-10dBV"];
-    const OUT_NOMINAL_LEVELS: &'a [NominalLevel] = &[NominalLevel::PlusFour, NominalLevel::MinusTen];
+    const OUT_NOMINAL_LEVELS: &'a [NominalSignalLevel] = &[
+        NominalSignalLevel::Professional,
+        NominalSignalLevel::Consumer,
+    ];
 
     pub fn new() -> Self {
         OutputCtl { phys_outputs: 0 }
@@ -65,28 +69,27 @@ impl<'a> OutputCtl {
 
     pub fn read(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.phys_outputs, |idx| {
-                    let val = EfwPhysOutput::get_vol(unit, idx)?;
-                    Ok(val)
+                    unit.get_vol(idx, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::OUT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.phys_outputs, |idx| {
-                    let val = EfwPhysOutput::get_mute(unit, idx)?;
-                    Ok(val)
+                    unit.get_mute(idx, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::OUT_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_outputs, |idx| {
-                    let level = EfwPhysOutput::get_nominal(unit, idx)?;
+                    let level = unit.get_nominal(idx, timeout_ms)?;
                     if let Some(pos) = Self::OUT_NOMINAL_LEVELS.iter().position(|&l| l == level) {
                         Ok(pos as u32)
                     } else {
@@ -101,28 +104,29 @@ impl<'a> OutputCtl {
 
     pub fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, self.phys_outputs, |idx, val| {
-                    EfwPhysOutput::set_vol(unit, idx, val)
+                    unit.set_vol(idx, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::OUT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, self.phys_outputs, |idx, val| {
-                    EfwPhysOutput::set_mute(unit, idx, val)
+                    unit.set_mute(idx, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::OUT_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, self.phys_outputs, |idx, val| {
                     if let Some(&level) = Self::OUT_NOMINAL_LEVELS.iter().nth(val as usize) {
-                        EfwPhysOutput::set_nominal(unit, idx, level)
+                        unit.set_nominal(idx, level, timeout_ms)
                     } else {
                         let label = "Invalid value for nominal level of output";
                         Err(Error::new(FileError::Io, &label))
