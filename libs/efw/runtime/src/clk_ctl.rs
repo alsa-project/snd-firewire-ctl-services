@@ -7,9 +7,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use hinawa::SndUnitExt;
 
-use efw_protocols::transactions::EfwHwCtl;
 use efw_protocols::ClkSrc;
 use efw_protocols::hw_info::*;
+use efw_protocols::hw_ctl::*;
 
 fn clk_src_to_string(src: &ClkSrc) -> String {
     match src {
@@ -68,14 +68,15 @@ impl<'a> ClkCtl {
 
     pub fn read(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let (src, _) = EfwHwCtl::get_clock(unit)?;
+                    let (src, _) = unit.get_clock(timeout_ms)?;
                     if let Some(pos) = self.srcs.iter().position(|s| *s == src) {
                         Ok(pos as u32)
                     } else {
@@ -87,7 +88,7 @@ impl<'a> ClkCtl {
             }
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let (_, rate) = EfwHwCtl::get_clock(unit)?;
+                    let (_, rate) = unit.get_clock(timeout_ms)?;
                     if let Some(pos) = self.rates.iter().position(|r| *r == rate) {
                         Ok(pos as u32)
                     } else {
@@ -103,17 +104,18 @@ impl<'a> ClkCtl {
 
     pub fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         _: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if let Some(&src) = self.srcs.iter().nth(val as usize) {
                         unit.lock()?;
-                        let res = EfwHwCtl::set_clock(unit, Some(src), None);
+                        let res = unit.set_clock(Some(src), None, timeout_ms);
                         let _ = unit.unlock();
                         res
                     } else {
@@ -127,7 +129,7 @@ impl<'a> ClkCtl {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if let Some(&rate) = self.rates.iter().nth(val as usize) {
                         unit.lock()?;
-                        let res = EfwHwCtl::set_clock(unit, None, Some(rate));
+                        let res = unit.set_clock(None, Some(rate), timeout_ms);
                         let _ = unit.unlock();
                         res
                     } else {

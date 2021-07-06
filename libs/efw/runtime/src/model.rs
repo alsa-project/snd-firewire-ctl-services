@@ -111,9 +111,9 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
     fn read(&mut self, unit: &mut hinawa::SndEfw, elem_id: &alsactl::ElemId,
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error> {
-        if self.clk_ctl.read(unit, elem_id, elem_value)? {
+        if self.clk_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.read(unit, elem_id, elem_value)? {
+        } else if self.mixer_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
@@ -123,7 +123,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             Ok(true)
         } else if self.guitar_ctl.read(unit, elem_id, elem_value)? {
             Ok(true)
-        } else if self.iec60958_ctl.read(unit, elem_id, elem_value)? {
+        } else if self.iec60958_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -137,9 +137,9 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write(unit, elem_id, old, new)? {
+        if self.clk_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, elem_id, old, new)? {
+        } else if self.mixer_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
@@ -149,7 +149,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             Ok(true)
         } else if self.guitar_ctl.write(unit, elem_id, old, new)? {
             Ok(true)
-        } else if self.iec60958_ctl.write(unit, elem_id, old, new)? {
+        } else if self.iec60958_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
