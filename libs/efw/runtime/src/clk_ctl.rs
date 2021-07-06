@@ -7,7 +7,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use hinawa::SndUnitExt;
 
-use efw_protocols::transactions::{ClkSrc, HwInfo, EfwHwCtl};
+use efw_protocols::transactions::EfwHwCtl;
+use efw_protocols::ClkSrc;
+use efw_protocols::hw_info::*;
 
 fn clk_src_to_string(src: &ClkSrc) -> String {
     match src {
@@ -17,7 +19,7 @@ fn clk_src_to_string(src: &ClkSrc) -> String {
         ClkSrc::Adat => "ADAT",
         ClkSrc::Adat2 => "ADAT2",
         ClkSrc::Continuous => "Continuous",
-        ClkSrc::Unknown(_) => "Unknown",
+        ClkSrc::Reserved(_) => "Reserved",
     }.to_string()
 }
 

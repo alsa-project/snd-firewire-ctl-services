@@ -5,7 +5,8 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{HwCap, DigitalMode, EfwPortConf, PhysGroupType, HwInfo};
+use efw_protocols::transactions::{DigitalMode, EfwPortConf};
+use efw_protocols::hw_info::*;
 
 fn phys_group_type_to_string(phys_group_type: &PhysGroupType) -> String {
     match phys_group_type {

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
+use glib::Error;
 
+use super::ClkSrc;
 use hinawa::SndEfwExtManual;
 
 const TIMEOUT: u32 = 200;
 
 enum Category {
-    Info,
     HwCtl,
     PhysOutput,
     PhysInput,
@@ -20,370 +20,14 @@ enum Category {
 impl From<Category> for u32 {
     fn from(cat: Category) -> Self {
         match cat {
-            Category::Info => 0x00,
             Category::HwCtl => 0x03,
             Category::PhysOutput => 0x04,
             Category::PhysInput => 0x05,
             Category::Playback => 0x06,
             Category::Monitor => 0x08,
             Category::PortConf => 0x09,
-            Category::Guitar=> 0x0a,
+            Category::Guitar => 0x0a,
         }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum HwCap {
-    ChangeableRespAddr,
-    MirrorOutput,
-    SpdifCoax,
-    AesebuXlr,
-    Dsp,
-    Fpga,
-    PhantomPowering,
-    OutputMapping,
-    InputGain,
-    SpdifOpt,
-    AdatOpt,
-    NominalInput,
-    NominalOutput,
-    SoftClip,
-    RobotGuitar,
-    GuitarCharging,
-    Unknown(usize),
-    // For my purpose.
-    InputMapping,
-}
-
-impl From<usize> for HwCap {
-    fn from(val: usize) -> Self {
-        match val {
-            0 => HwCap::ChangeableRespAddr,
-            1 => HwCap::MirrorOutput,
-            2 => HwCap::SpdifCoax,
-            3 => HwCap::AesebuXlr,
-            4 => HwCap::Dsp,
-            5 => HwCap::Fpga,
-            6 => HwCap::PhantomPowering,
-            7 => HwCap::OutputMapping,
-            8 => HwCap::InputGain,
-            9 => HwCap::SpdifOpt,
-            10 => HwCap::AdatOpt,
-            11 => HwCap::NominalInput,
-            12 => HwCap::NominalOutput,
-            13 => HwCap::SoftClip,
-            14 => HwCap::RobotGuitar,
-            15 => HwCap::GuitarCharging,
-            _ => HwCap::Unknown(val),
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum ClkSrc {
-    Internal,
-    WordClock,
-    Spdif,
-    Adat,
-    Adat2,
-    Continuous,
-    Unknown(usize),
-}
-
-impl From<usize> for ClkSrc {
-    fn from(val: usize) -> Self {
-        match val {
-            0 => ClkSrc::Internal,
-            2 => ClkSrc::WordClock,
-            3 => ClkSrc::Spdif,
-            4 => ClkSrc::Adat,
-            5 => ClkSrc::Adat2,
-            6 => ClkSrc::Continuous,
-            _ => ClkSrc::Unknown(val),
-        }
-    }
-}
-
-impl From<ClkSrc> for usize {
-    fn from(src: ClkSrc) -> Self {
-        match src {
-            ClkSrc::Internal => 0,
-            ClkSrc::WordClock => 2,
-            ClkSrc::Spdif => 3,
-            ClkSrc::Adat => 4,
-            ClkSrc::Adat2 => 5,
-            ClkSrc::Continuous => 6,
-            ClkSrc::Unknown(val) => val,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum PhysGroupType {
-    Analog,
-    Spdif,
-    Adat,
-    SpdifOrAdat,
-    AnalogMirror,
-    Headphones,
-    I2s,
-    Guitar,
-    PiezoGuitar,
-    GuitarString,
-    Unknown(usize),
-}
-
-impl From<usize> for PhysGroupType {
-    fn from(val: usize) -> Self {
-        match val {
-            0 => PhysGroupType::Analog,
-            1 => PhysGroupType::Spdif,
-            2 => PhysGroupType::Adat,
-            3 => PhysGroupType::SpdifOrAdat,
-            4 => PhysGroupType::AnalogMirror,
-            5 => PhysGroupType::Headphones,
-            6 => PhysGroupType::I2s,
-            7 => PhysGroupType::Guitar,
-            8 => PhysGroupType::PiezoGuitar,
-            9 => PhysGroupType::GuitarString,
-            _ => PhysGroupType::Unknown(val),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct PhysGroupEntry {
-    pub group_type: PhysGroupType,
-    pub group_count: usize,
-}
-
-#[derive(Debug)]
-pub struct HwInfo {
-    pub caps: Vec<HwCap>,
-    pub guid: u64,
-    pub hw_type: u32,
-    pub hw_version: u32,
-    pub vendor_name: String,
-    pub model_name: String,
-    pub clk_srcs: Vec<ClkSrc>,
-    pub rx_channels: [usize; 3],
-    pub tx_channels: [usize; 3],
-    pub phys_outputs: Vec<PhysGroupEntry>,
-    pub phys_inputs: Vec<PhysGroupEntry>,
-    pub midi_outputs: usize,
-    pub midi_inputs: usize,
-    pub clk_rates: Vec<u32>,
-    pub dsp_version: u32,
-    pub arm_version: u32,
-    pub mixer_playbacks: usize,
-    pub mixer_captures: usize,
-    pub fpga_version: u32,
-}
-
-impl HwInfo {
-    const SIZE: usize = 65;
-
-    const O400F: u32 = 0x0000400f;
-    const O1200F: u32 = 0x0001200f;
-    const AF2: u32 = 0x00000af2;
-    const AF4: u32 = 0x00000af4;
-    const AF8: u32 = 0x00000af8;
-    const AFP8: u32 = 0x00000af9;
-    const AF12: u32 = 0x0000af12;
-
-    fn new(data: &[u32;Self::SIZE]) -> Result<Self, Error> {
-        let info = HwInfo {
-            caps: Self::parse_caps(data[0], data[3]),
-            guid: ((data[1] as u64) << 32) | (data[2] as u64),
-            hw_type: data[3],
-            hw_version: data[4],
-            vendor_name: Self::parse_text(&data[5..13])?,
-            model_name: Self::parse_text(&data[13..21])?,
-            clk_srcs: Self::parse_supported_clk_srcs(data[21]),
-            rx_channels: [
-                data[22] as usize,
-                data[45] as usize,
-                data[47] as usize,
-            ],
-            tx_channels: [
-                data[23] as usize,
-                data[46] as usize,
-                data[48] as usize,
-            ],
-            phys_outputs: Self::parse_phys_groups(&data[26..31]),
-            phys_inputs: Self::parse_phys_groups(&data[31..36]),
-            midi_outputs: data[36] as usize,
-            midi_inputs: data[37] as usize,
-            clk_rates: Self::parse_supported_clk_rates(data[38], data[39]),
-            dsp_version: data[40],
-            arm_version: data[41],
-            mixer_playbacks: data[42] as usize,
-            mixer_captures: data[43] as usize,
-            fpga_version: data[44],
-        };
-        Ok(info)
-    }
-
-    fn parse_caps(flags: u32, hw_type: u32) -> Vec<HwCap> {
-        let mut caps = Vec::new();
-        (0..16).for_each(|i| {
-            if (1 << i) & flags > 0 {
-                caps.push(HwCap::from(i))
-            }
-        });
-        match hw_type {
-            Self::O400F => caps.push(HwCap::SpdifCoax),
-            Self::O1200F => caps.push(HwCap::InputMapping),
-            Self::AF2 |
-            Self::AF4 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-                caps.push(HwCap::SpdifCoax);
-            }
-            Self::AF8 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-                caps.push(HwCap::SpdifCoax);
-            }
-            Self::AFP8 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-                // It has flags for Coaxial/Optical interface for S/PDIF signal.
-            }
-            Self::AF12 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-            }
-            _ => (),
-        }
-        caps
-    }
-
-    fn parse_text(quads: &[u32]) -> Result<String, Error> {
-        let mut literal = Vec::new();
-        quads.iter().for_each(|quad| {
-            literal.extend_from_slice(&quad.to_be_bytes());
-        });
-        if let Ok(text) = std::str::from_utf8(&literal) {
-            if let Some(pos) = text.find('\0') {
-                return Ok(text[0..pos].to_string());
-            }
-        }
-        Err(Error::new(FileError::Io, "Fail to parse string."))
-    }
-
-    fn parse_supported_clk_srcs(flags: u32) -> Vec<ClkSrc> {
-        let mut srcs = Vec::new();
-        (0..6).for_each(|i| {
-            if (1 << i) & flags > 0 {
-                srcs.push(ClkSrc::from(i));
-            }
-        });
-        srcs
-    }
-
-    fn parse_supported_clk_rates(max: u32, min: u32) -> Vec<u32> {
-        let mut rates = Vec::new();
-        [32000, 44100, 48000, 88200, 96000, 176400, 192000].iter().for_each(|rate| {
-            if *rate >= min && *rate <= max {
-                rates.push(*rate);
-            }
-        });
-        rates
-    }
-
-    fn parse_phys_groups(quads: &[u32]) -> Vec<PhysGroupEntry> {
-        let mut groups = Vec::new();
-        let mut bytes = Vec::new();
-        let count = quads[0] as usize;
-        quads[1..].iter().for_each(|quad| {
-            bytes.extend_from_slice(&quad.to_be_bytes());
-        });
-        (0..count).for_each(|i| {
-            let group_type = PhysGroupType::from(bytes[i * 2] as usize);
-            let group_count = bytes[i * 2 + 1] as usize;
-            groups.push(PhysGroupEntry {
-                group_type,
-                group_count,
-            });
-        });
-        groups
-    }
-}
-
-#[derive(Debug)]
-pub struct HwMeter {
-    pub detected_clk_srcs: Vec<(ClkSrc, bool)>,
-    pub detected_midi_inputs: [bool; 2],
-    pub detected_midi_outputs: [bool; 2],
-    pub guitar_charging: bool,
-    pub guitar_stereo_connect: bool,
-    pub guitar_hex_signal: bool,
-    pub phys_output_meters: Vec<i32>,
-    pub phys_input_meters: Vec<i32>,
-}
-
-impl HwMeter {
-    const METER_SIZE: usize = 110;
-
-    pub fn new(clk_srcs: &[ClkSrc], phys_inputs: usize, phys_outputs: usize) -> Self {
-        HwMeter {
-            detected_clk_srcs: clk_srcs.iter().map(|&src| (src, false)).collect(),
-            detected_midi_inputs: [false; 2],
-            detected_midi_outputs: [false; 2],
-            guitar_charging: false,
-            guitar_stereo_connect: false,
-            guitar_hex_signal: false,
-            phys_output_meters: vec![0; phys_outputs],
-            phys_input_meters: vec![0; phys_inputs],
-        }
-    }
-
-    pub fn parse(&mut self, data: &[u32;Self::METER_SIZE]) -> Result<(), Error> {
-        let flags = data[0];
-        self.detected_clk_srcs.iter_mut()
-            .for_each(|(src, detected)| *detected = (1 << usize::from(*src)) & flags > 0);
-        // I note that data[1..4] is reserved space and it stores previous set command for FPGA device.
-        self.detected_midi_inputs.iter_mut().enumerate()
-            .for_each(|(i, detected)| *detected = (1 << (8 + i)) & flags > 0);
-        self.detected_midi_outputs.iter_mut().enumerate()
-            .for_each(|(i, detected)| *detected = (1 << (8 + i)) & flags > 0);
-        self.guitar_charging = (1 << 29) & flags > 0;
-        self.guitar_stereo_connect = (1 << 30) & flags > 0;
-        self.guitar_hex_signal = (1 << 31) & flags > 0;
-
-        let phys_outputs = data[5] as usize;
-        let phys_inputs = data[6] as usize;
-        self.phys_output_meters.iter_mut().take(phys_outputs).enumerate()
-            .for_each(|(i, val)| *val = Self::calc(data[9 + i]));
-        self.phys_input_meters.iter_mut().take(phys_inputs).enumerate()
-            .for_each(|(i, val)| *val = Self::calc(data[9 + i + phys_outputs]));
-        Ok(())
-    }
-
-    fn calc(val: u32) -> i32 {
-        (val >> 8) as i32
-    }
-}
-
-pub struct EfwInfo {}
-
-impl EfwInfo {
-    const CMD_HWINFO: u32 = 0;
-    const CMD_METER: u32 = 1;
-
-    pub fn get_hwinfo(unit: &hinawa::SndEfw) -> Result<HwInfo, Error> {
-        let mut data = [0; HwInfo::SIZE];
-        let _ = unit.transaction_sync(u32::from(Category::Info), Self::CMD_HWINFO,
-                                      None, Some(&mut data), TIMEOUT)?;
-        HwInfo::new(&data)
-    }
-
-    pub fn get_meter(unit: &hinawa::SndEfw, meters: &mut HwMeter) -> Result<(), Error> {
-        let mut params = [0; HwMeter::METER_SIZE];
-        let _ = unit.transaction_sync(u32::from(Category::Info), Self::CMD_METER,
-                                      None, Some(&mut params), TIMEOUT)?;
-        meters.parse(&params)
     }
 }
 
@@ -409,9 +53,9 @@ impl From<HwCtlFlag> for usize {
             HwCtlFlag::MixerEnabled => 0,
             HwCtlFlag::SpdifPro => 1,
             HwCtlFlag::SpdifNoneAudio => 2,
-            HwCtlFlag::CtlRoomSelect => 8,          // B if it stands, else A.
-            HwCtlFlag::OutputLevelBypass => 9,      // B if it stands, else A.
-            HwCtlFlag::MeterInMode => 12,           // D2 if stands, else D1.
+            HwCtlFlag::CtlRoomSelect => 8, // B if it stands, else A.
+            HwCtlFlag::OutputLevelBypass => 9, // B if it stands, else A.
+            HwCtlFlag::MeterInMode => 12,  // D2 if stands, else D1.
             HwCtlFlag::MeterOutMode => 13,
             HwCtlFlag::SoftClip => 18,
             HwCtlFlag::GuitarHexInput => 29,
@@ -487,13 +131,19 @@ impl EfwHwCtl {
         Ok((ClkSrc::from(params[0] as usize), params[1]))
     }
 
-    pub fn set_flags(unit: &hinawa::SndEfw, enable: &[HwCtlFlag], disable: &[HwCtlFlag])
-        -> Result<(), Error>
-    {
+    pub fn set_flags(
+        unit: &hinawa::SndEfw,
+        enable: &[HwCtlFlag],
+        disable: &[HwCtlFlag],
+    ) -> Result<(), Error> {
         let mut args = [0, 0];
 
-        args[0] = enable.iter().fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
-        args[1] = disable.iter().fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
+        args[0] = enable
+            .iter()
+            .fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
+        args[1] = disable
+            .iter()
+            .fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
         let _ = unit.transaction_sync(
             u32::from(Category::HwCtl),
             Self::CMD_SET_FLAGS,
@@ -1075,7 +725,7 @@ impl EfwGuitar {
     const CMD_GET_CHARGE_STATE: u32 = 8;
 
     pub fn get_charge_state(unit: &hinawa::SndEfw) -> Result<GuitarChargeState, Error> {
-        let mut params = [0;3];
+        let mut params = [0; 3];
         let _ = unit.transaction_sync(
             u32::from(Category::Guitar),
             Self::CMD_GET_CHARGE_STATE,
@@ -1083,7 +733,7 @@ impl EfwGuitar {
             Some(&mut params),
             TIMEOUT,
         )?;
-        let state = GuitarChargeState{
+        let state = GuitarChargeState {
             manual_charge: params[0] > 0,
             auto_charge: params[1] > 0,
             suspend_to_charge: params[2],
@@ -1097,7 +747,7 @@ impl EfwGuitar {
             state.auto_charge as u32,
             state.suspend_to_charge,
         ];
-        let mut params = [0;3];
+        let mut params = [0; 3];
         let _ = unit.transaction_sync(
             u32::from(Category::Guitar),
             Self::CMD_SET_CHARGE_STATE,

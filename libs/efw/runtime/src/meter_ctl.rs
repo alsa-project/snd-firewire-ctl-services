@@ -6,7 +6,7 @@ use core::card_cntr;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use efw_protocols::transactions::{HwMeter, EfwInfo, HwInfo, HwCap};
+use efw_protocols::hw_info::*;
 
 pub struct MeterCtl {
     pub measure_elems: Vec<alsactl::ElemId>,
@@ -107,9 +107,9 @@ impl<'a> MeterCtl {
         Ok(())
     }
 
-    pub fn measure_states(&mut self, unit: &hinawa::SndEfw) -> Result<(), Error> {
+    pub fn measure_states(&mut self, unit: &mut hinawa::SndEfw, timeout_ms: u32) -> Result<(), Error> {
         match &mut self.meters {
-            Some(meters) => EfwInfo::get_meter(unit, meters),
+            Some(meters) => unit.get_hw_meter(meters, timeout_ms),
             None => {
                 let label = "Metering data is not prepared.";
                 Err(Error::new(FileError::Nxio, &label))

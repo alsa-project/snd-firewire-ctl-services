@@ -6,7 +6,8 @@ use core::card_cntr;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use efw_protocols::transactions::{HwInfo, HwCap, EfwHwCtl, HwCtlFlag};
+use efw_protocols::transactions::{EfwHwCtl, HwCtlFlag};
+use efw_protocols::hw_info::*;
 
 pub struct Iec60958Ctl {
 }
