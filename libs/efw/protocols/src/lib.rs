@@ -11,6 +11,7 @@ pub mod hw_ctl;
 pub mod hw_info;
 pub mod phys_input;
 pub mod phys_output;
+pub mod playback;
 pub mod transactions;
 pub mod transport;
 
