@@ -7,7 +7,6 @@ use hinawa::SndEfwExtManual;
 const TIMEOUT: u32 = 200;
 
 enum Category {
-    Playback,
     Monitor,
     PortConf,
     Guitar,
@@ -16,100 +15,10 @@ enum Category {
 impl From<Category> for u32 {
     fn from(cat: Category) -> Self {
         match cat {
-            Category::Playback => 0x06,
             Category::Monitor => 0x08,
             Category::PortConf => 0x09,
             Category::Guitar => 0x0a,
         }
-    }
-}
-
-pub struct EfwPlayback {}
-
-impl EfwPlayback {
-    const CMD_SET_VOL: u32 = 0;
-    const CMD_GET_VOL: u32 = 1;
-    const CMD_SET_MUTE: u32 = 2;
-    const CMD_GET_MUTE: u32 = 3;
-    const CMD_SET_SOLO: u32 = 4;
-    const CMD_GET_SOLO: u32 = 5;
-
-    pub fn set_vol(unit: &hinawa::SndEfw, ch: usize, vol: i32) -> Result<(), Error> {
-        let args = [ch as u32, vol as u32];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Playback),
-            Self::CMD_SET_VOL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_vol(unit: &hinawa::SndEfw, ch: usize) -> Result<i32, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Playback),
-            Self::CMD_GET_VOL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[1] as i32)
-    }
-
-    pub fn set_mute(unit: &hinawa::SndEfw, ch: usize, mute: bool) -> Result<(), Error> {
-        let args = [ch as u32, mute as u32];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Playback),
-            Self::CMD_SET_MUTE,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_mute(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Playback),
-            Self::CMD_GET_MUTE,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[1] > 0)
-    }
-
-    pub fn set_solo(unit: &hinawa::SndEfw, ch: usize, solo: bool) -> Result<(), Error> {
-        let args = [ch as u32, solo as u32];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Playback),
-            Self::CMD_SET_SOLO,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_solo(unit: &hinawa::SndEfw, ch: usize) -> Result<bool, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Playback),
-            Self::CMD_GET_SOLO,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[1] > 0)
     }
 }
 

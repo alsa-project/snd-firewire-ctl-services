@@ -7,9 +7,10 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{EfwPlayback, EfwMonitor};
+use efw_protocols::transactions::EfwMonitor;
 use efw_protocols::hw_info::*;
 use efw_protocols::hw_ctl::*;
+use efw_protocols::playback::*;
 
 pub struct MixerCtl {
     playbacks: usize,
@@ -107,22 +108,19 @@ impl<'a> MixerCtl {
         match elem_id.get_name().as_str() {
             Self::PLAYBACK_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.playbacks, |idx| {
-                    let val = EfwPlayback::get_vol(unit, idx)?;
-                    Ok(val)
+                    unit.get_playback_vol(idx, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::PLAYBACK_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.playbacks, |idx| {
-                    let val = EfwPlayback::get_mute(unit, idx)?;
-                    Ok(val)
+                    unit.get_playback_mute(idx, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::PLAYBACK_SOLO_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.playbacks, |idx| {
-                    let val = EfwPlayback::get_solo(unit, idx)?;
-                    Ok(val)
+                    unit.get_playback_solo(idx, timeout_ms)
                 })?;
                 Ok(true)
             }
@@ -180,19 +178,19 @@ impl<'a> MixerCtl {
         match elem_id.get_name().as_str() {
             Self::PLAYBACK_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, self.playbacks, |idx, val| {
-                    EfwPlayback::set_vol(unit, idx, val)
+                    unit.set_playback_vol(idx, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::PLAYBACK_MUTE_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, self.playbacks, |idx, val| {
-                    EfwPlayback::set_mute(unit, idx, val)
+                    unit.set_playback_mute(idx, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::PLAYBACK_SOLO_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, self.playbacks, |idx, val| {
-                    EfwPlayback::set_solo(unit, idx, val)
+                    unit.set_playback_solo(idx, val, timeout_ms)
                 })?;
                 Ok(true)
             }
