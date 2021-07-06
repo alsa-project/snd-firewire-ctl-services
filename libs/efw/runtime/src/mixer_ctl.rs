@@ -7,8 +7,9 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::{EfwPlayback, EfwMonitor, EfwHwCtl, HwCtlFlag};
+use efw_protocols::transactions::{EfwPlayback, EfwMonitor};
 use efw_protocols::hw_info::*;
+use efw_protocols::hw_ctl::*;
 
 pub struct MixerCtl {
     playbacks: usize,
@@ -98,9 +99,10 @@ impl<'a> MixerCtl {
 
     pub fn read(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::PLAYBACK_VOL_NAME => {
@@ -158,7 +160,7 @@ impl<'a> MixerCtl {
             }
             Self::ENABLE_MIXER=> {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    let flags = EfwHwCtl::get_flags(unit)?;
+                    let flags = unit.get_flags(timeout_ms)?;
                     Ok(flags.iter().find(|&flag| *flag == HwCtlFlag::MixerEnabled).is_some())
                 })?;
                 Ok(true)
@@ -169,10 +171,11 @@ impl<'a> MixerCtl {
 
     pub fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::PLAYBACK_VOL_NAME => {
@@ -224,9 +227,11 @@ impl<'a> MixerCtl {
             Self::ENABLE_MIXER=> {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     if val {
-                        EfwHwCtl::set_flags(unit, &[HwCtlFlag::MixerEnabled], &[])?;
+                        let flags = [HwCtlFlag::MixerEnabled];
+                        unit.set_flags(Some(&flags), None, timeout_ms)?;
                     } else {
-                        EfwHwCtl::set_flags(unit, &[], &[HwCtlFlag::MixerEnabled])?;
+                        let flags = [HwCtlFlag::MixerEnabled];
+                        unit.set_flags(None, Some(&flags), timeout_ms)?;
                     }
 
                     // The above operation immediately has an effect for DSP model, but not for FPGA

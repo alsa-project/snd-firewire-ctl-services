@@ -6,8 +6,8 @@ use core::card_cntr;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-use efw_protocols::transactions::{EfwHwCtl, HwCtlFlag};
 use efw_protocols::hw_info::*;
+use efw_protocols::hw_ctl::*;
 
 pub struct Iec60958Ctl {
 }
@@ -39,14 +39,15 @@ impl<'a> Iec60958Ctl {
 
     pub fn read(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::DEFAULT => {
                 let mut val = [0;24];
-                let flags = EfwHwCtl::get_flags(unit)?;
+                let flags = unit.get_flags(timeout_ms)?;
                 if flags.iter().find(|&flag| *flag == HwCtlFlag::SpdifPro).is_some() {
                     val[0] |= Self::AES0_PROFESSIONAL;
                 }
@@ -68,10 +69,11 @@ impl<'a> Iec60958Ctl {
 
     pub fn write(
         &mut self,
-        unit: &hinawa::SndEfw,
+        unit: &mut hinawa::SndEfw,
         elem_id: &alsactl::ElemId,
         _: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::DEFAULT => {
@@ -91,7 +93,7 @@ impl<'a> Iec60958Ctl {
                     disable.push(HwCtlFlag::SpdifNoneAudio);
                 }
 
-                EfwHwCtl::set_flags(unit, &enable, &disable)?;
+                unit.set_flags(Some(&enable), Some(&disable), timeout_ms)?;
                 Ok(true)
             }
             _ => Ok(false),
