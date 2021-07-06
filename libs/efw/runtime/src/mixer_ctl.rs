@@ -7,7 +7,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use super::transactions::{HwInfo, EfwPlayback, EfwMonitor, HwCap, EfwHwCtl, HwCtlFlag};
+use efw_protocols::transactions::{HwInfo, EfwPlayback, EfwMonitor, HwCap, EfwHwCtl, HwCtlFlag};
 
 pub struct MixerCtl {
     playbacks: usize,

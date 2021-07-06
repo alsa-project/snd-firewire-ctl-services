@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use super::transactions::{HwCap, EfwPhysInput, NominalLevel, HwInfo};
+use efw_protocols::transactions::{HwCap, EfwPhysInput, NominalLevel, HwInfo};
 
 pub struct InputCtl {
     phys_inputs: usize,

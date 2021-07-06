@@ -2,8 +2,6 @@
 // Copyright (c) 2020 Takashi Sakamoto
 mod model;
 
-mod transactions;
-
 mod clk_ctl;
 mod guitar_ctl;
 mod iec60958_ctl;
