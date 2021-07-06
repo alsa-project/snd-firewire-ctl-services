@@ -119,7 +119,7 @@ impl<'a> OutputCtl {
                 Ok(true)
             }
             Self::OUT_NOMINAL_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, self.phys_outputs, |idx, val| {
+                ElemValueAccessor::<u32>::get_vals(new, old, self.phys_outputs, |idx, val| {
                     if let Some(&level) = Self::OUT_NOMINAL_LEVELS.iter().nth(val as usize) {
                         EfwPhysOutput::set_nominal(unit, idx, level)
                     } else {
