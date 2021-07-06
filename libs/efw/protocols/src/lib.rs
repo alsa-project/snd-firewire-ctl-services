@@ -13,6 +13,7 @@ pub mod monitor;
 pub mod phys_input;
 pub mod phys_output;
 pub mod playback;
+pub mod port_conf;
 pub mod transactions;
 pub mod transport;
 
