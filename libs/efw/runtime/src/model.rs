@@ -121,7 +121,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             Ok(true)
         } else if self.port_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.guitar_ctl.read(unit, elem_id, elem_value)? {
+        } else if self.guitar_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.iec60958_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -147,7 +147,7 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
             Ok(true)
         } else if self.port_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.guitar_ctl.write(unit, elem_id, old, new)? {
+        } else if self.guitar_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.iec60958_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
