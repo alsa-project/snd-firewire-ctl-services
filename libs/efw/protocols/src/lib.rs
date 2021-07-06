@@ -9,6 +9,7 @@
 pub mod flash;
 pub mod hw_ctl;
 pub mod hw_info;
+pub mod phys_input;
 pub mod phys_output;
 pub mod transactions;
 pub mod transport;

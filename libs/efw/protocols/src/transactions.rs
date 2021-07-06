@@ -7,7 +7,6 @@ use hinawa::SndEfwExtManual;
 const TIMEOUT: u32 = 200;
 
 enum Category {
-    PhysInput,
     Playback,
     Monitor,
     PortConf,
@@ -17,72 +16,11 @@ enum Category {
 impl From<Category> for u32 {
     fn from(cat: Category) -> Self {
         match cat {
-            Category::PhysInput => 0x05,
             Category::Playback => 0x06,
             Category::Monitor => 0x08,
             Category::PortConf => 0x09,
             Category::Guitar => 0x0a,
         }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum NominalLevel {
-    PlusFour,
-    Medium,
-    MinusTen,
-}
-
-impl From<NominalLevel> for u32 {
-    fn from(level: NominalLevel) -> Self {
-        match level {
-            NominalLevel::MinusTen => 2,
-            NominalLevel::Medium => 1,
-            NominalLevel::PlusFour => 0,
-        }
-    }
-}
-
-impl From<u32> for NominalLevel {
-    fn from(val: u32) -> Self {
-        match val {
-            2 => NominalLevel::MinusTen,
-            1 => NominalLevel::Medium,
-            _ => NominalLevel::PlusFour,
-        }
-    }
-}
-
-pub struct EfwPhysInput {}
-
-impl EfwPhysInput {
-    const CMD_SET_NOMINAL: u32 = 8;
-    const CMD_GET_NOMINAL: u32 = 9;
-
-    pub fn set_nominal(unit: &hinawa::SndEfw, ch: usize, level: NominalLevel) -> Result<(), Error> {
-        let args = [ch as u32, u32::from(level)];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysInput),
-            Self::CMD_SET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_nominal(unit: &hinawa::SndEfw, ch: usize) -> Result<NominalLevel, Error> {
-        let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        let _ = unit.transaction_sync(
-            u32::from(Category::PhysInput),
-            Self::CMD_GET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(NominalLevel::from(params[1]))
     }
 }
 
