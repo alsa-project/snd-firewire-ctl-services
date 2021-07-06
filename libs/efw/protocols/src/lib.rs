@@ -14,7 +14,7 @@ pub mod phys_input;
 pub mod phys_output;
 pub mod playback;
 pub mod port_conf;
-pub mod transactions;
+pub mod robot_guitar;
 pub mod transport;
 
 use hinawa::SndEfwExtManual;
