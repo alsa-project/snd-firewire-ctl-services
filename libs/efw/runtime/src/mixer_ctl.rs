@@ -7,10 +7,10 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use efw_protocols::transactions::EfwMonitor;
 use efw_protocols::hw_info::*;
 use efw_protocols::hw_ctl::*;
 use efw_protocols::playback::*;
+use efw_protocols::monitor::*;
 
 pub struct MixerCtl {
     playbacks: usize,
@@ -127,7 +127,7 @@ impl<'a> MixerCtl {
             Self::MONITOR_GAIN_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
-                    let val = EfwMonitor::get_vol(unit, dst, src)?;
+                    let val = unit.get_monitor_vol(dst, src, timeout_ms)?;
                     Ok(val)
                 })?;
                 Ok(true)
@@ -135,7 +135,7 @@ impl<'a> MixerCtl {
             Self::MONITOR_MUTE_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
-                    let val = EfwMonitor::get_mute(unit, dst, src)?;
+                    let val = unit.get_monitor_mute(dst, src, timeout_ms)?;
                     Ok(val)
                 })?;
                 Ok(true)
@@ -143,7 +143,7 @@ impl<'a> MixerCtl {
             Self::MONITOR_SOLO_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
-                    let val = EfwMonitor::get_solo(unit, dst, src)?;
+                    let val = unit.get_monitor_solo(dst, src, timeout_ms)?;
                     Ok(val)
                 })?;
                 Ok(true)
@@ -151,7 +151,7 @@ impl<'a> MixerCtl {
             Self::MONITOR_PAN_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
-                    let val = EfwMonitor::get_pan(unit, dst, src)? as i32;
+                    let val = unit.get_monitor_pan(dst, src, timeout_ms)? as i32;
                     Ok(val)
                 })?;
                 Ok(true)
@@ -197,28 +197,28 @@ impl<'a> MixerCtl {
             Self::MONITOR_GAIN_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
-                    EfwMonitor::set_vol(unit, dst, src, val)
+                    unit.set_monitor_vol(dst, src, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_MUTE_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
-                    EfwMonitor::set_mute(unit, dst, src, val)
+                    unit.set_monitor_mute(dst, src, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_SOLO_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
-                    EfwMonitor::set_solo(unit, dst, src, val)
+                    unit.set_monitor_solo(dst, src, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::MONITOR_PAN_NAME => {
                 let dst = elem_id.get_index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
-                    EfwMonitor::set_pan(unit, dst, src, val as u8)
+                    unit.set_monitor_pan(dst, src, val as u8, timeout_ms)
                 })?;
                 Ok(true)
             }
@@ -237,8 +237,8 @@ impl<'a> MixerCtl {
                     // configuration.
                     if self.has_fpga {
                         (0..self.playbacks).try_for_each(|i| {
-                            let vol = EfwMonitor::get_vol(unit, 0, i)?;
-                            EfwMonitor::set_vol(unit, 0, i, vol)
+                            let vol = unit.get_monitor_vol(0, i, timeout_ms)?;
+                            unit.set_monitor_vol(0, i, vol, timeout_ms)
                         })?;
                     }
 
