@@ -7,7 +7,6 @@ use hinawa::SndEfwExtManual;
 const TIMEOUT: u32 = 200;
 
 enum Category {
-    Monitor,
     PortConf,
     Guitar,
 }
@@ -15,137 +14,9 @@ enum Category {
 impl From<Category> for u32 {
     fn from(cat: Category) -> Self {
         match cat {
-            Category::Monitor => 0x08,
             Category::PortConf => 0x09,
             Category::Guitar => 0x0a,
         }
-    }
-}
-
-pub struct EfwMonitor {}
-
-impl EfwMonitor {
-    const CMD_SET_VOL: u32 = 0;
-    const CMD_GET_VOL: u32 = 1;
-    const CMD_SET_MUTE: u32 = 2;
-    const CMD_GET_MUTE: u32 = 3;
-    const CMD_SET_SOLO: u32 = 4;
-    const CMD_GET_SOLO: u32 = 5;
-    const CMD_SET_PAN: u32 = 6;
-    const CMD_GET_PAN: u32 = 7;
-
-    pub fn set_vol(unit: &hinawa::SndEfw, dst: usize, src: usize, vol: i32) -> Result<(), Error> {
-        let args = [src as u32, dst as u32, vol as u32];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_SET_VOL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_vol(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<i32, Error> {
-        let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_GET_VOL,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[2] as i32)
-    }
-
-    pub fn set_mute(
-        unit: &hinawa::SndEfw,
-        dst: usize,
-        src: usize,
-        mute: bool,
-    ) -> Result<(), Error> {
-        let args = [src as u32, dst as u32, mute as u32];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_SET_MUTE,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_mute(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<bool, Error> {
-        let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_GET_MUTE,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[2] > 0)
-    }
-
-    pub fn set_solo(
-        unit: &hinawa::SndEfw,
-        dst: usize,
-        src: usize,
-        solo: bool,
-    ) -> Result<(), Error> {
-        let args = [src as u32, dst as u32, solo as u32];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_SET_SOLO,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_solo(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<bool, Error> {
-        let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_GET_SOLO,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[2] > 0)
-    }
-
-    pub fn set_pan(unit: &hinawa::SndEfw, dst: usize, src: usize, pan: u8) -> Result<(), Error> {
-        let args = [src as u32, dst as u32, pan as u32];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_SET_PAN,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    pub fn get_pan(unit: &hinawa::SndEfw, dst: usize, src: usize) -> Result<u8, Error> {
-        let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        let _ = unit.transaction_sync(
-            u32::from(Category::Monitor),
-            Self::CMD_GET_PAN,
-            Some(&args),
-            Some(&mut params),
-            TIMEOUT,
-        )?;
-        Ok(params[2] as u8)
     }
 }
 
