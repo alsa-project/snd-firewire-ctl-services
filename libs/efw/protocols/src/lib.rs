@@ -9,6 +9,7 @@
 pub mod flash;
 pub mod hw_info;
 pub mod transactions;
+pub mod transport;
 
 use hinawa::SndEfwExtManual;
 
