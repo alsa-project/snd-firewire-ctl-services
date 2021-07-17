@@ -185,16 +185,16 @@ fn mic_amp_emulation_type_to_string(emulation_type: &MicAmpEmulationType) -> Str
 #[derive(Default, Debug)]
 struct SpecificCtl;
 
-impl<'a> SpecificCtl {
-    const ANALOG_OUT_0_1_PAD_NAME: &'a str = "analog-output-1/2-pad";
-    const OPT_OUT_IFACE_MODE_NAME: &'a str = "optical-output-interface-mode";
-    const MIC_AMP_TRANSFORMER_NAME: &'a str = "mic-amp-transformer";
-    const ANALOG_INPUT_LEVEL_NAME: &'a str = "analog-input-levels";
-    const MIC_AMP_EMULATION_TYPE_NAME: &'a str = "mic-amp-emulation-types";
-    const MIC_AMP_HARMONICS_NAME: &'a str = "mic-amp-harmonics";
-    const MIC_AMP_POLARITY_NAME: &'a str = "mic-amp-polarities";
-    const LED_STATE_NAME: &'a str = "LED-states";
-    const METER_DISPLAY_TARGETS_NAME: &'a str = "meter-display-targets";
+impl SpecificCtl {
+    const ANALOG_OUT_0_1_PAD_NAME: &'static str = "analog-output-1/2-pad";
+    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-output-interface-mode";
+    const MIC_AMP_TRANSFORMER_NAME: &'static str = "mic-amp-transformer";
+    const ANALOG_INPUT_LEVEL_NAME: &'static str = "analog-input-levels";
+    const MIC_AMP_EMULATION_TYPE_NAME: &'static str = "mic-amp-emulation-types";
+    const MIC_AMP_HARMONICS_NAME: &'static str = "mic-amp-harmonics";
+    const MIC_AMP_POLARITY_NAME: &'static str = "mic-amp-polarities";
+    const LED_STATE_NAME: &'static str = "LED-states";
+    const METER_DISPLAY_TARGETS_NAME: &'static str = "meter-display-targets";
 
     const OPT_OUT_IFACE_MODES: [OptOutIfaceMode;3] = [
         OptOutIfaceMode::Adat,
@@ -226,9 +226,9 @@ impl<'a> SpecificCtl {
     const HARMONICS_MAX: i32 = 21;
     const HARMONICS_STEP: i32 = 1;
 
-    const LED_STATE_LABELS: [&'a str;4] = ["ADAT1", "ADAT2", "S/PDIF", "MIDI-in"];
+    const LED_STATE_LABELS: [&'static str;4] = ["ADAT1", "ADAT2", "S/PDIF", "MIDI-in"];
 
-    const METER_DISPLAY_TARGETS: [&'a str;26] = [
+    const METER_DISPLAY_TARGETS: [&'static str;26] = [
         "Analog-input-1", "Analog-input-2", "Analog-input-3", "Analog-input-4",
         "Analog-input-5", "Analog-input-6", "Analog-input-7", "Analog-input-8",
         "S/PDIF-input-1", "S/PDIF-input-2",

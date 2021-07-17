@@ -157,9 +157,9 @@ fn opt_out_iface_mode_to_string(mode: &OptOutIfaceMode) -> String {
 #[derive(Default, Debug)]
 struct SpecificCtl;
 
-impl<'a> SpecificCtl {
-    const ANALOG_OUT_0_1_PAD_NAME: &'a str = "analog-output-1/2-pad";
-    const OPT_OUT_IFACE_MODE_NAME: &'a str = "optical-output-interface-mode";
+impl SpecificCtl {
+    const ANALOG_OUT_0_1_PAD_NAME: &'static str = "analog-output-1/2-pad";
+    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-output-interface-mode";
 
     const OPT_OUT_IFACE_MODES: [OptOutIfaceMode;2] = [
         OptOutIfaceMode::Adat,
