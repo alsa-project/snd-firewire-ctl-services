@@ -271,6 +271,8 @@ trait SpecialProto : CommonProto {
     }
 }
 
+impl CommonProto for FwReq {}
+
 impl SpecialProto for FwReq {}
 
 pub trait StateCacheAccessor {
