@@ -18,13 +18,14 @@ use bebob_protocols::{*, maudio::normal::*};
 
 use crate::common_ctls::*;
 
-use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl};
+use super::*;
+use super::normal_ctls::{MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl};
 
 pub struct Fw410Model<'a>{
     avc: BebobAvc,
     req: FwReq,
     clk_ctl: ClkCtl,
-    meter_ctl: MeterCtl<'a>,
+    meter_ctl: MeterCtl,
     mixer_ctl: MixerCtl<'a>,
     input_ctl: InputCtl<'a>,
     aux_ctl: AuxCtl<'a>,
@@ -33,6 +34,7 @@ pub struct Fw410Model<'a>{
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
+const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default)]
 struct ClkCtl(Vec<ElemId>);
@@ -43,17 +45,29 @@ impl SamplingClkSrcCtlOperation<Fw410ClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
 }
 
+struct MeterCtl(Vec<ElemId>, MaudioNormalMeter);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(Default::default(), Fw410MeterProtocol::create_meter())
+    }
+}
+
+impl AsMut<MaudioNormalMeter> for MeterCtl {
+    fn as_mut(&mut self) -> &mut MaudioNormalMeter {
+        &mut self.1
+    }
+}
+
+impl AsRef<MaudioNormalMeter> for MeterCtl {
+    fn as_ref(&self) -> &MaudioNormalMeter {
+        &self.1
+    }
+}
+
+impl MaudioNormalMeterCtlOperation<Fw410MeterProtocol> for MeterCtl {}
+
 impl<'a> Fw410Model<'a> {
-    const IN_METER_LABELS: &'a [&'a str] = &[
-        "analog-in-1", "analog-in-2", "digital-in-1", "digital-in-2",
-    ];
-
-    const OUT_METER_LABELS: &'a [&'a str] = &[
-        "analog-out-1", "analog-out-2", "analog-out-3", "analog-out-4",
-        "analog-out-5", "analog-out-6", "analog-out-7", "analog-out-8",
-        "digital-out-1", "digital-out-2",
-    ];
-
     const MIXER_DST_FB_IDS: &'a [u8] = &[0x01, 0x01, 0x01, 0x01, 0x01];
     const MIXER_LABELS: &'a [&'a str] = &[
         "mixer-1/2", "mixer-3/4", "mixer-5/6", "mixer-7/8",
@@ -92,7 +106,7 @@ impl<'a> Default for Fw410Model<'a> {
             avc: Default::default(),
             req: Default::default(),
             clk_ctl: Default::default(),
-            meter_ctl: MeterCtl::new(Self::IN_METER_LABELS, &[], Self::OUT_METER_LABELS, false, 1, true),
+            meter_ctl: Default::default(),
             mixer_ctl: MixerCtl::new(
                 Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
                 Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
@@ -126,7 +140,9 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
         self.clk_ctl.load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;
+        self.meter_ctl.load_meter(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)
+            .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
+
         self.mixer_ctl.load(&self.avc, card_cntr)?;
         self.input_ctl.load(&self.avc, card_cntr)?;
         self.aux_ctl.load(&self.avc, card_cntr)?;
@@ -146,7 +162,7 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
             Ok(true)
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.meter_ctl.read(elem_id, elem_value)? {
+        } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
@@ -174,8 +190,6 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
-        } else if self.meter_ctl.write(&self.avc, elem_id, old, new)? {
-            Ok(true)
         } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if self.input_ctl.write(&self.avc, elem_id, old, new)? {
@@ -198,17 +212,17 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
 
 impl<'a> MeasureModel<SndUnit> for Fw410Model<'a> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit, &self.avc, &self.req)
+        self.meter_ctl.measure_meter(&self.req, &unit.get_node(), &self.avc, TIMEOUT_MS)
     }
 
     fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.meter_ctl.measure_elem(elem_id, elem_value)
+        self.meter_ctl.read_meter(elem_id, elem_value)
     }
 }
 
