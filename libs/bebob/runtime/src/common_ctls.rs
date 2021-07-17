@@ -9,6 +9,8 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue};
 use core::card_cntr::CardCntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use bebob_protocols::*;
 
 use super::model::{CLK_RATE_NAME, CLK_SRC_NAME};
@@ -119,6 +121,142 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
                 res
             }
             _ => Ok(false),
+        }
+    }
+}
+
+pub trait LevelCtlOperation<T: LevelOperation> {
+    const LEVEL_NAME: &'static str;
+
+    const PORT_LABELS: &'static [&'static str];
+    const CH_COUNT: usize = T::FUNC_BLOCK_ID_LIST.len() * 2;
+
+    const LEVEL_MIN: i32 = T::LEVEL_MIN as i32;
+    const LEVEL_MAX: i32 = T::LEVEL_MAX as i32;
+    const LEVEL_STEP: i32 = T::LEVEL_STEP as i32;
+    const LEVEL_TLV: DbInterval = DbInterval {
+        min: -12800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn load_level(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        assert_eq!(
+            Self::CH_COUNT,
+            Self::PORT_LABELS.len(),
+            "Programming error for count of channels: {}",
+            Self::LEVEL_NAME
+        );
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LEVEL_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::LEVEL_MIN,
+                Self::LEVEL_MAX,
+                Self::LEVEL_STEP,
+                Self::CH_COUNT,
+                Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())
+    }
+
+    fn read_level(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::LEVEL_NAME {
+            ElemValueAccessor::<i32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
+                T::read_level(avc, idx, timeout_ms).map(|level| level as i32)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_level(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::LEVEL_NAME {
+            ElemValueAccessor::<i32>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
+                T::write_level(avc, idx, val as i16, timeout_ms)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+pub trait LrBalanceCtlOperation<T: LevelOperation + LrBalanceOperation>:
+    LevelCtlOperation<T>
+{
+    const BALANCE_NAME: &'static str;
+
+    const BALANCE_MIN: i32 = T::BALANCE_MIN as i32;
+    const BALANCE_MAX: i32 = T::BALANCE_MAX as i32;
+    const BALANCE_STEP: i32 = T::BALANCE_STEP as i32;
+
+    fn load_balance(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::BALANCE_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::BALANCE_MIN,
+                Self::BALANCE_MAX,
+                Self::BALANCE_STEP,
+                Self::CH_COUNT,
+                None,
+                true,
+            )
+            .map(|_| ())
+    }
+
+    fn read_balance(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::BALANCE_NAME {
+            ElemValueAccessor::<i32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
+                T::read_lr_balance(avc, idx, timeout_ms).map(|balance| balance as i32)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_balance(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::BALANCE_NAME {
+            ElemValueAccessor::<i32>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
+                T::write_lr_balance(avc, idx, val as i16, timeout_ms)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
         }
     }
 }
