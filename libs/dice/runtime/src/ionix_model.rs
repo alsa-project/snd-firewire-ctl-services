@@ -115,12 +115,12 @@ struct MeterCtl{
     measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> MeterCtl {
-    const SPDIF_INPUT_NAME: &'a str = "spdif-input-meter";
-    const STREAM_INPUT_NAME: &'a str = "stream-input-meter";
-    const ANALOG_INPUT_NAME: &'a str = "analog-input-meter";
-    const BUS_OUTPUT_NAME: &'a str = "bus-output-meter";
-    const MAIN_OUTPUT_NAME: &'a str = "main-output-meter";
+impl MeterCtl {
+    const SPDIF_INPUT_NAME: &'static str = "spdif-input-meter";
+    const STREAM_INPUT_NAME: &'static str = "stream-input-meter";
+    const ANALOG_INPUT_NAME: &'static str = "analog-input-meter";
+    const BUS_OUTPUT_NAME: &'static str = "bus-output-meter";
+    const MAIN_OUTPUT_NAME: &'static str = "main-output-meter";
 
     const LEVEL_MIN: i32 = 0;
     const LEVEL_MAX: i32 = 0x00000fff;
@@ -187,10 +187,10 @@ fn mixer_src_to_string(src: &MixerSrc) -> String {
 #[derive(Default, Debug)]
 struct MixerCtl;
 
-impl<'a> MixerCtl {
-    const BUS_SRC_GAIN_NAME: &'a str = "mixer-bus-input-gain";
-    const MAIN_SRC_GAIN_NAME: &'a str = "mixer-main-input-gain";
-    const REVERB_SRC_GAIN_NAME: &'a str = "mixer-reverb-input-gain";
+impl MixerCtl {
+    const BUS_SRC_GAIN_NAME: &'static str = "mixer-bus-input-gain";
+    const MAIN_SRC_GAIN_NAME: &'static str = "mixer-main-input-gain";
+    const REVERB_SRC_GAIN_NAME: &'static str = "mixer-reverb-input-gain";
 
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x00007fff;

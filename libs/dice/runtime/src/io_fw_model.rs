@@ -227,11 +227,11 @@ struct IoFwState<M, S>
 #[derive(Default, Debug)]
 struct MeterCtl(Vec<ElemId>);
 
-impl<'a> MeterCtl {
-    const ANALOG_INPUT_METER_NAME: &'a str = "analog-input-meters";
-    const DIGITAL_A_INPUT_METER_NAME: &'a str = "digital-a-input-meters";
-    const DIGITAL_B_INPUT_METER_NAME: &'a str = "digital-b-input-meters";
-    const MIXER_OUT_METER_NAME: &'a str = "mixer-output-meters";
+impl MeterCtl {
+    const ANALOG_INPUT_METER_NAME: &'static str = "analog-input-meters";
+    const DIGITAL_A_INPUT_METER_NAME: &'static str = "digital-a-input-meters";
+    const DIGITAL_B_INPUT_METER_NAME: &'static str = "digital-b-input-meters";
+    const MIXER_OUT_METER_NAME: &'static str = "mixer-output-meters";
 
     const LEVEL_MIN: i32 = 0;
     const LEVEL_MAX: i32 = 0x007fff00;
@@ -307,17 +307,17 @@ impl<'a> MeterCtl {
 #[derive(Default, Debug)]
 struct MixerCtl(Vec<ElemId>);
 
-impl<'a> MixerCtl {
-    const INPUT_GAIN_NAME: &'a str = "monitor-input-gain";
-    const INPUT_MUTE_NAME: &'a str = "monitor-input-mute";
+impl MixerCtl {
+    const INPUT_GAIN_NAME: &'static str = "monitor-input-gain";
+    const INPUT_MUTE_NAME: &'static str = "monitor-input-mute";
 
-    const STREAM_GAIN_NAME: &'a str = "mixer-stream-gain";
+    const STREAM_GAIN_NAME: &'static str = "mixer-stream-gain";
 
-    const OUTPUT_VOL_NAME: &'a str = "monitor-output-volume";
-    const OUTPUT_MUTE_NAME: &'a str = "monitor-output-mute";
+    const OUTPUT_VOL_NAME: &'static str = "monitor-output-volume";
+    const OUTPUT_MUTE_NAME: &'static str = "monitor-output-mute";
 
-    const MIX_BLEND_KNOB_NAME: &'a str = "mix-blend-knob";
-    const MAIN_LEVEL_KNOB_NAME: &'a str = "main-level-knob";
+    const MIX_BLEND_KNOB_NAME: &'static str = "mix-blend-knob";
+    const MAIN_LEVEL_KNOB_NAME: &'static str = "main-level-knob";
 
     const LEVEL_MIN: i32 = 0;
     const LEVEL_MAX: i32 = 0x007fff00;
@@ -567,11 +567,11 @@ fn mixer_out_pair_to_string(pair: &MixerOutPair) -> String {
 #[derive(Default, Debug)]
 struct OutCtl;
 
-impl<'a> OutCtl {
-    const OUT_LEVEL_NAME: &'a str = "output-level";
-    const DIGITAL_B_67_SRC_NAME: &'a str = "monitor-digital-b-7/8-source";
-    const SPDIF_OUT_SRC_NAME: &'a str = "S/PDIF-1/2-output-source";
-    const HP23_SRC_NAME: &'a str = "Headphone-3/4-output-source";
+impl OutCtl {
+    const OUT_LEVEL_NAME: &'static str = "output-level";
+    const DIGITAL_B_67_SRC_NAME: &'static str = "monitor-digital-b-7/8-source";
+    const SPDIF_OUT_SRC_NAME: &'static str = "S/PDIF-1/2-output-source";
+    const HP23_SRC_NAME: &'static str = "Headphone-3/4-output-source";
 
     const OUT_LEVELS: [NominalSignalLevel;2] = [
         NominalSignalLevel::Consumer,
