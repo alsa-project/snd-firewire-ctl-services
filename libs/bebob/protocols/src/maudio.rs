@@ -9,3 +9,5 @@
 pub mod normal;
 pub mod pfl;
 pub mod special;
+
+const MAUDIO_OUI: [u8; 3] = [0x00, 0x0d, 0x6c];
