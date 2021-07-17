@@ -16,7 +16,8 @@ use ta1394::{AvcOp, AvcControl};
 use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat, VendorDependent};
 use ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
 
-use super::super::BebobAvc;
+use bebob_protocols::*;
+
 use super::super::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
