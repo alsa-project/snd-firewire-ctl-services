@@ -115,15 +115,15 @@ struct LedSwitch{
     op: VendorDependent,
 }
 
-impl LedSwitch {
-    // NOTE: Unknown OUI.
-    const OUI: [u8;3] = [0x03, 0x00, 0x01];
+// NOTE: Unknown OUI.
+const SPECIAL_OUI_A: [u8;3] = [0x03, 0x00, 0x01];
 
+impl LedSwitch {
     pub fn new(state: bool) -> Self {
         LedSwitch{
             state,
             op: VendorDependent{
-                company_id: Self::OUI,
+                company_id: SPECIAL_OUI_A,
                 data: Vec::new(),
             },
         }
