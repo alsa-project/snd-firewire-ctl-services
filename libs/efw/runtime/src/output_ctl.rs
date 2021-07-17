@@ -15,10 +15,10 @@ pub struct OutputCtl {
     phys_outputs: usize,
 }
 
-impl<'a> OutputCtl {
-    const OUT_VOL_NAME: &'a str = "output-volume";
-    const OUT_MUTE_NAME: &'a str = "output-mute";
-    const OUT_NOMINAL_NAME: &'a str = "output-nominal";
+impl OutputCtl {
+    const OUT_VOL_NAME: &'static str = "output-volume";
+    const OUT_MUTE_NAME: &'static str = "output-mute";
+    const OUT_NOMINAL_NAME: &'static str = "output-nominal";
 
     // The fixed point number of 8.24 format.
     const COEF_MIN: i32 = 0x00000000;
@@ -26,8 +26,8 @@ impl<'a> OutputCtl {
     const COEF_STEP: i32 = 0x00000001;
     const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 600, linear: false, mute_avail: false};
 
-    const OUT_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "-10dBV"];
-    const OUT_NOMINAL_LEVELS: &'a [NominalSignalLevel] = &[
+    const OUT_NOMINAL_LABELS: [&'static str;2] = ["+4dBu", "-10dBV"];
+    const OUT_NOMINAL_LEVELS: [NominalSignalLevel;2] = [
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
     ];
@@ -61,7 +61,7 @@ impl<'a> OutputCtl {
             let elem_id = alsactl::ElemId::new_by_name(
                 alsactl::ElemIfaceType::Mixer, 0, 0, Self::OUT_NOMINAL_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1,
-                self.phys_outputs, Self::OUT_NOMINAL_LABELS, None, true)?;
+                self.phys_outputs, &Self::OUT_NOMINAL_LABELS, None, true)?;
         }
 
         Ok(())

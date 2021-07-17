@@ -42,14 +42,14 @@ pub struct PortCtl {
     tx_pairs: usize,
 }
 
-impl<'a> PortCtl {
-    const MIRROR_OUTPUT_NAME: &'a str = "mirror-output";
-    const DIG_MODE_NAME: &'a str = "digital-mode";
-    const PHANTOM_NAME: &'a str = "phantom-powering";
-    const RX_MAP_NAME: &'a str = "stream-playback-routing";
-    const TX_MAP_NAME: &'a str = "stream-capture-routing";
+impl PortCtl {
+    const MIRROR_OUTPUT_NAME: &'static str = "mirror-output";
+    const DIG_MODE_NAME: &'static str = "digital-mode";
+    const PHANTOM_NAME: &'static str = "phantom-powering";
+    const RX_MAP_NAME: &'static str = "stream-playback-routing";
+    const TX_MAP_NAME: &'static str = "stream-capture-routing";
 
-    const DIG_MODES: &'a [(HwCap, DigitalMode)] = &[
+    const DIG_MODES: [(HwCap, DigitalMode);4] = [
         (HwCap::SpdifCoax, DigitalMode::SpdifCoax),
         (HwCap::AesebuXlr, DigitalMode::AesebuXlr),
         (HwCap::SpdifOpt, DigitalMode::SpdifOpt),
@@ -69,7 +69,7 @@ impl<'a> PortCtl {
     fn add_mapping_ctl(
         &self,
         card_cntr: &mut card_cntr::CardCntr,
-        name: &'a str,
+        name: &str,
         phys_pairs: usize,
         stream_pairs: usize,
     ) -> Result<(), Error> {

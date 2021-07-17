@@ -28,9 +28,9 @@ pub struct ClkCtl {
     rates: Vec<u32>,
 }
 
-impl<'a> ClkCtl {
-    const SRC_NAME: &'a str = "clock-source";
-    const RATE_NAME: &'a str = "clock-rate";
+impl ClkCtl {
+    const SRC_NAME: &'static str = "clock-source";
+    const RATE_NAME: &'static str = "clock-rate";
 
     pub fn new() -> Self {
         ClkCtl {

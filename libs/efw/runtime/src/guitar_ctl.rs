@@ -10,10 +10,10 @@ use efw_protocols::robot_guitar::*;
 
 pub struct GuitarCtl {}
 
-impl<'a> GuitarCtl {
-    const MANUAL_CHARGE_NAME: &'a str = "guitar-manual-chage";
-    const AUTO_CHARGE_NAME: &'a str = "guitar-auto-chage";
-    const SUSPEND_TO_CHARGE: &'a str = "guitar-suspend-to-charge";
+impl GuitarCtl {
+    const MANUAL_CHARGE_NAME: &'static str = "guitar-manual-chage";
+    const AUTO_CHARGE_NAME: &'static str = "guitar-auto-chage";
+    const SUSPEND_TO_CHARGE: &'static str = "guitar-suspend-to-charge";
 
     const MIN_SEC: i32 = 0;
     const MAX_SEC: i32 = 60 * 60;   // = One hour.

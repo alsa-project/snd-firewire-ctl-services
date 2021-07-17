@@ -15,15 +15,15 @@ pub struct MeterCtl {
     midi_outputs: usize,
 }
 
-impl<'a> MeterCtl {
-    const CLK_DETECT: &'a str = "clock-detect";
-    const MIDI_IN_DETECT: &'a str = "midi-in-detect";
-    const MIDI_OUT_DETECT: &'a str = "midi-out-detect";
-    const INPUT_METERS: &'a str = "input-meter";
-    const OUTPUT_METERS: &'a str = "output-meter";
-    const GUITAR_STEREO_CONNECT: &'a str = "guitar-stereo-detect";
-    const GUITAR_HEX_SIGNAL: &'a str = "guitar-hex-signal-detect";
-    const GUITAR_CHARGE_STATE: &'a str = "guitar-charge-state-detect";
+impl MeterCtl {
+    const CLK_DETECT: &'static str = "clock-detect";
+    const MIDI_IN_DETECT: &'static str = "midi-in-detect";
+    const MIDI_OUT_DETECT: &'static str = "midi-out-detect";
+    const INPUT_METERS: &'static str = "input-meter";
+    const OUTPUT_METERS: &'static str = "output-meter";
+    const GUITAR_STEREO_CONNECT: &'static str = "guitar-stereo-detect";
+    const GUITAR_HEX_SIGNAL: &'static str = "guitar-hex-signal-detect";
+    const GUITAR_CHARGE_STATE: &'static str = "guitar-charge-state-detect";
 
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x007fffff;
