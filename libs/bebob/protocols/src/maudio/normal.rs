@@ -51,6 +51,65 @@ impl MaudioNormalMeterProtocol for Fw410MeterProtocol {
     const HAS_SYNC_STATUS: bool = true;
 }
 
+/// The protocol implementation for physical input of FireWire 410.
+#[derive(Default)]
+pub struct Fw410PhysInputProtocol;
+
+impl LevelOperation for Fw410PhysInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x03, 0x04];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for physical output of FireWire 410.
+#[derive(Default)]
+pub struct Fw410PhysOutputProtocol;
+
+impl LevelOperation for Fw410PhysOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0a, 0x0b, 0x0c, 0x0d, 0x0e];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+    ];
+}
+
+/// The protocol implementation for source of aux mixer in FireWire 410.
+#[derive(Default)]
+pub struct Fw410AuxSourceProtocol;
+
+impl LevelOperation for Fw410AuxSourceProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x07, 0x08, 0x06, 0x05, 0x05, 0x05, 0x05];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x02, 0x03],
+        [0x04, 0x05],
+        [0x06, 0x07],
+    ];
+}
+
+/// The protocol implementation for output of aux mixer in FireWire 410.
+#[derive(Default)]
+pub struct Fw410AuxOutputProtocol;
+
+impl LevelOperation for Fw410AuxOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x09];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
+
+/// The protocol implementation for output of headphone in FireWire 410.
+#[derive(Default)]
+pub struct Fw410HeadphoneProtocol;
+
+impl LevelOperation for Fw410HeadphoneProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0f];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
+
 /// The protocol implementation for media and sampling clock of FireWire Solo.
 #[derive(Default)]
 pub struct SoloClkProtocol;
@@ -88,6 +147,26 @@ impl MaudioNormalMeterProtocol for SoloMeterProtocol {
     const HAS_SWITCH: bool = false;
     const HAS_SYNC_STATUS: bool = true;
 }
+
+/// The protocol implementation for physical input of FireWire Solo.
+#[derive(Default)]
+pub struct SoloPhysInputProtocol;
+
+impl LevelOperation for SoloPhysInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x03, 0x04];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for stream input of FireWire Solo.
+#[derive(Default)]
+pub struct SoloStreamInputProtocol;
+
+impl LevelOperation for SoloStreamInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01, 0x02];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+// NOTE: outputs are not configurable, connected to hardware dial directly.
 
 /// The protocol implementation for media and sampling clock of FireWire Audiophile.
 #[derive(Default)]
@@ -127,6 +206,57 @@ impl MaudioNormalMeterProtocol for AudiophileMeterProtocol {
     const HAS_SYNC_STATUS: bool = true;
 }
 
+/// The protocol implementation for physical input in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophilePhysInputProtocol;
+
+impl LevelOperation for AudiophilePhysInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x04, 0x05];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for physical output in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophilePhysOutputProtocol;
+
+impl LevelOperation for AudiophilePhysOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0c, 0x0d, 0x0e];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for source of aux mixer in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophileAuxSourceProtocol;
+
+impl LevelOperation for AudiophileAuxSourceProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x09, 0x0a, 0x06, 0x07, 0x08];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+        [0x00, 0x01],
+    ];
+}
+
+/// The protocol implementation for output of aux mixer in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophileAuxOutputProtocol;
+
+impl LevelOperation for AudiophileAuxOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0b];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
+
+/// The protocol implementation for output of headphone in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophileHeadphoneProtocol;
+
+impl LevelOperation for AudiophileHeadphoneProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0f];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
+
 /// The protocol implementation for media and sampling clock of Ozonic.
 #[derive(Default)]
 pub struct OzonicClkProtocol;
@@ -162,6 +292,26 @@ impl MaudioNormalMeterProtocol for OzonicMeterProtocol {
     const HAS_SWITCH: bool = false;
     const HAS_SYNC_STATUS: bool = false;
 }
+
+/// The protocol implementation for physical input of FireWire Audiophile.
+#[derive(Default)]
+pub struct OzonicPhysInputProtocol;
+
+impl LevelOperation for OzonicPhysInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x03, 0x04];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for stream input of FireWire Audiophile.
+#[derive(Default)]
+pub struct OzonicStreamInputProtocol;
+
+impl LevelOperation for OzonicStreamInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01, 0x02];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+// NOTE: outputs are not configurable, connected to hardware dial directly.
 
 /// The state of switch with LED specific to FireWire Audiophile.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

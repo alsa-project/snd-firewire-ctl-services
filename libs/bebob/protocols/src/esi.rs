@@ -33,3 +33,22 @@ impl SamplingClockSourceOperation for Quatafire610ClkProtocol {
         }),
     ];
 }
+
+/// The protocol implementation for physical input of Quatafire 610.
+#[derive(Default)]
+pub struct Quatafire610PhysInputProtocol;
+
+impl LevelOperation for Quatafire610PhysInputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01, 0x02, 0x03];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for physical output of Quatafire 610.
+#[derive(Default)]
+pub struct Quatafire610PhysOutputProtocol;
+
+impl LevelOperation for Quatafire610PhysOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x04, 0x04, 0x04, 0x04];
+    const CH_ID_LIST: &'static [[u8; 2]] =
+        &[[0x00, 0x01], [0x02, 0x03], [0x04, 0x05], [0x06, 0x07]];
+}

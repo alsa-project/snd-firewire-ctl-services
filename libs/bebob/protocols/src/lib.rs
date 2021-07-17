@@ -18,7 +18,7 @@ use glib::{Error, FileError};
 
 use hinawa::FwFcp;
 
-use ta1394::{amdtp::*, ccm::*, general::*, *};
+use ta1394::{amdtp::*, audio::*, ccm::*, general::*, *};
 
 use bridgeco::*;
 
@@ -158,5 +158,61 @@ pub trait SamplingClockSourceOperation {
         op.src = src;
 
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+}
+
+/// The trait of level operation for audio function blocks.
+pub trait LevelOperation {
+    const FUNC_BLOCK_ID_LIST: &'static [u8];
+    const CH_ID_LIST: &'static [[u8; 2]];
+
+    const LEVEL_MIN: i16 = FeatureCtl::NEG_INFINITY;
+    const LEVEL_MAX: i16 = 0;
+    const LEVEL_STEP: i16 = 0x10;
+
+    fn read_level(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
+        let (func_block_id, ch_id) = Self::FUNC_BLOCK_ID_LIST
+            .iter()
+            .zip(Self::CH_ID_LIST.iter())
+            .nth(idx / 2)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of channel ID list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id_list)| (*func_block_id, ch_id_list[idx % 2]))?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            AudioCh::Each(ch_id),
+            FeatureCtl::Volume(vec![-1]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let FeatureCtl::Volume(data) = op.ctl {
+            Ok(data[0])
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_level(avc: &BebobAvc, idx: usize, vol: i16, timeout_ms: u32) -> Result<(), Error> {
+        let (func_block_id, ch_id) = Self::FUNC_BLOCK_ID_LIST
+            .iter()
+            .zip(Self::CH_ID_LIST.iter())
+            .nth(idx / 2)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of channel ID list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id_list)| (*func_block_id, ch_id_list[idx % 2]))?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            AudioCh::Each(ch_id),
+            FeatureCtl::Volume(vec![vol]),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }
