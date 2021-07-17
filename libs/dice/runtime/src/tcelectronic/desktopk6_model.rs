@@ -170,10 +170,10 @@ impl AsRef<FwReq> for Desktopk6Proto {
 #[derive(Default, Debug)]
 pub struct MeterCtl(Vec<ElemId>);
 
-impl<'a> MeterCtl {
-    const ANALOG_IN_NAME: &'a str = "analog-input-meters";
-    const MIXER_OUT_NAME: &'a str = "mixer-output-meters";
-    const STREAM_IN_NAME: &'a str = "stream-input-meters";
+impl MeterCtl {
+    const ANALOG_IN_NAME: &'static str = "analog-input-meters";
+    const MIXER_OUT_NAME: &'static str = "mixer-output-meters";
+    const STREAM_IN_NAME: &'static str = "stream-input-meters";
 
     const METER_MIN: i32 = -1000;
     const METER_MAX: i32 = 0;
@@ -235,13 +235,13 @@ struct PanelCtl{
     fw_led_ctl: FwLedCtl,
 }
 
-impl<'a> PanelCtl {
-    const PANEL_BUTTON_COUNT_NAME: &'a str = "panel-button-count";
-    const MIXER_OUT_VOL: &'a str = "mixer-output-volume";
-    const PHONE_KNOB_VALUE_NAME: &'a str = "phone-knob-value";
-    const MIX_KNOB_VALUE_NAME: &'a str = "mix-knob-value";
-    const REVERB_LED_STATE_NAME: &'a str = "reverb-led-state";
-    const REVERB_KNOB_VALUE_NAME: &'a str = "reverb-knob-value";
+impl PanelCtl {
+    const PANEL_BUTTON_COUNT_NAME: &'static str = "panel-button-count";
+    const MIXER_OUT_VOL: &'static str = "mixer-output-volume";
+    const PHONE_KNOB_VALUE_NAME: &'static str = "phone-knob-value";
+    const MIX_KNOB_VALUE_NAME: &'static str = "mix-knob-value";
+    const REVERB_LED_STATE_NAME: &'static str = "reverb-led-state";
+    const REVERB_KNOB_VALUE_NAME: &'static str = "reverb-knob-value";
 
     const KNOB_MIN: i32 = -1000;
     const KNOB_MAX: i32 = 0;
@@ -357,20 +357,20 @@ fn hp_src_to_string(src: DesktopHpSrc) -> String {
 #[derive(Default, Debug)]
 struct MixerCtl;
 
-impl<'a> MixerCtl {
-    const MIXER_MIC_INST_SRC_LEVEL_NAME: &'a str = "mixer-mic-inst-source-level";
-    const MIXER_MIC_INST_SRC_BALANCE_NAME: &'a str = "mixer-mic-inst-source-pan";
-    const MIXER_MIC_INST_SRC_SEND_NAME: &'a str = "mixer-mic-inst-source-send";
+impl MixerCtl {
+    const MIXER_MIC_INST_SRC_LEVEL_NAME: &'static str = "mixer-mic-inst-source-level";
+    const MIXER_MIC_INST_SRC_BALANCE_NAME: &'static str = "mixer-mic-inst-source-pan";
+    const MIXER_MIC_INST_SRC_SEND_NAME: &'static str = "mixer-mic-inst-source-send";
 
-    const MIXER_DUAL_INST_SRC_LEVEL_NAME: &'a str = "mixer-dual-inst-source-level";
-    const MIXER_DUAL_INST_SRC_BALANCE_NAME: &'a str = "mixer-dual-inst-source-pan";
-    const MIXER_DUAL_INST_SRC_SEND_NAME: &'a str = "mixer-dual-inst-source-send";
+    const MIXER_DUAL_INST_SRC_LEVEL_NAME: &'static str = "mixer-dual-inst-source-level";
+    const MIXER_DUAL_INST_SRC_BALANCE_NAME: &'static str = "mixer-dual-inst-source-pan";
+    const MIXER_DUAL_INST_SRC_SEND_NAME: &'static str = "mixer-dual-inst-source-send";
 
-    const MIXER_STEREO_IN_SRC_LEVEL_NAME: &'a str = "mixer-stereo-input-source-level";
-    const MIXER_STEREO_IN_SRC_BALANCE_NAME: &'a str = "mixer-stereo-input-source-pan";
-    const MIXER_STEREO_IN_SRC_SEND_NAME: &'a str = "mixer-stereo-input-source-send";
+    const MIXER_STEREO_IN_SRC_LEVEL_NAME: &'static str = "mixer-stereo-input-source-level";
+    const MIXER_STEREO_IN_SRC_BALANCE_NAME: &'static str = "mixer-stereo-input-source-pan";
+    const MIXER_STEREO_IN_SRC_SEND_NAME: &'static str = "mixer-stereo-input-source-send";
 
-    const HP_SRC_NAME: &'a str = "headphone-source";
+    const HP_SRC_NAME: &'static str = "headphone-source";
 
     const LEVEL_MIN: i32 = -1000;
     const LEVEL_MAX: i32 = 0;
@@ -610,18 +610,18 @@ fn input_scene_to_string(scene: &InputScene) -> String {
 #[derive(Default, Debug)]
 struct HwStateCtl(Vec<ElemId>);
 
-impl<'a> HwStateCtl {
-    const METER_TARGET_NAME: &'a str = "meter-target";
-    const MIXER_OUT_MONAURAL_NAME: &'a str = "mixer-out-monaural";
-    const KNOB_ASSIGN_TO_HP_NAME: &'a str = "knob-assign-to-headphone";
-    const MIXER_OUTPUT_DIM_ENABLE_NAME: &'a str = "mixer-output-dim-enable";
-    const MIXER_OUTPUT_DIM_LEVEL_NAME: &'a str = "mixer-output-dim-level";
-    const SCENE_NAME: &'a str = "scene-select";
-    const REVERB_TO_MAIN_NAME: &'a str = "reverb-to-main";
-    const REVERB_TO_HP_NAME: &'a str = "reverb-to-hp";
-    const KNOB_BACKLIGHT_NAME: &'a str = "knob-backlight";
-    const MIC_0_PHANTOM_NAME: &'a str = "mic-1-phantom";
-    const MIC_0_BOOST_NAME: &'a str = "mic-1-boost";
+impl HwStateCtl {
+    const METER_TARGET_NAME: &'static str = "meter-target";
+    const MIXER_OUT_MONAURAL_NAME: &'static str = "mixer-out-monaural";
+    const KNOB_ASSIGN_TO_HP_NAME: &'static str = "knob-assign-to-headphone";
+    const MIXER_OUTPUT_DIM_ENABLE_NAME: &'static str = "mixer-output-dim-enable";
+    const MIXER_OUTPUT_DIM_LEVEL_NAME: &'static str = "mixer-output-dim-level";
+    const SCENE_NAME: &'static str = "scene-select";
+    const REVERB_TO_MAIN_NAME: &'static str = "reverb-to-main";
+    const REVERB_TO_HP_NAME: &'static str = "reverb-to-hp";
+    const KNOB_BACKLIGHT_NAME: &'static str = "knob-backlight";
+    const MIC_0_PHANTOM_NAME: &'static str = "mic-1-phantom";
+    const MIC_0_BOOST_NAME: &'static str = "mic-1-boost";
 
     const METER_TARGETS: [MeterTarget;3] = [
         MeterTarget::Input,

@@ -25,8 +25,8 @@ pub fn firewire_led_state_to_string(state: &FireWireLedState) -> String {
 #[derive(Default, Debug)]
 pub struct FwLedCtl(pub Vec<ElemId>);
 
-impl<'a> FwLedCtl {
-    const STATE_NAME: &'a str = "FireWire-LED-state";
+impl FwLedCtl {
+    const STATE_NAME: &'static str = "FireWire-LED-state";
 
     const STATES: [FireWireLedState;4] = [
         FireWireLedState::Off,
