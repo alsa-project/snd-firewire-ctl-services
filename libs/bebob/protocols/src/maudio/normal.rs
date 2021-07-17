@@ -77,6 +77,14 @@ impl LevelOperation for Fw410PhysOutputProtocol {
     ];
 }
 
+impl SelectorOperation for Fw410PhysOutputProtocol {
+    // NOTE: "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "analog-output-7/8",
+    //       "analog-output-9/10"
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x02, 0x03, 0x04, 0x05, 0x06];
+    // NOTE: "mixer-output", "aux-output-1/2"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
 /// The protocol implementation for source of aux mixer in FireWire 410.
 #[derive(Default)]
 pub struct Fw410AuxSourceProtocol;
@@ -110,6 +118,22 @@ pub struct Fw410HeadphoneProtocol;
 impl LevelOperation for Fw410HeadphoneProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0f];
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
+
+impl SelectorOperation for Fw410HeadphoneProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x07];
+    // NOTE: "mixer", "aux-1/2".
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
+/// The protocol implementation for source of S/PDIF output in FireWire 410.
+#[derive(Default)]
+pub struct Fw410SpdifOutputProtocol;
+
+impl SelectorOperation for Fw410SpdifOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01];
+    // NOTE: "Coaxial", "Optical".
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
 }
 
 /// The protocol implementation for media and sampling clock of FireWire Solo.
@@ -172,6 +196,16 @@ impl LevelOperation for SoloStreamInputProtocol {
 
 // NOTE: outputs are not configurable, connected to hardware dial directly.
 
+/// The protocol implementation for source of S/PDIF output in FireWire Solo.
+#[derive(Default)]
+pub struct SoloSpdifOutputProtocol;
+
+impl SelectorOperation for SoloSpdifOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01];
+    // NOTE: "stream-3/4", "mixer-3/4".
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
 /// The protocol implementation for media and sampling clock of FireWire Audiophile.
 #[derive(Default)]
 pub struct AudiophileClkProtocol;
@@ -230,6 +264,13 @@ impl LevelOperation for AudiophilePhysOutputProtocol {
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01], [0x00, 0x01]];
 }
 
+impl SelectorOperation for AudiophilePhysOutputProtocol {
+    // NOTE: "analog-output-1/2", "analog-output-3/4", "analog-output-5/6"
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01, 0x02, 0x03];
+    // NOTE: "mixer-output", "aux-output-1/2"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
 /// The protocol implementation for source of aux mixer in FireWire Audiophile.
 #[derive(Default)]
 pub struct AudiophileAuxSourceProtocol;
@@ -261,6 +302,12 @@ pub struct AudiophileHeadphoneProtocol;
 impl LevelOperation for AudiophileHeadphoneProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0f];
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
+
+impl SelectorOperation for AudiophileHeadphoneProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x04];
+    // NOTE: "mixer-1/2", "mixer-3/4", "mixer-5/6", "aux-1/2".
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
 }
 
 /// The protocol implementation for media and sampling clock of Ozonic.
