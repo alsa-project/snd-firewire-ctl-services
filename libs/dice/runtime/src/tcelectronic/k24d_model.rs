@@ -255,11 +255,11 @@ impl AsRef<FwReq> for K24dProto {
 #[derive(Default, Debug)]
 struct K24dSpecificCtl(Vec<ElemId>);
 
-impl<'a> K24dSpecificCtl {
-    const OUT_23_SRC_NAME: &'a str = "output-3/4-source";
-    const USE_CH_STRIP_AS_PLUGIN_NAME: &'a str = "use-channel-strip-as-plugin";
-    const USE_REVERB_AT_MID_RATE: &'a str = "use-reverb-at-mid-rate";
-    const MIXER_ENABLE_NAME: &'a str = "mixer-enable";
+impl K24dSpecificCtl {
+    const OUT_23_SRC_NAME: &'static str = "output-3/4-source";
+    const USE_CH_STRIP_AS_PLUGIN_NAME: &'static str = "use-channel-strip-as-plugin";
+    const USE_REVERB_AT_MID_RATE: &'static str = "use-reverb-at-mid-rate";
+    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = PHYS_OUT_SRCS.iter()

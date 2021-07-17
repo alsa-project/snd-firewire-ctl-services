@@ -24,8 +24,8 @@ fn standalone_rate_to_string(rate: &TcKonnektStandaloneClkRate) -> String {
 #[derive(Default, Debug)]
 pub struct TcKonnektStandaloneCtl;
 
-impl<'a> TcKonnektStandaloneCtl {
-    const RATE_NAME: &'a str = "standalone-clock-rate";
+impl TcKonnektStandaloneCtl {
+    const RATE_NAME: &'static str = "standalone-clock-rate";
 
     const RATES: [TcKonnektStandaloneClkRate;4] = [
         TcKonnektStandaloneClkRate::R44100,

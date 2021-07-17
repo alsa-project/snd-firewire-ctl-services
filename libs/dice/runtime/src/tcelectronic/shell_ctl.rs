@@ -36,11 +36,11 @@ pub struct HwStateCtl {
     fw_led_ctl: FwLedCtl,
 }
 
-impl<'a> HwStateCtl {
+impl HwStateCtl {
     // TODO: For Jack detection in ALSA applications.
-    const ANALOG_JACK_STATE_NAME: &'a str = "analog-jack-state";
+    const ANALOG_JACK_STATE_NAME: &'static str = "analog-jack-state";
 
-    const ANALOG_JACK_STATE_LABELS: &'a [ShellAnalogJackState] = &[
+    const ANALOG_JACK_STATE_LABELS: [ShellAnalogJackState;5] = [
         ShellAnalogJackState::FrontSelected,
         ShellAnalogJackState::FrontInserted,
         ShellAnalogJackState::FrontInsertedAttenuated,
@@ -98,27 +98,27 @@ pub struct ShellMixerCtl{
     pub measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> ShellMixerCtl {
-    const MIXER_STREAM_SRC_PAIR_GAIN_NAME: &'a str = "mixer-stream-source-gain";
-    const MIXER_STREAM_SRC_PAIR_PAN_NAME: &'a str = "mixer-stream-source-pan";
-    const MIXER_STREAM_SRC_PAIR_MUTE_NAME: &'a str = "mixer-stream-source-mute";
-    const REVERB_STREAM_SRC_PAIR_GAIN_NAME: &'a str = "send-stream-source-gain";
-    const MIXER_PHYS_SRC_STEREO_LINK_NAME: &'a str = "mixer-phys-source-link";
+impl ShellMixerCtl {
+    const MIXER_STREAM_SRC_PAIR_GAIN_NAME: &'static str = "mixer-stream-source-gain";
+    const MIXER_STREAM_SRC_PAIR_PAN_NAME: &'static str = "mixer-stream-source-pan";
+    const MIXER_STREAM_SRC_PAIR_MUTE_NAME: &'static str = "mixer-stream-source-mute";
+    const REVERB_STREAM_SRC_PAIR_GAIN_NAME: &'static str = "send-stream-source-gain";
+    const MIXER_PHYS_SRC_STEREO_LINK_NAME: &'static str = "mixer-phys-source-link";
 
-    const MIXER_PHYS_SRC_GAIN_NAME: &'a str = "mixer-phys-source-gain";
-    const MIXER_PHYS_SRC_PAN_NAME: &'a str = "mixer-phys-source-pan";
-    const MIXER_PHYS_SRC_MUTE_NAME: &'a str = "mixer-phys-source-mute";
+    const MIXER_PHYS_SRC_GAIN_NAME: &'static str = "mixer-phys-source-gain";
+    const MIXER_PHYS_SRC_PAN_NAME: &'static str = "mixer-phys-source-pan";
+    const MIXER_PHYS_SRC_MUTE_NAME: &'static str = "mixer-phys-source-mute";
 
-    const REVERB_PHYS_SRC_GAIN_NAME: &'a str = "send-phys-source-gain";
+    const REVERB_PHYS_SRC_GAIN_NAME: &'static str = "send-phys-source-gain";
 
-    const MIXER_OUT_DIM_NAME: &'a str = "mixer-out-dim-enable";
-    const MIXER_OUT_VOL_NAME: &'a str = "mixer-out-volume";
-    const MIXER_OUT_DIM_VOL_NAME: &'a str = "mixer-out-dim-volume";
+    const MIXER_OUT_DIM_NAME: &'static str = "mixer-out-dim-enable";
+    const MIXER_OUT_VOL_NAME: &'static str = "mixer-out-volume";
+    const MIXER_OUT_DIM_VOL_NAME: &'static str = "mixer-out-dim-volume";
 
-    const STREAM_IN_METER_NAME: &'a str = "stream-input-meters";
-    const ANALOG_IN_METER_NAME: &'a str = "analog-input-meters";
-    const DIGITAL_IN_METER_NAME: &'a str = "digital-input-meters";
-    const MIXER_OUT_METER_NAME: &'a str = "mixer-output-meters";
+    const STREAM_IN_METER_NAME: &'static str = "stream-input-meters";
+    const ANALOG_IN_METER_NAME: &'static str = "analog-input-meters";
+    const DIGITAL_IN_METER_NAME: &'static str = "digital-input-meters";
+    const MIXER_OUT_METER_NAME: &'static str = "mixer-output-meters";
 
     const LEVEL_MIN: i32 = -1000;
     const LEVEL_MAX: i32 = 0;
@@ -528,10 +528,10 @@ impl<'a> ShellMixerCtl {
 #[derive(Default, Debug)]
 pub struct ShellReverbReturnCtl(pub Vec<ElemId>);
 
-impl<'a> ShellReverbReturnCtl {
-    const USE_AS_PLUGIN_NAME: &'a str = "use-reverb-as-plugin";
-    const GAIN_NAME: &'a str = "reverb-return-gain";
-    const MUTE_NAME: &'a str = "reverb-return-mute";
+impl ShellReverbReturnCtl {
+    const USE_AS_PLUGIN_NAME: &'static str = "use-reverb-as-plugin";
+    const GAIN_NAME: &'static str = "reverb-return-gain";
+    const MUTE_NAME: &'static str = "reverb-return-mute";
 
     const GAIN_MIN: i32 = -1000;
     const GAIN_MAX: i32 = 0;
@@ -636,8 +636,8 @@ fn standalone_src_to_string(src: &ShellStandaloneClkSrc) -> String {
 #[derive(Default, Debug)]
 pub struct ShellStandaloneCtl(TcKonnektStandaloneCtl);
 
-impl<'a> ShellStandaloneCtl {
-    const SRC_NAME: &'a str = "standalone-clock-source";
+impl ShellStandaloneCtl {
+    const SRC_NAME: &'static str = "standalone-clock-source";
 
     pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
         -> Result<(), Error>
@@ -716,8 +716,8 @@ fn mixer_stream_src_pair_to_string(src: &ShellMixerStreamSrcPair) -> String {
 #[derive(Default, Debug)]
 pub struct MixerStreamSrcPairCtl;
 
-impl<'a> MixerStreamSrcPairCtl {
-    const MIXER_STREAM_SRC_NAME: &'a str = "mixer-stream-soruce";
+impl MixerStreamSrcPairCtl {
+    const MIXER_STREAM_SRC_NAME: &'static str = "mixer-stream-soruce";
     const MIXER_STREAM_SRC_PAIRS: [ShellMixerStreamSrcPair;7] = [
         ShellMixerStreamSrcPair::Stream01,
         ShellMixerStreamSrcPair::Stream23,
@@ -809,8 +809,8 @@ pub const PHYS_OUT_SRCS: [ShellPhysOutSrc;4] = [
 #[derive(Default, Debug)]
 pub struct ShellCoaxIfaceCtl;
 
-impl<'a> ShellCoaxIfaceCtl {
-    const OUT_SRC_NAME: &'a str = "coaxial-output-source";
+impl ShellCoaxIfaceCtl {
+    const OUT_SRC_NAME: &'static str = "coaxial-output-source";
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = PHYS_OUT_SRCS.iter()
@@ -885,10 +885,10 @@ fn opt_out_fmt_to_string(fmt: &ShellOptOutputIfaceFormat) -> String {
 #[derive(Default, Debug)]
 pub struct ShellOptIfaceCtl;
 
-impl<'a> ShellOptIfaceCtl {
-    const IN_FMT_NAME: &'a str = "optical-input-format";
-    const OUT_FMT_NAME: &'a str = "optical-output-format";
-    const OUT_SRC_NAME: &'a str = "optical-output-source";
+impl ShellOptIfaceCtl {
+    const IN_FMT_NAME: &'static str = "optical-input-format";
+    const OUT_FMT_NAME: &'static str = "optical-output-format";
+    const OUT_SRC_NAME: &'static str = "optical-output-source";
 
     const IN_FMTS: [ShellOptInputIfaceFormat;3] = [
         ShellOptInputIfaceFormat::Adat0to7,
@@ -1028,22 +1028,22 @@ pub struct ShellKnobCtl{
     pub notified_elem_list: Vec<ElemId>,
 }
 
-impl<'a> ShellKnobCtl {
-    const TARGET_NAME: &'a str = "knob-target";
+impl ShellKnobCtl {
+    const TARGET_NAME: &'static str = "knob-target";
 
-    const K8_TARGETS: &'a [&'a str] = &[
+    const K8_TARGETS: [&'static str;4] = [
         "Analog-1",
         "Analog-2",
         "S/PDIF-1/2",
         "Configurable",
     ];
-    const K24D_KLIVE_TARGETS: &'a [&'a str] = &[
+    const K24D_KLIVE_TARGETS: [&'static str;4] = [
         "Analog-1",
         "Analog-2",
         "Analog-3/4",
         "Configurable",
     ];
-    const ITWIN_TARGETS: &'a [&'a str] = &[
+    const ITWIN_TARGETS: [&'static str;4] = [
         "Channel-strip-1",
         "Channel-strip-2",
         "Reverb-1/2",
@@ -1116,14 +1116,14 @@ impl<'a> ShellKnobCtl {
 #[derive(Default, Debug)]
 pub struct ShellKnob2Ctl;
 
-impl<'a> ShellKnob2Ctl {
-    const KNOB2_NAME: &'a str = "configurable-knob-target";
+impl ShellKnob2Ctl {
+    const KNOB2_NAME: &'static str = "configurable-knob-target";
 
-    const K8_LABELS: &'a [&'a str] = &[
+    const K8_LABELS: [&'static str;2] = [
         "Stream-input-1/2",
         "Mixer-1/2",
     ];
-    const K24D_LABELS: &'a [&'a str] = &[
+    const K24D_LABELS: [&'static str;8] = [
         "Digital-1/2",
         "Digital-3/4",
         "Digital-5/6",
@@ -1133,7 +1133,7 @@ impl<'a> ShellKnob2Ctl {
         "Mixer-1/2",
         "Tune-pitch-tone",
     ];
-    const KLIVE_LABELS: &'a [&'a str] = &[
+    const KLIVE_LABELS: [&'static str;9] = [
         "Digital-1/2",
         "Digital-3/4",
         "Digital-5/6",
@@ -1150,11 +1150,11 @@ impl<'a> ShellKnob2Ctl {
         where S: TcKonnektSegmentData + ShellKnob2TargetSpec,
     {
         let labels = if S::KNOB2_TARGET_COUNT == 9 {
-            Self::KLIVE_LABELS
+            &Self::KLIVE_LABELS[..]
         } else if S::KNOB2_TARGET_COUNT == 8 {
-            Self::K24D_LABELS
+            &Self::K24D_LABELS[..]
         } else if S::KNOB2_TARGET_COUNT == 2 {
-            Self::K8_LABELS
+            &Self::K8_LABELS[..]
         } else {
             unreachable!();
         };

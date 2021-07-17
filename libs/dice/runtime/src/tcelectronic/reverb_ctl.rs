@@ -58,25 +58,25 @@ pub struct ReverbCtl {
     pub measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> ReverbCtl {
-    const REVERB_INPUT_LEVEL_NAME: &'a str = "reverb-input-level";
-    const REVERB_BYPASS_NAME: &'a str = "reverb-bypass";
-    const REVERB_KILL_WET: &'a str = "reverb-kill-wet";
-    const REVERB_KILL_DRY: &'a str = "reverb-kill-dry";
-    const REVERB_OUTPUT_LEVEL_NAME: &'a str = "reverb-output-level";
-    const REVERB_TIME_DECAY_NAME: &'a str = "reverb-time-decay";
-    const REVERB_TIME_PRE_DECAY_NAME: &'a str = "reverb-time-pre-decay";
-    const REVERB_COLOR_LOW_NAME: &'a str = "reverb-color-low";
-    const REVERB_COLOR_HIGH_NAME: &'a str = "reverb-color-high";
-    const REVERB_COLOR_HIGH_FACTOR_NAME: &'a str = "reverb-color-high-factor";
-    const REVERB_MOD_RATE_NAME: &'a str = "reverb-mod-rate";
-    const REVERB_MOD_DEPTH_NAME: &'a str = "reverb-mod-depth";
-    const REVERB_LEVEL_EARLY_NAME: &'a str = "reverb-level-early";
-    const REVERB_LEVEL_REVERB_NAME: &'a str = "reverb-level-reverb";
-    const REVERB_LEVEL_DRY_NAME: &'a str = "reverb-level-dry";
-    const REVERB_ALGORITHM_NAME: &'a str = "reverb-algorithm";
-    const REVERB_OUTPUT_METER_NAME: &'a str = "reverb-output-meter";
-    const REVERB_INPUT_METER_NAME: &'a str = "reverb-input-meter";
+impl ReverbCtl {
+    const REVERB_INPUT_LEVEL_NAME: &'static str = "reverb-input-level";
+    const REVERB_BYPASS_NAME: &'static str = "reverb-bypass";
+    const REVERB_KILL_WET: &'static str = "reverb-kill-wet";
+    const REVERB_KILL_DRY: &'static str = "reverb-kill-dry";
+    const REVERB_OUTPUT_LEVEL_NAME: &'static str = "reverb-output-level";
+    const REVERB_TIME_DECAY_NAME: &'static str = "reverb-time-decay";
+    const REVERB_TIME_PRE_DECAY_NAME: &'static str = "reverb-time-pre-decay";
+    const REVERB_COLOR_LOW_NAME: &'static str = "reverb-color-low";
+    const REVERB_COLOR_HIGH_NAME: &'static str = "reverb-color-high";
+    const REVERB_COLOR_HIGH_FACTOR_NAME: &'static str = "reverb-color-high-factor";
+    const REVERB_MOD_RATE_NAME: &'static str = "reverb-mod-rate";
+    const REVERB_MOD_DEPTH_NAME: &'static str = "reverb-mod-depth";
+    const REVERB_LEVEL_EARLY_NAME: &'static str = "reverb-level-early";
+    const REVERB_LEVEL_REVERB_NAME: &'static str = "reverb-level-reverb";
+    const REVERB_LEVEL_DRY_NAME: &'static str = "reverb-level-dry";
+    const REVERB_ALGORITHM_NAME: &'static str = "reverb-algorithm";
+    const REVERB_OUTPUT_METER_NAME: &'static str = "reverb-output-meter";
+    const REVERB_INPUT_METER_NAME: &'static str = "reverb-input-meter";
 
     const INPUT_LEVEL_MIN: i32 = -240;
     const INPUT_LEVEL_MAX: i32 = 0;

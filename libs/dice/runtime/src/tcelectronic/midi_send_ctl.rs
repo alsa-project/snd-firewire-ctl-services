@@ -14,13 +14,13 @@ use core::elem_value_accessor::*;
 #[derive(Default, Debug)]
 pub struct MidiSendCtl;
 
-impl<'a> MidiSendCtl {
-    const NORMAL_EVENT_CH_NAME: &'a str = "midi-normal-event-channel";
-    const NORMAL_EVENT_CC_NAME: &'a str = "midi-normal-event-cc";
-    const PUSHED_EVENT_CH_NAME: &'a str = "midi-pushed-event-channel";
-    const PUSHED_EVENT_CC_NAME: &'a str = "midi-pushed-event-cc";
-    const EVENT_TO_PORT_NAME: &'a str = "midi-event-to-port";
-    const EVENT_TO_STREAM_NAME: &'a str = "midi-event-to-stream";
+impl MidiSendCtl {
+    const NORMAL_EVENT_CH_NAME: &'static str = "midi-normal-event-channel";
+    const NORMAL_EVENT_CC_NAME: &'static str = "midi-normal-event-cc";
+    const PUSHED_EVENT_CH_NAME: &'static str = "midi-pushed-event-channel";
+    const PUSHED_EVENT_CC_NAME: &'static str = "midi-pushed-event-cc";
+    const EVENT_TO_PORT_NAME: &'static str = "midi-event-to-port";
+    const EVENT_TO_STREAM_NAME: &'static str = "midi-event-to-stream";
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::NORMAL_EVENT_CH_NAME, 0);
