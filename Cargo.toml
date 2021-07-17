@@ -12,6 +12,7 @@ members = [
     "libs/motu/runtime",
     "libs/oxfw/protocols",
     "libs/oxfw/runtime",
+    "libs/bebob/protocols",
     "libs/bebob/runtime",
     "libs/dice/protocols",
     "libs/dice/runtime",
