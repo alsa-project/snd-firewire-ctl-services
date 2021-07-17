@@ -84,7 +84,7 @@ impl<'a> Default for OzonicModel<'a> {
 
 impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
     fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
-        self.avc.fcp.bind(&unit.get_node())?;
+        self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;

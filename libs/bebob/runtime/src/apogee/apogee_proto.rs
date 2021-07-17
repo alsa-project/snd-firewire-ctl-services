@@ -314,7 +314,7 @@ mod test {
     #[test]
     fn apogeecmd_operands() {
         let operands = vec![0xde, 0xad, 0xbe, 0xef, 0x03, 0x02];
-        let mut op = ApogeeCmd::new(&[0xc0, 0xfe, 0xe1], VendorCmd::IoRouting(0x03), &[0x02]);
+        let mut op = ApogeeCmd::new(VendorCmd::IoRouting(0x03), &[0x02]);
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.params, vec![0x02]);
         let mut o = Vec::new();
@@ -322,7 +322,7 @@ mod test {
         assert_eq!(&o[..6], operands.as_slice());
 
         let operands = vec![0xde, 0xad, 0xbe, 0xf3, 0x01, 0x02, 0x03, 0x04];
-        let mut op = ApogeeCmd::new(&[0xde, 0xad, 0xbe], VendorCmd::SpdifResample, &[0x01, 0x02, 0x03, 0x04]);
+        let mut op = ApogeeCmd::new(VendorCmd::SpdifResample, &[0x01, 0x02, 0x03, 0x04]);
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.params, vec![0x01, 0x02, 0x03, 0x04]);
         let mut o = Vec::new();

@@ -53,7 +53,7 @@ impl<'a> Default for ScratchampModel<'a> {
 
 impl<'a> CtlModel<hinawa::SndUnit> for ScratchampModel<'a> {
     fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
-        self.avc.fcp.bind(&unit.get_node())?;
+        self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         InputCtl::load(&self.avc, card_cntr)?;

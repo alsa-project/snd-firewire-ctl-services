@@ -74,7 +74,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
     fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
     {
-        self.avc.fcp.bind(&unit.get_node())?;
+        self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.hw_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
