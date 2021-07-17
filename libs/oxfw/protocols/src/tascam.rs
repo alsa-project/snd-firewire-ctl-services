@@ -8,7 +8,7 @@
 use glib::Error;
 
 use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
-use ta1394::{AvcOp, AvcControl, AvcStatus, AvcNotify};
+use ta1394::{AvcOp, AvcControl, AvcStatus};
 use ta1394::general::VendorDependent;
 
 /// The enumeration to represent type of command for TASCAM FireOne.
@@ -146,18 +146,6 @@ impl Ta1394Avc for TascamAvc {
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
         }
         AvcControl::parse_operands(op, addr, &operands)
-    }
-
-    fn status<O: AvcOp + AvcStatus>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        self.fcp.status(addr, op, timeout_ms)
-    }
-
-    fn specific_inquiry<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        self.fcp.specific_inquiry(addr, op, timeout_ms)
-    }
-
-    fn notify<O: AvcOp + AvcNotify>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        self.fcp.notify(addr, op, timeout_ms)
     }
 }
 
