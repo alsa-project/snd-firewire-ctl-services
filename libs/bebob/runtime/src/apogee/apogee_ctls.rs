@@ -14,10 +14,12 @@ use core::elem_value_accessor::ElemValueAccessor;
 use ta1394::{AvcAddr, Ta1394Avc};
 
 use bebob_protocols::*;
-use super::super::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
-use super::super::extensions::BcoCompoundAm824StreamFormat;
-use super::super::extensions::ExtendedStreamFormatSingle;
-use super::super::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME, IN_METER_NAME, OUT_METER_NAME};
+use bebob_protocols::bridgeco::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
+use bebob_protocols::bridgeco::BcoCompoundAm824StreamFormat;
+use bebob_protocols::bridgeco::ExtendedStreamFormatSingle;
+
+use crate::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME, IN_METER_NAME, OUT_METER_NAME};
+
 use super::apogee_proto::{ApogeeCmd, VendorCmd, HwCmdOp};
 
 pub struct HwCtl{
