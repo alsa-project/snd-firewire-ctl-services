@@ -16,14 +16,14 @@ use core::elem_value_accessor::*;
 #[derive(Default, Debug)]
 pub struct OutGroupCtl(Vec<ElemId>);
 
-impl<'a> OutGroupCtl {
-    const VOL_NAME: &'a str = "output-group-volume";
-    const VOL_HWCTL_NAME: &'a str = "output-group-volume-hwctl";
-    const VOL_MUTE_NAME: &'a str = "output-group-volume-mute";
-    const MUTE_NAME: &'a str = "output-group-mute";
-    const DIM_NAME: &'a str = "output-group-dim";
-    const DIM_HWCTL_NAME: &'a str= "output-group-dim-hwctl";
-    const MUTE_HWCTL_NAME: &'a str = "output-group-mute-hwctl";
+impl OutGroupCtl {
+    const VOL_NAME: &'static str = "output-group-volume";
+    const VOL_HWCTL_NAME: &'static str = "output-group-volume-hwctl";
+    const VOL_MUTE_NAME: &'static str = "output-group-volume-mute";
+    const MUTE_NAME: &'static str = "output-group-mute";
+    const DIM_NAME: &'static str = "output-group-dim";
+    const DIM_HWCTL_NAME: &'static str= "output-group-dim-hwctl";
+    const MUTE_HWCTL_NAME: &'static str = "output-group-mute-hwctl";
 
     const LEVEL_MIN: i32 = 0x00;
     const LEVEL_MAX: i32 = 0x7f;
