@@ -44,9 +44,8 @@ impl Ta1394Avc for BebobAvc {
     fn control<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let opcode = op.opcode();
-        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, opcode, &mut operands, timeout_ms)?;
-        let unexpected = match opcode {
+        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let unexpected = match O::OPCODE {
             InputPlugSignalFormat::OPCODE |
             OutputPlugSignalFormat::OPCODE |
             SignalSource::OPCODE => {
@@ -58,7 +57,7 @@ impl Ta1394Avc for BebobAvc {
             }
         };
         if !unexpected {
-            let label = format!("Unexpected response code for control opcode {}: {:?}", opcode, rcode);
+            let label = format!("Unexpected response code for control opcode {}: {:?}", O::OPCODE, rcode);
             Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
         } else {
             AvcControl::parse_operands(op, addr, &operands)
