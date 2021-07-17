@@ -24,16 +24,16 @@ pub struct BebobModel<'a>{
 }
 
 enum Model<'a> {
-    ApogeeEnsemble(EnsembleModel<'a>),
+    ApogeeEnsemble(EnsembleModel),
     MaudioOzonic(OzonicModel<'a>),
     MaudioSolo(SoloModel<'a>),
     MaudioAudiophile(AudiophileModel<'a>),
     MaudioFw410(Fw410Model<'a>),
-    MaudioPfl(PflModel<'a>),
+    MaudioPfl(PflModel),
     MaudioSpecial(SpecialModel),
-    BehringerFca610(Fca610Model<'a>),
-    StantonScratchamp(ScratchampModel<'a>),
-    EsiQuatafire610(Quatafire610Model<'a>),
+    BehringerFca610(Fca610Model),
+    StantonScratchamp(ScratchampModel),
+    EsiQuatafire610(Quatafire610Model),
 }
 
 impl<'a> BebobModel<'a> {
