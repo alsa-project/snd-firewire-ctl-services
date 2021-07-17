@@ -117,8 +117,8 @@ impl AsMut<ShellStandaloneClkSrc> for K8Config {
     }
 }
 
-impl<'a> ShellStandaloneClkSpec<'a> for K8Config {
-    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+impl ShellStandaloneClkSpec for K8Config {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,
     ];

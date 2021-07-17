@@ -641,7 +641,7 @@ impl ShellStandaloneCtl {
 
     pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> S: TcKonnektSegmentData + ShellStandaloneClkSpec<'b>,
+        where S: TcKonnektSegmentData + ShellStandaloneClkSpec,
     {
         let labels: Vec<String> = S::STANDALONE_CLOCK_SOURCES.iter()
             .map(|r| standalone_src_to_string(r))
@@ -656,8 +656,8 @@ impl ShellStandaloneCtl {
 
     pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
         -> Result<bool, Error>
-        where for<'b> S: TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + ShellStandaloneClkSpec<'b> +
-                         AsRef<TcKonnektStandaloneClkRate>,
+        where S: TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + ShellStandaloneClkSpec +
+                 AsRef<TcKonnektStandaloneClkRate>,
     {
         match elem_id.get_name().as_str() {
             Self::SRC_NAME => {
@@ -678,8 +678,8 @@ impl ShellStandaloneCtl {
                        elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
-              for<'b> S: TcKonnektSegmentData + AsMut<ShellStandaloneClkSrc> + ShellStandaloneClkSpec<'b> +
-                         AsMut<TcKonnektStandaloneClkRate>,
+              S: TcKonnektSegmentData + AsMut<ShellStandaloneClkSrc> + ShellStandaloneClkSpec +
+                 AsMut<TcKonnektStandaloneClkRate>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec
     {
         match elem_id.get_name().as_str() {
