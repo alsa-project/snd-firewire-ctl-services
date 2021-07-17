@@ -136,6 +136,40 @@ impl SelectorOperation for Fw410SpdifOutputProtocol {
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
 }
 
+/// The protocol implementation for mixer in FireWire 410.
+#[derive(Default)]
+pub struct Fw410MixerProtocol;
+
+impl MaudioNormalMixerOperation for Fw410MixerProtocol {
+    const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x01, 0x00), // mixer-1/2
+        (0x01, 0x02), // mixer-3/4
+        (0x01, 0x04), // mixer-5/6
+        (0x01, 0x06), // mixer-7/8
+        (0x01, 0x08), // mixer-1/2
+    ];
+    const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x02, 0x00), // analog-input-1/2
+        (0x03, 0x00), // digital-input-1/2
+        (0x01, 0x00), // stream-input-1/2
+        (0x00, 0x00), // stream-input-3/4
+        (0x00, 0x02), // stream-input-5/6
+        (0x00, 0x04), // stream-input-7/8
+        (0x00, 0x06), // stream-input-9/10
+    ];
+}
+
+impl MaudioNormalMixerOperation for Fw410HeadphoneProtocol {
+    const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[(0x07, 0x00)];
+    const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x00, 0x00), // mixer-output-1/2
+        (0x00, 0x02), // mixer-output-3/4
+        (0x00, 0x04), // mixer-output-5/6
+        (0x00, 0x06), // mixer-output-7/8
+        (0x00, 0x08), // mixer-output-9/10
+    ];
+}
+
 /// The protocol implementation for media and sampling clock of FireWire Solo.
 #[derive(Default)]
 pub struct SoloClkProtocol;
@@ -204,6 +238,23 @@ impl SelectorOperation for SoloSpdifOutputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01];
     // NOTE: "stream-3/4", "mixer-3/4".
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
+/// The protocol implementation for mixer in FireWire Solo.
+#[derive(Default)]
+pub struct SoloMixerProtocol;
+
+impl MaudioNormalMixerOperation for SoloMixerProtocol {
+    const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x01, 0x00), // mixer-1/2 directly connected to analog-output-1/2 and headphone-1/2
+        (0x01, 0x02), // mixer-3/4 directly connected to digital-output-1/2
+    ];
+    const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x00, 0x00), // analog-input-1/2
+        (0x01, 0x00), // digital-input-1/2
+        (0x02, 0x00), // stream-input-1/2
+        (0x03, 0x00), // stream-input-3/4
+    ];
 }
 
 /// The protocol implementation for media and sampling clock of FireWire Audiophile.
@@ -308,6 +359,25 @@ impl SelectorOperation for AudiophileHeadphoneProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x04];
     // NOTE: "mixer-1/2", "mixer-3/4", "mixer-5/6", "aux-1/2".
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+}
+
+/// The protocol implementation for mixer in FireWire Solo.
+#[derive(Default)]
+pub struct AudiophileMixerProtocol;
+
+impl MaudioNormalMixerOperation for AudiophileMixerProtocol {
+    const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x01, 0x00), // mixer-1/2
+        (0x02, 0x00), // mixer-3/4
+        (0x03, 0x00), // mixer-5/6
+    ];
+    const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x03, 0x00), // analog-input-1/2
+        (0x04, 0x00), // digital-input-1/2
+        (0x00, 0x00), // stream-input-1/2
+        (0x01, 0x00), // stream-input-3/4
+        (0x02, 0x00), // stream-input-5/6
+    ];
 }
 
 /// The protocol implementation for media and sampling clock of Ozonic.
@@ -619,5 +689,112 @@ pub trait MaudioNormalMeterProtocol {
         }
 
         Ok(())
+    }
+}
+
+/// The protocol implementation for mixer in FireWire Solo.
+#[derive(Default)]
+pub struct OzonicMixerProtocol;
+
+impl MaudioNormalMixerOperation for OzonicMixerProtocol {
+    const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x01, 0x00), // mixer-1/2 directly connected to analog-output-1/2
+        (0x02, 0x00), // mixer-3/4 directly connected to analog-output-3/4
+    ];
+    const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)] = &[
+        (0x02, 0x00), // analog-input-1/2
+        (0x03, 0x00), // analog-input-3/4
+        (0x00, 0x00), // stream-input-1/2
+        (0x01, 0x00), // stream-input-3/4
+    ];
+}
+
+/// The trait for mixer operation.
+pub trait MaudioNormalMixerOperation {
+    const DST_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)];
+    const SRC_FUNC_BLOCK_ID_LIST: &'static [(u8, u8)];
+
+    fn read_mixer_src(
+        avc: &BebobAvc,
+        dst_idx: usize,
+        src_idx: usize,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let (dst_func_block_id, dst_ch_id) = Self::DST_FUNC_BLOCK_ID_LIST
+            .iter()
+            .nth(dst_idx)
+            .ok_or_else(|| {
+                let msg = format!(
+                    "Invalid argument for index of destination ID list: {}",
+                    dst_idx
+                );
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id)| (*func_block_id, *ch_id))?;
+
+        let (src_func_block_id, src_ch_id) = Self::SRC_FUNC_BLOCK_ID_LIST
+            .iter()
+            .nth(src_idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of source ID list: {}", src_idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id)| (*func_block_id, *ch_id))?;
+
+        let mut op = AudioProcessing::new(
+            dst_func_block_id,
+            CtlAttr::Current,
+            src_func_block_id,
+            AudioCh::Each(src_ch_id),
+            AudioCh::Each(dst_ch_id),
+            ProcessingCtl::Mixer(vec![-1]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let ProcessingCtl::Mixer(data) = op.ctl {
+            Ok(data[0] == 0)
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_mixer_src(
+        avc: &BebobAvc,
+        dst_idx: usize,
+        src_idx: usize,
+        state: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let (dst_func_block_id, dst_ch_id) = Self::DST_FUNC_BLOCK_ID_LIST
+            .iter()
+            .nth(dst_idx)
+            .ok_or_else(|| {
+                let msg = format!(
+                    "Invalid argument for index of destination ID list: {}",
+                    dst_idx
+                );
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id)| (*func_block_id, *ch_id))?;
+
+        let (src_func_block_id, src_ch_id) = Self::SRC_FUNC_BLOCK_ID_LIST
+            .iter()
+            .nth(src_idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of source ID list: {}", src_idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id)| (*func_block_id, *ch_id))?;
+
+        let val = if state { 0 } else { 0x8000u16 as i16 };
+        let mut op = AudioProcessing::new(
+            dst_func_block_id,
+            CtlAttr::Current,
+            src_func_block_id,
+            AudioCh::Each(src_ch_id),
+            AudioCh::Each(dst_ch_id),
+            ProcessingCtl::Mixer(vec![val]),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }
