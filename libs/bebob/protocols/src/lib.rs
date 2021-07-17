@@ -121,3 +121,42 @@ pub trait MediaClockFrequencyOperation {
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 }
+
+/// The trait of source operation for sampling clock.
+pub trait SamplingClockSourceOperation {
+    // NOTE: all of bebob models support "SignalAddr::Unit(SignalUnitAddr::Isoc(0x00))" named as
+    // "PCR Compound Input" and "SignalAddr::Unit(SignalUnitAddr::Isoc(0x01))" named as
+    // "PCR Sync Input" for source of sampling clock. They are available to be synchronized to the
+    // series of syt field in incoming packets from the other unit on IEEE 1394 bus. However, the
+    // most of models doesn't work with it actually even if configured, therefore useless.
+    const DST: SignalAddr;
+    const SRC_LIST: &'static [SignalAddr];
+
+    fn read_clk_src(avc: &BebobAvc, timeout_ms: u32) -> Result<usize, Error> {
+        let mut op = SignalSource::new(&Self::DST);
+
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        Self::SRC_LIST
+            .iter()
+            .position(|&s| s == op.src)
+            .ok_or_else(|| {
+                let label = "Unexpected entry for source of clock";
+                Error::new(FileError::Io, &label)
+            })
+    }
+
+    /// Change source of sampling clock. This operation can involve INTERIM AV/C response to expand
+    /// response time of AV/C transaction.
+    fn write_clk_src(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+        let src = Self::SRC_LIST.iter().nth(idx).map(|s| *s).ok_or_else(|| {
+            let label = "Invalid value for source of clock";
+            Error::new(FileError::Inval, &label)
+        })?;
+
+        let mut op = SignalSource::new(&Self::DST);
+        op.src = src;
+
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+}

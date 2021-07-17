@@ -15,3 +15,24 @@ pub struct EnsembleClkProtocol;
 impl MediaClockFrequencyOperation for EnsembleClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000, 176400, 192000];
 }
+
+impl SamplingClockSourceOperation for EnsembleClkProtocol {
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
+        subunit: MUSIC_SUBUNIT_0,
+        plug_id: 7,
+    });
+
+    const SRC_LIST: &'static [SignalAddr] = &[
+        // Internal
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 7,
+        }),
+        // S/PDIF-coax
+        SignalAddr::Unit(SignalUnitAddr::Ext(4)),
+        // Optical
+        SignalAddr::Unit(SignalUnitAddr::Ext(5)),
+        // Word clock
+        SignalAddr::Unit(SignalUnitAddr::Ext(6)),
+    ];
+}
