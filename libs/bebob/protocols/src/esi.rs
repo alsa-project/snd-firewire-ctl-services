@@ -43,6 +43,8 @@ impl LevelOperation for Quatafire610PhysInputProtocol {
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01], [0x00, 0x01]];
 }
 
+impl LrBalanceOperation for Quatafire610PhysInputProtocol {}
+
 /// The protocol implementation for physical output of Quatafire 610.
 #[derive(Default)]
 pub struct Quatafire610PhysOutputProtocol;

@@ -60,6 +60,8 @@ impl LevelOperation for Fw410PhysInputProtocol {
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
 }
 
+impl LrBalanceOperation for Fw410PhysInputProtocol {}
+
 /// The protocol implementation for physical output of FireWire 410.
 #[derive(Default)]
 pub struct Fw410PhysOutputProtocol;
@@ -157,6 +159,8 @@ impl LevelOperation for SoloPhysInputProtocol {
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
 }
 
+impl LrBalanceOperation for SoloPhysInputProtocol {}
+
 /// The protocol implementation for stream input of FireWire Solo.
 #[derive(Default)]
 pub struct SoloStreamInputProtocol;
@@ -214,6 +218,8 @@ impl LevelOperation for AudiophilePhysInputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x04, 0x05];
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
 }
+
+impl LrBalanceOperation for AudiophilePhysInputProtocol {}
 
 /// The protocol implementation for physical output in FireWire Audiophile.
 #[derive(Default)]
@@ -301,6 +307,8 @@ impl LevelOperation for OzonicPhysInputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x03, 0x04];
     const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
 }
+
+impl LrBalanceOperation for OzonicPhysInputProtocol {}
 
 /// The protocol implementation for stream input of FireWire Audiophile.
 #[derive(Default)]

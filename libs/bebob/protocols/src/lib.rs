@@ -216,3 +216,61 @@ pub trait LevelOperation {
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }
+
+/// The trait of LR balance operation for audio function blocks.
+pub trait LrBalanceOperation: LevelOperation {
+    const BALANCE_MIN: i16 = FeatureCtl::NEG_INFINITY;
+    const BALANCE_MAX: i16 = FeatureCtl::INFINITY;
+    const BALANCE_STEP: i16 = 0x80;
+
+    fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
+        let (func_block_id, ch_id) = Self::FUNC_BLOCK_ID_LIST
+            .iter()
+            .zip(Self::CH_ID_LIST.iter())
+            .nth(idx / 2)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of channel ID list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id_list)| (*func_block_id, ch_id_list[idx % 2]))?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            AudioCh::Each(ch_id),
+            FeatureCtl::LrBalance(-1),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let FeatureCtl::LrBalance(balance) = op.ctl {
+            Ok(balance)
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_lr_balance(
+        avc: &BebobAvc,
+        idx: usize,
+        balance: i16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let (func_block_id, ch_id) = Self::FUNC_BLOCK_ID_LIST
+            .iter()
+            .zip(Self::CH_ID_LIST.iter())
+            .nth(idx / 2)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of channel ID list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|(func_block_id, ch_id_list)| (*func_block_id, ch_id_list[idx % 2]))?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            AudioCh::Each(ch_id),
+            FeatureCtl::LrBalance(balance),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+    }
+}
