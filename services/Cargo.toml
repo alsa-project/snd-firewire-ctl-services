@@ -20,6 +20,6 @@ tascam = { path = "../libs/tascam" }
 efw-runtime = { path = "../libs/efw/runtime" }
 motu-runtime = { path = "../libs/motu/runtime" }
 oxfw-runtime = { path = "../libs/oxfw/runtime" }
-bebob = { path = "../libs/bebob" }
+bebob-runtime = { path = "../libs/bebob/runtime" }
 dice-runtime = { path = "../libs/dice/runtime" }
 ff-runtime = { path = "../libs/ff/runtime" }
