@@ -5,3 +5,6 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by M-Audio FireWire series.
+
+pub mod normal;
+pub mod pfl;
