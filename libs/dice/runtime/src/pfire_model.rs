@@ -20,7 +20,7 @@ use super::tcd22xx_ctl::*;
 
 #[derive(Default)]
 pub struct PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     proto: FwReq,
     sections: GeneralSections,
@@ -36,13 +36,13 @@ pub type Pfire610Model = PfireModel<Pfire610State>;
 const TIMEOUT_MS: u32 = 20;
 
 impl<S> CtlModel<SndDice> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let node = unit.get_node();
 
         self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
-        let caps = ClockCaps::new(S::AVAIL_CLK_RATES, S::AVAIL_CLK_SRCS);
+        let caps = ClockCaps::new(&S::AVAIL_CLK_RATES, S::AVAIL_CLK_SRCS);
         let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
@@ -90,7 +90,7 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
 }
 
 impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
@@ -118,7 +118,7 @@ impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
 }
 
 impl<S> MeasureModel<hinawa::SndDice> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec<'a>,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
@@ -149,20 +149,20 @@ struct SpecificCtl{
     targets: [bool;KNOB_COUNT],
 }
 
-impl<'a> SpecificCtl {
-    const MASTER_KNOB_NAME: &'a str = "master-knob-target";
-    const OPT_IFACE_B_MODE_NAME: &'a str = "optical-iface-b-mode";
-    const STANDALONE_CONVERTER_MODE_NAME: &'a str = "standalone-converter-mode";
+impl SpecificCtl {
+    const MASTER_KNOB_NAME: &'static str = "master-knob-target";
+    const OPT_IFACE_B_MODE_NAME: &'static str = "optical-iface-b-mode";
+    const STANDALONE_CONVERTER_MODE_NAME: &'static str = "standalone-converter-mode";
 
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
-    const MASTER_KNOB_TARGET_LABELS: &'a [&'a str] = &[
+    const MASTER_KNOB_TARGET_LABELS: [&'static str;4] = [
         "analog-out-1/2",
         "analog-out-3/4",
         "analog-out-5/6",
         "analog-out-7/8",
     ];
-    const OPT_IFACE_B_MODE_LABELS: &'a [&'a str] = &["ADAT", "S/PDIF"];
-    const STANDALONE_CONVERTER_MODE_LABELS: &'a [&'a str] = &["A/D-D/A", "A/D-only"];
+    const OPT_IFACE_B_MODE_LABELS: [&'static str;2] = ["ADAT", "S/PDIF"];
+    const STANDALONE_CONVERTER_MODE_LABELS: [&'static str;2] = ["A/D-D/A", "A/D-only"];
 
     fn load(&self, caps: &ClockCaps, src_labels: &ClockSourceLabels, card_cntr: &mut CardCntr)
         -> Result<(), Error>
@@ -173,10 +173,10 @@ impl<'a> SpecificCtl {
         // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
         if ClockSource::Tdif.is_supported(caps, src_labels) {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_IFACE_B_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::OPT_IFACE_B_MODE_LABELS, None, true)?;
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::OPT_IFACE_B_MODE_LABELS, None, true)?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STANDALONE_CONVERTER_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::STANDALONE_CONVERTER_MODE_LABELS, None, true)?;
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::STANDALONE_CONVERTER_MODE_LABELS, None, true)?;
         }
 
         Ok(())

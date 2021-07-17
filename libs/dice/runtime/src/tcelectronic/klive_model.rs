@@ -301,15 +301,15 @@ fn ch_strip_mode_to_string(mode: &ChStripMode) -> String {
 #[derive(Default, Debug)]
 struct KliveSpecificCtl;
 
-impl<'a> KliveSpecificCtl {
-    const OUTPUT_IMPEDANCE_NAME: &'a str = "output-impedance";
-    const OUT_01_SRC_NAME: &'a str = "output-1/2-source";
-    const OUT_23_SRC_NAME: &'a str = "output-3/4-source";
-    const USE_CH_STRIP_AS_PLUGIN_NAME: &'a str = "use-channel-strip-as-plugin";
-    const CH_STRIP_SRC_NAME: &'a str = "channel-strip-source";
-    const CH_STRIP_MODE_NAME: &'a str = "channel-strip-mode";
-    const USE_REVERB_AT_MID_RATE: &'a str = "use-reverb-at-mid-rate";
-    const MIXER_ENABLE_NAME: &'a str = "mixer-enable";
+impl KliveSpecificCtl {
+    const OUTPUT_IMPEDANCE_NAME: &'static str = "output-impedance";
+    const OUT_01_SRC_NAME: &'static str = "output-1/2-source";
+    const OUT_23_SRC_NAME: &'static str = "output-3/4-source";
+    const USE_CH_STRIP_AS_PLUGIN_NAME: &'static str = "use-channel-strip-as-plugin";
+    const CH_STRIP_SRC_NAME: &'static str = "channel-strip-source";
+    const CH_STRIP_MODE_NAME: &'static str = "channel-strip-mode";
+    const USE_REVERB_AT_MID_RATE: &'static str = "use-reverb-at-mid-rate";
+    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
 
     const OUTPUT_IMPEDANCES: [OutputImpedance;2] = [
         OutputImpedance::Unbalance,

@@ -194,9 +194,9 @@ impl AsRef<FwReq> for K8Proto {
 #[derive(Default, Debug)]
 struct K8SpecificCtl(Vec<ElemId>);
 
-impl<'a> K8SpecificCtl {
-    const MIXER_ENABLE_NAME: &'a str = "mixer-enable";
-    const AUX_IN_ENABLED_NAME: &'a str = "aux-input-enable";
+impl K8SpecificCtl {
+    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
+    const AUX_IN_ENABLED_NAME: &'static str = "aux-input-enable";
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);

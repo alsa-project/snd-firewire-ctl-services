@@ -154,8 +154,8 @@ impl AsMut<ShellStandaloneClkSrc> for K24dConfig {
     }
 }
 
-impl<'a> ShellStandaloneClkSpec<'a> for K24dConfig {
-    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+impl ShellStandaloneClkSpec for K24dConfig {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
         ShellStandaloneClkSrc::Optical,
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,

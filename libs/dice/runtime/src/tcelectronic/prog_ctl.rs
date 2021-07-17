@@ -15,10 +15,10 @@ use core::elem_value_accessor::*;
 #[derive(Default, Debug)]
 pub struct TcKonnektProgramCtl(pub Vec<ElemId>);
 
-impl<'a> TcKonnektProgramCtl {
-    const LOADED_NAME: &'a str = "loaded-program";
+impl TcKonnektProgramCtl {
+    const LOADED_NAME: &'static str = "loaded-program";
 
-    const PROG_LABELS: [&'a str;3] = ["P1", "P2", "P3"];
+    const PROG_LABELS: [&'static str;3] = ["P1", "P2", "P3"];
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = Self::PROG_LABELS.iter()

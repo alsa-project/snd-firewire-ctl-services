@@ -147,10 +147,10 @@ struct MeterCtl{
     measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> MeterCtl {
-    const ANALOG_INPUT_NAME: &'a str = "analog-input-meter";
-    const STREAM_INPUT_NAME: &'a str = "stream-input-meter";
-    const MIXER_OUTPUT_NAME: &'a str = "mixer-output-meter";
+impl MeterCtl {
+    const ANALOG_INPUT_NAME: &'static str = "analog-input-meter";
+    const STREAM_INPUT_NAME: &'static str = "stream-input-meter";
+    const MIXER_OUTPUT_NAME: &'static str = "mixer-output-meter";
 
     const LEVEL_MIN: i32 = 0x00;
     const LEVEL_MAX: i32 = 0xff;
@@ -230,12 +230,12 @@ fn output_src_to_string(src: &OutputSrc) -> String {
     }
 }
 
-impl<'a> OutputCtl {
-    const SRC_NAME: &'a str = "output-source";
-    const VOL_NAME: &'a str = "output-volume";
-    const MUTE_NAME: &'a str = "output-mute";
-    const LINK_NAME: &'a str = "output-link";
-    const TERMINATE_BNC_NAME: &'a str = "terminate-bnc";
+impl OutputCtl {
+    const SRC_NAME: &'static str = "output-source";
+    const VOL_NAME: &'static str = "output-volume";
+    const MUTE_NAME: &'static str = "output-mute";
+    const LINK_NAME: &'static str = "output-link";
+    const TERMINATE_BNC_NAME: &'static str = "terminate-bnc";
 
     const VOL_MIN: i32 = 0;
     const VOL_MAX: i32 = 0xff;
@@ -406,11 +406,11 @@ fn assign_target_to_string(target: &AssignTarget) -> String {
 #[derive(Default, Debug)]
 struct AssignCtl;
 
-impl<'a> AssignCtl {
-    const MAIN_NAME: &'a str = "main-assign";
-    const HP_NAME: &'a str = "headphone-assign";
+impl AssignCtl {
+    const MAIN_NAME: &'static str = "main-assign";
+    const HP_NAME: &'static str = "headphone-assign";
 
-    const HP_LABELS: [&'a str;3] = [
+    const HP_LABELS: [&'static str;3] = [
         "HP-1/2",
         "HP-3/4",
         "HP-5/6",
@@ -517,18 +517,18 @@ struct MixerCtl{
     outs: OutParams,
 }
 
-impl<'a> MixerCtl {
-    const PHYS_SRC_GAIN_NAME: &'a str = "mixer-phys-source-gain";
-    const PHYS_SRC_PAN_NAME: &'a str = "mixer-phys-source-pan";
-    const PHYS_SRC_MUTE_NAME: &'a str = "mixer-phys-source-mute";
-    const PHYS_SRC_LINK_NAME: &'a str = "mixer-phys-source-link";
-    const STREAM_SRC_GAIN_NAME: &'a str = "mixer-stream-source-gain";
-    const STREAM_SRC_PAN_NAME: &'a str = "mixer-stream-source-pan";
-    const STREAM_SRC_MUTE_NAME: &'a str = "mixer-stream-source-mute";
-    const STREAM_SRC_LINK_NAME: &'a str = "mixer-stream-source-link";
-    const OUT_VOL_NAME: &'a str = "mixer-output-volume";
-    const OUT_MUTE_NAME: &'a str = "mixer-output-mute";
-    const EXPANSION_MODE_NAME: &'a str = "mixer-expansion-mode";
+impl MixerCtl {
+    const PHYS_SRC_GAIN_NAME: &'static str = "mixer-phys-source-gain";
+    const PHYS_SRC_PAN_NAME: &'static str = "mixer-phys-source-pan";
+    const PHYS_SRC_MUTE_NAME: &'static str = "mixer-phys-source-mute";
+    const PHYS_SRC_LINK_NAME: &'static str = "mixer-phys-source-link";
+    const STREAM_SRC_GAIN_NAME: &'static str = "mixer-stream-source-gain";
+    const STREAM_SRC_PAN_NAME: &'static str = "mixer-stream-source-pan";
+    const STREAM_SRC_MUTE_NAME: &'static str = "mixer-stream-source-mute";
+    const STREAM_SRC_LINK_NAME: &'static str = "mixer-stream-source-link";
+    const OUT_VOL_NAME: &'static str = "mixer-output-volume";
+    const OUT_MUTE_NAME: &'static str = "mixer-output-mute";
+    const EXPANSION_MODE_NAME: &'static str = "mixer-expansion-mode";
 
     const LEVEL_MIN: i32 = 0x00;
     const LEVEL_MAX: i32 = 0xff;

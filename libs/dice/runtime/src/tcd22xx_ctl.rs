@@ -20,7 +20,7 @@ use dice_protocols::tcat::tcd22xx_spec::*;
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtl<S>
-    where for<'a> S: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    where S: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
 {
     pub state: S,
     caps: ExtensionCaps,
@@ -31,7 +31,7 @@ pub struct Tcd22xxCtl<S>
 }
 
 impl<S> Tcd22xxCtl<S>
-    where for<'a> S: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    where S: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
 {
     pub fn load(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
                 caps: &ClockCaps, src_labels: &ClockSourceLabels, timeout_ms: u32, card_cntr: &mut CardCntr)
@@ -153,11 +153,11 @@ pub struct MeterCtl {
     measured_elem_list: Vec<alsactl::ElemId>,
 }
 
-impl<'a> MeterCtl {
-    const OUT_METER_NAME: &'a str = "output-source-meter";
-    const STREAM_TX_METER_NAME: &'a str = "stream-source-meter";
-    const MIXER_INPUT_METER_NAME: &'a str = "mixer-source-meter";
-    const INPUT_SATURATION_NAME: &'a str = "mixer-out-saturation";
+impl MeterCtl {
+    const OUT_METER_NAME: &'static str = "output-source-meter";
+    const STREAM_TX_METER_NAME: &'static str = "stream-source-meter";
+    const MIXER_INPUT_METER_NAME: &'static str = "mixer-source-meter";
+    const INPUT_SATURATION_NAME: &'static str = "mixer-out-saturation";
 
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
@@ -166,7 +166,7 @@ impl<'a> MeterCtl {
     pub fn load<T>(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
                    caps: &ExtensionCaps, state: &T, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b>,
+        where T: Tcd22xxSpec,
     {
         let (_, real_blk_dsts) = state.compute_avail_real_blk_pair(RateMode::Low);
         self.real_blk_dsts = real_blk_dsts;
@@ -263,18 +263,18 @@ pub struct RouterCtl {
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
-impl<'a> RouterCtl {
-    const OUT_SRC_NAME: &'a str = "output-source";
-    const CAP_SRC_NAME: &'a str = "stream-source";
-    const MIXER_SRC_NAME: &'a str = "mixer-source";
+impl RouterCtl {
+    const OUT_SRC_NAME: &'static str = "output-source";
+    const CAP_SRC_NAME: &'static str = "stream-source";
+    const MIXER_SRC_NAME: &'static str = "mixer-source";
 
-    const NONE_SRC_LABEL: &'a str = "None";
+    const NONE_SRC_LABEL: &'static str = "None";
 
     pub fn load<T>(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
                    caps: &ExtensionCaps, state: &T, clk_caps: &ClockCaps, timeout_ms: u32,
                    card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b>,
+        where T: Tcd22xxSpec,
     {
         self.real_blk_pair = state.compute_avail_real_blk_pair(RateMode::Low);
 
@@ -359,7 +359,7 @@ impl<'a> RouterCtl {
                     caps: &ExtensionCaps, state: &mut T, elem_id: &ElemId,
                     old: &ElemValue, new: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         match elem_id.get_name().as_str() {
             Self::OUT_SRC_NAME => {
@@ -382,10 +382,10 @@ impl<'a> RouterCtl {
         }
     }
 
-    fn add_an_elem_for_src<T>(card_cntr: &mut CardCntr, label: &'a str, dsts: &[DstBlk],
+    fn add_an_elem_for_src<T>(card_cntr: &mut CardCntr, label: &str, dsts: &[DstBlk],
                               srcs: &[&[SrcBlk]], state: &T)
         -> Result<Vec<ElemId>, Error>
-        where for<'b> T: Tcd22xxSpec<'b>,
+        where T: Tcd22xxSpec,
     {
         let targets = dsts.iter().map(|&dst| state.get_dst_blk_label(dst)).collect::<Vec<String>>();
         let mut sources = srcs.iter()
@@ -422,7 +422,7 @@ impl<'a> RouterCtl {
                          caps: &ExtensionCaps, state: &mut T, old: &ElemValue, new: &ElemValue,
                          dsts: &[DstBlk], srcs: &[&[SrcBlk]], timeout_ms: u32)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         let mut entries = state.as_ref().router_entries.clone();
 
@@ -461,8 +461,8 @@ pub struct MixerCtl {
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
-impl<'a> MixerCtl {
-    const SRC_GAIN_NAME: &'a str = "mixer-source-gain";
+impl MixerCtl {
+    const SRC_GAIN_NAME: &'static str = "mixer-source-gain";
 
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
@@ -471,7 +471,7 @@ impl<'a> MixerCtl {
 
     pub fn load<T>(&mut self, caps: &ExtensionCaps, state: &T, card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
@@ -488,7 +488,7 @@ impl<'a> MixerCtl {
 
     pub fn read<T>(&self, state: &T, elem_id: &alsactl::ElemId, elem_value: &alsactl::ElemValue)
         -> Result<bool, Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         match elem_id.get_name().as_str() {
             Self::SRC_GAIN_NAME => {
@@ -510,7 +510,7 @@ impl<'a> MixerCtl {
                    caps: &ExtensionCaps, state: &mut T, elem_id: &ElemId,
                    old: &ElemValue, new: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         match elem_id.get_name().as_str() {
             Self::SRC_GAIN_NAME => {
@@ -540,18 +540,18 @@ pub struct StandaloneCtl {
     srcs: Vec<ClockSource>,
 }
 
-impl<'a> StandaloneCtl {
-    const CLK_SRC_NAME: &'a str = "standalone-clock-source";
-    const SPDIF_HIGH_RATE_NAME: &'a str = "standalone-spdif-high-rate";
-    const ADAT_MODE_NAME: &'a str = "standalone-adat-mode";
-    const WC_MODE_NAME: &'a str = "standalone-word-clock-mode";
-    const WC_RATE_NUMERATOR_NAME: &'a str = "standalone-word-clock-rate-numerator";
-    const WC_RATE_DENOMINATOR_NAME: &'a str = "standalone-word-clock-rate-denominator";
-    const INTERNAL_CLK_RATE_NAME: &'a str = "standalone-internal-clock-rate";
+impl StandaloneCtl {
+    const CLK_SRC_NAME: &'static str = "standalone-clock-source";
+    const SPDIF_HIGH_RATE_NAME: &'static str = "standalone-spdif-high-rate";
+    const ADAT_MODE_NAME: &'static str = "standalone-adat-mode";
+    const WC_MODE_NAME: &'static str = "standalone-word-clock-mode";
+    const WC_RATE_NUMERATOR_NAME: &'static str = "standalone-word-clock-rate-numerator";
+    const WC_RATE_DENOMINATOR_NAME: &'static str = "standalone-word-clock-rate-denominator";
+    const INTERNAL_CLK_RATE_NAME: &'static str = "standalone-internal-clock-rate";
 
-    const ADAT_MODE_LABELS: &'a [&'a str] = &["Normal", "S/MUX2", "S/MUX4", "Auto"];
+    const ADAT_MODE_LABELS: [&'static str;4] = ["Normal", "S/MUX2", "S/MUX4", "Auto"];
 
-    const WC_MODE_LABELS: &'a [&'a str] = &["Normal", "Low", "Middle", "High"];
+    const WC_MODE_LABELS: [&'static str;4] = ["Normal", "Low", "Middle", "High"];
 
     pub fn load(&mut self, caps: &ClockCaps, src_labels: &ClockSourceLabels, card_cntr: &mut CardCntr)
         -> Result<(), Error>

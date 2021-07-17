@@ -162,10 +162,10 @@ impl MeasureModel<hinawa::SndDice> for Mbox3Model {
 #[derive(Default)]
 struct StandaloneCtl;
 
-impl<'a> StandaloneCtl {
-    const USE_CASE_NAME: &'a str = "standalone-usecase";
+impl StandaloneCtl {
+    const USE_CASE_NAME: &'static str = "standalone-usecase";
 
-    const USE_CASE_LABELS: [&'a str;3] = [
+    const USE_CASE_LABELS: [&'static str;3] = [
         "Mixer",
         "AD/DA",
         "Preamp",
@@ -227,12 +227,12 @@ impl<'a> StandaloneCtl {
 #[derive(Default)]
 struct HwCtl;
 
-impl<'a> HwCtl {
-    const MASTER_KNOB_ASSIGN_NAME: &'a str = "master-knob-assign";
-    const DIM_LED_USAGE_NAME: &'a str = "dim-led";
-    const HOLD_DURATION_NAME: &'a str = "hold-duration";
-    const INPUT_HPF_NAME: &'a str = "input-hp-filter";
-    const OUTPUT_TRIM_NAME: &'a str = "output-trim";
+impl HwCtl {
+    const MASTER_KNOB_ASSIGN_NAME: &'static str = "master-knob-assign";
+    const DIM_LED_USAGE_NAME: &'static str = "dim-led";
+    const HOLD_DURATION_NAME: &'static str = "hold-duration";
+    const INPUT_HPF_NAME: &'static str = "input-hp-filter";
+    const OUTPUT_TRIM_NAME: &'static str = "output-trim";
 
     const HOLD_DURATION_MAX: i32 = 1000;
     const HOLD_DURATION_MIN: i32 = 0;
@@ -352,13 +352,13 @@ impl<'a> HwCtl {
 #[derive(Default)]
 struct ReverbCtl;
 
-impl<'a> ReverbCtl {
-    const TYPE_NAME: &'a str = "reverb-type";
-    const VOL_NAME: &'a str = "reverb-output-volume";
-    const DURATION_NAME: &'a str = "reverb-duration";
-    const FEEDBACK_NAME: &'a str = "reverb-feedback";
+impl ReverbCtl {
+    const TYPE_NAME: &'static str = "reverb-type";
+    const VOL_NAME: &'static str = "reverb-output-volume";
+    const DURATION_NAME: &'static str = "reverb-duration";
+    const FEEDBACK_NAME: &'static str = "reverb-feedback";
 
-    const TYPE_LABELS: &'a [&'a str] = &[
+    const TYPE_LABELS: [&'static str;9] = [
         "Room-1", "Room-2", "Room-3", "Room-4",
         "Hall-1", "Hall-2", "Plate", "Echo",
         "Delay",
@@ -486,23 +486,23 @@ struct ButtonCtl{
     pub notified_elem_list: Vec<ElemId>,
 }
 
-impl<'a> ButtonCtl {
-    const MUTE_BUTTON_NAME: &'a str = "mute-button";
-    const MONO_BUTTON_NAME: &'a str = "mono-button";
-    const SPKR_BUTTON_NAME: &'a str = "spkr-button";
+impl ButtonCtl {
+    const MUTE_BUTTON_NAME: &'static str = "mute-button";
+    const MONO_BUTTON_NAME: &'static str = "mono-button";
+    const SPKR_BUTTON_NAME: &'static str = "spkr-button";
 
-    const MUTE_BUTTON_LABELS: &'a [&'a str] = &[
+    const MUTE_BUTTON_LABELS: [&'static str;3] = [
         "Off",
         "Blink",
         "On",
     ];
 
-    const MONO_BUTTON_LABELS: &'a [&'a str] = &[
+    const MONO_BUTTON_LABELS: [&'static str;2] = [
         "Off",
         "On",
     ];
 
-    const SPKR_BUTTON_LABELS: &'a [&'a str] = &[
+    const SPKR_BUTTON_LABELS: [&'static str;7] = [
         "Off",
         "Green",
         "Green-Blink",

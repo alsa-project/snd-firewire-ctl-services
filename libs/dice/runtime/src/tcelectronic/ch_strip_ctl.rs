@@ -75,32 +75,32 @@ pub struct ChStripCtl {
     pub notified_elem_list: Vec<ElemId>,
 }
 
-impl<'a> ChStripCtl {
-    const SRC_TYPE_NAME: &'a str = "ch-strip-source-type";
-    const DEESSER_BYPASS_NAME: &'a str = "deesser-bypass";
-    const EQ_BYPASS_NAME: &'a str = "equalizer-bypass";
-    const LIMITTER_BYPASS_NAME: &'a str = "limitter-bypass";
-    const BYPASS_NAME: &'a str = "ch-strip-bypass";
+impl ChStripCtl {
+    const SRC_TYPE_NAME: &'static str = "ch-strip-source-type";
+    const DEESSER_BYPASS_NAME: &'static str = "deesser-bypass";
+    const EQ_BYPASS_NAME: &'static str = "equalizer-bypass";
+    const LIMITTER_BYPASS_NAME: &'static str = "limitter-bypass";
+    const BYPASS_NAME: &'static str = "ch-strip-bypass";
 
-    const COMP_INPUT_GAIN_NAME: &'a str = "comp-input-gain";
-    const COMP_MAKE_UP_GAIN: &'a str = "comp-make-up-gain";
-    const COMP_FULL_BAND_ENABLE_NAME: &'a str = "comp-full-band-enable";
-    const COMP_CTL_NAME: &'a str = "comp-control";
-    const COMP_LEVEL_NAME: &'a str = "comp-level";
+    const COMP_INPUT_GAIN_NAME: &'static str = "comp-input-gain";
+    const COMP_MAKE_UP_GAIN: &'static str = "comp-make-up-gain";
+    const COMP_FULL_BAND_ENABLE_NAME: &'static str = "comp-full-band-enable";
+    const COMP_CTL_NAME: &'static str = "comp-control";
+    const COMP_LEVEL_NAME: &'static str = "comp-level";
 
-    const DEESSER_RATIO_NAME: &'a str = "deesser-ratio";
+    const DEESSER_RATIO_NAME: &'static str = "deesser-ratio";
 
-    const EQ_ENABLE_NAME: &'a str = "equalizer-enable";
-    const EQ_BANDWIDTH_NAME: &'a str = "equalizer-bandwidth";
-    const EQ_GAIN_NAME: &'a str = "equalizer-gain";
-    const EQ_FREQ_NAME: &'a str = "equalizer-freq";
+    const EQ_ENABLE_NAME: &'static str = "equalizer-enable";
+    const EQ_BANDWIDTH_NAME: &'static str = "equalizer-bandwidth";
+    const EQ_GAIN_NAME: &'static str = "equalizer-gain";
+    const EQ_FREQ_NAME: &'static str = "equalizer-freq";
 
-    const LIMITTER_THRESHOLD: &'a str = "limitter-threshold";
+    const LIMITTER_THRESHOLD: &'static str = "limitter-threshold";
 
-    const INPUT_METER_NAME: &'a str = "ch-strip-input-meter";
-    const LIMIT_METER_NAME: &'a str = "ch-strip-limit-meter";
-    const OUTPUT_METER_NAME: &'a str = "ch-strip-output-meter";
-    const GAIN_METER_NAME: &'a str = "ch-strip-gain-meter";
+    const INPUT_METER_NAME: &'static str = "ch-strip-input-meter";
+    const LIMIT_METER_NAME: &'static str = "ch-strip-limit-meter";
+    const OUTPUT_METER_NAME: &'static str = "ch-strip-output-meter";
+    const GAIN_METER_NAME: &'static str = "ch-strip-gain-meter";
 
     const COMP_GAIN_MIN: i32 = 0;
     const COMP_GAIN_MAX: i32 = 36;

@@ -28,8 +28,8 @@ impl Default for LiquidS56State {
     }
 }
 
-impl<'a> Tcd22xxSpec<'a> for LiquidS56State {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for LiquidS56State {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 2, label: None},
         Input{id: SrcBlkId::Ins1, offset: 0, count: 6, label: None},
         Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
@@ -38,7 +38,7 @@ impl<'a> Tcd22xxSpec<'a> for LiquidS56State {
         Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
         Input{id: SrcBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF-opt")},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins0, offset: 0, count: 2, label: None},
         Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
@@ -49,7 +49,7 @@ impl<'a> Tcd22xxSpec<'a> for LiquidS56State {
     ];
     // NOTE: The 8 entries are selected by unique protocol from the first 26 entries in router
     // section are used to display hardware metering.
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins1, ch: 0},
         SrcBlk{id: SrcBlkId::Ins1, ch: 1},
         SrcBlk{id: SrcBlkId::Ins1, ch: 2},

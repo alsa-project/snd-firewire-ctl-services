@@ -244,13 +244,13 @@ struct HwStateCtl {
     fw_led_ctl: FwLedCtl,
 }
 
-impl<'a> HwStateCtl {
+impl HwStateCtl {
     // TODO: For Jack detection in ALSA applications.
-    const ANALOG_JACK_STATE_NAME: &'a str = "analog-jack-state";
-    const HP_JACK_STATE_NAME: &'a str = "headphone-jack-state";
-    const VALID_MASTER_LEVEL_NAME: &'a str = "valid-master-level";
+    const ANALOG_JACK_STATE_NAME: &'static str = "analog-jack-state";
+    const HP_JACK_STATE_NAME: &'static str = "headphone-jack-state";
+    const VALID_MASTER_LEVEL_NAME: &'static str = "valid-master-level";
 
-    const ANALOG_JACK_STATES: &'a [StudioAnalogJackState] = &[
+    const ANALOG_JACK_STATES: [StudioAnalogJackState;4] = [
         StudioAnalogJackState::FrontSelected,
         StudioAnalogJackState::FrontInserted,
         StudioAnalogJackState::RearSelected,
@@ -379,28 +379,28 @@ fn low_pass_freq_to_string(freq: &LowPassFreq) -> String {
 #[derive(Default, Debug)]
 struct PhysOutCtl(pub Vec<ElemId>);
 
-impl<'a> PhysOutCtl {
-    const MASTER_OUT_DIM_NAME: &'a str = "master-out-dim";
-    const MASTER_OUT_VOL_NAME: &'a str = "master-out-volume";
-    const MASTER_OUT_DIM_VOL_NAME: &'a str = "master-out-dim-volume";
+impl PhysOutCtl {
+    const MASTER_OUT_DIM_NAME: &'static str = "master-out-dim";
+    const MASTER_OUT_VOL_NAME: &'static str = "master-out-volume";
+    const MASTER_OUT_DIM_VOL_NAME: &'static str = "master-out-dim-volume";
 
-    const OUT_STEREO_LINK_NAME: &'a str = "output-stereo-link";
-    const OUT_MUTE_NAME: &'a str = "output-mute";
-    const OUT_SRC_NAME: &'a str = "output-source";
+    const OUT_STEREO_LINK_NAME: &'static str = "output-stereo-link";
+    const OUT_MUTE_NAME: &'static str = "output-mute";
+    const OUT_SRC_NAME: &'static str = "output-source";
 
-    const OUT_GRP_SELECT_NAME: &'a str = "output-group:select";
-    const OUT_GRP_SRC_ENABLE_NAME: &'a str = "output-group:source-enable";
-    const OUT_GRP_SRC_TRIM_NAME: &'a str = "output-group:source-trim";
-    const OUT_GRP_SRC_DELAY_NAME: &'a str = "output-group:source-delay";
-    const OUT_GRP_SRC_ASSIGN_NAME: &'a str = "output-group:source-assign";
-    const OUT_GRP_BASS_MANAGEMENT_NAME: &'a str = "output-group:bass-management";
-    const OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME: &'a str = "output-group:main-cross-over-frequency";
-    const OUT_GRP_MAIN_LEVEL_TO_SUB_NAME: &'a str = "output-group:main-level-to-sub";
-    const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &'a str = "output-group:sub-level-to-sub";
-    const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &'a str = "output-group:main-filter-for-main";
-    const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &'a str = "output-group:main-filter-for-sub";
+    const OUT_GRP_SELECT_NAME: &'static str = "output-group:select";
+    const OUT_GRP_SRC_ENABLE_NAME: &'static str = "output-group:source-enable";
+    const OUT_GRP_SRC_TRIM_NAME: &'static str = "output-group:source-trim";
+    const OUT_GRP_SRC_DELAY_NAME: &'static str = "output-group:source-delay";
+    const OUT_GRP_SRC_ASSIGN_NAME: &'static str = "output-group:source-assign";
+    const OUT_GRP_BASS_MANAGEMENT_NAME: &'static str = "output-group:bass-management";
+    const OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME: &'static str = "output-group:main-cross-over-frequency";
+    const OUT_GRP_MAIN_LEVEL_TO_SUB_NAME: &'static str = "output-group:main-level-to-sub";
+    const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &'static str = "output-group:sub-level-to-sub";
+    const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &'static str = "output-group:main-filter-for-main";
+    const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &'static str = "output-group:main-filter-for-sub";
 
-    const PHYS_OUT_SRCS: &'a [SrcEntry] = &[
+    const PHYS_OUT_SRCS: [SrcEntry;59] = [
         SrcEntry::Unused,
         SrcEntry::Analog(0), SrcEntry::Analog(1), SrcEntry::Analog(2), SrcEntry::Analog(3),
         SrcEntry::Analog(4), SrcEntry::Analog(5), SrcEntry::Analog(6), SrcEntry::Analog(7),
@@ -425,7 +425,7 @@ impl<'a> PhysOutCtl {
     const VOL_STEP: i32 = 1;
     const VOL_TLV: DbInterval = DbInterval{min: -7200, max: 0, linear: false, mute_avail: false};
 
-    const OUT_GRPS: [&'a str;3] = ["Group-A", "Group-B", "Group-C"];
+    const OUT_GRPS: [&'static str;3] = ["Group-A", "Group-B", "Group-C"];
 
     const CROSS_OVER_FREQS: [CrossOverFreq;6] = [
         CrossOverFreq::F50,
@@ -879,34 +879,34 @@ pub struct MixerCtl{
     measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> MixerCtl {
-    const SRC_PAIR_MODE_NAME: &'a str = "mixer-input-mode";
-    const SRC_ENTRY_NAME: &'a str = "mixer-input-source";
-    const SRC_STEREO_LINK_NAME: &'a str = "mixer-input-stereo-link";
-    const SRC_GAIN_NAME: &'a str = "mixer-input-gain";
-    const SRC_PAN_NAME: &'a str = "mixer-input-pan";
-    const REVERB_SRC_GAIN_NAME: &'a str = "reverb-input-gain";
-    const AUX01_SRC_GAIN_NAME: &'a str = "aux-1/2-input-gain";
-    const AUX23_SRC_GAIN_NAME: &'a str = "aux-3/4-input-gain";
-    const SRC_MUTE_NAME: &'a str = "mixer-input-mute";
+impl MixerCtl {
+    const SRC_PAIR_MODE_NAME: &'static str = "mixer-input-mode";
+    const SRC_ENTRY_NAME: &'static str = "mixer-input-source";
+    const SRC_STEREO_LINK_NAME: &'static str = "mixer-input-stereo-link";
+    const SRC_GAIN_NAME: &'static str = "mixer-input-gain";
+    const SRC_PAN_NAME: &'static str = "mixer-input-pan";
+    const REVERB_SRC_GAIN_NAME: &'static str = "reverb-input-gain";
+    const AUX01_SRC_GAIN_NAME: &'static str = "aux-1/2-input-gain";
+    const AUX23_SRC_GAIN_NAME: &'static str = "aux-3/4-input-gain";
+    const SRC_MUTE_NAME: &'static str = "mixer-input-mute";
 
-    const OUT_DIM_NAME: &'a str = "mixer-output-dim";
-    const OUT_VOL_NAME: &'a str = "mixer-output-volume";
-    const OUT_DIM_VOL_NAME: &'a str = "mixer-output-dim-volume";
-    const REVERB_RETURN_MUTE_NAME: &'a str = "reverb-return-mute";
-    const REVERB_RETURN_GAIN_NAME: &'a str = "reverb-return-gain";
+    const OUT_DIM_NAME: &'static str = "mixer-output-dim";
+    const OUT_VOL_NAME: &'static str = "mixer-output-volume";
+    const OUT_DIM_VOL_NAME: &'static str = "mixer-output-dim-volume";
+    const REVERB_RETURN_MUTE_NAME: &'static str = "reverb-return-mute";
+    const REVERB_RETURN_GAIN_NAME: &'static str = "reverb-return-gain";
 
-    const POST_FADER_NAME: &'a str = "mixer-post-fader";
+    const POST_FADER_NAME: &'static str = "mixer-post-fader";
 
-    const CH_STRIP_AS_PLUGIN_NAME: &'a str = "channel-strip-as-plugin";
-    const CH_STRIP_SRC_NAME: &'a str = "channel-strip-source";
-    const CH_STRIP_23_AT_MID_RATE: &'a str = "channel-strip-3/4-at-mid-rate";
+    const CH_STRIP_AS_PLUGIN_NAME: &'static str = "channel-strip-as-plugin";
+    const CH_STRIP_SRC_NAME: &'static str = "channel-strip-source";
+    const CH_STRIP_23_AT_MID_RATE: &'static str = "channel-strip-3/4-at-mid-rate";
 
-    const MIXER_ENABLE_NAME: &'a str = "mixer-direct-monitoring";
+    const MIXER_ENABLE_NAME: &'static str = "mixer-direct-monitoring";
 
-    const MIXER_INPUT_METER_NAME: &'a str = "mixer-input-meter";
-    const MIXER_OUTPUT_METER_NAME: &'a str = "mixer-output-meter";
-    const AUX_OUTPUT_METER_NAME: &'a str = "aux-output-meter";
+    const MIXER_INPUT_METER_NAME: &'static str = "mixer-input-meter";
+    const MIXER_OUTPUT_METER_NAME: &'static str = "mixer-output-meter";
+    const AUX_OUTPUT_METER_NAME: &'static str = "aux-output-meter";
 
     const SRC_PAIR_MODES: [MonitorSrcPairMode;3] = [
         MonitorSrcPairMode::Inactive,
@@ -914,7 +914,7 @@ impl<'a> MixerCtl {
         MonitorSrcPairMode::Fixed,
     ];
 
-    const SRC_PAIR_ENTRIES: &'a [SrcEntry] = &[
+    const SRC_PAIR_ENTRIES: [SrcEntry;51] = [
         SrcEntry::Unused,
         SrcEntry::Analog(0), SrcEntry::Analog(1), SrcEntry::Analog(2), SrcEntry::Analog(3),
         SrcEntry::Analog(4), SrcEntry::Analog(5), SrcEntry::Analog(6), SrcEntry::Analog(7),
@@ -931,8 +931,8 @@ impl<'a> MixerCtl {
         SrcEntry::StreamB(8), SrcEntry::StreamB(9), SrcEntry::StreamB(10), SrcEntry::StreamB(11),
     ];
 
-    const OUT_LABELS: [&'a str;3] = ["Main-1/2", "Aux-1/2", "Aux-3/4"];
-    const SEND_TARGET_LABELS: [&'a str;3] = ["Reverb-1/2", "Aux-1/2", "Aux-3/4"];
+    const OUT_LABELS: [&'static str;3] = ["Main-1/2", "Aux-1/2", "Aux-3/4"];
+    const SEND_TARGET_LABELS: [&'static str;3] = ["Reverb-1/2", "Aux-1/2", "Aux-3/4"];
 
     const LEVEL_MIN: i32 = -1000;
     const LEVEL_MAX: i32 = 0;
@@ -1430,10 +1430,10 @@ pub struct ConfigCtl{
     midi_send: MidiSendCtl,
 }
 
-impl<'a> ConfigCtl {
-    const OPT_IFACE_MODE_NAME: &'a str = "opt-iface-mode";
-    const STANDALONE_CLK_SRC_NAME: &'a str = "standalone-clock-source";
-    const CLOCK_RECOVERY_NAME: &'a str = "clock-recovery";
+impl ConfigCtl {
+    const OPT_IFACE_MODE_NAME: &'static str = "opt-iface-mode";
+    const STANDALONE_CLK_SRC_NAME: &'static str = "standalone-clock-source";
+    const CLOCK_RECOVERY_NAME: &'static str = "clock-recovery";
 
     const OPT_IFACE_MODES: [OptIfaceMode;2] = [OptIfaceMode::Adat, OptIfaceMode::Spdif];
 
@@ -1583,12 +1583,12 @@ pub struct RemoteCtl{
     prog_ctl: TcKonnektProgramCtl,
 }
 
-impl<'a> RemoteCtl {
-    const USER_ASSIGN_NAME: &'a str = "remote-user-assign";
-    const EFFECT_BUTTON_MODE_NAME: &'a str = "remote-effect-button-mode";
-    const FALLBACK_TO_MASTER_ENABLE_NAME: &'a str = "remote-fallback-to-master-enable";
-    const FALLBACK_TO_MASTER_DURATION_NAME: &'a str = "remote-fallback-to-master-duration";
-    const KNOB_PUSH_MODE_NAME: &'a str = "remote-knob-push-mode";
+impl RemoteCtl {
+    const USER_ASSIGN_NAME: &'static str = "remote-user-assign";
+    const EFFECT_BUTTON_MODE_NAME: &'static str = "remote-effect-button-mode";
+    const FALLBACK_TO_MASTER_ENABLE_NAME: &'static str = "remote-fallback-to-master-enable";
+    const FALLBACK_TO_MASTER_DURATION_NAME: &'static str = "remote-fallback-to-master-duration";
+    const KNOB_PUSH_MODE_NAME: &'static str = "remote-knob-push-mode";
 
     const EFFECT_BUTTON_MODES: [RemoteEffectButtonMode;2] = [
         RemoteEffectButtonMode::Reverb,
@@ -1772,11 +1772,11 @@ fn nominal_signal_level_to_string(level: &NominalSignalLevel) -> String {
 #[derive(Default, Debug)]
 pub struct LineoutCtl;
 
-impl<'a> LineoutCtl {
-    const LINE_OUT_45_LEVEL_NAME: &'a str = "line-out-5/6-level";
-    const LINE_OUT_67_LEVEL_NAME: &'a str = "line-out-7/8-level";
-    const LINE_OUT_89_LEVEL_NAME: &'a str = "line-out-9/10-level";
-    const LINE_OUT_1011_LEVEL_NAME: &'a str = "line-out-11/12-level";
+impl LineoutCtl {
+    const LINE_OUT_45_LEVEL_NAME: &'static str = "line-out-5/6-level";
+    const LINE_OUT_67_LEVEL_NAME: &'static str = "line-out-7/8-level";
+    const LINE_OUT_89_LEVEL_NAME: &'static str = "line-out-9/10-level";
+    const LINE_OUT_1011_LEVEL_NAME: &'static str = "line-out-11/12-level";
 
     const NOMINAL_SIGNAL_LEVELS: [NominalSignalLevel;2] = [
         NominalSignalLevel::Professional,

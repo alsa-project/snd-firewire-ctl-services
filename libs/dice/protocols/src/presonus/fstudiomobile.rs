@@ -6,16 +6,16 @@ use crate::tcat::tcd22xx_spec::*;
 #[derive(Default, Debug)]
 pub struct FStudioMobileState(Tcd22xxState);
 
-impl<'a> Tcd22xxSpec<'a> for  FStudioMobileState {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for  FStudioMobileState {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Aes,  offset: 2, count: 2, label: Some("S/PDIF")},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins0, offset: 0, count: 4, label: None},
         Output{id: DstBlkId::Aes,  offset: 2, count: 2, label: Some("S/PDIF")},
     ];
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];

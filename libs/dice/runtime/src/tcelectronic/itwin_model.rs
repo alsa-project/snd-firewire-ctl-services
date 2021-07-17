@@ -255,11 +255,11 @@ fn listening_mode_to_string(mode: &ListeningMode) -> String {
 #[derive(Default, Debug)]
 struct ItwinSpecificCtl(Vec<ElemId>);
 
-impl<'a> ItwinSpecificCtl {
-    const CLK_RECOVERY_NAME: &'a str = "clock-recovery";
-    const OUT_SRC_NAME: &'a str = "output-source";
-    const MIXER_ENABLE_NAME: &'a str = "mixer-enable";
-    const LISTENING_MODE_NAME: &'a str = "listening-mode";
+impl ItwinSpecificCtl {
+    const CLK_RECOVERY_NAME: &'static str = "clock-recovery";
+    const OUT_SRC_NAME: &'static str = "output-source";
+    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
+    const LISTENING_MODE_NAME: &'static str = "listening-mode";
 
     const OUT_SRCS: [ItwinOutputPairSrc;16] = [
         ItwinOutputPairSrc::MixerOut01,

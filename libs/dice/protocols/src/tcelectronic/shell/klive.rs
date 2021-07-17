@@ -177,8 +177,8 @@ impl AsMut<ShellStandaloneClkSrc> for KliveConfig {
     }
 }
 
-impl<'a> ShellStandaloneClkSpec<'a> for KliveConfig {
-    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+impl ShellStandaloneClkSpec for KliveConfig {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
         ShellStandaloneClkSrc::Optical,
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,

@@ -12,16 +12,16 @@ use super::tcat::tcd22xx_spec::*;
 #[derive(Default, Debug)]
 pub struct BlackbirdState(Tcd22xxState);
 
-impl<'a> Tcd22xxSpec<'a> for BlackbirdState {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for BlackbirdState {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins0, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
     ];
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
         SrcBlk{id: SrcBlkId::Ins0, ch: 2},
