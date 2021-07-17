@@ -29,20 +29,20 @@ pub trait PfireClkSpec {
 #[derive(Default, Debug)]
 pub struct Pfire2626State(Tcd22xxState);
 
-impl<'a> Tcd22xxSpec<'a> for Pfire2626State {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for Pfire2626State {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins1, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
         Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: None},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
         Output{id: DstBlkId::Aes, offset: 0, count: 2, label: None},
     ];
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins1, ch: 0},
         SrcBlk{id: SrcBlkId::Ins1, ch: 1},
         SrcBlk{id: SrcBlkId::Ins1, ch: 2},
@@ -82,16 +82,16 @@ impl PfireClkSpec for Pfire2626State {
 pub struct Pfire610State(Tcd22xxState);
 
 // NOTE: the second rx stream is firstly available at higher sampling rate.
-impl<'a> Tcd22xxSpec<'a> for Pfire610State {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for Pfire610State {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 4, label: None},
         Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins0, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
     ];
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];

@@ -19,26 +19,26 @@ pub struct Tcd22xxState {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Input<'a> {
+pub struct Input {
     pub id: SrcBlkId,
     pub offset: u8,
     pub count: u8,
-    pub label: Option<&'a str>,
+    pub label: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Output<'a> {
+pub struct Output {
     pub id: DstBlkId,
     pub offset: u8,
     pub count: u8,
-    pub label: Option<&'a str>,
+    pub label: Option<&'static str>,
 }
 
-pub trait Tcd22xxSpec<'a> {
+pub trait Tcd22xxSpec {
     // For each model.
-    const INPUTS: &'a [Input<'a>];
-    const OUTPUTS: &'a [Output<'a>];
-    const FIXED: &'a [SrcBlk];
+    const INPUTS: &'static [Input];
+    const OUTPUTS: &'static [Output];
+    const FIXED: &'static [SrcBlk];
 
     // From specification of TCD22xx.
     const MIXER_OUT_PORTS: [u8;3] = [16, 16, 8];
@@ -208,7 +208,7 @@ pub trait Tcd22xxSpec<'a> {
     }
 }
 
-pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
+pub trait Tcd22xxRouterOperation<T, U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
     where T: AsRef<FwNode>,
           U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
 {
@@ -268,7 +268,7 @@ pub trait Tcd22xxRouterOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxStat
     }
 }
 
-pub trait Tcd22xxMixerOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
+pub trait Tcd22xxMixerOperation<T, U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
     where T: AsRef<FwNode>,
           U: MixerSectionProtocol<T>,
 {
@@ -313,8 +313,8 @@ pub trait Tcd22xxMixerOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState
     }
 }
 
-pub trait Tcd22xxStateOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
-                                            Tcd22xxRouterOperation<'a, T, U> +  Tcd22xxMixerOperation<'a, T, U>
+pub trait Tcd22xxStateOperation<T, U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
+                                            Tcd22xxRouterOperation<T, U> +  Tcd22xxMixerOperation<T, U>
     where T: AsRef<FwNode>,
           U: CmdSectionProtocol<T> + MixerSectionProtocol<T> + RouterSectionProtocol<T> +
              CurrentConfigSectionProtocol<T>,
@@ -330,21 +330,21 @@ pub trait Tcd22xxStateOperation<'a, T, U> : Tcd22xxSpec<'a> + AsRef<Tcd22xxState
     }
 }
 
-impl<'a, O, T, U> Tcd22xxRouterOperation<'a, T, U> for O
-    where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+impl<O, T, U> Tcd22xxRouterOperation<T, U> for O
+    where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
           T: AsRef<FwNode>,
           U: CmdSectionProtocol<T> + RouterSectionProtocol<T> + CurrentConfigSectionProtocol<T>,
 {}
 
-impl<'a, O, T, U> Tcd22xxMixerOperation<'a, T, U> for O
-    where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+impl<O, T, U> Tcd22xxMixerOperation<T, U> for O
+    where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
           T: AsRef<FwNode>,
           U: MixerSectionProtocol<T>,
 {}
 
-impl<'a, O, T, U> Tcd22xxStateOperation<'a, T, U> for O
-    where O: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
-             Tcd22xxRouterOperation<'a, T, U> +  Tcd22xxMixerOperation<'a, T, U>,
+impl<O, T, U> Tcd22xxStateOperation<T, U> for O
+    where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
+             Tcd22xxRouterOperation<T, U> +  Tcd22xxMixerOperation<T, U>,
           T: AsRef<FwNode>,
           U: CmdSectionProtocol<T> + MixerSectionProtocol<T> + RouterSectionProtocol<T> +
              CurrentConfigSectionProtocol<T>,

@@ -18,20 +18,20 @@ use super::tcat::tcd22xx_spec::*;
 #[derive(Default, Debug)]
 pub struct Mbox3State(Tcd22xxState);
 
-impl<'a> Tcd22xxSpec<'a> for  Mbox3State {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for  Mbox3State {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 6, label: None},
         Input{id: SrcBlkId::Ins1, offset: 0, count: 2, label: Some("Reverb")},
         Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins0, offset: 0, count: 6, label: None},
         Output{id: DstBlkId::Ins1, offset: 0, count: 4, label: Some("Headphone")},
         Output{id: DstBlkId::Ins1, offset: 4, count: 2, label: Some("Reverb")},
         Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
         Output{id: DstBlkId::Reserved(0x08), offset: 0, count: 2, label: Some("ControlRoom")},
     ];
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
         SrcBlk{id: SrcBlkId::Ins0, ch: 2},
