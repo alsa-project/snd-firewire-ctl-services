@@ -149,20 +149,20 @@ struct SpecificCtl{
     targets: [bool;KNOB_COUNT],
 }
 
-impl<'a> SpecificCtl {
-    const MASTER_KNOB_NAME: &'a str = "master-knob-target";
-    const OPT_IFACE_B_MODE_NAME: &'a str = "optical-iface-b-mode";
-    const STANDALONE_CONVERTER_MODE_NAME: &'a str = "standalone-converter-mode";
+impl SpecificCtl {
+    const MASTER_KNOB_NAME: &'static str = "master-knob-target";
+    const OPT_IFACE_B_MODE_NAME: &'static str = "optical-iface-b-mode";
+    const STANDALONE_CONVERTER_MODE_NAME: &'static str = "standalone-converter-mode";
 
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
-    const MASTER_KNOB_TARGET_LABELS: &'a [&'a str] = &[
+    const MASTER_KNOB_TARGET_LABELS: [&'static str;4] = [
         "analog-out-1/2",
         "analog-out-3/4",
         "analog-out-5/6",
         "analog-out-7/8",
     ];
-    const OPT_IFACE_B_MODE_LABELS: &'a [&'a str] = &["ADAT", "S/PDIF"];
-    const STANDALONE_CONVERTER_MODE_LABELS: &'a [&'a str] = &["A/D-D/A", "A/D-only"];
+    const OPT_IFACE_B_MODE_LABELS: [&'static str;2] = ["ADAT", "S/PDIF"];
+    const STANDALONE_CONVERTER_MODE_LABELS: [&'static str;2] = ["A/D-D/A", "A/D-only"];
 
     fn load(&self, caps: &ClockCaps, src_labels: &ClockSourceLabels, card_cntr: &mut CardCntr)
         -> Result<(), Error>
@@ -173,10 +173,10 @@ impl<'a> SpecificCtl {
         // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
         if ClockSource::Tdif.is_supported(caps, src_labels) {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_IFACE_B_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::OPT_IFACE_B_MODE_LABELS, None, true)?;
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::OPT_IFACE_B_MODE_LABELS, None, true)?;
 
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STANDALONE_CONVERTER_MODE_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::STANDALONE_CONVERTER_MODE_LABELS, None, true)?;
+            let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::STANDALONE_CONVERTER_MODE_LABELS, None, true)?;
         }
 
         Ok(())
