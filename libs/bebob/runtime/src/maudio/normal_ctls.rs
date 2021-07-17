@@ -14,11 +14,9 @@ use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
-use ta1394::{AvcOp, AvcControl};
-use ta1394::general::VendorDependent;
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, AudioProcessing, ProcessingCtl, AudioFeature, FeatureCtl, AudioSelector};
 
-use bebob_protocols::*;
+use bebob_protocols::{*, maudio::normal::*};
 
 use super::super::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
@@ -28,67 +26,6 @@ impl CommonProto for FwReq {}
 
 pub const FCP_TIMEOUT_MS: u32 = 100;
 
-const MAUDIO_OUI: [u8;3] = [0x00, 0x0d, 0x6c];
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SwitchState {
-    Off,
-    A,
-    B,
-}
-
-impl From<SwitchState> for u8 {
-    fn from(state: SwitchState) -> Self {
-        match state {
-            SwitchState::Off => 0x00,
-            SwitchState::A => 0x01,
-            SwitchState::B => 0x02,
-        }
-    }
-}
-
-impl From<u8> for SwitchState {
-    fn from(val: u8) -> Self {
-        match val {
-            0x01 => SwitchState::A,
-            0x02 => SwitchState::B,
-            _ => SwitchState::Off,
-        }
-    }
-}
-
-struct LedSwitch{
-    state: SwitchState,
-    op: VendorDependent,
-}
-
-impl LedSwitch {
-    pub fn new(state: SwitchState) -> Self {
-        LedSwitch{
-            state,
-            op: VendorDependent{
-                company_id: MAUDIO_OUI,
-                data: Vec::new(),
-            },
-        }
-    }
-}
-
-impl AvcOp for LedSwitch {
-    const OPCODE: u8 = VendorDependent::OPCODE;
-}
-
-impl AvcControl for LedSwitch {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
-        self.op.data.extend_from_slice(&[0x02, 0x00, 0x01, self.state.into(), 0xff, 0xff]);
-        AvcControl::build_operands(&mut self.op, addr, operands)
-    }
-
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
-        AvcControl::parse_operands(&mut self.op, addr, operands)
-    }
-}
-
 pub struct MeterCtl<'a> {
     pub measure_elems: Vec<ElemId>,
 
@@ -97,7 +34,7 @@ pub struct MeterCtl<'a> {
     out_meter_labels: &'a [&'a str],
 
     cache: Vec<u8>,
-    switch: Option<SwitchState>,
+    switch: Option<AudiophileSwitchState>,
     rotary0: Option<i32>,
     rotary1: Option<i32>,
     sync_status: Option<bool>,
@@ -144,7 +81,7 @@ impl<'a> MeterCtl<'a> {
         len *= std::mem::size_of::<i32>();
         let cache = vec![0;len];
 
-        let switch = if has_switch { Some(SwitchState::Off) } else { None };
+        let switch = if has_switch { Some(AudiophileSwitchState::Off) } else { None };
         let rotary0 = if rotary_count == 1 { Some(0) } else { None };
         let rotary1 = if rotary_count == 2 { Some(0) } else { None };
         let sync_status = if has_sync_status { Some(false) } else { None };
@@ -241,10 +178,10 @@ impl<'a> MeterCtl<'a> {
             Self::SWITCH_NAME => {
                 if let Some(s) = &mut self.switch {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
-                        let switch = SwitchState::from(val as u8);
-                        let mut op = LedSwitch::new(switch);
+                        let switch_state = AudiophileSwitchState::from(val as u8);
+                        let mut op = AudiophileLedSwitch::new(switch_state);
                         avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-                        *s = switch;
+                        *s = switch_state;
                         Ok(())
                     })?;
                     Ok(true)
@@ -267,14 +204,14 @@ impl<'a> MeterCtl<'a> {
 
             if (self.cache[pos] ^ frames[pos]) & 0xf0 > 0 {
                 if self.cache[pos] & 0xf0 > 0 {
-                    let switch = match s {
-                        SwitchState::Off => SwitchState::A,
-                        SwitchState::A => SwitchState::B,
-                        SwitchState::B => SwitchState::Off,
+                    let switch_state = match s {
+                        AudiophileSwitchState::Off => AudiophileSwitchState::A,
+                        AudiophileSwitchState::A => AudiophileSwitchState::B,
+                        AudiophileSwitchState::B => AudiophileSwitchState::Off,
                     };
-                    let mut op = LedSwitch::new(switch);
+                    let mut op = AudiophileLedSwitch::new(switch_state);
                     avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-                    *s = switch;
+                    *s = switch_state;
                 }
             }
         }
