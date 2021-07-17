@@ -18,17 +18,17 @@ pub struct MixerCtl {
     has_fpga: bool,
 }
 
-impl<'a> MixerCtl {
-    const PLAYBACK_VOL_NAME: &'a str = "playback-volume";
-    const PLAYBACK_MUTE_NAME: &'a str = "playback-mute";
-    const PLAYBACK_SOLO_NAME: &'a str = "playback-solo";
+impl MixerCtl {
+    const PLAYBACK_VOL_NAME: &'static str = "playback-volume";
+    const PLAYBACK_MUTE_NAME: &'static str = "playback-mute";
+    const PLAYBACK_SOLO_NAME: &'static str = "playback-solo";
 
-    const MONITOR_GAIN_NAME: &'a str = "monitor-gain";
-    const MONITOR_MUTE_NAME: &'a str = "monitor-mute";
-    const MONITOR_SOLO_NAME: &'a str = "monitor-solo";
-    const MONITOR_PAN_NAME: &'a str = "monitor-pan";
+    const MONITOR_GAIN_NAME: &'static str = "monitor-gain";
+    const MONITOR_MUTE_NAME: &'static str = "monitor-mute";
+    const MONITOR_SOLO_NAME: &'static str = "monitor-solo";
+    const MONITOR_PAN_NAME: &'static str = "monitor-pan";
 
-    const ENABLE_MIXER: &'a str = "enable-mixer";
+    const ENABLE_MIXER: &'static str = "enable-mixer";
 
     // The fixed point number of 8.24 format.
     const COEF_MIN: i32 = 0x00000000;

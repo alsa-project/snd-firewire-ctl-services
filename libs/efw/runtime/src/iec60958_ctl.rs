@@ -12,9 +12,9 @@ use efw_protocols::hw_ctl::*;
 pub struct Iec60958Ctl {
 }
 
-impl<'a> Iec60958Ctl {
-    const DEFAULT: &'a str = "IEC958 Playback Default";
-    const MASK: &'a str = "IEC958 Playback Mask";
+impl Iec60958Ctl {
+    const DEFAULT: &'static str = "IEC958 Playback Default";
+    const MASK: &'static str = "IEC958 Playback Mask";
 
     const AES0_PROFESSIONAL: u8 = 0x1;
     const AES0_NONAUDIO: u8 = 0x2;

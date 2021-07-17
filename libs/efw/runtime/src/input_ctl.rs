@@ -14,11 +14,11 @@ pub struct InputCtl {
     cache: Option<Vec::<NominalSignalLevel>>,
 }
 
-impl<'a> InputCtl {
-    const IN_NOMINAL_NAME: &'a str = "input-nominal";
+impl InputCtl {
+    const IN_NOMINAL_NAME: &'static str = "input-nominal";
 
-    const IN_NOMINAL_LABELS: &'a [&'a str] = &["+4dBu", "-10dBV"];
-    const IN_NOMINAL_LEVELS: &'a [NominalSignalLevel] = &[
+    const IN_NOMINAL_LABELS: [&'static str;2] = ["+4dBu", "-10dBV"];
+    const IN_NOMINAL_LEVELS: [NominalSignalLevel;2] = [
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
     ];
@@ -37,7 +37,7 @@ impl<'a> InputCtl {
             let elem_id = alsactl::ElemId::new_by_name(
                 alsactl::ElemIfaceType::Mixer, 0, 0, Self::IN_NOMINAL_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1,
-                self.phys_inputs, Self::IN_NOMINAL_LABELS, None, true)?;
+                self.phys_inputs, &Self::IN_NOMINAL_LABELS, None, true)?;
         }
 
         // FPGA models return invalid state of nominal level. Here, initialize them and cache the
