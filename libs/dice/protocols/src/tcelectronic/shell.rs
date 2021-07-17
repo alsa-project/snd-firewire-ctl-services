@@ -145,7 +145,7 @@ pub struct ShellMonitorSrcPair{
     pub right: MonitorSrcParam,
 }
 
-impl<'a> ShellMonitorSrcPair {
+impl ShellMonitorSrcPair {
     const SIZE: usize = 28;
 
     pub fn build(&self, raw: &mut [u8]) {
@@ -641,8 +641,8 @@ impl From<u32> for ShellStandaloneClkSrc {
     }
 }
 
-pub trait ShellStandaloneClkSpec<'a> : TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + AsMut<ShellStandaloneClkSrc> {
-    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc];
+pub trait ShellStandaloneClkSpec : TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + AsMut<ShellStandaloneClkSrc> {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc];
 }
 
 /// The structure to represent source pair of stream to mixer.

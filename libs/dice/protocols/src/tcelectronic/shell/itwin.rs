@@ -190,8 +190,8 @@ impl AsMut<ShellStandaloneClkSrc> for ItwinConfig {
     }
 }
 
-impl<'a> ShellStandaloneClkSpec<'a> for ItwinConfig {
-    const STANDALONE_CLOCK_SOURCES: &'a [ShellStandaloneClkSrc] = &[
+impl ShellStandaloneClkSpec for ItwinConfig {
+    const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc] = &[
         ShellStandaloneClkSrc::Optical,
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,
