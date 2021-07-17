@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError};
+use glib::Error;
 
 use hinawa::{FwReq, FwTcode};
 use hinawa::{SndUnit, SndUnitExt};
@@ -15,103 +15,13 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 use ta1394::{AvcOp, AvcControl};
-use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat, VendorDependent};
-use ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
+use ta1394::general::VendorDependent;
 
 use bebob_protocols::*;
 
-use crate::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
+use crate::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
-
-pub struct ClkCtl{
-    supported_clk_rates: Vec<u32>,
-    pub notified_elem_list: Vec<ElemId>,
-}
-
-impl<'a> ClkCtl {
-    pub fn new(is_fw1814: bool) -> Self {
-        let mut supported_clk_rates = Vec::new();
-        supported_clk_rates.extend_from_slice(&[32000, 44100, 48000, 88200, 96000]);
-        if is_fw1814 {
-            supported_clk_rates.extend_from_slice(&[176400, 192000]);
-        }
-        ClkCtl{
-            supported_clk_rates,
-            notified_elem_list: Vec::new(),
-        }
-    }
-
-    pub fn load(&mut self, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
-        let labels = self.supported_clk_rates.iter().map(|l| l.to_string()).collect::<Vec<String>>();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
-        let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-        self.notified_elem_list.append(&mut elem_id_list);
-
-        Ok(())
-    }
-
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            CLK_RATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let mut op = InputPlugSignalFormat::new(0);
-                    avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-
-                    let fdf = AmdtpFdf::from(op.fdf.as_ref());
-                    match self.supported_clk_rates.iter().position(|r| *r == fdf.freq) {
-                        Some(p) => Ok(p as u32),
-                        None => {
-                            let label = "Unexpected value for FDF of AMDTP";
-                            Err(Error::new(FileError::Io, &label))
-                        }
-                    }
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    pub fn write(&mut self, unit: &SndUnit, avc: &BebobAvc, elem_id: &ElemId,
-                 _: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            CLK_RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let freq = self.supported_clk_rates[val as usize];
-                    let fdf = AmdtpFdf::new(AmdtpEventType::Am824, false, freq);
-
-                    unit.lock()?;
-                    let mut op = OutputPlugSignalFormat{
-                        plug_id: 0,
-                        fmt: FMT_IS_AMDTP,
-                        fdf: fdf.into(),
-                    };
-                    let mut res = avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS * 2);
-                    if res.is_ok() {
-                        let mut op = InputPlugSignalFormat{
-                            plug_id: 0,
-                            fmt: FMT_IS_AMDTP,
-                            fdf: fdf.into(),
-                        };
-                        res = avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS * 2)
-                    }
-                    unit.unlock()?;
-                    res
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
 
 struct LedSwitch{
     state: bool,
