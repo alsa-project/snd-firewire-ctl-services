@@ -33,3 +33,21 @@ impl SamplingClockSourceOperation for ScratchampClkProtocol {
         }),
     ];
 }
+
+/// The protocol implementation for physical output of Scratchamp.
+#[derive(Default)]
+pub struct ScratchampOutputProtocol;
+
+impl LevelOperation for ScratchampOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01, 0x02];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01], [0x00, 0x01]];
+}
+
+/// The protocol implementation for headphone output of Scratchamp.
+#[derive(Default)]
+pub struct ScratchampHeadphoneProtocol;
+
+impl LevelOperation for ScratchampHeadphoneProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x03];
+    const CH_ID_LIST: &'static [[u8; 2]] = &[[0x00, 0x01]];
+}
