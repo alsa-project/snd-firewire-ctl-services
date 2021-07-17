@@ -5,7 +5,7 @@ use bebob_runtime::BebobRuntime;
 
 struct BebobServiceCmd;
 
-impl<'a> ServiceCmd<'a, u32, BebobRuntime<'a>> for BebobServiceCmd {
+impl<'a> ServiceCmd<'a, u32, BebobRuntime> for BebobServiceCmd {
     const CMD_NAME: &'a str = "snd-bebob-ctl-service";
     const ARGS: &'a [(&'a str, &'a str)] = &[("CARD_ID", "The numeric ID of sound card")];
 
