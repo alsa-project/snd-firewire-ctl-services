@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::Error;
+
+use hinawa::FwReq;
+use hinawa::SndUnit;
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use alsa_ctl_tlv_codec::items::{DbInterval, CTL_VALUE_MUTE};
 
-use core::card_cntr;
+use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
@@ -18,7 +24,7 @@ use super::super::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_N
 
 use super::common_proto::CommonProto;
 
-impl CommonProto for hinawa::FwReq {}
+impl CommonProto for FwReq {}
 
 pub const FCP_TIMEOUT_MS: u32 = 100;
 
@@ -84,7 +90,7 @@ impl AvcControl for LedSwitch {
 }
 
 pub struct MeterCtl<'a> {
-    pub measure_elems: Vec<alsactl::ElemId>,
+    pub measure_elems: Vec<ElemId>,
 
     in_meter_labels: &'a [&'a str],
     stream_meter_labels: &'a [&'a str],
@@ -156,10 +162,10 @@ impl<'a> MeterCtl<'a> {
         }
     }
 
-    fn add_meter_elem(&mut self, card_cntr: &mut card_cntr::CardCntr, name: &str, labels: &[&str])
+    fn add_meter_elem(&mut self, card_cntr: &mut CardCntr, name: &str, labels: &[&str])
         -> Result<(), Error>
     {
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
                                                        labels.len(),
                                                        Some(&Into::<Vec<u32>>::into(Self::METER_TLV)), false)?;
@@ -167,8 +173,8 @@ impl<'a> MeterCtl<'a> {
         Ok(())
     }
 
-    pub fn load(&mut self, unit: &hinawa::SndUnit, avc: &BebobAvc, req: &hinawa::FwReq,
-                card_cntr: &mut card_cntr::CardCntr)
+    pub fn load(&mut self, unit: &SndUnit, avc: &BebobAvc, req: &FwReq,
+                card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         self.measure_states(unit, avc, req)?;
@@ -186,7 +192,7 @@ impl<'a> MeterCtl<'a> {
 
         // For switch button.
         if self.switch.is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
                                                        0, 0, Self::SWITCH_NAME, 0);
             let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::SWITCH_LABELS, None, true)?;
             self.measure_elems.append(&mut elem_id_list);
@@ -194,7 +200,7 @@ impl<'a> MeterCtl<'a> {
 
         // For rotary knob.
         if self.rotary0.is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
                                                        0, 0, Self::ROTARY0_NAME, 0);
             let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                 Self::ROTARY_MIN, Self::ROTARY_MAX, Self::ROTARY_STEP,
@@ -203,7 +209,7 @@ impl<'a> MeterCtl<'a> {
         }
 
         if self.rotary1.is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
                                                        0, 0, Self::ROTARY1_NAME, 0);
             let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                 Self::ROTARY_MIN, Self::ROTARY_MAX, Self::ROTARY_STEP,
@@ -213,7 +219,7 @@ impl<'a> MeterCtl<'a> {
 
         // For sync status.
         if self.sync_status.is_some() {
-            let elem_id = alsactl::ElemId::new_by_name( alsactl::ElemIfaceType::Card,
+            let elem_id = ElemId::new_by_name( ElemIfaceType::Card,
                                                         0, 0, Self::SYNC_STATUS_NAME, 0);
             let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
             self.measure_elems.append(&mut elem_id_list);
@@ -222,13 +228,13 @@ impl<'a> MeterCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.measure_elem(elem_id, elem_value)
     }
 
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -250,7 +256,7 @@ impl<'a> MeterCtl<'a> {
         }
     }
 
-    pub fn measure_states(&mut self, unit: &hinawa::SndUnit, avc: &BebobAvc, req: &hinawa::FwReq)
+    pub fn measure_states(&mut self, unit: &SndUnit, avc: &BebobAvc, req: &FwReq)
         -> Result<(), Error>
     {
         let mut frames = vec![0;self.cache.len()];
@@ -319,7 +325,7 @@ impl<'a> MeterCtl<'a> {
         Ok(())
     }
 
-    fn parse_meters(&self, elem_value: &mut alsactl::ElemValue, offset: usize, labels: &[&str]) {
+    fn parse_meters(&self, elem_value: &mut ElemValue, offset: usize, labels: &[&str]) {
         let mut quadlet = [0;4];
         ElemValueAccessor::<i32>::set_vals(elem_value, labels.len(), |idx| {
             let pos = (offset + idx) * 4;
@@ -328,7 +334,7 @@ impl<'a> MeterCtl<'a> {
         }).unwrap();
     }
 
-    pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -439,7 +445,7 @@ impl<'a> MixerCtl<'a> {
         MixerCtl {dst_fb_ids, dst_labels, phys_src_fb_ids, phys_src_labels, stream_src_fb_ids, stream_src_labels}
     }
 
-    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr)
+    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         (0..self.dst_fb_ids.len()).take(self.stream_src_fb_ids.len()).try_for_each(|i| {
@@ -453,14 +459,14 @@ impl<'a> MixerCtl<'a> {
 
         let src_count = self.stream_src_labels.len() + self.phys_src_labels.len();
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::MIXER_SRC_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, self.dst_labels.len(), src_count, true)?;
 
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -490,8 +496,8 @@ impl<'a> MixerCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
-                 new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId, old: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -555,23 +561,23 @@ impl<'a> InputCtl<'a> {
         }
     }
 
-    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For gain of physical inputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::PHYS_GAIN_NAME, 0);
         let len = 2 * self.phys_labels.len();
         let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len,
                                         Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
         // For balance of physical inputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::PHYS_BALANCE_NAME, 0);
         let len = 2 * self.phys_labels.len();
         let _ = card_cntr.add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, len,
                                         Some(&Into::<Vec<u32>>::into(PAN_TLV)), true)?;
 
         // For gain of stream inputs.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::STREAM_GAIN_NAME, 0);
         let len = 2 * self.stream_labels.len();
         let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len,
@@ -582,7 +588,7 @@ impl<'a> InputCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -593,8 +599,8 @@ impl<'a> InputCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
-                 new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId, old: &ElemValue,
+                 new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -605,7 +611,7 @@ impl<'a> InputCtl<'a> {
         }
     }
 
-    pub fn read_gain(&mut self, avc: &BebobAvc, elem_value: &mut alsactl::ElemValue, fb_ids: &[u8])
+    pub fn read_gain(&mut self, avc: &BebobAvc, elem_value: &mut ElemValue, fb_ids: &[u8])
         -> Result<bool, Error>
     {
         ElemValueAccessor::<i32>::set_vals(elem_value, fb_ids.len(), |idx| {
@@ -623,7 +629,7 @@ impl<'a> InputCtl<'a> {
         Ok(true)
     }
 
-    pub fn write_gain(&mut self, avc: &BebobAvc, old: &alsactl::ElemValue, new: &alsactl::ElemValue,
+    pub fn write_gain(&mut self, avc: &BebobAvc, old: &ElemValue, new: &ElemValue,
                       fb_ids: &[u8])
         -> Result<bool, Error>
     {
@@ -637,7 +643,7 @@ impl<'a> InputCtl<'a> {
         Ok(true)
     }
 
-    fn read_balance(&mut self, avc: &BebobAvc, elem_value: &mut alsactl::ElemValue, fb_ids: &[u8])
+    fn read_balance(&mut self, avc: &BebobAvc, elem_value: &mut ElemValue, fb_ids: &[u8])
         -> Result<bool, Error>
     {
         ElemValueAccessor::<i32>::set_vals(elem_value, fb_ids.len(), |idx| {
@@ -654,7 +660,7 @@ impl<'a> InputCtl<'a> {
         Ok(true)
     }
 
-    fn write_balance(&mut self, avc: &BebobAvc, old: &alsactl::ElemValue, new: &alsactl::ElemValue,
+    fn write_balance(&mut self, avc: &BebobAvc, old: &ElemValue, new: &ElemValue,
                      fb_ids: &[u8])
         -> Result<bool, Error>
     {
@@ -702,16 +708,16 @@ impl<'a> AuxCtl<'a> {
         }
     }
 
-    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For gain of sources to aux.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::AUX_SRC_GAIN_NAME, 0);
         let len = 2 * self.src_labels.len();
         let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, len,
                                         Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
         // For volume of output from aux.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::AUX_OUT_VOLUME_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2,
                                         Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
@@ -719,7 +725,7 @@ impl<'a> AuxCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -756,8 +762,8 @@ impl<'a> AuxCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId,
+                 old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -804,13 +810,13 @@ impl<'a> OutputCtl<'a> {
         }
     }
 
-    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For source of output.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, self.labels.len(), Self::OUT_SRC_LABELS, None, true)?;
 
         // For volume of output.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         let len = 2 * self.labels.len();
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, len,
                                         Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
@@ -818,7 +824,7 @@ impl<'a> OutputCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -849,8 +855,8 @@ impl<'a> OutputCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId,
+                 old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -880,7 +886,7 @@ pub struct HpCtl<'a> {
     vol_fb_id: u8,
     src_fb_id: u8,
     src_labels: &'a [&'a str],
-    pub measure_elems: Vec<alsactl::ElemId>,
+    pub measure_elems: Vec<ElemId>,
 }
 
 impl<'a> HpCtl<'a> {
@@ -895,13 +901,13 @@ impl<'a> HpCtl<'a> {
         }
     }
 
-    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    pub fn load(&mut self, _: &BebobAvc, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For source of headphone.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &self.src_labels, None, true)?;
 
         // For volume of headphone.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::HP_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HP_VOL_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP, 2,
                                                    Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
         self.measure_elems.push(elem_id_list[0].clone());
@@ -909,7 +915,7 @@ impl<'a> HpCtl<'a> {
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -939,8 +945,8 @@ impl<'a> HpCtl<'a> {
         }
     }
 
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, avc: &BebobAvc, elem_id: &ElemId,
+                 old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {

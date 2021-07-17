@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::Error;
 
-use hinawa::{FwFcpExt, SndUnitExt};
+use hinawa::{FwReq, FwFcpExt};
+use hinawa::{SndUnit, SndUnitExt};
 
-use core::card_cntr;
+use alsactl::{ElemId, ElemValue};
+
+use core::card_cntr::*;
 
 use bebob_protocols::*;
 
@@ -12,7 +16,7 @@ use super::special_ctls::{ClkCtl, MeterCtl, StateCache, MixerCtl, InputCtl, Outp
 
 pub struct SpecialModel {
     avc: BebobAvc,
-    req: hinawa::FwReq,
+    req: FwReq,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
     cache: StateCache,
@@ -30,8 +34,8 @@ impl SpecialModel {
     }
 }
 
-impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
-    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+impl CtlModel<SndUnit> for SpecialModel {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load(card_cntr)?;
@@ -48,7 +52,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value)? {
@@ -68,8 +72,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
         }
     }
 
-    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new)? {
@@ -90,32 +93,32 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for SpecialModel {
     }
 }
 
-impl card_cntr::MeasureModel<hinawa::SndUnit> for SpecialModel {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl MeasureModel<SndUnit> for SpecialModel {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, &self.req, &self.avc)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }
 
-impl card_cntr::NotifyModel<hinawa::SndUnit, bool> for SpecialModel {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl NotifyModel<SndUnit, bool> for SpecialModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.clk_ctl.read(&self.avc, elem_id, elem_value)
