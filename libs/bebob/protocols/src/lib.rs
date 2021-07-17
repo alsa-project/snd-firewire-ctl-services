@@ -8,6 +8,12 @@
 
 pub mod bridgeco;
 
+pub mod apogee;
+pub mod behringer;
+pub mod esi;
+pub mod maudio;
+pub mod stanton;
+
 use glib::Error;
 
 use hinawa::FwFcp;
