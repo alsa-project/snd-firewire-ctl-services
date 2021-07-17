@@ -126,8 +126,8 @@ impl MeasureModel<hinawa::SndDice> for ExtensionModel {
 #[derive(Default, Debug)]
 struct ExtensionState(Tcd22xxState);
 
-impl<'a> Tcd22xxSpec<'a> for  ExtensionState {
-    const INPUTS: &'a [Input<'a>] = &[
+impl Tcd22xxSpec for  ExtensionState {
+    const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 16, label: None},
         Input{id: SrcBlkId::Ins1, offset: 0, count: 16, label: None},
         Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
@@ -137,7 +137,7 @@ impl<'a> Tcd22xxSpec<'a> for  ExtensionState {
         Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
     ];
-    const OUTPUTS: &'a [Output<'a>] = &[
+    const OUTPUTS: &'static [Output] = &[
         Output{id: DstBlkId::Ins0, offset: 0, count: 16, label: None},
         Output{id: DstBlkId::Ins1, offset: 0, count: 16, label: None},
         Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
@@ -147,7 +147,7 @@ impl<'a> Tcd22xxSpec<'a> for  ExtensionState {
         Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
         Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
     ];
-    const FIXED: &'a [SrcBlk] = &[
+    const FIXED: &'static [SrcBlk] = &[
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
         SrcBlk{id: SrcBlkId::Ins0, ch: 2},

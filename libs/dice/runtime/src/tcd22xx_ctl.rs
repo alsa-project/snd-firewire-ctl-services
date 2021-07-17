@@ -20,7 +20,7 @@ use dice_protocols::tcat::tcd22xx_spec::*;
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtl<S>
-    where for<'a> S: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    where S: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
 {
     pub state: S,
     caps: ExtensionCaps,
@@ -31,7 +31,7 @@ pub struct Tcd22xxCtl<S>
 }
 
 impl<S> Tcd22xxCtl<S>
-    where for<'a> S: Tcd22xxSpec<'a> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    where S: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
 {
     pub fn load(&mut self, unit: &SndDice, proto: &FwReq, sections: &ExtensionSections,
                 caps: &ClockCaps, src_labels: &ClockSourceLabels, timeout_ms: u32, card_cntr: &mut CardCntr)
@@ -166,7 +166,7 @@ impl MeterCtl {
     pub fn load<T>(&mut self, node: &FwNode, proto: &FwReq, sections: &ExtensionSections,
                    caps: &ExtensionCaps, state: &T, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b>,
+        where T: Tcd22xxSpec,
     {
         let (_, real_blk_dsts) = state.compute_avail_real_blk_pair(RateMode::Low);
         self.real_blk_dsts = real_blk_dsts;
@@ -274,7 +274,7 @@ impl RouterCtl {
                    caps: &ExtensionCaps, state: &T, clk_caps: &ClockCaps, timeout_ms: u32,
                    card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b>,
+        where T: Tcd22xxSpec,
     {
         self.real_blk_pair = state.compute_avail_real_blk_pair(RateMode::Low);
 
@@ -359,7 +359,7 @@ impl RouterCtl {
                     caps: &ExtensionCaps, state: &mut T, elem_id: &ElemId,
                     old: &ElemValue, new: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         match elem_id.get_name().as_str() {
             Self::OUT_SRC_NAME => {
@@ -385,7 +385,7 @@ impl RouterCtl {
     fn add_an_elem_for_src<T>(card_cntr: &mut CardCntr, label: &str, dsts: &[DstBlk],
                               srcs: &[&[SrcBlk]], state: &T)
         -> Result<Vec<ElemId>, Error>
-        where for<'b> T: Tcd22xxSpec<'b>,
+        where T: Tcd22xxSpec,
     {
         let targets = dsts.iter().map(|&dst| state.get_dst_blk_label(dst)).collect::<Vec<String>>();
         let mut sources = srcs.iter()
@@ -422,7 +422,7 @@ impl RouterCtl {
                          caps: &ExtensionCaps, state: &mut T, old: &ElemValue, new: &ElemValue,
                          dsts: &[DstBlk], srcs: &[&[SrcBlk]], timeout_ms: u32)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         let mut entries = state.as_ref().router_entries.clone();
 
@@ -471,7 +471,7 @@ impl MixerCtl {
 
     pub fn load<T>(&mut self, caps: &ExtensionCaps, state: &T, card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
@@ -488,7 +488,7 @@ impl MixerCtl {
 
     pub fn read<T>(&self, state: &T, elem_id: &alsactl::ElemId, elem_value: &alsactl::ElemValue)
         -> Result<bool, Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         match elem_id.get_name().as_str() {
             Self::SRC_GAIN_NAME => {
@@ -510,7 +510,7 @@ impl MixerCtl {
                    caps: &ExtensionCaps, state: &mut T, elem_id: &ElemId,
                    old: &ElemValue, new: &ElemValue, timeout_ms: u32)
         -> Result<bool, Error>
-        where for<'b> T: Tcd22xxSpec<'b> + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
     {
         match elem_id.get_name().as_str() {
             Self::SRC_GAIN_NAME => {

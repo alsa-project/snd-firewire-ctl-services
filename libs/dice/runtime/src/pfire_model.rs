@@ -20,7 +20,7 @@ use super::tcd22xx_ctl::*;
 
 #[derive(Default)]
 pub struct PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     proto: FwReq,
     sections: GeneralSections,
@@ -36,7 +36,7 @@ pub type Pfire610Model = PfireModel<Pfire610State>;
 const TIMEOUT_MS: u32 = 20;
 
 impl<S> CtlModel<SndDice> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let node = unit.get_node();
@@ -90,7 +90,7 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
 }
 
 impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
@@ -118,7 +118,7 @@ impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
 }
 
 impl<S> MeasureModel<hinawa::SndDice> for PfireModel<S>
-    where for<'a> S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec<'a> + PfireClkSpec,
+    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
