@@ -7,8 +7,7 @@ use hinawa::{FwFcpExt, SndUnitExt};
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 
-use ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
-use ta1394::general::UnitInfo;
+use ta1394::MUSIC_SUBUNIT_0;
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr};
 
 use super::super::BebobAvc;
@@ -86,10 +85,6 @@ impl<'a> Default for OzonicModel<'a> {
 impl<'a> CtlModel<hinawa::SndUnit> for OzonicModel<'a> {
     fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
-
-        let mut op = UnitInfo::new();
-        self.avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-        self.avc.company_id = op.company_id;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;

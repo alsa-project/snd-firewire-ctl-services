@@ -6,6 +6,8 @@ use ta1394::AvcAddr;
 use ta1394::{AvcOp, AvcControl};
 use ta1394::general::VendorDependent;
 
+const APOGEE_OUI: [u8;3] = [0x00, 0x03, 0xdb];
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum VendorCmd {
     InputLimit(u8),     // index, state
@@ -212,11 +214,11 @@ pub struct ApogeeCmd{
 }
 
 impl ApogeeCmd {
-    pub fn new(company_id: &[u8;3], cmd: VendorCmd, params: &[u8]) -> Self {
+    pub fn new(cmd: VendorCmd, params: &[u8]) -> Self {
         ApogeeCmd{
             cmd,
             params: params.to_vec(),
-            op: VendorDependent::new(company_id),
+            op: VendorDependent::new(&APOGEE_OUI),
         }
     }
 }

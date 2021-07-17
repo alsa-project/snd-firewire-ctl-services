@@ -71,11 +71,11 @@ impl<'a> HwCtl {
         };
 
         // Transfer initialized data.
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::CdMode),
+        let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::CdMode),
                                     &[self.cd as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Downgrade, &[self.cd as u8]);
+        let mut op = ApogeeCmd::new(VendorCmd::Downgrade, &[self.cd as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
@@ -120,7 +120,7 @@ impl<'a> HwCtl {
         match elem_id.get_name().as_str() {
             Self::STREAM_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::StreamMode),
+                    let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::StreamMode),
                                                 &[val as u8]);
                     unit.lock()?;
                     let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
@@ -131,7 +131,7 @@ impl<'a> HwCtl {
             }
             Self::CD_MODE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::CdMode),
+                    let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::CdMode),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.cd = val;
@@ -141,7 +141,7 @@ impl<'a> HwCtl {
             }
             Self::SPDIF_OUT_BYPASS_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Downgrade,
+                    let mut op = ApogeeCmd::new(VendorCmd::Downgrade,
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.spdif_out_bypass = val as u32;
@@ -182,19 +182,19 @@ impl<'a> DisplayCtl {
         -> Result<(), Error>
     {
         // Transfer initialized data.
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
+        let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
                                     &[self.illuminate as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayMode),
+        let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayMode),
                                     &[self.mode as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayTarget),
+        let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayTarget),
                                     &[self.target as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayOverhold),
+        let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayOverhold),
                                     &[self.overhold as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
@@ -248,7 +248,7 @@ impl<'a> DisplayCtl {
         match elem_id.get_name().as_str() {
             Self::ILLUMINATE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
+                    let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayIlluminate),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.illuminate = val;
@@ -258,7 +258,7 @@ impl<'a> DisplayCtl {
             }
             Self::MODE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayMode),
+                    let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayMode),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.mode = val;
@@ -268,7 +268,7 @@ impl<'a> DisplayCtl {
             }
             Self::TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayTarget),
+                    let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayTarget),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.target = val;
@@ -278,7 +278,7 @@ impl<'a> DisplayCtl {
             }
             Self::OVERHOLD_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::Hw(HwCmdOp::DisplayOverhold),
+                    let mut op = ApogeeCmd::new(VendorCmd::Hw(HwCmdOp::DisplayOverhold),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.overhold = val;
@@ -313,10 +313,10 @@ impl<'a> OpticalCtl {
         -> Result<(), Error>
     {
         // Transfer initialized data.
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x00), &[self.output as u8]);
+        let mut op = ApogeeCmd::new(VendorCmd::OptIfaceMode(0x00), &[self.output as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x01), &[self.input as u8]);
+        let mut op = ApogeeCmd::new(VendorCmd::OptIfaceMode(0x01), &[self.input as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
@@ -353,7 +353,7 @@ impl<'a> OpticalCtl {
         match elem_id.get_name().as_str() {
             Self::OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x00),
+                    let mut op = ApogeeCmd::new(VendorCmd::OptIfaceMode(0x00),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.output = val;
@@ -363,7 +363,7 @@ impl<'a> OpticalCtl {
             }
             Self::IN_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OptIfaceMode(0x01),
+                    let mut op = ApogeeCmd::new(VendorCmd::OptIfaceMode(0x01),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.input = val;
@@ -413,11 +413,11 @@ impl<'a> InputCtl {
     {
         // Transfer initialized data.
         (0..Self::IN_LABELS.len()).try_for_each(|i| {
-            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::InputLimit(i as u8),
+            let mut op = ApogeeCmd::new(VendorCmd::InputLimit(i as u8),
                                         &[self.limits[i] as u8]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x01),
+            let mut op = ApogeeCmd::new(VendorCmd::IoAttr(i as u8, 0x01),
                                         &[self.levels[i] as u8]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
@@ -425,11 +425,11 @@ impl<'a> InputCtl {
         })?;
 
         (0..Self::MIC_LABELS.len()).try_for_each(|i| {
-            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPower(i as u8),
+            let mut op = ApogeeCmd::new(VendorCmd::MicPower(i as u8),
                                         &[self.phantoms[i] as u8]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-            let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPolarity(i as u8),
+            let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(i as u8),
                                         &[self.polarities[i] as u8]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
@@ -486,7 +486,7 @@ impl<'a> InputCtl {
         match elem_id.get_name().as_str() {
             Self::IN_LIMIT_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::InputLimit(idx as u8),
+                    let mut op = ApogeeCmd::new(VendorCmd::InputLimit(idx as u8),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.limits[idx] = val;
@@ -496,7 +496,7 @@ impl<'a> InputCtl {
             }
             Self::IN_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(idx as u8, 0x01),
+                    let mut op = ApogeeCmd::new(VendorCmd::IoAttr(idx as u8, 0x01),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.levels[idx] = val;
@@ -506,7 +506,7 @@ impl<'a> InputCtl {
             }
             Self::MIC_PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPower(idx as u8),
+                    let mut op = ApogeeCmd::new(VendorCmd::MicPower(idx as u8),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.phantoms[idx] = val;
@@ -516,7 +516,7 @@ impl<'a> InputCtl {
             }
             Self::MIC_POLARITY_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicPolarity(idx as u8),
+                    let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(idx as u8),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.polarities[idx] = val;
@@ -554,7 +554,7 @@ impl<'a> OutputCtl {
         self.levels.iter()
             .enumerate()
             .try_for_each(|(i, l)| {
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(i as u8, 0x00),
+                let mut op = ApogeeCmd::new(VendorCmd::IoAttr(i as u8, 0x00),
                                             &[*l as u8]);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                 Ok(())
@@ -586,7 +586,7 @@ impl<'a> OutputCtl {
         match elem_id.get_name().as_str() {
             Self::OUT_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoAttr(idx as u8, 0x00),
+                    let mut op = ApogeeCmd::new(VendorCmd::IoAttr(idx as u8, 0x00),
                                                 &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.levels[idx] = val;
@@ -674,7 +674,7 @@ impl<'a> MixerCtl {
             _ => VendorCmd::MixerSrc0(p),
         };
 
-        let mut op = ApogeeCmd::new(&avc.company_id, cmd, &params);
+        let mut op = ApogeeCmd::new(cmd, &params);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         self.mixers[index].copy_from_slice(&vals[0..Self::MIXER_SRC_LABELS.len()]);
@@ -835,7 +835,7 @@ impl<'a> RouteCtl {
     {
         if let Some(d) = Self::PORT_LABELS.iter().position(|&x| x == dst) {
             if let Some(s) = Self::PORT_LABELS.iter().position(|&x| x == src) {
-                let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::IoRouting(d as u8),
+                let mut op = ApogeeCmd::new(VendorCmd::IoRouting(d as u8),
                                             &[s as u8]);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                 Ok(())
@@ -851,7 +851,7 @@ impl<'a> RouteCtl {
         -> Result<(), Error>
     {
         let val = src * 2 + 1;
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::HpSrc(dst as u8),
+        let mut op = ApogeeCmd::new(VendorCmd::HpSrc(dst as u8),
                                     &[val as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
         self.hp[dst] = src as u32;
@@ -976,7 +976,7 @@ impl<'a> ResamplerCtl {
     }
 
     fn send(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::SpdifResample,
+        let mut op = ApogeeCmd::new(VendorCmd::SpdifResample,
                                     &[self.enabled as u8, self.iface, self.direction, self.rate]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -1204,7 +1204,7 @@ impl<'a> MeterCtl {
                     let idx = val as usize;
                     let target = Self::IN_KNOB_VAL_TARGETS[idx];
                     let pos = Self::IN_GAIN_POS[idx];
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target),
+                    let mut op = ApogeeCmd::new(VendorCmd::MicGain(target),
                                                 &self.cache[pos..(pos + 1)]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                 })?;
@@ -1213,7 +1213,7 @@ impl<'a> MeterCtl {
             Self::IN_GAIN_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::IN_KNOB_VAL_TARGETS.len(), |idx, val| {
                     let target = Self::IN_KNOB_VAL_TARGETS[idx];
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::MicGain(target), &[val as u8]);
+                    let mut op = ApogeeCmd::new(VendorCmd::MicGain(target), &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                 })?;
                 Ok(true)
@@ -1223,7 +1223,7 @@ impl<'a> MeterCtl {
                     let idx = val as usize;
                     let target = Self::OUT_KNOB_VAL_TARGETS[idx];
                     let pos = Self::OUT_VOL_POS[idx];
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target),
+                    let mut op = ApogeeCmd::new(VendorCmd::OutVol(target),
                                                 &self.cache[pos..(pos + 1)]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                 })?;
@@ -1233,7 +1233,7 @@ impl<'a> MeterCtl {
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::OUT_KNOB_VAL_TARGETS.len(), |idx, val| {
                     let target = Self::OUT_KNOB_VAL_TARGETS[idx];
                     let val = -val;
-                    let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::OutVol(target), &[val as u8]);
+                    let mut op = ApogeeCmd::new(VendorCmd::OutVol(target), &[val as u8]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     Ok(())
                 })?;
@@ -1244,7 +1244,7 @@ impl<'a> MeterCtl {
     }
 
     pub fn measure_states(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&avc.company_id, VendorCmd::HwStatus(true), &[0x01]);
+        let mut op = ApogeeCmd::new(VendorCmd::HwStatus(true), &[0x01]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
         self.cache.copy_from_slice(&op.params);
         Ok(())
