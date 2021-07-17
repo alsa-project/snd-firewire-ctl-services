@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel, NotifyModel};
 
-use super::apogee::apogee_model::EnsembleModel;
+use super::apogee::ensemble_model::EnsembleModel;
 use super::maudio::ozonic_model::OzonicModel;
 use super::maudio::solo_model::SoloModel;
 use super::maudio::audiophile_model::AudiophileModel;
