@@ -13,7 +13,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{*, ccm::*, audio::*};
 
-use super::{*, common_ctls::ClkCtl};
+use bebob_protocols::*;
+
+use super::common_ctls::ClkCtl;
 
 pub struct QuatafireModel<'a>{
     avc: BebobAvc,

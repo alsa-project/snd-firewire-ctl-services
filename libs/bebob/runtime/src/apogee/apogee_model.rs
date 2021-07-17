@@ -9,7 +9,7 @@ use core::card_cntr;
 use ta1394::MUSIC_SUBUNIT_0;
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
-use super::super::BebobAvc;
+use bebob_protocols::*;
 use super::super::common_ctls::ClkCtl;
 use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl, ResamplerCtl, MeterCtl};
 
