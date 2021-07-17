@@ -15,14 +15,14 @@ use super::tcat::tcd22xx_spec::*;
 use super::tcat::extension::{*, appl_section::*};
 
 /// The trait to represent available rate and source of sampling clock.
-pub trait PfireClkSpec<'a> {
-    const AVAIL_CLK_RATES: &'a [ClockRate] = &[
+pub trait PfireClkSpec {
+    const AVAIL_CLK_RATES: [ClockRate; 7] = [
         ClockRate::R32000, ClockRate::R44100, ClockRate::R48000,
         ClockRate::R88200, ClockRate::R96000,
         ClockRate::R176400, ClockRate::R192000,
     ];
 
-    const AVAIL_CLK_SRCS: &'a [ClockSource];
+    const AVAIL_CLK_SRCS: &'static [ClockSource];
 }
 
 /// The structure to represent state of TCD22xx on ProFire 2626.
@@ -66,8 +66,8 @@ impl AsRef<Tcd22xxState> for Pfire2626State {
     }
 }
 
-impl<'a> PfireClkSpec<'a> for Pfire2626State {
-    const AVAIL_CLK_SRCS: &'a [ClockSource] = &[
+impl PfireClkSpec for Pfire2626State {
+    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
             ClockSource::Aes1,
             ClockSource::Aes4,
             ClockSource::Adat,
@@ -109,8 +109,8 @@ impl AsMut<Tcd22xxState> for Pfire610State {
     }
 }
 
-impl<'a> PfireClkSpec<'a> for Pfire610State {
-    const AVAIL_CLK_SRCS: &'a [ClockSource] = &[
+impl PfireClkSpec for Pfire610State {
+    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
             ClockSource::Aes1,
             ClockSource::Internal,
     ];
