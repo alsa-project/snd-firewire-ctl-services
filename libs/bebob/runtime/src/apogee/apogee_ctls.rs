@@ -13,7 +13,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
-use super::super::BebobAvc;
+use bebob_protocols::*;
 use super::super::extensions::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
 use super::super::extensions::BcoCompoundAm824StreamFormat;
 use super::super::extensions::ExtendedStreamFormatSingle;

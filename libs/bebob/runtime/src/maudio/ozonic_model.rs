@@ -10,7 +10,8 @@ use card_cntr::{CtlModel, MeasureModel};
 use ta1394::MUSIC_SUBUNIT_0;
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr};
 
-use super::super::BebobAvc;
+use bebob_protocols::*;
+
 use super::super::common_ctls::ClkCtl;
 
 use super::common_proto::FCP_TIMEOUT_MS;

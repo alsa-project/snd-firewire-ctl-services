@@ -6,7 +6,7 @@ use hinawa::{FwFcpExt, SndUnitExt};
 
 use core::card_cntr;
 
-use super::super::BebobAvc;
+use bebob_protocols::*;
 
 use super::special_ctls::{ClkCtl, MeterCtl, StateCache, MixerCtl, InputCtl, OutputCtl, AuxCtl, HpCtl};
 

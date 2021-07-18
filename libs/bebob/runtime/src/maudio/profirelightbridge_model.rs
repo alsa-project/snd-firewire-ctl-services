@@ -13,7 +13,8 @@ use core::elem_value_accessor::ElemValueAccessor;
 use ta1394::{MUSIC_SUBUNIT_0};
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
-use super::super::BebobAvc;
+use bebob_protocols::*;
+
 use super::super::common_ctls::ClkCtl;
 use super::super::model::OUT_METER_NAME;
 

@@ -22,8 +22,6 @@ use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 use glib::{Error, FileError};
 use glib::source;
 
-use hinawa::FwFcp;
-
 use core::RuntimeOperation;
 use core::dispatcher;
 use core::card_cntr;
@@ -32,46 +30,6 @@ use ieee1212_config_rom::ConfigRom;
 use ta1394::config_rom::Ta1394ConfigRom;
 
 use model::BebobModel;
-
-use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
-use ta1394::{AvcOp, AvcControl};
-use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
-use ta1394::ccm::SignalSource;
-
-/// The structure for AV/C transaction helper with quirks specific to BeBoB solution.
-#[derive(Default, Debug)]
-pub struct BebobAvc(FwFcp);
-
-impl AsRef<FwFcp> for BebobAvc {
-    fn as_ref(&self) -> &FwFcp {
-        &self.0
-    }
-}
-
-impl Ta1394Avc for BebobAvc {
-    fn control<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        let mut operands = Vec::new();
-        AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)?;
-        let unexpected = match O::OPCODE {
-            InputPlugSignalFormat::OPCODE |
-            OutputPlugSignalFormat::OPCODE |
-            SignalSource::OPCODE => {
-                // NOTE: quirk.
-                rcode == AvcRespCode::Accepted || rcode == AvcRespCode::Reserved(0x00)
-            }
-            _ => {
-                rcode == AvcRespCode::Accepted
-            }
-        };
-        if !unexpected {
-            let label = format!("Unexpected response code for control opcode {}: {:?}", O::OPCODE, rcode);
-            Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
-        } else {
-            AvcControl::parse_operands(op, addr, &operands)
-        }
-    }
-}
 
 enum Event {
     Shutdown,

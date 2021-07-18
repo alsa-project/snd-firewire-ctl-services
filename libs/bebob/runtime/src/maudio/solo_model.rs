@@ -12,9 +12,9 @@ use ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioSelector};
 
-use super::super::common_ctls::ClkCtl;
+use bebob_protocols::*;
 
-use super::super::BebobAvc;
+use super::super::common_ctls::ClkCtl;
 
 use super::common_proto::FCP_TIMEOUT_MS;
 use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl};
