@@ -261,3 +261,60 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }
+
+/// The trait of select operation for audio function block.
+pub trait AvcSelectorOperation {
+    const FUNC_BLOCK_ID_LIST: &'static [u8];
+    const INPUT_PLUG_ID_LIST: &'static [u8];
+
+    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
+        let &func_block_id = Self::FUNC_BLOCK_ID_LIST
+            .iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of selector: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        Self::INPUT_PLUG_ID_LIST
+            .iter()
+            .position(|&input_plug_id| input_plug_id == op.input_plug_id)
+            .ok_or_else(|| {
+                let msg = format!(
+                    "Unexpected index of input plug number: {}",
+                    op.input_plug_id
+                );
+                Error::new(FileError::Io, &msg)
+            })
+    }
+
+    fn write_selector(
+        avc: &BebobAvc,
+        idx: usize,
+        val: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let &func_block_id = Self::FUNC_BLOCK_ID_LIST
+            .iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of selector: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let input_plug_id = Self::INPUT_PLUG_ID_LIST
+            .iter()
+            .nth(val)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of input plug number: {}", val);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|input_plug_id| *input_plug_id)?;
+
+        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, input_plug_id);
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+    }
+}
