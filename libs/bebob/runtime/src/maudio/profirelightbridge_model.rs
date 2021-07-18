@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::Error;
 
-use hinawa::{FwFcpExt, SndUnitExt};
+use hinawa::{FwFcpExt, FwReq};
+use hinawa::{SndUnit, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
-use core::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
+use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{MUSIC_SUBUNIT_0};
@@ -20,15 +23,15 @@ use super::super::model::OUT_METER_NAME;
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
 
-pub struct ProfirelightbridgeModel<'a> {
+pub struct PflModel<'a> {
     avc: BebobAvc,
-    req: hinawa::FwReq,
+    req: FwReq,
     clk_ctl: ClkCtl<'a>,
     meter_ctl: MeterCtl,
     input_ctl: InputCtl,
 }
 
-impl<'a> ProfirelightbridgeModel<'a> {
+impl<'a> PflModel<'a> {
     const CLK_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x07,
@@ -56,7 +59,7 @@ impl<'a> ProfirelightbridgeModel<'a> {
     ];
 }
 
-impl<'a> Default for ProfirelightbridgeModel<'a> {
+impl<'a> Default for PflModel<'a> {
     fn default() -> Self {
         Self{
             avc: Default::default(),
@@ -68,8 +71,8 @@ impl<'a> Default for ProfirelightbridgeModel<'a> {
     }
 }
 
-impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
-    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+impl<'a> CtlModel<SndUnit> for PflModel<'a> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -79,7 +82,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
@@ -91,8 +94,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
         }
     }
 
-    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
@@ -105,16 +107,16 @@ impl<'a> CtlModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
     }
 }
 
-impl<'a> MeasureModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> MeasureModel<SndUnit> for PflModel<'a> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, &self.req)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.meter_ctl.measure_elem(elem_id, elem_value)
@@ -122,7 +124,7 @@ impl<'a> MeasureModel<hinawa::SndUnit> for ProfirelightbridgeModel<'a> {
 }
 
 struct MeterCtl {
-    measure_elems: Vec<alsactl::ElemId>,
+    measure_elems: Vec<ElemId>,
     cache: [u8;Self::FRAME_COUNT],
 }
 
@@ -147,9 +149,9 @@ impl<'a> MeterCtl {
         }
     }
 
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For metering.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_METER_NAME, 0);
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                                    Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
                                                    Self::METER_LABELS.len(),
@@ -157,13 +159,13 @@ impl<'a> MeterCtl {
         self.measure_elems.push(elem_id_list[0].clone());
 
         // For detection of sampling clock frequency.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::DETECTED_RATE_NAME, 0);
         let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::RATE_LABELS, None, false)?;
         self.measure_elems.push(elem_id_list[0].clone());
 
         // For sync status.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::SYNC_STATUS_NAME, 0);
         let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
         self.measure_elems.push(elem_id_list[0].clone());
@@ -171,11 +173,11 @@ impl<'a> MeterCtl {
         Ok(())
     }
 
-    pub fn measure_states(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq) -> Result<(), Error> {
+    pub fn measure_states(&mut self, unit: &SndUnit, req: &FwReq) -> Result<(), Error> {
         req.read_meters(unit, &mut self.cache)
     }
 
-    fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_METER_NAME => {
                 let mut quadlet = [0;4];
@@ -212,17 +214,16 @@ impl<'a> MeterCtl {
     }
 }
 
-impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for ProfirelightbridgeModel<'a> {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> NotifyModel<SndUnit, bool> for PflModel<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
-                          elem_value: &mut alsactl::ElemValue)
+    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
@@ -255,16 +256,16 @@ impl<'a> InputCtl {
         }
     }
 
-    fn load(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, card_cntr: &mut card_cntr::CardCntr)
+    fn load(&mut self, unit: &SndUnit, req: &FwReq, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         // For mute of input for ADAT interfaces.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_LABELS.len(), true)?;
 
         // For switch to force S/MUX.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
                                                    0, 0, Self::FORCE_SMUX_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
@@ -278,7 +279,7 @@ impl<'a> InputCtl {
         req.write_block(unit, Self::OFFSET, &mut self.cache)
     }
 
-    fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MUTE_NAME => {
                 let mut quadlet = [0;4];
@@ -303,8 +304,8 @@ impl<'a> InputCtl {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {

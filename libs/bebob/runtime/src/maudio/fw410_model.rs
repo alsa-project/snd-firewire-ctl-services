@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::Error;
 
-use hinawa::{FwFcpExt, SndUnitExt};
+use hinawa::{FwFcpExt, FwReq};
+use hinawa::{SndUnit, SndUnitExt};
 
-use core::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
+
+use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
@@ -21,7 +24,7 @@ use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl}
 
 pub struct Fw410Model<'a>{
     avc: BebobAvc,
-    req: hinawa::FwReq,
+    req: FwReq,
     clk_ctl: ClkCtl<'a>,
     meter_ctl: MeterCtl<'a>,
     mixer_ctl: MixerCtl<'a>,
@@ -117,8 +120,8 @@ impl<'a> Default for Fw410Model<'a> {
     }
 }
 
-impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
-    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -135,7 +138,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
@@ -161,8 +164,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
         }
     }
 
-    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
@@ -189,33 +191,32 @@ impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
     }
 }
 
-impl<'a> MeasureModel<hinawa::SndUnit> for Fw410Model<'a> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> MeasureModel<SndUnit> for Fw410Model<'a> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, &self.avc, &self.req)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }
 
-impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for Fw410Model<'a> {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> NotifyModel<SndUnit, bool> for Fw410Model<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
-                          elem_value: &mut alsactl::ElemValue)
+    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
@@ -230,15 +231,15 @@ const HP_MIXER_ON: i16 = 0x0000;
 const HP_MIXER_OFF: i16 = (0x8000 as u16) as i16;
 
 trait HpMixerCtl : Ta1394Avc {
-    fn load(&self, card_cntr: &mut card_cntr::CardCntr,) -> Result<(), Error> {
+    fn load(&self, card_cntr: &mut CardCntr,) -> Result<(), Error> {
         // For physical/stream inputs to headphone mixer.
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_MIXER_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_MIXER_SRC_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Fw410Model::PHYS_OUT_LABELS.len(), true)?;
 
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -261,7 +262,7 @@ trait HpMixerCtl : Ta1394Avc {
         }
     }
 
-    fn write(&self, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&self, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -287,13 +288,13 @@ const SPDIF_SRC_LABELS: &[&str] = &["coaxial", "optical"];
 const SPDIF_SRC_FB_ID: u8 = 0x01;
 
 trait SpdifSrcCtl : Ta1394Avc {
-    fn load(&self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, SPDIF_SRC_NAME, 0);
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, SPDIF_SRC_LABELS, None, true)?;
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -309,7 +310,7 @@ trait SpdifSrcCtl : Ta1394Avc {
         }
     }
 
-    fn write(&self, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&self, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {

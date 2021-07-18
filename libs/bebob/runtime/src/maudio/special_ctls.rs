@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::{Error, FileError};
 
-use hinawa::SndUnitExt;
+use hinawa::{FwReq, FwTcode};
+use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
-use core::card_cntr;
+use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
@@ -18,13 +20,13 @@ use ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
 
 use bebob_protocols::*;
 
-use super::super::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
+use crate::model::{CLK_RATE_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
 
 pub struct ClkCtl{
     supported_clk_rates: Vec<u32>,
-    pub notified_elem_list: Vec<alsactl::ElemId>,
+    pub notified_elem_list: Vec<ElemId>,
 }
 
 impl<'a> ClkCtl {
@@ -40,19 +42,19 @@ impl<'a> ClkCtl {
         }
     }
 
-    pub fn load(&mut self, card_cntr: &mut card_cntr::CardCntr)
+    pub fn load(&mut self, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         let labels = self.supported_clk_rates.iter().map(|l| l.to_string()).collect::<Vec<String>>();
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
         let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         self.notified_elem_list.append(&mut elem_id_list);
 
         Ok(())
     }
 
-    pub fn read(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn read(&mut self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -76,8 +78,8 @@ impl<'a> ClkCtl {
         }
     }
 
-    pub fn write(&mut self, unit: &hinawa::SndUnit, avc: &BebobAvc, elem_id: &alsactl::ElemId,
-                 _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    pub fn write(&mut self, unit: &SndUnit, avc: &BebobAvc, elem_id: &ElemId,
+                 _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -147,7 +149,7 @@ impl AvcControl for LedSwitch {
 }
 
 pub struct MeterCtl{
-    pub measure_elems: Vec<alsactl::ElemId>,
+    pub measure_elems: Vec<ElemId>,
     meters: [u8; Self::METER_FRAME_SIZE],
     switch: bool,
     rotaries: [i32;3],
@@ -198,10 +200,10 @@ impl<'a> MeterCtl {
         }
     }
 
-    fn add_meter_elem(&mut self, card_cntr: &mut card_cntr::CardCntr, name: &str, labels: &[&str])
+    fn add_meter_elem(&mut self, card_cntr: &mut CardCntr, name: &str, labels: &[&str])
         -> Result<(), Error>
     {
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::VAL_MIN, Self::VAL_MAX, Self::VAL_STEP,
                                                        labels.len(),
                                                        Some(&Into::<Vec<u32>>::into(Self::VAL_TLV)), false)?;
@@ -209,26 +211,26 @@ impl<'a> MeterCtl {
         Ok(())
     }
 
-    pub fn load(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, avc: &BebobAvc,
-                card_cntr: &mut card_cntr::CardCntr)
+    pub fn load(&mut self, unit: &SndUnit, req: &FwReq, avc: &BebobAvc,
+                card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::ROTARY0_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ROTARY0_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::VAL_MIN, Self::VAL_MAX, Self::VAL_STEP,
                                                        1, None, false)?;
         self.measure_elems.append(&mut elem_id_list);
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::ROTARY1_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ROTARY1_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::VAL_MIN, Self::VAL_MAX, Self::VAL_STEP,
                                                        1, None, false)?;
         self.measure_elems.append(&mut elem_id_list);
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::ROTARY2_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ROTARY2_NAME, 0);
         let mut elem_id_list = card_cntr.add_int_elems(&elem_id, 1, Self::VAL_MIN, Self::VAL_MAX, Self::VAL_STEP,
                                                        1, None, false)?;
         self.measure_elems.append(&mut elem_id_list);
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::SWITCH_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SWITCH_NAME, 0);
         let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
         self.measure_elems.append(&mut elem_id_list);
 
@@ -241,7 +243,7 @@ impl<'a> MeterCtl {
         Ok(())
     }
 
-    pub fn measure_states(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, avc: &BebobAvc)
+    pub fn measure_states(&mut self, unit: &SndUnit, req: &FwReq, avc: &BebobAvc)
         -> Result<(), Error>
     {
         let mut frames = [0;Self::METER_FRAME_SIZE];
@@ -279,7 +281,7 @@ impl<'a> MeterCtl {
         Ok(())
     }
 
-    fn parse_meters(&self, elem_value: &mut alsactl::ElemValue, offset: usize, labels: &[&str]) {
+    fn parse_meters(&self, elem_value: &mut ElemValue, offset: usize, labels: &[&str]) {
         let mut doublet = [0;2];
         ElemValueAccessor::<i32>::set_vals(elem_value, labels.len(), |idx| {
             let pos = (offset + idx) * 2;
@@ -288,7 +290,7 @@ impl<'a> MeterCtl {
         }).unwrap();
     }
 
-    pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -344,7 +346,7 @@ impl StateCache {
         }
     }
 
-    pub fn upload(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq) -> Result<(), Error> {
+    pub fn upload(&mut self, unit: &SndUnit, req: &FwReq) -> Result<(), Error> {
         (0..(Self::CACHE_SIZE / 4)).try_for_each(|pos| {
             let offset = pos * 4;
             req.write_quadlet(unit, offset, &mut self.cache)
@@ -353,13 +355,13 @@ impl StateCache {
 }
 
 trait SpecialProto : CommonProto {
-    fn write_quadlet(&self, unit: &hinawa::SndUnit, offset: usize, cache: &mut [u8]) -> Result<(), Error> {
-        self.transaction_sync(&unit.get_node(), hinawa::FwTcode::WriteQuadletRequest,
+    fn write_quadlet(&self, unit: &SndUnit, offset: usize, cache: &mut [u8]) -> Result<(), Error> {
+        self.transaction_sync(&unit.get_node(), FwTcode::WriteQuadletRequest,
                               Self::BASE_ADDR + offset as u64, 4, &mut cache[offset..(offset + 4)], Self::TIMEOUT)
     }
 }
 
-impl SpecialProto for hinawa::FwReq {}
+impl SpecialProto for FwReq {}
 
 pub trait StateCacheAccessor {
     fn get_u32(&self, pos: usize) -> u32;
@@ -410,10 +412,10 @@ const MIXER_STREAM_SRC_01_TO_DST_SHIFT: [usize;2] = [0, 2];
 const MIXER_SRC_NAME: &str = "mixer-source";
 
 pub trait MixerCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>;
 }
 
@@ -464,14 +466,14 @@ impl MixerSrcOperation for u32 {
 }
 
 impl MixerCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // Source of mixers.
         let mut flags = self.get_u32(MIXER_STREAM_SRC_POS);
         flags = flags.build_stream_src_flags(&[true, false], 0, &MIXER_STREAM_SRC_01_TO_DST_SHIFT);
         flags = flags.build_stream_src_flags(&[false, true], 1, &MIXER_STREAM_SRC_01_TO_DST_SHIFT);
         self.set_u32(MIXER_STREAM_SRC_POS, flags);
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, MIXER_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_NAME, 0);
         let in_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len()
                      + SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
         let _ = card_cntr.add_bool_elems(&elem_id, MIXER_DST_PAIR_LABELS.len(), in_count, true)?;
@@ -479,7 +481,7 @@ impl MixerCtl for StateCache {
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_SRC_NAME => {
                 let target = elem_id.get_index() as usize;
@@ -502,8 +504,8 @@ impl MixerCtl for StateCache {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             _: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_SRC_NAME => {
@@ -591,45 +593,45 @@ const PAN_MAX: i32 = i16::MAX as i32;
 const PAN_STEP: i32 = 256;
 
 pub trait InputCtl<'a> : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>;
 }
 
-fn add_input_gain_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_count: usize)
-    -> Result<Vec<alsactl::ElemId>, Error>
+fn add_input_gain_elem(card_cntr: &mut CardCntr, name: &str, value_count: usize)
+    -> Result<Vec<ElemId>, Error>
 {
-    let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
     card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, value_count,
                             Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)
 }
 
-fn add_input_pan_elem(card_cntr: &mut card_cntr::CardCntr, name: &str, value_count: usize)
-    -> Result<Vec<alsactl::ElemId>, Error>
+fn add_input_pan_elem(card_cntr: &mut CardCntr, name: &str, value_count: usize)
+    -> Result<Vec<ElemId>, Error>
 {
-    let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
     card_cntr.add_int_elems(&elem_id, 1, PAN_MIN, PAN_MAX, PAN_STEP, value_count, None, true)
 }
 
 impl StateCache {
-    fn read_input_gain(&self, value_count: usize, pos: usize, elem_value: &mut alsactl::ElemValue) {
+    fn read_input_gain(&self, value_count: usize, pos: usize, elem_value: &mut ElemValue) {
         ElemValueAccessor::<i32>::set_vals(elem_value, value_count, |idx| {
             let p = pos + idx * GAIN_SIZE;
             Ok(self.get_i16(p) as i32)
         }).unwrap();
     }
 
-    fn read_input_pan(&self, value_count: usize, pos: usize, elem_value: &mut alsactl::ElemValue) {
+    fn read_input_pan(&self, value_count: usize, pos: usize, elem_value: &mut ElemValue) {
         ElemValueAccessor::<i32>::set_vals(elem_value, value_count, |idx| {
             let p = pos + idx * PAN_SIZE;
             Ok(self.get_i16(p) as i32)
         }).unwrap();
     }
 
-    fn write_input_gain(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, value_count: usize, pos: usize,
-                        old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write_input_gain(&mut self, unit: &SndUnit, req: &FwReq, value_count: usize, pos: usize,
+                        old: &ElemValue, new: &ElemValue)
         -> Result<(), Error>
     {
         ElemValueAccessor::<i32>::get_vals(new, old, value_count, |idx, val| {
@@ -640,8 +642,8 @@ impl StateCache {
         }).and(Ok(()))
     }
 
-    fn write_input_pan(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, value_count: usize, pos: usize,
-                       old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write_input_pan(&mut self, unit: &SndUnit, req: &FwReq, value_count: usize, pos: usize,
+                       old: &ElemValue, new: &ElemValue)
         -> Result<(), Error>
     {
         ElemValueAccessor::<i32>::get_vals(new, old, value_count, |idx, val| {
@@ -654,7 +656,7 @@ impl StateCache {
 }
 
 impl<'a> InputCtl<'a> for StateCache {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // Gain of inputs from stream.
         (0..STREAM_IN_LABELS.len()).for_each(|i| {
             let pos = STREAM_IN_GAIN_POS + i * GAIN_SIZE;
@@ -707,7 +709,7 @@ impl<'a> InputCtl<'a> for StateCache {
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             STREAM_IN_GAIN_NAME => {
                 self.read_input_gain(STREAM_IN_LABELS.len(), STREAM_IN_GAIN_POS, elem_value);
@@ -741,8 +743,8 @@ impl<'a> InputCtl<'a> for StateCache {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -780,10 +782,10 @@ impl<'a> InputCtl<'a> for StateCache {
 }
 
 pub trait OutputCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>;
 }
 
@@ -828,7 +830,7 @@ impl OutputSrcOperation for u32 {
 }
 
 impl OutputCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // Volume of outputs to analog ports.
         (0..ANALOG_OUT_LABELS.len()).for_each(|i| {
             let pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
@@ -840,17 +842,17 @@ impl OutputCtl for StateCache {
         flags = flags.build_out_src_flags(&[0, 0]);
         self.set_u32(OUT_PAIR_SRC_POS, flags);
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
                                 ANALOG_OUT_LABELS.len(), Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, OUT_PAIR_LABELS.len(), OUT_PAIR_SRC_LABELS, None, true)?;
 
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, ANALOG_OUT_LABELS.len(), |idx| {
@@ -868,8 +870,8 @@ impl OutputCtl for StateCache {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
@@ -897,10 +899,10 @@ impl OutputCtl for StateCache {
 }
 
 pub trait AuxCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>;
 }
 
@@ -913,7 +915,7 @@ const AUX_SRC_PAIR_NAME: &str = "aux-source";
 const AUX_OUT_VOL_NAME: &str = "aux-out-volume";
 
 impl AuxCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // Gain of inputs to aux mixer.
         let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
                         SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
@@ -928,11 +930,11 @@ impl AuxCtl for StateCache {
             self.set_i16(pos, GAIN_MAX as i16);
         });
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, AUX_SRC_PAIR_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_SRC_PAIR_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, src_count,
                                         Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
                                         AUX_OUT_LABELS.len(),
                                         Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
@@ -940,7 +942,7 @@ impl AuxCtl for StateCache {
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             AUX_SRC_PAIR_NAME => {
                 let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
@@ -962,8 +964,8 @@ impl AuxCtl for StateCache {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             AUX_SRC_PAIR_NAME => {
@@ -992,10 +994,10 @@ impl AuxCtl for StateCache {
 }
 
 pub trait HpCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>;
 }
 
@@ -1041,7 +1043,7 @@ impl HpSrcOperation for u32 {
 }
 
 impl HpCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // Source of headphone.
         let mut flags = self.get_u32(HP_SRC_PAIR_POS);
         flags = flags.build_hp_src_flags(&[0, 1]);
@@ -1053,18 +1055,18 @@ impl HpCtl for StateCache {
             self.set_i16(pos, VOL_MAX as i16);
         });
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_OUT_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
                                         HP_OUT_LABELS.len(),
                                         Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, HP_OUT_PAIR_LABELS.len(), HP_SRC_PAIR_LABELS, None, true)?;
 
         Ok(())
     }
 
-    fn read(&self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error> {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             HP_SRC_NAME => {
                 let flags = self.get_u32(HP_SRC_PAIR_POS);
@@ -1083,8 +1085,8 @@ impl HpCtl for StateCache {
         }
     }
 
-    fn write(&mut self, unit: &hinawa::SndUnit, req: &hinawa::FwReq, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             HP_SRC_NAME => {

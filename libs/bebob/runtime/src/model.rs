@@ -11,7 +11,7 @@ use super::maudio::ozonic_model::OzonicModel;
 use super::maudio::solo_model::SoloModel;
 use super::maudio::audiophile_model::AudiophileModel;
 use super::maudio::fw410_model::Fw410Model;
-use super::maudio::profirelightbridge_model::ProfirelightbridgeModel;
+use super::maudio::profirelightbridge_model::PflModel;
 use super::maudio::special_model::SpecialModel;
 use super::behringer::*;
 use super::stanton::ScratchampModel;
@@ -31,7 +31,7 @@ enum Model<'a> {
     MaudioSolo(SoloModel<'a>),
     MaudioAudiophile(AudiophileModel<'a>),
     MaudioFw410(Fw410Model<'a>),
-    MaudioPlb(ProfirelightbridgeModel<'a>),
+    MaudioPfl(PflModel<'a>),
     MaudioSpecial(SpecialModel),
     StantonScratchamp(ScratchampModel<'a>),
 }
@@ -46,7 +46,7 @@ impl<'a> BebobModel<'a> {
             (0x000d6c, 0x010062) => Model::MaudioSolo(Default::default()),
             (0x000d6c, 0x010060) => Model::MaudioAudiophile(Default::default()),
             (0x0007f5, 0x010046) => Model::MaudioFw410(Default::default()),
-            (0x000d6c, 0x0100a1) => Model::MaudioPlb(Default::default()),
+            (0x000d6c, 0x0100a1) => Model::MaudioPfl(Default::default()),
             (0x000d6c, 0x010071) => Model::MaudioSpecial(SpecialModel::new(true)),
             (0x000d6c, 0x010091) => Model::MaudioSpecial(SpecialModel::new(false)),
             (0x001260, 0x000001) => Model::StantonScratchamp(Default::default()),
@@ -75,7 +75,7 @@ impl<'a> BebobModel<'a> {
             Model::MaudioSolo(m) => m.load(unit, card_cntr),
             Model::MaudioAudiophile(m) => m.load(unit, card_cntr),
             Model::MaudioFw410(m) => m.load(unit, card_cntr),
-            Model::MaudioPlb(m) => m.load(unit, card_cntr),
+            Model::MaudioPfl(m) => m.load(unit, card_cntr),
             Model::MaudioSpecial(m) => m.load(unit, card_cntr),
             Model::StantonScratchamp(m) => m.load(unit, card_cntr),
         }?;
@@ -86,7 +86,7 @@ impl<'a> BebobModel<'a> {
             Model::MaudioSolo(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioAudiophile(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioFw410(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            Model::MaudioPlb(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioPfl(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioSpecial(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             _ => (),
         }
@@ -99,7 +99,7 @@ impl<'a> BebobModel<'a> {
             Model::MaudioSolo(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioAudiophile(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioFw410(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            Model::MaudioPlb(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioPfl(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioSpecial(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::StantonScratchamp(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
@@ -119,7 +119,7 @@ impl<'a> BebobModel<'a> {
             Model::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioAudiophile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioFw410(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::MaudioPlb(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioPfl(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioSpecial(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
@@ -134,7 +134,7 @@ impl<'a> BebobModel<'a> {
             Model::MaudioSolo(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioAudiophile(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioFw410(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            Model::MaudioPlb(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioPfl(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioSpecial(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             _ => Ok(()),
         }
@@ -151,7 +151,7 @@ impl<'a> BebobModel<'a> {
             Model::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioAudiophile(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioFw410(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioPlb(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioPfl(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioSpecial(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
         }
