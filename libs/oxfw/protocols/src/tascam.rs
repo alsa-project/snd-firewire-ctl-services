@@ -134,9 +134,8 @@ impl Ta1394Avc for TascamAvc {
     fn control<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let opcode = op.opcode();
-        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, opcode, &mut operands, timeout_ms)?;
-        let expected = if opcode != VendorDependent::OPCODE {
+        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let expected = if O::OPCODE != VendorDependent::OPCODE {
             AvcRespCode::Accepted
         } else {
             // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
