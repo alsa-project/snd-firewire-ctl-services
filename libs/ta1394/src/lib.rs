@@ -320,14 +320,14 @@ pub trait Ta1394Avc : AsRef<hinawa::FwFcp> {
     const FRAME_SIZE: usize = 0x200;
     const RESP_CODE_MASK: u8 = 0x0f;
 
-    fn trx(&self, ctype: AvcCmdType, addr: &AvcAddr, opcode: u8, operands: &mut Vec<u8>, timeout_ms: u32)
+    fn trx(&self, ctype: AvcCmdType, addr: &AvcAddr, opcode: u8, operands: &[u8], timeout_ms: u32)
         -> Result<(AvcRespCode, Vec<u8>), Error>
     {
         let mut cmd = Vec::new();
         cmd.push(ctype.into());
         cmd.push((*addr).into());
         cmd.push(opcode);
-        cmd.append(operands);
+        cmd.extend_from_slice(operands);
 
         let mut resp = vec![0;Self::FRAME_SIZE];
         let len = self.as_ref().avc_transaction(&cmd, &mut resp, timeout_ms)?;
@@ -361,7 +361,7 @@ impl Ta1394Avc for hinawa::FwFcp {
     {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)?;
         if rcode != AvcRespCode::Accepted {
             let label = format!("Unexpected response code for control opcode {}: {:?}", O::OPCODE, rcode);
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
@@ -373,7 +373,7 @@ impl Ta1394Avc for hinawa::FwFcp {
     {
         let mut operands = Vec::new();
         AvcStatus::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Status, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let (rcode, operands) = self.trx(AvcCmdType::Status, addr, O::OPCODE, &operands, timeout_ms)?;
         if rcode != AvcRespCode::ImplementedStable {
             let label = format!("Unexpected response code for status opcode {}: {:?}", O::OPCODE, rcode);
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
@@ -385,7 +385,7 @@ impl Ta1394Avc for hinawa::FwFcp {
     {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let (rcode, operands) = self.trx(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands, timeout_ms)?;
         if rcode != AvcRespCode::ImplementedStable {
             let label = format!("Unexpected response code for specific inquiry opcode {}: {:?}", O::OPCODE, rcode);
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
@@ -397,7 +397,7 @@ impl Ta1394Avc for hinawa::FwFcp {
     {
         let mut operands = Vec::new();
         AvcNotify::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Notify, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let (rcode, operands) = self.trx(AvcCmdType::Notify, addr, O::OPCODE, &operands, timeout_ms)?;
         if rcode != AvcRespCode::Changed {
             let label = format!("Unexpected response code for notify opcode {}: {:?}", O::OPCODE, rcode);
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
