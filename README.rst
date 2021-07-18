@@ -126,12 +126,12 @@ your device, please contact to developer.
   * Apogee Ensemble
   * Behringer Firepower FCA610
   * Ego Systems Quatafire 610
-  * M-Audio Ozonic
   * M-Audio FireWire Solo
   * M-Audio FireWire Audiophile
   * M-Audio FireWire 410
-  * M-Audio ProFire LightBridge
   * M-Audio FireWire 1814
+  * M-Audio Ozonic
+  * M-Audio ProFire LightBridge
   * M-Audio ProjectMix I/O
   * Stanton ScratchAmp in Final Scratch version 2
 

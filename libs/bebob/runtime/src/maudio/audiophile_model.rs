@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::Error;
 
-use hinawa::{FwFcpExt, SndUnitExt};
+use hinawa::{FwFcpExt, FwReq};
+use hinawa::{SndUnit, SndUnitExt};
 
-use core::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
+use alsactl::{ElemId, ElemValue};
+
+use core::card_cntr::*;
 
 use ta1394::MUSIC_SUBUNIT_0;
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
@@ -19,7 +22,7 @@ use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl}
 
 pub struct AudiophileModel<'a>{
     avc: BebobAvc,
-    req: hinawa::FwReq,
+    req: FwReq,
     clk_ctl: ClkCtl<'a>,
     meter_ctl: MeterCtl<'a>,
     mixer_ctl: MixerCtl<'a>,
@@ -105,8 +108,8 @@ impl<'a> Default for AudiophileModel<'a> {
     }
 }
 
-impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
-    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
+impl<'a> CtlModel<SndUnit> for AudiophileModel<'a> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -120,7 +123,7 @@ impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
@@ -142,8 +145,8 @@ impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
         }
     }
 
-    fn write(&mut self, unit: &mut hinawa::SndUnit, elem_id: &alsactl::ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue)
+    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId,
+             old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
@@ -166,33 +169,32 @@ impl<'a> CtlModel<hinawa::SndUnit> for AudiophileModel<'a> {
     }
 }
 
-impl<'a> MeasureModel<hinawa::SndUnit> for AudiophileModel<'a> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> MeasureModel<SndUnit> for AudiophileModel<'a> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, &self.avc, &self.req)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }
 
-impl<'a> card_cntr::NotifyModel<hinawa::SndUnit, bool> for AudiophileModel<'a> {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl<'a> NotifyModel<SndUnit, bool> for AudiophileModel<'a> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
-                          elem_value: &mut alsactl::ElemValue)
+    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
