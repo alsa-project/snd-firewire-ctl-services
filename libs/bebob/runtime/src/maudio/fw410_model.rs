@@ -19,18 +19,19 @@ use bebob_protocols::{*, maudio::normal::*};
 use crate::common_ctls::*;
 
 use super::*;
-use super::normal_ctls::{MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl};
+use super::normal_ctls::MixerCtl;
 
 pub struct Fw410Model<'a>{
     avc: BebobAvc,
     req: FwReq,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
+    phys_input_ctl: PhysInputCtl,
+    aux_src_ctl: AuxSourceCtl,
+    aux_output_ctl: AuxOutputCtl,
+    phys_output_ctl: PhysOutputCtl,
+    hp_ctl: HeadphoneCtl,
     mixer_ctl: MixerCtl<'a>,
-    input_ctl: InputCtl<'a>,
-    aux_ctl: AuxCtl<'a>,
-    output_ctl: OutputCtl<'a>,
-    hp_ctl: HpCtl<'a>,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -67,6 +68,61 @@ impl AsRef<MaudioNormalMeter> for MeterCtl {
 
 impl MaudioNormalMeterCtlOperation<Fw410MeterProtocol> for MeterCtl {}
 
+#[derive(Default)]
+struct PhysInputCtl;
+
+impl AvcLevelCtlOperation<Fw410PhysInputProtocol> for PhysInputCtl {
+    const LEVEL_NAME: &'static str = "phys-input-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "digital-input-1", "digital-input-2",
+    ];
+}
+
+impl AvcLrBalanceCtlOperation<Fw410PhysInputProtocol> for PhysInputCtl {
+    const BALANCE_NAME: &'static str = "phys-input-balance";
+}
+
+#[derive(Default)]
+struct AuxSourceCtl;
+
+impl AvcLevelCtlOperation<Fw410AuxSourceProtocol> for AuxSourceCtl {
+    const LEVEL_NAME: &'static str = "aux-source-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "digital-input-1", "digital-input-2",
+        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+        "stream-input-5", "stream-input-6", "stream-input-7", "stream-input-8",
+        "stream-input-9", "stream-input-10",
+    ];
+}
+
+#[derive(Default)]
+struct AuxOutputCtl;
+
+impl AvcLevelCtlOperation<Fw410AuxOutputProtocol> for AuxOutputCtl {
+    const LEVEL_NAME: &'static str = "aux-output-volume";
+    const PORT_LABELS: &'static [&'static str] = &["aux-output-1", "aux-output-2"];
+}
+
+#[derive(Default)]
+struct PhysOutputCtl;
+
+impl AvcLevelCtlOperation<Fw410PhysOutputProtocol> for PhysOutputCtl {
+    const LEVEL_NAME: &'static str = "output-volume";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
+        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
+        "digital-output-1", "digital-output-2",
+    ];
+}
+
+#[derive(Default)]
+struct HeadphoneCtl;
+
+impl AvcLevelCtlOperation<Fw410HeadphoneProtocol> for HeadphoneCtl {
+    const LEVEL_NAME: &'static str = "headphone-volume";
+    const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+}
+
 impl<'a> Fw410Model<'a> {
     const MIXER_DST_FB_IDS: &'a [u8] = &[0x01, 0x01, 0x01, 0x01, 0x01];
     const MIXER_LABELS: &'a [&'a str] = &[
@@ -80,24 +136,12 @@ impl<'a> Fw410Model<'a> {
         "stream-1/2", "stream-3/4", "stream-5/6", "stream-7/8",
         "stream-9/10",
     ];
-    const HP_SRC_LABELS: &'a [&'a str] = &["mixer", "aux-1/2"];
-
-    const PHYS_IN_FB_IDS: &'a [u8] = &[0x03, 0x04];
-    const STREAM_IN_FB_IDS: &'a [u8] = &[0x01, 0x01, 0x01, 0x01, 0x02];
-
-    const AUX_OUT_FB_ID: u8 = 0x09;
-    const AUX_PHYS_SRC_FB_IDS: &'a [u8] = &[0x07, 0x08];
-    const AUX_STREAM_SRC_FB_IDS: &'a [u8] = &[0x05, 0x05, 0x05, 0x05, 0x06];
 
     const PHYS_OUT_LABELS: &'a [&'a str] = &[
         "analog-1/2", "analog-3/4", "analog-5/6", "analog-7/8",
         "digital-1/2",
     ];
-    const PHYS_OUT_FB_IDS: &'a [u8] = &[0x0a, 0x0b, 0x0c, 0x0d, 0x0e];
     const PHYS_OUT_SRC_FB_IDS: &'a [u8] = &[0x02, 0x03, 0x04, 0x05, 0x06];
-
-    const HP_SRC_FB_ID: u8 = 0x07;
-    const HP_OUT_FB_ID: u8 = 0x0f;
 }
 
 impl<'a> Default for Fw410Model<'a> {
@@ -107,25 +151,16 @@ impl<'a> Default for Fw410Model<'a> {
             req: Default::default(),
             clk_ctl: Default::default(),
             meter_ctl: Default::default(),
+            phys_input_ctl: Default::default(),
+            aux_src_ctl: Default::default(),
+            aux_output_ctl: Default::default(),
+            phys_output_ctl: Default::default(),
+            hp_ctl: Default::default(),
             mixer_ctl: MixerCtl::new(
                 Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
                 Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
                 Self::MIXER_STREAM_SRC_FB_IDS, Self::STREAM_IN_LABELS,
             ),
-            input_ctl: InputCtl::new(
-                Self::PHYS_IN_FB_IDS, Self::PHYS_IN_LABELS,
-                Self::STREAM_IN_FB_IDS, Self::STREAM_IN_LABELS,
-            ),
-            aux_ctl: AuxCtl::new(Self::AUX_OUT_FB_ID,
-                Self::AUX_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
-                Self::AUX_STREAM_SRC_FB_IDS, Self::STREAM_IN_LABELS,
-            ),
-            output_ctl: OutputCtl::new(
-                Self::PHYS_OUT_LABELS,
-                Self::PHYS_OUT_FB_IDS,
-                Self::PHYS_OUT_SRC_FB_IDS,
-            ),
-            hp_ctl: HpCtl::new(Self::HP_OUT_FB_ID, Self::HP_SRC_FB_ID, Self::HP_SRC_LABELS),
         }
     }
 }
@@ -143,11 +178,14 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
         self.meter_ctl.load_meter(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_input_ctl.load_level(card_cntr)?;
+        self.phys_input_ctl.load_balance(card_cntr)?;
+        self.aux_src_ctl.load_level(card_cntr)?;
+        self.aux_output_ctl.load_level(card_cntr)?;
+        self.phys_output_ctl.load_level(card_cntr)?;
+        self.hp_ctl.load_level(card_cntr)?;
+
         self.mixer_ctl.load(&self.avc, card_cntr)?;
-        self.input_ctl.load(&self.avc, card_cntr)?;
-        self.aux_ctl.load(&self.avc, card_cntr)?;
-        self.output_ctl.load(&self.avc, card_cntr)?;
-        self.hp_ctl.load(&self.avc, card_cntr)?;
         HpMixerCtl::load(&self.avc, card_cntr)?;
 
         SpdifSrcCtl::load(&self.avc, card_cntr)?;
@@ -164,15 +202,19 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
+        } else if self.phys_input_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_input_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.aux_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.aux_output_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_output_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ctl.read(&self.avc, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.aux_ctl.read(&self.avc, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(&self.avc, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.hp_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else if HpMixerCtl::read(&self.avc, elem_id, elem_value)? {
             Ok(true)
@@ -190,15 +232,19 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
+        } else if self.phys_input_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_input_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.aux_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.aux_output_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_output_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
-            Ok(true)
-        } else if self.input_ctl.write(&self.avc, elem_id, old, new)? {
-            Ok(true)
-        } else if self.aux_ctl.write(&self.avc, elem_id, old, new)? {
-            Ok(true)
-        } else if self.output_ctl.write(&self.avc, elem_id, old, new)? {
-            Ok(true)
-        } else if self.hp_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if HpMixerCtl::write(&self.avc, elem_id, old, new)? {
             Ok(true)
@@ -361,6 +407,31 @@ mod test {
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
         let error = ctl.load_src(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_level_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = PhysInputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = AuxSourceCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = AuxOutputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = PhysOutputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = HeadphoneCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

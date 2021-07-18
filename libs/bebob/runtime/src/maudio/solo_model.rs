@@ -19,15 +19,16 @@ use bebob_protocols::{*, maudio::normal::*};
 use crate::common_ctls::*;
 
 use super::*;
-use super::normal_ctls::{MixerCtl, InputCtl};
+use super::normal_ctls::MixerCtl;
 
 pub struct SoloModel<'a>{
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     req: FwReq,
     meter_ctl: MeterCtl,
+    phys_input_ctl: PhysInputCtl,
+    stream_input_ctl: StreamInputCtl,
     mixer_ctl: MixerCtl<'a>,
-    input_ctl: InputCtl<'a>,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -64,6 +65,30 @@ impl AsRef<MaudioNormalMeter> for MeterCtl {
 
 impl MaudioNormalMeterCtlOperation<SoloMeterProtocol> for MeterCtl {}
 
+#[derive(Default)]
+struct PhysInputCtl;
+
+impl AvcLevelCtlOperation<SoloPhysInputProtocol> for PhysInputCtl {
+    const LEVEL_NAME: &'static str = "phys-input-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "digital-input-1", "digital-input-2",
+    ];
+}
+
+impl AvcLrBalanceCtlOperation<SoloPhysInputProtocol> for PhysInputCtl {
+    const BALANCE_NAME: &'static str = "phys-input-balance";
+}
+
+#[derive(Default)]
+struct StreamInputCtl;
+
+impl AvcLevelCtlOperation<SoloStreamInputProtocol> for StreamInputCtl {
+    const LEVEL_NAME: &'static str = "stream-input-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+    ];
+}
+
 impl<'a> SoloModel<'a> {
     const MIXER_DST_FB_IDS: &'a [u8] = &[0x01, 0x01];
     const MIXER_LABELS: &'a [&'a str] = &["mixer-1/2", "mixer-3/4"];
@@ -71,9 +96,6 @@ impl<'a> SoloModel<'a> {
     const PHYS_IN_LABELS: &'a [&'a str] = &["analog-1/2", "digital-1/2"];
     const MIXER_STREAM_SRC_FB_IDS: &'a [u8] = &[0x02, 0x03];
     const STREAM_IN_LABELS: &'a [&'a str] = &["stream-1/2", "stream-1/2"];
-
-    const PHYS_IN_FB_IDS: &'a [u8] = &[0x01, 0x02];
-    const STREAM_IN_FB_IDS: &'a [u8] = &[0x03, 0x04];
 }
 
 impl<'a> Default for SoloModel<'a> {
@@ -83,14 +105,12 @@ impl<'a> Default for SoloModel<'a> {
             req: Default::default(),
             clk_ctl: Default::default(),
             meter_ctl: Default::default(),
+            phys_input_ctl: Default::default(),
+            stream_input_ctl: Default::default(),
             mixer_ctl: MixerCtl::new(
                 Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
                 Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
                 Self::MIXER_STREAM_SRC_FB_IDS, Self::STREAM_IN_LABELS,
-            ),
-            input_ctl: InputCtl::new(
-                Self::PHYS_IN_FB_IDS, Self::PHYS_IN_LABELS,
-                Self::STREAM_IN_FB_IDS, Self::STREAM_IN_LABELS,
             ),
         }
     }
@@ -109,8 +129,11 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
         self.meter_ctl.load_meter(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_input_ctl.load_level(card_cntr)?;
+        self.phys_input_ctl.load_balance(card_cntr)?;
+        self.stream_input_ctl.load_level(card_cntr)?;
+
         self.mixer_ctl.load(&self.avc, card_cntr)?;
-        self.input_ctl.load(&self.avc, card_cntr)?;
 
         SpdifOutCtl::load(&self.avc, card_cntr)?;
 
@@ -126,9 +149,13 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
+        } else if self.phys_input_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_ctl.read(&self.avc, elem_id, elem_value)? {
+        } else if self.phys_input_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.stream_input_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+             Ok(true)
+        } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else if SpdifOutCtl::read(&self.avc, elem_id, elem_value)? {
             Ok(true)
@@ -144,9 +171,13 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
-        } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
+        } else if self.phys_input_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_ctl.write(&self.avc, elem_id, old, new)? {
+        } else if self.phys_input_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.stream_input_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else if SpdifOutCtl::write(&self.avc, elem_id, old, new)? {
             Ok(true)
@@ -248,6 +279,19 @@ mod test {
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
         let error = ctl.load_src(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_level_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = PhysInputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = StreamInputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
