@@ -51,6 +51,83 @@ impl MaudioNormalMeterProtocol for Fw410MeterProtocol {
     const HAS_SYNC_STATUS: bool = true;
 }
 
+/// The protocol implementation for physical input of FireWire 410.
+#[derive(Default)]
+pub struct Fw410PhysInputProtocol;
+
+impl AvcLevelOperation for Fw410PhysInputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x03, AudioCh::Each(0)), // analog-input-1
+        (0x03, AudioCh::Each(1)), // analog-input-2
+        (0x04, AudioCh::Each(0)), // digital-input-1
+        (0x04, AudioCh::Each(1)), // digital-input-2
+    ];
+}
+
+/// The protocol implementation for physical output of FireWire 410.
+#[derive(Default)]
+pub struct Fw410PhysOutputProtocol;
+
+impl AvcLevelOperation for Fw410PhysOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x0a, AudioCh::Each(0)), // analog-output-1
+        (0x0a, AudioCh::Each(1)), // analog-output-2
+        (0x0b, AudioCh::Each(0)), // analog-output-3
+        (0x0b, AudioCh::Each(1)), // analog-output-4
+        (0x0c, AudioCh::Each(0)), // analog-output-5
+        (0x0c, AudioCh::Each(1)), // analog-output-6
+        (0x0d, AudioCh::Each(0)), // analog-output-7
+        (0x0d, AudioCh::Each(1)), // analog-output-8
+        (0x0e, AudioCh::Each(0)), // digital-output-1
+        (0x0e, AudioCh::Each(1)), // digital-output-2
+    ];
+}
+
+/// The protocol implementation for source of aux mixer in FireWire 410.
+#[derive(Default)]
+pub struct Fw410AuxSourceProtocol;
+
+impl AvcLevelOperation for Fw410AuxSourceProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x07, AudioCh::Each(0)), // analog-input-1
+        (0x07, AudioCh::Each(1)), // analog-input-2
+        (0x08, AudioCh::Each(0)), // digital-input-1
+        (0x08, AudioCh::Each(1)), // digital-input-2
+        (0x06, AudioCh::Each(0)), // stream-input-1
+        (0x06, AudioCh::Each(1)), // stream-input-2
+        (0x05, AudioCh::Each(0)), // stream-input-3
+        (0x05, AudioCh::Each(1)), // stream-input-4
+        (0x05, AudioCh::Each(2)), // stream-input-5
+        (0x05, AudioCh::Each(3)), // stream-input-6
+        (0x05, AudioCh::Each(4)), // stream-input-7
+        (0x05, AudioCh::Each(5)), // stream-input-8
+        (0x05, AudioCh::Each(6)), // stream-input-9
+        (0x05, AudioCh::Each(7)), // stream-input-10
+    ];
+}
+
+/// The protocol implementation for output of aux mixer in FireWire 410.
+#[derive(Default)]
+pub struct Fw410AuxOutputProtocol;
+
+impl AvcLevelOperation for Fw410AuxOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x09, AudioCh::Each(0)), // aux-output-1
+        (0x09, AudioCh::Each(1)), // aux-output-2
+    ];
+}
+
+/// The protocol implementation for output of headphone in FireWire 410.
+#[derive(Default)]
+pub struct Fw410HeadphoneProtocol;
+
+impl AvcLevelOperation for Fw410HeadphoneProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x0f, AudioCh::Each(0)), // headphone-1
+        (0x0f, AudioCh::Each(1)), // headphone-2
+    ];
+}
+
 /// The protocol implementation for media and sampling clock of FireWire Solo.
 #[derive(Default)]
 pub struct SoloClkProtocol;
@@ -88,6 +165,34 @@ impl MaudioNormalMeterProtocol for SoloMeterProtocol {
     const HAS_SWITCH: bool = false;
     const HAS_SYNC_STATUS: bool = true;
 }
+
+/// The protocol implementation for physical input of FireWire Solo.
+#[derive(Default)]
+pub struct SoloPhysInputProtocol;
+
+impl AvcLevelOperation for SoloPhysInputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x03, AudioCh::Each(0)), // analog-input-1
+        (0x03, AudioCh::Each(1)), // analog-input-2
+        (0x04, AudioCh::Each(0)), // digital-input-1
+        (0x04, AudioCh::Each(1)), // digital-input-2
+    ];
+}
+
+/// The protocol implementation for stream input of FireWire Solo.
+#[derive(Default)]
+pub struct SoloStreamInputProtocol;
+
+impl AvcLevelOperation for SoloStreamInputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)), // stream-input-1
+        (0x01, AudioCh::Each(1)), // stream-input-2
+        (0x02, AudioCh::Each(0)), // stream-input-3
+        (0x02, AudioCh::Each(1)), // stream-input-4
+    ];
+}
+
+// NOTE: outputs are not configurable, connected to hardware dial directly.
 
 /// The protocol implementation for media and sampling clock of FireWire Audiophile.
 #[derive(Default)]
@@ -127,6 +232,75 @@ impl MaudioNormalMeterProtocol for AudiophileMeterProtocol {
     const HAS_SYNC_STATUS: bool = true;
 }
 
+/// The protocol implementation for physical input in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophilePhysInputProtocol;
+
+impl AvcLevelOperation for AudiophilePhysInputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x04, AudioCh::Each(0)), // analog-input-1
+        (0x04, AudioCh::Each(1)), // analog-input-2
+        (0x05, AudioCh::Each(0)), // digital-input-1
+        (0x05, AudioCh::Each(1)), // digital-input-2
+    ];
+}
+
+/// The protocol implementation for physical output in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophilePhysOutputProtocol;
+
+impl AvcLevelOperation for AudiophilePhysOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x0c, AudioCh::Each(0)), // analog-output-1
+        (0x0c, AudioCh::Each(1)), // analog-output-2
+        (0x0d, AudioCh::Each(0)), // analog-output-3
+        (0x0d, AudioCh::Each(1)), // analog-output-4
+        (0x0e, AudioCh::Each(0)), // digital-output-1
+        (0x0e, AudioCh::Each(1)), // digital-output-2
+    ];
+}
+
+/// The protocol implementation for source of aux mixer in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophileAuxSourceProtocol;
+
+impl AvcLevelOperation for AudiophileAuxSourceProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x09, AudioCh::Each(0)), // analog-input-1
+        (0x09, AudioCh::Each(1)), // analog-input-2
+        (0x0a, AudioCh::Each(0)), // digital-input-1
+        (0x0a, AudioCh::Each(1)), // digital-input-2
+        (0x06, AudioCh::Each(0)), // stream-input-1
+        (0x06, AudioCh::Each(1)), // stream-input-2
+        (0x07, AudioCh::Each(0)), // stream-input-3
+        (0x07, AudioCh::Each(1)), // stream-input-4
+        (0x08, AudioCh::Each(0)), // stream-input-5
+        (0x08, AudioCh::Each(1)), // stream-input-6
+    ];
+}
+
+/// The protocol implementation for output of aux mixer in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophileAuxOutputProtocol;
+
+impl AvcLevelOperation for AudiophileAuxOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x0b, AudioCh::Each(0)), // aux-output-1
+        (0x0b, AudioCh::Each(1)), // aux-output-2
+    ];
+}
+
+/// The protocol implementation for output of headphone in FireWire Audiophile.
+#[derive(Default)]
+pub struct AudiophileHeadphoneProtocol;
+
+impl AvcLevelOperation for AudiophileHeadphoneProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x0f, AudioCh::Each(0)), // headphone-1
+        (0x0f, AudioCh::Each(1)), // headphone-2
+    ];
+}
+
 /// The protocol implementation for media and sampling clock of Ozonic.
 #[derive(Default)]
 pub struct OzonicClkProtocol;
@@ -162,6 +336,34 @@ impl MaudioNormalMeterProtocol for OzonicMeterProtocol {
     const HAS_SWITCH: bool = false;
     const HAS_SYNC_STATUS: bool = false;
 }
+
+/// The protocol implementation for physical input of FireWire Audiophile.
+#[derive(Default)]
+pub struct OzonicPhysInputProtocol;
+
+impl AvcLevelOperation for OzonicPhysInputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x03, AudioCh::Each(0)), // analog-input-1
+        (0x03, AudioCh::Each(1)), // analog-input-2
+        (0x04, AudioCh::Each(0)), // analog-input-3
+        (0x04, AudioCh::Each(1)), // analog-input-4
+    ];
+}
+
+/// The protocol implementation for stream input of FireWire Audiophile.
+#[derive(Default)]
+pub struct OzonicStreamInputProtocol;
+
+impl AvcLevelOperation for OzonicStreamInputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)), // stream-input-1
+        (0x01, AudioCh::Each(1)), // stream-input-2
+        (0x02, AudioCh::Each(0)), // stream-input-3
+        (0x02, AudioCh::Each(1)), // stream-input-4
+    ];
+}
+
+// NOTE: outputs are not configurable, connected to hardware dial directly.
 
 /// The state of switch with LED specific to FireWire Audiophile.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
