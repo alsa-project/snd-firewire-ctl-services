@@ -11,21 +11,19 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue};
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
-use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
+use ta1394::Ta1394Avc;
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, ProcessingCtl, AudioProcessing, AudioSelector};
 
-use bebob_protocols::*;
+use bebob_protocols::{*, maudio::normal::*};
 
-use super::super::common_ctls::ClkCtl;
+use crate::common_ctls::*;
 
-use super::common_proto::FCP_TIMEOUT_MS;
 use super::normal_ctls::{MeterCtl, MixerCtl, InputCtl, AuxCtl, OutputCtl, HpCtl};
 
 pub struct Fw410Model<'a>{
     avc: BebobAvc,
     req: FwReq,
-    clk_ctl: ClkCtl<'a>,
+    clk_ctl: ClkCtl,
     meter_ctl: MeterCtl<'a>,
     mixer_ctl: MixerCtl<'a>,
     input_ctl: InputCtl<'a>,
@@ -34,20 +32,18 @@ pub struct Fw410Model<'a>{
     hp_ctl: HpCtl<'a>,
 }
 
-impl<'a> Fw410Model<'a> {
-    const CLK_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
-        subunit: MUSIC_SUBUNIT_0,
-        plug_id: 0x01,
-    });
-    const CLK_SRCS: &'a [SignalAddr] = &[
-        SignalAddr::Subunit(SignalSubunitAddr{
-            subunit: MUSIC_SUBUNIT_0,
-            plug_id: 0x01,
-        }),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x02)),
-    ];
-    const CLK_LABELS: &'a [&'a str] = &["Internal", "S/PDIF"];
+const FCP_TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
+struct ClkCtl(Vec<ElemId>);
+
+impl MediaClkFreqCtlOperation<Fw410ClkProtocol> for ClkCtl {}
+
+impl SamplingClkSrcCtlOperation<Fw410ClkProtocol> for ClkCtl {
+    const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
+}
+
+impl<'a> Fw410Model<'a> {
     const IN_METER_LABELS: &'a [&'a str] = &[
         "analog-in-1", "analog-in-2", "digital-in-1", "digital-in-2",
     ];
@@ -95,7 +91,7 @@ impl<'a> Default for Fw410Model<'a> {
         Self{
             avc: Default::default(),
             req: Default::default(),
-            clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
+            clk_ctl: Default::default(),
             meter_ctl: MeterCtl::new(Self::IN_METER_LABELS, &[], Self::OUT_METER_LABELS, false, 1, true),
             mixer_ctl: MixerCtl::new(
                 Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
@@ -124,7 +120,12 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.load_freq(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
+        self.clk_ctl.load_src(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
         self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;
         self.mixer_ctl.load(&self.avc, card_cntr)?;
         self.input_ctl.load(&self.avc, card_cntr)?;
@@ -141,7 +142,9 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
     fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -167,7 +170,9 @@ impl<'a> CtlModel<SndUnit> for Fw410Model<'a> {
     fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.meter_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
@@ -209,7 +214,7 @@ impl<'a> MeasureModel<SndUnit> for Fw410Model<'a> {
 
 impl<'a> NotifyModel<SndUnit, bool> for Fw410Model<'a> {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
     fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
@@ -219,7 +224,7 @@ impl<'a> NotifyModel<SndUnit, bool> for Fw410Model<'a> {
     fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -327,3 +332,21 @@ trait SpdifSrcCtl : Ta1394Avc {
 }
 
 impl SpdifSrcCtl for BebobAvc {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alsactl::CardError;
+
+    #[test]
+    fn test_clk_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+        let mut ctl = ClkCtl::default();
+
+        let error = ctl.load_freq(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let error = ctl.load_src(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+}

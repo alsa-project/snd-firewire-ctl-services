@@ -13,42 +13,30 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use ta1394::{MUSIC_SUBUNIT_0};
-use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
+use bebob_protocols::{*, maudio::pfl::*};
 
-use bebob_protocols::*;
+use crate::common_ctls::*;
+use crate::model::OUT_METER_NAME;
 
-use super::super::common_ctls::ClkCtl;
-use super::super::model::OUT_METER_NAME;
+use super::common_proto::CommonProto;
 
-use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
-
-pub struct PflModel<'a> {
+pub struct PflModel {
     avc: BebobAvc,
     req: FwReq,
-    clk_ctl: ClkCtl<'a>,
+    clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
     input_ctl: InputCtl,
 }
 
-impl<'a> PflModel<'a> {
-    const CLK_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
-        subunit: MUSIC_SUBUNIT_0,
-        plug_id: 0x07,
-    });
-    const CLK_SRCS: &'a [SignalAddr] = &[
-        SignalAddr::Subunit(SignalSubunitAddr{
-            subunit: MUSIC_SUBUNIT_0,
-            plug_id: 0x08,
-        }),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x01)),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x02)),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x03)),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x04)),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x05)),
-        SignalAddr::Unit(SignalUnitAddr::Ext(0x06)),
-    ];
-    const CLK_LABELS: &'a [&'a str] = &[
+const FCP_TIMEOUT_MS: u32 = 100;
+
+#[derive(Default)]
+struct ClkCtl(Vec<ElemId>);
+
+impl MediaClkFreqCtlOperation<PflClkProtocol> for ClkCtl {}
+
+impl SamplingClkSrcCtlOperation<PflClkProtocol> for ClkCtl {
+    const SRC_LABELS: &'static [&'static str] = &[
         "Internal",
         "S/PDIF",
         "ADAT-1",
@@ -59,23 +47,28 @@ impl<'a> PflModel<'a> {
     ];
 }
 
-impl<'a> Default for PflModel<'a> {
+impl Default for PflModel {
     fn default() -> Self {
         Self{
             avc: Default::default(),
             req: Default::default(),
-            clk_ctl: ClkCtl::new(&Self::CLK_DST, Self::CLK_SRCS, Self::CLK_LABELS),
+            clk_ctl: Default::default(),
             meter_ctl: MeterCtl::new(),
             input_ctl: InputCtl::new(),
         }
     }
 }
 
-impl<'a> CtlModel<SndUnit> for PflModel<'a> {
+impl CtlModel<SndUnit> for PflModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+        self.clk_ctl.load_freq(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
+        self.clk_ctl.load_src(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
         self.meter_ctl.load(card_cntr)?;
         self.input_ctl.load(unit, &self.req, card_cntr)?;
 
@@ -85,7 +78,9 @@ impl<'a> CtlModel<SndUnit> for PflModel<'a> {
     fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -97,7 +92,9 @@ impl<'a> CtlModel<SndUnit> for PflModel<'a> {
     fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.input_ctl.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
@@ -107,7 +104,7 @@ impl<'a> CtlModel<SndUnit> for PflModel<'a> {
     }
 }
 
-impl<'a> MeasureModel<SndUnit> for PflModel<'a> {
+impl MeasureModel<SndUnit> for PflModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
@@ -214,9 +211,9 @@ impl<'a> MeterCtl {
     }
 }
 
-impl<'a> NotifyModel<SndUnit, bool> for PflModel<'a> {
+impl NotifyModel<SndUnit, bool> for PflModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
     fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
@@ -226,7 +223,7 @@ impl<'a> NotifyModel<SndUnit, bool> for PflModel<'a> {
     fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -334,5 +331,23 @@ impl<'a> InputCtl {
             }
             _ => Ok(false),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alsactl::CardError;
+
+    #[test]
+    fn test_clk_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+        let mut ctl = ClkCtl::default();
+
+        let error = ctl.load_freq(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let error = ctl.load_src(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
