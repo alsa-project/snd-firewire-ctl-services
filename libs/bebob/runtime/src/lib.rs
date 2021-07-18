@@ -22,6 +22,8 @@ use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 use glib::{Error, FileError};
 use glib::source;
 
+use hinawa::FwFcp;
+
 use core::RuntimeOperation;
 use core::dispatcher;
 use core::card_cntr;
@@ -36,24 +38,13 @@ use ta1394::{AvcOp, AvcControl};
 use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
 use ta1394::ccm::SignalSource;
 
+/// The structure for AV/C transaction helper with quirks specific to BeBoB solution.
 #[derive(Default, Debug)]
-pub struct BebobAvc{
-    pub fcp: hinawa::FwFcp,
-    pub company_id: [u8;3],
-}
+pub struct BebobAvc(FwFcp);
 
-impl BebobAvc {
-    pub fn new() -> Self {
-        BebobAvc{
-            fcp: hinawa::FwFcp::new(),
-            company_id: [0;3],
-        }
-    }
-}
-
-impl AsRef<hinawa::FwFcp> for BebobAvc {
-    fn as_ref(&self) -> &hinawa::FwFcp {
-        &self.fcp
+impl AsRef<FwFcp> for BebobAvc {
+    fn as_ref(&self) -> &FwFcp {
+        &self.0
     }
 }
 
