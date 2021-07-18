@@ -6,13 +6,9 @@ use glib::Error;
 use hinawa::{FwFcpExt, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
+use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use ta1394::Ta1394Avc;
-use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioSelector};
 
 use bebob_protocols::{*, maudio::normal::*};
 
@@ -28,6 +24,7 @@ pub struct SoloModel<'a>{
     meter_ctl: MeterCtl,
     phys_input_ctl: PhysInputCtl,
     stream_input_ctl: StreamInputCtl,
+    spdif_output_ctl: SpdifOutputCtl,
     mixer_ctl: MixerCtl<'a>,
 }
 
@@ -89,6 +86,15 @@ impl AvcLevelCtlOperation<SoloStreamInputProtocol> for StreamInputCtl {
     ];
 }
 
+#[derive(Default)]
+struct SpdifOutputCtl;
+
+impl AvcSelectorCtlOperation<SoloSpdifOutputProtocol> for SpdifOutputCtl {
+    const SELECTOR_NAME: &'static str = "S/PDIF-output-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["S/PDIF-output-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &["stream-input-3/4", "mixer-output-3/4"];
+}
+
 impl<'a> SoloModel<'a> {
     const MIXER_DST_FB_IDS: &'a [u8] = &[0x01, 0x01];
     const MIXER_LABELS: &'a [&'a str] = &["mixer-1/2", "mixer-3/4"];
@@ -107,6 +113,7 @@ impl<'a> Default for SoloModel<'a> {
             meter_ctl: Default::default(),
             phys_input_ctl: Default::default(),
             stream_input_ctl: Default::default(),
+            spdif_output_ctl: Default::default(),
             mixer_ctl: MixerCtl::new(
                 Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
                 Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
@@ -133,9 +140,9 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
         self.phys_input_ctl.load_balance(card_cntr)?;
         self.stream_input_ctl.load_level(card_cntr)?;
 
-        self.mixer_ctl.load(&self.avc, card_cntr)?;
+        self.spdif_output_ctl.load_selector(card_cntr)?;
 
-        SpdifOutCtl::load(&self.avc, card_cntr)?;
+        self.mixer_ctl.load(&self.avc, card_cntr)?;
 
         Ok(())
     }
@@ -155,9 +162,9 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
             Ok(true)
         } else if self.stream_input_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
              Ok(true)
+        } else if self.spdif_output_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+             Ok(true)
         } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
-            Ok(true)
-        } else if SpdifOutCtl::read(&self.avc, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -177,9 +184,9 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
             Ok(true)
         } else if self.stream_input_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.spdif_output_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
         } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
-            Ok(true)
-        } else if SpdifOutCtl::write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -219,52 +226,6 @@ impl<'a> NotifyModel<SndUnit, bool> for SoloModel<'a> {
     }
 }
 
-const SPDIF_OUT_SRC_NAME: &str = "S/PDIF-out-source";
-const SPDIF_OUT_SRC_LABELS: &[&str] = &["stream-3/4", "mixer-3/4"];
-const SPDIF_OUT_SRC_FB_ID: u8 = 0x01;
-
-trait SpdifOutCtl : Ta1394Avc {
-    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, SPDIF_OUT_SRC_LABELS, None, true)?;
-
-        Ok(())
-    }
-
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            SPDIF_OUT_SRC_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, 0xff);
-                    self.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)?;
-                    Ok(op.input_plug_id as u32)
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(&self, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            SPDIF_OUT_SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = AudioSelector::new(SPDIF_OUT_SRC_FB_ID, CtlAttr::Current, val as u8);
-                    self.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, FCP_TIMEOUT_MS)
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-impl SpdifOutCtl for BebobAvc {}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -292,6 +253,15 @@ mod test {
 
         let ctl = StreamInputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_selector_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = SpdifOutputCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

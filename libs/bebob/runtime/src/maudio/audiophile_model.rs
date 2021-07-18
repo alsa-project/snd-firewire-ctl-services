@@ -109,12 +109,28 @@ impl AvcLevelCtlOperation<AudiophilePhysOutputProtocol> for PhysOutputCtl {
     ];
 }
 
+impl AvcSelectorCtlOperation<AudiophilePhysOutputProtocol> for PhysOutputCtl {
+    const SELECTOR_NAME: &'static str = "output-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &[
+        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6",
+    ];
+    const ITEM_LABELS: &'static [&'static str] = &["mixer-output", "aux-output-1/2"];
+}
+
 #[derive(Default)]
 struct HeadphoneCtl;
 
 impl AvcLevelCtlOperation<AudiophileHeadphoneProtocol> for HeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-volume";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+}
+
+impl AvcSelectorCtlOperation<AudiophileHeadphoneProtocol> for HeadphoneCtl {
+    const SELECTOR_NAME: &'static str = "headphone-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["headphone-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &[
+        "mixer-output-1/2", "mixer-output-3/4", "mixer-output-5/6", "aux-output-1/2",
+    ];
 }
 
 impl<'a> AudiophileModel<'a> {
@@ -165,7 +181,9 @@ impl<'a> CtlModel<SndUnit> for AudiophileModel<'a> {
         self.aux_src_ctl.load_level(card_cntr)?;
         self.aux_output_ctl.load_level(card_cntr)?;
         self.phys_output_ctl.load_level(card_cntr)?;
+        self.phys_output_ctl.load_selector(card_cntr)?;
         self.hp_ctl.load_level(card_cntr)?;
+        self.hp_ctl.load_selector(card_cntr)?;
 
         self.mixer_ctl.load(&self.avc, card_cntr)?;
 
@@ -191,7 +209,11 @@ impl<'a> CtlModel<SndUnit> for AudiophileModel<'a> {
             Ok(true)
         } else if self.phys_output_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_output_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.hp_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
             Ok(true)
@@ -220,8 +242,12 @@ impl<'a> CtlModel<SndUnit> for AudiophileModel<'a> {
             Ok(true)
         } else if self.phys_output_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_output_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.hp_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(false)
+        } else if self.hp_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
             Ok(true)
         } else {
@@ -301,6 +327,19 @@ mod test {
 
         let ctl = HeadphoneCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_selector_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = PhysOutputCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = HeadphoneCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
