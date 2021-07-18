@@ -259,3 +259,67 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLevelOperation + AvcLrBalanceOperation>
         }
     }
 }
+
+/// The trait for operation to selector control.
+pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
+    const SELECTOR_NAME: &'static str;
+    const SELECTOR_LABELS: &'static [&'static str];
+    const ITEM_LABELS: &'static [&'static str];
+
+    const CH_COUNT: usize = T::FUNC_BLOCK_ID_LIST.len();
+
+    fn load_selector(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        assert_eq!(
+            Self::SELECTOR_LABELS.len(),
+            T::FUNC_BLOCK_ID_LIST.len(),
+            "Programming error for count of selectors: {}",
+            Self::SELECTOR_NAME
+        );
+        assert_eq!(
+            Self::ITEM_LABELS.len(),
+            T::INPUT_PLUG_ID_LIST.len(),
+            "Programming error for count of values: {}",
+            Self::SELECTOR_NAME
+        );
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SELECTOR_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, Self::CH_COUNT, Self::ITEM_LABELS, None, true)
+            .map(|_| ())
+    }
+
+    fn read_selector(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::SELECTOR_NAME {
+            ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
+                T::read_selector(avc, idx, timeout_ms).map(|val| val as u32)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_selector(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::SELECTOR_NAME {
+            ElemValueAccessor::<u32>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
+                T::write_selector(avc, idx, val as usize, timeout_ms)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+}
