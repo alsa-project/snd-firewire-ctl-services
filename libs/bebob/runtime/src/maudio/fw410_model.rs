@@ -8,8 +8,7 @@ use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel};
 use core::elem_value_accessor::ElemValueAccessor;
 
-use ta1394::{AvcAddr, MUSIC_SUBUNIT_0, Ta1394Avc};
-use ta1394::general::UnitInfo;
+use ta1394::{MUSIC_SUBUNIT_0, Ta1394Avc};
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::audio::{AUDIO_SUBUNIT_0_ADDR, CtlAttr, AudioCh, ProcessingCtl, AudioProcessing, AudioSelector};
 
@@ -121,10 +120,6 @@ impl<'a> Default for Fw410Model<'a> {
 impl<'a> CtlModel<hinawa::SndUnit> for Fw410Model<'a> {
     fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr) -> Result<(), Error> {
         self.avc.fcp.bind(&unit.get_node())?;
-
-        let mut op = UnitInfo::new();
-        self.avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-        self.avc.company_id = op.company_id;
 
         self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.meter_ctl.load(unit, &self.avc, &self.req, card_cntr)?;

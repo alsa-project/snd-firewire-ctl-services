@@ -21,6 +21,8 @@ impl CommonProto for hinawa::FwReq {}
 
 pub const FCP_TIMEOUT_MS: u32 = 100;
 
+const MAUDIO_OUI: [u8;3] = [0x00, 0x0d, 0x6c];
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SwitchState {
     Off,
@@ -54,11 +56,11 @@ struct LedSwitch{
 }
 
 impl LedSwitch {
-    pub fn new(company_id: &[u8;3], state: SwitchState) -> Self {
+    pub fn new(state: SwitchState) -> Self {
         LedSwitch{
             state,
             op: VendorDependent{
-                company_id: *company_id,
+                company_id: MAUDIO_OUI,
                 data: Vec::new(),
             },
         }
@@ -233,7 +235,7 @@ impl<'a> MeterCtl<'a> {
                 if let Some(s) = &mut self.switch {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         let switch = SwitchState::from(val as u8);
-                        let mut op = LedSwitch::new(&avc.company_id, switch);
+                        let mut op = LedSwitch::new(switch);
                         avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
                         *s = switch;
                         Ok(())
@@ -263,7 +265,7 @@ impl<'a> MeterCtl<'a> {
                         SwitchState::A => SwitchState::B,
                         SwitchState::B => SwitchState::Off,
                     };
-                    let mut op = LedSwitch::new(&avc.company_id, switch);
+                    let mut op = LedSwitch::new(switch);
                     avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
                     *s = switch;
                 }

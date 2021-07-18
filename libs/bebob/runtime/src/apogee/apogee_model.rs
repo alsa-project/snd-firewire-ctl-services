@@ -6,8 +6,7 @@ use hinawa::{FwFcpExt, SndUnitExt};
 
 use core::card_cntr;
 
-use ta1394::{Ta1394Avc, AvcAddr, MUSIC_SUBUNIT_0};
-use ta1394::general::UnitInfo;
+use ta1394::MUSIC_SUBUNIT_0;
 use ta1394::ccm::{SignalAddr, SignalUnitAddr, SignalSubunitAddr};
 
 use super::super::BebobAvc;
@@ -76,10 +75,6 @@ impl<'a> card_cntr::CtlModel<hinawa::SndUnit> for EnsembleModel<'a> {
         -> Result<(), Error>
     {
         self.avc.fcp.bind(&unit.get_node())?;
-
-        let mut op = UnitInfo::new();
-        self.avc.status(&AvcAddr::Unit, &mut op, Self::FCP_TIMEOUT_MS)?;
-        self.avc.company_id = op.company_id;
 
         self.clk_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.hw_ctls.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
