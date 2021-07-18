@@ -7,7 +7,6 @@ pub mod fw410_model;
 pub mod profirelightbridge_model;
 pub mod special_model;
 
-mod normal_ctls;
 mod special_ctls;
 
 mod common_proto;
@@ -312,6 +311,88 @@ where
                 }
             }
             _ => Ok(false),
+        }
+    }
+}
+
+pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
+    const MIXER_NAME: &'static str;
+
+    const DST_LABELS: &'static [&'static str];
+    const SRC_LABELS: &'static [&'static str];
+
+    const DST_COUNT: usize = O::DST_FUNC_BLOCK_ID_LIST.len();
+    const SRC_COUNT: usize = O::SRC_FUNC_BLOCK_ID_LIST.len();
+
+    fn load_src_state(
+        &self,
+        card_cntr: &mut CardCntr,
+        avc: &BebobAvc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(
+            Self::DST_COUNT,
+            Self::DST_LABELS.len(),
+            "Programming error for count of destination: {}",
+            Self::MIXER_NAME
+        );
+        assert_eq!(
+            Self::SRC_COUNT,
+            Self::SRC_LABELS.len(),
+            "Programming error for count of source: {}",
+            Self::MIXER_NAME
+        );
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, Self::DST_COUNT, Self::SRC_COUNT, true)
+            .map(|_| ())?;
+
+        // For convenicence, make connection between mixer destination and stream source.
+        if Self::DST_COUNT > 1 {
+            (0..Self::DST_COUNT).try_for_each(|dst_idx| {
+                let src_idx = Self::SRC_COUNT - Self::DST_COUNT + dst_idx;
+                O::write_mixer_src(avc, dst_idx, src_idx, true, timeout_ms)
+            })?;
+        }
+
+        Ok(())
+    }
+
+    fn read_src_state(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::MIXER_NAME {
+            let dst_idx = elem_id.get_index() as usize;
+            ElemValueAccessor::<bool>::set_vals(elem_value, Self::SRC_COUNT, |src_idx| {
+                O::read_mixer_src(avc, dst_idx, src_idx, timeout_ms)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_src_state(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::MIXER_NAME {
+            let dst_idx = elem_id.get_index() as usize;
+            ElemValueAccessor::<bool>::get_vals(new, old, Self::SRC_COUNT, |src_idx, val| {
+                O::write_mixer_src(avc, dst_idx, src_idx, val, timeout_ms)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
         }
     }
 }

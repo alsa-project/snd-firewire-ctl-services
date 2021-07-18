@@ -15,9 +15,9 @@ use bebob_protocols::{*, maudio::normal::*};
 use crate::common_ctls::*;
 
 use super::*;
-use super::normal_ctls::MixerCtl;
 
-pub struct SoloModel<'a>{
+#[derive(Default)]
+pub struct SoloModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     req: FwReq,
@@ -25,7 +25,7 @@ pub struct SoloModel<'a>{
     phys_input_ctl: PhysInputCtl,
     stream_input_ctl: StreamInputCtl,
     spdif_output_ctl: SpdifOutputCtl,
-    mixer_ctl: MixerCtl<'a>,
+    mixer_ctl: MixerCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -95,35 +95,18 @@ impl AvcSelectorCtlOperation<SoloSpdifOutputProtocol> for SpdifOutputCtl {
     const ITEM_LABELS: &'static [&'static str] = &["stream-input-3/4", "mixer-output-3/4"];
 }
 
-impl<'a> SoloModel<'a> {
-    const MIXER_DST_FB_IDS: &'a [u8] = &[0x01, 0x01];
-    const MIXER_LABELS: &'a [&'a str] = &["mixer-1/2", "mixer-3/4"];
-    const MIXER_PHYS_SRC_FB_IDS: &'a [u8] = &[0x00, 0x01];
-    const PHYS_IN_LABELS: &'a [&'a str] = &["analog-1/2", "digital-1/2"];
-    const MIXER_STREAM_SRC_FB_IDS: &'a [u8] = &[0x02, 0x03];
-    const STREAM_IN_LABELS: &'a [&'a str] = &["stream-1/2", "stream-1/2"];
+#[derive(Default)]
+struct MixerCtl;
+
+impl MaudioNormalMixerCtlOperation<SoloMixerProtocol> for MixerCtl {
+    const MIXER_NAME: &'static str = "mixer-source";
+    const DST_LABELS: &'static [&'static str] = &["mixer-1/2", "mixer-3/4"];
+    const SRC_LABELS: &'static [&'static str] = &[
+        "analog-input-1/2", "digital-input-1/2", "stream-input-1/2", "stream-input-3/4",
+    ];
 }
 
-impl<'a> Default for SoloModel<'a> {
-    fn default() -> Self {
-        Self{
-            avc: Default::default(),
-            req: Default::default(),
-            clk_ctl: Default::default(),
-            meter_ctl: Default::default(),
-            phys_input_ctl: Default::default(),
-            stream_input_ctl: Default::default(),
-            spdif_output_ctl: Default::default(),
-            mixer_ctl: MixerCtl::new(
-                Self::MIXER_DST_FB_IDS, Self::MIXER_LABELS,
-                Self::MIXER_PHYS_SRC_FB_IDS, Self::PHYS_IN_LABELS,
-                Self::MIXER_STREAM_SRC_FB_IDS, Self::STREAM_IN_LABELS,
-            ),
-        }
-    }
-}
-
-impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
+impl CtlModel<SndUnit> for SoloModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
@@ -142,7 +125,7 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
 
         self.spdif_output_ctl.load_selector(card_cntr)?;
 
-        self.mixer_ctl.load(&self.avc, card_cntr)?;
+        self.mixer_ctl.load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -164,7 +147,7 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
              Ok(true)
         } else if self.spdif_output_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
              Ok(true)
-        } else if self.mixer_ctl.read(&self.avc, elem_id, elem_value)? {
+        } else if self.mixer_ctl.read_src_state(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -186,7 +169,7 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
             Ok(true)
         } else if self.spdif_output_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
-        } else if self.mixer_ctl.write(&self.avc, elem_id, old, new)? {
+        } else if self.mixer_ctl.write_src_state(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -194,7 +177,7 @@ impl<'a> CtlModel<SndUnit> for SoloModel<'a> {
     }
 }
 
-impl<'a> MeasureModel<SndUnit> for SoloModel<'a> {
+impl MeasureModel<SndUnit> for SoloModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
@@ -210,7 +193,7 @@ impl<'a> MeasureModel<SndUnit> for SoloModel<'a> {
     }
 }
 
-impl<'a> NotifyModel<SndUnit, bool> for SoloModel<'a> {
+impl NotifyModel<SndUnit, bool> for SoloModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
@@ -262,6 +245,16 @@ mod test {
 
         let ctl = SpdifOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_mixer_ctl_definition() {
+        let avc = BebobAvc::default();
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = MixerCtl::default();
+        let error = ctl.load_src_state(&mut card_cntr, &avc, 100).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

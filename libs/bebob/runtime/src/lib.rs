@@ -40,9 +40,9 @@ enum Event {
     StreamLock(bool),
 }
 
-pub struct BebobRuntime<'a> {
+pub struct BebobRuntime {
     unit: hinawa::SndUnit,
-    model: BebobModel<'a>,
+    model: BebobModel,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
@@ -50,7 +50,7 @@ pub struct BebobRuntime<'a> {
     timer: Option<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for BebobRuntime<'a> {
+impl Drop for BebobRuntime {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -65,7 +65,7 @@ impl<'a> Drop for BebobRuntime<'a> {
     }
 }
 
-impl<'a> RuntimeOperation<u32> for BebobRuntime<'a> {
+impl RuntimeOperation<u32> for BebobRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndUnit::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
@@ -167,7 +167,7 @@ impl<'a> RuntimeOperation<u32> for BebobRuntime<'a> {
     }
 }
 
-impl<'a> BebobRuntime<'a> {
+impl<'a> BebobRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
