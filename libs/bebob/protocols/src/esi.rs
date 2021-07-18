@@ -49,6 +49,8 @@ impl AvcLevelOperation for Quatafire610PhysInputProtocol {
     ];
 }
 
+impl AvcLrBalanceOperation for Quatafire610PhysInputProtocol {}
+
 /// The protocol implementation for physical output of Quatafire 610.
 #[derive(Default)]
 pub struct Quatafire610PhysOutputProtocol;

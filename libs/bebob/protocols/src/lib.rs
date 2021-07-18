@@ -209,3 +209,55 @@ pub trait AvcLevelOperation {
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }
+
+/// The trait of LR balance operation for audio function blocks.
+pub trait AvcLrBalanceOperation: AvcLevelOperation {
+    const BALANCE_MIN: i16 = FeatureCtl::NEG_INFINITY;
+    const BALANCE_MAX: i16 = FeatureCtl::INFINITY;
+    const BALANCE_STEP: i16 = 0x80;
+
+    fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of function block list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            audio_ch,
+            FeatureCtl::LrBalance(-1),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let FeatureCtl::LrBalance(balance) = op.ctl {
+            Ok(balance)
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_lr_balance(
+        avc: &BebobAvc,
+        idx: usize,
+        balance: i16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of function block list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            audio_ch,
+            FeatureCtl::LrBalance(balance),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+    }
+}
