@@ -44,7 +44,7 @@ impl Ta1394Avc for BebobAvc {
     fn control<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &mut operands, timeout_ms)?;
+        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)?;
         let unexpected = match O::OPCODE {
             InputPlugSignalFormat::OPCODE |
             OutputPlugSignalFormat::OPCODE |
