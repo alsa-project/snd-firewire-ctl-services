@@ -125,6 +125,7 @@ your device, please contact to developer.
 
   * Apogee Ensemble
   * Behringer Firepower FCA610
+  * Ego Systems Quatafire 610
   * M-Audio Ozonic
   * M-Audio FireWire Solo
   * M-Audio FireWire Audiophile
@@ -133,7 +134,6 @@ your device, please contact to developer.
   * M-Audio FireWire 1814
   * M-Audio ProjectMix I/O
   * Stanton ScratchAmp in Final Scratch version 2
-  * ESI Quatafire 610
 
 * snd-dice-ctl-service
 
