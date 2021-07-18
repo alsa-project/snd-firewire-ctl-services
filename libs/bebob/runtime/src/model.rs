@@ -17,27 +17,27 @@ use super::behringer::*;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
 
-pub struct BebobModel<'a>{
-    ctl_model: Model<'a>,
+pub struct BebobModel {
+    ctl_model: Model,
     pub measure_elem_list: Vec<alsactl::ElemId>,
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
-enum Model<'a> {
+enum Model {
     ApogeeEnsemble(EnsembleModel),
     BehringerFca610(Fca610Model),
     EsiQuatafire610(Quatafire610Model),
-    MaudioOzonic(OzonicModel<'a>),
-    MaudioSolo(SoloModel<'a>),
-    MaudioAudiophile(AudiophileModel<'a>),
-    MaudioFw410(Fw410Model<'a>),
+    MaudioOzonic(OzonicModel),
+    MaudioSolo(SoloModel),
+    MaudioAudiophile(AudiophileModel),
+    MaudioFw410(Fw410Model),
     MaudioPfl(PflModel),
     MaudioFw1814(Fw1814Model),
     MaudioProjectMix(ProjectMixModel),
     StantonScratchamp(ScratchampModel),
 }
 
-impl<'a> BebobModel<'a> {
+impl BebobModel {
     pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
             (0x0003db, 0x01eeee) => Model::ApogeeEnsemble(Default::default()),
