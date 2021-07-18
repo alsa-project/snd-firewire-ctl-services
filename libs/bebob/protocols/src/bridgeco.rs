@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2021 Takashi Sakamoto
+
+//! Protocols defined by BridgeCo. AG for its BridgeCo. Enhanced Break Out Box (BeBoB) solution.
+//!
+//! The module includes structure, enumeration, trait and its implementation for AV/C command
+//! extensions defined by BridgeCo. AG for BeBoB solution.
+
 use glib::{Error, FileError};
-use ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
-use ta1394::{AvcOp, AvcStatus, AvcControl};
+
 use ta1394::general::{PlugInfo, SubunitInfo};
-use ta1394::stream_format::{StreamFormat, AmStream, SupportStatus};
+use ta1394::stream_format::{AmStream, StreamFormat, SupportStatus};
+use ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
+use ta1394::{AvcControl, AvcOp, AvcStatus};
 
 //
 // Bco Extended Plug Info command
 //
+
+/// The enumeration to express type of address to plug for unit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugAddrUnitType {
     Isoc,
@@ -45,56 +54,57 @@ impl From<BcoPlugAddrUnitType> for u8 {
     }
 }
 
+/// The structure to express address to plug for unit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BcoPlugAddrUnit{
+pub struct BcoPlugAddrUnit {
     pub plug_type: BcoPlugAddrUnitType,
     pub plug_id: u8,
 }
 
-impl From<&[u8;3]> for BcoPlugAddrUnit {
-    fn from(raw: &[u8;3]) -> Self {
-        BcoPlugAddrUnit{
+impl From<&[u8; 3]> for BcoPlugAddrUnit {
+    fn from(raw: &[u8; 3]) -> Self {
+        BcoPlugAddrUnit {
             plug_type: BcoPlugAddrUnitType::from(raw[0]),
             plug_id: raw[1],
         }
     }
 }
 
-impl From<&BcoPlugAddrUnit> for [u8;3] {
+impl From<&BcoPlugAddrUnit> for [u8; 3] {
     fn from(data: &BcoPlugAddrUnit) -> Self {
         [data.plug_type.into(), data.plug_id.into(), 0xff]
     }
 }
 
+/// The structure to express address to plug for subunit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BcoPlugAddrSubunit{
+pub struct BcoPlugAddrSubunit {
     pub plug_id: u8,
 }
 
-impl From<&[u8;3]> for BcoPlugAddrSubunit {
-    fn from(raw: &[u8;3]) -> Self {
-        BcoPlugAddrSubunit{
-            plug_id: raw[0],
-        }
+impl From<&[u8; 3]> for BcoPlugAddrSubunit {
+    fn from(raw: &[u8; 3]) -> Self {
+        BcoPlugAddrSubunit { plug_id: raw[0] }
     }
 }
 
-impl From<&BcoPlugAddrSubunit> for [u8;3] {
+impl From<&BcoPlugAddrSubunit> for [u8; 3] {
     fn from(data: &BcoPlugAddrSubunit) -> Self {
         [data.plug_id, 0xff, 0xff]
     }
 }
 
+/// The structure to express address to plug for function block.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BcoPlugAddrFuncBlk{
+pub struct BcoPlugAddrFuncBlk {
     pub func_blk_type: u8,
     pub func_blk_id: u8,
     pub plug_id: u8,
 }
 
-impl From<&[u8;3]> for BcoPlugAddrFuncBlk {
-    fn from(raw: &[u8;3]) -> Self {
-        BcoPlugAddrFuncBlk{
+impl From<&[u8; 3]> for BcoPlugAddrFuncBlk {
+    fn from(raw: &[u8; 3]) -> Self {
+        BcoPlugAddrFuncBlk {
             func_blk_type: raw[0],
             func_blk_id: raw[1],
             plug_id: raw[2],
@@ -102,18 +112,19 @@ impl From<&[u8;3]> for BcoPlugAddrFuncBlk {
     }
 }
 
-impl From<&BcoPlugAddrFuncBlk> for [u8;3] {
+impl From<&BcoPlugAddrFuncBlk> for [u8; 3] {
     fn from(data: &BcoPlugAddrFuncBlk) -> Self {
         [data.func_blk_type, data.func_blk_id, data.plug_id]
     }
 }
 
+/// The enumeration to express mode of address to plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugAddrMode {
     Unit(BcoPlugAddrUnit),
     Subunit(BcoPlugAddrSubunit),
     FuncBlk(BcoPlugAddrFuncBlk),
-    Reserved([u8;4]),
+    Reserved([u8; 4]),
 }
 
 impl BcoPlugAddrMode {
@@ -122,9 +133,9 @@ impl BcoPlugAddrMode {
     const FUNCBLK: u8 = 0x02;
 }
 
-impl From<&[u8;4]> for BcoPlugAddrMode {
-    fn from(raw: &[u8;4]) -> Self {
-        let mut r = [0;3];
+impl From<&[u8; 4]> for BcoPlugAddrMode {
+    fn from(raw: &[u8; 4]) -> Self {
+        let mut r = [0; 3];
         r.copy_from_slice(&raw[1..]);
         match raw[0] {
             BcoPlugAddrMode::UNIT => BcoPlugAddrMode::Unit(BcoPlugAddrUnit::from(&r)),
@@ -135,21 +146,21 @@ impl From<&[u8;4]> for BcoPlugAddrMode {
     }
 }
 
-impl From<&BcoPlugAddrMode> for [u8;4] {
+impl From<&BcoPlugAddrMode> for [u8; 4] {
     fn from(data: &BcoPlugAddrMode) -> Self {
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         match data {
             BcoPlugAddrMode::Unit(d) => {
                 raw[0] = BcoPlugAddrMode::UNIT;
-                raw[1..].copy_from_slice(&Into::<[u8;3]>::into(d));
+                raw[1..].copy_from_slice(&Into::<[u8; 3]>::into(d));
             }
             BcoPlugAddrMode::Subunit(d) => {
                 raw[0] = BcoPlugAddrMode::SUBUNIT;
-                raw[1..].copy_from_slice(&Into::<[u8;3]>::into(d));
+                raw[1..].copy_from_slice(&Into::<[u8; 3]>::into(d));
             }
             BcoPlugAddrMode::FuncBlk(d) => {
                 raw[0] = BcoPlugAddrMode::FUNCBLK;
-                raw[1..].copy_from_slice(&Into::<[u8;3]>::into(d));
+                raw[1..].copy_from_slice(&Into::<[u8; 3]>::into(d));
             }
             BcoPlugAddrMode::Reserved(d) => {
                 raw.copy_from_slice(d);
@@ -159,6 +170,7 @@ impl From<&BcoPlugAddrMode> for [u8;4] {
     }
 }
 
+/// The enumeration to express direction of plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugDirection {
     Input,
@@ -191,38 +203,44 @@ impl From<BcoPlugDirection> for u8 {
     }
 }
 
+/// The structure for plug address.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BcoPlugAddr{
+pub struct BcoPlugAddr {
     pub direction: BcoPlugDirection,
     pub mode: BcoPlugAddrMode,
 }
 
 impl BcoPlugAddr {
-    pub fn new_for_unit(direction: BcoPlugDirection, plug_type: BcoPlugAddrUnitType,
-                        plug_id: u8) -> Self {
-        BcoPlugAddr{
+    /// Instantiate address structure to plug for unit.
+    pub fn new_for_unit(
+        direction: BcoPlugDirection,
+        plug_type: BcoPlugAddrUnitType,
+        plug_id: u8,
+    ) -> Self {
+        BcoPlugAddr {
             direction,
-            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit{
-                plug_type,
-                plug_id,
-            }),
+            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit { plug_type, plug_id }),
         }
     }
 
+    /// Instantiate address structure to plug for subunit.
     pub fn new_for_subunit(direction: BcoPlugDirection, plug_id: u8) -> Self {
-        BcoPlugAddr{
+        BcoPlugAddr {
             direction,
-            mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit{
-                plug_id,
-            }),
+            mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit { plug_id }),
         }
     }
 
-    pub fn new_for_func_blk(direction: BcoPlugDirection, func_blk_type: u8,
-                            func_blk_id: u8, plug_id: u8) -> Self {
-        BcoPlugAddr{
+    /// Instantiate address structure to plug for function block.
+    pub fn new_for_func_blk(
+        direction: BcoPlugDirection,
+        func_blk_type: u8,
+        func_blk_id: u8,
+        plug_id: u8,
+    ) -> Self {
+        BcoPlugAddr {
             direction,
-            mode: BcoPlugAddrMode::FuncBlk(BcoPlugAddrFuncBlk{
+            mode: BcoPlugAddrMode::FuncBlk(BcoPlugAddrFuncBlk {
                 func_blk_type,
                 func_blk_id,
                 plug_id,
@@ -231,44 +249,45 @@ impl BcoPlugAddr {
     }
 }
 
-impl From<&[u8;5]> for BcoPlugAddr {
-    fn from(raw: &[u8;5]) -> Self {
-        let mut r = [0;4];
+impl From<&[u8; 5]> for BcoPlugAddr {
+    fn from(raw: &[u8; 5]) -> Self {
+        let mut r = [0; 4];
         r.copy_from_slice(&raw[1..]);
-        BcoPlugAddr{
+        BcoPlugAddr {
             direction: BcoPlugDirection::from(raw[0]),
             mode: BcoPlugAddrMode::from(&r),
         }
     }
 }
 
-impl From<&BcoPlugAddr> for [u8;5] {
-    fn from(data: &BcoPlugAddr) -> [u8;5] {
-        let mut raw = [0;5];
+impl From<&BcoPlugAddr> for [u8; 5] {
+    fn from(data: &BcoPlugAddr) -> [u8; 5] {
+        let mut raw = [0; 5];
         raw[0] = data.direction.into();
-        raw[1..].copy_from_slice(&Into::<[u8;4]>::into(&data.mode));
+        raw[1..].copy_from_slice(&Into::<[u8; 4]>::into(&data.mode));
         raw
     }
 }
 
+/// The enumeration to express mode of address to plug for input and output direction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoIoPlugAddrMode {
     Unit(BcoPlugAddrUnit),
     Subunit(AvcAddrSubunit, BcoPlugAddrSubunit),
     FuncBlk(AvcAddrSubunit, BcoPlugAddrFuncBlk),
-    Reserved([u8;6]),
+    Reserved([u8; 6]),
 }
 
-impl From<&[u8;6]> for BcoIoPlugAddrMode {
-    fn from(raw: &[u8;6]) -> Self {
-        let mut r = [0;3];
+impl From<&[u8; 6]> for BcoIoPlugAddrMode {
+    fn from(raw: &[u8; 6]) -> Self {
+        let mut r = [0; 3];
         match raw[0] {
             BcoPlugAddrMode::UNIT => {
                 r.copy_from_slice(&raw[1..4]);
                 BcoIoPlugAddrMode::Unit(BcoPlugAddrUnit::from(&r))
             }
             BcoPlugAddrMode::SUBUNIT => {
-                let subunit = AvcAddrSubunit{
+                let subunit = AvcAddrSubunit {
                     subunit_type: AvcSubunitType::from(raw[1]),
                     subunit_id: raw[2],
                 };
@@ -276,7 +295,7 @@ impl From<&[u8;6]> for BcoIoPlugAddrMode {
                 BcoIoPlugAddrMode::Subunit(subunit, BcoPlugAddrSubunit::from(&r))
             }
             BcoPlugAddrMode::FUNCBLK => {
-                let subunit = AvcAddrSubunit{
+                let subunit = AvcAddrSubunit {
                     subunit_type: AvcSubunitType::from(raw[1]),
                     subunit_id: raw[2],
                 };
@@ -288,25 +307,25 @@ impl From<&[u8;6]> for BcoIoPlugAddrMode {
     }
 }
 
-impl From<&BcoIoPlugAddrMode> for [u8;6] {
+impl From<&BcoIoPlugAddrMode> for [u8; 6] {
     fn from(data: &BcoIoPlugAddrMode) -> Self {
-        let mut raw = [0xff;6];
+        let mut raw = [0xff; 6];
         match data {
             BcoIoPlugAddrMode::Unit(d) => {
                 raw[0] = BcoPlugAddrMode::UNIT;
-                raw[1..4].copy_from_slice(&Into::<[u8;3]>::into(d));
+                raw[1..4].copy_from_slice(&Into::<[u8; 3]>::into(d));
             }
             BcoIoPlugAddrMode::Subunit(s, d) => {
                 raw[0] = BcoPlugAddrMode::SUBUNIT;
                 raw[1] = s.subunit_type.into();
                 raw[2] = s.subunit_id;
-                raw[3..6].copy_from_slice(&Into::<[u8;3]>::into(d));
+                raw[3..6].copy_from_slice(&Into::<[u8; 3]>::into(d));
             }
             BcoIoPlugAddrMode::FuncBlk(s, d) => {
                 raw[0] = BcoPlugAddrMode::FUNCBLK;
                 raw[1] = s.subunit_type.into();
                 raw[2] = s.subunit_id;
-                raw[3..6].copy_from_slice(&Into::<[u8;3]>::into(d));
+                raw[3..6].copy_from_slice(&Into::<[u8; 3]>::into(d));
             }
             BcoIoPlugAddrMode::Reserved(d) => {
                 raw.copy_from_slice(d);
@@ -316,32 +335,34 @@ impl From<&BcoIoPlugAddrMode> for [u8;6] {
     }
 }
 
+/// The enumeration to express address to plug for input and output direction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BcoIoPlugAddr{
+pub struct BcoIoPlugAddr {
     pub direction: BcoPlugDirection,
     pub mode: BcoIoPlugAddrMode,
 }
 
-impl From<&[u8;7]> for BcoIoPlugAddr {
-    fn from(raw: &[u8;7]) -> Self {
-        let mut r = [0;6];
+impl From<&[u8; 7]> for BcoIoPlugAddr {
+    fn from(raw: &[u8; 7]) -> Self {
+        let mut r = [0; 6];
         r.copy_from_slice(&raw[1..]);
-        BcoIoPlugAddr{
+        BcoIoPlugAddr {
             direction: BcoPlugDirection::from(raw[0]),
             mode: BcoIoPlugAddrMode::from(&r),
         }
     }
 }
 
-impl From<&BcoIoPlugAddr> for [u8;7] {
-    fn from(data: &BcoIoPlugAddr) -> [u8;7] {
-        let mut raw = [0;7];
+impl From<&BcoIoPlugAddr> for [u8; 7] {
+    fn from(data: &BcoIoPlugAddr) -> [u8; 7] {
+        let mut raw = [0; 7];
         raw[0] = data.direction.into();
-        raw[1..].copy_from_slice(&Into::<[u8;6]>::into(&data.mode));
+        raw[1..].copy_from_slice(&Into::<[u8; 6]>::into(&data.mode));
         raw
     }
 }
 
+/// The enumeration to express type of plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugType {
     Isoc,
@@ -390,8 +411,9 @@ impl From<BcoPlugType> for u8 {
     }
 }
 
+/// The enumeration to express physical location of data channel for multi bit linear audio.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum BcoLocation{
+pub enum BcoLocation {
     LeftFront,
     RightFront,
     Center,
@@ -474,45 +496,49 @@ impl From<BcoLocation> for u8 {
     }
 }
 
+/// The structure to express information of data channel for multi bit linear audio.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct BcoChannelInfo{
+pub struct BcoChannelInfo {
     pos: u8,
     loc: BcoLocation,
 }
 
-impl From<&BcoChannelInfo> for [u8;2] {
+impl From<&BcoChannelInfo> for [u8; 2] {
     fn from(data: &BcoChannelInfo) -> Self {
-        let mut raw = [0;2];
+        let mut raw = [0; 2];
         raw[0] = data.pos;
         raw[1] = data.loc.into();
         raw
     }
 }
 
-impl From<&[u8;2]> for BcoChannelInfo {
-    fn from(raw: &[u8;2]) -> Self {
-        BcoChannelInfo{
+impl From<&[u8; 2]> for BcoChannelInfo {
+    fn from(raw: &[u8; 2]) -> Self {
+        BcoChannelInfo {
             pos: raw[0],
-            loc: BcoLocation::from(raw[1])
+            loc: BcoLocation::from(raw[1]),
         }
     }
 }
 
+/// The structure to express cluster of data channels.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct BcoCluster{
+pub struct BcoCluster {
     entries: Vec<BcoChannelInfo>,
 }
 
-impl From<&[u8]> for BcoCluster{
+impl From<&[u8]> for BcoCluster {
     fn from(raw: &[u8]) -> Self {
         let count = raw[0] as usize;
-        BcoCluster{
-            entries: (0..count).map(|i| {
-                let mut r = [0;2];
-                let pos = 1 + i * 2;
-                r.copy_from_slice(&raw[pos..(pos + 2)]);
-                BcoChannelInfo::from(&r)
-            }).collect(),
+        BcoCluster {
+            entries: (0..count)
+                .map(|i| {
+                    let mut r = [0; 2];
+                    let pos = 1 + i * 2;
+                    r.copy_from_slice(&raw[pos..(pos + 2)]);
+                    BcoChannelInfo::from(&r)
+                })
+                .collect(),
         }
     }
 }
@@ -522,18 +548,20 @@ impl From<&BcoCluster> for Vec<u8> {
         let mut raw = Vec::new();
         raw.push(data.entries.len() as u8);
         data.entries.iter().fold(raw, |mut raw, entry| {
-            raw.extend_from_slice(&Into::<[u8;2]>::into(entry));
+            raw.extend_from_slice(&Into::<[u8; 2]>::into(entry));
             raw
         })
     }
 }
 
+/// The structure to express name of data channel.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct BcoChannelName{
+pub struct BcoChannelName {
     pub ch: u8,
     pub name: String,
 }
 
+/// The enumeration to express type of physical port.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPortType {
     Speaker,
@@ -602,8 +630,9 @@ impl From<u8> for BcoPortType {
     }
 }
 
+/// The structure to express cluster of data channels.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct BcoClusterInfo{
+pub struct BcoClusterInfo {
     pub index: u8,
     pub port_type: BcoPortType,
     pub name: String,
@@ -617,7 +646,7 @@ impl From<&[u8]> for BcoClusterInfo {
         } else {
             String::from_utf8(raw[3..pos].to_vec()).unwrap_or("".to_string())
         };
-        BcoClusterInfo{
+        BcoClusterInfo {
             index: raw[0],
             port_type: BcoPortType::from(raw[1]),
             name,
@@ -636,6 +665,7 @@ impl From<&BcoClusterInfo> for Vec<u8> {
     }
 }
 
+/// The enumeration to express information of plug.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BcoPlugInfo {
     Type(BcoPlugType),
@@ -680,7 +710,9 @@ impl From<&BcoPlugInfo> for Vec<u8> {
             BcoPlugInfo::ChPositions(entries) => {
                 raw.push(BcoPlugInfo::CH_POSITIONS);
                 raw.push(entries.len() as u8);
-                entries.iter().for_each(|entry| raw.append(&mut entry.into()));
+                entries
+                    .iter()
+                    .for_each(|entry| raw.append(&mut entry.into()));
             }
             BcoPlugInfo::ChName(d) => {
                 raw.push(BcoPlugInfo::CH_NAME);
@@ -690,12 +722,14 @@ impl From<&BcoPlugInfo> for Vec<u8> {
             }
             BcoPlugInfo::Input(plug_addr) => {
                 raw.push(BcoPlugInfo::INPUT);
-                raw.extend_from_slice(&mut Into::<[u8;7]>::into(plug_addr));
+                raw.extend_from_slice(&mut Into::<[u8; 7]>::into(plug_addr));
             }
             BcoPlugInfo::Outputs(plug_addrs) => {
                 raw.push(BcoPlugInfo::OUTPUTS);
                 raw.push(plug_addrs.len() as u8);
-                plug_addrs.iter().for_each(|plug_addr| raw.extend_from_slice(&Into::<[u8;7]>::into(plug_addr)));
+                plug_addrs
+                    .iter()
+                    .for_each(|plug_addr| raw.extend_from_slice(&Into::<[u8; 7]>::into(plug_addr)));
             }
             BcoPlugInfo::ClusterInfo(d) => {
                 raw.push(BcoPlugInfo::CLUSTER_INFO);
@@ -707,12 +741,10 @@ impl From<&BcoPlugInfo> for Vec<u8> {
     }
 }
 
-impl From<&[u8]> for BcoPlugInfo{
+impl From<&[u8]> for BcoPlugInfo {
     fn from(raw: &[u8]) -> Self {
         match raw[0] {
-            BcoPlugInfo::TYPE => {
-                BcoPlugInfo::Type(BcoPlugType::from(raw[1]))
-            }
+            BcoPlugInfo::TYPE => BcoPlugInfo::Type(BcoPlugType::from(raw[1])),
             BcoPlugInfo::NAME => {
                 let pos = 2 + raw[1] as usize;
                 let name = if pos > raw.len() {
@@ -722,9 +754,7 @@ impl From<&[u8]> for BcoPlugInfo{
                 };
                 BcoPlugInfo::Name(name)
             }
-            BcoPlugInfo::CH_COUNT => {
-                BcoPlugInfo::ChCount(raw[1])
-            }
+            BcoPlugInfo::CH_COUNT => BcoPlugInfo::ChCount(raw[1]),
             BcoPlugInfo::CH_POSITIONS => {
                 let count = raw[1] as usize;
                 let mut entries = Vec::with_capacity(count);
@@ -745,10 +775,10 @@ impl From<&[u8]> for BcoPlugInfo{
                 } else {
                     String::from_utf8(raw[3..pos].to_vec()).unwrap_or("".to_string())
                 };
-                BcoPlugInfo::ChName(BcoChannelName{ch, name})
+                BcoPlugInfo::ChName(BcoChannelName { ch, name })
             }
             BcoPlugInfo::INPUT => {
-                let mut r = [0;7];
+                let mut r = [0; 7];
                 r.copy_from_slice(&raw[1..8]);
                 BcoPlugInfo::Input(BcoIoPlugAddr::from(&r))
             }
@@ -757,22 +787,21 @@ impl From<&[u8]> for BcoPlugInfo{
                 let mut pos = 2;
                 let mut entries = Vec::new();
                 while pos < raw.len() && entries.len() < count {
-                    let mut r = [0;7];
+                    let mut r = [0; 7];
                     r.copy_from_slice(&raw[pos..(pos + 7)]);
                     entries.push(BcoIoPlugAddr::from(&r));
                     pos += 7;
                 }
                 BcoPlugInfo::Outputs(entries)
             }
-            BcoPlugInfo::CLUSTER_INFO => {
-                BcoPlugInfo::ClusterInfo(BcoClusterInfo::from(&raw[1..]))
-            }
+            BcoPlugInfo::CLUSTER_INFO => BcoPlugInfo::ClusterInfo(BcoClusterInfo::from(&raw[1..])),
             _ => BcoPlugInfo::Reserved(raw.to_vec()),
         }
     }
 }
 
-pub struct ExtendedPlugInfo{
+/// The structure to express operation for extended plug information command.
+pub struct ExtendedPlugInfo {
     pub addr: BcoPlugAddr,
     pub info: BcoPlugInfo,
 }
@@ -780,12 +809,10 @@ pub struct ExtendedPlugInfo{
 impl ExtendedPlugInfo {
     const SUBFUNC: u8 = 0xc0;
 
+    /// Instantiate extended plug info structure with parameters.
     #[allow(dead_code)]
     pub fn new(addr: &BcoPlugAddr, info: BcoPlugInfo) -> Self {
-        ExtendedPlugInfo{
-            addr: *addr,
-            info,
-        }
+        ExtendedPlugInfo { addr: *addr, info }
     }
 }
 
@@ -796,7 +823,7 @@ impl AvcOp for ExtendedPlugInfo {
 impl AvcStatus for ExtendedPlugInfo {
     fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
         operands.push(Self::SUBFUNC);
-        operands.extend_from_slice(&Into::<[u8;5]>::into(&self.addr));
+        operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.addr));
         operands.append(&mut Into::<Vec<u8>>::into(&self.info));
         Ok(())
     }
@@ -808,11 +835,14 @@ impl AvcStatus for ExtendedPlugInfo {
         }
 
         if operands[0] != Self::SUBFUNC {
-            let label = format!("Unexpected subfunction for ExtendedPlugInfo; {}", operands[0]);
+            let label = format!(
+                "Unexpected subfunction for ExtendedPlugInfo; {}",
+                operands[0]
+            );
             return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
         }
 
-        let mut a = [0;5];
+        let mut a = [0; 5];
         a.copy_from_slice(&operands[1..6]);
         let addr = BcoPlugAddr::from(&a);
         if addr != self.addr {
@@ -832,14 +862,20 @@ impl AvcStatus for ExtendedPlugInfo {
             BcoPlugInfo::Reserved(d) => d[0],
         };
         if info_type != operands[6] {
-            let label = format!("Unexpected type of information for ExtendedPlugInfo; {}", operands[6]);
+            let label = format!(
+                "Unexpected type of information for ExtendedPlugInfo; {}",
+                operands[6]
+            );
             return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
         }
 
         let info = BcoPlugInfo::from(&operands[6..]);
         if let BcoPlugInfo::Input(d) = &info {
             if let BcoPlugDirection::Reserved(val) = &d.direction {
-                let label = format!("Unexpected value for direction of ExtendedPlugInfo: {}", val);
+                let label = format!(
+                    "Unexpected value for direction of ExtendedPlugInfo: {}",
+                    val
+                );
                 return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
             }
         }
@@ -853,8 +889,10 @@ impl AvcStatus for ExtendedPlugInfo {
 //
 // Bco Extended Subunit Info command
 //
+
+/// The structure to express operation for extended subunit information.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ExtendedSubunitInfoEntry{
+pub struct ExtendedSubunitInfoEntry {
     pub func_blk_type: u8,
     pub func_blk_id: u8,
     pub func_blk_purpose: u8,
@@ -862,9 +900,9 @@ pub struct ExtendedSubunitInfoEntry{
     pub output_plugs: u8,
 }
 
-impl From<&[u8;5]> for ExtendedSubunitInfoEntry {
-    fn from(raw: &[u8;5]) -> Self {
-        ExtendedSubunitInfoEntry{
+impl From<&[u8; 5]> for ExtendedSubunitInfoEntry {
+    fn from(raw: &[u8; 5]) -> Self {
+        ExtendedSubunitInfoEntry {
             func_blk_type: raw[0],
             func_blk_id: raw[1],
             func_blk_purpose: raw[2],
@@ -874,7 +912,7 @@ impl From<&[u8;5]> for ExtendedSubunitInfoEntry {
     }
 }
 
-impl From<&ExtendedSubunitInfoEntry> for [u8;5] {
+impl From<&ExtendedSubunitInfoEntry> for [u8; 5] {
     fn from(data: &ExtendedSubunitInfoEntry) -> Self {
         [
             data.func_blk_type,
@@ -886,8 +924,9 @@ impl From<&ExtendedSubunitInfoEntry> for [u8;5] {
     }
 }
 
+/// The structure to express operation for extended subunit information.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct ExtendedSubunitInfo{
+pub struct ExtendedSubunitInfo {
     pub page: u8,
     pub func_blk_type: u8,
     pub entries: Vec<ExtendedSubunitInfoEntry>,
@@ -896,7 +935,7 @@ pub struct ExtendedSubunitInfo{
 impl ExtendedSubunitInfo {
     #[allow(dead_code)]
     pub fn new(page: u8, func_blk_type: u8) -> Self {
-        ExtendedSubunitInfo{
+        ExtendedSubunitInfo {
             page,
             func_blk_type,
             entries: Vec::new(),
@@ -912,30 +951,39 @@ impl AvcStatus for ExtendedSubunitInfo {
     fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
         operands.push(self.page);
         operands.push(self.func_blk_type);
-        operands.extend_from_slice(&[0xff;25]);
+        operands.extend_from_slice(&[0xff; 25]);
         Ok(())
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
         if operands.len() != 27 {
-            let label = format!("Unexpected length of operands for ExtendedSubunitInfo: {}",
-                                operands.len());
+            let label = format!(
+                "Unexpected length of operands for ExtendedSubunitInfo: {}",
+                operands.len()
+            );
             Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
         } else if self.page != operands[0] {
-            let label = format!("Unexpected value of page for ExtendedSubunitInfo: {} but {}",
-                                self.page, operands[0]);
+            let label = format!(
+                "Unexpected value of page for ExtendedSubunitInfo: {} but {}",
+                self.page, operands[0]
+            );
             Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
         } else if self.func_blk_type != operands[1] {
-            let label = format!("Unexpected value of function block type for ExtendedSubunitInfo: {} but {}",
-                                self.func_blk_type, operands[2]);
+            let label = format!(
+                "Unexpected value of function block type for ExtendedSubunitInfo: {} but {}",
+                self.func_blk_type, operands[2]
+            );
             Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
         } else {
-            self.entries = (0..5).filter(|i| operands[2 + i * 5] != 0xff).map(|i| {
-                let pos = 2 + i * 5;
-                let mut raw = [0;5];
-                raw.copy_from_slice(&operands[pos..(pos + 5)]);
-                ExtendedSubunitInfoEntry::from(&raw)
-            }).collect();
+            self.entries = (0..5)
+                .filter(|i| operands[2 + i * 5] != 0xff)
+                .map(|i| {
+                    let pos = 2 + i * 5;
+                    let mut raw = [0; 5];
+                    raw.copy_from_slice(&operands[pos..(pos + 5)]);
+                    ExtendedSubunitInfoEntry::from(&raw)
+                })
+                .collect();
             Ok(())
         }
     }
@@ -944,8 +992,10 @@ impl AvcStatus for ExtendedSubunitInfo {
 //
 // Bco Extended Stream Format Info command
 //
+
+/// The enumeration to express format of compound AM824 stream.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum BcoCompoundAm824StreamFormat{
+pub enum BcoCompoundAm824StreamFormat {
     Iec60958_3,
     Iec61937_3,
     Iec61937_4,
@@ -981,10 +1031,18 @@ impl From<u8> for BcoCompoundAm824StreamFormat {
             BcoCompoundAm824StreamFormat::IEC61937_5 => BcoCompoundAm824StreamFormat::Iec61937_5,
             BcoCompoundAm824StreamFormat::IEC61937_6 => BcoCompoundAm824StreamFormat::Iec61937_6,
             BcoCompoundAm824StreamFormat::IEC61937_7 => BcoCompoundAm824StreamFormat::Iec61937_7,
-            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw,
-            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd,
-            BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio,
-            BcoCompoundAm824StreamFormat::MIDI_CONFORMANT => BcoCompoundAm824StreamFormat::MidiConformant,
+            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => {
+                BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw
+            }
+            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => {
+                BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd
+            }
+            BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
+                BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio
+            }
+            BcoCompoundAm824StreamFormat::MIDI_CONFORMANT => {
+                BcoCompoundAm824StreamFormat::MidiConformant
+            }
             _ => BcoCompoundAm824StreamFormat::Reserved(val),
         }
     }
@@ -999,38 +1057,48 @@ impl From<BcoCompoundAm824StreamFormat> for u8 {
             BcoCompoundAm824StreamFormat::Iec61937_5 => BcoCompoundAm824StreamFormat::IEC61937_5,
             BcoCompoundAm824StreamFormat::Iec61937_6 => BcoCompoundAm824StreamFormat::IEC61937_6,
             BcoCompoundAm824StreamFormat::Iec61937_7 => BcoCompoundAm824StreamFormat::IEC61937_7,
-            BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw => BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW,
-            BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd => BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD,
-            BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO,
-            BcoCompoundAm824StreamFormat::MidiConformant => BcoCompoundAm824StreamFormat::MIDI_CONFORMANT,
+            BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw => {
+                BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW
+            }
+            BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd => {
+                BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD
+            }
+            BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => {
+                BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO
+            }
+            BcoCompoundAm824StreamFormat::MidiConformant => {
+                BcoCompoundAm824StreamFormat::MIDI_CONFORMANT
+            }
             BcoCompoundAm824StreamFormat::Reserved(val) => val,
         }
     }
 }
 
+/// The structure to express entry for compound AM824 stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BcoCompoundAm824StreamEntry{
+pub struct BcoCompoundAm824StreamEntry {
     pub count: u8,
     pub format: BcoCompoundAm824StreamFormat,
 }
 
-impl From<&[u8;2]> for BcoCompoundAm824StreamEntry {
-    fn from(raw: &[u8;2]) -> Self {
-        BcoCompoundAm824StreamEntry{
+impl From<&[u8; 2]> for BcoCompoundAm824StreamEntry {
+    fn from(raw: &[u8; 2]) -> Self {
+        BcoCompoundAm824StreamEntry {
             count: raw[0],
             format: BcoCompoundAm824StreamFormat::from(raw[1]),
         }
     }
 }
 
-impl From<&BcoCompoundAm824StreamEntry> for [u8;2] {
+impl From<&BcoCompoundAm824StreamEntry> for [u8; 2] {
     fn from(data: &BcoCompoundAm824StreamEntry) -> Self {
         [data.count, data.format.into()]
     }
 }
 
+/// The structure to express parameters for compound AM824 stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BcoCompoundAm824Stream{
+pub struct BcoCompoundAm824Stream {
     pub freq: u32,
     pub sync_src: bool,
     pub rate_ctl: bool,
@@ -1069,23 +1137,30 @@ impl From<&[u8]> for BcoCompoundAm824Stream {
             BcoCompoundAm824Stream::FREQ_CODE_88200 => 88200,
             _ => u32::MAX,
         };
-        let sync_src_code =
-            (raw[1] >> BcoCompoundAm824Stream::SYNC_SRC_SHIFT) & BcoCompoundAm824Stream::SYNC_SRC_MASK;
+        let sync_src_code = (raw[1] >> BcoCompoundAm824Stream::SYNC_SRC_SHIFT)
+            & BcoCompoundAm824Stream::SYNC_SRC_MASK;
         let sync_src = sync_src_code > 0;
-        let rate_ctl_code =
-            (raw[1] >> BcoCompoundAm824Stream::RATE_CTL_SHIFT) & BcoCompoundAm824Stream::RATE_CTL_MASK;
+        let rate_ctl_code = (raw[1] >> BcoCompoundAm824Stream::RATE_CTL_SHIFT)
+            & BcoCompoundAm824Stream::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == 0;
         let entry_count = raw[2] as usize;
-        let entries = (0..entry_count).filter_map(|i| {
-            if 3 + i * 2 + 2 > raw.len() {
-                None
-            } else {
-                let mut doublet = [0;2];
-                doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
-                Some(BcoCompoundAm824StreamEntry::from(&doublet))
-            }
-        }).collect();
-        BcoCompoundAm824Stream{freq, sync_src, rate_ctl, entries}
+        let entries = (0..entry_count)
+            .filter_map(|i| {
+                if 3 + i * 2 + 2 > raw.len() {
+                    None
+                } else {
+                    let mut doublet = [0; 2];
+                    doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
+                    Some(BcoCompoundAm824StreamEntry::from(&doublet))
+                }
+            })
+            .collect();
+        BcoCompoundAm824Stream {
+            freq,
+            sync_src,
+            rate_ctl,
+            entries,
+        }
     }
 }
 
@@ -1106,23 +1181,24 @@ impl From<&BcoCompoundAm824Stream> for Vec<u8> {
         };
         raw.push(freq_code);
 
-        let sync_src_code = ((data.sync_src as u8) & BcoCompoundAm824Stream::SYNC_SRC_MASK) <<
-                            BcoCompoundAm824Stream::SYNC_SRC_SHIFT;
-        let rate_ctl_code = ((data.rate_ctl as u8) & BcoCompoundAm824Stream::RATE_CTL_MASK) <<
-                            BcoCompoundAm824Stream::RATE_CTL_SHIFT;
+        let sync_src_code = ((data.sync_src as u8) & BcoCompoundAm824Stream::SYNC_SRC_MASK)
+            << BcoCompoundAm824Stream::SYNC_SRC_SHIFT;
+        let rate_ctl_code = ((data.rate_ctl as u8) & BcoCompoundAm824Stream::RATE_CTL_MASK)
+            << BcoCompoundAm824Stream::RATE_CTL_SHIFT;
         raw.push(sync_src_code | rate_ctl_code);
 
         raw.push(data.entries.len() as u8);
-        data.entries.iter().for_each(|entry|{
-            raw.extend_from_slice(&Into::<[u8;2]>::into(entry));
+        data.entries.iter().for_each(|entry| {
+            raw.extend_from_slice(&Into::<[u8; 2]>::into(entry));
         });
 
         raw
     }
 }
 
+/// The enumeration to express format of isochronous packet stream for audio and music data transmission.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BcoAmStream{
+pub enum BcoAmStream {
     AmStream(AmStream),
     BcoStream(BcoCompoundAm824Stream),
 }
@@ -1148,15 +1224,14 @@ impl From<&BcoAmStream> for Vec<u8> {
                 raw.append(&mut Into::<Vec<u8>>::into(s));
                 raw
             }
-            _ => {
-                Into::<Vec<u8>>::into(data)
-            }
+            _ => Into::<Vec<u8>>::into(data),
         }
     }
 }
 
+/// The enumeration to express format of isochronous packet stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BcoStreamFormat{
+pub enum BcoStreamFormat {
     // Dvcr is not supported currently.
     Am(BcoAmStream),
     Reserved(Vec<u8>),
@@ -1214,8 +1289,9 @@ impl From<&BcoStreamFormat> for Vec<u8> {
     }
 }
 
+/// The structure to express extended format of stream.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct BcoExtendedStreamFormat{
+struct BcoExtendedStreamFormat {
     subfunc: u8,
     plug_addr: BcoPlugAddr,
     support_status: SupportStatus,
@@ -1225,7 +1301,7 @@ impl BcoExtendedStreamFormat {
     const OPCODE: u8 = 0x2f;
 
     fn new(subfunc: u8, plug_addr: &BcoPlugAddr) -> Self {
-        BcoExtendedStreamFormat{
+        BcoExtendedStreamFormat {
             subfunc,
             plug_addr: *plug_addr,
             support_status: SupportStatus::Reserved(0xff),
@@ -1236,27 +1312,36 @@ impl BcoExtendedStreamFormat {
 impl AvcStatus for BcoExtendedStreamFormat {
     fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
         operands.push(self.subfunc);
-        operands.extend_from_slice(&Into::<[u8;5]>::into(&self.plug_addr));
+        operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.plug_addr));
         operands.push(self.support_status.into());
         Ok(())
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
         if operands.len() < 7 {
-            let label = format!("Unexpected length of data for BcoExtendedStreamFormat: {}", operands.len());
+            let label = format!(
+                "Unexpected length of data for BcoExtendedStreamFormat: {}",
+                operands.len()
+            );
             return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
         }
 
         if operands[0] != self.subfunc {
-            let label = format!("Unexpected subfunction: {} but {}", self.subfunc, operands[0]);
+            let label = format!(
+                "Unexpected subfunction: {} but {}",
+                self.subfunc, operands[0]
+            );
             return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
         }
 
-        let mut r = [0;5];
+        let mut r = [0; 5];
         r.copy_from_slice(&operands[1..6]);
         let plug_addr = BcoPlugAddr::from(&r);
         if plug_addr != self.plug_addr {
-            let label = format!("Unexpected address for plug: {:?} but {:?}", self.plug_addr, plug_addr);
+            let label = format!(
+                "Unexpected address for plug: {:?} but {:?}",
+                self.plug_addr, plug_addr
+            );
             return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
         }
 
@@ -1266,8 +1351,9 @@ impl AvcStatus for BcoExtendedStreamFormat {
     }
 }
 
+/// The structure to express operation to configure extended format of isochronous packet stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ExtendedStreamFormatSingle{
+pub struct ExtendedStreamFormatSingle {
     pub support_status: SupportStatus,
     pub stream_format: BcoStreamFormat,
     op: BcoExtendedStreamFormat,
@@ -1277,7 +1363,7 @@ impl ExtendedStreamFormatSingle {
     const SUBFUNC: u8 = 0xc0;
 
     pub fn new(plug_addr: &BcoPlugAddr) -> Self {
-        ExtendedStreamFormatSingle{
+        ExtendedStreamFormatSingle {
             support_status: SupportStatus::Reserved(0xff),
             stream_format: BcoStreamFormat::Reserved(Vec::new()),
             op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
@@ -1324,8 +1410,10 @@ impl AvcControl for ExtendedStreamFormatSingle {
     }
 }
 
+/// The structure to express operation to retrieve list of extended format of isochronous packet
+/// stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ExtendedStreamFormatList{
+pub struct ExtendedStreamFormatList {
     pub support_status: SupportStatus,
     pub index: u8,
     pub stream_format: BcoStreamFormat,
@@ -1335,8 +1423,9 @@ pub struct ExtendedStreamFormatList{
 impl ExtendedStreamFormatList {
     const SUBFUNC: u8 = 0xc1;
 
+    /// Instantiate extended stream format list structure with parameters.
     pub fn new(plug_addr: &BcoPlugAddr, index: u8) -> Self {
-        ExtendedStreamFormatList{
+        ExtendedStreamFormatList {
             support_status: SupportStatus::NoInfo,
             index,
             stream_format: BcoStreamFormat::Reserved(Vec::new()),
@@ -1362,8 +1451,10 @@ impl AvcStatus for ExtendedStreamFormatList {
         self.support_status = self.op.support_status;
 
         if operands[7] != self.index {
-            let label = format!("Unexpected index to stream entry: {} but {}",
-                                self.index, operands[7]);
+            let label = format!(
+                "Unexpected index to stream entry: {} but {}",
+                self.index, operands[7]
+            );
             return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
         }
 
@@ -1375,18 +1466,18 @@ impl AvcStatus for ExtendedStreamFormatList {
 
 #[cfg(test)]
 mod test {
-    use ta1394::{AvcSubunitType, AvcAddr};
-    use ta1394::AvcStatus;
-    use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
-    use super::{BcoPlugAddrUnit, BcoPlugAddrUnitType, BcoPlugAddrSubunit, BcoPlugAddrFuncBlk};
-    use super::BcoPlugType;
-    use super::{BcoLocation, BcoChannelInfo};
     use super::BcoChannelName;
-    use super::{BcoClusterInfo, BcoPortType, BcoCluster};
-    use super::{BcoIoPlugAddr, BcoIoPlugAddrMode};
     use super::BcoPlugInfo;
+    use super::BcoPlugType;
     use super::ExtendedPlugInfo;
     use super::ExtendedSubunitInfo;
+    use super::{BcoChannelInfo, BcoLocation};
+    use super::{BcoCluster, BcoClusterInfo, BcoPortType};
+    use super::{BcoIoPlugAddr, BcoIoPlugAddrMode};
+    use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
+    use super::{BcoPlugAddrFuncBlk, BcoPlugAddrSubunit, BcoPlugAddrUnit, BcoPlugAddrUnitType};
+    use ta1394::AvcStatus;
+    use ta1394::{AvcAddr, AvcSubunitType};
 
     #[test]
     fn bcoplugaddr_from() {
@@ -1400,7 +1491,7 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8;5]>::into(&addr));
+        assert_eq!(raw, Into::<[u8; 5]>::into(&addr));
 
         // Output plug for Subunit.
         let raw = [0x01, 0x01, 0x04, 0xff, 0xff];
@@ -1411,7 +1502,7 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8;5]>::into(&addr));
+        assert_eq!(raw, Into::<[u8; 5]>::into(&addr));
 
         // Input plug for function block.
         let raw = [0x02, 0x02, 0x06, 0x03, 0x02];
@@ -1424,36 +1515,47 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8;5]>::into(&addr));
+        assert_eq!(raw, Into::<[u8; 5]>::into(&addr));
     }
 
     #[test]
     fn bcochannelinfo_from() {
         let raw = [0x02, 0x0d];
-        assert_eq!(raw, Into::<[u8;2]>::into(&BcoChannelInfo::from(&raw)));
+        assert_eq!(raw, Into::<[u8; 2]>::into(&BcoChannelInfo::from(&raw)));
         let raw = [0x3e, 0x0c];
-        assert_eq!(raw, Into::<[u8;2]>::into(&BcoChannelInfo::from(&raw)));
+        assert_eq!(raw, Into::<[u8; 2]>::into(&BcoChannelInfo::from(&raw)));
     }
 
     #[test]
     fn bcocluster_from() {
         let raw: Vec<u8> = vec![0x03, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01];
-        assert_eq!(raw, Into::<Vec<u8>>::into(&BcoCluster::from(raw.as_slice())));
+        assert_eq!(
+            raw,
+            Into::<Vec<u8>>::into(&BcoCluster::from(raw.as_slice()))
+        );
 
-        let raw: Vec<u8> = vec![0x05, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01, 0x02, 0x0d, 0x3e, 0x0c];
-        assert_eq!(raw, Into::<Vec<u8>>::into(&BcoCluster::from(raw.as_slice())));
+        let raw: Vec<u8> = vec![
+            0x05, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01, 0x02, 0x0d, 0x3e, 0x0c,
+        ];
+        assert_eq!(
+            raw,
+            Into::<Vec<u8>>::into(&BcoCluster::from(raw.as_slice()))
+        );
     }
 
     #[test]
     fn bcoclusterinfo_from() {
         let raw: Vec<u8> = vec![0x03, 0x0a, 0x03, 0x4c, 0x51, 0x33];
-        assert_eq!(raw, Into::<Vec<u8>>::into(&BcoClusterInfo::from(raw.as_slice())));
+        assert_eq!(
+            raw,
+            Into::<Vec<u8>>::into(&BcoClusterInfo::from(raw.as_slice()))
+        );
     }
 
     #[test]
     fn bcoioplugaddr_from() {
         // Unit.
-        let raw: [u8;7] = [0x00, 0x00, 0x02, 0x05, 0xff, 0xff, 0xff];
+        let raw: [u8; 7] = [0x00, 0x00, 0x02, 0x05, 0xff, 0xff, 0xff];
         let addr = BcoIoPlugAddr::from(&raw);
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::Unit(d) = &addr.mode {
@@ -1462,10 +1564,10 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8;7]>::into(&addr));
+        assert_eq!(raw, Into::<[u8; 7]>::into(&addr));
 
         // Subunit.
-        let raw: [u8;7] = [0x01, 0x01, 0x06, 0x05, 0x02, 0xff, 0xff];
+        let raw: [u8; 7] = [0x01, 0x01, 0x06, 0x05, 0x02, 0xff, 0xff];
         let addr = BcoIoPlugAddr::from(&raw);
         assert_eq!(addr.direction, BcoPlugDirection::Output);
         if let BcoIoPlugAddrMode::Subunit(s, d) = &addr.mode {
@@ -1475,10 +1577,10 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8;7]>::into(&addr));
+        assert_eq!(raw, Into::<[u8; 7]>::into(&addr));
 
         // Function block.
-        let raw: [u8;7] = [0x00, 0x02, 0x04, 0x09, 0x80, 0x12, 0x23];
+        let raw: [u8; 7] = [0x00, 0x02, 0x04, 0x09, 0x80, 0x12, 0x23];
         let addr = BcoIoPlugAddr::from(&raw);
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::FuncBlk(s, d) = &addr.mode {
@@ -1490,7 +1592,7 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8;7]>::into(&addr));
+        assert_eq!(raw, Into::<[u8; 7]>::into(&addr));
     }
 
     #[test]
@@ -1503,7 +1605,6 @@ mod test {
             unreachable!();
         }
         assert_eq!(raw, Into::<Vec<u8>>::into(&info));
-
     }
 
     #[test]
@@ -1516,7 +1617,6 @@ mod test {
             unreachable!();
         }
         assert_eq!(raw, Into::<Vec<u8>>::into(&info));
-
     }
 
     #[test]
@@ -1533,29 +1633,70 @@ mod test {
 
     #[test]
     fn bcopluginfo_chpositions_from() {
-        let raw: Vec<u8> = vec![0x03, 0x04,
-                                0x01, 0x00, 0x04,
-                                0x02, 0x03, 0x08, 0x00, 0x09,
-                                0x03, 0x04, 0x08, 0x06, 0x08, 0x05, 0x07,
-                                0x01, 0x09, 0xb];
+        let raw: Vec<u8> = vec![
+            0x03, 0x04, 0x01, 0x00, 0x04, 0x02, 0x03, 0x08, 0x00, 0x09, 0x03, 0x04, 0x08, 0x06,
+            0x08, 0x05, 0x07, 0x01, 0x09, 0xb,
+        ];
         let info = BcoPlugInfo::from(raw.as_slice());
         if let BcoPlugInfo::ChPositions(clusters) = &info {
             assert_eq!(clusters.len(), 4);
             let m = &clusters[0];
             assert_eq!(m.entries.len(), 1);
-            assert_eq!(m.entries[0], BcoChannelInfo{pos: 0x00, loc: BcoLocation::LowFrequencyEffect});
+            assert_eq!(
+                m.entries[0],
+                BcoChannelInfo {
+                    pos: 0x00,
+                    loc: BcoLocation::LowFrequencyEffect
+                }
+            );
             let m = &clusters[1];
             assert_eq!(m.entries.len(), 2);
-            assert_eq!(m.entries[0], BcoChannelInfo{pos: 0x03, loc: BcoLocation::RightCenter});
-            assert_eq!(m.entries[1], BcoChannelInfo{pos: 0x00, loc: BcoLocation::Surround});
+            assert_eq!(
+                m.entries[0],
+                BcoChannelInfo {
+                    pos: 0x03,
+                    loc: BcoLocation::RightCenter
+                }
+            );
+            assert_eq!(
+                m.entries[1],
+                BcoChannelInfo {
+                    pos: 0x00,
+                    loc: BcoLocation::Surround
+                }
+            );
             let m = &clusters[2];
             assert_eq!(m.entries.len(), 3);
-            assert_eq!(m.entries[0], BcoChannelInfo{pos: 0x04, loc: BcoLocation::RightCenter});
-            assert_eq!(m.entries[1], BcoChannelInfo{pos: 0x06, loc: BcoLocation::RightCenter});
-            assert_eq!(m.entries[2], BcoChannelInfo{pos: 0x05, loc: BcoLocation::LeftCenter});
+            assert_eq!(
+                m.entries[0],
+                BcoChannelInfo {
+                    pos: 0x04,
+                    loc: BcoLocation::RightCenter
+                }
+            );
+            assert_eq!(
+                m.entries[1],
+                BcoChannelInfo {
+                    pos: 0x06,
+                    loc: BcoLocation::RightCenter
+                }
+            );
+            assert_eq!(
+                m.entries[2],
+                BcoChannelInfo {
+                    pos: 0x05,
+                    loc: BcoLocation::LeftCenter
+                }
+            );
             let m = &clusters[3];
             assert_eq!(m.entries.len(), 1);
-            assert_eq!(m.entries[0], BcoChannelInfo{pos: 0x09, loc: BcoLocation::SideRight});
+            assert_eq!(
+                m.entries[0],
+                BcoChannelInfo {
+                    pos: 0x09,
+                    loc: BcoLocation::SideRight
+                }
+            );
         } else {
             unreachable!();
         }
@@ -1596,9 +1737,10 @@ mod test {
 
     #[test]
     fn bcopluginfo_outputs_from() {
-        let raw: Vec<u8> = vec![0x06, 0x02,
-                                0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff,
-                                0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff];
+        let raw: Vec<u8> = vec![
+            0x06, 0x02, 0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff, 0xa9, 0x01, 0x0b, 0x07, 0x42,
+            0xff, 0xff,
+        ];
         let info = BcoPlugInfo::from(raw.as_slice());
         if let BcoPlugInfo::Outputs(plug_addrs) = &info {
             let plug_addr = plug_addrs[0];
@@ -1641,11 +1783,10 @@ mod test {
 
     #[test]
     fn extendedpluginfo_type_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x00, 0x00, 0x03, 0xff,
-                                0x00, 0x00];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x00, 0x00];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
-            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit{
+            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit {
                 plug_type: BcoPlugAddrUnitType::Isoc,
                 plug_id: 0x03,
             }),
@@ -1663,13 +1804,12 @@ mod test {
 
     #[test]
     fn extendedpluginfo_name_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x00, 0x01, 0x17, 0xff, 0xff,
-                                0x01, 0x05, 0x39, 0x38, 0x52, 0x36, 0x35];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![
+            0xc0, 0x00, 0x01, 0x17, 0xff, 0xff, 0x01, 0x05, 0x39, 0x38, 0x52, 0x36, 0x35,
+        ];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Input,
-            mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit{
-                plug_id: 0x17,
-            }),
+            mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit { plug_id: 0x17 }),
         };
         let info = BcoPlugInfo::Name("".to_string());
         let mut op = ExtendedPlugInfo::new(&addr, info);
@@ -1684,11 +1824,10 @@ mod test {
 
     #[test]
     fn extendedpluginfo_chcount_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x02, 0x3e, 0x9a, 0x77,
-                                0x02, 0xe4];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![0xc0, 0x01, 0x02, 0x3e, 0x9a, 0x77, 0x02, 0xe4];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
-            mode: BcoPlugAddrMode::FuncBlk(BcoPlugAddrFuncBlk{
+            mode: BcoPlugAddrMode::FuncBlk(BcoPlugAddrFuncBlk {
                 func_blk_type: 0x3e,
                 func_blk_id: 0x9a,
                 plug_id: 0x77,
@@ -1707,14 +1846,13 @@ mod test {
 
     #[test]
     fn extendedpluginfo_chpositions_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x00, 0x00, 0x01, 0x5c, 0xff,
-                                0x03, 0x03,
-                                0x01, 0x00, 0x0a,
-                                0x02, 0x03, 0x04, 0x02, 0x07,
-                                0x03, 0x01, 0x0f, 0x04, 0x01, 0x05, 0x03];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![
+            0xc0, 0x00, 0x00, 0x01, 0x5c, 0xff, 0x03, 0x03, 0x01, 0x00, 0x0a, 0x02, 0x03, 0x04,
+            0x02, 0x07, 0x03, 0x01, 0x0f, 0x04, 0x01, 0x05, 0x03,
+        ];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Input,
-            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit{
+            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit {
                 plug_type: BcoPlugAddrUnitType::Ext,
                 plug_id: 0x5c,
             }),
@@ -1727,16 +1865,52 @@ mod test {
             assert_eq!(entries.len(), 3);
             let e = &entries[0].entries;
             assert_eq!(e.len(), 1);
-            assert_eq!(e[0], BcoChannelInfo{pos: 0x00, loc: BcoLocation::SideLeft});
+            assert_eq!(
+                e[0],
+                BcoChannelInfo {
+                    pos: 0x00,
+                    loc: BcoLocation::SideLeft
+                }
+            );
             let e = &entries[1].entries;
             assert_eq!(e.len(), 2);
-            assert_eq!(e[0], BcoChannelInfo{pos: 0x03, loc: BcoLocation::LowFrequencyEffect});
-            assert_eq!(e[1], BcoChannelInfo{pos: 0x02, loc: BcoLocation::LeftCenter});
+            assert_eq!(
+                e[0],
+                BcoChannelInfo {
+                    pos: 0x03,
+                    loc: BcoLocation::LowFrequencyEffect
+                }
+            );
+            assert_eq!(
+                e[1],
+                BcoChannelInfo {
+                    pos: 0x02,
+                    loc: BcoLocation::LeftCenter
+                }
+            );
             let e = &entries[2].entries;
             assert_eq!(e.len(), 3);
-            assert_eq!(e[0], BcoChannelInfo{pos: 0x01, loc: BcoLocation::RightFrontEffect});
-            assert_eq!(e[1], BcoChannelInfo{pos: 0x04, loc: BcoLocation::LeftFront});
-            assert_eq!(e[2], BcoChannelInfo{pos: 0x05, loc: BcoLocation::Center});
+            assert_eq!(
+                e[0],
+                BcoChannelInfo {
+                    pos: 0x01,
+                    loc: BcoLocation::RightFrontEffect
+                }
+            );
+            assert_eq!(
+                e[1],
+                BcoChannelInfo {
+                    pos: 0x04,
+                    loc: BcoLocation::LeftFront
+                }
+            );
+            assert_eq!(
+                e[2],
+                BcoChannelInfo {
+                    pos: 0x05,
+                    loc: BcoLocation::Center
+                }
+            );
         } else {
             unreachable!();
         }
@@ -1744,16 +1918,17 @@ mod test {
 
     #[test]
     fn extendedpluginfo_chname_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x00, 0x00, 0x02, 0x97, 0xff,
-                                0x04, 0x9d, 0x02, 0x46, 0x54];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![
+            0xc0, 0x00, 0x00, 0x02, 0x97, 0xff, 0x04, 0x9d, 0x02, 0x46, 0x54,
+        ];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Input,
-            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit{
+            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit {
                 plug_type: BcoPlugAddrUnitType::Async,
                 plug_id: 0x97,
             }),
         };
-        let info = BcoPlugInfo::ChName(BcoChannelName{
+        let info = BcoPlugInfo::ChName(BcoChannelName {
             ch: 0x9d,
             name: "".to_string(),
         });
@@ -1770,17 +1945,16 @@ mod test {
 
     #[test]
     fn extendedpluginfo_input_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x01, 0x5d, 0xff, 0xff,
-                                0x05, 0x00, 0x02, 0x0c, 0x12, 0x80, 0xd9, 0x04];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![
+            0xc0, 0x01, 0x01, 0x5d, 0xff, 0xff, 0x05, 0x00, 0x02, 0x0c, 0x12, 0x80, 0xd9, 0x04,
+        ];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
-            mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit{
-                plug_id: 0x5d
-            }),
+            mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit { plug_id: 0x5d }),
         };
-        let info = BcoPlugInfo::Input(BcoIoPlugAddr{
+        let info = BcoPlugInfo::Input(BcoIoPlugAddr {
             direction: BcoPlugDirection::Reserved(0xff),
-            mode: BcoIoPlugAddrMode::Reserved([0;6]),
+            mode: BcoIoPlugAddrMode::Reserved([0; 6]),
         });
         let mut op = ExtendedPlugInfo::new(&addr, info);
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &raw).unwrap();
@@ -1803,13 +1977,13 @@ mod test {
 
     #[test]
     fn extendedpluginfo_outputs_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x00, 0x00, 0x11, 0xff,
-                                0x06, 0x02,
-                                0x00, 0x02, 0x0c, 0x12, 0x80, 0xd9, 0x04,
-                                0x00, 0x01, 0x0c, 0x03, 0x31, 0xff, 0xff];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![
+            0xc0, 0x01, 0x00, 0x00, 0x11, 0xff, 0x06, 0x02, 0x00, 0x02, 0x0c, 0x12, 0x80, 0xd9,
+            0x04, 0x00, 0x01, 0x0c, 0x03, 0x31, 0xff, 0xff,
+        ];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
-            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit{
+            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit {
                 plug_type: BcoPlugAddrUnitType::Isoc,
                 plug_id: 0x11,
             }),
@@ -1846,16 +2020,17 @@ mod test {
 
     #[test]
     fn extendedpluginfo_clusterinfo_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x00, 0x01, 0x1e, 0xff,
-                                0x07, 0x02, 0x05, 0x03, 0x60, 0x50, 0x70];
-        let addr = BcoPlugAddr{
+        let raw: Vec<u8> = vec![
+            0xc0, 0x01, 0x00, 0x01, 0x1e, 0xff, 0x07, 0x02, 0x05, 0x03, 0x60, 0x50, 0x70,
+        ];
+        let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
-            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit{
+            mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit {
                 plug_type: BcoPlugAddrUnitType::Ext,
                 plug_id: 0x1e,
             }),
         };
-        let info = BcoClusterInfo{
+        let info = BcoClusterInfo {
             index: 0x02,
             port_type: BcoPortType::Reserved(0xff),
             name: "".to_string(),
@@ -1874,12 +2049,10 @@ mod test {
 
     #[test]
     fn extendedsubunitinfo_operands() {
-        let operands = [0x00, 0xff,
-                        0x81, 0x70, 0xd0, 0xe0, 0x03,
-                        0x82, 0x60, 0xe0, 0xe0, 0x04,
-                        0xff, 0xff, 0xff, 0xff, 0xff,
-                        0xff, 0xff, 0xff, 0xff, 0xff,
-                        0xff, 0xff, 0xff, 0xff, 0xff];
+        let operands = [
+            0x00, 0xff, 0x81, 0x70, 0xd0, 0xe0, 0x03, 0x82, 0x60, 0xe0, 0xe0, 0x04, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        ];
         let mut op = ExtendedSubunitInfo::new(0, 0xff);
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.page, 0x00);
@@ -1900,6 +2073,6 @@ mod test {
         let mut operands = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
         assert_eq!(&operands[..2], &[0x00, 0xff]);
-        assert_eq!(&operands[2..], &[0xff;25]);
+        assert_eq!(&operands[2..], &[0xff; 25]);
     }
 }

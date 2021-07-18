@@ -12,8 +12,8 @@ use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
 use ta1394::amdtp::{AmdtpEventType, AmdtpFdf, FMT_IS_AMDTP};
 use ta1394::ccm::{SignalSource, SignalAddr};
 
-use super::extensions::{BcoPlugDirection, BcoPlugAddr, BcoPlugAddrUnitType};
-use super::extensions::{ExtendedStreamFormatSingle, ExtendedStreamFormatList};
+use bebob_protocols::bridgeco::{BcoPlugDirection, BcoPlugAddr, BcoPlugAddrUnitType};
+use bebob_protocols::bridgeco::{ExtendedStreamFormatSingle, ExtendedStreamFormatList};
 
 use super::model::{CLK_RATE_NAME, CLK_SRC_NAME};
 
