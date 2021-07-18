@@ -54,7 +54,7 @@ impl<'a> Default for QuatafireModel<'a> {
 
 impl<'a> CtlModel<SndUnit> for QuatafireModel<'a> {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.fcp.bind(&unit.get_node())?;
+        self.avc.as_ref().bind(&unit.get_node())?;
         self.clk_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.input_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
