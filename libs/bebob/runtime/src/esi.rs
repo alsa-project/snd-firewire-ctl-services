@@ -11,53 +11,43 @@ use alsa_ctl_tlv_codec::items::{DbInterval, CTL_VALUE_MUTE};
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use ta1394::{*, ccm::*, audio::*};
+use ta1394::{*, audio::*};
 
-use bebob_protocols::*;
+use bebob_protocols::{*, esi::*};
 
-use super::common_ctls::ClkCtl;
+use super::common_ctls::*;
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
-pub struct Quatafire610Model<'a>{
+#[derive(Default)]
+pub struct Quatafire610Model {
     avc: BebobAvc,
-    clk_ctl: ClkCtl<'a>,
+    clk_ctl: ClkCtl,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
 }
 
-impl<'a> Quatafire610Model<'a> {
-    const CLK_DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
-        subunit: MUSIC_SUBUNIT_0,
-        plug_id: 0x01,
-    });
-    const CLK_SRCS: [SignalAddr;1] = [
-        SignalAddr::Subunit(SignalSubunitAddr{
-            subunit: MUSIC_SUBUNIT_0,
-            plug_id: 0x01,
-        }),
-    ];
+#[derive(Default)]
+struct ClkCtl(Vec<ElemId>);
 
-    const CLK_LABELS: [&'a str;1] = [
+impl MediaClkFreqCtlOperation<Quatafire610ClkProtocol> for ClkCtl {}
+
+impl SamplingClkSrcCtlOperation<Quatafire610ClkProtocol> for ClkCtl {
+    const SRC_LABELS: &'static [&'static str] = &[
         "Internal",
     ];
 }
 
-impl<'a> Default for Quatafire610Model<'a> {
-    fn default() -> Self {
-        Self{
-            avc: Default::default(),
-            clk_ctl: ClkCtl::new(&Self::CLK_DST, &Self::CLK_SRCS, &Self::CLK_LABELS),
-            input_ctl: Default::default(),
-            output_ctl: Default::default(),
-        }
-    }
-}
-
-impl<'a> CtlModel<SndUnit> for Quatafire610Model<'a> {
+impl CtlModel<SndUnit> for Quatafire610Model {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
-        self.clk_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+
+        self.clk_ctl.load_freq(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
+        self.clk_ctl.load_src(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
         self.input_ctl.load(card_cntr)?;
         self.output_ctl.load(card_cntr)?;
         Ok(())
@@ -66,7 +56,9 @@ impl<'a> CtlModel<SndUnit> for Quatafire610Model<'a> {
     fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.input_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -80,7 +72,9 @@ impl<'a> CtlModel<SndUnit> for Quatafire610Model<'a> {
     fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctl.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.input_ctl.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -92,9 +86,9 @@ impl<'a> CtlModel<SndUnit> for Quatafire610Model<'a> {
     }
 }
 
-impl<'a> NotifyModel<SndUnit, bool> for Quatafire610Model<'a> {
+impl NotifyModel<SndUnit, bool> for Quatafire610Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
     fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
@@ -104,7 +98,7 @@ impl<'a> NotifyModel<SndUnit, bool> for Quatafire610Model<'a> {
     fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.clk_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -276,5 +270,20 @@ impl OutputCtl {
             }
             _ => Ok(false),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alsactl::CardError;
+
+    #[test]
+    fn test_clk_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+        let mut ctl = ClkCtl::default();
+
+        let error = ctl.load_freq(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
