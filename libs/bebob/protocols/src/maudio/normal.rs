@@ -64,6 +64,8 @@ impl AvcLevelOperation for Fw410PhysInputProtocol {
     ];
 }
 
+impl AvcLrBalanceOperation for Fw410PhysInputProtocol {}
+
 /// The protocol implementation for physical output of FireWire 410.
 #[derive(Default)]
 pub struct Fw410PhysOutputProtocol;
@@ -179,6 +181,8 @@ impl AvcLevelOperation for SoloPhysInputProtocol {
     ];
 }
 
+impl AvcLrBalanceOperation for SoloPhysInputProtocol {}
+
 /// The protocol implementation for stream input of FireWire Solo.
 #[derive(Default)]
 pub struct SoloStreamInputProtocol;
@@ -244,6 +248,8 @@ impl AvcLevelOperation for AudiophilePhysInputProtocol {
         (0x05, AudioCh::Each(1)), // digital-input-2
     ];
 }
+
+impl AvcLrBalanceOperation for AudiophilePhysInputProtocol {}
 
 /// The protocol implementation for physical output in FireWire Audiophile.
 #[derive(Default)]
@@ -349,6 +355,8 @@ impl AvcLevelOperation for OzonicPhysInputProtocol {
         (0x04, AudioCh::Each(1)), // analog-input-4
     ];
 }
+
+impl AvcLrBalanceOperation for OzonicPhysInputProtocol {}
 
 /// The protocol implementation for stream input of FireWire Audiophile.
 #[derive(Default)]
