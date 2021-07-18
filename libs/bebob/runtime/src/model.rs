@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
 use glib::{Error, FileError};
 
 use core::card_cntr;
@@ -14,7 +15,7 @@ use super::maudio::profirelightbridge_model::ProfirelightbridgeModel;
 use super::maudio::special_model::SpecialModel;
 use super::behringer::*;
 use super::stanton::ScratchampModel;
-use super::esi::QuatafireModel;
+use super::esi::Quatafire610Model;
 
 pub struct BebobModel<'a>{
     ctl_model: Model<'a>,
@@ -25,6 +26,7 @@ pub struct BebobModel<'a>{
 enum Model<'a> {
     ApogeeEnsemble(EnsembleModel<'a>),
     BehringerFca610(Fca610Model<'a>),
+    EsiQuatafire610(Quatafire610Model<'a>),
     MaudioOzonic(OzonicModel<'a>),
     MaudioSolo(SoloModel<'a>),
     MaudioAudiophile(AudiophileModel<'a>),
@@ -32,7 +34,6 @@ enum Model<'a> {
     MaudioPlb(ProfirelightbridgeModel<'a>),
     MaudioSpecial(SpecialModel),
     StantonScratchamp(ScratchampModel<'a>),
-    EsiQuatafire(QuatafireModel<'a>),
 }
 
 impl<'a> BebobModel<'a> {
@@ -40,6 +41,7 @@ impl<'a> BebobModel<'a> {
         let ctl_model = match (vendor_id, model_id) {
             (0x0003db, 0x01eeee) => Model::ApogeeEnsemble(Default::default()),
             (0x001564, 0x000610) => Model::BehringerFca610(Default::default()),
+            (0x000f1b, 0x010064) => Model::EsiQuatafire610(Default::default()),
             (0x000d6c, 0x00000a) => Model::MaudioOzonic(Default::default()),
             (0x000d6c, 0x010062) => Model::MaudioSolo(Default::default()),
             (0x000d6c, 0x010060) => Model::MaudioAudiophile(Default::default()),
@@ -48,7 +50,6 @@ impl<'a> BebobModel<'a> {
             (0x000d6c, 0x010071) => Model::MaudioSpecial(SpecialModel::new(true)),
             (0x000d6c, 0x010091) => Model::MaudioSpecial(SpecialModel::new(false)),
             (0x001260, 0x000001) => Model::StantonScratchamp(Default::default()),
-            (0x000f1b, 0x010064) => Model::EsiQuatafire(Default::default()),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }
@@ -69,6 +70,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.load(unit, card_cntr),
             Model::BehringerFca610(m) => m.load(unit, card_cntr),
+            Model::EsiQuatafire610(m) => m.load(unit, card_cntr),
             Model::MaudioOzonic(m) => m.load(unit, card_cntr),
             Model::MaudioSolo(m) => m.load(unit, card_cntr),
             Model::MaudioAudiophile(m) => m.load(unit, card_cntr),
@@ -76,7 +78,6 @@ impl<'a> BebobModel<'a> {
             Model::MaudioPlb(m) => m.load(unit, card_cntr),
             Model::MaudioSpecial(m) => m.load(unit, card_cntr),
             Model::StantonScratchamp(m) => m.load(unit, card_cntr),
-            Model::EsiQuatafire(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
@@ -93,6 +94,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::BehringerFca610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::EsiQuatafire610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioOzonic(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioSolo(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioAudiophile(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -100,7 +102,6 @@ impl<'a> BebobModel<'a> {
             Model::MaudioPlb(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioSpecial(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::StantonScratchamp(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            Model::EsiQuatafire(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -113,6 +114,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::BehringerFca610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::EsiQuatafire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioAudiophile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
@@ -120,7 +122,6 @@ impl<'a> BebobModel<'a> {
             Model::MaudioPlb(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioSpecial(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::EsiQuatafire(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -145,6 +146,7 @@ impl<'a> BebobModel<'a> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::BehringerFca610(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::EsiQuatafire610(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioAudiophile(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
@@ -152,7 +154,6 @@ impl<'a> BebobModel<'a> {
             Model::MaudioPlb(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioSpecial(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::EsiQuatafire(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
         }
     }
 }
