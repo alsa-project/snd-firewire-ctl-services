@@ -15,7 +15,7 @@ mod esi;
 
 use glib::Error;
 use ta1394::{Ta1394Avc, Ta1394AvcError, AvcCmdType, AvcAddr, AvcRespCode};
-use ta1394::{AvcOp, AvcStatus, AvcControl, AvcNotify};
+use ta1394::{AvcOp, AvcControl};
 use ta1394::general::{InputPlugSignalFormat, OutputPlugSignalFormat};
 use ta1394::ccm::SignalSource;
 
@@ -62,17 +62,5 @@ impl Ta1394Avc for BebobAvc {
         } else {
             AvcControl::parse_operands(op, addr, &operands)
         }
-    }
-
-    fn status<O: AvcOp + AvcStatus>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        self.fcp.status(addr, op, timeout_ms)
-    }
-
-    fn specific_inquiry<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        self.fcp.specific_inquiry(addr, op, timeout_ms)
-    }
-
-    fn notify<O: AvcOp + AvcNotify>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error> {
-        self.fcp.notify(addr, op, timeout_ms)
     }
 }

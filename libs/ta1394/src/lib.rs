@@ -9,7 +9,7 @@ pub mod stream_format;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
-use hinawa::FwFcpExtManual;
+use hinawa::{FwFcp, FwFcpExtManual};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcSubunitType {
@@ -316,7 +316,7 @@ impl ErrorDomain for Ta1394AvcError {
     }
 }
 
-pub trait Ta1394Avc : AsRef<hinawa::FwFcp> {
+pub trait Ta1394Avc : AsRef<FwFcp> {
     const FRAME_SIZE: usize = 0x200;
     const RESP_CODE_MASK: u8 = 0x0f;
 
@@ -350,15 +350,11 @@ pub trait Ta1394Avc : AsRef<hinawa::FwFcp> {
         Ok((rcode, operands))
     }
 
-    fn control<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>;
-    fn status<O: AvcOp + AvcStatus>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>;
-    fn specific_inquiry<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>;
-    fn notify<O: AvcOp + AvcNotify>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>;
-}
-
-impl Ta1394Avc for hinawa::FwFcp {
-    fn control<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>
-    {
+    fn control<O: AvcOp + AvcControl>(
+        &self,
+        addr: &AvcAddr,
+        op: &mut O, timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
         let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)?;
@@ -369,8 +365,12 @@ impl Ta1394Avc for hinawa::FwFcp {
         AvcControl::parse_operands(op, addr, &operands)
     }
 
-    fn status<O: AvcOp + AvcStatus>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>
-    {
+    fn status<O: AvcOp + AvcStatus>(
+        &self,
+        addr: &AvcAddr,
+        op: &mut O,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcStatus::build_operands(op, addr, &mut operands)?;
         let (rcode, operands) = self.trx(AvcCmdType::Status, addr, O::OPCODE, &operands, timeout_ms)?;
@@ -381,8 +381,12 @@ impl Ta1394Avc for hinawa::FwFcp {
         AvcStatus::parse_operands(op, addr, &operands)
     }
 
-    fn specific_inquiry<O: AvcOp + AvcControl>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>
-    {
+    fn specific_inquiry<O: AvcOp + AvcControl>(
+        &self,
+        addr: &AvcAddr,
+        op: &mut O,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
         let (rcode, operands) = self.trx(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands, timeout_ms)?;
@@ -393,8 +397,12 @@ impl Ta1394Avc for hinawa::FwFcp {
         AvcControl::parse_operands(op, addr, &operands)
     }
 
-    fn notify<O: AvcOp + AvcNotify>(&self, addr: &AvcAddr, op: &mut O, timeout_ms: u32) -> Result<(), Error>
-    {
+    fn notify<O: AvcOp + AvcNotify>(
+        &self,
+        addr: &AvcAddr,
+        op: &mut O,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcNotify::build_operands(op, addr, &mut operands)?;
         let (rcode, operands) = self.trx(AvcCmdType::Notify, addr, O::OPCODE, &operands, timeout_ms)?;
@@ -405,6 +413,8 @@ impl Ta1394Avc for hinawa::FwFcp {
         AvcNotify::parse_operands(op, addr, &operands)
     }
 }
+
+impl Ta1394Avc for FwFcp {}
 
 #[cfg(test)]
 mod test {
