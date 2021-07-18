@@ -17,12 +17,12 @@ use super::stanton::ScratchampModel;
 use super::esi::QuatafireModel;
 
 pub struct BebobModel<'a>{
-    ctl_model: BebobCtlModel<'a>,
+    ctl_model: Model<'a>,
     pub measure_elem_list: Vec<alsactl::ElemId>,
     pub notified_elem_list: Vec<alsactl::ElemId>,
 }
 
-enum BebobCtlModel<'a> {
+enum Model<'a> {
     ApogeeEnsemble(EnsembleModel<'a>),
     MaudioOzonic(OzonicModel<'a>),
     MaudioSolo(SoloModel<'a>),
@@ -38,17 +38,17 @@ enum BebobCtlModel<'a> {
 impl<'a> BebobModel<'a> {
     pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
-            (0x0003db, 0x01eeee) => BebobCtlModel::ApogeeEnsemble(Default::default()),
-            (0x000d6c, 0x00000a) => BebobCtlModel::MaudioOzonic(Default::default()),
-            (0x000d6c, 0x010062) => BebobCtlModel::MaudioSolo(Default::default()),
-            (0x000d6c, 0x010060) => BebobCtlModel::MaudioAudiophile(Default::default()),
-            (0x0007f5, 0x010046) => BebobCtlModel::MaudioFw410(Default::default()),
-            (0x000d6c, 0x0100a1) => BebobCtlModel::MaudioPlb(Default::default()),
-            (0x000d6c, 0x010071) => BebobCtlModel::MaudioSpecial(SpecialModel::new(true)),
-            (0x000d6c, 0x010091) => BebobCtlModel::MaudioSpecial(SpecialModel::new(false)),
-            (0x001564, 0x000610) => BebobCtlModel::BehringerFirepower(Default::default()),
-            (0x001260, 0x000001) => BebobCtlModel::StantonScratchamp(Default::default()),
-            (0x000f1b, 0x010064) => BebobCtlModel::EsiQuatafire(Default::default()),
+            (0x0003db, 0x01eeee) => Model::ApogeeEnsemble(Default::default()),
+            (0x000d6c, 0x00000a) => Model::MaudioOzonic(Default::default()),
+            (0x000d6c, 0x010062) => Model::MaudioSolo(Default::default()),
+            (0x000d6c, 0x010060) => Model::MaudioAudiophile(Default::default()),
+            (0x0007f5, 0x010046) => Model::MaudioFw410(Default::default()),
+            (0x000d6c, 0x0100a1) => Model::MaudioPlb(Default::default()),
+            (0x000d6c, 0x010071) => Model::MaudioSpecial(SpecialModel::new(true)),
+            (0x000d6c, 0x010091) => Model::MaudioSpecial(SpecialModel::new(false)),
+            (0x001564, 0x000610) => Model::BehringerFirepower(Default::default()),
+            (0x001260, 0x000001) => Model::StantonScratchamp(Default::default()),
+            (0x000f1b, 0x010064) => Model::EsiQuatafire(Default::default()),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }
@@ -67,40 +67,40 @@ impl<'a> BebobModel<'a> {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
-            BebobCtlModel::ApogeeEnsemble(m) => m.load(unit, card_cntr),
-            BebobCtlModel::MaudioOzonic(m) => m.load(unit, card_cntr),
-            BebobCtlModel::MaudioSolo(m) => m.load(unit, card_cntr),
-            BebobCtlModel::MaudioAudiophile(m) => m.load(unit, card_cntr),
-            BebobCtlModel::MaudioFw410(m) => m.load(unit, card_cntr),
-            BebobCtlModel::MaudioPlb(m) => m.load(unit, card_cntr),
-            BebobCtlModel::MaudioSpecial(m) => m.load(unit, card_cntr),
-            BebobCtlModel::BehringerFirepower(m) => m.load(unit, card_cntr),
-            BebobCtlModel::StantonScratchamp(m) => m.load(unit, card_cntr),
-            BebobCtlModel::EsiQuatafire(m) => m.load(unit, card_cntr),
+            Model::ApogeeEnsemble(m) => m.load(unit, card_cntr),
+            Model::MaudioOzonic(m) => m.load(unit, card_cntr),
+            Model::MaudioSolo(m) => m.load(unit, card_cntr),
+            Model::MaudioAudiophile(m) => m.load(unit, card_cntr),
+            Model::MaudioFw410(m) => m.load(unit, card_cntr),
+            Model::MaudioPlb(m) => m.load(unit, card_cntr),
+            Model::MaudioSpecial(m) => m.load(unit, card_cntr),
+            Model::BehringerFirepower(m) => m.load(unit, card_cntr),
+            Model::StantonScratchamp(m) => m.load(unit, card_cntr),
+            Model::EsiQuatafire(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
-            BebobCtlModel::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            BebobCtlModel::MaudioOzonic(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            BebobCtlModel::MaudioSolo(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            BebobCtlModel::MaudioAudiophile(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            BebobCtlModel::MaudioFw410(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            BebobCtlModel::MaudioPlb(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            BebobCtlModel::MaudioSpecial(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioOzonic(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioSolo(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioAudiophile(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioFw410(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioPlb(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::MaudioSpecial(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             _ => (),
         }
 
         match &mut self.ctl_model {
-            BebobCtlModel::ApogeeEnsemble(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::MaudioOzonic(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::MaudioSolo(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::MaudioAudiophile(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::MaudioFw410(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::MaudioPlb(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::MaudioSpecial(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::BehringerFirepower(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::StantonScratchamp(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            BebobCtlModel::EsiQuatafire(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::ApogeeEnsemble(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioOzonic(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioSolo(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioAudiophile(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioFw410(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioPlb(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::MaudioSpecial(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::BehringerFirepower(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::StantonScratchamp(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::EsiQuatafire(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
         }
 
         Ok(())
@@ -111,16 +111,16 @@ impl<'a> BebobModel<'a> {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
-            BebobCtlModel::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::MaudioAudiophile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::MaudioFw410(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::MaudioPlb(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::MaudioSpecial(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::BehringerFirepower(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            BebobCtlModel::EsiQuatafire(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioAudiophile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioFw410(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioPlb(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioSpecial(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::BehringerFirepower(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::EsiQuatafire(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -128,13 +128,13 @@ impl<'a> BebobModel<'a> {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
-            BebobCtlModel::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            BebobCtlModel::MaudioOzonic(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            BebobCtlModel::MaudioSolo(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            BebobCtlModel::MaudioAudiophile(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            BebobCtlModel::MaudioFw410(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            BebobCtlModel::MaudioPlb(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            BebobCtlModel::MaudioSpecial(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioOzonic(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioSolo(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioAudiophile(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioFw410(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioPlb(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::MaudioSpecial(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             _ => Ok(()),
         }
     }
@@ -143,16 +143,16 @@ impl<'a> BebobModel<'a> {
         -> Result<(), Error>
     {
         match &mut self.ctl_model {
-            BebobCtlModel::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::MaudioOzonic(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::MaudioAudiophile(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::MaudioFw410(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::MaudioPlb(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::MaudioSpecial(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::BehringerFirepower(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::StantonScratchamp(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            BebobCtlModel::EsiQuatafire(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioOzonic(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioAudiophile(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioFw410(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioPlb(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::MaudioSpecial(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::BehringerFirepower(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::StantonScratchamp(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::EsiQuatafire(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
         }
     }
 }
