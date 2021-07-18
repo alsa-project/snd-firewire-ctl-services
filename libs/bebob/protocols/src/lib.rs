@@ -18,7 +18,7 @@ use glib::{Error, FileError};
 
 use hinawa::FwFcp;
 
-use ta1394::{amdtp::*, ccm::*, general::*, *};
+use ta1394::{amdtp::*, audio::*, ccm::*, general::*, *};
 
 use bridgeco::*;
 
@@ -158,5 +158,54 @@ pub trait SamplingClockSourceOperation {
         op.src = src;
 
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+}
+
+/// The trait of level operation for audio function blocks by AV/C transaction.
+pub trait AvcLevelOperation {
+    const ENTRIES: &'static [(u8, AudioCh)];
+
+    const LEVEL_MIN: i16 = FeatureCtl::NEG_INFINITY;
+    const LEVEL_MAX: i16 = 0;
+    const LEVEL_STEP: i16 = 0x100;
+
+    fn read_level(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of function block list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            audio_ch,
+            FeatureCtl::Volume(vec![-1]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let FeatureCtl::Volume(data) = op.ctl {
+            Ok(data[0])
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_level(avc: &BebobAvc, idx: usize, vol: i16, timeout_ms: u32) -> Result<(), Error> {
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of function block list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            audio_ch,
+            FeatureCtl::Volume(vec![vol]),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 }

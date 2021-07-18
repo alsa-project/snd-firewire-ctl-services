@@ -33,3 +33,27 @@ impl SamplingClockSourceOperation for ScratchampClkProtocol {
         }),
     ];
 }
+
+/// The protocol implementation for physical output of Scratchamp.
+#[derive(Default)]
+pub struct ScratchampOutputProtocol;
+
+impl AvcLevelOperation for ScratchampOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)), // analog-output-1
+        (0x01, AudioCh::Each(1)), // analog-output-2
+        (0x02, AudioCh::Each(0)), // analog-output-3
+        (0x02, AudioCh::Each(1)), // analog-output-4
+    ];
+}
+
+/// The protocol implementation for headphone output of Scratchamp.
+#[derive(Default)]
+pub struct ScratchampHeadphoneProtocol;
+
+impl AvcLevelOperation for ScratchampHeadphoneProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x03, AudioCh::Each(0)), // headphone-1
+        (0x03, AudioCh::Each(1)), // headphone-2
+    ];
+}
