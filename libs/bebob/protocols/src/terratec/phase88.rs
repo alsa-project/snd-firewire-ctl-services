@@ -122,6 +122,8 @@ impl AvcLevelOperation for Phase88MixerPhysSourceProtocol {
     ];
 }
 
+impl AvcMuteOperation for Phase88MixerPhysSourceProtocol {}
+
 /// The protocol implementation of source of stream input to mixer.
 #[derive(Default)]
 pub struct Phase88MixerStreamSourceProtocol;
@@ -133,6 +135,8 @@ impl AvcLevelOperation for Phase88MixerStreamSourceProtocol {
     ];
 }
 
+impl AvcMuteOperation for Phase88MixerStreamSourceProtocol {}
+
 /// The protocol implementation of mixer output.
 #[derive(Default)]
 pub struct Phase88MixerOutputProtocol;
@@ -143,3 +147,5 @@ impl AvcLevelOperation for Phase88MixerOutputProtocol {
         (0x01, AudioCh::Each(1)),
     ];
 }
+
+impl AvcMuteOperation for Phase88MixerOutputProtocol {}
