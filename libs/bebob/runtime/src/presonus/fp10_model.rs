@@ -45,6 +45,10 @@ impl AvcLevelCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
     ];
 }
 
+impl AvcLrBalanceCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
+    const BALANCE_NAME: &'static str = "output-balance";
+}
+
 impl CtlModel<SndUnit> for Fp10Model {
     fn load(
         &mut self,
@@ -60,6 +64,7 @@ impl CtlModel<SndUnit> for Fp10Model {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_out_ctl.load_level(card_cntr)?;
+        self.phys_out_ctl.load_balance(card_cntr)?;
 
         Ok(())
     }
@@ -75,6 +80,8 @@ impl CtlModel<SndUnit> for Fp10Model {
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -93,6 +100,8 @@ impl CtlModel<SndUnit> for Fp10Model {
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
