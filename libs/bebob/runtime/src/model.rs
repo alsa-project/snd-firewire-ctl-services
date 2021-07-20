@@ -17,6 +17,7 @@ use super::behringer::*;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
 use super::presonus::fp10_model::*;
+use super::presonus::firebox_model::*;
 use super::presonus::inspire1394_model::*;
 use super::roland::*;
 use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
@@ -39,6 +40,7 @@ enum Model {
     MaudioFw1814(Fw1814Model),
     MaudioProjectMix(ProjectMixModel),
     PresonusFp10(Fp10Model),
+    PresonusFirebox(FireboxModel),
     PresonusInspire1394(Inspire1394Model),
     RolandFa101(Fa101Model),
     RolandFa66(Fa66Model),
@@ -63,6 +65,7 @@ impl BebobModel {
             (0x000d6c, 0x010071) => Model::MaudioFw1814(Default::default()),
             (0x000d6c, 0x010091) => Model::MaudioProjectMix(Default::default()),
             (0x000a92, 0x010066) => Model::PresonusFp10(Default::default()),
+            (0x000a92, 0x010000) => Model::PresonusFirebox(Default::default()),
             (0x000a92, 0x010001) => Model::PresonusInspire1394(Default::default()),
             (0x0040ab, 0x010048) => Model::RolandFa101(Default::default()),
             (0x0040ab, 0x010049) => Model::RolandFa66(Default::default()),
@@ -100,6 +103,7 @@ impl BebobModel {
             Model::MaudioFw1814(m) => m.load(unit, card_cntr),
             Model::MaudioProjectMix(m) => m.load(unit, card_cntr),
             Model::PresonusFp10(m) => m.load(unit, card_cntr),
+            Model::PresonusFirebox(m) => m.load(unit, card_cntr),
             Model::PresonusInspire1394(m) => m.load(unit, card_cntr),
             Model::RolandFa101(m) => m.load(unit, card_cntr),
             Model::RolandFa66(m) => m.load(unit, card_cntr),
@@ -162,6 +166,7 @@ impl BebobModel {
             Model::MaudioFw1814(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioProjectMix(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFp10(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::PresonusFirebox(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusInspire1394(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::RolandFa101(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::RolandFa66(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),

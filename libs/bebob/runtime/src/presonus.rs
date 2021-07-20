@@ -3,3 +3,4 @@
 
 pub mod inspire1394_model;
 pub mod fp10_model;
+pub mod firebox_model;
