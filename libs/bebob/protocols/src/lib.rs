@@ -16,6 +16,7 @@ pub mod maudio;
 pub mod stanton;
 pub mod presonus;
 pub mod roland;
+pub mod terratec;
 pub mod yamaha_terratec;
 
 use glib::{Error, FileError};
