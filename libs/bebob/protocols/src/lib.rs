@@ -11,6 +11,7 @@ pub mod bridgeco;
 pub mod apogee;
 pub mod behringer;
 pub mod esi;
+pub mod icon;
 pub mod maudio;
 pub mod stanton;
 pub mod presonus;
