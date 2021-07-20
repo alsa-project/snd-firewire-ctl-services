@@ -149,3 +149,61 @@ impl AvcLevelOperation for FireboxMixerOutputProtocol {
 impl AvcLrBalanceOperation for FireboxMixerOutputProtocol {}
 
 impl AvcMuteOperation for FireboxMixerOutputProtocol {}
+
+/// The protocol implementation of analog input.
+pub struct FireboxAnalogInputProtocol;
+
+const BOOST_OFF: i16 = 0x7ffe;
+const BOOST_ON: i16 = 0x0000;
+
+impl AvcSelectorOperation for FireboxAnalogInputProtocol {
+    // NOTE: "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4"
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0a, 0x0a, 0x0b, 0x0b];
+    // NOTE: off(=0x7ffe)/on(=0x0000) for volume control of audio function block.
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+
+    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
+        let func_block_id = Self::FUNC_BLOCK_ID_LIST.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of selector: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|func_block_id| *func_block_id)?;
+        let ch_id = idx % 2;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            AudioCh::Each(ch_id as u8),
+            FeatureCtl::Volume(vec![-1]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let FeatureCtl::Volume(data) = op.ctl {
+            let val = if data[0] == BOOST_OFF { 0 } else { 1 };
+            Ok(val)
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_selector(avc: &BebobAvc, idx: usize, val: usize, timeout_ms: u32) -> Result<(), Error> {
+        let func_block_id = Self::FUNC_BLOCK_ID_LIST.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of selector: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|func_block_id| *func_block_id)?;
+        let ch_id = idx & 2;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            AudioCh::Each(ch_id as u8),
+            FeatureCtl::Volume(vec![if val == 0 { BOOST_OFF } else { BOOST_ON }]),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+    }
+}
