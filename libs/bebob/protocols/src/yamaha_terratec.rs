@@ -82,6 +82,86 @@ impl SamplingClockSourceOperation for GoPhase24ClkProtocol {
     }
 }
 
+/// The protocol implementation of physical input for coaxial models.
+pub struct GoPhase24CoaxPhysInputProtocol;
+
+const INPUT_NOMINAL_LEVEL_FB_ID: u8 = 0x02;
+
+const INPUT_NOMINAL_LEVELS: [i16;3] = [
+    0xf400u16 as i16,
+    0xfd00u16 as i16,
+    0x0000u16 as i16,
+];
+
+impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
+    // Unused.
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x00];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02];
+
+    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
+        if idx > 0 {
+            let msg = format!("Invalid argument for index of selector: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+        let mut op = AudioFeature::new(
+            INPUT_NOMINAL_LEVEL_FB_ID,
+            CtlAttr::Current,
+            AudioCh::All,
+            FeatureCtl::Volume(vec![0xff]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+        if let FeatureCtl::Volume(data) = op.ctl {
+            INPUT_NOMINAL_LEVELS.iter()
+                .position(|l| *l == data[0])
+                .ok_or_else(|| {
+                    let msg = format!("Unexpected value for value of nominal level: 0x{:04x}",
+                                      data[0]);
+                    Error::new(FileError::Io, &msg)
+                })
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn write_selector(avc: &BebobAvc, idx: usize, val: usize, timeout_ms: u32) -> Result<(), Error> {
+        if idx > 0 {
+            let msg = format!("Invalid argument for index of selector: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+        let v = INPUT_NOMINAL_LEVELS.iter()
+            .nth(val)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of nominal level: {}", val);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|v| *v)?;
+        let mut op = AudioFeature::new(
+            INPUT_NOMINAL_LEVEL_FB_ID,
+            CtlAttr::Current,
+            AudioCh::All,
+            FeatureCtl::Volume(vec![v]),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+    }
+}
+
+/// The protocol implementation of physical output for coaxial models.
+pub struct GoPhase24CoaxPhysOutputProtocol;
+
+impl AvcSelectorOperation for GoPhase24CoaxPhysOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[
+        0x01,   // analog-output-1/2
+        0x03,   // digital-output-1/2
+    ];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[
+        0x00,   // stream-input-1/2
+        0x01,   // stream-input-3/4
+        0x02,   // analog-input-1/2
+        0x03,   // digital-input-1/2
+        0x04,   // mixer-output-1/2
+        0x05,   // stream-input-5/6
+    ];
+}
 /// The protocol implementation of physical output for optical models.
 pub struct GoPhase24OptPhysOutputProtocol;
 
@@ -95,6 +175,37 @@ impl AvcLevelOperation for GoPhase24OptPhysOutputProtocol {
 }
 
 impl AvcMuteOperation for GoPhase24OptPhysOutputProtocol {}
+
+impl AvcSelectorOperation for GoPhase24OptPhysOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[
+        0x01,   // analog-output-1/2
+        0x02,   // analog-output-3/4
+        0x03,   // digital-output-1/2
+    ];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[
+        0x00,   // stream-input-1/2
+        0x01,   // stream-input-3/4
+        0x02,   // analog-input-1/2
+        0x03,   // digital-input-1/2
+        0x04,   // mixer-output-1/2
+        0x05,   // stream-input-5/6
+    ];
+}
+
+/// The protocol implementation of mixer source gain for coaxial model.
+pub struct GoPhase24CoaxHeadphoneProtocol;
+
+impl AvcSelectorOperation for GoPhase24CoaxHeadphoneProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x02];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[
+        0x00,   // stream-input-1/2
+        0x01,   // stream-input-3/4
+        0x02,   // analog-input-1/2
+        0x03,   // digital-input-1/2
+        0x04,   // mixer-output-1/2
+        0x05,   // stream-input-5/6
+    ];
+}
 
 /// The protocol implementation of mixer source gain.
 pub struct GoPhase24MixerSourceProtocol;
