@@ -3,7 +3,7 @@
 
 use glib::Error;
 
-use hinawa::FwFcpExt;
+use hinawa::{FwFcpExt, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
 
 use alsactl::{ElemId, ElemValue};
@@ -21,6 +21,7 @@ pub struct Mbox2proModel {
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
+const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default)]
 struct ClkCtl(Vec<ElemId>);
@@ -50,6 +51,9 @@ impl CtlModel<SndUnit> for Mbox2proModel {
 
         self.clk_ctl.load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
+        let req = FwReq::default();
+        Mbox2proIoProtocol::init(&req, &unit.get_node(), TIMEOUT_MS)?;
 
         Ok(())
     }
