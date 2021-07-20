@@ -52,6 +52,14 @@ impl AvcMuteCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     const MUTE_NAME: &'static str = "phys-output-mute";
 }
 
+impl AvcSelectorCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
+    const SELECTOR_NAME: &'static str = "output-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &[
+        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "analog-output-7/8",
+    ];
+    const ITEM_LABELS: &'static [&'static str] = &["stream-input", "mixer-output-1/2"];
+}
+
 #[derive(Default)]
 struct HeadphoneCtl;
 
@@ -62,6 +70,15 @@ impl AvcLevelCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
 
 impl AvcMuteCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
     const MUTE_NAME: &'static str = "headphone-mute";
+}
+
+impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
+    const SELECTOR_NAME: &'static str = "headphone-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["headphone-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &[
+        "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
+        "mixer-output-1/2"
+    ];
 }
 
 #[derive(Default)]
@@ -93,6 +110,14 @@ impl AvcLevelCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCt
 
 impl AvcMuteCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
     const MUTE_NAME: &'static str = "mixer-stream-source-mute";
+}
+
+impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
+    const SELECTOR_NAME: &'static str = "mixer-stream-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["mixer-stream-source-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &[
+        "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
+    ];
 }
 
 #[derive(Default)]
@@ -127,13 +152,16 @@ impl CtlModel<SndUnit> for FireboxModel {
 
         self.phys_out_ctl.load_level(card_cntr)?;
         self.phys_out_ctl.load_mute(card_cntr)?;
+        self.phys_out_ctl.load_selector(card_cntr)?;
         self.headphone_ctl.load_level(card_cntr)?;
         self.headphone_ctl.load_mute(card_cntr)?;
+        self.headphone_ctl.load_selector(card_cntr)?;
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
         self.mixer_phys_src_ctl.load_balance(card_cntr)?;
         self.mixer_phys_src_ctl.load_mute(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
         self.mixer_stream_src_ctl.load_mute(card_cntr)?;
+        self.mixer_stream_src_ctl.load_selector(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_balance(card_cntr)?;
@@ -156,9 +184,13 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.headphone_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.headphone_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.headphone_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -169,6 +201,8 @@ impl CtlModel<SndUnit> for FireboxModel {
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -196,9 +230,13 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.headphone_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.headphone_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.headphone_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -209,6 +247,8 @@ impl CtlModel<SndUnit> for FireboxModel {
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -277,6 +317,23 @@ mod test {
 
         let ctl = MixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_selector_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = PhysOutputCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = HeadphoneCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = MixerStreamSrcCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
