@@ -46,6 +46,10 @@ impl AvcLevelCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
     const PORT_LABELS: &'static [&'static str] = &["monitor-output-1/2"];
 }
 
+impl AvcMuteCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
+    const MUTE_NAME: &'static str = "monitor-output-mute";
+}
+
 #[derive(Default)]
 struct MixerOutputCtl;
 
@@ -55,6 +59,10 @@ impl AvcLevelCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
         "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
         "mixer-output-5", "mixer-output-6", "mixer-output-7", "mixer-output-8",
     ];
+}
+
+impl AvcMuteCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
+    const MUTE_NAME: &'static str = "mixer-output-mute";
 }
 
 impl CtlModel<SndUnit> for AureonModel {
@@ -70,7 +78,9 @@ impl CtlModel<SndUnit> for AureonModel {
 
         self.phys_in_ctl.load_level(card_cntr)?;
         self.mon_out_ctl.load_level(card_cntr)?;
+        self.mon_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_mute(card_cntr)?;
 
         Ok(())
     }
@@ -87,7 +97,11 @@ impl CtlModel<SndUnit> for AureonModel {
             Ok(true)
         } else if self.mon_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mon_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -107,7 +121,11 @@ impl CtlModel<SndUnit> for AureonModel {
             Ok(true)
         } else if self.mon_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mon_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
