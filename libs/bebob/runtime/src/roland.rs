@@ -15,10 +15,14 @@ use bebob_protocols::{*, roland::*};
 use crate::common_ctls::*;
 use super::model::CLK_RATE_NAME;
 
+pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;
+pub type Fa101Model = FaModel<Fa101MixerAnalogSourceProtocol>;
+
 #[derive(Default)]
-pub struct FaModel {
+pub struct FaModel<T: AvcLevelOperation + Default> {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
+    analog_in_ctl: MixerAnalogSourceCtl<T>,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -45,11 +49,34 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
     }
 }
 
-impl CtlModel<SndUnit> for FaModel {
+#[derive(Default)]
+struct MixerAnalogSourceCtl<O: AvcLevelOperation + Default>(O);
+
+impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol> {
+    const LEVEL_NAME: &'static str = "mixer-source-gain";
+
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6",
+    ];
+}
+
+impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol> {
+    const LEVEL_NAME: &'static str = "mixer-source-gain";
+
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
+        "analog-input-9", "analog-input-10",
+    ];
+}
+
+impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load_freq(card_cntr)?;
+        self.analog_in_ctl.load_level(card_cntr)?;
 
         Ok(())
     }
@@ -59,8 +86,10 @@ impl CtlModel<SndUnit> for FaModel {
     {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else {
+        } else if self.analog_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else {
+            Ok(false)
         }
     }
 
@@ -73,6 +102,47 @@ impl CtlModel<SndUnit> for FaModel {
     ) -> Result<bool, Error> {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
+        } else if self.analog_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.get_node())?;
+
+        self.clk_ctl.load_freq(card_cntr)?;
+        self.analog_in_ctl.load_level(card_cntr)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.analog_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.analog_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -83,6 +153,19 @@ impl CtlModel<SndUnit> for FaModel {
 mod test {
     use super::*;
     use alsactl::CardError;
+
+    #[test]
+    fn test_level_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = MixerAnalogSourceCtl::<Fa66MixerAnalogSourceProtocol>::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = MixerAnalogSourceCtl::<Fa66MixerAnalogSourceProtocol>::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
 
     #[test]
     fn test_clk_ctl_definition() {
