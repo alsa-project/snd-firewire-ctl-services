@@ -6,9 +6,10 @@ use glib::Error;
 use hinawa::FwFcpExt;
 use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use bebob_protocols::{*, presonus::firebox::*};
 
@@ -24,6 +25,7 @@ pub struct FireboxModel {
     mixer_phys_src_ctl: MixerPhysSrcCtl,
     mixer_stream_src_ctl: MixerStreamSrcCtl,
     mixer_out_ctl: MixerOutputCtl,
+    analog_in_ctl: AnalogInputCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -136,6 +138,13 @@ impl AvcMuteCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const MUTE_NAME: &'static str = "mixer-phys-source-mute";
 }
 
+#[derive(Default)]
+struct AnalogInputCtl;
+
+impl SwitchCtlOperation<FireboxAnalogInputProtocol> for AnalogInputCtl {
+    const SWITCH_NAME: &'static str = "analog-input-boost";
+}
+
 impl CtlModel<SndUnit> for FireboxModel {
     fn load(
         &mut self,
@@ -166,6 +175,8 @@ impl CtlModel<SndUnit> for FireboxModel {
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_balance(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
+
+        self.analog_in_ctl.load_switch(card_cntr)?;
 
         Ok(())
     }
@@ -209,6 +220,8 @@ impl CtlModel<SndUnit> for FireboxModel {
         } else if self.mixer_out_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.analog_in_ctl.read_switch(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -256,6 +269,8 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.analog_in_ctl.write_switch(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -275,6 +290,54 @@ impl NotifyModel<SndUnit, bool> for FireboxModel {
         -> Result<bool, Error>
     {
         self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    }
+}
+
+trait SwitchCtlOperation<T: AvcSelectorOperation> {
+    const SWITCH_NAME: &'static str;
+
+    const CH_COUNT: usize = T::FUNC_BLOCK_ID_LIST.len();
+
+    fn load_switch(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SWITCH_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
+            .map(|_| ())
+    }
+
+    fn read_switch(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::SWITCH_NAME {
+            ElemValueAccessor::<bool>::set_vals(elem_value, Self::CH_COUNT, |idx| {
+                T::read_selector(avc, idx, timeout_ms)
+                    .map(|val| val > 0)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_switch(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        if elem_id.get_name().as_str() == Self::SWITCH_NAME {
+            ElemValueAccessor::<bool>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
+                T::write_selector(avc, idx, val as usize, timeout_ms)
+            })
+            .map(|_| true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
