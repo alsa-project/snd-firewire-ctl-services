@@ -66,6 +66,8 @@ impl AvcLevelOperation for AureonMixerOutputProtocol {
     ];
 }
 
+impl AvcMuteOperation for AureonMixerOutputProtocol {}
+
 /// The protocol implementation of analog input.
 #[derive(Default)]
 pub struct AureonPhysInputProtocol;
@@ -86,3 +88,5 @@ impl AvcLevelOperation for AureonMonitorOutputProtocol {
         (0x04, AudioCh::All), // monitor-output-1/2
     ];
 }
+
+impl AvcMuteOperation for AureonMonitorOutputProtocol {}
