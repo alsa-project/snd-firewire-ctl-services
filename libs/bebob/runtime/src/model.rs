@@ -21,6 +21,7 @@ use super::presonus::fp10_model::*;
 use super::presonus::firebox_model::*;
 use super::presonus::inspire1394_model::*;
 use super::terratec::aureon_model::*;
+use super::terratec::phase88_model::*;
 use super::roland::*;
 use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
 
@@ -51,6 +52,7 @@ enum Model {
     TerratecAureon(AureonModel),
     TerratecPhase24(GoPhase24CoaxModel),
     TerratecPhaseX24(GoPhase24OptModel),
+    TerratecPhase88(Phase88Model),
     YamahaGo44(GoPhase24CoaxModel),
     YamahaGo46(GoPhase24OptModel),
 }
@@ -78,6 +80,7 @@ impl BebobModel {
             (0x000aac, 0x000002) => Model::TerratecAureon(Default::default()),
             (0x000aac, 0x000004) => Model::TerratecPhase24(Default::default()),
             (0x000aac, 0x000007) => Model::TerratecPhaseX24(Default::default()),
+            (0x000aac, 0x000003) => Model::TerratecPhase88(Default::default()),
             (0x00a0de, 0x10000b) => Model::YamahaGo44(Default::default()),
             (0x00a0de, 0x10000c) => Model::YamahaGo46(Default::default()),
             _ => {
@@ -118,6 +121,7 @@ impl BebobModel {
             Model::TerratecAureon(m) => m.load(unit, card_cntr),
             Model::TerratecPhase24(m) => m.load(unit, card_cntr),
             Model::TerratecPhaseX24(m) => m.load(unit, card_cntr),
+            Model::TerratecPhase88(m) => m.load(unit, card_cntr),
             Model::YamahaGo44(m) => m.load(unit, card_cntr),
             Model::YamahaGo46(m) => m.load(unit, card_cntr),
         }?;
@@ -186,6 +190,7 @@ impl BebobModel {
             Model::TerratecAureon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TerratecPhase24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TerratecPhaseX24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TerratecPhase88(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::YamahaGo44(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::YamahaGo46(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }

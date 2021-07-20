@@ -143,6 +143,7 @@ your device, please contact to developer.
   * TerraTec Aureon 7.1 FW
   * TerraTec Phase 24 FW
   * TerraTec Phase X24 FW
+  * TerraTec Phase 88 FW
   * Yamaha Go 44
   * Yamaha Go 46
 
