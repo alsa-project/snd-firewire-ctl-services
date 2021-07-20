@@ -74,6 +74,13 @@ impl AvcLevelOperation for FireboxPhysOutputProtocol {
 
 impl AvcMuteOperation for FireboxPhysOutputProtocol {}
 
+impl AvcSelectorOperation for FireboxPhysOutputProtocol {
+    // NOTE: "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "digital-output-1/2"
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01, 0x02, 0x03, 0x05];
+    // NOTE: "stream-input", "mixer-output-1/2"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
 /// The protocol implementation of headphone.
 pub struct FireboxHeadphoneProtocol;
 
@@ -85,6 +92,14 @@ impl AvcLevelOperation for FireboxHeadphoneProtocol {
 }
 
 impl AvcMuteOperation for FireboxHeadphoneProtocol {}
+
+impl AvcSelectorOperation for FireboxHeadphoneProtocol {
+    // NOTE: "headphone-1/2"
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x04];
+    // NOTE: "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
+    //       "mixer-output-1/2"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02, 0x03, 0x04];
+}
 
 /// The protocol implementation of physical source for mixer.
 pub struct FireboxMixerPhysSourceProtocol;
@@ -115,6 +130,12 @@ impl AvcLevelOperation for FireboxMixerStreamSourceProtocol {
 
 impl AvcMuteOperation for FireboxMixerStreamSourceProtocol {}
 
+impl AvcSelectorOperation for FireboxMixerStreamSourceProtocol {
+    // NOTE: "stream-source-1/2"
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x06];
+    // NOTE: "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+}
 /// The protocol implementation of mixer output.
 pub struct FireboxMixerOutputProtocol;
 
