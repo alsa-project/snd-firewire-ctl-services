@@ -73,6 +73,8 @@ impl AvcLevelOperation for FirexonPhysOutputProtocol {
     ];
 }
 
+impl AvcLrBalanceOperation for FirexonPhysOutputProtocol {}
+
 /// The protocol implementation of source to monitor mixer for physical inputs
 pub struct FirexonMonitorSourceProtocol;
 
@@ -86,6 +88,8 @@ impl AvcLevelOperation for FirexonMonitorSourceProtocol{
         (0x03, AudioCh::Each(1)), // digital-input-6
     ];
 }
+
+impl AvcLrBalanceOperation for FirexonMonitorSourceProtocol {}
 
 /// The protocol implementation of source to mixer for stream input and output of the monitor mixer.
 pub struct FirexonMixerSourceProtocol;
