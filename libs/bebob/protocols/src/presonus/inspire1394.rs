@@ -102,6 +102,8 @@ impl AvcLevelOperation for Inspire1394MixerAnalogSourceProtocol {
     ];
 }
 
+impl AvcLrBalanceOperation for Inspire1394MixerAnalogSourceProtocol {}
+
 /// The protocol implementation of stream source for mixer.
 #[derive(Default)]
 pub struct Inspire1394MixerStreamSourceProtocol;
