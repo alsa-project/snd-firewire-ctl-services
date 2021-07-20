@@ -122,6 +122,8 @@ impl AvcLevelOperation for Inspire1394MixerStreamSourceProtocol {
     ];
 }
 
+impl AvcMuteOperation for Inspire1394MixerStreamSourceProtocol {}
+
 const METER_FRAME_SIZE: usize = 32;
 
 /// The structure of meter information for Inspire 1394.
