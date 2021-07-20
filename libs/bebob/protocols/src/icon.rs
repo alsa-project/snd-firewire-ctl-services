@@ -77,6 +77,13 @@ impl AvcLrBalanceOperation for FirexonPhysOutputProtocol {}
 
 impl AvcMuteOperation for FirexonPhysOutputProtocol {}
 
+impl AvcSelectorOperation for FirexonPhysOutputProtocol {
+    // NOTE: "analog-output-3/4" (not "analog-output-1/2")
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01];
+    // NOTE: "mixer-output-1/2", "stream-input-3/4", "stream-input-5/6"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02];
+}
+
 /// The protocol implementation of source to monitor mixer for physical inputs
 pub struct FirexonMonitorSourceProtocol;
 
