@@ -5,6 +5,42 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Yamaha and Terratec for Go and 24 FW series.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//! analog-input-1/2  --+----------------------------------------+-----> stream-output-1/2
+//! digital-input-1/2 --|-+--------------------------------------|-+---> stream-output-3/4
+//!                     | |                                      | |
+//!                     | |      ++=======++                     | |
+//!                     +-|----> ||       ||                     | |
+//!                       +----> ||       ||                     | |
+//!                              || 6 x 2 ||                     | |
+//! stream-input-1/2 ---+------> || mixer ||--> mixer-output-1/2 | |
+//! stream-input-3/4 ---|-+----> ||       ||           |         | |
+//! stream-input-5/6 ---|-|-+--> ||       ||           |         | |
+//!                     | | |    ++=======++           |         | |
+//!                     +-|-|--------------------------|---------|-|--->
+//!                     | +-|--------------------------|---------|-|--->
+//!                     | | +--------------------------|---------|-|---> analog-output-1/2
+//!                     | | |                          +---------|-|---> (one source only)
+//!                     | | |                          |         +-|--->
+//!                     | | |                          |         | +--->
+//!                     | | |                          |         | |
+//!                     +-|-|--------------------------|---------|-|--->
+//!                     | +-|--------------------------|---------|-|--->
+//!                     | | +--------------------------|---------|-|---> analog-output-3/4
+//!                     | | |                          +---------|-|---> (one source only)
+//!                     | | |                          |         +-|--->
+//!                     | | |                          |         | +--->
+//!                     | | |                          |         | |
+//!                     +-|-|--------------------------|---------|-|--->
+//!                       +-|--------------------------|---------|-|--->
+//!                         +--------------------------|---------|-|---> digital-output-1/2
+//!                                                    +---------|-|---> (one source only)
+//!                                                              +-|--->
+//!                                                                +--->
+//! ```
 
 use crate::*;
 
@@ -44,4 +80,54 @@ impl SamplingClockSourceOperation for GoPhase24ClkProtocol {
         let mut op = AudioSelector::new(CLK_SRC_FB_ID, CtlAttr::Current, val as u8);
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
+}
+
+/// The protocol implementation of physical output for optical models.
+pub struct GoPhase24OptPhysOutputProtocol;
+
+impl AvcLevelOperation for GoPhase24OptPhysOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)), // analog-output-1
+        (0x01, AudioCh::Each(1)), // analog-output-2
+        (0x01, AudioCh::Each(2)), // analog-output-3
+        (0x01, AudioCh::Each(3)), // analog-output-4
+    ];
+}
+
+/// The protocol implementation of mixer source gain.
+pub struct GoPhase24MixerSourceProtocol;
+
+impl AvcLevelOperation for GoPhase24MixerSourceProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x06, AudioCh::Each(0)), // analog-input-1/2
+        (0x06, AudioCh::Each(1)), // analog-input-1/2
+        (0x07, AudioCh::Each(0)), // digital-input-1/2
+        (0x07, AudioCh::Each(1)), // digital-input-1/2
+        (0x03, AudioCh::Each(0)), // stream-input-1/2
+        (0x03, AudioCh::Each(1)), // stream-input-1/2
+        (0x04, AudioCh::Each(0)), // stream-input-3/4
+        (0x04, AudioCh::Each(1)), // stream-input-3/4
+        (0x05, AudioCh::Each(0)), // stream-input-5/6
+        (0x05, AudioCh::Each(1)), // stream-input-5/6
+    ];
+}
+
+/// The protocol implementation of mixer output volume for coaxial models.
+pub struct GoPhase24CoaxMixerOutputProtocol;
+
+impl AvcLevelOperation for GoPhase24CoaxMixerOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)),
+        (0x01, AudioCh::Each(1)),
+    ];
+}
+
+/// The protocol implementation of mixer output volume for optical models.
+pub struct GoPhase24OptMixerOutputProtocol;
+
+impl AvcLevelOperation for GoPhase24OptMixerOutputProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x02, AudioCh::Each(0)),
+        (0x02, AudioCh::Each(1)),
+    ];
 }
