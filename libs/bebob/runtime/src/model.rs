@@ -16,6 +16,7 @@ use super::maudio::special_model::*;
 use super::behringer::*;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
+use super::presonus::inspire1394_model::*;
 use super::roland::*;
 use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
 
@@ -36,6 +37,7 @@ enum Model {
     MaudioPfl(PflModel),
     MaudioFw1814(Fw1814Model),
     MaudioProjectMix(ProjectMixModel),
+    PresonusInspire1394(Inspire1394Model),
     RolandFa101(Fa101Model),
     RolandFa66(Fa66Model),
     StantonScratchamp(ScratchampModel),
@@ -58,6 +60,7 @@ impl BebobModel {
             (0x000d6c, 0x0100a1) => Model::MaudioPfl(Default::default()),
             (0x000d6c, 0x010071) => Model::MaudioFw1814(Default::default()),
             (0x000d6c, 0x010091) => Model::MaudioProjectMix(Default::default()),
+            (0x000a92, 0x010001) => Model::PresonusInspire1394(Default::default()),
             (0x0040ab, 0x010048) => Model::RolandFa101(Default::default()),
             (0x0040ab, 0x010049) => Model::RolandFa66(Default::default()),
             (0x001260, 0x000001) => Model::StantonScratchamp(Default::default()),
@@ -93,6 +96,7 @@ impl BebobModel {
             Model::MaudioPfl(m) => m.load(unit, card_cntr),
             Model::MaudioFw1814(m) => m.load(unit, card_cntr),
             Model::MaudioProjectMix(m) => m.load(unit, card_cntr),
+            Model::PresonusInspire1394(m) => m.load(unit, card_cntr),
             Model::RolandFa101(m) => m.load(unit, card_cntr),
             Model::RolandFa66(m) => m.load(unit, card_cntr),
             Model::StantonScratchamp(m) => m.load(unit, card_cntr),
@@ -151,6 +155,7 @@ impl BebobModel {
             Model::MaudioPfl(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioFw1814(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioProjectMix(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::PresonusInspire1394(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::RolandFa101(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::RolandFa66(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
