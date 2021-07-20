@@ -10,6 +10,7 @@ mod maudio;
 mod behringer;
 mod stanton;
 mod esi;
+mod icon;
 mod presonus;
 mod roland;
 mod yamaha_terratec;

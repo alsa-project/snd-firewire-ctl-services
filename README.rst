@@ -126,6 +126,7 @@ your device, please contact to developer.
   * Apogee Ensemble
   * Behringer Firepower FCA610
   * Ego Systems Quatafire 610
+  * Icon Firexon
   * M-Audio FireWire Solo
   * M-Audio FireWire Audiophile
   * M-Audio FireWire 410

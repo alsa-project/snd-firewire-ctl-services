@@ -16,6 +16,7 @@ use super::maudio::special_model::*;
 use super::behringer::*;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
+use super::icon::FirexonModel;
 use super::presonus::fp10_model::*;
 use super::presonus::firebox_model::*;
 use super::presonus::inspire1394_model::*;
@@ -32,6 +33,7 @@ enum Model {
     ApogeeEnsemble(EnsembleModel),
     BehringerFca610(Fca610Model),
     EsiQuatafire610(Quatafire610Model),
+    IconFirexon(FirexonModel),
     MaudioOzonic(OzonicModel),
     MaudioSolo(SoloModel),
     MaudioAudiophile(AudiophileModel),
@@ -57,6 +59,7 @@ impl BebobModel {
             (0x0003db, 0x01eeee) => Model::ApogeeEnsemble(Default::default()),
             (0x001564, 0x000610) => Model::BehringerFca610(Default::default()),
             (0x000f1b, 0x010064) => Model::EsiQuatafire610(Default::default()),
+            (0x001a9e, 0x000001) => Model::IconFirexon(Default::default()),
             (0x000d6c, 0x00000a) => Model::MaudioOzonic(Default::default()),
             (0x000d6c, 0x010062) => Model::MaudioSolo(Default::default()),
             (0x000d6c, 0x010060) => Model::MaudioAudiophile(Default::default()),
@@ -95,6 +98,7 @@ impl BebobModel {
             Model::ApogeeEnsemble(m) => m.load(unit, card_cntr),
             Model::BehringerFca610(m) => m.load(unit, card_cntr),
             Model::EsiQuatafire610(m) => m.load(unit, card_cntr),
+            Model::IconFirexon(m) => m.load(unit, card_cntr),
             Model::MaudioOzonic(m) => m.load(unit, card_cntr),
             Model::MaudioSolo(m) => m.load(unit, card_cntr),
             Model::MaudioAudiophile(m) => m.load(unit, card_cntr),
@@ -159,6 +163,7 @@ impl BebobModel {
             Model::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::BehringerFca610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::EsiQuatafire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::IconFirexon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioAudiophile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
