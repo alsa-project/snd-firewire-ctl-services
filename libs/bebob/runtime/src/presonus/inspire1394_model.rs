@@ -23,6 +23,11 @@ pub struct Inspire1394Model {
     req: FwReq,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
+    phys_in_ctl: PhysInputCtl,
+    phys_out_ctl: PhysOutputCtl,
+    hp_ctl: HeadphoneCtl,
+    mixer_phys_src_ctl: MixerPhysSourceCtl,
+    mixer_stream_src_ctl: MixerStreamSourceCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -54,6 +59,50 @@ impl AsMut<Inspire1394Meter> for MeterCtl {
 
 impl MeterCtlOperation<Inspire1394MeterProtocol> for MeterCtl {}
 
+#[derive(Default)]
+struct PhysInputCtl;
+
+impl AvcLevelCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
+    const LEVEL_NAME: &'static str = "analog-input-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+    ];
+}
+
+#[derive(Default)]
+struct PhysOutputCtl;
+
+impl AvcLevelCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
+    const LEVEL_NAME: &'static str = "analog-output-volume";
+    const PORT_LABELS: &'static [&'static str] = &["analog-output-1", "analog-output-2"];
+}
+
+#[derive(Default)]
+struct HeadphoneCtl;
+
+impl AvcLevelCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
+    const LEVEL_NAME: &'static str = "headphone-volume";
+    const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+}
+
+#[derive(Default)]
+struct MixerPhysSourceCtl;
+
+impl AvcLevelCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
+    const LEVEL_NAME: &'static str = "mixer-analog-source-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+    ];
+}
+
+#[derive(Default)]
+struct MixerStreamSourceCtl;
+
+impl AvcLevelCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSourceCtl {
+    const LEVEL_NAME: &'static str = "mixer-stream-source-gain";
+    const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2"];
+}
+
 impl CtlModel<SndUnit> for Inspire1394Model {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
@@ -67,6 +116,12 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         self.meter_ctl.load_meter(card_cntr, &self.req, unit, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_in_ctl.load_level(card_cntr)?;
+        self.phys_out_ctl.load_level(card_cntr)?;
+        self.hp_ctl.load_level(card_cntr)?;
+        self.mixer_phys_src_ctl.load_level(card_cntr)?;
+        self.mixer_stream_src_ctl.load_level(card_cntr)?;
+
         Ok(())
     }
 
@@ -76,6 +131,16 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -88,6 +153,16 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
