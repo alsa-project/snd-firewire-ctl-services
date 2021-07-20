@@ -2,3 +2,4 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 pub mod inspire1394_model;
+pub mod fp10_model;
