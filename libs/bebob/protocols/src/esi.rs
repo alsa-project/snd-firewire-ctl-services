@@ -5,6 +5,23 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Ego Systems (ESI) for Quatafire series.
+//!
+//! ## Diagram of internal signal flow for Quatafire 610
+//!
+//! ```text
+//! analog-input-1/2  -------+----------> stream-output-1/2
+//! analog-input-3/4  -------|-+--------> stream-output-3/4
+//! digital-input-1/2 -------|-|-+------> stream-output-5/6
+//!                          | | |
+//!                          v v v
+//!                       ++=======++
+//! stream-input-1/2 ---> || 8 x 2 ||
+//!                       || mixer ||---> analog-output-1/2
+//!                       ++=======++
+//! stream-input-3/4 -------------------> analog-output-3/4
+//! stream-input-5/6 -------------------> analog-output-5/6
+//! stream-input-7/8 -------------------> digital-output-1/2
+//! ```
 
 use super::*;
 
