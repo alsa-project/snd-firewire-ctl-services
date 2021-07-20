@@ -48,6 +48,10 @@ impl AvcLevelCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
     ];
 }
 
+impl AvcMuteCtlOperation<Phase88MixerPhysSourceProtocol> for MixerPhysSrcCtl {
+    const MUTE_NAME: &'static str = "mixer-phys-source-mute";
+}
+
 #[derive(Default)]
 struct MixerStreamSrcCtl;
 
@@ -56,12 +60,20 @@ impl AvcLevelCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCt
     const PORT_LABELS: &'static [&'static str] = &["stream-source-1", "stream-source-2"];
 }
 
+impl AvcMuteCtlOperation<Phase88MixerStreamSourceProtocol> for MixerStreamSrcCtl {
+    const MUTE_NAME: &'static str = "mixer-stream-source-mute";
+}
+
 #[derive(Default)]
 struct MixerOutputCtl;
 
 impl AvcLevelCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+}
+
+impl AvcMuteCtlOperation<Phase88MixerOutputProtocol> for MixerOutputCtl {
+    const MUTE_NAME: &'static str = "mixer-output-mute";
 }
 
 impl CtlModel<SndUnit> for Phase88Model {
@@ -79,8 +91,11 @@ impl CtlModel<SndUnit> for Phase88Model {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
+        self.mixer_phys_src_ctl.load_mute(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
+        self.mixer_stream_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_mute(card_cntr)?;
 
         Ok(())
     }
@@ -97,9 +112,15 @@ impl CtlModel<SndUnit> for Phase88Model {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_phys_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_stream_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -119,9 +140,15 @@ impl CtlModel<SndUnit> for Phase88Model {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_phys_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_stream_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
