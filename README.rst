@@ -140,6 +140,7 @@ your device, please contact to developer.
   * Roland Edirol FA-66
   * Roland Edirol FA-101
   * Stanton ScratchAmp in Final Scratch version 2
+  * TerraTec Aureon 7.1 FW
   * TerraTec Phase 24 FW
   * TerraTec Phase X24 FW
   * Yamaha Go 44

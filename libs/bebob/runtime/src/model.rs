@@ -20,6 +20,7 @@ use super::icon::FirexonModel;
 use super::presonus::fp10_model::*;
 use super::presonus::firebox_model::*;
 use super::presonus::inspire1394_model::*;
+use super::terratec::aureon_model::*;
 use super::roland::*;
 use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
 
@@ -47,6 +48,7 @@ enum Model {
     RolandFa101(Fa101Model),
     RolandFa66(Fa66Model),
     StantonScratchamp(ScratchampModel),
+    TerratecAureon(AureonModel),
     TerratecPhase24(GoPhase24CoaxModel),
     TerratecPhaseX24(GoPhase24OptModel),
     YamahaGo44(GoPhase24CoaxModel),
@@ -73,6 +75,7 @@ impl BebobModel {
             (0x0040ab, 0x010048) => Model::RolandFa101(Default::default()),
             (0x0040ab, 0x010049) => Model::RolandFa66(Default::default()),
             (0x001260, 0x000001) => Model::StantonScratchamp(Default::default()),
+            (0x000aac, 0x000002) => Model::TerratecAureon(Default::default()),
             (0x000aac, 0x000004) => Model::TerratecPhase24(Default::default()),
             (0x000aac, 0x000007) => Model::TerratecPhaseX24(Default::default()),
             (0x00a0de, 0x10000b) => Model::YamahaGo44(Default::default()),
@@ -112,6 +115,7 @@ impl BebobModel {
             Model::RolandFa101(m) => m.load(unit, card_cntr),
             Model::RolandFa66(m) => m.load(unit, card_cntr),
             Model::StantonScratchamp(m) => m.load(unit, card_cntr),
+            Model::TerratecAureon(m) => m.load(unit, card_cntr),
             Model::TerratecPhase24(m) => m.load(unit, card_cntr),
             Model::TerratecPhaseX24(m) => m.load(unit, card_cntr),
             Model::YamahaGo44(m) => m.load(unit, card_cntr),
@@ -178,6 +182,7 @@ impl BebobModel {
             Model::RolandFa101(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::RolandFa66(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TerratecAureon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TerratecPhase24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TerratecPhaseX24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::YamahaGo44(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
