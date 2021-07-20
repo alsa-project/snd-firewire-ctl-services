@@ -67,6 +67,8 @@ impl AvcLevelOperation for Inspire1394PhysInputProtocol {
     ];
 }
 
+impl AvcMuteOperation for Inspire1394PhysInputProtocol {}
+
 /// The protocol implementation of physical output.
 #[derive(Default)]
 pub struct Inspire1394PhysOutputProtocol;
@@ -78,6 +80,8 @@ impl AvcLevelOperation for Inspire1394PhysOutputProtocol {
     ];
 }
 
+impl AvcMuteOperation for Inspire1394PhysOutputProtocol {}
+
 /// The protocol implementation of headphone.
 #[derive(Default)]
 pub struct Inspire1394HeadphoneProtocol;
@@ -88,6 +92,8 @@ impl AvcLevelOperation for Inspire1394HeadphoneProtocol {
         (0x07, AudioCh::Each(1)),
     ];
 }
+
+impl AvcMuteOperation for Inspire1394HeadphoneProtocol {}
 
 /// The protocol implementation of analog source for mixer.
 #[derive(Default)]
@@ -103,6 +109,8 @@ impl AvcLevelOperation for Inspire1394MixerAnalogSourceProtocol {
 }
 
 impl AvcLrBalanceOperation for Inspire1394MixerAnalogSourceProtocol {}
+
+impl AvcMuteOperation for Inspire1394MixerAnalogSourceProtocol {}
 
 /// The protocol implementation of stream source for mixer.
 #[derive(Default)]
