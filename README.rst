@@ -125,6 +125,7 @@ your device, please contact to developer.
 
   * Apogee Ensemble
   * Behringer Firepower FCA610
+  * Digidesign Mbox 2 Pro
   * Ego Systems Quatafire 610
   * Icon Firexon
   * M-Audio FireWire Solo

@@ -8,6 +8,7 @@ mod model;
 mod apogee;
 mod maudio;
 mod behringer;
+mod digidesign;
 mod stanton;
 mod esi;
 mod icon;

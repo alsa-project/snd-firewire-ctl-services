@@ -14,6 +14,7 @@ use super::maudio::fw410_model::Fw410Model;
 use super::maudio::profirelightbridge_model::PflModel;
 use super::maudio::special_model::*;
 use super::behringer::*;
+use super::digidesign::Mbox2proModel;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
 use super::icon::FirexonModel;
@@ -34,6 +35,7 @@ pub struct BebobModel {
 enum Model {
     ApogeeEnsemble(EnsembleModel),
     BehringerFca610(Fca610Model),
+    DigidesignMbox2pro(Mbox2proModel),
     EsiQuatafire610(Quatafire610Model),
     IconFirexon(FirexonModel),
     MaudioOzonic(OzonicModel),
@@ -62,6 +64,7 @@ impl BebobModel {
         let ctl_model = match (vendor_id, model_id) {
             (0x0003db, 0x01eeee) => Model::ApogeeEnsemble(Default::default()),
             (0x001564, 0x000610) => Model::BehringerFca610(Default::default()),
+            (0x00a07e, 0x0000a9) => Model::DigidesignMbox2pro(Default::default()),
             (0x000f1b, 0x010064) => Model::EsiQuatafire610(Default::default()),
             (0x001a9e, 0x000001) => Model::IconFirexon(Default::default()),
             (0x000d6c, 0x00000a) => Model::MaudioOzonic(Default::default()),
@@ -103,6 +106,7 @@ impl BebobModel {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.load(unit, card_cntr),
             Model::BehringerFca610(m) => m.load(unit, card_cntr),
+            Model::DigidesignMbox2pro(m) => m.load(unit, card_cntr),
             Model::EsiQuatafire610(m) => m.load(unit, card_cntr),
             Model::IconFirexon(m) => m.load(unit, card_cntr),
             Model::MaudioOzonic(m) => m.load(unit, card_cntr),
@@ -173,6 +177,7 @@ impl BebobModel {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::BehringerFca610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::DigidesignMbox2pro(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::EsiQuatafire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::IconFirexon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
