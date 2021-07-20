@@ -81,6 +81,16 @@ impl AvcLevelOperation for AureonPhysInputProtocol {
 
 /// The protocol implementation of monitor output.
 #[derive(Default)]
+pub struct AureonMonitorSourceProtocol;
+
+impl AvcSelectorOperation for AureonMonitorSourceProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01];
+    // NOTE: "analog-input-1/2", "analog-input-3/4", "analog-input-5/6", "digital-input-1/2"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+}
+
+/// The protocol implementation of monitor source.
+#[derive(Default)]
 pub struct AureonMonitorOutputProtocol;
 
 impl AvcLevelOperation for AureonMonitorOutputProtocol {
@@ -90,3 +100,13 @@ impl AvcLevelOperation for AureonMonitorOutputProtocol {
 }
 
 impl AvcMuteOperation for AureonMonitorOutputProtocol {}
+
+/// The protocol implementation of spdif output.
+#[derive(Default)]
+pub struct AureonSpdifOutputProtocol;
+
+impl AvcSelectorOperation for AureonSpdifOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x02];
+    // NOTE: "mixer-output-1/2", "stream-input-9/10"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
