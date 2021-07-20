@@ -134,6 +134,10 @@ your device, please contact to developer.
   * M-Audio ProFire LightBridge
   * M-Audio ProjectMix I/O
   * Stanton ScratchAmp in Final Scratch version 2
+  * TerraTec Phase 24 FW
+  * TerraTec Phase X24 FW
+  * Yamaha Go 44
+  * Yamaha Go 46
 
 * snd-dice-ctl-service
 
