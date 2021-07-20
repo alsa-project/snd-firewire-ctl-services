@@ -133,6 +133,7 @@ your device, please contact to developer.
   * M-Audio Ozonic
   * M-Audio ProFire LightBridge
   * M-Audio ProjectMix I/O
+  * PreSonus Inspire 1394
   * Roland Edirol FA-66
   * Roland Edirol FA-101
   * Stanton ScratchAmp in Final Scratch version 2
