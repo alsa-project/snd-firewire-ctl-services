@@ -18,6 +18,9 @@ use crate::common_ctls::*;
 pub struct AureonModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
+    phys_in_ctl: PhysInputCtl,
+    mon_out_ctl: MonitorOutputCtl,
+    mixer_out_ctl: MixerOutputCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -26,6 +29,33 @@ const FCP_TIMEOUT_MS: u32 = 100;
 struct ClkCtl(Vec<ElemId>);
 
 impl MediaClkFreqCtlOperation<AureonClkProtocol> for ClkCtl {}
+
+#[derive(Default)]
+struct PhysInputCtl;
+
+impl AvcLevelCtlOperation<AureonPhysInputProtocol> for PhysInputCtl {
+    const LEVEL_NAME: &'static str = "analog-input-gain";
+    const PORT_LABELS: &'static [&'static str] = &["analog-input-1/2", "analog-input-3/4"];
+}
+
+#[derive(Default)]
+struct MonitorOutputCtl;
+
+impl AvcLevelCtlOperation<AureonMonitorOutputProtocol> for MonitorOutputCtl {
+    const LEVEL_NAME: &'static str = "monitor-output-volume";
+    const PORT_LABELS: &'static [&'static str] = &["monitor-output-1/2"];
+}
+
+#[derive(Default)]
+struct MixerOutputCtl;
+
+impl AvcLevelCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
+    const LEVEL_NAME: &'static str = "mixer-output-volume";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
+        "mixer-output-5", "mixer-output-6", "mixer-output-7", "mixer-output-8",
+    ];
+}
 
 impl CtlModel<SndUnit> for AureonModel {
     fn load(
@@ -38,6 +68,10 @@ impl CtlModel<SndUnit> for AureonModel {
         self.clk_ctl.load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_in_ctl.load_level(card_cntr)?;
+        self.mon_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_level(card_cntr)?;
+
         Ok(())
     }
 
@@ -48,6 +82,12 @@ impl CtlModel<SndUnit> for AureonModel {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mon_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -62,6 +102,12 @@ impl CtlModel<SndUnit> for AureonModel {
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.phys_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mon_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -96,6 +142,23 @@ mod test {
         let mut ctl = ClkCtl::default();
 
         let error = ctl.load_freq(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_level_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = PhysInputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = MonitorOutputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = MixerOutputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
