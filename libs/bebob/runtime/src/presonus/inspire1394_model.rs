@@ -95,6 +95,10 @@ impl AvcLevelCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSou
     ];
 }
 
+impl AvcLrBalanceCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
+    const BALANCE_NAME: &'static str = "mixer-analog-source-balance";
+}
+
 #[derive(Default)]
 struct MixerStreamSourceCtl;
 
@@ -120,6 +124,7 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         self.phys_out_ctl.load_level(card_cntr)?;
         self.hp_ctl.load_level(card_cntr)?;
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
+        self.mixer_phys_src_ctl.load_balance(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
 
         Ok(())
@@ -139,6 +144,8 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         } else if self.hp_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_phys_src_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -161,6 +168,8 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         } else if self.hp_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_phys_src_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
