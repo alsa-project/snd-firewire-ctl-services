@@ -115,6 +115,7 @@ impl BebobModel {
             Model::MaudioPfl(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioFw1814(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioProjectMix(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::PresonusInspire1394(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             _ => (),
         }
 
@@ -179,6 +180,7 @@ impl BebobModel {
             Model::MaudioPfl(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioFw1814(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioProjectMix(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::PresonusInspire1394(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             _ => Ok(()),
         }
     }
