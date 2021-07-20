@@ -48,12 +48,20 @@ impl AvcLevelCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     ];
 }
 
+impl AvcMuteCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
+    const MUTE_NAME: &'static str = "phys-output-mute";
+}
+
 #[derive(Default)]
 struct HeadphoneCtl;
 
 impl AvcLevelCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-gain";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+}
+
+impl AvcMuteCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
+    const MUTE_NAME: &'static str = "headphone-mute";
 }
 
 #[derive(Default)]
@@ -71,12 +79,20 @@ impl AvcLrBalanceCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCt
     const BALANCE_NAME: &'static str = "phys-input-balance";
 }
 
+impl AvcMuteCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
+    const MUTE_NAME: &'static str = "mixer-phys-source-mute";
+}
+
 #[derive(Default)]
 struct MixerStreamSrcCtl;
 
 impl AvcLevelCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-stream-source-gain";
     const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2"];
+}
+
+impl AvcMuteCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSrcCtl {
+    const MUTE_NAME: &'static str = "mixer-stream-source-mute";
 }
 
 #[derive(Default)]
@@ -89,6 +105,10 @@ impl AvcLevelCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
 
 impl AvcLrBalanceCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const BALANCE_NAME: &'static str = "phys-input-balance";
+}
+
+impl AvcMuteCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
+    const MUTE_NAME: &'static str = "mixer-phys-source-mute";
 }
 
 impl CtlModel<SndUnit> for FireboxModel {
@@ -106,12 +126,18 @@ impl CtlModel<SndUnit> for FireboxModel {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_out_ctl.load_level(card_cntr)?;
+        self.phys_out_ctl.load_mute(card_cntr)?;
         self.headphone_ctl.load_level(card_cntr)?;
+        self.headphone_ctl.load_mute(card_cntr)?;
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
         self.mixer_phys_src_ctl.load_balance(card_cntr)?;
+        self.mixer_phys_src_ctl.load_mute(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
+        self.mixer_stream_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_balance(card_cntr)?;
+        self.mixer_out_ctl.load_mute(card_cntr)?;
 
         Ok(())
     }
@@ -128,17 +154,27 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.headphone_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.headphone_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_phys_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -158,17 +194,27 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.headphone_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.headphone_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_phys_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
