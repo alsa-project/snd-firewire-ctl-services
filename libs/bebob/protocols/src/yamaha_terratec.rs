@@ -94,6 +94,8 @@ impl AvcLevelOperation for GoPhase24OptPhysOutputProtocol {
     ];
 }
 
+impl AvcMuteOperation for GoPhase24OptPhysOutputProtocol {}
+
 /// The protocol implementation of mixer source gain.
 pub struct GoPhase24MixerSourceProtocol;
 
@@ -112,6 +114,8 @@ impl AvcLevelOperation for GoPhase24MixerSourceProtocol {
     ];
 }
 
+impl AvcMuteOperation for GoPhase24MixerSourceProtocol {}
+
 /// The protocol implementation of mixer output volume for coaxial models.
 pub struct GoPhase24CoaxMixerOutputProtocol;
 
@@ -122,6 +126,8 @@ impl AvcLevelOperation for GoPhase24CoaxMixerOutputProtocol {
     ];
 }
 
+impl AvcMuteOperation for GoPhase24CoaxMixerOutputProtocol {}
+
 /// The protocol implementation of mixer output volume for optical models.
 pub struct GoPhase24OptMixerOutputProtocol;
 
@@ -131,3 +137,5 @@ impl AvcLevelOperation for GoPhase24OptMixerOutputProtocol {
         (0x02, AudioCh::Each(1)),
     ];
 }
+
+impl AvcMuteOperation for GoPhase24OptMixerOutputProtocol {}
