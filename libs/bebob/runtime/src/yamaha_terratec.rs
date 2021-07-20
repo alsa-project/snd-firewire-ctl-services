@@ -54,6 +54,10 @@ impl AvcLevelCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
     ];
 }
 
+impl AvcMuteCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
+    const MUTE_NAME: &'static str = "mixer-source-mute";
+}
+
 #[derive(Default)]
 struct OptPhysOutputCtl;
 
@@ -64,6 +68,10 @@ impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
     ];
 }
 
+impl AvcMuteCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
+    const MUTE_NAME: &'static str = "phys-output-mute";
+}
+
 #[derive(Default)]
 struct CoaxMixerOutputCtl;
 
@@ -72,12 +80,20 @@ impl AvcLevelCtlOperation<GoPhase24CoaxMixerOutputProtocol> for CoaxMixerOutputC
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
 }
 
+impl AvcMuteCtlOperation<GoPhase24CoaxMixerOutputProtocol> for CoaxMixerOutputCtl {
+    const MUTE_NAME: &'static str = "mixer-output-mute";
+}
+
 #[derive(Default)]
 struct OptMixerOutputCtl;
 
 impl AvcLevelCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+}
+
+impl AvcMuteCtlOperation<GoPhase24OptMixerOutputProtocol> for OptMixerOutputCtl {
+    const MUTE_NAME: &'static str = "mixer-output-mute";
 }
 
 impl CtlModel<SndUnit> for GoPhase24CoaxModel {
@@ -91,7 +107,9 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.mixer_src_ctl.load_level(card_cntr)?;
+        self.mixer_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_mute(card_cntr)?;
 
         Ok(())
     }
@@ -105,7 +123,11 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
             Ok(true)
         } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -121,7 +143,11 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
             Ok(true)
         } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
+        } else if self.mixer_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
+        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
         } else {
             Ok(false)
@@ -156,8 +182,11 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_out_ctl.load_level(card_cntr)?;
+        self.phys_out_ctl.load_mute(card_cntr)?;
         self.mixer_src_ctl.load_level(card_cntr)?;
+        self.mixer_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_mute(card_cntr)?;
 
         Ok(())
     }
@@ -171,9 +200,15 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
             Ok(true)
         } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -189,9 +224,15 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
             Ok(true)
         } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
+        } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
         } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
+        } else if self.mixer_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
+        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
         } else {
             Ok(false)
