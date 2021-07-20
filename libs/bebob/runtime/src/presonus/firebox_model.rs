@@ -67,6 +67,10 @@ impl AvcLevelCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
     ];
 }
 
+impl AvcLrBalanceCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
+    const BALANCE_NAME: &'static str = "phys-input-balance";
+}
+
 #[derive(Default)]
 struct MixerStreamSrcCtl;
 
@@ -81,6 +85,10 @@ struct MixerOutputCtl;
 impl AvcLevelCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &["mixer-output-1", "mixer-output-2"];
+}
+
+impl AvcLrBalanceCtlOperation<FireboxMixerOutputProtocol> for MixerOutputCtl {
+    const BALANCE_NAME: &'static str = "phys-input-balance";
 }
 
 impl CtlModel<SndUnit> for FireboxModel {
@@ -100,8 +108,10 @@ impl CtlModel<SndUnit> for FireboxModel {
         self.phys_out_ctl.load_level(card_cntr)?;
         self.headphone_ctl.load_level(card_cntr)?;
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
+        self.mixer_phys_src_ctl.load_balance(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
+        self.mixer_out_ctl.load_balance(card_cntr)?;
 
         Ok(())
     }
@@ -122,9 +132,13 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_phys_src_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -148,9 +162,13 @@ impl CtlModel<SndUnit> for FireboxModel {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.mixer_phys_src_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_out_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
