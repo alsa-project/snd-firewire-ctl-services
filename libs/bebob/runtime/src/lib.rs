@@ -10,6 +10,7 @@ mod maudio;
 mod behringer;
 mod stanton;
 mod esi;
+mod roland;
 mod yamaha_terratec;
 
 use nix::sys::signal;
