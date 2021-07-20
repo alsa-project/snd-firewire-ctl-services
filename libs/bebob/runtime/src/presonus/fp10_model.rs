@@ -13,11 +13,13 @@ use core::card_cntr::*;
 use bebob_protocols::{*, presonus::fp10::*};
 
 use crate::common_ctls::*;
+use crate::model::OUT_VOL_NAME;
 
 #[derive(Default)]
 pub struct Fp10Model {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
+    phys_out_ctl: PhysOutputCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -30,6 +32,19 @@ impl MediaClkFreqCtlOperation<Fp10ClkProtocol> for ClkCtl {}
 impl SamplingClkSrcCtlOperation<Fp10ClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
 }
+
+#[derive(Default)]
+struct PhysOutputCtl;
+
+impl AvcLevelCtlOperation<Fp10PhysOutputProtocol> for PhysOutputCtl {
+    const LEVEL_NAME: &'static str = OUT_VOL_NAME;
+
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
+        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
+    ];
+}
+
 impl CtlModel<SndUnit> for Fp10Model {
     fn load(
         &mut self,
@@ -44,6 +59,8 @@ impl CtlModel<SndUnit> for Fp10Model {
         self.clk_ctl.load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_out_ctl.load_level(card_cntr)?;
+
         Ok(())
     }
 
@@ -56,6 +73,8 @@ impl CtlModel<SndUnit> for Fp10Model {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -72,6 +91,8 @@ impl CtlModel<SndUnit> for Fp10Model {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
