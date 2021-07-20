@@ -25,11 +25,15 @@
 //!
 //! None of the above audio signals is configurable by software.
 
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+
 use super::*;
 
 /// The protocol implementation of operation for media clock and sampling clock.
 #[derive(Default)]
 pub struct Mbox2proClkProtocol;
+
+const IO_OFFSET: u64 = 0xffc700700000;
 
 impl MediaClockFrequencyOperation for Mbox2proClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000];
@@ -53,4 +57,18 @@ impl SamplingClockSourceOperation for Mbox2proClkProtocol {
         // Word clock input or S/PDIF input.
         SignalAddr::Unit(SignalUnitAddr::Ext(0x05)),
     ];
+}
+
+/// The protocol implementation to initialize input/output.
+#[derive(Default)]
+pub struct Mbox2proIoProtocol;
+
+impl Mbox2proIoProtocol {
+    // This takes the unit to process audio signal from stream-input-1/2.
+    pub fn init(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        let mut frame = [0;12];
+        frame[0] = 1;
+        req.transaction_sync(node, FwTcode::WriteBlockRequest, IO_OFFSET, frame.len(), &mut frame,
+                             timeout_ms)
+    }
 }
