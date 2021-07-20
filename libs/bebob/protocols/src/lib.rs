@@ -13,6 +13,7 @@ pub mod behringer;
 pub mod esi;
 pub mod maudio;
 pub mod stanton;
+pub mod roland;
 pub mod yamaha_terratec;
 
 use glib::{Error, FileError};
