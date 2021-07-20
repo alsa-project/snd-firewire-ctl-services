@@ -5,6 +5,18 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Stanton Magnetics for Final Scratch 2 ScratchAmp.
+//!
+//! ## Diagram of internal signal flow
+//!
+//! ```text
+//! analog-input-1/2 -----------------> stream-output-1/2
+//! analog-input-3/4 -----------------> stream-output-3/4
+//! analog-input-5/6 -----------------> stream-output-5/6
+//!
+//! stream-input-1/2 -----------------> analog-output-1/2
+//! stream-input-3/4 -----------------> analog-output-3/4
+//! stream-input-5/6 -----------------> headphone-1/2
+//! ```
 
 use super::*;
 
