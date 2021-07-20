@@ -5,6 +5,37 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by M-Audio FireWire 1814 and ProjectMix I/O.
+//!
+//! ## Diagram of internal signal flow for FireWire 1814 and ProjectMix I/O.
+//!
+//! ```text
+//! analog-input-1/2 ---+-------------------------+--------------------------> stream-output-1/2
+//! analog-input-3/4 ---|-+-----------------------|-+------------------------> stream-output-3/4
+//! analog-input-5/6 ---|-|-+---------------------|-|-+----------------------> stream-output-5/6
+//! analog-input-7/8 ---|-|-|-+-------------------|-|-|-+-----------------+
+//! spdif-input-1/2 ----|-|-|-|-+-----------------|-|-|-|-+---------------+--> stream-output-7/8
+//! adat-input-1/2 -----|-|-|-|-|-+---------------|-|-|-|-|-+----------------> stream-output-9/10
+//! adat-input-3/4 -----|-|-|-|-|-|-+-------------|-|-|-|-|-|-+--------------> stream-output-11/12
+//! adat-input-5/6 -----|-|-|-|-|-|-|-+-----------|-|-|-|-|-|-|-+------------> stream-output-13/14
+//! adat-input-7/8 -----|-|-|-|-|-|-|-|-+---------|-|-|-|-|-|-|-|-+----------> stream-output-15/16
+//!                     | | | | | | | | |         | | | | | | | | |
+//!                     | | | | | | | | |         v v v v v v v v v
+//!                     | | | | | | | | |       ++=================++
+//!  stream-input-1/2 --|-|-|-|-|-|-|-|-|-+---> ||      22x2       ||
+//!  stream-input-3/4 --|-|-|-|-|-|-|-|-|-|-+-> ||    aux mixer    || --+
+//!                     | | | | | | | | | | |   ++=================++   |
+//!                     | | | | | | | | | | |                           |
+//!                     v v v v v v v v v v v                     aux-output-1/2
+//!                   ++=====================++                       | | |
+//!                   ||        22x4         || -- mixer-output-1/2 --+-|-|--> analog-output-1/2
+//!                   ||        mixer        || -- mixer-output-3/4 --|-+-|--> analog-output-1/2
+//!                   ++=====================++                       +-+-+--> headphone-1/2
+//!
+//!  stream-input-5/7 -------------------------------------------------------> digital-output-1/2
+//!  stream-input-7/8 -------------------------------------------------------> digital-output-3/4
+//!  stream-input-9/10 ------------------------------------------------------> digital-output-5/6
+//!  stream-input-11/12 -----------------------------------------------------> digital-output-7/8
+//! ```
 
 use crate::*;
 
