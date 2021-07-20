@@ -48,6 +48,10 @@ impl AvcLrBalanceCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
     const BALANCE_NAME: &'static str = "analog-output-balance";
 }
 
+impl AvcMuteCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
+    const MUTE_NAME: &'static str = "analog-output-mute";
+}
+
 #[derive(Default)]
 struct MonitorSrcCtl;
 
@@ -61,6 +65,10 @@ impl AvcLevelCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
 
 impl AvcLrBalanceCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
     const BALANCE_NAME: &'static str = "monitor-source-balance";
+}
+
+impl AvcMuteCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
+    const MUTE_NAME: &'static str = "monitor-source-mute";
 }
 
 #[derive(Default)]
@@ -87,8 +95,10 @@ impl CtlModel<SndUnit> for FirexonModel {
 
         self.phys_out_ctl.load_level(card_cntr)?;
         self.phys_out_ctl.load_balance(card_cntr)?;
+        self.phys_out_ctl.load_mute(card_cntr)?;
         self.mon_src_ctl.load_level(card_cntr)?;
         self.mon_src_ctl.load_balance(card_cntr)?;
+        self.mon_src_ctl.load_mute(card_cntr)?;
         self.mixer_src_ctl.load_level(card_cntr)?;
 
         Ok(())
@@ -108,9 +118,13 @@ impl CtlModel<SndUnit> for FirexonModel {
             Ok(true)
         } else if self.phys_out_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mon_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mon_src_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mon_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -134,9 +148,13 @@ impl CtlModel<SndUnit> for FirexonModel {
             Ok(true)
         } else if self.phys_out_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.mon_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mon_src_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mon_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
