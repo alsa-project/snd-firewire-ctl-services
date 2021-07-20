@@ -13,6 +13,7 @@ mod esi;
 mod icon;
 mod presonus;
 mod roland;
+mod terratec;
 mod yamaha_terratec;
 
 use nix::sys::signal;
