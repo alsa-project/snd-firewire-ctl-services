@@ -7,3 +7,4 @@
 //! defined by Terratec for some FireWire models.
 
 pub mod aureon;
+pub mod phase88;
