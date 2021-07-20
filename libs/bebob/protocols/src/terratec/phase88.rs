@@ -103,6 +103,19 @@ impl SamplingClockSourceOperation for Phase88ClkProtocol {
     }
 }
 
+/// The protocol implementation of physical input.
+#[derive(Default)]
+pub struct Phase88PhysInputProtocol;
+
+impl AvcSelectorOperation for Phase88PhysInputProtocol {
+    //  NOTE: source of analog-input-7/8
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0a];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[
+        0x00,   // line
+        0x01,   // mic
+    ];
+}
+
 /// The protocol implementation of source of physical input to mixer.
 #[derive(Default)]
 pub struct Phase88MixerPhysSourceProtocol;
@@ -137,6 +150,17 @@ impl AvcLevelOperation for Phase88MixerStreamSourceProtocol {
 
 impl AvcMuteOperation for Phase88MixerStreamSourceProtocol {}
 
+impl AvcSelectorOperation for Phase88MixerStreamSourceProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x07];
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[
+        0x01,   // stream-input-1/2
+        0x02,   // stream-input-3/4
+        0x03,   // stream-input-5/6
+        0x04,   // stream-input-7/8
+        0x00,   // stream-input-9/10
+    ];
+}
+
 /// The protocol implementation of mixer output.
 #[derive(Default)]
 pub struct Phase88MixerOutputProtocol;
@@ -149,3 +173,94 @@ impl AvcLevelOperation for Phase88MixerOutputProtocol {
 }
 
 impl AvcMuteOperation for Phase88MixerOutputProtocol {}
+
+const MIXER_OUT_SELECTOR_FB_ID_LIST: [u8;1] = [0x06];
+
+const MIXER_OUT_SELECTOR_ID_LIST: [u8;6] = [
+    0x01,   // analog-output-1/2
+    0x02,   // analog-output-3/4
+    0x03,   // analog-output-5/6
+    0x04,   // analog-output-7/8
+    0x00,   // digital-output-1/2
+    0x05,   // no destination
+];
+
+const PHYS_OUTPUT_SELECTOR_FB_ID_LIST: [u8;5] = [
+    0x01,   // analog-output-1/2
+    0x02,   // analog-output-3/4
+    0x03,   // analog-output-5/6
+    0x04,   // analog-output-7/8
+    0x05,   // digital-output-1/2
+];
+
+// NOTE: "mixer-output-1/2", "stream-input" corresponds to the channel
+#[allow(dead_code)]
+const PHYS_OUTPUT_SELECTOR_ID_LIST: [u8;2] = [0x00, 0x01];
+
+// NOTE: destination of mixer output.
+impl AvcSelectorOperation for Phase88MixerOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &MIXER_OUT_SELECTOR_FB_ID_LIST;
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &MIXER_OUT_SELECTOR_ID_LIST;
+
+    fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
+        if idx != 0 {
+            let msg = format!("Invalid argument for index of selector: {}", idx);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+        let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST[0];
+
+        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        MIXER_OUT_SELECTOR_ID_LIST.iter()
+            .position(|&input_plug_id| input_plug_id == op.input_plug_id)
+            .ok_or_else(|| {
+                let msg = format!("Unexpected value for index of input plug number: {}",
+                                  op.input_plug_id);
+                Error::new(FileError::Io, &msg)
+            })
+    }
+
+    fn write_selector(avc: &BebobAvc, idx: usize, val: usize, timeout_ms: u32) -> Result<(), Error> {
+        let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of selector: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|func_block_id| *func_block_id)?;
+
+        let input_plug_id = MIXER_OUT_SELECTOR_ID_LIST.iter()
+            .nth(val)
+            .ok_or_else(|| {
+                let msg = format!("Invalid argument for index of input plug number: {}", val);
+                Error::new(FileError::Inval, &msg)
+            })
+            .map(|input_plug_id| *input_plug_id)?;
+
+        let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, input_plug_id);
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        PHYS_OUTPUT_SELECTOR_FB_ID_LIST.iter()
+            .enumerate()
+            .try_for_each(|(i, &func_block_id)| {
+                let plug_id_idx = if input_plug_id == 0x05 {
+                    // The mixer-output-1/2 is not available. Set corresponding stream-input to
+                    // physical outputs as source.
+                    0
+                } else {
+                    if i == idx {
+                        // The mixer-output-1/2 is configured for source of the physical output.
+                        0
+                    } else {
+                        // The stream-input-1/2 is configured for source of the physical output.
+                        1
+                    }
+                };
+
+                let val = PHYS_OUTPUT_SELECTOR_ID_LIST[plug_id_idx];
+                let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, val);
+                avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+            })
+    }
+}
