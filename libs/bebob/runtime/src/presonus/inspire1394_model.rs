@@ -85,6 +85,12 @@ impl AvcMuteCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
     const MUTE_NAME: &'static str = "analog-output-mute";
 }
 
+impl AvcSelectorCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
+    const SELECTOR_NAME: &'static str = "output-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["analog-output-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &["mixer-output-1/2", "stream-input-1/2"];
+}
+
 #[derive(Default)]
 struct HeadphoneCtl;
 
@@ -144,6 +150,7 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         self.phys_in_ctl.load_mute(card_cntr)?;
         self.phys_out_ctl.load_level(card_cntr)?;
         self.phys_out_ctl.load_mute(card_cntr)?;
+        self.phys_out_ctl.load_selector(card_cntr)?;
         self.hp_ctl.load_level(card_cntr)?;
         self.hp_ctl.load_mute(card_cntr)?;
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
@@ -169,6 +176,8 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.hp_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -203,6 +212,8 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.hp_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
