@@ -146,6 +146,7 @@ impl BebobModel {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::BehringerFca610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::DigidesignMbox2pro(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::EsiQuatafire610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::IconFirexon(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioOzonic(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -225,6 +226,7 @@ impl BebobModel {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::BehringerFca610(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::DigidesignMbox2pro(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::EsiQuatafire610(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::IconFirexon(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
