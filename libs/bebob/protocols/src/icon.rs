@@ -75,6 +75,8 @@ impl AvcLevelOperation for FirexonPhysOutputProtocol {
 
 impl AvcLrBalanceOperation for FirexonPhysOutputProtocol {}
 
+impl AvcMuteOperation for FirexonPhysOutputProtocol {}
+
 /// The protocol implementation of source to monitor mixer for physical inputs
 pub struct FirexonMonitorSourceProtocol;
 
@@ -90,6 +92,8 @@ impl AvcLevelOperation for FirexonMonitorSourceProtocol{
 }
 
 impl AvcLrBalanceOperation for FirexonMonitorSourceProtocol {}
+
+impl AvcMuteOperation for FirexonMonitorSourceProtocol {}
 
 /// The protocol implementation of source to mixer for stream input and output of the monitor mixer.
 pub struct FirexonMixerSourceProtocol;
