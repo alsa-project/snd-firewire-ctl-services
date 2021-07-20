@@ -19,7 +19,7 @@ pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;
 pub type Fa101Model = FaModel<Fa101MixerAnalogSourceProtocol>;
 
 #[derive(Default)]
-pub struct FaModel<T: AvcLevelOperation + Default> {
+pub struct FaModel<T: AvcLevelOperation + AvcLrBalanceOperation + Default> {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     analog_in_ctl: MixerAnalogSourceCtl<T>,
@@ -61,6 +61,10 @@ impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol> for MixerAnalogSourceCt
     ];
 }
 
+impl AvcLrBalanceCtlOperation<Fa66MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol> {
+    const BALANCE_NAME: &'static str = "mixer-source-balance";
+}
+
 impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol> {
     const LEVEL_NAME: &'static str = "mixer-source-gain";
 
@@ -71,12 +75,17 @@ impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol> for MixerAnalogSourceC
     ];
 }
 
+impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol> {
+    const BALANCE_NAME: &'static str = "mixer-source-balance";
+}
+
 impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
+        self.analog_in_ctl.load_balance(card_cntr)?;
 
         Ok(())
     }
@@ -87,6 +96,8 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.analog_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.analog_in_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -103,6 +114,8 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.analog_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.analog_in_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -116,6 +129,7 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
 
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
+        self.analog_in_ctl.load_balance(card_cntr)?;
 
         Ok(())
     }
@@ -126,6 +140,8 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.analog_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.analog_in_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -142,6 +158,8 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.analog_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.analog_in_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
