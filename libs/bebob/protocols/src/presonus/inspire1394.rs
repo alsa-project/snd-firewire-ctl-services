@@ -89,7 +89,7 @@ impl AvcLevelOperation for Inspire1394HeadphoneProtocol {
     ];
 }
 
-/// The protocol implementation of mixer source.
+/// The protocol implementation of analog source for mixer.
 #[derive(Default)]
 pub struct Inspire1394MixerAnalogSourceProtocol;
 
@@ -99,6 +99,16 @@ impl AvcLevelOperation for Inspire1394MixerAnalogSourceProtocol {
         (0x03, AudioCh::Each(1)),
         (0x04, AudioCh::Each(0)),
         (0x04, AudioCh::Each(1)),
+    ];
+}
+
+/// The protocol implementation of stream source for mixer.
+#[derive(Default)]
+pub struct Inspire1394MixerStreamSourceProtocol;
+
+impl AvcLevelOperation for Inspire1394MixerStreamSourceProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x05, AudioCh::All),
     ];
 }
 
