@@ -5,6 +5,92 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by M-Audio normal FireWire series.
+//!
+//! ## Diagram of internal signal flow for FireWire 410
+//!
+//! ```text
+//! analog-input-1/2 ---+----------------------+--------------------------> stream-output-1/2
+//! digital-input-1/2 --|-+--------------------|-+------------------------> stream-output-3/4
+//!                     | |                    | |
+//!                     | |                    v v
+//!                     | |                ++=======++
+//!  stream-input-1/2 --|-|-+------------->||       ||
+//!  stream-input-3/4 --|-|-|-+----------->|| 14x 2 ||
+//!  stream-input-5/6 --|-|-|-|-+--------->||  aux  || ---> aux-output-1/2
+//!  stream-input-7/8 --|-|-|-|-|-+------->|| mixer ||        | | | | | |
+//!  stream-input-9/10 -|-|-|-|-|-|-+----->||       ||        | | | | | |
+//!                     | | | | | | |      ++=======++        +-|-|-|-|-|-> analog-output-1/2
+//!                     | | | | | | |                         | | | | | |
+//!                     | | | | | | |      ++=======++        | +-|-|-|-|-> analog-output-3/4
+//!                     | | +-|-|-|-|----> ||       ||        | | | | | |
+//!                     | | | +-|-|-|----> || 10x 2 ||        | | +-|-|-|-> analog-output-5/6
+//!                     | | | | +-|-|----> ||  hp   ||        | | | | | |
+//!                     | | | | | +-|----> || mixer ||        | | | +-|-|-> analog-output-7/8
+//!                     | | | | | | +----> ||       ||        | | | | | |
+//!                     | | | | | | |      ++=======++        | | | | +-|-> digital-output-1/2
+//!                     | | | | | | |           v             | | | | | |
+//!                     | | | | | | |    hp-mixer-output-1/2 -|-|-|-|-|-+-> headphone-1/2
+//!                     v v v v v v v                         | | | | |
+//!                   ++=============++                       | | | | |
+//!                   ||             || -- mixer-output-1/2 --+ | | | |
+//!                   ||    14x10    || -- mixer-output-3/4 ----+ | | |
+//!                   ||             || -- mixer-output-5/6 ------+ | |
+//!                   ||    mixer    || -- mixer-output-7/8 --------+ |
+//!                   ||             || -- mixer-output-9/10 ---------+
+//!                   ++=============++
+//! ```
+//!
+//! ## Diagram of internal signal flow for FireWire Audiophile
+//!
+//! ```text
+//! analog-input-1/2 ---+----------------------+----------------------> stream-output-1/2
+//! digital-input-1/2 --|-+--------------------|-+--------------------> stream-output-3/4
+//!                     | |                    | |
+//!                     | |                    v v
+//!                     | |                ++=======++
+//!  stream-input-1/2 --|-|-+------------->|| 10x2  ||
+//!  stream-input-3/4 --|-|-|-+----------->||  aux  || --> aux-output-1/2
+//!  stream-input-5/6 --|-|-|-|-+--------->|| mixer ||        | | | |
+//!                     | | | | |          ++=======++        +-|-|-|-> analog-output-1/2
+//!                     | | | | |                             | | | |
+//!                     | | | | |                             | +-|-|-> analog-output-3/4
+//!                     | | | | |                             | | | |
+//!                     | | | | |                             | | +-|-> analog-output-5/6
+//!                     | | | | |                             | | | |
+//!                     | | | | |                             | | | +-> headphone-1/2
+//!                     v v v v v                             | | |     (one source only)
+//!                   ++=============++                       | | |       ^   ^   ^
+//!                   ||    10x6     || -- mixer-output-1/2 --+-|-|-------+   |   |
+//!                   ||    mixer    || -- mixer-output-3/4 ----+-|-----------+   |
+//!                   ||             || -- mixer-output-5/6 ------+---------------+
+//!                   ++=============++
+//! ```
+//!
+//! ## Diagram of internal signal flow for FireWire Solo
+//!
+//! ```text
+//! analog-input-1/2 --------+------------------------------> stream-output-1/2
+//! digital-input-1/2 -------|-+----------------------------> stream-output-3/4
+//!                          | |
+//!                          v v
+//!                      ++=======++
+//!  stream-input-1/2 -->||  8x4  || --> mixer-output-1/2 --> analog-output-1/2
+//!  stream-input-3/4 -->|| mixer || --> mixer-output-3/4 --> digital-output-1/2
+//!                      ++=======++
+//! ```
+//!
+//! ## Diagram of internal signal flow for Ozonic
+//!
+//! ```text
+//! analog-input-1/2 --------+------------------------------> stream-output-1/2
+//! analog-input-3/4 --------|-+----------------------------> stream-output-3/4
+//!                          | |
+//!                          v v
+//!                      ++=======++
+//!  stream-input-1/2 -->||  8x4  || --> mixer-output-1/2 --> analog-output-1/2
+//!  stream-input-3/4 -->|| mixer || --> mixer-output-3/4 --> analog-output-3/4
+//!                      ++=======++
+//! ```
 
 use crate::*;
 
