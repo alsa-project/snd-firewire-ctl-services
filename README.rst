@@ -133,6 +133,7 @@ your device, please contact to developer.
   * M-Audio Ozonic
   * M-Audio ProFire LightBridge
   * M-Audio ProjectMix I/O
+  * PreSonus Firebox
   * PreSonus Firepod/FP10
   * PreSonus Inspire 1394
   * Roland Edirol FA-66
