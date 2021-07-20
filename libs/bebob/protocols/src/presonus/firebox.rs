@@ -72,6 +72,8 @@ impl AvcLevelOperation for FireboxPhysOutputProtocol {
     ];
 }
 
+impl AvcMuteOperation for FireboxPhysOutputProtocol {}
+
 /// The protocol implementation of headphone.
 pub struct FireboxHeadphoneProtocol;
 
@@ -81,6 +83,8 @@ impl AvcLevelOperation for FireboxHeadphoneProtocol {
         (0x04, AudioCh::Each(1)),
     ];
 }
+
+impl AvcMuteOperation for FireboxHeadphoneProtocol {}
 
 /// The protocol implementation of physical source for mixer.
 pub struct FireboxMixerPhysSourceProtocol;
@@ -98,6 +102,8 @@ impl AvcLevelOperation for FireboxMixerPhysSourceProtocol {
 
 impl AvcLrBalanceOperation for FireboxMixerPhysSourceProtocol {}
 
+impl AvcMuteOperation for FireboxMixerPhysSourceProtocol {}
+
 /// The protocol implementation of stream source for mixer.
 pub struct FireboxMixerStreamSourceProtocol;
 
@@ -106,6 +112,8 @@ impl AvcLevelOperation for FireboxMixerStreamSourceProtocol {
         (0x08, AudioCh::Each(0)),
     ];
 }
+
+impl AvcMuteOperation for FireboxMixerStreamSourceProtocol {}
 
 /// The protocol implementation of mixer output.
 pub struct FireboxMixerOutputProtocol;
@@ -118,3 +126,5 @@ impl AvcLevelOperation for FireboxMixerOutputProtocol {
 }
 
 impl AvcLrBalanceOperation for FireboxMixerOutputProtocol {}
+
+impl AvcMuteOperation for FireboxMixerOutputProtocol {}
