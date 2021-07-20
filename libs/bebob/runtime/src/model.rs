@@ -16,6 +16,7 @@ use super::maudio::special_model::*;
 use super::behringer::*;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
+use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
 
 pub struct BebobModel {
     ctl_model: Model,
@@ -35,6 +36,10 @@ enum Model {
     MaudioFw1814(Fw1814Model),
     MaudioProjectMix(ProjectMixModel),
     StantonScratchamp(ScratchampModel),
+    TerratecPhase24(GoPhase24CoaxModel),
+    TerratecPhaseX24(GoPhase24OptModel),
+    YamahaGo44(GoPhase24CoaxModel),
+    YamahaGo46(GoPhase24OptModel),
 }
 
 impl BebobModel {
@@ -51,6 +56,10 @@ impl BebobModel {
             (0x000d6c, 0x010071) => Model::MaudioFw1814(Default::default()),
             (0x000d6c, 0x010091) => Model::MaudioProjectMix(Default::default()),
             (0x001260, 0x000001) => Model::StantonScratchamp(Default::default()),
+            (0x000aac, 0x000004) => Model::TerratecPhase24(Default::default()),
+            (0x000aac, 0x000007) => Model::TerratecPhaseX24(Default::default()),
+            (0x00a0de, 0x10000b) => Model::YamahaGo44(Default::default()),
+            (0x00a0de, 0x10000c) => Model::YamahaGo46(Default::default()),
             _ => {
                 return Err(Error::new(FileError::Noent, "Not supported"));
             }
@@ -80,6 +89,10 @@ impl BebobModel {
             Model::MaudioFw1814(m) => m.load(unit, card_cntr),
             Model::MaudioProjectMix(m) => m.load(unit, card_cntr),
             Model::StantonScratchamp(m) => m.load(unit, card_cntr),
+            Model::TerratecPhase24(m) => m.load(unit, card_cntr),
+            Model::TerratecPhaseX24(m) => m.load(unit, card_cntr),
+            Model::YamahaGo44(m) => m.load(unit, card_cntr),
+            Model::YamahaGo46(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.ctl_model {
@@ -106,6 +119,7 @@ impl BebobModel {
             Model::MaudioFw1814(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::MaudioProjectMix(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::StantonScratchamp(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            _ => (),
         }
 
         Ok(())
@@ -127,6 +141,10 @@ impl BebobModel {
             Model::MaudioFw1814(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioProjectMix(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TerratecPhase24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TerratecPhaseX24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::YamahaGo44(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::YamahaGo46(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
         }
     }
 
@@ -161,6 +179,7 @@ impl BebobModel {
             Model::MaudioFw1814(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::MaudioProjectMix(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
             Model::StantonScratchamp(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            _ => Ok(()),
         }
     }
 }

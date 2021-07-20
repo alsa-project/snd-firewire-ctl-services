@@ -10,6 +10,7 @@ mod maudio;
 mod behringer;
 mod stanton;
 mod esi;
+mod yamaha_terratec;
 
 use nix::sys::signal;
 use std::sync::mpsc;
