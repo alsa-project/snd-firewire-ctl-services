@@ -263,6 +263,49 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
     }
 }
 
+/// The trait of mute operation for audio function blocks.
+pub trait AvcMuteOperation: AvcLevelOperation {
+    fn read_mute(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of function block list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            audio_ch,
+            FeatureCtl::Mute(vec![false]),
+        );
+        avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
+
+        if let FeatureCtl::Mute(data) = op.ctl {
+            Ok(data[0])
+        } else {
+            unreachable!();
+        }
+    }
+
+    fn write_mute(avc: &BebobAvc, idx: usize, mute: bool, timeout_ms: u32) -> Result<(), Error> {
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
+            .nth(idx)
+            .ok_or_else(|| {
+                let msg = format!("Invalid index of function block list: {}", idx);
+                Error::new(FileError::Inval, &msg)
+            })?;
+
+        let mut op = AudioFeature::new(
+            func_block_id,
+            CtlAttr::Current,
+            audio_ch,
+            FeatureCtl::Mute(vec![mute]),
+        );
+        avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
+    }
+}
+
 /// The trait of select operation for audio function block.
 pub trait AvcSelectorOperation {
     const FUNC_BLOCK_ID_LIST: &'static [u8];
