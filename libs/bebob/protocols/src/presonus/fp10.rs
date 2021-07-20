@@ -68,3 +68,5 @@ impl AvcLevelOperation for Fp10PhysOutputProtocol {
 }
 
 impl AvcLrBalanceOperation for Fp10PhysOutputProtocol {}
+
+impl AvcMuteOperation for Fp10PhysOutputProtocol {}
