@@ -10,20 +10,33 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
 
-use bebob_protocols::*;
+use bebob_protocols::{*, terratec::aureon::*};
+
+use crate::common_ctls::*;
 
 #[derive(Default)]
 pub struct AureonModel {
     avc: BebobAvc,
+    clk_ctl: ClkCtl,
 }
+
+const FCP_TIMEOUT_MS: u32 = 100;
+
+#[derive(Default)]
+struct ClkCtl(Vec<ElemId>);
+
+impl MediaClkFreqCtlOperation<AureonClkProtocol> for ClkCtl {}
 
 impl CtlModel<SndUnit> for AureonModel {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        _: &mut CardCntr,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
+
+        self.clk_ctl.load_freq(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -31,19 +44,58 @@ impl CtlModel<SndUnit> for AureonModel {
     fn read(
         &mut self,
         _: &mut SndUnit,
-        _: &ElemId,
-        _: &mut ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     fn write(
         &mut self,
-        _: &mut SndUnit,
-        _: &ElemId,
-        _: &ElemValue,
-        _: &ElemValue,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl NotifyModel<SndUnit, bool> for AureonModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.clk_ctl.0);
+    }
+
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alsactl::CardError;
+
+    #[test]
+    fn test_clk_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+        let mut ctl = ClkCtl::default();
+
+        let error = ctl.load_freq(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
