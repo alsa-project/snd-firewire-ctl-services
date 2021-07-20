@@ -69,6 +69,10 @@ impl AvcLevelCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
     ];
 }
 
+impl AvcMuteCtlOperation<Inspire1394PhysInputProtocol> for PhysInputCtl {
+    const MUTE_NAME: &'static str = "analog-input-mute";
+}
+
 #[derive(Default)]
 struct PhysOutputCtl;
 
@@ -77,12 +81,20 @@ impl AvcLevelCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
     const PORT_LABELS: &'static [&'static str] = &["analog-output-1", "analog-output-2"];
 }
 
+impl AvcMuteCtlOperation<Inspire1394PhysOutputProtocol> for PhysOutputCtl {
+    const MUTE_NAME: &'static str = "analog-output-mute";
+}
+
 #[derive(Default)]
 struct HeadphoneCtl;
 
 impl AvcLevelCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
     const LEVEL_NAME: &'static str = "headphone-volume";
     const PORT_LABELS: &'static [&'static str] = &["headphone-1", "headphone-2"];
+}
+
+impl AvcMuteCtlOperation<Inspire1394HeadphoneProtocol> for HeadphoneCtl {
+    const MUTE_NAME: &'static str = "headphone-mute";
 }
 
 #[derive(Default)]
@@ -97,6 +109,10 @@ impl AvcLevelCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSou
 
 impl AvcLrBalanceCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
     const BALANCE_NAME: &'static str = "mixer-analog-source-balance";
+}
+
+impl AvcMuteCtlOperation<Inspire1394MixerAnalogSourceProtocol> for MixerPhysSourceCtl {
+    const MUTE_NAME: &'static str = "mixer-analog-source-mute";
 }
 
 #[derive(Default)]
@@ -121,10 +137,14 @@ impl CtlModel<SndUnit> for Inspire1394Model {
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_in_ctl.load_level(card_cntr)?;
+        self.phys_in_ctl.load_mute(card_cntr)?;
         self.phys_out_ctl.load_level(card_cntr)?;
+        self.phys_out_ctl.load_mute(card_cntr)?;
         self.hp_ctl.load_level(card_cntr)?;
+        self.hp_ctl.load_mute(card_cntr)?;
         self.mixer_phys_src_ctl.load_level(card_cntr)?;
         self.mixer_phys_src_ctl.load_balance(card_cntr)?;
+        self.mixer_phys_src_ctl.load_mute(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
 
         Ok(())
@@ -139,13 +159,21 @@ impl CtlModel<SndUnit> for Inspire1394Model {
             Ok(true)
         } else if self.phys_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_in_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.hp_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_phys_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -163,13 +191,21 @@ impl CtlModel<SndUnit> for Inspire1394Model {
             Ok(true)
         } else if self.phys_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_in_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.hp_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_phys_src_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_phys_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
