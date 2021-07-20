@@ -16,6 +16,9 @@ use super::common_ctls::*;
 pub struct GoPhase24CoaxModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
+    phys_in_ctl: CoaxPhysInputCtl,
+    phys_out_ctl: CoaxPhysOutputCtl,
+    hp_ctl: CoaxHeadphoneCtl,
     mixer_src_ctl: MixerSourceCtl,
     mixer_out_ctl: CoaxMixerOutputCtl,
 }
@@ -59,6 +62,47 @@ impl AvcMuteCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
 }
 
 #[derive(Default)]
+struct CoaxPhysInputCtl;
+
+impl AvcSelectorCtlOperation<GoPhase24CoaxPhysInputProtocol> for CoaxPhysInputCtl {
+    const SELECTOR_NAME: &'static str = "analog-input-level";
+    const SELECTOR_LABELS: &'static [&'static str] = &["analog-input-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &["low", "middle", "high"];
+}
+
+#[derive(Default)]
+struct CoaxPhysOutputCtl;
+
+impl AvcSelectorCtlOperation<GoPhase24CoaxPhysOutputProtocol> for CoaxPhysOutputCtl {
+    const SELECTOR_NAME: &'static str = "phys-output-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["analog-output-1/2", "analog-output-3/4"];
+    const ITEM_LABELS: &'static [&'static str] = &[
+        "stream-input-1/2",
+        "stream-input-3/4",
+        "analog-input-1/2",
+        "digital-input-1/2",
+        "mixer-output-1/2",
+        "stream-input-5/6",
+    ];
+}
+
+#[derive(Default)]
+struct CoaxHeadphoneCtl;
+
+impl AvcSelectorCtlOperation<GoPhase24CoaxHeadphoneProtocol> for CoaxHeadphoneCtl {
+    const SELECTOR_NAME: &'static str = "headphone-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &["headphone-1/2"];
+    const ITEM_LABELS: &'static [&'static str] = &[
+        "stream-input-1/2",
+        "stream-input-3/4",
+        "analog-input-1/2",
+        "digital-input-1/2",
+        "mixer-output-1/2",
+        "stream-input-5/6",
+    ];
+}
+
+#[derive(Default)]
 struct OptPhysOutputCtl;
 
 impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
@@ -70,6 +114,23 @@ impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
 
 impl AvcMuteCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
     const MUTE_NAME: &'static str = "phys-output-mute";
+}
+
+impl AvcSelectorCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
+    const SELECTOR_NAME: &'static str = "phys-output-source";
+    const SELECTOR_LABELS: &'static [&'static str] = &[
+        "analog-output-1/2",
+        "analog-output-3/4",
+        "digital-output-1/2",
+    ];
+    const ITEM_LABELS: &'static [&'static str] = &[
+        "stream-input-1/2",
+        "stream-input-3/4",
+        "analog-input-1/2",
+        "digital-input-1/2",
+        "mixer-output-1/2",
+        "stream-input-5/6",
+    ];
 }
 
 #[derive(Default)]
@@ -106,6 +167,9 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
         self.clk_ctl.load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_in_ctl.load_selector(card_cntr)?;
+        self.phys_out_ctl.load_selector(card_cntr)?;
+        self.hp_ctl.load_selector(card_cntr)?;
         self.mixer_src_ctl.load_level(card_cntr)?;
         self.mixer_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
@@ -120,6 +184,12 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_in_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.hp_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -141,6 +211,12 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.phys_in_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
+        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
+        } else if self.hp_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
         } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
         } else if self.mixer_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
@@ -183,6 +259,7 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
 
         self.phys_out_ctl.load_level(card_cntr)?;
         self.phys_out_ctl.load_mute(card_cntr)?;
+        self.phys_out_ctl.load_selector(card_cntr)?;
         self.mixer_src_ctl.load_level(card_cntr)?;
         self.mixer_src_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_level(card_cntr)?;
@@ -201,6 +278,8 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
         } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -225,6 +304,8 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
         } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
         } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+             Ok(true)
+        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
         } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
              Ok(true)
@@ -288,6 +369,27 @@ mod test {
 
         let ctl = OptMixerOutputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_selector_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = CoaxPhysInputCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = CoaxPhysOutputCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = CoaxHeadphoneCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = OptPhysOutputCtl::default();
+        let error = ctl.load_selector(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
