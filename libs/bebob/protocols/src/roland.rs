@@ -5,6 +5,22 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Roland for Edirol FA series.
+//!
+//! ## Diagram of internal signal flow for FA-66
+//!
+//! ```text
+//! analog-input-1/2  ----------+--------------> stream-output-1/2
+//! analog-input-3/4  ----------|-+------------> stream-output-3/4
+//! digital-input-1/2 ----------|-|-+----------> stream-output-5/6
+//!                             | | |
+//!                             v v v
+//!                          ++=======++
+//! stream-input-1/2 ------> || 8 x 2 ||
+//!                          || mixer ||-------> analog-output-1/2
+//!                          ++=======++
+//! stream-input-3/4 --------------------------> analog-output-3/4
+//! stream-input-5/6 --------------------------> digital-output-1/2
+//! ```
 
 use super::*;
 
@@ -28,5 +44,43 @@ impl SamplingClockSourceOperation for FaClkProtocol {
             subunit: MUSIC_SUBUNIT_0,
             plug_id: 0x05,
         }),
+    ];
+}
+
+// NOTE: Mute function in Feature control of audio function block has no effect.
+
+/// The protocol implementation for physical input of FA-66. Any operation is effective when
+/// enabling hardware switch with 'SOFT CTRL'.
+#[derive(Default)]
+pub struct Fa66MixerAnalogSourceProtocol;
+
+impl AvcLevelOperation for Fa66MixerAnalogSourceProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)),
+        (0x01, AudioCh::Each(1)),
+        (0x02, AudioCh::Each(0)),
+        (0x02, AudioCh::Each(1)),
+        (0x03, AudioCh::Each(0)),
+        (0x03, AudioCh::Each(1)),
+    ];
+}
+
+/// The protocol implementation for physical input of FA-101. Any operation is effective when
+/// enabling hardware switch with 'SOFT CTRL'.
+#[derive(Default)]
+pub struct Fa101MixerAnalogSourceProtocol;
+
+impl AvcLevelOperation for Fa101MixerAnalogSourceProtocol {
+    const ENTRIES: &'static [(u8, AudioCh)] = &[
+        (0x01, AudioCh::Each(0)),
+        (0x01, AudioCh::Each(1)),
+        (0x02, AudioCh::Each(0)),
+        (0x02, AudioCh::Each(1)),
+        (0x03, AudioCh::Each(0)),
+        (0x03, AudioCh::Each(1)),
+        (0x04, AudioCh::Each(0)),
+        (0x04, AudioCh::Each(1)),
+        (0x05, AudioCh::Each(0)),
+        (0x05, AudioCh::Each(1)),
     ];
 }
