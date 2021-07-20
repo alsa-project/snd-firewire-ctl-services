@@ -66,3 +66,5 @@ impl AvcLevelOperation for Fp10PhysOutputProtocol {
         (0x04, AudioCh::Each(1)),
     ];
 }
+
+impl AvcLrBalanceOperation for Fp10PhysOutputProtocol {}
