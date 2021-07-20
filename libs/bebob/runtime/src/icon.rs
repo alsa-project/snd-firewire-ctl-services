@@ -18,6 +18,9 @@ use crate::common_ctls::*;
 pub struct FirexonModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
+    phys_out_ctl: PhysOutputCtl,
+    mon_src_ctl: MonitorSrcCtl,
+    mixer_src_ctl: MixerSrcCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -29,6 +32,35 @@ impl MediaClkFreqCtlOperation<FirexonClkProtocol> for ClkCtl {}
 
 impl SamplingClkSrcCtlOperation<FirexonClkProtocol> for ClkCtl {
     const SRC_LABELS: &'static [&'static str] = &["Internal", "S/PDIF"];
+}
+
+#[derive(Default)]
+struct PhysOutputCtl;
+
+impl AvcLevelCtlOperation<FirexonPhysOutputProtocol> for PhysOutputCtl {
+    const LEVEL_NAME: &'static str = "analog-output-volume";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
+    ];
+}
+
+#[derive(Default)]
+struct MonitorSrcCtl;
+
+impl AvcLevelCtlOperation<FirexonMonitorSourceProtocol> for MonitorSrcCtl {
+    const LEVEL_NAME: &'static str = "monitor-source-gain";
+    const PORT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "digital-input-1", "digital-input-2",
+    ];
+}
+
+#[derive(Default)]
+struct MixerSrcCtl;
+
+impl AvcLevelCtlOperation<FirexonMixerSourceProtocol> for MixerSrcCtl {
+    const LEVEL_NAME: &'static str = "mixer-source-gain";
+    const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2", "monitor-output-1/2"];
 }
 
 impl CtlModel<SndUnit> for FirexonModel {
@@ -45,6 +77,10 @@ impl CtlModel<SndUnit> for FirexonModel {
         self.clk_ctl.load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
+        self.phys_out_ctl.load_level(card_cntr)?;
+        self.mon_src_ctl.load_level(card_cntr)?;
+        self.mixer_src_ctl.load_level(card_cntr)?;
+
         Ok(())
     }
 
@@ -57,6 +93,12 @@ impl CtlModel<SndUnit> for FirexonModel {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mon_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -73,6 +115,12 @@ impl CtlModel<SndUnit> for FirexonModel {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mon_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -110,6 +158,23 @@ mod test {
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
         let error = ctl.load_src(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_level_ctl_definition() {
+        let mut card_cntr = CardCntr::new();
+
+        let ctl = PhysOutputCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = MonitorSrcCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+
+        let ctl = MixerSrcCtl::default();
+        let error = ctl.load_level(&mut card_cntr).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
