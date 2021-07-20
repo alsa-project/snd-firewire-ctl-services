@@ -296,6 +296,7 @@ pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>: AvcLevel
         }
     }
 }
+
 /// The trait for operation to selector control.
 pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
     const SELECTOR_NAME: &'static str;

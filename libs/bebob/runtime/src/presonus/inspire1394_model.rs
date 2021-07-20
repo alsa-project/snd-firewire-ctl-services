@@ -123,6 +123,10 @@ impl AvcLevelCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamS
     const PORT_LABELS: &'static [&'static str] = &["stream-input-1/2"];
 }
 
+impl AvcMuteCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSourceCtl {
+    const MUTE_NAME: &'static str = "mixer-stream-source-mute";
+}
+
 impl CtlModel<SndUnit> for Inspire1394Model {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
@@ -146,6 +150,7 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         self.mixer_phys_src_ctl.load_balance(card_cntr)?;
         self.mixer_phys_src_ctl.load_mute(card_cntr)?;
         self.mixer_stream_src_ctl.load_level(card_cntr)?;
+        self.mixer_stream_src_ctl.load_mute(card_cntr)?;
 
         Ok(())
     }
@@ -176,6 +181,8 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         } else if self.mixer_phys_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -208,6 +215,8 @@ impl CtlModel<SndUnit> for Inspire1394Model {
         } else if self.mixer_phys_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_stream_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
