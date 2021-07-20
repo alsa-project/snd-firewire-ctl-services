@@ -82,6 +82,12 @@ impl AvcLevelOperation for Inspire1394PhysOutputProtocol {
 
 impl AvcMuteOperation for Inspire1394PhysOutputProtocol {}
 
+impl AvcSelectorOperation for Inspire1394PhysOutputProtocol {
+    const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x01];
+    // NOTE: "mixer-output-1/2", "stream-input-1/2"
+    const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
+}
+
 /// The protocol implementation of headphone.
 #[derive(Default)]
 pub struct Inspire1394HeadphoneProtocol;
