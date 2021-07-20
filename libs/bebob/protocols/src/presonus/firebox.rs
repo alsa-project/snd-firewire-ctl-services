@@ -96,6 +96,8 @@ impl AvcLevelOperation for FireboxMixerPhysSourceProtocol {
     ];
 }
 
+impl AvcLrBalanceOperation for FireboxMixerPhysSourceProtocol {}
+
 /// The protocol implementation of stream source for mixer.
 pub struct FireboxMixerStreamSourceProtocol;
 
@@ -114,3 +116,5 @@ impl AvcLevelOperation for FireboxMixerOutputProtocol {
         (0x09, AudioCh::Each(1)),
     ];
 }
+
+impl AvcLrBalanceOperation for FireboxMixerOutputProtocol {}
