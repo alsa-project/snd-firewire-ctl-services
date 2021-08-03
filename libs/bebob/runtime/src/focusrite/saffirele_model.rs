@@ -22,6 +22,7 @@ pub struct SaffireLeModel {
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
+    specific_ctl: SpecificCtl,
 }
 
 // NOTE: At 88.2/96.0 kHz, AV/C transaction takes more time than 44.1/48.0 kHz.
@@ -55,6 +56,9 @@ impl AsMut<SaffireOutputParameters> for OutputCtl {
     }
 }
 
+#[derive(Default)]
+struct SpecificCtl(SaffireLeSpecificParameters);
+
 impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
         "analog-output-1/2", "analog-output-3/4", "analog-output-5/6",
@@ -81,6 +85,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
+        self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -97,6 +103,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.specific_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -115,6 +123,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -275,6 +285,69 @@ impl MeterCtl {
             METER_DIG_INPUT_DETECT_NAME => {
                 elem_value.set_bool(&[self.1.dig_input_detect]);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const ANALOG_INPUT_2_3_HIGH_GAIN: &str = "analog-input-2/3-high-gain";
+
+impl SpecificCtl {
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Card,
+            0,
+            0,
+            ANALOG_INPUT_2_3_HIGH_GAIN,
+            0,
+        );
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 2, false)?;
+
+        SaffireLeSpecificProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            ANALOG_INPUT_2_3_HIGH_GAIN => {
+                elem_value.set_bool(&self.0.analog_input_2_3_high_gains);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            ANALOG_INPUT_2_3_HIGH_GAIN => {
+                let mut vals = [false; 2];
+                elem_value.get_bool(&mut vals);
+                SaffireLeSpecificProtocol::write_analog_input_high_gains(
+                    req,
+                    &unit.get_node(),
+                    &vals,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
