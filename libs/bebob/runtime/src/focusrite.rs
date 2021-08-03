@@ -7,7 +7,7 @@ pub mod saffirepro10io_model;
 pub mod saffire_model;
 pub mod saffirele_model;
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
@@ -19,7 +19,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr::CardCntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use bebob_protocols::focusrite::{*, saffireproio::*};
+use bebob_protocols::focusrite::{*, saffire::*, saffireproio::*};
 
 use crate::model::{CLK_RATE_NAME, CLK_SRC_NAME};
 
@@ -381,4 +381,199 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
             _ => Ok(false),
         }
     }
+}
+
+trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
+AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
+{
+    const PHYS_INPUT_GAIN_NAME: &'static str;
+    const REVERB_RETURN_GAIN_NAME: &'static str;
+    const STREAM_SRC_GAIN_NAME: &'static str;
+
+    const MIXER_MODE: SaffireMixerMode;
+
+    fn load_src_levels(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        mixer_mode: SaffireMixerMode,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        *self.as_mut() = T::create_mixer_state();
+
+        let mut measured_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            Self::PHYS_INPUT_GAIN_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::OUTPUT_PAIR_COUNT,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::PHYS_INPUT_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            Self::REVERB_RETURN_GAIN_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::OUTPUT_PAIR_COUNT,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::REVERB_RETURN_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            Self::STREAM_SRC_GAIN_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::OUTPUT_PAIR_COUNT,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::STREAM_INPUT_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        if Self::MIXER_MODE == mixer_mode {
+            T::read_mixer_state(req, &unit.get_node(), self.as_mut(), timeout_ms)?;
+        }
+
+        Ok(measured_elem_id_list)
+    }
+
+    fn write_state(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
+        T::write_mixer_state(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    }
+
+    fn read_src_levels(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        let name = elem_id.get_name();
+
+        if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
+            read_mixer_src_levels(elem_value, elem_id, &self.as_ref().phys_inputs)
+        } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
+            read_mixer_src_levels(elem_value, elem_id, &self.as_ref().reverb_returns)
+        } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
+            read_mixer_src_levels(elem_value, elem_id, &self.as_ref().stream_inputs)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write_src_levels(
+        &mut self,
+        mixer_mode: SaffireMixerMode,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        let name = &elem_id.get_name();
+
+        if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
+            if Self::MIXER_MODE != mixer_mode {
+                Err(Error::new(FileError::Inval, "Not available at current mixer mode"))
+            } else {
+                let mut vals = vec![0i32; T::PHYS_INPUT_COUNT];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
+                    levels.push(v as i16);
+                    levels
+                });
+                let index = elem_id.get_index() as usize;
+                T::write_phys_inputs(req, &unit.get_node(), index, &levels, self.as_mut(),
+                                     timeout_ms)
+                    .map(|_| true)
+            }
+        } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
+            if Self::MIXER_MODE != mixer_mode {
+                Err(Error::new(FileError::Inval, "Not available at current mixer mode"))
+            } else {
+                let mut vals = vec![0i32; T::REVERB_RETURN_COUNT];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
+                    levels.push(v as i16);
+                    levels
+                });
+                let index = elem_id.get_index() as usize;
+                T::write_reverb_returns(req, &unit.get_node(), index, &levels, self.as_mut(),
+                                        timeout_ms)
+                    .map(|_| true)
+            }
+        } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
+            if Self::MIXER_MODE != mixer_mode {
+                Err(Error::new(FileError::Inval, "Not available at current mixer mode"))
+            } else {
+                let mut vals = vec![0i32; T::STREAM_INPUT_COUNT];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
+                    levels.push(v as i16);
+                    levels
+                });
+                let index = elem_id.get_index() as usize;
+                T::write_stream_inputs(req, &unit.get_node(), index, &levels, self.as_mut(),
+                                       timeout_ms)
+                    .map(|_| true)
+            }
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+fn read_mixer_src_levels(
+    elem_value: &mut ElemValue,
+    elem_id: &ElemId,
+    levels_list: &[Vec<i16>],
+) -> Result<bool, Error> {
+    let index = elem_id.get_index() as usize;
+    levels_list.iter()
+        .nth(index)
+        .ok_or_else(|| {
+            let msg = format!("Invalid index of source level list {}", index);
+            Error::new(FileError::Inval, &msg)
+        })
+        .map(|levels| {
+            let vals: Vec<i32> = levels.iter()
+                .fold(Vec::new(), |mut vals, &level| {
+                    vals.push(level as i32);
+                    vals
+                });
+            elem_value.set_int(&vals);
+            true
+        })
 }
