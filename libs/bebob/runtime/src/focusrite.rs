@@ -656,3 +656,191 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
         }
     }
 }
+
+const PRO_MONITOR_ANALOG_INPUT_NAME: &str = "monitor:analog-input";
+const PRO_MONITOR_SPDIF_INPUT_NAME: &str = "monitor:spdif-input";
+const PRO_MONITOR_ADAT_INPUT_NAME: &str = "monitor:adat-input";
+
+trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
+AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
+{
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        *self.as_mut() = T::create_params();
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            PRO_MONITOR_ANALOG_INPUT_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                self.as_ref().analog_inputs.len(),
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                self.as_ref().analog_inputs[0].len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            PRO_MONITOR_SPDIF_INPUT_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                self.as_ref().spdif_inputs.len(),
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                self.as_ref().spdif_inputs[0].len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        if let Some(adat_inputs) = self.as_ref().adat_inputs {
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Mixer,
+                0,
+                0,
+                PRO_MONITOR_ADAT_INPUT_NAME,
+                0,
+            );
+            card_cntr
+                .add_int_elems(
+                    &elem_id,
+                    adat_inputs.len(),
+                    T::LEVEL_MIN as i32,
+                    T::LEVEL_MAX as i32,
+                    T::LEVEL_STEP as i32,
+                    adat_inputs[0].len(),
+                    Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                    true,
+                )
+                .map(|_| ())?;
+        }
+
+        T::read_params(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    }
+
+    fn read_params(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            PRO_MONITOR_ANALOG_INPUT_NAME => {
+                let idx = elem_id.get_index() as usize;
+                let vals: Vec<i32> = self.as_ref().analog_inputs[idx].iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            PRO_MONITOR_SPDIF_INPUT_NAME => {
+                let idx = elem_id.get_index() as usize;
+                let vals: Vec<i32> = self.as_ref().spdif_inputs[idx].iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            PRO_MONITOR_ADAT_INPUT_NAME => {
+                if let Some(adat_inputs) = self.as_ref().adat_inputs {
+                    let idx = elem_id.get_index() as usize;
+                    let vals: Vec<i32> = adat_inputs[idx].iter()
+                        .map(|&val| val as i32)
+                        .collect();
+                    elem_value.set_int(&vals);
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            PRO_MONITOR_ANALOG_INPUT_NAME => {
+                let idx = elem_id.get_index() as usize;
+                let mut vals = vec![0; self.as_ref().analog_inputs[idx].len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter()
+                    .map(|&level| level as i16)
+                    .collect();
+                T::write_analog_inputs(
+                    req,
+                    &unit.get_node(),
+                    idx,
+                    &levels,
+                    self.as_mut(),
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            PRO_MONITOR_SPDIF_INPUT_NAME => {
+                let idx = elem_id.get_index() as usize;
+                let mut vals = vec![0; self.as_ref().spdif_inputs[idx].len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter()
+                    .map(|&level| level as i16)
+                    .collect();
+                T::write_spdif_inputs(
+                    req,
+                    &unit.get_node(),
+                    idx,
+                    &levels,
+                    self.as_mut(),
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            PRO_MONITOR_ADAT_INPUT_NAME => {
+                if T::HAS_ADAT {
+                    let mut vals = vec![0; 8];
+                    elem_value.get_int(&mut vals);
+                    let levels: Vec<i16> = vals.iter()
+                        .map(|&level| level as i16)
+                        .collect();
+                    let idx = elem_id.get_index() as usize;
+                    T::write_adat_inputs(
+                        req,
+                        &unit.get_node(),
+                        idx,
+                        &levels,
+                        self.as_mut(),
+                        timeout_ms,
+                    )
+                        .map(|_| true)
+                } else {
+                    Ok(false)
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+}

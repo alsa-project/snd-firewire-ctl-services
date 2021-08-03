@@ -22,6 +22,7 @@ pub struct SaffirePro10ioModel {
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
     through_ctl: ThroughCtl,
+    monitor_ctl: MonitorCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -76,6 +77,23 @@ struct ThroughCtl;
 
 impl SaffireThroughCtlOperation<SaffireProioThroughProtocol> for ThroughCtl {}
 
+#[derive(Default)]
+struct MonitorCtl(SaffireProioMonitorParameters);
+
+impl AsRef<SaffireProioMonitorParameters> for MonitorCtl {
+    fn as_ref(&self) -> &SaffireProioMonitorParameters {
+        &self.0
+    }
+}
+
+impl AsMut<SaffireProioMonitorParameters> for MonitorCtl {
+    fn as_mut(&mut self) -> &mut SaffireProioMonitorParameters {
+        &mut self.0
+    }
+}
+
+impl SaffireProioMonitorCtlOperation<SaffirePro10ioMonitorProtocol> for MonitorCtl {}
+
 impl CtlModel<SndUnit> for SaffirePro10ioModel {
     fn load(
         &mut self,
@@ -98,6 +116,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
 
         self.through_ctl.load_params(card_cntr)?;
 
+        self.monitor_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -116,6 +136,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.through_ctl.read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.monitor_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -136,6 +158,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.through_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.monitor_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
