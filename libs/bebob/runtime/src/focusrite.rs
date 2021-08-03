@@ -153,16 +153,8 @@ AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
     ) -> Result<Vec<ElemId>, Error> {
         let mut measured_elem_id_list = Vec::new();
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_KNOB_VALUE_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            0,
-            u8::MIN as i32,
-            1,
-            1,
-            None,
-        false)
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MONITOR_KNOB_VALUE_NAME, 0);
+        card_cntr.add_int_elems(&elem_id, 1, 0, u8::MIN as i32, 1, 1, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_LED_NAME, 0);
@@ -176,7 +168,7 @@ AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
         let labels: Vec<&str> = T::SRC_LIST.iter()
             .map(|s| sampling_clk_src_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, EFFECTIVE_CLOCK_SRC_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id| measured_elem_id_list.append(&mut elem_id))?;
@@ -1006,6 +998,157 @@ impl SaffireProioMixerCtl {
                     &mut self.0,
                     timeout_ms,
                 )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const HEAD_ROOM_NAME: &str = "head-room";
+const PHANTOM_POWERING_NAME: &str = "phantom-powering";
+const INSERT_SWAP_NAME: &str = "insert-swap";
+const STANDALONE_MODE_NAME: &str = "standalone-mode";
+const ADAT_ENABLE_NAME: &str = "adat-enable";
+const DIRECT_MONITORING_NAME: &str = "direct-monitoring";
+
+fn standalone_mode_to_str(mode: &SaffireProioStandaloneMode) -> &str {
+    match mode {
+        SaffireProioStandaloneMode::Mix => "mix",
+        SaffireProioStandaloneMode::Track => "track",
+    }
+}
+
+trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
+AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
+{
+    const STANDALONE_MODES: [SaffireProioStandaloneMode; 2] = [
+        SaffireProioStandaloneMode::Mix,
+        SaffireProioStandaloneMode::Track,
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, HEAD_ROOM_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        if T::PHANTOM_POWERING_COUNT > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PHANTOM_POWERING_NAME, 0);
+            card_cntr.add_bool_elems(&elem_id, 1, 2, true)?;
+        }
+
+        if T::INSERT_SWAP_COUNT > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INSERT_SWAP_NAME, 0);
+            card_cntr.add_bool_elems(&elem_id, 1, 2, true)?;
+        }
+
+        let labels: Vec<&str> = Self::STANDALONE_MODES.iter()
+            .map(|m| standalone_mode_to_str(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ADAT_ENABLE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIRECT_MONITORING_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        *self.as_mut() = T::create_params();
+        T::read_params(req, &unit.get_node(), self.as_mut(),timeout_ms)
+    }
+
+    fn read_params(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            HEAD_ROOM_NAME => {
+                elem_value.set_bool(&[self.as_ref().head_room]);
+                Ok(true)
+            }
+            PHANTOM_POWERING_NAME => {
+                elem_value.set_bool(&self.as_ref().phantom_powerings);
+                Ok(true)
+            }
+            INSERT_SWAP_NAME => {
+                elem_value.set_bool(&self.as_ref().insert_swaps);
+                Ok(true)
+            }
+            STANDALONE_MODE_NAME => {
+                let pos = Self::STANDALONE_MODES.iter()
+                    .position(|m| m.eq(&self.as_ref().standalone_mode))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            ADAT_ENABLE_NAME => {
+                elem_value.set_bool(&[self.as_ref().adat_enabled]);
+                Ok(true)
+            }
+            DIRECT_MONITORING_NAME => {
+                elem_value.set_bool(&[self.as_ref().direct_monitoring]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            HEAD_ROOM_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                T::write_head_room(req, &unit.get_node(), vals[0], self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            PHANTOM_POWERING_NAME => {
+                let mut vals = self.as_ref().phantom_powerings.clone();
+                elem_value.get_bool(&mut vals);
+                T::write_phantom_powerings(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            INSERT_SWAP_NAME => {
+                let mut vals = self.as_ref().insert_swaps.clone();
+                elem_value.get_bool(&mut vals);
+                T::write_insert_swaps(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            STANDALONE_MODE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &mode = Self::STANDALONE_MODES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of standalone mode: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                T::write_standalone_mode(req, &unit.get_node(), mode, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            ADAT_ENABLE_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                T::write_adat_enable(req, &unit.get_node(), vals[0], self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            DIRECT_MONITORING_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                T::write_direct_monitoring(req, &unit.get_node(), vals[0], self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),

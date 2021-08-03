@@ -24,6 +24,7 @@ pub struct SaffirePro26ioModel {
     through_ctl: ThroughCtl,
     monitor_ctl: MonitorCtl,
     mixer_ctl: SaffireProioMixerCtl,
+    specific_ctl: SpecificCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -94,6 +95,23 @@ impl AsMut<SaffireProioMonitorParameters> for MonitorCtl {
 
 impl SaffireProioMonitorCtlOperation<SaffirePro26ioMonitorProtocol> for MonitorCtl {}
 
+#[derive(Default)]
+struct SpecificCtl(SaffireProioSpecificParameters);
+
+impl AsRef<SaffireProioSpecificParameters> for SpecificCtl {
+    fn as_ref(&self) -> &SaffireProioSpecificParameters {
+        &self.0
+    }
+}
+
+impl AsMut<SaffireProioSpecificParameters> for SpecificCtl {
+    fn as_mut(&mut self) -> &mut SaffireProioSpecificParameters {
+        &mut self.0
+    }
+}
+
+impl SaffireProioSpecificCtlOperation<SaffirePro26ioSpecificProtocol> for SpecificCtl {}
+
 impl CtlModel<SndUnit> for SaffirePro26ioModel {
     fn load(
         &mut self,
@@ -120,6 +138,8 @@ impl CtlModel<SndUnit> for SaffirePro26ioModel {
 
         self.mixer_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
+        self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -142,6 +162,8 @@ impl CtlModel<SndUnit> for SaffirePro26ioModel {
         } else if self.monitor_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.specific_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -166,6 +188,8 @@ impl CtlModel<SndUnit> for SaffirePro26ioModel {
         } else if self.monitor_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
