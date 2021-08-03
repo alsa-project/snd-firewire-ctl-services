@@ -80,6 +80,72 @@ impl SamplingClockSourceOperation for SaffireClkProtocol {
     ];
 }
 
+/// The structure for meter in Saffire.
+#[derive(Debug, Default)]
+pub struct SaffireMeter {
+    pub phys_inputs: [i32; 4],
+    pub dig_input_detect: bool,
+}
+
+/// The protocol implementation of metering in Saffire.
+#[derive(Default)]
+pub struct SaffireMeterProtocol;
+
+impl SaffireMeterProtocol {
+    /// The number of destionation pairs.
+    pub const LEVEL_MIN: i32 = 0;
+    pub const LEVEL_MAX: i32 = 0x7fffffff;
+    pub const LEVEL_STEP: i32 = 1;
+
+    const PHYS_INPUT_OFFSETS: [usize; 4] = [
+        0x100, // analog-input-0
+        0x104, // analog-input-2
+        0x108, // analog-input-1
+        0x10c, // analog-input-3
+    ];
+    const DIG_INPUT_DETECT_OFFSET: usize = 0x13c;
+
+    // Read meter information.
+    pub fn read_meter(
+        req: &FwReq,
+        node: &FwNode,
+        meter: &mut SaffireMeter,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = [0; 16];
+        saffire_read_quadlets(req, node, &Self::PHYS_INPUT_OFFSETS, &mut buf, timeout_ms).map(
+            |_| {
+                let mut quadlet = [0; 4];
+                let vals: Vec<i32> =
+                    (0..Self::PHYS_INPUT_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                        let pos = i * 4;
+                        quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                        vals.push(i32::from_be_bytes(quadlet));
+                        vals
+                    });
+
+                meter.phys_inputs[0] = vals[0];
+                meter.phys_inputs[2] = vals[1];
+                meter.phys_inputs[1] = vals[2];
+                meter.phys_inputs[3] = vals[3];
+            },
+        )?;
+
+        let mut buf = [0; 4];
+        saffire_read_quadlets(
+            req,
+            node,
+            &[Self::DIG_INPUT_DETECT_OFFSET],
+            &mut buf,
+            timeout_ms,
+        )
+        .map(|_| {
+            let val = u32::from_be_bytes(buf);
+            meter.dig_input_detect = val > 0;
+        })
+    }
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeClkProtocol;
