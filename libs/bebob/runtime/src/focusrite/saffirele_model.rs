@@ -3,14 +3,14 @@
 
 use glib::Error;
 
-use hinawa::FwFcpExt;
+use hinawa::{FwFcpExt, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
 
 use alsactl::{ElemId, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, focusrite::saffire::*};
+use bebob_protocols::{*, focusrite::{*, saffire::*}};
 
 use crate::{common_ctls::*, model::{IN_METER_NAME, OUT_METER_NAME}};
 use super::*;
@@ -21,6 +21,7 @@ pub struct SaffireLeModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
+    out_ctl: OutputCtl,
 }
 
 // NOTE: At 88.2/96.0 kHz, AV/C transaction takes more time than 44.1/48.0 kHz.
@@ -39,6 +40,27 @@ impl SamplingClkSrcCtlOperation<SaffireLeClkProtocol> for ClkCtl {
 #[derive(Default)]
 struct MeterCtl(Vec<ElemId>, SaffireLeMeter);
 
+#[derive(Default)]
+struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
+
+impl AsRef<SaffireOutputParameters> for OutputCtl {
+    fn as_ref(&self) -> &SaffireOutputParameters {
+        &self.1
+    }
+}
+
+impl AsMut<SaffireOutputParameters> for OutputCtl {
+    fn as_mut(&mut self) -> &mut SaffireOutputParameters {
+        &mut self.1
+    }
+}
+
+impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
+    const OUTPUT_LABELS: &'static [&'static str] = &[
+        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6",
+    ];
+}
+
 impl CtlModel<SndUnit> for SaffireLeModel {
     fn load(
         &mut self,
@@ -56,6 +78,9 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         self.meter_ctl.load_meter(card_cntr, unit, &self.req, FCP_TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
+        self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
+
         Ok(())
     }
 
@@ -70,6 +95,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -86,6 +113,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -112,16 +141,25 @@ impl NotifyModel<SndUnit, bool> for SaffireLeModel {
 impl MeasureModel<SndUnit> for SaffireLeModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
+        elem_id_list.extend_from_slice(&self.out_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
-        self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)
+        self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
+        self.out_ctl.measure_params(unit, &self.req, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.meter_ctl.read_meter(elem_id, elem_value)
+        if self.meter_ctl.read_meter(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -257,6 +295,17 @@ mod test {
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
         let error = ctl.load_src(&mut card_cntr).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
+    }
+
+    #[test]
+    fn test_output_params_definition() {
+        let mut card_cntr = CardCntr::new();
+        let mut ctl = OutputCtl::default();
+        let unit = SndUnit::default();
+        let req = FwReq::default();
+
+        let error = ctl.load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS).unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
