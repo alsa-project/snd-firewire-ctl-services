@@ -821,7 +821,7 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if T::HAS_ADAT {
-                    let mut vals = vec![0; 8];
+                    let mut vals = vec![0; 16];
                     elem_value.get_int(&mut vals);
                     let levels: Vec<i16> = vals.iter()
                         .map(|&level| level as i16)
@@ -839,6 +839,174 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
                 } else {
                     Ok(false)
                 }
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const PRO_MIXER_MONITOR_SRC_NAME: &str = "mixer:monitor-source";
+const PRO_MIXER_STREAM_SRC_PAIR_0_NAME: &str = "mixer:stream-source-1/2";
+const PRO_MIXER_STREAM_SRC_NAME: &str = "mixer:stream-source";
+
+#[derive(Default, Debug)]
+struct SaffireProioMixerCtl(SaffireProioMixerParameters);
+
+impl SaffireProioMixerCtl {
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            PRO_MIXER_MONITOR_SRC_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                SaffireProioMixerProtocol::LEVEL_MIN as i32,
+                SaffireProioMixerProtocol::LEVEL_MAX as i32,
+                SaffireProioMixerProtocol::LEVEL_STEP as i32,
+                self.0.monitor_sources.len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            PRO_MIXER_STREAM_SRC_PAIR_0_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                SaffireProioMixerProtocol::LEVEL_MIN as i32,
+                SaffireProioMixerProtocol::LEVEL_MAX as i32,
+                SaffireProioMixerProtocol::LEVEL_STEP as i32,
+                self.0.stream_source_pair0.len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            PRO_MIXER_STREAM_SRC_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                SaffireProioMixerProtocol::LEVEL_MIN as i32,
+                SaffireProioMixerProtocol::LEVEL_MAX as i32,
+                SaffireProioMixerProtocol::LEVEL_STEP as i32,
+                self.0.stream_sources.len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        SaffireProioMixerProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            PRO_MIXER_MONITOR_SRC_NAME => {
+                let vals: Vec<i32> = self.0.monitor_sources.iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
+                let vals: Vec<i32> = self.0.stream_source_pair0.iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            PRO_MIXER_STREAM_SRC_NAME => {
+                let vals: Vec<i32> = self.0.stream_sources.iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            PRO_MIXER_MONITOR_SRC_NAME => {
+                let mut vals = vec![0; self.0.monitor_sources.len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter()
+                    .map(|&level| level as i16)
+                    .collect();
+                SaffireProioMixerProtocol::write_monitor_sources(
+                    req,
+                    &unit.get_node(),
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
+                let mut vals = vec![0; self.0.stream_source_pair0.len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter()
+                    .map(|&level| level as i16)
+                    .collect();
+                SaffireProioMixerProtocol::write_stream_source_pair0(
+                    req,
+                    &unit.get_node(),
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            PRO_MIXER_STREAM_SRC_NAME => {
+                let mut vals = vec![0; self.0.stream_sources.len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter()
+                    .map(|&level| level as i16)
+                    .collect();
+                SaffireProioMixerProtocol::write_stream_sources(
+                    req,
+                    &unit.get_node(),
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
