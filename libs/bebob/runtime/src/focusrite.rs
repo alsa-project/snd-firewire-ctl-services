@@ -14,10 +14,12 @@ use hinawa::{SndUnit, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
+use alsa_ctl_tlv_codec::items::DbInterval;
+
 use core::card_cntr::CardCntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use bebob_protocols::focusrite::saffireproio::*;
+use bebob_protocols::focusrite::{*, saffireproio::*};
 
 use crate::model::{CLK_RATE_NAME, CLK_SRC_NAME};
 
@@ -217,6 +219,164 @@ AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const OUT_MUTE_NAME: &str = "phys-output-mute";
+const OUT_VOL_NAME: &str = "phys-output-volume";
+const OUT_HWCTL_NAME: &str = "phys-output-hwctl";
+const OUT_DIM_NAME: &str = "phys-output-dim";
+const OUT_PAD_NAME: &str = "phys-output-pad";
+
+const LEVEL_TLV: DbInterval = DbInterval {
+    min: -9600,
+    max: 0,
+    linear: false,
+    mute_avail: false,
+};
+
+trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
+AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
+{
+    const OUTPUT_LABELS: &'static [&'static str];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        assert_eq!(
+            Self::OUTPUT_LABELS.len(),
+            T::OFFSETS.len(),
+            "Programming error about labels for physical outputs",
+        );
+
+        *self.as_mut() = T::create_output_parameters();
+
+        let mut measure_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_MUTE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MUTE_COUNT, true)
+            .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::VOL_COUNT,
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
+
+        if T::HWCTL_COUNT > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_HWCTL_NAME, 0);
+            card_cntr
+                .add_bool_elems(&elem_id, 1, T::HWCTL_COUNT, true)
+                .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
+        }
+
+        if T::DIM_COUNT > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_DIM_NAME, 0);
+            card_cntr
+                .add_bool_elems(&elem_id, 1, T::DIM_COUNT, true)
+                .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
+        }
+
+        if T::PAD_COUNT > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_PAD_NAME, 0);
+            card_cntr
+                .add_bool_elems(&elem_id, 1, T::PAD_COUNT, true)
+                .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
+        }
+
+        self.measure_params(unit, req, timeout_ms)?;
+
+        Ok(measure_elem_id_list)
+    }
+
+    fn measure_params(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
+        T::read_output_parameters(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    }
+
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_MUTE_NAME => {
+                elem_value.set_bool(&self.as_ref().mutes);
+                Ok(true)
+            }
+            OUT_VOL_NAME => {
+                let vals: Vec<i32> = self.as_ref().vols.iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            OUT_HWCTL_NAME => {
+                elem_value.set_bool(&self.as_ref().hwctls);
+                Ok(true)
+            }
+            OUT_DIM_NAME => {
+                elem_value.set_bool(&self.as_ref().dims);
+                Ok(true)
+            }
+            OUT_PAD_NAME => {
+                elem_value.set_bool(&self.as_ref().pads);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_MUTE_NAME => {
+                let mut vals = self.as_ref().mutes.clone();
+                elem_value.get_bool(&mut vals);
+                T::write_mutes(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            OUT_VOL_NAME => {
+                let mut vals = vec![Default::default(); self.as_ref().vols.len()];
+                elem_value.get_int(&mut vals);
+                let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
+                T::write_vols(req, &unit.get_node(), &vols, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            OUT_HWCTL_NAME => {
+                let mut vals = self.as_ref().hwctls.clone();
+                elem_value.get_bool(&mut vals);
+                T::write_hwctls(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            OUT_DIM_NAME => {
+                let mut vals = self.as_ref().dims.clone();
+                elem_value.get_bool(&mut vals);
+                T::write_dims(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                    .map(|_| true)
+            }
+            OUT_PAD_NAME => {
+                let mut vals = self.as_ref().pads.clone();
+                elem_value.get_bool(&mut vals);
+                T::write_pads(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

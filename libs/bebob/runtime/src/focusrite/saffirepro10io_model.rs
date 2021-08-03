@@ -20,6 +20,7 @@ pub struct SaffirePro10ioModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
+    out_ctl: OutputCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -48,6 +49,27 @@ impl AsMut<SaffireProioMeterState> for MeterCtl {
 
 impl SaffireProioMeterCtlOperation<SaffirePro10ioMeterProtocol> for MeterCtl {}
 
+#[derive(Default)]
+struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
+
+impl AsRef<SaffireOutputParameters> for OutputCtl {
+    fn as_ref(&self) -> &SaffireOutputParameters {
+        &self.1
+    }
+}
+
+impl AsMut<SaffireOutputParameters> for OutputCtl {
+    fn as_mut(&mut self) -> &mut SaffireOutputParameters {
+        &mut self.1
+    }
+}
+
+impl SaffireOutputCtlOperation<SaffireProioOutputProtocol> for OutputCtl {
+    const OUTPUT_LABELS: &'static [&'static str] = &[
+        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "analog-output-7/8",
+    ];
+}
+
 impl CtlModel<SndUnit> for SaffirePro10ioModel {
     fn load(
         &mut self,
@@ -65,6 +87,9 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         self.meter_ctl.load_state(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
+        self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
+
         Ok(())
     }
 
@@ -79,6 +104,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         } else if self.clk_ctl.read_src(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -95,6 +122,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         if self.clk_ctl.write_freq(unit, &self.req, elem_id, new, TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.req, elem_id, new, TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -131,5 +160,22 @@ impl MeasureModel<SndUnit> for SaffirePro10ioModel {
         -> Result<bool, Error>
     {
         self.meter_ctl.read_state(elem_id, elem_value)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alsactl::CardError;
+
+    #[test]
+    fn test_output_params_definition() {
+        let mut card_cntr = CardCntr::new();
+        let mut ctl = OutputCtl::default();
+        let unit = SndUnit::default();
+        let req = FwReq::default();
+
+        let error = ctl.load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS).unwrap_err();
+        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
