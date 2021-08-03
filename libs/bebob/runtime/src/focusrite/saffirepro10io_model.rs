@@ -23,6 +23,7 @@ pub struct SaffirePro10ioModel {
     out_ctl: OutputCtl,
     through_ctl: ThroughCtl,
     monitor_ctl: MonitorCtl,
+    mixer_ctl: SaffireProioMixerCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -118,6 +119,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
 
         self.monitor_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
+        self.mixer_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -138,6 +141,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         } else if self.through_ctl.read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.monitor_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -160,6 +165,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         } else if self.through_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.monitor_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
