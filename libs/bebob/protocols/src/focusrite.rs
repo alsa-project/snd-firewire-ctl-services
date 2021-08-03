@@ -5,8 +5,36 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite Audio Engineering for Saffire series based on BeBoB solution.
+//!
+//! ## The way to refer to or change content of address space
+//!
+//! The models in Saffire and Saffire Pro i/o series based on BeBoB solution allows the other node
+//! in IEEE 1394 bus to refer to or change content of address space by three ways:
+//!
+//!  1. AV/C vendor dependent command with specific data fields by IEC 61883-1 FCP transaction
+//!  2. Quadlet read or write operation by asynchronous transaction
+//!  3. Block read or write operation by asynchronous transaction
+//!
+//! In the way 1, the data consists of three fields:
+//!
+//!   * action code
+//!   * the number of quadlets to operate
+//!   * successive quadlet-aligned data with one-quarter of offset, and value
+//!
+//! However, due to the heavy load of FCP transaction layer in ASIC side, the AV/C transaction can
+//! not be operated so frequently.
+//!
+//! In the way 2, the transaction for read operation is sent to offset plus 0x'0001'0000'0000. The
+//! transaction for write operation is sent to offset plus 0x'0001'0001'0000.
+//!
+//! When operating batch of quadlets, the way 3 is available. As well as quadlet operation, the
+//! transaction for read operation is sent to offset plus 0x'0001'0000'0000. On the other hand,
+//! the transaction for write operation is sent to 0x'0001'0001'0000 with the same quadlet-aligned
+//! data with one-quarter of offset, and value, as the case of AV/C vendor dependent command.
 
 use glib::Error;
+
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 use ta1394::{general::*, *};
 
@@ -103,6 +131,135 @@ impl AvcStatus for SaffireAvcOperation {
         });
         Ok(())
     }
+}
+
+const READ_OFFSET: u64 = 0x000100000000;
+const WRITE_OFFSET: u64 = 0x000100010000;
+
+/// Read single quadlet.
+pub fn saffire_read_quadlet(
+    req: &FwReq,
+    node: &FwNode,
+    offset: usize,
+    buf: &mut [u8],
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    assert_eq!(buf.len(), 4);
+
+    req.transaction_sync(
+        node,
+        FwTcode::ReadQuadletRequest,
+        READ_OFFSET + offset as u64,
+        4,
+        buf,
+        timeout_ms,
+    )
+}
+
+/// Read batch of quadlets.
+pub fn saffire_read_quadlets(
+    req: &FwReq,
+    node: &FwNode,
+    offsets: &[usize],
+    buf: &mut [u8],
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    assert_eq!(offsets.len() * 4, buf.len());
+
+    let mut prev_offset = offsets[0];
+    let mut prev_index = 0;
+    let mut count = 1;
+    let mut peekable = offsets.iter().peekable();
+
+    while let Some(&offset) = peekable.next() {
+        let next_offset = if let Some(&next_offset) = peekable.peek() {
+            if *next_offset == offset + 4 && count < MAXIMUM_OFFSET_COUNT {
+                count += 1;
+                continue;
+            }
+            *next_offset
+        } else {
+            // NOTE: Just for safe.
+            offsets[0]
+        };
+
+        let frame = &mut buf[prev_index..(prev_index + count * 4)];
+
+        if count == 1 {
+            saffire_read_quadlet(req, node, prev_offset, frame, timeout_ms)
+        } else {
+            req.transaction_sync(
+                node,
+                FwTcode::ReadBlockRequest,
+                READ_OFFSET + prev_offset as u64,
+                frame.len(),
+                frame,
+                timeout_ms,
+            )
+        }
+        .map(|_| {
+            prev_index += count * 4;
+            prev_offset = next_offset;
+            count = 1;
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Write single quadlet.
+pub fn saffire_write_quadlet(
+    req: &FwReq,
+    node: &FwNode,
+    offset: usize,
+    buf: &[u8],
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    assert_eq!(buf.len(), 4);
+
+    let mut frame = buf.to_vec();
+    req.transaction_sync(
+        node,
+        FwTcode::WriteQuadletRequest,
+        WRITE_OFFSET + offset as u64,
+        4,
+        &mut frame,
+        timeout_ms,
+    )
+}
+
+/// Write batch of coefficieints.
+pub fn saffire_write_quadlets(
+    req: &FwReq,
+    node: &FwNode,
+    offsets: &[usize],
+    buf: &[u8],
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    assert_eq!(offsets.len() * 4, buf.len());
+
+    if offsets.len() == 1 {
+        return saffire_write_quadlet(req, node, offsets[0], buf, timeout_ms);
+    }
+
+    let mut frame = offsets
+        .iter()
+        .enumerate()
+        .fold(Vec::new(), |mut frame, (i, &offset)| {
+            frame.extend_from_slice(&((offset / 4) as u32).to_be_bytes());
+            let pos = i * 4;
+            frame.extend_from_slice(&buf[pos..(pos + 4)]);
+            frame
+        });
+
+    req.transaction_sync(
+        node,
+        FwTcode::WriteBlockRequest,
+        WRITE_OFFSET,
+        frame.len(),
+        &mut frame,
+        timeout_ms,
+    )
 }
 
 #[cfg(test)]
