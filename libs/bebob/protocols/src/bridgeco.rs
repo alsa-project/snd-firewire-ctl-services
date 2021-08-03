@@ -8,6 +8,8 @@
 
 use glib::{Error, FileError};
 
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+
 use ta1394::general::{PlugInfo, SubunitInfo};
 use ta1394::stream_format::{AmStream, StreamFormat, SupportStatus};
 use ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
@@ -1462,6 +1464,218 @@ impl AvcStatus for ExtendedStreamFormatList {
 
         Ok(())
     }
+}
+
+/// The structure for image information.
+#[derive(Debug)]
+pub struct BcoImageInformation {
+    pub timestamp: glib::DateTime,
+    pub id: u32,
+    pub version: u32,
+}
+
+impl Default for BcoImageInformation {
+    fn default() -> Self {
+        Self {
+            timestamp: glib::DateTime::new_now_utc(),
+            id: Default::default(),
+            version: Default::default(),
+        }
+    }
+}
+
+/// The structure for boot loader information.
+#[derive(Debug)]
+pub struct BcoBootloaderInformation {
+    pub protocol_version: u32,
+    pub bootloader_version: u32,
+    pub guid: u64,
+    pub hardware_model_id: u32,
+    pub hardware_revision: u32,
+    pub software: BcoImageInformation,
+    pub image_base_address: usize,
+    pub image_maximum_size: usize,
+    pub bootloader_timestamp: glib::DateTime,
+    pub debugger: Option<BcoImageInformation>,
+}
+
+impl Default for BcoBootloaderInformation {
+    fn default() -> Self {
+        Self {
+            protocol_version: Default::default(),
+            bootloader_version: Default::default(),
+            guid: Default::default(),
+            hardware_model_id: Default::default(),
+            hardware_revision: Default::default(),
+            software: Default::default(),
+            image_base_address: Default::default(),
+            image_maximum_size: Default::default(),
+            bootloader_timestamp: glib::DateTime::new_now_utc(),
+            debugger: Default::default(),
+        }
+    }
+}
+
+const BCO_BASE_ADDRESS: usize = 0xffffc8000000;
+const BCO_BOOTLOADER_INFORMATION_OFFSET: usize = 0x00020000;
+
+/// The protocol implementation of boot loader information.
+#[derive(Default, Debug)]
+pub struct BcoBootloaderProtocol;
+
+impl BcoBootloaderProtocol {
+    const SIZE_WITHOUT_DEBUGGER: usize = 80;
+    const SIZE_WITH_DEBUGGER: usize = Self::SIZE_WITHOUT_DEBUGGER + 24;
+
+    const INFO_MAGIC_BYTES: [u8; 8] = [
+        0x62, // 'b'
+        0x72, // 'r'
+        0x69, // 'i'
+        0x64, // 'd'
+        0x67, // 'g'
+        0x65, // 'e'
+        0x43, // 'C'
+        0x6f, // 'o'
+    ];
+
+    pub fn read_info(
+        req: &FwReq,
+        node: &FwNode,
+        info: &mut BcoBootloaderInformation,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut size = Self::SIZE_WITH_DEBUGGER;
+
+        let mut buf = vec![0; size];
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            (BCO_BASE_ADDRESS + BCO_BOOTLOADER_INFORMATION_OFFSET) as u64,
+            size,
+            &mut buf[..size],
+            timeout_ms,
+        )
+        .or_else(|_| {
+            size = Self::SIZE_WITHOUT_DEBUGGER;
+            req.transaction_sync(
+                node,
+                FwTcode::ReadBlockRequest,
+                (BCO_BASE_ADDRESS + BCO_BOOTLOADER_INFORMATION_OFFSET) as u64,
+                size,
+                &mut buf[..size],
+                timeout_ms,
+            )
+        })?;
+
+        if &buf[..8] != &Self::INFO_MAGIC_BYTES {
+            let msg = format!("Unexpected magic bytes: {:?}", &buf[..8]);
+            Err(Error::new(FileError::Nxio, &msg))?;
+        }
+
+        let mut quadlet = [0; 4];
+        quadlet.copy_from_slice(&buf[8..12]);
+        info.protocol_version = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&buf[12..16]);
+        info.bootloader_version = u32::from_le_bytes(quadlet);
+
+        let mut octlet = [0; 8];
+        octlet.copy_from_slice(&buf[16..24]);
+        info.guid = u64::from_le_bytes(octlet);
+
+        quadlet.copy_from_slice(&buf[24..28]);
+        info.hardware_model_id = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&buf[28..32]);
+        info.hardware_revision = u32::from_le_bytes(quadlet);
+
+        info.software.timestamp = parse_tstamp(&buf[32..48])?;
+
+        quadlet.copy_from_slice(&buf[48..52]);
+        info.software.id = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&buf[52..56]);
+        info.software.version = u32::from_le_bytes(quadlet);
+
+        quadlet.copy_from_slice(&buf[56..60]);
+        info.image_base_address = u32::from_le_bytes(quadlet) as usize;
+
+        quadlet.copy_from_slice(&buf[60..64]);
+        info.image_maximum_size = u32::from_le_bytes(quadlet) as usize;
+
+        info.bootloader_timestamp = parse_tstamp(&buf[64..80])?;
+
+        if size == Self::SIZE_WITH_DEBUGGER && &buf[80..96] != &[0; 16] {
+            let mut debugger = BcoImageInformation::default();
+
+            debugger.timestamp = parse_tstamp(&buf[80..96])?;
+
+            quadlet.copy_from_slice(&buf[96..100]);
+            debugger.id = u32::from_le_bytes(quadlet);
+
+            quadlet.copy_from_slice(&buf[100..104]);
+            debugger.version = u32::from_le_bytes(quadlet);
+
+            info.debugger = Some(debugger);
+        }
+
+        Ok(())
+    }
+}
+
+fn parse_tstamp(buf: &[u8]) -> Result<glib::DateTime, Error> {
+    assert_eq!(buf.len(), 16);
+
+    let literal = std::str::from_utf8(&buf[..8]).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let year = u32::from_str_radix(&literal[..4], 10).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let month = u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let day = u16::from_str_radix(&literal[6..8], 10).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let literal = std::str::from_utf8(&buf[8..16]).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let hour = u16::from_str_radix(&literal[..2], 10).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let minute = u16::from_str_radix(&literal[2..4], 10).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let seconds = u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
+        let msg = format!("{}", err);
+        Error::new(FileError::Nxio, &msg)
+    })?;
+
+    let tstamp = glib::DateTime::new_utc(
+        year as i32,
+        month as i32,
+        day as i32,
+        hour as i32,
+        minute as i32,
+        seconds as f64,
+    );
+
+    Ok(tstamp)
 }
 
 #[cfg(test)]
