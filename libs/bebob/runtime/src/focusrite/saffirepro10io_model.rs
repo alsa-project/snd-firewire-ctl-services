@@ -19,6 +19,7 @@ pub struct SaffirePro10ioModel {
     req: FwReq,
     avc: BebobAvc,
     clk_ctl: ClkCtl,
+    meter_ctl: MeterCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -29,6 +30,23 @@ struct ClkCtl(Vec<ElemId>);
 impl SaffireProMediaClkFreqCtlOperation<SaffirePro10ioClkProtocol> for ClkCtl {}
 
 impl SaffireProSamplingClkSrcCtlOperation<SaffirePro10ioClkProtocol> for ClkCtl {}
+
+#[derive(Default)]
+struct MeterCtl(Vec<ElemId>, SaffireProioMeterState);
+
+impl AsRef<SaffireProioMeterState> for MeterCtl {
+    fn as_ref(&self) -> &SaffireProioMeterState {
+        &self.1
+    }
+}
+
+impl AsMut<SaffireProioMeterState> for MeterCtl {
+    fn as_mut(&mut self) -> &mut SaffireProioMeterState {
+        &mut self.1
+    }
+}
+
+impl SaffireProioMeterCtlOperation<SaffirePro10ioMeterProtocol> for MeterCtl {}
 
 impl CtlModel<SndUnit> for SaffirePro10ioModel {
     fn load(
@@ -44,6 +62,9 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         self.clk_ctl.load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
+        self.meter_ctl.load_state(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
+
         Ok(())
     }
 
@@ -56,6 +77,8 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         if self.clk_ctl.read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.clk_ctl.read_src(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -92,5 +115,21 @@ impl NotifyModel<SndUnit, bool> for SaffirePro10ioModel {
         -> Result<bool, Error>
     {
         self.clk_ctl.read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)
+    }
+}
+
+impl MeasureModel<SndUnit> for SaffirePro10ioModel {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.0);
+    }
+
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+        self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
+    }
+
+    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        self.meter_ctl.read_state(elem_id, elem_value)
     }
 }

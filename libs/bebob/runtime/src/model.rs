@@ -154,6 +154,8 @@ impl BebobModel {
 
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::FocusriteSaffirePro26io(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::FocusriteSaffirePro10io(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::FocusriteSaffire(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::FocusriteSaffireLe(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioOzonic(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
@@ -240,6 +242,8 @@ impl BebobModel {
     {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::FocusriteSaffirePro26io(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::FocusriteSaffirePro10io(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::FocusriteSaffire(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::FocusriteSaffireLe(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioOzonic(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),

@@ -12,7 +12,7 @@ use glib::Error;
 use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::CardCntr;
 use core::elem_value_accessor::ElemValueAccessor;
@@ -128,6 +128,95 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
                 .map(|_| true);
                 let _ = unit.unlock();
                 res
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const MONITOR_KNOB_VALUE_NAME: &str = "monitor-knob-value";
+const MUTE_LED_NAME: &str = "mute-led";
+const DIM_LED_NAME: &str = "dim-led";
+const EFFECTIVE_CLOCK_SRC_NAME: &str = "effective-clock-source";
+
+trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
+AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
+{
+    fn load_state(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut measured_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_KNOB_VALUE_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            0,
+            u8::MIN as i32,
+            1,
+            1,
+            None,
+        false)
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_LED_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, false)
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_LED_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, false)
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<&str> = T::SRC_LIST.iter()
+            .map(|s| sampling_clk_src_to_str(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id| measured_elem_id_list.append(&mut elem_id))?;
+
+        self.measure_state(unit, req, timeout_ms)?;
+
+        Ok(measured_elem_id_list)
+    }
+
+    fn measure_state(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::read_state(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    }
+
+    fn read_state(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MONITOR_KNOB_VALUE_NAME => {
+                elem_value.set_int(&[self.as_ref().monitor_knob as i32]);
+                Ok(true)
+            }
+            MUTE_LED_NAME => {
+                elem_value.set_bool(&[self.as_ref().mute_led]);
+                Ok(true)
+            }
+            DIM_LED_NAME => {
+                elem_value.set_bool(&[self.as_ref().dim_led]);
+                Ok(true)
+            }
+            EFFECTIVE_CLOCK_SRC_NAME => {
+                let pos = T::SRC_LIST.iter()
+                    .position(|s| s.eq(&self.as_ref().effective_clk_srcs))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
             }
             _ => Ok(false),
         }
