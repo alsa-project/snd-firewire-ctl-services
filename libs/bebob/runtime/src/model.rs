@@ -15,6 +15,10 @@ use super::maudio::profirelightbridge_model::PflModel;
 use super::maudio::special_model::*;
 use super::behringer::*;
 use super::digidesign::Mbox2proModel;
+use super::focusrite::saffirepro26io_model::*;
+use super::focusrite::saffirepro10io_model::*;
+use super::focusrite::saffire_model::*;
+use super::focusrite::saffirele_model::*;
 use super::stanton::ScratchampModel;
 use super::esi::Quatafire610Model;
 use super::icon::FirexonModel;
@@ -37,6 +41,10 @@ enum Model {
     BehringerFca610(Fca610Model),
     DigidesignMbox2pro(Mbox2proModel),
     EsiQuatafire610(Quatafire610Model),
+    FocusriteSaffirePro26io(SaffirePro26ioModel),
+    FocusriteSaffirePro10io(SaffirePro10ioModel),
+    FocusriteSaffire(SaffireModel),
+    FocusriteSaffireLe(SaffireLeModel),
     IconFirexon(FirexonModel),
     MaudioOzonic(OzonicModel),
     MaudioSolo(SoloModel),
@@ -60,12 +68,22 @@ enum Model {
 }
 
 impl BebobModel {
-    pub fn new(vendor_id: u32, model_id: u32) -> Result<Self, Error> {
+    pub fn new(vendor_id: u32, model_id: u32, model_name: &str) -> Result<Self, Error> {
         let ctl_model = match (vendor_id, model_id) {
             (0x0003db, 0x01eeee) => Model::ApogeeEnsemble(Default::default()),
             (0x001564, 0x000610) => Model::BehringerFca610(Default::default()),
             (0x00a07e, 0x0000a9) => Model::DigidesignMbox2pro(Default::default()),
             (0x000f1b, 0x010064) => Model::EsiQuatafire610(Default::default()),
+            (0x00130e, 0x000003) => Model::FocusriteSaffirePro26io(Default::default()),
+            (0x00130e, 0x000006) => Model::FocusriteSaffirePro10io(Default::default()),
+            (0x00130e, 0x000000) => {
+                // Both has the same model_id in unit directory. Use model_name to distinguish.
+                if model_name == "Saffire" {
+                    Model::FocusriteSaffire(Default::default())
+                } else {
+                    Model::FocusriteSaffireLe(Default::default())
+                }
+            }
             (0x001a9e, 0x000001) => Model::IconFirexon(Default::default()),
             (0x000d6c, 0x00000a) => Model::MaudioOzonic(Default::default()),
             (0x000d6c, 0x010062) => Model::MaudioSolo(Default::default()),
@@ -108,6 +126,10 @@ impl BebobModel {
             Model::BehringerFca610(m) => m.load(unit, card_cntr),
             Model::DigidesignMbox2pro(m) => m.load(unit, card_cntr),
             Model::EsiQuatafire610(m) => m.load(unit, card_cntr),
+            Model::FocusriteSaffirePro26io(m) => m.load(unit, card_cntr),
+            Model::FocusriteSaffirePro10io(m) => m.load(unit, card_cntr),
+            Model::FocusriteSaffire(m) => m.load(unit, card_cntr),
+            Model::FocusriteSaffireLe(m) => m.load(unit, card_cntr),
             Model::IconFirexon(m) => m.load(unit, card_cntr),
             Model::MaudioOzonic(m) => m.load(unit, card_cntr),
             Model::MaudioSolo(m) => m.load(unit, card_cntr),
@@ -180,6 +202,10 @@ impl BebobModel {
             Model::BehringerFca610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::DigidesignMbox2pro(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::EsiQuatafire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSaffirePro26io(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSaffirePro10io(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSaffire(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSaffireLe(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::IconFirexon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),

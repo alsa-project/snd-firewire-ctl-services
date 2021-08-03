@@ -9,6 +9,7 @@ mod apogee;
 mod maudio;
 mod behringer;
 mod digidesign;
+mod focusrite;
 mod stanton;
 mod esi;
 mod icon;
@@ -97,7 +98,7 @@ impl RuntimeOperation<u32> for BebobRuntime {
             })
             .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
 
-        let model = BebobModel::new(vendor.vendor_id, model.model_id)?;
+        let model = BebobModel::new(vendor.vendor_id, model.model_id, model.model_name)?;
 
         let card_cntr = card_cntr::CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
