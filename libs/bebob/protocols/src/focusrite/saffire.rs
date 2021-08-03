@@ -69,6 +69,29 @@
 //!                                             +----------> or ----> spdif-output-1/2
 //! ```
 //!
+//! ## Diagram of internal signal flow at 88.2/96.0 kHz for Saffire LE.
+//!
+//! ```text
+//! analog-input-1/2 ------------+------------------> stream-output-1/2
+//! analog-input-3/4 ------------|-+----------------> stream-output-3/4
+//! spdif-input-1/2  ------------|-|-+--------------> stream-output-5/6
+//!                              | | |
+//!                              v v v
+//!                         ++===========++
+//!                         ||  monitor  ||
+//!                         ||   6 x 2   ||
+//!                         ++===========++
+//!                                |
+//!                                v
+//!                         ++===========++
+//! stream-input-1/2 -----> ||   mixer   || ----+---> analog-output-1/2
+//! stream-input-3/4 -----> ||   6 x 4   || ----|---> analog-output-3/4
+//!                         ++===========++     |
+//! stream-input-5/6 ---------------------------|---> analog-output-5/6
+//!                                             v
+//! stream-input-7/8 --------------------------or---> digital-output-1/2
+//! ```
+//!
 //! The protocol implementation for Saffire LE is done with firmware version below:
 //!
 //! ```sh
@@ -1009,6 +1032,200 @@ impl SaffireLeMixerLowRateProtocol {
         };
         let buf = u32::to_be_bytes(val);
         saffire_write_quadlets(req, node, &Self::OFFSETS[56..], &buf, timeout_ms)
+            .map(|_| state.spdif_out_src = src)
+    }
+}
+
+/// The structure for mixer state at 88.2/96.0 kHz in Saffire LE.
+#[derive(Default, Debug)]
+pub struct SaffireLeMixerMiddleRateState {
+    pub monitor_src_phys_input_gains: [i16; 6],
+    pub monitor_out_src_pair_gains: [[i16; 1]; 4],
+    pub stream_src_pair_gains: [[i16; 2]; 4],
+    pub spdif_out_src: SaffireLeSpdifOutputSource,
+}
+
+/// The protocol implementation for operation of mixer at 88.2/96.0 kHz in Saffire LE.
+#[derive(Default)]
+pub struct SaffireLeMixerMiddleRateProtocol;
+
+impl SaffireLeMixerMiddleRateProtocol {
+    pub const LEVEL_MIN: i16 = 0;
+    pub const LEVEL_MAX: i16 = 0x7fff;
+    pub const LEVEL_STEP: i16 = 0x100;
+
+    const OFFSETS: [usize; 19] = [
+        // level to monitor-output-0/1
+        0x108, // from analog-input-0
+        0x10c, // from analog-input-2
+        0x110, // from analog-input-4
+        0x114, // from analog-input-1
+        0x118, // from analog-input-3
+        0x11c, // from analog-input-5
+        // level to output-0
+        0x120, // from monitor-output-0/1
+        0x124, // from stream-input-0/1
+        0x128, // from stream-input-2/3
+        // level to output-1
+        0x12c, // from monitor-output-0/1
+        0x130, // from stream-input-0/1
+        0x134, // from stream-input-2/3
+        // level to output-2
+        0x138, // from monitor-output-0/1
+        0x13c, // from stream-input-0/1
+        0x140, // from stream-input-2/3
+        // level to output-3
+        0x144, // from monitor-output-0/1
+        0x148, // from stream-input-0/1
+        0x14c, // from stream-input-2/3
+        // source of S/PDIF output 0/1.
+        0x150,
+    ];
+
+    #[inline(always)]
+    fn monitor_analog_input_pos(_: usize, src_idx: usize) -> usize {
+        src_idx % 2 * 2 + src_idx / 2
+    }
+
+    #[inline(always)]
+    fn mixer_monitor_src_pos(dst_idx: usize, src_idx: usize) -> usize {
+        6 + (dst_idx * 3) + src_idx
+    }
+
+    #[inline(always)]
+    fn mixer_stream_input_pos(dst_idx: usize, src_idx: usize) -> usize {
+        6 + (dst_idx * 3) + src_idx + 1
+    }
+
+    /// Read levels of physical source for indicated destination.
+    pub fn read_state(
+        req: &FwReq,
+        node: &FwNode,
+        state: &mut SaffireLeMixerMiddleRateState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(i32::from_be_bytes(quadlet) as i16);
+                vals
+            });
+
+            state
+                .monitor_src_phys_input_gains
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, gain)| *gain = vals[Self::monitor_analog_input_pos(0, i)]);
+
+            state
+                .monitor_out_src_pair_gains
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, gains)| {
+                    gains
+                        .iter_mut()
+                        .enumerate()
+                        .for_each(|(j, gain)| *gain = vals[Self::mixer_monitor_src_pos(i, j)]);
+                });
+
+            state
+                .stream_src_pair_gains
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, gains)| {
+                    gains
+                        .iter_mut()
+                        .enumerate()
+                        .for_each(|(j, gain)| *gain = vals[Self::mixer_stream_input_pos(i, j)]);
+                });
+
+            state.spdif_out_src = if vals[18] > 0 {
+                SaffireLeSpdifOutputSource::MixerOutputPair67
+            } else {
+                SaffireLeSpdifOutputSource::MixerOutputPair01
+            };
+        })
+    }
+
+    /// Write levels of input source to monitor for indicated destination.
+    pub fn write_monitor_src_phys_input_gains(
+        req: &FwReq,
+        node: &FwNode,
+        src_gains: &[i16],
+        state: &mut SaffireLeMixerMiddleRateState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_src_levels(
+            req,
+            node,
+            0,
+            src_gains,
+            &Self::OFFSETS,
+            &mut [&mut state.monitor_src_phys_input_gains],
+            timeout_ms,
+            Self::monitor_analog_input_pos,
+        )
+    }
+
+    /// Write levels of monitor output source to mixer for indicated destination.
+    pub fn write_monitor_out_src_pair_gains(
+        req: &FwReq,
+        node: &FwNode,
+        dst_idx: usize,
+        src_gains: &[i16],
+        state: &mut SaffireLeMixerMiddleRateState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_src_levels(
+            req,
+            node,
+            dst_idx,
+            src_gains,
+            &Self::OFFSETS,
+            &mut state.monitor_out_src_pair_gains,
+            timeout_ms,
+            Self::mixer_monitor_src_pos,
+        )
+    }
+
+    /// Write levels of stream source to monitor for indicated destination.
+    pub fn write_stream_src_pair_gains(
+        req: &FwReq,
+        node: &FwNode,
+        dst_idx: usize,
+        src_gains: &[i16],
+        state: &mut SaffireLeMixerMiddleRateState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_src_levels(
+            req,
+            node,
+            dst_idx,
+            src_gains,
+            &Self::OFFSETS,
+            &mut state.stream_src_pair_gains,
+            timeout_ms,
+            Self::mixer_stream_input_pos,
+        )
+    }
+
+    /// Write source of S/PDIF output.
+    pub fn write_spdif_out_src(
+        req: &FwReq,
+        node: &FwNode,
+        src: SaffireLeSpdifOutputSource,
+        state: &mut SaffireLeMixerMiddleRateState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = match src {
+            SaffireLeSpdifOutputSource::MixerOutputPair01 => 0,
+            SaffireLeSpdifOutputSource::MixerOutputPair67 => 1,
+        };
+        let buf = u32::to_be_bytes(val);
+        saffire_write_quadlets(req, node, &Self::OFFSETS[18..], &buf, timeout_ms)
             .map(|_| state.spdif_out_src = src)
     }
 }
