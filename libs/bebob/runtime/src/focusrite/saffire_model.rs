@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::{FwFcpExt, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
@@ -23,6 +23,7 @@ pub struct SaffireModel {
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
+    specific_ctl: SpecificCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -62,6 +63,9 @@ impl SaffireOutputCtlOperation<SaffireOutputProtocol> for OutputCtl {
     ];
 }
 
+#[derive(Default)]
+struct SpecificCtl(SaffireSpecificParameters);
+
 impl CtlModel<SndUnit> for SaffireModel {
     fn load(
         &mut self,
@@ -82,6 +86,8 @@ impl CtlModel<SndUnit> for SaffireModel {
         self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
+        self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -98,6 +104,8 @@ impl CtlModel<SndUnit> for SaffireModel {
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.specific_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -116,6 +124,8 @@ impl CtlModel<SndUnit> for SaffireModel {
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -225,6 +235,155 @@ impl MeterCtl {
             Self::METER_DIG_INPUT_DETECT_NAME => {
                 elem_value.set_bool(&[self.1.dig_input_detect]);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const MODE_192_KHZ_NAME: &str = "mode-192khz";
+const INPUT_PAIR_1_SRC_NAME: &str = "input-3/4-source";
+const MIXER_MODE_NAME: &str = "mixer-mode";
+
+fn input_pair_1_src_to_str(src: &SaffireInputPair1Source) -> &'static str {
+    match src {
+        SaffireInputPair1Source::AnalogInputPair0 => "analog-input-1/2",
+        SaffireInputPair1Source::DigitalInputPair0 => "digital-input-1/2",
+    }
+}
+
+fn mixer_mode_to_str(mode: &SaffireMixerMode) -> &'static str {
+    match mode {
+        SaffireMixerMode::StereoPaired => "stereo-paired",
+        SaffireMixerMode::StereoSeparated => "stereo-separated",
+    }
+}
+
+impl SpecificCtl {
+    const INPUT_PAIR_1_SRCS: [SaffireInputPair1Source; 2] = [
+        SaffireInputPair1Source::AnalogInputPair0,
+        SaffireInputPair1Source::DigitalInputPair0,
+    ];
+
+    const MIXER_MODES: [SaffireMixerMode; 2] = [
+        SaffireMixerMode::StereoPaired,
+        SaffireMixerMode::StereoSeparated,
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MODE_192_KHZ_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+            .map(|_| ())?;
+
+        let labels: Vec<&str> = Self::INPUT_PAIR_1_SRCS.iter()
+            .map(|src| input_pair_1_src_to_str(src))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PAIR_1_SRC_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|_| ())?;
+
+        let labels: Vec<&str> = Self::MIXER_MODES.iter()
+            .map(|mode| mixer_mode_to_str(mode))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|_| ())?;
+
+        SaffireSpecificProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)?;
+
+        Ok(())
+    }
+
+    fn read_params(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MODE_192_KHZ_NAME => {
+                elem_value.set_bool(&[self.0.mode_192khz]);
+                Ok(true)
+            }
+            INPUT_PAIR_1_SRC_NAME => {
+                let pos = Self::INPUT_PAIR_1_SRCS.iter()
+                    .position(|s| s.eq(&self.0.input_pair_1_src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            MIXER_MODE_NAME => {
+                let pos = Self::MIXER_MODES.iter()
+                    .position(|m| m.eq(&self.0.mixer_mode))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MODE_192_KHZ_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                SaffireSpecificProtocol::write_192khz_mode(
+                    req,
+                    &unit.get_node(),
+                    vals[0],
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            INPUT_PAIR_1_SRC_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &src = Self::INPUT_PAIR_1_SRCS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for source of input pair 1: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                SaffireSpecificProtocol::write_input_pair_1_src(
+                    req,
+                    &unit.get_node(),
+                    src,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            MIXER_MODE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &mode = Self::MIXER_MODES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for mode of mixer: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                SaffireSpecificProtocol::write_mixer_mode(
+                    req,
+                    &unit.get_node(),
+                    mode,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
