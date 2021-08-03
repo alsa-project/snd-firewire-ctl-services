@@ -448,6 +448,103 @@ impl SaffireMixerOperation for SaffireSeparatedMixerProtocol {
     }
 }
 
+/// The protocol implementation for operation of mixer at stereo paired mode in Saffire.
+#[derive(Default)]
+pub struct SaffirePairedMixerProtocol;
+
+impl SaffireMixerOperation for SaffirePairedMixerProtocol {
+    const OFFSETS: &'static [usize] = &[
+        // level from stream-input-8/9
+        0x00, // to phys-output-8/9
+        0x04, // to phys-output-0/1
+        0x08, // to phys-output-2/3
+        0x0c, // to phys-output-4/5
+        0x10, // to phys-output-6/7
+        // level from stream-input-0/1
+        0x14, // to phys-output-8/9
+        0x18, // to phys-output-0/1
+        0x1c, // to phys-output-2/3
+        0x20, // to phys-output-4/5
+        0x24, // to phys-output-6/7
+        // level from stream-input-2/3
+        0x28, // to phys-output-8/9
+        0x2c, // to phys-output-0/1
+        0x30, // to phys-output-2/3
+        0x34, // to phys-output-4/5
+        0x38, // to phys-output-6/7
+        // level from stream-input-4/5
+        0x3c, // to phys-output-8/9
+        0x40, // to phys-output-0/1
+        0x44, // to phys-output-2/3
+        0x48, // to phys-output-4/5
+        0x4c, // to phys-output-6/7
+        // level from stream-input-6/7
+        0x50, // to phys-output-8/9
+        0x54, // to phys-output-0/1
+        0x58, // to phys-output-2/3
+        0x5c, // to phys-output-4/5
+        0x60, // to phys-output-6/7
+
+        // level from phys-input-0/1
+        0x64, // to phys-output-8/9
+        0x68, // to phys-output-0/1
+        0x6c, // to phys-output-2/3
+        0x70, // to phys-output-4/5
+        0x74, // to phys-output-6/7
+        // level from phys-input-2/3
+        0x78, // to phys-output-8/9
+        0x7c, // to phys-output-0/1
+        0x80, // to phys-output-2/3
+        0x84, // to phys-output-4/5
+        0x88, // to phys-output-6/7
+
+        // level from reverb-output-0/1
+        0x8c, // to phys-output-8/9
+        0x90, // to phys-output-0/1
+        0x94, // to phys-output-2/3
+        0x98, // to phys-output-4/5
+        0x9c, // to phys-output-6/7
+    ];
+
+    const PHYS_INPUT_COUNT: usize = 2;
+    const REVERB_RETURN_COUNT: usize = 1;
+
+    #[inline(always)]
+    fn stream_src_pos(mut dst_idx: usize, mut src_idx: usize) -> usize {
+        if dst_idx > 3 {
+            dst_idx = 0
+        } else {
+            dst_idx += 1;
+        }
+        if src_idx > 3 {
+            src_idx = 0;
+        } else {
+            src_idx += 1;
+        }
+        dst_idx + src_idx * 5
+    }
+
+    #[inline(always)]
+    fn phys_src_pos(mut dst_idx: usize, src_idx: usize) -> usize {
+        if dst_idx > 3 {
+            dst_idx = 0
+        } else {
+            dst_idx += 1;
+        }
+        20 + dst_idx + src_idx * 5
+    }
+
+    #[inline(always)]
+    fn reverb_return_pos(mut dst_idx: usize, _: usize) -> usize {
+        if dst_idx > 3 {
+            dst_idx = 0
+        } else {
+            dst_idx += 1;
+        }
+        35 + dst_idx
+    }
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeClkProtocol;
