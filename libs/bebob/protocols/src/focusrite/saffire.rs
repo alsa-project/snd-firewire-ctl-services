@@ -103,6 +103,7 @@ impl SaffireMeterProtocol {
         0x108, // analog-input-1
         0x10c, // analog-input-3
     ];
+
     const DIG_INPUT_DETECT_OFFSET: usize = 0x13c;
 
     // Read meter information.
