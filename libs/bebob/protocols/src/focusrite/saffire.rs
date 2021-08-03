@@ -162,6 +162,134 @@ impl SaffireOutputOperation for SaffireOutputProtocol {
     const PAD_COUNT: usize = 0;
 }
 
+/// The enumeration for source of input-2/3.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaffireInputPair1Source {
+    AnalogInputPair0,
+    DigitalInputPair0,
+}
+
+impl Default for SaffireInputPair1Source {
+    fn default() -> Self {
+        Self::AnalogInputPair0
+    }
+}
+
+/// The enumeration for mode of mixer.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaffireMixerMode {
+    StereoPaired,
+    StereoSeparated,
+}
+
+impl Default for SaffireMixerMode {
+    fn default() -> Self {
+        Self::StereoPaired
+    }
+}
+
+/// The structure for parameters specific to Saffire.
+#[derive(Default)]
+pub struct SaffireSpecificParameters {
+    pub mode_192khz: bool,
+    pub input_pair_1_src: SaffireInputPair1Source,
+    pub mixer_mode: SaffireMixerMode,
+}
+
+/// The protocol implementation for operation specific to Saffire.
+#[derive(Default)]
+pub struct SaffireSpecificProtocol;
+
+const SAFFIRE_INPUT_PAIR1_SRC_OFFSET: usize = 0xf8;
+const SAFFIRE_MIXER_MODE_OFFSET: usize = 0xfc;
+
+impl SaffireSpecificProtocol {
+    /// Read parameters.
+    pub fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [
+            SAFFIRE_MODE_192KHZ_OFFSET,
+            SAFFIRE_INPUT_PAIR1_SRC_OFFSET,
+            SAFFIRE_MIXER_MODE_OFFSET,
+        ];
+        let mut buf = vec![0; offsets.len() * 4];
+
+        saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(u32::from_be_bytes(quadlet));
+                vals
+            });
+            params.mode_192khz = vals[0] > 0;
+            params.input_pair_1_src = if vals[1] > 0 {
+                SaffireInputPair1Source::DigitalInputPair0
+            } else {
+                SaffireInputPair1Source::AnalogInputPair0
+            };
+            params.mixer_mode = if vals[2] > 0 {
+                SaffireMixerMode::StereoSeparated
+            } else {
+                SaffireMixerMode::StereoPaired
+            };
+        })
+    }
+
+    /// Use mode of 192.0 khz.
+    pub fn write_192khz_mode(
+        req: &FwReq,
+        node: &FwNode,
+        enable: bool,
+        params: &mut SaffireSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [SAFFIRE_MODE_192KHZ_OFFSET];
+        let buf = (enable as u32).to_be_bytes();
+        saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+            .map(|_| params.mode_192khz = enable)
+    }
+
+    /// Write the source of input 2/3.
+    pub fn write_input_pair_1_src(
+        req: &FwReq,
+        node: &FwNode,
+        src: SaffireInputPair1Source,
+        params: &mut SaffireSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [SAFFIRE_INPUT_PAIR1_SRC_OFFSET];
+        let val = match src {
+            SaffireInputPair1Source::AnalogInputPair0 => 0,
+            SaffireInputPair1Source::DigitalInputPair0 => 1,
+        };
+        let buf = u32::to_be_bytes(val);
+        saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+            .map(|_| params.input_pair_1_src = src)
+    }
+
+    /// Write the mode of mixer.
+    pub fn write_mixer_mode(
+        req: &FwReq,
+        node: &FwNode,
+        mode: SaffireMixerMode,
+        params: &mut SaffireSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [SAFFIRE_MIXER_MODE_OFFSET];
+        let val = match mode {
+            SaffireMixerMode::StereoPaired => 0,
+            SaffireMixerMode::StereoSeparated => 1,
+        };
+        let buf = u32::to_be_bytes(val);
+        saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+            .map(|_| params.mixer_mode = mode)
+    }
+}
 /// The protocol implementation of media and sampling clocks for Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeClkProtocol;
