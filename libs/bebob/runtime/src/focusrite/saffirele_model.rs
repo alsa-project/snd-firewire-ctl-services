@@ -25,6 +25,7 @@ pub struct SaffireLeModel {
     specific_ctl: SpecificCtl,
     mixer_low_rate_ctl: MixerLowRateCtl,
     mixer_middle_rate_ctl: MixerMiddleRateCtl,
+    through_ctl: ThroughCtl,
 }
 
 // NOTE: At 88.2/96.0 kHz, AV/C transaction takes more time than 44.1/48.0 kHz.
@@ -73,6 +74,11 @@ struct MixerLowRateCtl(SaffireLeMixerLowRateState);
 #[derive(Default)]
 struct MixerMiddleRateCtl(SaffireLeMixerMiddleRateState);
 
+#[derive(Default)]
+struct ThroughCtl;
+
+impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {}
+
 impl CtlModel<SndUnit> for SaffireLeModel {
     fn load(
         &mut self,
@@ -98,12 +104,14 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         self.mixer_low_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
         self.mixer_middle_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
+        self.through_ctl.load_params(card_cntr)?;
+
         Ok(())
     }
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        unit: &mut SndUnit,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -120,6 +128,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.mixer_low_rate_ctl.read_src_gains(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_middle_rate_ctl.read_src_gains(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.through_ctl.read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -144,6 +154,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.mixer_low_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_middle_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.through_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
