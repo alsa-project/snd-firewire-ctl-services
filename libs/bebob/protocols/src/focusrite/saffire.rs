@@ -681,6 +681,78 @@ impl SaffireOutputOperation for SaffireLeOutputProtocol {
     const PAD_COUNT: usize = 0;
 }
 
+/// The structure for parameters specific to Saffire.
+#[derive(Default)]
+pub struct SaffireLeSpecificParameters {
+    pub analog_input_2_3_high_gains: [bool; 2],
+}
+
+/// The protocol implementation for operation specific to Saffire.
+#[derive(Default)]
+pub struct SaffireLeSpecificProtocol;
+
+const LE_ANALOG_INTPUT_2_HIGH_GAIN_OFFSET: usize = 0x154;
+const LE_ANALOG_INTPUT_3_HIGH_GAIN_OFFSET: usize = 0x158;
+
+impl SaffireLeSpecificProtocol {
+    /// Read parameters.
+    pub fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireLeSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [
+            LE_ANALOG_INTPUT_2_HIGH_GAIN_OFFSET,
+            LE_ANALOG_INTPUT_3_HIGH_GAIN_OFFSET,
+        ];
+        let mut buf = vec![0; offsets.len() * 4];
+        saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(u32::from_be_bytes(quadlet));
+                vals
+            });
+            params.analog_input_2_3_high_gains[0] = vals[0] > 0;
+            params.analog_input_2_3_high_gains[1] = vals[1] > 0;
+        })
+    }
+
+    /// Enable/disable high gain of analog input 2 or 3.
+    pub fn write_analog_input_high_gains(
+        req: &FwReq,
+        node: &FwNode,
+        enables: &[bool],
+        params: &mut SaffireLeSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let (offsets, buf) = params
+            .analog_input_2_3_high_gains
+            .iter()
+            .zip(enables.iter())
+            .zip(
+                [
+                    LE_ANALOG_INTPUT_2_HIGH_GAIN_OFFSET,
+                    LE_ANALOG_INTPUT_3_HIGH_GAIN_OFFSET,
+                ]
+                .iter(),
+            )
+            .filter(|((old, new), _)| !old.eq(new))
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut offsets, mut buf), ((_, &value), &offset)| {
+                    offsets.push(offset);
+                    buf.extend_from_slice(&(value as u32).to_be_bytes());
+                    (offsets, buf)
+                },
+            );
+        saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+            .map(|_| params.analog_input_2_3_high_gains.copy_from_slice(enables))
+    }
+}
+
 /// The structure of mixer coefficiencies in Saffire and Saffire LE.
 #[derive(Default, Debug)]
 pub struct SaffireMixerState {
