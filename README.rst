@@ -127,6 +127,10 @@ your device, please contact to developer.
   * Behringer Firepower FCA610
   * Digidesign Mbox 2 Pro
   * Ego Systems Quatafire 610
+  * Focusrite Saffire
+  * Focusrite Saffire LE
+  * Focusrite Saffire Pro 10 i/o
+  * Focusrite Saffire Pro 26 i/o
   * Icon Firexon
   * M-Audio FireWire Solo
   * M-Audio FireWire Audiophile
