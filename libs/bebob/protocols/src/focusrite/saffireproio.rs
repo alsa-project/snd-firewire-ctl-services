@@ -7,6 +7,109 @@
 //! defined by Focusrite Audio Engineering for Saffire Pro 10 i/o and Pro 26 i/o.
 //!
 //! DM1500E ASIC is used for Saffire Pro 26 i/o, while DM1500 is used for Saffire Pro 10 i/o.
+//!
+//! ## Diagram of internal signal flow for Saffire Pro 26 i/o.
+//!
+//! ```text
+//! analog-input-1/2 ------+-----------------------> stream-output-1/2
+//! analog-input-3/4 ------|-+---------------------> stream-output-3/4
+//! analog-input-5/6 ------|-|-+-------------------> stream-output-5/6
+//! analog-input-7/8 ------|-|-|-+-----------------> stream-output-7/8
+//! spdif-input-1/2  ------|-|-|-|-+---------------> stream-output-9/10
+//! adat-input-1/2   ------|-|-|-|-|-+-------------> stream-output-11/12
+//! adat-input-3/4   ------|-|-|-|-|-|-+-----------> stream-output-13/14
+//! adat-input-5/6   ------|-|-|-|-|-|-|-+---------> stream-output-15/16
+//! adat-input-7/8   ------|-|-|-|-|-|-|-|-+-------> stream-output-17/18
+//!                        | | | | | | | | |
+//!                        v v v v v v v v v
+//!                      ++=================++
+//!                      ||     monitor     ||
+//!                      ||                 ||
+//!                      ||     18 x 2      ||
+//!                      ++=================++
+//!                                 |
+//!                                 v
+//!                        monitor-output-1/2
+//!                                 |
+//! stream-input-1/2   ------+------|-------------->
+//!                          |      +--------------> analog-output-1/2
+//!                          |      |
+//! stream-input-3/4   ------|------|-------------->
+//!                          +------|--------------> analog-output-3/4
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-5/6   ------|------|-------------->
+//!                          +------|--------------> analog-output-5/6
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-7/8   ------|------|-------------->
+//!                          +---------------------> analog-output-7/8
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-9/10  ------|------|-------------->
+//!                          +---------------------> spdif-output-1/2
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-11/12 ------|------|-------------->
+//!                          +---------------------> adat-output-1/2
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-13/14 ------|------|-------------->
+//!                          +---------------------> adat-output-3/4
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-15/16 ------|------|-------------->
+//!                          +---------------------> adat-output-5/6
+//!                          |      +-------------->
+//!                          |      |
+//! stream-input-17/18 ------|------|-------------->
+//!                          +---------------------> adat-output-7/8
+//!                                 +-------------->
+//! ```
+//!
+//! The protocol implementation for Saffire Pro 26 i/o is done with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 3
+//! bootloader:
+//!   timestamp: 2006-05-30T02:56:34+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x00030cdd00130e01
+//!   model ID: 0x000013
+//!   revision: 0.0.0
+//! software:
+//!   timestamp: 2008-09-10T03:51:13+0000
+//!   ID: 3
+//!   revision: 2.1.8386
+//! image:
+//!   base address: 0x400c0080
+//!   maximum size: 0x149334
+//! ```
+//!
+//! The protocol implementation for Saffire Pro 10 i/o is done with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 3
+//! bootloader:
+//!   timestamp: 2006-11-03T11:54:44+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x000606e000130e01
+//!   model ID: 0x000014
+//!   revision: 0.0.0
+//! software:
+//!   timestamp: 2008-09-10T03:51:12+0000
+//!   ID: 6
+//!   revision: 2.1.8386
+//! image:
+//!   base address: 0x400c0080
+//!   maximum size: 0x149174
+//! ```
 
 use glib::FileError;
 
@@ -46,6 +149,14 @@ impl SaffireProioMeterOperation for SaffirePro26ioMeterProtocol {
     ];
 }
 
+/// The protocol implementation of input monitor for Saffire Pro i/o 26.
+#[derive(Default, Debug)]
+pub struct SaffirePro26ioMonitorProtocol;
+
+impl SaffireProioMonitorProtocol for SaffirePro26ioMonitorProtocol {
+    const HAS_ADAT: bool = true;
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire Pro 10 i/o. Write
 /// operation corresponding to any change takes the unit to disappear from the bus, then
 /// appears again with new configurations.
@@ -54,6 +165,14 @@ pub struct SaffirePro10ioClkProtocol;
 
 impl SaffireProioMediaClockFrequencyOperation for SaffirePro10ioClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000];
+}
+
+/// The protocol implementation of input monitor for Saffire Pro i/o 10.
+#[derive(Default, Debug)]
+pub struct SaffirePro10ioMonitorProtocol;
+
+impl SaffireProioMonitorProtocol for SaffirePro10ioMonitorProtocol {
+    const HAS_ADAT: bool = false;
 }
 
 /// The protocol implementation for operation of output parameters in Saffire Pro i/o series.
@@ -266,4 +385,250 @@ pub trait SaffireProioMeterOperation {
             Ok(())
         })
     }
+}
+
+/// The parameters of input monitor in Saffire Pro i/o.
+#[derive(Default, Debug)]
+pub struct SaffireProioMonitorParameters {
+    pub analog_inputs: [[i16; 8]; 2],
+    pub spdif_inputs: [[i16; 2]; 2],
+    pub adat_inputs: Option<[[i16; 16]; 2]>,
+}
+
+/// The trait for input monitor protocol in Saffire Pro i/o.
+pub trait SaffireProioMonitorProtocol {
+    const HAS_ADAT: bool;
+
+    const LEVEL_MIN: i16 = 0;
+    const LEVEL_MAX: i16 = 0x7fff;
+    const LEVEL_STEP: i16 = 0x100;
+
+    const ANALOG_INPUT_OFFSETS: [usize; 16] = [
+        0x00, // level from analog-input-0 to monitor-output-0
+        0x04, // level from analog-input-0 to monitor-output-1
+        0x08, // level from analog-input-1 to monitor-output-0
+        0x0c, // level from analog-input-1 to monitor-output-1
+        0x10, // level from analog-input-2 to monitor-output-0
+        0x14, // level from analog-input-2 to monitor-output-1
+        0x18, // level from analog-input-3 to monitor-output-0
+        0x1c, // level from analog-input-3 to monitor-output-1
+        0x20, // level from analog-input-4 to monitor-output-0
+        0x24, // level from analog-input-4 to monitor-output-1
+        0x28, // level from analog-input-5 to monitor-output-0
+        0x2c, // level from analog-input-5 to monitor-output-1
+        0x30, // level from analog-input-6 to monitor-output-0
+        0x34, // level from analog-input-6 to monitor-output-1
+        0x38, // level from analog-input-7 to monitor-output-0
+        0x3c, // level from analog-input-7 to monitor-output-1
+    ];
+    const SPDIF_INPUT_OFFSETS: [usize; 4] = [
+        0x40, // level from spdif-input-0 to monitor-output-0
+        0x44, // level from spdif-input-1 to monitor-output-0
+        0x48, // level from spdif-input-0 to monitor-output-1
+        0x4c, // level from spdif-input-1 to monitor-output-1
+    ];
+    const ADAT_INPUT_OFFSETS: [usize; 32] = [
+        0x50, // level from adat-input-a-0 to monitor-output-0
+        0x54, // level from adat-input-a-0 to monitor-output-1
+        0x58, // level from adat-input-a-1 to monitor-output-0
+        0x5c, // level from adat-input-a-1 to monitor-output-1
+        0x60, // level from adat-input-a-2 to monitor-output-0
+        0x64, // level from adat-input-a-2 to monitor-output-1
+        0x68, // level from adat-input-a-3 to monitor-output-0
+        0x6c, // level from adat-input-a-3 to monitor-output-1
+        0x70, // level from adat-input-a-4 to monitor-output-0
+        0x74, // level from adat-input-a-4 to monitor-output-1
+        0x78, // level from adat-input-a-5 to monitor-output-0
+        0x7c, // level from adat-input-a-5 to monitor-output-1
+        0x80, // level from adat-input-a-6 to monitor-output-0
+        0x84, // level from adat-input-a-6 to monitor-output-1
+        0x88, // level from adat-input-a-7 to monitor-output-0
+        0x8c, // level from adat-input-a-7 to monitor-output-1
+        0x90, // level from adat-input-b-0 to monitor-output-0
+        0x94, // level from adat-input-b-0 to monitor-output-1
+        0x98, // level from adat-input-b-1 to monitor-output-0
+        0x9c, // level from adat-input-b-1 to monitor-output-1
+        0xa0, // level from adat-input-b-2 to monitor-output-0
+        0xa4, // level from adat-input-b-2 to monitor-output-1
+        0xa8, // level from adat-input-b-3 to monitor-output-0
+        0xac, // level from adat-input-b-3 to monitor-output-1
+        0xb0, // level from adat-input-b-4 to monitor-output-0
+        0xb4, // level from adat-input-b-4 to monitor-output-1
+        0xb8, // level from adat-input-b-5 to monitor-output-0
+        0xbc, // level from adat-input-b-5 to monitor-output-1
+        0xc0, // level from adat-input-b-6 to monitor-output-0
+        0xc4, // level from adat-input-b-6 to monitor-output-1
+        0xc8, // level from adat-input-b-7 to monitor-output-0
+        0xcc, // level from adat-input-b-7 to monitor-output-1
+    ];
+
+    fn create_params() -> SaffireProioMonitorParameters {
+        SaffireProioMonitorParameters {
+            analog_inputs: Default::default(),
+            spdif_inputs: Default::default(),
+            adat_inputs: if Self::HAS_ADAT {
+                Some(Default::default())
+            } else {
+                None
+            },
+        }
+    }
+
+    fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireProioMonitorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_monitor_params(
+            req,
+            node,
+            &Self::ANALOG_INPUT_OFFSETS,
+            &mut params.analog_inputs,
+            timeout_ms,
+        )?;
+        read_monitor_params(
+            req,
+            node,
+            &Self::SPDIF_INPUT_OFFSETS,
+            &mut params.spdif_inputs,
+            timeout_ms,
+        )?;
+        if let Some(mut levels_list) = &mut params.adat_inputs {
+            read_monitor_params(
+                req,
+                node,
+                &Self::ADAT_INPUT_OFFSETS,
+                &mut levels_list,
+                timeout_ms,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn write_analog_inputs(
+        req: &FwReq,
+        node: &FwNode,
+        idx: usize,
+        levels: &[i16],
+        params: &mut SaffireProioMonitorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_monitor_params(
+            req,
+            node,
+            idx,
+            levels,
+            &Self::ANALOG_INPUT_OFFSETS,
+            &mut params.analog_inputs,
+            timeout_ms,
+        )
+    }
+
+    fn write_spdif_inputs(
+        req: &FwReq,
+        node: &FwNode,
+        idx: usize,
+        levels: &[i16],
+        params: &mut SaffireProioMonitorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_monitor_params(
+            req,
+            node,
+            idx,
+            levels,
+            &Self::SPDIF_INPUT_OFFSETS,
+            &mut params.spdif_inputs,
+            timeout_ms,
+        )
+    }
+
+    fn write_adat_inputs(
+        req: &FwReq,
+        node: &FwNode,
+        idx: usize,
+        levels: &[i16],
+        params: &mut SaffireProioMonitorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if let Some(adat_inputs) = &mut params.adat_inputs {
+            write_monitor_params(
+                req,
+                node,
+                idx,
+                levels,
+                &Self::ADAT_INPUT_OFFSETS,
+                adat_inputs,
+                timeout_ms,
+            )
+        } else {
+            Err(Error::new(FileError::Inval, "ADAT is not supported"))
+        }
+    }
+}
+
+fn read_monitor_params<T>(
+    req: &FwReq,
+    node: &FwNode,
+    offsets: &[usize],
+    levels_list: &mut [T],
+    timeout_ms: u32,
+) -> Result<(), Error>
+where
+    T: AsMut<[i16]>,
+{
+    let mut buf = vec![0; offsets.len() * 4];
+    saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
+        let mut quadlet = [0; 4];
+        let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+            vals.push(i32::from_be_bytes(quadlet) as i16);
+            vals
+        });
+        levels_list.iter_mut().enumerate().for_each(|(i, levels)| {
+            levels
+                .as_mut()
+                .iter_mut()
+                .enumerate()
+                .for_each(|(j, level)| *level = vals[i + j * 2]);
+        });
+    })
+}
+
+fn write_monitor_params<T>(
+    req: &FwReq,
+    node: &FwNode,
+    idx: usize,
+    levels: &[i16],
+    offset_list: &[usize],
+    old_levels_list: &mut [T],
+    timeout_ms: u32,
+) -> Result<(), Error>
+where
+    T: AsMut<[i16]>,
+{
+    let old_levels = old_levels_list.iter_mut().nth(idx).ok_or_else(|| {
+        let msg = format!("Invalid index for monitor: {}", idx);
+        Error::new(FileError::Inval, &msg)
+    })?;
+
+    let (offsets, buf) = old_levels
+        .as_mut()
+        .iter()
+        .zip(levels.iter())
+        .enumerate()
+        .filter(|(_, (old, new))| !old.eq(new))
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut offsets, mut buf), (j, (_, &level))| {
+                offsets.push(offset_list[idx + j * 2]);
+                buf.extend_from_slice(&(level as i32).to_be_bytes());
+                (offsets, buf)
+            },
+        );
+
+    saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+        .map(|_| old_levels.as_mut().copy_from_slice(levels))
 }
