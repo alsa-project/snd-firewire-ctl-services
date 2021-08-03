@@ -632,6 +632,14 @@ impl SamplingClockSourceOperation for SaffireLeClkProtocol {
     ];
 }
 
+/// The protocol implementation to store configuration in Saffire.
+#[derive(Default)]
+pub struct SaffireStoreConfigProtocol;
+
+impl SaffireStoreConfigOperation for SaffireStoreConfigProtocol {
+    const OFFSET: usize = 0x148;
+}
+
 /// The structure for meter information in Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeMeter {
@@ -1237,6 +1245,14 @@ pub struct SaffireLeThroughProtocol;
 impl SaffireThroughOperation for SaffireLeThroughProtocol {
     const MIDI_THROUGH_OFFSET: usize = 0x01bc;
     const AC3_THROUGH_OFFSET: usize = 0x01c0;
+}
+
+/// The protocol implementation to store configuration in Saffire.
+#[derive(Default)]
+pub struct SaffireLeStoreConfigProtocol;
+
+impl SaffireStoreConfigOperation for SaffireLeStoreConfigProtocol {
+    const OFFSET: usize = 0x1b8;
 }
 
 /// The structure of mixer coefficiencies in Saffire and Saffire LE.
