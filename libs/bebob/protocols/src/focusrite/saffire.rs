@@ -7,6 +7,50 @@
 //! defined by Focusrite Audio Engineering for Saffire and Saffire LE.
 //!
 //! DM1000E ASIC is used for Saffire, while DM1000 ASIC is used for Saffire LE.
+//!
+//! ## Diagram of internal signal flow for Saffire.
+//!
+//! ```text
+//!                              ++=========++
+//! analog-input-1/2 -------+--> || effects || --+---------+-------------> stream-output-1/2
+//!                         v    ++=========++   |         |
+//! spdif-input-1/2  ----> or -------------------|--+------|-------------> stream-output-3/4
+//!                                              |  |      v
+//!                                              |  | ++=========+
+//!                                              |  | || reverb ||
+//!                                              |  | ++========++
+//!                                              |  |      |
+//!                                              v  v      v
+//!                                         ++===============++
+//! stream-input-1/2 ---------------------> ||               || ---------> analog-output-1/2
+//! stream-input-3/4 ---------------------> ||     mixer     || ---------> analog-output-3/4
+//! stream-input-5/6 ---------------------> ||               || ---------> analog-output-5/6
+//! stream-input-7/8 ---------------------> ||    16 x 10    || ---------> analog-output-7/8
+//! stream-input-9/10 --------------------> ||               || ---------> analog-output-9/10
+//!                                         ++===============++
+//! ```
+//!
+//! The protocol implementation for Saffire is done with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2005-05-17T02:19:34+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x0001007200130e01
+//!   model ID: 0x000002
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2009-02-16T08:52:00+0000
+//!   ID: 0
+//!   revision: 2.2.7869
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
 
 use super::*;
 use crate::*;
@@ -290,6 +334,120 @@ impl SaffireSpecificProtocol {
             .map(|_| params.mixer_mode = mode)
     }
 }
+
+/// The protocol implementation for operation of mixer at stereo separated mode in Saffire.
+#[derive(Default)]
+pub struct SaffireSeparatedMixerProtocol;
+
+impl SaffireMixerOperation for SaffireSeparatedMixerProtocol {
+    const OFFSETS: &'static [usize] = &[
+        // level from phys-input-0
+        0x00, // to phys-output-8
+        0x04, // to phys-output-0
+        0x08, // to phys-output-2
+        0x0c, // to phys-output-4
+        0x10, // to phys-output-6
+        // level from phys-input-2
+        0x14, // to phys-output-8
+        0x18, // to phys-output-0
+        0x1c, // to phys-output-2
+        0x20, // to phys-output-4
+        0x24, // to phys-output-6
+        // level from reverb-output-0
+        0x28, // to phys-output-8
+        0x2c, // to phys-output-0
+        0x30, // to phys-output-2
+        0x34, // to phys-output-4
+        0x38, // to phys-output-6
+        // level from phys-input-1
+        0x3c, // to phys-output-9
+        0x40, // to phys-output-1
+        0x44, // to phys-output-3
+        0x48, // to phys-output-5
+        0x4c, // to phys-output-7
+        // level from phys-input-3
+        0x50, // to phys-output-9
+        0x54, // to phys-output-1
+        0x58, // to phys-output-3
+        0x5c, // to phys-output-5
+        0x60, // to phys-output-7
+        // level from reverb-output-1
+        0x64, // to phys-output-9
+        0x68, // to phys-output-1
+        0x6c, // to phys-output-3
+        0x70, // to phys-output-5
+        0x74, // to phys-output-7
+        // level from stream-input-8/9
+        0x78, // to phys-output-8/9
+        0x7c, // to phys-output-0/1
+        0x80, // to phys-output-2/3
+        0x84, // to phys-output-4/5
+        0x88, // to phys-output-6/7
+        // level from stream-input-0/1
+        0x8c, // to phys-output-8/9
+        0x90, // to phys-output-0/1
+        0x94, // to phys-output-2/3
+        0x98, // to phys-output-4/5
+        0x9c, // to phys-output-6/7
+        // level from stream-input-2/3
+        0xa0, // to phys-output-8/9
+        0xa4, // to phys-output-0/1
+        0xa8, // to phys-output-2/3
+        0xac, // to phys-output-4/5
+        0xb0, // to phys-output-6/7
+        // level from stream-input-4/5
+        0xb4, // to phys-output-8/9
+        0xb8, // to phys-output-0/1
+        0xbc, // to phys-output-2/3
+        0xc0, // to phys-output-4/5
+        0xc4, // to phys-output-6/7
+        // level from stream-input-6/7
+        0xc8, // to phys-output-8/9
+        0xcc, // to phys-output-0/1
+        0xd0, // to phys-output-2/3
+        0xd4, // to phys-output-4/5
+        0xd8, // to phys-output-6/7
+    ];
+
+    const PHYS_INPUT_COUNT: usize = 4;
+    const REVERB_RETURN_COUNT: usize = 2;
+
+    #[inline(always)]
+    fn stream_src_pos(mut dst_idx: usize, mut src_idx: usize) -> usize {
+        if dst_idx > 3 {
+            dst_idx = 0
+        } else {
+            dst_idx += 1;
+        }
+        if src_idx > 3 {
+            src_idx = 0;
+        } else {
+            src_idx += 1;
+        }
+        30 + src_idx * 5 + dst_idx
+    }
+
+    #[inline(always)]
+    fn phys_src_pos(mut dst_idx: usize, src_idx: usize) -> usize {
+        if dst_idx > 3 {
+            dst_idx = 0;
+        } else {
+            dst_idx += 1;
+        }
+        (src_idx / 2 * 5) + (src_idx % 2 * 15) + dst_idx
+    }
+
+    #[inline(always)]
+    fn reverb_return_pos(mut dst_idx: usize, src_idx: usize) -> usize {
+        if dst_idx > 3 {
+            dst_idx = 0
+        } else {
+            dst_idx += 1;
+        }
+        10 + src_idx * 15 + dst_idx
+    }
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeClkProtocol;
@@ -424,4 +582,248 @@ impl SaffireOutputOperation for SaffireLeOutputProtocol {
     const HWCTL_COUNT: usize = 0;
     const DIM_COUNT: usize = 0;
     const PAD_COUNT: usize = 0;
+}
+
+/// The structure of mixer coefficiencies in Saffire and Saffire LE.
+#[derive(Default, Debug)]
+pub struct SaffireMixerState {
+    pub phys_inputs: Vec<Vec<i16>>,
+    pub reverb_returns: Vec<Vec<i16>>,
+    pub stream_inputs: Vec<Vec<i16>>,
+}
+
+fn write_src_levels<T, F>(
+    req: &FwReq,
+    node: &FwNode,
+    idx: usize,
+    new_vals: &[i16],
+    offset_list: &[usize],
+    old_val_list: &mut [T],
+    timeout_ms: u32,
+    src_pos: F,
+) -> Result<(), Error>
+where
+    T: AsMut<[i16]>,
+    F: Fn(usize, usize) -> usize,
+{
+    let old_vals = old_val_list
+        .iter_mut()
+        .nth(idx)
+        .ok_or_else(|| {
+            let msg = format!("Invalid index of destination {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })
+        .map(|old_vals| old_vals.as_mut())?;
+
+    if new_vals.len() != old_vals.len() {
+        let msg = format!(
+            "Invalid length of value {}, but expected {}",
+            new_vals.len(),
+            old_vals.len()
+        );
+        Err(Error::new(FileError::Inval, &msg))?;
+    }
+
+    let (offsets, buf) = old_vals
+        .iter()
+        .zip(new_vals.iter())
+        .enumerate()
+        .filter(|(_, (old, new))| !new.eq(old))
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut offsets, mut buf), (i, (_, &new))| {
+                offsets.push(offset_list[src_pos(idx, i)]);
+                buf.extend_from_slice(&(new as i32).to_be_bytes());
+                (offsets, buf)
+            },
+        );
+
+    saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+        .map(|_| old_vals.copy_from_slice(new_vals))
+}
+
+/// The trait for mixer operation in Saffire.
+pub trait SaffireMixerOperation {
+    const OFFSETS: &'static [usize];
+
+    const PHYS_INPUT_COUNT: usize;
+    const REVERB_RETURN_COUNT: usize;
+
+    fn stream_src_pos(dst_idx: usize, src_idx: usize) -> usize;
+    fn phys_src_pos(dst_idx: usize, src_idx: usize) -> usize;
+    fn reverb_return_pos(dst_idx: usize, src_idx: usize) -> usize;
+
+    const STREAM_INPUT_COUNT: usize = 5;
+    const OUTPUT_PAIR_COUNT: usize = 5;
+
+    const LEVEL_MIN: i16 = 0x0000;
+    const LEVEL_MAX: i16 = 0x7fff;
+    const LEVEL_STEP: i16 = 0x100;
+
+    fn create_mixer_state() -> SaffireMixerState {
+        SaffireMixerState {
+            phys_inputs: vec![vec![0; Self::PHYS_INPUT_COUNT]; Self::OUTPUT_PAIR_COUNT],
+            reverb_returns: vec![vec![0; Self::REVERB_RETURN_COUNT]; Self::OUTPUT_PAIR_COUNT],
+            stream_inputs: vec![vec![0; Self::STREAM_INPUT_COUNT]; Self::OUTPUT_PAIR_COUNT],
+        }
+    }
+
+    fn read_mixer_state(
+        req: &FwReq,
+        node: &FwNode,
+        state: &mut SaffireMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(i32::from_be_bytes(quadlet) as i16);
+                vals
+            });
+
+            state
+                .phys_inputs
+                .iter_mut()
+                .enumerate()
+                .for_each(|(dst_idx, gains)| {
+                    gains.iter_mut().enumerate().for_each(|(src_idx, gain)| {
+                        let pos = Self::phys_src_pos(dst_idx, src_idx);
+                        *gain = vals[pos];
+                    });
+                });
+
+            state
+                .reverb_returns
+                .iter_mut()
+                .enumerate()
+                .for_each(|(dst_idx, gains)| {
+                    gains.iter_mut().enumerate().for_each(|(src_idx, gain)| {
+                        let pos = Self::reverb_return_pos(dst_idx, src_idx);
+                        *gain = vals[pos];
+                    });
+                });
+
+            state
+                .stream_inputs
+                .iter_mut()
+                .enumerate()
+                .for_each(|(dst_idx, gains)| {
+                    gains.iter_mut().enumerate().for_each(|(src_idx, gain)| {
+                        let pos = Self::stream_src_pos(dst_idx, src_idx);
+                        *gain = vals[pos];
+                    });
+                });
+        })
+    }
+
+    fn write_mixer_state(
+        req: &FwReq,
+        node: &FwNode,
+        state: &mut SaffireMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut offsets = Vec::new();
+        let mut buf = Vec::new();
+
+        state
+            .phys_inputs
+            .iter()
+            .enumerate()
+            .for_each(|(dst_idx, gains)| {
+                gains.iter().enumerate().for_each(|(src_idx, &gain)| {
+                    let pos = Self::phys_src_pos(dst_idx, src_idx);
+                    offsets.push(Self::OFFSETS[pos]);
+                    buf.extend_from_slice(&(gain as i32).to_be_bytes());
+                });
+            });
+
+        state
+            .reverb_returns
+            .iter()
+            .enumerate()
+            .for_each(|(dst_idx, gains)| {
+                gains.iter().enumerate().for_each(|(src_idx, &gain)| {
+                    let pos = Self::reverb_return_pos(dst_idx, src_idx);
+                    offsets.push(Self::OFFSETS[pos]);
+                    buf.extend_from_slice(&(gain as i32).to_be_bytes());
+                });
+            });
+
+        state
+            .stream_inputs
+            .iter()
+            .enumerate()
+            .for_each(|(dst_idx, gains)| {
+                gains.iter().enumerate().for_each(|(src_idx, &gain)| {
+                    let pos = Self::stream_src_pos(dst_idx, src_idx);
+                    offsets.push(Self::OFFSETS[pos]);
+                    buf.extend_from_slice(&(gain as i32).to_be_bytes());
+                });
+            });
+
+        saffire_write_quadlets(req, node, &offsets, &mut buf, timeout_ms)
+    }
+
+    fn write_phys_inputs(
+        req: &FwReq,
+        node: &FwNode,
+        idx: usize,
+        levels: &[i16],
+        state: &mut SaffireMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_src_levels(
+            req,
+            node,
+            idx,
+            levels,
+            &Self::OFFSETS,
+            &mut state.phys_inputs,
+            timeout_ms,
+            Self::phys_src_pos,
+        )
+    }
+
+    fn write_reverb_returns(
+        req: &FwReq,
+        node: &FwNode,
+        idx: usize,
+        levels: &[i16],
+        state: &mut SaffireMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_src_levels(
+            req,
+            node,
+            idx,
+            levels,
+            &Self::OFFSETS,
+            &mut state.reverb_returns,
+            timeout_ms,
+            Self::reverb_return_pos,
+        )
+    }
+
+    fn write_stream_inputs(
+        req: &FwReq,
+        node: &FwNode,
+        idx: usize,
+        levels: &[i16],
+        state: &mut SaffireMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_src_levels(
+            req,
+            node,
+            idx,
+            levels,
+            &Self::OFFSETS,
+            &mut state.stream_inputs,
+            timeout_ms,
+            Self::stream_src_pos,
+        )
+    }
 }
