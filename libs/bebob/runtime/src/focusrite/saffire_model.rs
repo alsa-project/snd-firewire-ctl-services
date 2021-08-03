@@ -25,6 +25,7 @@ pub struct SaffireModel {
     out_ctl: OutputCtl,
     specific_ctl: SpecificCtl,
     separated_mixer_ctl: SeparatedMixerCtl,
+    paired_mixer_ctl: PairedMixerCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -90,6 +91,29 @@ impl SaffireMixerCtlOperation<SaffireSeparatedMixerProtocol> for SeparatedMixerC
     const MIXER_MODE: SaffireMixerMode = SaffireMixerMode::StereoSeparated;
 }
 
+#[derive(Default)]
+struct PairedMixerCtl(Vec<ElemId>, SaffireMixerState);
+
+impl AsRef<SaffireMixerState> for PairedMixerCtl {
+    fn as_ref(&self) -> &SaffireMixerState {
+        &self.1
+    }
+}
+
+impl AsMut<SaffireMixerState> for PairedMixerCtl {
+    fn as_mut(&mut self) -> &mut SaffireMixerState {
+        &mut self.1
+    }
+}
+
+impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
+    const PHYS_INPUT_GAIN_NAME: &'static str = "mixer:paired:phys-input-gain";
+    const REVERB_RETURN_GAIN_NAME: &'static str = "mixer:paired:reverb-return-gain";
+    const STREAM_SRC_GAIN_NAME: &'static str = "mixer:paired:stream-source-gain";
+
+    const MIXER_MODE: SaffireMixerMode = SaffireMixerMode::StereoPaired;
+}
+
 impl CtlModel<SndUnit> for SaffireModel {
     fn load(
         &mut self,
@@ -116,6 +140,10 @@ impl CtlModel<SndUnit> for SaffireModel {
                                                  &self.req, TIMEOUT_MS)
             .map(|measured_elem_id_list| self.separated_mixer_ctl.0 = measured_elem_id_list)?;
 
+        self.paired_mixer_ctl.load_src_levels(card_cntr, self.specific_ctl.0.mixer_mode, unit,
+                                              &self.req, TIMEOUT_MS)
+            .map(|measured_elem_id_list| self.paired_mixer_ctl.0 = measured_elem_id_list)?;
+
         Ok(())
     }
 
@@ -137,6 +165,8 @@ impl CtlModel<SndUnit> for SaffireModel {
             Ok(true)
         } else if self.separated_mixer_ctl.read_src_levels(elem_id, elem_value)? {
             Ok(true)
+        } else if self.paired_mixer_ctl.read_src_levels(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -155,11 +185,15 @@ impl CtlModel<SndUnit> for SaffireModel {
             Ok(true)
         } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.specific_ctl.write_params(&mut self.separated_mixer_ctl, unit, &self.req,
+        } else if self.specific_ctl.write_params(&mut self.separated_mixer_ctl,
+                                                 &mut self.paired_mixer_ctl, unit, &self.req,
                                                  elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.separated_mixer_ctl.write_src_levels(self.specific_ctl.0.mixer_mode, unit,
                                                             &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.paired_mixer_ctl.write_src_levels(self.specific_ctl.0.mixer_mode, unit,
+                                                         &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -188,6 +222,7 @@ impl MeasureModel<SndUnit> for SaffireModel {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.out_ctl.0);
         elem_id_list.extend_from_slice(&self.separated_mixer_ctl.0);
+        elem_id_list.extend_from_slice(&self.paired_mixer_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
@@ -204,6 +239,8 @@ impl MeasureModel<SndUnit> for SaffireModel {
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.separated_mixer_ctl.read_src_levels(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.paired_mixer_ctl.read_src_levels(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -368,6 +405,7 @@ impl SpecificCtl {
     fn write_params(
         &mut self,
         separated_mixer_ctl: &mut SeparatedMixerCtl,
+        paired_mixer_ctl: &mut PairedMixerCtl,
         unit: &SndUnit,
         req: &FwReq,
         elem_id: &ElemId,
@@ -423,6 +461,8 @@ impl SpecificCtl {
                 )?;
                 if mode == SaffireMixerMode::StereoSeparated {
                     separated_mixer_ctl.write_state(unit, req, timeout_ms)?;
+                } else {
+                    paired_mixer_ctl.write_state(unit, req, timeout_ms)?;
                 }
                 Ok(true)
             }
