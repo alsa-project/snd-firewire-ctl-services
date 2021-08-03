@@ -1082,6 +1082,14 @@ pub trait SaffireProioSpecificOperation {
     }
 }
 
+/// The protocol implementation to store configuration in Saffire.
+#[derive(Default)]
+pub struct SaffireProioStoreConfigProtocol;
+
+impl SaffireStoreConfigOperation for SaffireProioStoreConfigProtocol {
+    const OFFSET: usize = 0x1b0;
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

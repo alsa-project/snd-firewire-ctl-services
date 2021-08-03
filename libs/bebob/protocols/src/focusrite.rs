@@ -355,6 +355,14 @@ fn build_output_parameter(
     val
 }
 
+pub trait SaffireStoreConfigOperation {
+    const OFFSET: usize;
+
+    fn store_config(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
+        saffire_write_quadlets(req, node, &[Self::OFFSET], &1u32.to_be_bytes(), timeout_ms)
+    }
+}
+
 /// The maximum number of offsets read/written at once.
 pub const MAXIMUM_OFFSET_COUNT: usize = 20;
 
