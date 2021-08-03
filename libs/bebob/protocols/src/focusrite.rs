@@ -32,6 +32,8 @@
 //! the transaction for write operation is sent to 0x'0001'0001'0000 with the same quadlet-aligned
 //! data with one-quarter of offset, and value, as the case of AV/C vendor dependent command.
 
+pub mod saffire;
+
 use glib::Error;
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
