@@ -147,6 +147,21 @@ impl SaffireMeterProtocol {
     }
 }
 
+/// The protocol implementation for operation of output parameters in Saffire.
+#[derive(Default)]
+pub struct SaffireOutputProtocol;
+
+impl SaffireOutputOperation for SaffireOutputProtocol {
+    // physical-output-1/2, 3/4, 5/6, 7/8, and digital-output-1/2.
+    const OFFSETS: &'static [usize] = &[0xdc, 0xe0, 0xe4, 0xe8, 0xec];
+
+    const MUTE_COUNT: usize = 5;
+    const VOL_COUNT: usize = 4;
+    const HWCTL_COUNT: usize = 4;
+    const DIM_COUNT: usize = 1;
+    const PAD_COUNT: usize = 0;
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeClkProtocol;
@@ -266,4 +281,19 @@ impl SaffireLeMeterProtocol {
             meter.dig_input_detect = vals[18] > 0;
         })
     }
+}
+
+/// The protocol implementation for operation of output parameters in Saffire.
+#[derive(Default)]
+pub struct SaffireLeOutputProtocol;
+
+impl SaffireOutputOperation for SaffireLeOutputProtocol {
+    // physical-output-1/2, 3/4, 5/6, 7/8, and digital-output-1/2.
+    const OFFSETS: &'static [usize] = &[0x15c, 0x160, 0x164];
+
+    const MUTE_COUNT: usize = 3;
+    const VOL_COUNT: usize = 3;
+    const HWCTL_COUNT: usize = 0;
+    const DIM_COUNT: usize = 0;
+    const PAD_COUNT: usize = 0;
 }
