@@ -1230,6 +1230,15 @@ impl SaffireLeMixerMiddleRateProtocol {
     }
 }
 
+/// The ptorocol implementation of AC3 and MIDI signal through.
+#[derive(Default, Debug)]
+pub struct SaffireLeThroughProtocol;
+
+impl SaffireThroughOperation for SaffireLeThroughProtocol {
+    const MIDI_THROUGH_OFFSET: usize = 0x01bc;
+    const AC3_THROUGH_OFFSET: usize = 0x01c0;
+}
+
 /// The structure of mixer coefficiencies in Saffire and Saffire LE.
 #[derive(Default, Debug)]
 pub struct SaffireMixerState {

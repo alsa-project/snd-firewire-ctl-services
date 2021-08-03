@@ -576,6 +576,64 @@ pub fn saffire_write_quadlets(
     )
 }
 
+/// The trait for operations of AC3 and MIDI signal through.
+pub trait SaffireThroughOperation {
+    const MIDI_THROUGH_OFFSET: usize;
+    const AC3_THROUGH_OFFSET: usize;
+
+    fn read_midi_through(
+        req: &FwReq,
+        node: &FwNode,
+        enable: &mut bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = [0; 4];
+        saffire_read_quadlet(req, node, Self::MIDI_THROUGH_OFFSET, &mut buf, timeout_ms)
+            .map(|_| *enable = u32::from_be_bytes(buf) > 0)
+    }
+
+    fn read_ac3_through(
+        req: &FwReq,
+        node: &FwNode,
+        enable: &mut bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = [0; 4];
+        saffire_read_quadlet(req, node, Self::AC3_THROUGH_OFFSET, &mut buf, timeout_ms)
+            .map(|_| *enable = u32::from_be_bytes(buf) > 0)
+    }
+
+    fn write_midi_through(
+        req: &FwReq,
+        node: &FwNode,
+        enable: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        saffire_write_quadlet(
+            req,
+            node,
+            Self::MIDI_THROUGH_OFFSET,
+            &(enable as u32).to_be_bytes(),
+            timeout_ms,
+        )
+    }
+
+    fn write_ac3_through(
+        req: &FwReq,
+        node: &FwNode,
+        enable: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        saffire_write_quadlet(
+            req,
+            node,
+            Self::AC3_THROUGH_OFFSET,
+            &(enable as u32).to_be_bytes(),
+            timeout_ms,
+        )
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
