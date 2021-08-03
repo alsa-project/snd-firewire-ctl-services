@@ -32,6 +32,20 @@ impl SaffireProioSamplingClockSourceOperation for SaffirePro26ioClkProtocol {
     ];
 }
 
+/// The protocol implementation of meter information in Saffire Pro 26 i/o.
+#[derive(Default)]
+pub struct SaffirePro26ioMeterProtocol;
+
+impl SaffireProioMeterOperation for SaffirePro26ioMeterProtocol {
+    const SRC_LIST: &'static [SaffireProioSamplingClockSource] = &[
+        SaffireProioSamplingClockSource::Internal,
+        SaffireProioSamplingClockSource::Spdif,
+        SaffireProioSamplingClockSource::Adat0,
+        SaffireProioSamplingClockSource::Adat1,
+        SaffireProioSamplingClockSource::WordClock,
+    ];
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire Pro 10 i/o. Write
 /// operation corresponding to any change takes the unit to disappear from the bus, then
 /// appears again with new configurations.
@@ -43,6 +57,17 @@ impl SaffireProioMediaClockFrequencyOperation for SaffirePro10ioClkProtocol {
 }
 
 impl SaffireProioSamplingClockSourceOperation for SaffirePro10ioClkProtocol {
+    const SRC_LIST: &'static [SaffireProioSamplingClockSource] = &[
+        SaffireProioSamplingClockSource::Internal,
+        SaffireProioSamplingClockSource::Spdif,
+    ];
+}
+
+/// The protocol implementation of meter information in Saffire Pro 10 i/o.
+#[derive(Default)]
+pub struct SaffirePro10ioMeterProtocol;
+
+impl SaffireProioMeterOperation for SaffirePro10ioMeterProtocol {
     const SRC_LIST: &'static [SaffireProioSamplingClockSource] = &[
         SaffireProioSamplingClockSource::Internal,
         SaffireProioSamplingClockSource::Spdif,
@@ -99,6 +124,7 @@ impl Default for SaffireProioSamplingClockSource {
 
 const SAMPLING_CLOCK_SRC_OFFSET: usize = 0x0174;
 
+const CLK_SRC_EFFECTIVE_MASK: u32 = 0x0000ff00;
 const CLK_SRC_CONF_MASK: u32 = 0x000000ff;
 const CLK_SRC_INTERNAL: u32 = 0x00;
 const CLK_SRC_SPDIF: u32 = 0x02;
@@ -152,5 +178,68 @@ pub trait SaffireProioSamplingClockSourceOperation {
 
         let buf = value.to_be_bytes();
         saffire_write_quadlet(req, node, SAMPLING_CLOCK_SRC_OFFSET, &buf, timeout_ms)
+    }
+}
+
+/// The structure for meter information in Saffire Pro i/o.
+#[derive(Default, Debug)]
+pub struct SaffireProioMeterState {
+    pub monitor_knob: u8,
+    pub mute_led: bool,
+    pub dim_led: bool,
+    pub effective_clk_srcs: SaffireProioSamplingClockSource,
+}
+
+const MONITOR_KNOB_OFFSET: usize = 0x0158;
+const DIM_LED_OFFSET: usize = 0x015c;
+const MUTE_LED_OFFSET: usize = 0x0160;
+
+const CLK_SRC_OFFSET: usize = 0x0174;
+
+/// The trait of operation for meter information. The value of monitor knob is available only when
+/// any of hwctl in output parameter is enabled, else it's always 0x8f.
+pub trait SaffireProioMeterOperation {
+    const SRC_LIST: &'static [SaffireProioSamplingClockSource];
+
+    fn read_state(
+        req: &FwReq,
+        node: &FwNode,
+        state: &mut SaffireProioMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [
+            MONITOR_KNOB_OFFSET,
+            DIM_LED_OFFSET,
+            MUTE_LED_OFFSET,
+            CLK_SRC_OFFSET,
+        ];
+        let mut buf = vec![0; offsets.len() * 4];
+        saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).and_then(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(u32::from_be_bytes(quadlet));
+                vals
+            });
+
+            state.monitor_knob = (vals[0] & 0xff) as u8;
+            state.mute_led = vals[1] > 0;
+            state.dim_led = vals[2] > 0;
+
+            state.effective_clk_srcs = match (vals[3] & CLK_SRC_EFFECTIVE_MASK) >> 8 {
+                CLK_SRC_INTERNAL => Ok(SaffireProioSamplingClockSource::Internal),
+                CLK_SRC_SPDIF => Ok(SaffireProioSamplingClockSource::Spdif),
+                CLK_SRC_ADAT0 => Ok(SaffireProioSamplingClockSource::Adat0),
+                CLK_SRC_ADAT1 => Ok(SaffireProioSamplingClockSource::Adat1),
+                CLK_SRC_WORD_CLOCK => Ok(SaffireProioSamplingClockSource::WordClock),
+                _ => {
+                    let msg = format!("Unexpected value for source of sampling clock: {}", vals[0]);
+                    Err(Error::new(FileError::Io, &msg))
+                }
+            }?;
+
+            Ok(())
+        })
     }
 }
