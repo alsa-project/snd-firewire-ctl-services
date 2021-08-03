@@ -44,6 +44,317 @@ use ta1394::{general::*, *};
 /// OUI registerd to IEEE for Focusrite Audio Engineering Ltd.
 pub const FOCUSRITE_OUI: [u8; 3] = [0x00, 0x13, 0x0e];
 
+/// The structure for output parameters.
+#[derive(Default)]
+pub struct SaffireOutputParameters {
+    pub mutes: Vec<bool>,
+    pub vols: Vec<u8>,
+    pub hwctls: Vec<bool>,
+    pub dims: Vec<bool>,
+    pub pads: Vec<bool>,
+}
+
+const PAD_FLAG: u32 = 0x10000000;
+const HWCTL_FLAG: u32 = 0x08000000;
+//TODO: const DIRECT_FLAG: u32 = 0x04000000;
+const MUTE_FLAG: u32 = 0x02000000;
+const DIM_FLAG: u32 = 0x01000000;
+const VOL_MASK: u32 = 0x000000ff;
+
+/// The trait for operations of output parameters.
+pub trait SaffireOutputOperation {
+    // NOTE: the series of offset should be continuous.
+    const OFFSETS: &'static [usize];
+
+    const MUTE_COUNT: usize;
+    const VOL_COUNT: usize;
+    const HWCTL_COUNT: usize;
+    const DIM_COUNT: usize;
+    const PAD_COUNT: usize;
+
+    const LEVEL_MIN: u8 = 0x00;
+    const LEVEL_MAX: u8 = 0xff;
+    const LEVEL_STEP: u8 = 0x01;
+
+    fn create_output_parameters() -> SaffireOutputParameters {
+        SaffireOutputParameters {
+            mutes: vec![Default::default(); Self::MUTE_COUNT],
+            vols: vec![Default::default(); Self::VOL_COUNT],
+            hwctls: vec![Default::default(); Self::HWCTL_COUNT],
+            dims: vec![Default::default(); Self::DIM_COUNT],
+            pads: vec![Default::default(); Self::PAD_COUNT],
+        }
+    }
+
+    fn read_output_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireOutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms)?;
+
+        let mut quadlet = [0; 4];
+        let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+            vals.push(u32::from_be_bytes(quadlet));
+            vals
+        });
+
+        params
+            .mutes
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(mute, &val)| *mute = val & MUTE_FLAG > 0);
+
+        params
+            .vols
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(vol, &val)| *vol = 0xff - (val & VOL_MASK) as u8);
+
+        params
+            .hwctls
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(hwctl, &val)| *hwctl = val & HWCTL_FLAG > 0);
+
+        params
+            .dims
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(dim, &val)| *dim = val & DIM_FLAG > 0);
+
+        params
+            .pads
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(pad, val)| *pad = val & PAD_FLAG > 0);
+
+        Ok(())
+    }
+
+    fn write_mutes(
+        req: &FwReq,
+        node: &FwNode,
+        mutes: &[bool],
+        params: &mut SaffireOutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let old_mutes = &mut params.mutes;
+        let vols = &params.vols;
+        let hwctls = &params.hwctls;
+        let dims = &params.dims;
+        let pads = &params.pads;
+
+        let (offsets, buf) = old_mutes
+            .iter()
+            .zip(mutes.iter())
+            .zip(Self::OFFSETS.iter())
+            .enumerate()
+            .filter(|(_, ((old, new), _))| !old.eq(new))
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut offsets, mut buf), (i, (_, &offset))| {
+                    offsets.push(offset);
+                    let val = build_output_parameter(mutes, vols, hwctls, dims, pads, i);
+                    buf.extend_from_slice(&val.to_be_bytes());
+                    (offsets, buf)
+                },
+            );
+
+        if offsets.len() > 0 {
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| old_mutes.copy_from_slice(mutes))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn write_vols(
+        req: &FwReq,
+        node: &FwNode,
+        vols: &[u8],
+        params: &mut SaffireOutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mutes = &params.mutes;
+        let old_vols = &mut params.vols;
+        let hwctls = &params.hwctls;
+        let dims = &params.dims;
+        let pads = &params.pads;
+
+        let (offsets, buf) = old_vols
+            .iter()
+            .zip(vols.iter())
+            .zip(Self::OFFSETS.iter())
+            .enumerate()
+            .filter(|(_, ((old, new), _))| !old.eq(new))
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut offsets, mut buf), (i, (_, &offset))| {
+                    offsets.push(offset);
+                    let val = build_output_parameter(mutes, vols, hwctls, dims, pads, i);
+                    buf.extend_from_slice(&val.to_be_bytes());
+                    (offsets, buf)
+                },
+            );
+
+        if offsets.len() > 0 {
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| old_vols.copy_from_slice(vols))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn write_hwctls(
+        req: &FwReq,
+        node: &FwNode,
+        hwctls: &[bool],
+        params: &mut SaffireOutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mutes = &params.mutes;
+        let vols = &params.vols;
+        let old_hwctls = &mut params.hwctls;
+        let dims = &params.dims;
+        let pads = &params.pads;
+
+        let (offsets, buf) = old_hwctls
+            .iter()
+            .zip(hwctls.iter())
+            .zip(Self::OFFSETS.iter())
+            .enumerate()
+            .filter(|(_, ((old, new), _))| !old.eq(new))
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut offsets, mut buf), (i, (_, &offset))| {
+                    offsets.push(offset);
+                    let val = build_output_parameter(mutes, vols, hwctls, dims, pads, i);
+                    buf.extend_from_slice(&val.to_be_bytes());
+                    (offsets, buf)
+                },
+            );
+
+        if offsets.len() > 0 {
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| old_hwctls.copy_from_slice(hwctls))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn write_dims(
+        req: &FwReq,
+        node: &FwNode,
+        dims: &[bool],
+        params: &mut SaffireOutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mutes = &params.mutes;
+        let vols = &params.vols;
+        let hwctls = &params.hwctls;
+        let old_dims = &mut params.dims;
+        let pads = &params.pads;
+
+        let (offsets, buf) = old_dims
+            .iter()
+            .zip(dims.iter())
+            .zip(Self::OFFSETS.iter())
+            .enumerate()
+            .filter(|(_, ((old, new), _))| !old.eq(new))
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut offsets, mut buf), (i, (_, &offset))| {
+                    offsets.push(offset);
+                    let val = build_output_parameter(mutes, vols, hwctls, dims, pads, i);
+                    buf.extend_from_slice(&val.to_be_bytes());
+                    (offsets, buf)
+                },
+            );
+
+        if offsets.len() > 0 {
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| old_dims.copy_from_slice(dims))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn write_pads(
+        req: &FwReq,
+        node: &FwNode,
+        pads: &[bool],
+        params: &mut SaffireOutputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mutes = &params.mutes;
+        let vols = &params.vols;
+        let hwctls = &params.hwctls;
+        let dims = &params.dims;
+        let old_pads = &mut params.pads;
+
+        let (offsets, buf) = old_pads
+            .iter()
+            .zip(pads.iter())
+            .zip(Self::OFFSETS.iter())
+            .enumerate()
+            .filter(|(_, ((old, new), _))| !old.eq(new))
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut offsets, mut buf), (i, (_, &offset))| {
+                    offsets.push(offset);
+                    let val = build_output_parameter(mutes, vols, hwctls, dims, pads, i);
+                    buf.extend_from_slice(&val.to_be_bytes());
+                    (offsets, buf)
+                },
+            );
+
+        if offsets.len() > 0 {
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| old_pads.copy_from_slice(pads))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn build_output_parameter(
+    mutes: &[bool],
+    vols: &[u8],
+    hwctls: &[bool],
+    dims: &[bool],
+    pads: &[bool],
+    index: usize,
+) -> u32 {
+    let mut val = 0u32;
+    mutes
+        .iter()
+        .nth(index)
+        .filter(|&mute| *mute)
+        .map(|_| val |= MUTE_FLAG);
+    vols.iter()
+        .nth(index)
+        .map(|&vol| val |= (0xff - vol) as u32);
+    hwctls
+        .iter()
+        .nth(index)
+        .filter(|&hwctl| *hwctl)
+        .map(|_| val |= HWCTL_FLAG);
+    dims.iter()
+        .nth(index)
+        .filter(|&dim| *dim)
+        .map(|_| val |= DIM_FLAG);
+    pads.iter()
+        .nth(index)
+        .filter(|&pad| *pad)
+        .map(|_| val |= PAD_FLAG);
+    val
+}
+
 /// The maximum number of offsets read/written at once.
 pub const MAXIMUM_OFFSET_COUNT: usize = 20;
 

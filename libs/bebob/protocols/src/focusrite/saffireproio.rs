@@ -56,6 +56,21 @@ impl SaffireProioMediaClockFrequencyOperation for SaffirePro10ioClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000];
 }
 
+/// The protocol implementation for operation of output parameters in Saffire Pro i/o series.
+#[derive(Default)]
+pub struct SaffireProioOutputProtocol;
+
+impl SaffireOutputOperation for SaffireProioOutputProtocol {
+    // analog-output-1/2, 3/4, 5/6, 7/8.
+    const OFFSETS: &'static [usize] = &[0x140, 0x144, 0x148, 0x14c];
+
+    const MUTE_COUNT: usize = 4;
+    const VOL_COUNT: usize = 4;
+    const HWCTL_COUNT: usize = 4;
+    const DIM_COUNT: usize = 4;
+    const PAD_COUNT: usize = 4;
+}
+
 impl SaffireProioSamplingClockSourceOperation for SaffirePro10ioClkProtocol {
     const SRC_LIST: &'static [SaffireProioSamplingClockSource] = &[
         SaffireProioSamplingClockSource::Internal,
