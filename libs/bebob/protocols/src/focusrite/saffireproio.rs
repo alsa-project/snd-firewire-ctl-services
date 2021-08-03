@@ -196,6 +196,15 @@ pub trait SaffireProioSamplingClockSourceOperation {
     }
 }
 
+/// The ptorocol implementation of AC3 and MIDI signal through.
+#[derive(Default, Debug)]
+pub struct SaffireProioThroughProtocol;
+
+impl SaffireThroughOperation for SaffireProioThroughProtocol {
+    const MIDI_THROUGH_OFFSET: usize = 0x019c;
+    const AC3_THROUGH_OFFSET: usize = 0x01a0;
+}
+
 /// The structure for meter information in Saffire Pro i/o.
 #[derive(Default, Debug)]
 pub struct SaffireProioMeterState {
