@@ -208,6 +208,10 @@ impl SaffireProioMeterOperation for SaffirePro10ioMeterProtocol {
     ];
 }
 
+/// The protocol implementation for operation of mixer in Saffire Pro i/o series.
+#[derive(Default, Debug)]
+pub struct SaffireProioMixerProtocol;
+
 const MEDIA_CLOCK_FREQ_OFFSET: usize = 0x0150;
 
 /// The trait of frequency operation for media clock in Saffire Pro series.
@@ -631,4 +635,250 @@ where
 
     saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
         .map(|_| old_levels.as_mut().copy_from_slice(levels))
+}
+
+/// The structure for parameters of mixer in Saffire Pro i/o.
+#[derive(Default, Debug)]
+pub struct SaffireProioMixerParameters {
+    pub monitor_sources: [i16; 10],
+    pub stream_source_pair0: [i16; 10],
+    pub stream_sources: [i16; 10],
+}
+
+const MIXER_OFFSETS: [usize; 28] = [
+    // level to analog-output-0
+    0x0d0, // from stream-input-0
+    0x0d4, // from monitor-output-0
+
+    // level to analog-output-1
+    0x0d8, // from stream-input-1
+    0x0dc, // from monitor-output-1
+
+    // level to analog-out-2
+    0x0e0, // from stream-input-0
+    0x0e4, // from stream-input-2
+    0x0e8, // from monitor-output-0
+
+    // level to analog-out-3
+    0x0ec, // from stream-input-1
+    0x0f0, // from stream-input-3
+    0x0f4, // from monitor-output-1
+
+    // level to analog-out-4
+    0x0f8, // from stream-input-0
+    0x0fc, // from stream-input-4
+    0x100, // from monitor-output-0
+
+    // level to analog-out-5
+    0x104, // from stream-input-1
+    0x108, // from stream-input-5
+    0x10c, // from monitor-output-1
+
+    // level to analog-out-6
+    0x110, // from stream-input-0
+    0x114, // from stream-input-6
+    0x118, // from monitor-output-0
+
+    // level to analog-out-7
+    0x11c, // from stream-input-1
+    0x120, // from stream-input-7
+    0x124, // from monitor-output-1
+
+    // level to analog-out-8
+    0x128, // from stream-input-0
+    0x12c, // from stream-input-8
+    0x130, // from monitor-output-0
+
+    // level to analog-out-9
+    0x134, // from stream-input-1
+    0x138, // from stream-input-9
+    0x13c, // from monitor-output-1
+];
+
+impl SaffireProioMixerProtocol {
+    pub const LEVEL_MIN: i16 = 0;
+    pub const LEVEL_MAX: i16 = 0x7fff;
+    pub const LEVEL_STEP: i16 = 0x100;
+
+    pub fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireProioMixerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; MIXER_OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &MIXER_OFFSETS, &mut buf, timeout_ms)?;
+
+        let mut quadlet = [0; 4];
+        let vals = (0..MIXER_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+            let pos = i * 4;
+            quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+            vals.push(u32::from_be_bytes(quadlet) as i16);
+            vals
+        });
+
+        params
+            .monitor_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, level)| *level = vals[calc_monitor_source_pos(i)]);
+
+        params
+            .stream_source_pair0
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, level)| *level = vals[calc_stream_source_pair0_pos(i)]);
+
+        params
+            .stream_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, level)| *level = vals[calc_stream_source_pos(i)]);
+
+        Ok(())
+    }
+
+    pub fn write_monitor_sources(
+        req: &FwReq,
+        node: &FwNode,
+        levels: &[i16],
+        params: &mut SaffireProioMixerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_source_levels(
+            req,
+            node,
+            levels,
+            &mut params.monitor_sources,
+            calc_monitor_source_pos,
+            timeout_ms,
+        )
+    }
+
+    pub fn write_stream_source_pair0(
+        req: &FwReq,
+        node: &FwNode,
+        levels: &[i16],
+        params: &mut SaffireProioMixerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_source_levels(
+            req,
+            node,
+            levels,
+            &mut params.stream_source_pair0,
+            calc_stream_source_pair0_pos,
+            timeout_ms,
+        )
+    }
+
+    pub fn write_stream_sources(
+        req: &FwReq,
+        node: &FwNode,
+        levels: &[i16],
+        params: &mut SaffireProioMixerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_source_levels(
+            req,
+            node,
+            levels,
+            &mut params.stream_sources,
+            calc_stream_source_pos,
+            timeout_ms,
+        )
+    }
+}
+
+fn write_source_levels<F>(
+    req: &FwReq,
+    node: &FwNode,
+    levels: &[i16],
+    old_levels: &mut [i16],
+    calc_pos: F,
+    timeout_ms: u32,
+) -> Result<(), Error>
+where
+    F: Fn(usize) -> usize,
+{
+    let (offsets, buf) = old_levels
+        .iter()
+        .zip(levels.iter())
+        .enumerate()
+        .filter(|(_, (old, new))| !old.eq(new))
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut offsets, mut buf), (i, (_, &value))| {
+                offsets.push(MIXER_OFFSETS[calc_pos(i)]);
+                buf.extend_from_slice(&(value as i32).to_be_bytes());
+                (offsets, buf)
+            },
+        );
+    saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+        .map(|_| old_levels.copy_from_slice(levels))
+}
+
+fn calc_monitor_source_pos(i: usize) -> usize {
+    if i < 2 {
+        1 + i * 2
+    } else {
+        6 + (i - 2) * 3
+    }
+}
+
+fn calc_stream_source_pair0_pos(i: usize) -> usize {
+    if i < 2 {
+        i * 2
+    } else {
+        4 + (i - 2) * 3
+    }
+}
+
+fn calc_stream_source_pos(i: usize) -> usize {
+    if i < 2 {
+        i * 2
+    } else {
+        5 + (i - 2) * 3
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_mixer_offset_helpers() {
+        assert_eq!(calc_monitor_source_pos(0), 1);
+        assert_eq!(calc_monitor_source_pos(1), 3);
+        assert_eq!(calc_monitor_source_pos(2), 6);
+        assert_eq!(calc_monitor_source_pos(3), 9);
+        assert_eq!(calc_monitor_source_pos(4), 12);
+        assert_eq!(calc_monitor_source_pos(5), 15);
+        assert_eq!(calc_monitor_source_pos(6), 18);
+        assert_eq!(calc_monitor_source_pos(7), 21);
+        assert_eq!(calc_monitor_source_pos(8), 24);
+        assert_eq!(calc_monitor_source_pos(9), 27);
+
+        assert_eq!(calc_stream_source_pair0_pos(0), 0);
+        assert_eq!(calc_stream_source_pair0_pos(1), 2);
+        assert_eq!(calc_stream_source_pair0_pos(2), 4);
+        assert_eq!(calc_stream_source_pair0_pos(3), 7);
+        assert_eq!(calc_stream_source_pair0_pos(4), 10);
+        assert_eq!(calc_stream_source_pair0_pos(5), 13);
+        assert_eq!(calc_stream_source_pair0_pos(6), 16);
+        assert_eq!(calc_stream_source_pair0_pos(7), 19);
+        assert_eq!(calc_stream_source_pair0_pos(8), 22);
+        assert_eq!(calc_stream_source_pair0_pos(9), 25);
+
+        assert_eq!(calc_stream_source_pos(0), 0);
+        assert_eq!(calc_stream_source_pos(1), 2);
+        assert_eq!(calc_stream_source_pos(2), 5);
+        assert_eq!(calc_stream_source_pos(3), 8);
+        assert_eq!(calc_stream_source_pos(4), 11);
+        assert_eq!(calc_stream_source_pos(5), 14);
+        assert_eq!(calc_stream_source_pos(6), 17);
+        assert_eq!(calc_stream_source_pos(7), 20);
+        assert_eq!(calc_stream_source_pos(8), 23);
+        assert_eq!(calc_stream_source_pos(9), 26);
+    }
 }
