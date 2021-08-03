@@ -157,6 +157,15 @@ impl SaffireProioMonitorProtocol for SaffirePro26ioMonitorProtocol {
     const HAS_ADAT: bool = true;
 }
 
+/// The protocol implementaion of function specific to Saffire Pro 26 i/o
+#[derive(Default)]
+pub struct SaffirePro26ioSpecificProtocol;
+
+impl SaffireProioSpecificOperation for SaffirePro26ioSpecificProtocol {
+    const PHANTOM_POWERING_COUNT: usize = 2;
+    const INSERT_SWAP_COUNT: usize = 2;
+}
+
 /// The protocol implementation of media and sampling clocks for Saffire Pro 10 i/o. Write
 /// operation corresponding to any change takes the unit to disappear from the bus, then
 /// appears again with new configurations.
@@ -173,6 +182,15 @@ pub struct SaffirePro10ioMonitorProtocol;
 
 impl SaffireProioMonitorProtocol for SaffirePro10ioMonitorProtocol {
     const HAS_ADAT: bool = false;
+}
+
+/// The protocol implementaion of function specific to Saffire Pro 26 i/o
+#[derive(Default)]
+pub struct SaffirePro10ioSpecificProtocol;
+
+impl SaffireProioSpecificOperation for SaffirePro10ioSpecificProtocol {
+    const PHANTOM_POWERING_COUNT: usize = 0;
+    const INSERT_SWAP_COUNT: usize = 0;
 }
 
 /// The protocol implementation for operation of output parameters in Saffire Pro i/o series.
@@ -839,6 +857,228 @@ fn calc_stream_source_pos(i: usize) -> usize {
         i * 2
     } else {
         5 + (i - 2) * 3
+    }
+}
+
+/// The enumeration for mode of stand alone.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaffireProioStandaloneMode {
+    Mix,
+    Track,
+}
+
+impl Default for SaffireProioStandaloneMode {
+    fn default() -> Self {
+        Self::Mix
+    }
+}
+
+/// The structure for parameters specific to Saffire Pro i/o series.
+#[derive(Default, Debug)]
+pub struct SaffireProioSpecificParameters {
+    pub head_room: bool,
+
+    pub phantom_powerings: Vec<bool>,
+    pub insert_swaps: Vec<bool>,
+
+    pub standalone_mode: SaffireProioStandaloneMode,
+    pub adat_enabled: bool,
+    pub direct_monitoring: bool,
+}
+
+const HEAD_ROOM_OFFSET: usize = 0x016c;
+
+const PHANTOM_POWERING4567_OFFSET: usize = 0x0188;
+const PHANTOM_POWERING0123_OFFSET: usize = 0x018c;
+const INSERT_SWAP_0_OFFSET: usize = 0x0190;
+const INSERT_SWAP_1_OFFSET: usize = 0x0194;
+#[allow(dead_code)]
+const IDENTIFY_OFFSET: usize = 0x0198;
+
+const STANDALONE_MODE_OFFSET: usize = 0x01bc;
+const ADAT_DISABLE_OFFSET: usize = 0x01c0;
+const DIRECT_MONITORING_OFFSET: usize = 0x01c8;
+
+/// The protocol implementation for functions specific to Saffire Pro i/o series. The change
+/// operation to enable/disable ADAT corresponds to bus reset.
+pub trait SaffireProioSpecificOperation {
+    const PHANTOM_POWERING_COUNT: usize;
+    const INSERT_SWAP_COUNT: usize;
+
+    fn create_params() -> SaffireProioSpecificParameters {
+        SaffireProioSpecificParameters {
+            head_room: Default::default(),
+            phantom_powerings: vec![Default::default(); Self::PHANTOM_POWERING_COUNT],
+            insert_swaps: vec![Default::default(); Self::INSERT_SWAP_COUNT],
+            standalone_mode: Default::default(),
+            adat_enabled: Default::default(),
+            direct_monitoring: Default::default(),
+        }
+    }
+
+    fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let offsets = [
+            HEAD_ROOM_OFFSET,
+            PHANTOM_POWERING4567_OFFSET,
+            PHANTOM_POWERING0123_OFFSET,
+            INSERT_SWAP_0_OFFSET,
+            INSERT_SWAP_1_OFFSET,
+            STANDALONE_MODE_OFFSET,
+            ADAT_DISABLE_OFFSET,
+            DIRECT_MONITORING_OFFSET,
+        ];
+        let mut buf = vec![0; offsets.len() * 4];
+        saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(u32::from_be_bytes(quadlet));
+                vals
+            });
+
+            params.head_room = vals[0] > 0;
+            if Self::PHANTOM_POWERING_COUNT > 0 {
+                params.phantom_powerings[0] = vals[2] > 0;
+                params.phantom_powerings[1] = vals[1] > 0;
+            }
+            if Self::INSERT_SWAP_COUNT > 0 {
+                params.insert_swaps[0] = vals[3] > 0;
+                params.insert_swaps[1] = vals[4] > 0;
+            }
+
+            params.standalone_mode = if vals[5] > 0 {
+                SaffireProioStandaloneMode::Track
+            } else {
+                SaffireProioStandaloneMode::Mix
+            };
+
+            params.adat_enabled = vals[6] == 0;
+            params.direct_monitoring = vals[7] > 0;
+        })
+    }
+
+    fn write_head_room(
+        req: &FwReq,
+        node: &FwNode,
+        head_room: bool,
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let buf = (head_room as u32).to_be_bytes();
+        saffire_write_quadlet(req, node, HEAD_ROOM_OFFSET, &buf, timeout_ms)
+            .map(|_| params.head_room = head_room)
+    }
+
+    fn write_phantom_powerings(
+        req: &FwReq,
+        node: &FwNode,
+        phantom_powerings: &[bool],
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if Self::PHANTOM_POWERING_COUNT > 0 {
+            let (offsets, buf) = params
+                .phantom_powerings
+                .iter()
+                .rev()
+                .zip(phantom_powerings.iter().rev())
+                .zip([PHANTOM_POWERING4567_OFFSET, PHANTOM_POWERING0123_OFFSET].iter())
+                .filter(|((old, new), _)| !old.eq(new))
+                .fold(
+                    (Vec::new(), Vec::new()),
+                    |(mut offsets, mut buf), ((_, &value), &offset)| {
+                        offsets.push(offset);
+                        buf.extend_from_slice(&(value as u32).to_be_bytes());
+                        (offsets, buf)
+                    },
+                );
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| params.phantom_powerings.copy_from_slice(&phantom_powerings))
+        } else {
+            Err(Error::new(
+                FileError::Nxio,
+                "Phantom powering is not supported",
+            ))
+        }
+    }
+
+    fn write_insert_swaps(
+        req: &FwReq,
+        node: &FwNode,
+        insert_swaps: &[bool],
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if Self::INSERT_SWAP_COUNT > 0 {
+            let (offsets, buf) = params
+                .insert_swaps
+                .iter()
+                .zip(insert_swaps.iter())
+                .zip([INSERT_SWAP_0_OFFSET, INSERT_SWAP_1_OFFSET].iter())
+                .filter(|((old, new), _)| !old.eq(new))
+                .fold(
+                    (Vec::new(), Vec::new()),
+                    |(mut offsets, mut buf), ((_, &value), &offset)| {
+                        offsets.push(offset);
+                        buf.extend_from_slice(&(value as u32).to_be_bytes());
+                        (offsets, buf)
+                    },
+                );
+            saffire_write_quadlets(req, node, &offsets, &buf, timeout_ms)
+                .map(|_| params.insert_swaps.copy_from_slice(&insert_swaps))
+        } else {
+            Err(Error::new(FileError::Nxio, "Insert swap is not supported"))
+        }
+    }
+
+    fn write_standalone_mode(
+        req: &FwReq,
+        node: &FwNode,
+        mode: SaffireProioStandaloneMode,
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let buf = if mode == SaffireProioStandaloneMode::Track {
+            1u32.to_be_bytes()
+        } else {
+            0u32.to_be_bytes()
+        };
+        saffire_write_quadlet(req, node, STANDALONE_MODE_OFFSET, &buf, timeout_ms)
+            .map(|_| params.standalone_mode = mode)
+    }
+
+    fn write_adat_enable(
+        req: &FwReq,
+        node: &FwNode,
+        enable: bool,
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let buf = (!enable as u32).to_be_bytes();
+        saffire_write_quadlet(req, node, ADAT_DISABLE_OFFSET, &buf, timeout_ms)
+            .map(|_| params.adat_enabled = enable)
+    }
+
+    fn write_direct_monitoring(
+        req: &FwReq,
+        node: &FwNode,
+        enable: bool,
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let buf = if enable {
+            0xffffffffu32.to_be_bytes()
+        } else {
+            0u32.to_be_bytes()
+        };
+        saffire_write_quadlet(req, node, DIRECT_MONITORING_OFFSET, &buf, timeout_ms)
+            .map(|_| params.direct_monitoring = enable)
     }
 }
 
