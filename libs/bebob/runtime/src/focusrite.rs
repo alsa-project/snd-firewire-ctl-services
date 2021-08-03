@@ -577,3 +577,82 @@ fn read_mixer_src_levels(
             true
         })
 }
+
+const MIDI_THROUGH_NAME: &str = "MIDI-through";
+const AC3_THROUGH_NAME: &str = "AC3-through";
+
+trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Card,
+            0,
+            0,
+            MIDI_THROUGH_NAME,
+            0,
+        );
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, false)?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Card,
+            0,
+            0,
+            AC3_THROUGH_NAME,
+            0,
+        );
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, false)?;
+
+        Ok(())
+    }
+
+    fn read_params(
+        &self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIDI_THROUGH_NAME => {
+                let mut val = false;
+                T::read_midi_through(req, &unit.get_node(), &mut val, timeout_ms)?;
+                elem_value.set_bool(&[val]);
+                Ok(true)
+            }
+            AC3_THROUGH_NAME => {
+                let mut val = false;
+                T::read_ac3_through(req, &unit.get_node(), &mut val, timeout_ms)?;
+                elem_value.set_bool(&[val]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIDI_THROUGH_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                T::write_midi_through(req, &unit.get_node(), vals[0], timeout_ms)
+                    .map(|_| true)
+            }
+            AC3_THROUGH_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                T::write_ac3_through(req, &unit.get_node(), vals[0], timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
