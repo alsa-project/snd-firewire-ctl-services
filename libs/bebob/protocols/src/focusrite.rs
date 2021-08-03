@@ -33,6 +33,7 @@
 //! data with one-quarter of offset, and value, as the case of AV/C vendor dependent command.
 
 pub mod saffire;
+pub mod saffireproio;
 
 use glib::Error;
 
