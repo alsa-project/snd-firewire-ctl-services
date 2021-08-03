@@ -23,6 +23,7 @@ pub struct SaffireLeModel {
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
     specific_ctl: SpecificCtl,
+    mixer_low_rate_ctl: MixerLowRateCtl,
 }
 
 // NOTE: At 88.2/96.0 kHz, AV/C transaction takes more time than 44.1/48.0 kHz.
@@ -65,6 +66,9 @@ impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
     ];
 }
 
+#[derive(Default)]
+struct MixerLowRateCtl(SaffireLeMixerLowRateState);
+
 impl CtlModel<SndUnit> for SaffireLeModel {
     fn load(
         &mut self,
@@ -87,6 +91,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
 
         self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
+        self.mixer_low_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -105,6 +111,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.specific_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_low_rate_ctl.read_src_gains(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -125,6 +133,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_low_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -352,6 +362,142 @@ impl SpecificCtl {
             _ => Ok(false),
         }
     }
+}
+
+const PHYS_SRC_GAIN_NAME: &str = "mixer:low:phys-source-gain";
+const STREAM_SRC_GAIN_NAME: &str = "mixer:low:stream-source-gain";
+
+impl MixerLowRateCtl {
+    fn load_src_gains(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHYS_SRC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                self.0.phys_src_gains.len(),
+                SaffireLeMixerLowRateProtocol::LEVEL_MIN as i32,
+                SaffireLeMixerLowRateProtocol::LEVEL_MAX as i32,
+                SaffireLeMixerLowRateProtocol::LEVEL_STEP as i32,
+                self.0.phys_src_gains[0].len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                self.0.stream_src_gains.len(),
+                SaffireLeMixerLowRateProtocol::LEVEL_MIN as i32,
+                SaffireLeMixerLowRateProtocol::LEVEL_MAX as i32,
+                SaffireLeMixerLowRateProtocol::LEVEL_STEP as i32,
+                self.0.stream_src_gains[0].len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+
+        SaffireLeMixerLowRateProtocol::read_src_gains(req, &unit.get_node(), &mut self.0, timeout_ms)?;
+
+        Ok(())
+    }
+
+    fn read_src_gains(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            PHYS_SRC_GAIN_NAME => {
+                read_mixer_src_gains(elem_value, elem_id, &self.0.phys_src_gains)
+            }
+            STREAM_SRC_GAIN_NAME => {
+                read_mixer_src_gains(elem_value, elem_id, &self.0.stream_src_gains)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_src_gains(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            PHYS_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut vals = vec![0i32; self.0.phys_src_gains[0].len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
+                    levels.push(level as i16);
+                    levels
+                });
+                SaffireLeMixerLowRateProtocol::write_phys_src_gains(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut vals = vec![0i32; self.0.stream_src_gains[0].len()];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
+                    levels.push(level as i16);
+                    levels
+                });
+                SaffireLeMixerLowRateProtocol::write_stream_src_gains(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn read_mixer_src_gains<T>(
+    elem_value: &mut ElemValue,
+    elem_id: &ElemId,
+    levels_list: &[T],
+) -> Result<bool, Error>
+where T: AsRef<[i16]>,
+{
+    let index = elem_id.get_index() as usize;
+    levels_list.iter()
+        .nth(index)
+        .ok_or_else(|| {
+            let msg = format!("Invalid index of source level list {}", index);
+            Error::new(FileError::Inval, &msg)
+        })
+        .map(|levels| {
+            let vals: Vec<i32> = levels.as_ref().iter()
+                .fold(Vec::new(), |mut vals, &level| {
+                    vals.push(level as i32);
+                    vals
+                });
+            elem_value.set_int(&vals);
+            true
+        })
 }
 
 #[cfg(test)]
