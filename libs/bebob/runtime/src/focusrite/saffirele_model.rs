@@ -24,6 +24,7 @@ pub struct SaffireLeModel {
     out_ctl: OutputCtl,
     specific_ctl: SpecificCtl,
     mixer_low_rate_ctl: MixerLowRateCtl,
+    mixer_middle_rate_ctl: MixerMiddleRateCtl,
 }
 
 // NOTE: At 88.2/96.0 kHz, AV/C transaction takes more time than 44.1/48.0 kHz.
@@ -69,6 +70,9 @@ impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
 #[derive(Default)]
 struct MixerLowRateCtl(SaffireLeMixerLowRateState);
 
+#[derive(Default)]
+struct MixerMiddleRateCtl(SaffireLeMixerMiddleRateState);
+
 impl CtlModel<SndUnit> for SaffireLeModel {
     fn load(
         &mut self,
@@ -92,6 +96,7 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
         self.mixer_low_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.mixer_middle_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -114,6 +119,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
             Ok(true)
         } else if self.mixer_low_rate_ctl.read_src_gains(elem_id, elem_value)? {
             Ok(true)
+        } else if self.mixer_middle_rate_ctl.read_src_gains(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -135,6 +142,8 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_low_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_middle_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -461,6 +470,173 @@ impl MixerLowRateCtl {
                     levels
                 });
                 SaffireLeMixerLowRateProtocol::write_stream_src_gains(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME: &str = "monitor:middle:phys-source-gain";
+const MIDDLE_MONITOR_SRC_GAIN_NAME: &str = "mixer:middle:monitor-source-gain";
+const MIDDLE_STREAM_SRC_GAIN_NAME: &str = "mixer:middle:stream-source-gain";
+
+impl MixerMiddleRateCtl {
+    fn load_src_gains(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_MIN as i32,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_MAX as i32,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_STEP as i32,
+                self.0.monitor_src_phys_input_gains.len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            MIDDLE_MONITOR_SRC_GAIN_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                self.0.monitor_out_src_pair_gains.len(),
+                SaffireLeMixerMiddleRateProtocol::LEVEL_MIN as i32,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_MAX as i32,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_STEP as i32,
+                self.0.monitor_out_src_pair_gains[0].len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            MIDDLE_STREAM_SRC_GAIN_NAME,
+            0,
+        );
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                self.0.stream_src_pair_gains.len(),
+                SaffireLeMixerMiddleRateProtocol::LEVEL_MIN as i32,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_MAX as i32,
+                SaffireLeMixerMiddleRateProtocol::LEVEL_STEP as i32,
+                self.0.stream_src_pair_gains[0].len(),
+                Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
+                true,
+            )
+            .map(|_| ())?;
+
+
+        SaffireLeMixerMiddleRateProtocol::read_state(req, &unit.get_node(), &mut self.0, timeout_ms)?;
+
+        Ok(())
+    }
+
+    fn read_src_gains(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME => {
+                let gains: Vec<i32> = self.0.monitor_src_phys_input_gains.iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&gains);
+                Ok(true)
+            }
+            MIDDLE_MONITOR_SRC_GAIN_NAME => {
+                read_mixer_src_gains(elem_value, elem_id, &self.0.monitor_out_src_pair_gains)
+            }
+            MIDDLE_STREAM_SRC_GAIN_NAME => {
+                read_mixer_src_gains(elem_value, elem_id, &self.0.stream_src_pair_gains)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_src_gains(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME => {
+                let mut vals = vec![0i32; self.0.monitor_src_phys_input_gains.len()];
+                elem_value.get_int(&mut vals);
+                let gains: Vec<i16> = vals.iter().fold(Vec::new(), |mut gains, &gain| {
+                    gains.push(gain as i16);
+                    gains
+                });
+                SaffireLeMixerMiddleRateProtocol::write_monitor_src_phys_input_gains(
+                    req,
+                    &unit.get_node(),
+                    &gains,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            MIDDLE_MONITOR_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut vals = vec![0i32];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
+                    levels.push(level as i16);
+                    levels
+                });
+                SaffireLeMixerMiddleRateProtocol::write_monitor_out_src_pair_gains(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    &mut self.0,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            MIDDLE_STREAM_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let mut vals = vec![0i32; 2];
+                elem_value.get_int(&mut vals);
+                let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
+                    levels.push(level as i16);
+                    levels
+                });
+                SaffireLeMixerMiddleRateProtocol::write_stream_src_pair_gains(
                     req,
                     &unit.get_node(),
                     index,
