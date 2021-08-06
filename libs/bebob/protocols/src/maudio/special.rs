@@ -249,19 +249,27 @@ const PARAM_OFFSET: u64 = 0x00700000;
 const CACHE_SIZE: usize = 160;
 
 // 0x0000 - 0x0008: stream input gains
+// 0x0008 - 0x0010: analog output volumes
 // 0x0010 - 0x0020: analog input gains
 // 0x0020 - 0x0024: spdif input gains
 // 0x0024 - 0x0034: adat input gains
+// 0x0038 - 0x0040: headphone volumes
 // 0x0040 - 0x0050: analog input balances
 // 0x0050 - 0x0054: spdif input balances
 // 0x0054 - 0x0064: adat input balances
+// 0x0098 - 0x009c: source of headphone pair
+// 0x009c - 0x00a0: source of analog output pair
 const STREAM_INPUT_GAIN_POS: usize = 0x0000;
+const ANALOG_OUTPUT_VOLUME_POS: usize = 0x0008;
 const ANALOG_INPUT_GAIN_POS: usize = 0x0010;
 const SPDIF_INPUT_GAIN_POS: usize = 0x0020;
 const ADAT_INPUT_GAIN_POS: usize = 0x0024;
+const HEADPHONE_VOLUME_POS: usize = 0x0038;
 const ANALOG_INPUT_BALANCE_POS: usize = 0x0040;
 const SPDIF_INPUT_BALANCE_POS: usize = 0x0050;
 const ADAT_INPUT_BALANCE_POS: usize = 0x0054;
+const HEADPHONE_PAIR_SOURCE_POS: usize = 0x0098;
+const ANALOG_OUTPUT_PAIR_SOURCE_POS: usize = 0x009c;
 
 /// The structure for input parameters.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -379,6 +387,127 @@ impl MaudioSpecialInputProtocol{
 }
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialInputParameters> for MaudioSpecialInputProtocol {}
+
+/// The enumeration for source of analog output.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum OutputSource {
+    MixerOutputPair,
+    AuxOutputPair0,
+}
+
+impl Default for OutputSource {
+    fn default() -> Self {
+        Self::MixerOutputPair
+    }
+}
+
+/// The enumeration for source of headphone.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum HeadphoneSource {
+    MixerOutputPair0,
+    MixerOutputPair1,
+    AuxOutputPair0,
+}
+
+impl Default for HeadphoneSource {
+    fn default() -> Self {
+        Self::AuxOutputPair0
+    }
+}
+
+/// The structure for output parameters.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MaudioSpecialOutputParameters {
+    pub analog_volumes: [i16; 4],
+    pub analog_pair_sources: [OutputSource; 2],
+    pub headphone_volumes: [i16; 4],
+    pub headphone_pair_sources: [HeadphoneSource; 2],
+}
+
+impl Default for MaudioSpecialOutputParameters {
+    fn default() -> Self {
+        Self {
+            analog_volumes: [MaudioSpecialOutputProtocol::VOLUME_MAX; 4],
+            analog_pair_sources: [OutputSource::MixerOutputPair; 2],
+            headphone_volumes: [MaudioSpecialOutputProtocol::VOLUME_MAX; 4],
+            headphone_pair_sources: [
+                HeadphoneSource::MixerOutputPair0,
+                HeadphoneSource::MixerOutputPair1,
+            ],
+        }
+    }
+}
+
+impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
+    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
+        self.analog_volumes.iter()
+            .enumerate()
+            .for_each(|(i, &vol)| {
+                let pos = ANALOG_OUTPUT_VOLUME_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
+            });
+
+        self.headphone_volumes.iter()
+            .enumerate()
+            .for_each(|(i, &vol)| {
+                let pos = HEADPHONE_VOLUME_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
+            });
+
+        let mut quadlet = [0; 4] ;
+        let pos = HEADPHONE_PAIR_SOURCE_POS;
+        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        let mut val = u32::from_be_bytes(quadlet);
+
+        self.headphone_pair_sources.iter()
+            .enumerate()
+            .for_each(|(i, &src)| {
+                let shift = i * 16;
+                let mask = 0x07;
+                let flag = match src {
+                    HeadphoneSource::MixerOutputPair0 => 0x01,
+                    HeadphoneSource::MixerOutputPair1 => 0x02,
+                    HeadphoneSource::AuxOutputPair0 => 0x04,
+                };
+
+                val &= !(mask << shift);
+                val |= flag << shift;
+            });
+
+        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+
+        let pos = ANALOG_OUTPUT_PAIR_SOURCE_POS;
+        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        let mut val = u32::from_be_bytes(quadlet);
+
+        self.analog_pair_sources.iter()
+            .enumerate()
+            .for_each(|(i, &src)| {
+                let shift = i;
+                let mask = 0x01;
+                let flag = match src {
+                    OutputSource::MixerOutputPair => 0x00,
+                    OutputSource::AuxOutputPair0 => 0x01,
+                };
+
+                val &= !(mask << shift);
+                val |= flag << shift;
+            });
+
+        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+    }
+}
+
+#[derive(Default)]
+pub struct MaudioSpecialOutputProtocol;
+
+impl MaudioSpecialOutputProtocol{
+    pub const VOLUME_MIN: i16 = i16::MIN;
+    pub const VOLUME_MAX: i16 = 0;
+    pub const VOLUME_STEP: i16 = 0x100;
+}
+
+impl MaudioSpecialParameterProtocol<MaudioSpecialOutputParameters> for MaudioSpecialOutputProtocol {}
 
 /// The trait for operation about parameters.
 pub trait MaudioSpecialParameterOperation {
