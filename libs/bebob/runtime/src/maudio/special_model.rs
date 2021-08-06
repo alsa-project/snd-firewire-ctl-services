@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::{FwFcpExt, FwNode, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
@@ -17,8 +17,9 @@ use ta1394::*;
 
 use bebob_protocols::{*, maudio::special::*};
 
+use crate::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
 use crate::common_ctls::*;
-use super::special_ctls::{StateCache, MixerCtl, OutputCtl, AuxCtl, HpCtl};
+use super::special_ctls::{StateCache, MixerCtl, AuxCtl};
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
@@ -30,6 +31,7 @@ pub struct SpecialModel<T: MediaClockFrequencyOperation + Default> {
     meter_ctl: MeterCtl,
     cache: StateCache,
     input_ctl: InputCtl,
+    output_ctl: OutputCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 200;
@@ -49,6 +51,7 @@ impl<T: MediaClockFrequencyOperation + Default> Default for SpecialModel<T> {
             meter_ctl: Default::default(),
             cache: StateCache::new(),
             input_ctl: Default::default(),
+            output_ctl: Default::default(),
         }
     }
 }
@@ -67,10 +70,10 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
         self.input_ctl.load_params(card_cntr, &mut self.cache)?;
 
+        self.output_ctl.load_params(card_cntr, &mut self.cache)?;
+
         MixerCtl::load(&mut self.cache, card_cntr)?;
-        OutputCtl::load(&mut self.cache, card_cntr)?;
         AuxCtl::load(&mut self.cache, card_cntr)?;
-        HpCtl::load(&mut self.cache, card_cntr)?;
 
         self.cache.upload(unit, &self.req)?;
 
@@ -86,11 +89,9 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
             Ok(true)
         } else if self.input_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if OutputCtl::read(&mut self.cache, elem_id, elem_value)? {
+        } else if self.output_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if AuxCtl::read(&mut self.cache, elem_id, elem_value)? {
-            Ok(true)
-        } else if HpCtl::read(&mut self.cache, elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -106,11 +107,9 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
             Ok(true)
         } else if self.input_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if OutputCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
+        } else if self.output_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if AuxCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
-            Ok(true)
-        } else if HpCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
             Ok(true)
         } else {
             Ok(false)
@@ -121,10 +120,12 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for SpecialModel<T> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         let switch = self.meter_ctl.0.switch;
+        let prev_rotaries = self.meter_ctl.0.rotaries[..2].to_vec();
 
         self.meter_ctl.measure_state(&self.req, &unit.get_node(), TIMEOUT_MS)?;
 
@@ -133,13 +134,66 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for Specia
             self.avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
         }
 
+        // Compute in 32 bit storage.
+        let val_min = MaudioSpecialOutputProtocol::VOLUME_MIN as i32;
+        let val_max = MaudioSpecialOutputProtocol::VOLUME_MAX as i32;
+        let range_min = MaudioSpecialMeterProtocol::ROTARY_MIN as i32;
+        let range_max = MaudioSpecialMeterProtocol::ROTARY_MAX as i32;
+        let delta_list: Vec<i32> = self.meter_ctl.0.rotaries[..2].iter()
+            .zip(prev_rotaries.iter())
+            .map(|(&curr, &prev)| {
+                ((curr as i32) - (prev as i32)) * (val_max - val_min) / (range_max - range_min)
+            })
+            .collect();
+
+        let mut params = self.output_ctl.0.clone();
+        params.headphone_volumes.iter_mut()
+            .enumerate()
+            .filter(|(i, _)| delta_list[i / 2] != 0)
+            .for_each(|(i, vol)| {
+                let delta = delta_list[i / 2];
+                let mut val = *vol as i32;
+
+                if delta < 0 {
+                    if val > val_min - delta {
+                        val += delta;
+                    } else {
+                        val = val_min;
+                    }
+                } else {
+                    if val < val_max - delta {
+                        val += delta;
+                    } else {
+                        val = val_max;
+                    }
+                }
+
+                *vol = val as i16;
+            });
+
+        if params.headphone_volumes != self.output_ctl.0.headphone_volumes {
+            MaudioSpecialOutputProtocol::update_params(
+                &self.req,
+                &unit.get_node(),
+                &params,
+                &mut self.cache.cache,
+                &mut self.output_ctl.0,
+                TIMEOUT_MS)?;
+        }
+
         Ok(())
     }
 
     fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        self.meter_ctl.read_state(elem_id, elem_value)
+        if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -597,6 +651,290 @@ impl InputCtl {
     }
 }
 
+#[derive(Default)]
+struct OutputCtl(MaudioSpecialOutputParameters, Vec<ElemId>);
+
+const HP_VOL_NAME: &str = "headphone-volume";
+
+const ANALOG_OUTPUT_PAIR_LABELS: [&'static str; 2] = ["analog-output-1/2", "analog-output-3/4"];
+const HEADPHONE_PAIR_LABELS: [&'static str; 2] = ["headphone-1/2", "headphone-3/4"];
+
+fn output_source_to_str(src: &OutputSource) -> &str {
+    match src {
+        OutputSource::MixerOutputPair => "mixer-output",
+        OutputSource::AuxOutputPair0 => "aux-output-1/2",
+    }
+}
+
+fn headphone_source_to_str(src: &HeadphoneSource) -> &str {
+    match src {
+        HeadphoneSource::MixerOutputPair0 => "mixer-output-1/2",
+        HeadphoneSource::MixerOutputPair1 => "mixer-output-3/4",
+        HeadphoneSource::AuxOutputPair0 => "aux-output-1/2",
+    }
+}
+
+impl OutputCtl {
+    const ANALOG_OUTPUT_PAIR_SOURCES: [OutputSource; 2] = [
+        OutputSource::MixerOutputPair,
+        OutputSource::AuxOutputPair0,
+    ];
+
+    const HEADPHONE_PAIR_SOURCES: [HeadphoneSource; 3] = [
+        HeadphoneSource::MixerOutputPair0,
+        HeadphoneSource::MixerOutputPair1,
+        HeadphoneSource::AuxOutputPair0,
+    ];
+
+    const VOLUME_TLV: DbInterval = DbInterval {
+        min: -12800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn add_volume_elem(
+        card_cntr: &mut CardCntr,
+        name: &str,
+        labels: &[&str],
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                MaudioSpecialOutputProtocol::VOLUME_MIN as i32,
+                MaudioSpecialOutputProtocol::VOLUME_MAX as i32,
+                MaudioSpecialOutputProtocol::VOLUME_STEP as i32,
+                labels.len(),
+                Some(&Into::<Vec<u32>>::into(Self::VOLUME_TLV)),
+                true,
+           )
+    }
+
+    fn add_enum_elem<T, F>(
+        card_cntr: &mut CardCntr,
+        name: &str,
+        labels: &[&str],
+        items: &[T],
+        to_str: F,
+    ) -> Result<Vec<ElemId>, Error>
+        where F: Fn(&T) -> &str,
+    {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        let item_labels: Vec<&str> = items.iter()
+            .map(|src| to_str(src))
+            .collect();
+        card_cntr
+            .add_enum_elems(
+                &elem_id,
+                1,
+                labels.len(),
+                &item_labels,
+                None,
+                true,
+            )
+    }
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        state: &mut StateCache,
+    ) -> Result<(), Error> {
+        Self::add_volume_elem(card_cntr, OUT_VOL_NAME, &ANALOG_OUTPUT_LABELS)?;
+        Self::add_volume_elem(card_cntr, HP_VOL_NAME, &HEADPHONE_LABELS)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        Self::add_enum_elem(
+            card_cntr,
+            OUT_SRC_NAME,
+            &ANALOG_OUTPUT_PAIR_LABELS,
+            &Self::ANALOG_OUTPUT_PAIR_SOURCES,
+            output_source_to_str,
+        )?;
+        Self::add_enum_elem(
+            card_cntr,
+            HP_SRC_NAME,
+            &HEADPHONE_PAIR_LABELS,
+            &Self::HEADPHONE_PAIR_SOURCES,
+            headphone_source_to_str,
+        )?;
+
+        self.0.write_to_cache(&mut state.cache);
+
+        Ok(())
+    }
+
+    fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
+        let vals: Vec<i32> = gains.iter().map(|&val| val as i32).collect();
+        elem_value.set_int(&vals);
+        Ok(true)
+    }
+
+    fn read_enum<T: Eq>(
+        elem_value: &mut ElemValue,
+        srcs: &[T],
+        src_list: &[T],
+    ) -> Result<bool, Error> {
+        let vals: Vec<u32> = srcs.iter()
+            .map(|s| {
+                src_list.iter()
+                    .position(|entry| entry.eq(s))
+                    .map(|pos| pos as u32)
+                    .unwrap()
+            })
+            .collect();
+        elem_value.set_enum(&vals);
+        Ok(true)
+    }
+
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_VOL_NAME => Self::read_int(elem_value, &self.0.analog_volumes),
+            OUT_SRC_NAME => {
+                Self::read_enum(
+                    elem_value,
+                    &self.0.analog_pair_sources,
+                    &Self::ANALOG_OUTPUT_PAIR_SOURCES,
+                )
+            }
+            HP_VOL_NAME => Self::read_int(elem_value, &self.0.headphone_volumes),
+            HP_SRC_NAME => {
+                Self::read_enum(
+                    elem_value,
+                    &self.0.headphone_pair_sources,
+                    &Self::HEADPHONE_PAIR_SOURCES,
+                )
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_int<T>(
+        curr: &mut MaudioSpecialOutputParameters,
+        elem_value: &ElemValue,
+        labels: &[&str],
+        req: &FwReq,
+        unit: &SndUnit,
+        state: &mut StateCache,
+        timeout_ms: u32,
+        set: T,
+    ) -> Result<bool, Error>
+        where T: Fn(&mut MaudioSpecialOutputParameters, &[i16])
+    {
+        let mut params = curr.clone();
+        let mut vals = vec![0; labels.len()];
+        elem_value.get_int(&mut vals);
+        let levels: Vec<i16> = vals.iter()
+            .map(|&val| val as i16)
+            .collect();
+        set(&mut params, &levels);
+        MaudioSpecialOutputProtocol::update_params(req, &unit.get_node(), &params,
+                                                   &mut state.cache, curr, timeout_ms)
+            .map(|_| true)
+    }
+
+    fn write_enum<T, F>(
+        curr: &mut MaudioSpecialOutputParameters,
+        elem_value: &ElemValue,
+        labels: &[&str],
+        item_list: &[T],
+        req: &FwReq,
+        unit: &SndUnit,
+        state: &mut StateCache,
+        timeout_ms: u32,
+        set: F,
+    ) -> Result<bool, Error>
+        where
+            T: Eq + Copy,
+            F: Fn(&mut MaudioSpecialOutputParameters, &[T])
+    {
+        let mut params = curr.clone();
+        let mut vals = vec![0; labels.len()];
+        elem_value.get_enum(&mut vals);
+        let mut srcs = Vec::with_capacity(vals.len());
+        vals.iter()
+            .try_for_each(|&val| {
+                let &src = item_list.iter()
+                    .nth(val as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                srcs.push(src);
+                Ok(())
+            })?;
+        set(&mut params, &srcs);
+        MaudioSpecialOutputProtocol::update_params(req, &unit.get_node(), &params,
+                                                   &mut state.cache, curr, timeout_ms)
+            .map(|_| true)
+    }
+
+    fn write_params(
+        &mut self,
+        state: &mut StateCache,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_VOL_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &ANALOG_OUTPUT_LABELS[..],
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.analog_volumes.copy_from_slice(vals),
+                )
+            }
+            OUT_SRC_NAME => {
+                Self::write_enum(
+                    &mut self.0,
+                    elem_value,
+                    &ANALOG_OUTPUT_PAIR_LABELS[..],
+                    &Self::ANALOG_OUTPUT_PAIR_SOURCES,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.analog_pair_sources.copy_from_slice(vals),
+                )
+            }
+            HP_VOL_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &HEADPHONE_LABELS[..],
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, srcs| params.headphone_volumes.copy_from_slice(srcs),
+                )
+            }
+            HP_SRC_NAME => {
+                Self::write_enum(
+                    &mut self.0,
+                    elem_value,
+                    &HEADPHONE_PAIR_LABELS[..],
+                    &Self::HEADPHONE_PAIR_SOURCES,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, srcs| params.headphone_pair_sources.copy_from_slice(srcs),
+                )
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -639,5 +977,13 @@ mod test {
         assert_eq!(input_ctl.0.analog_balances.len(), ANALOG_INPUT_LABELS.len());
         assert_eq!(input_ctl.0.spdif_balances.len(), SPDIF_INPUT_LABELS.len());
         assert_eq!(input_ctl.0.adat_balances.len(), ADAT_INPUT_LABELS.len());
+    }
+
+    #[test]
+    fn test_output_label_count() {
+        let output_ctl = OutputCtl::default();
+        assert_eq!(output_ctl.0.analog_volumes.len(), ANALOG_OUTPUT_LABELS.len());
+        assert_eq!(output_ctl.0.headphone_volumes.len(), HEADPHONE_LABELS.len());
+        assert_eq!(output_ctl.0.analog_pair_sources.len(), ANALOG_OUTPUT_PAIR_LABELS.len());
     }
 }
