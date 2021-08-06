@@ -18,10 +18,10 @@ use bebob_protocols::{*, apogee::ensemble::*};
 use crate::model::{IN_METER_NAME, OUT_METER_NAME, HP_SRC_NAME, OUT_SRC_NAME};
 
 use crate::common_ctls::*;
-use super::apogee_ctls::HwCtl;
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct EnsembleModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
@@ -32,7 +32,7 @@ pub struct EnsembleModel {
     output_ctl: OutputCtl,
     route_ctl: RouteCtl,
     mixer_ctl: MixerCtl,
-    hw_ctls: HwCtl,
+    stream_ctl: StreamCtl,
 }
 
 #[derive(Default)]
@@ -47,23 +47,6 @@ impl SamplingClkSrcCtlOperation<EnsembleClkProtocol> for ClkCtl {
         "Optical",
         "Word Clock",
     ];
-}
-
-impl Default for EnsembleModel {
-    fn default() -> Self {
-        Self {
-            avc: Default::default(),
-            clk_ctl: Default::default(),
-            meter_ctl: Default::default(),
-            convert_ctl: Default::default(),
-            display_ctl: Default::default(),
-            input_ctl: Default::default(),
-            output_ctl: Default::default(),
-            route_ctl: Default::default(),
-            mixer_ctl: Default::default(),
-            hw_ctls: HwCtl::new(),
-        }
-    }
 }
 
 fn input_output_copy_from_meter(model: &mut EnsembleModel) {
@@ -100,7 +83,7 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
         self.mixer_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.hw_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
+        self.stream_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -126,7 +109,7 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.mixer_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.hw_ctls.read(elem_id, elem_value)? {
+        } else if self.stream_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -152,7 +135,7 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.mixer_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.stream_ctl.write_params(unit, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)
@@ -1306,6 +1289,94 @@ impl MixerCtl {
                     .for_each(|(gain, &val)| *gain = val as i16);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default)]
+struct StreamCtl(EnsembleStreamParameters);
+
+fn stream_mode_to_str(mode: &StreamMode) -> &str {
+    match mode {
+        StreamMode::Format18x18 => "18x18",
+        StreamMode::Format10x10 => "10x10",
+        StreamMode::Format8x8 => "8x8",
+    }
+}
+
+const STREAM_MODE_NAME: &str = "stream-mode";
+
+impl StreamCtl {
+    const STREAM_MODES: [StreamMode; 3] = [
+        StreamMode::Format18x18,
+        StreamMode::Format10x10,
+        StreamMode::Format8x8,
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        avc: &mut BebobAvc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::STREAM_MODES.iter()
+            .map(|m| stream_mode_to_str(m))
+            .collect();
+        let elem_id = alsactl::ElemId::new_by_name(
+            alsactl::ElemIfaceType::Card,
+            0,
+            0,
+            STREAM_MODE_NAME,
+            0,
+        );
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        avc.init_params(&mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            STREAM_MODE_NAME => {
+                let pos = Self::STREAM_MODES.iter()
+                    .position(|m| m.eq(&self.0.mode))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        avc: &mut BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            STREAM_MODE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &mode = Self::STREAM_MODES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of mode of stream: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                let mut params = self.0.clone();
+                params.mode = mode;
+                unit.lock()?;
+                let res = avc.update_params(&params, &mut self.0, timeout_ms);
+                let _ = unit.unlock();
+                res.map(|_| true)
             }
             _ => Ok(false),
         }
