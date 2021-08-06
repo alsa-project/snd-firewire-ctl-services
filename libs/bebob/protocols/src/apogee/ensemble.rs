@@ -219,6 +219,50 @@ impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleInputParameters> for BebobAvc {}
 
+/// The structure for parameters of analog/digital outputs.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleOutputParameters {
+    pub vol: u8,
+    pub headphone_vols: [u8; 2],
+    pub levels: [OutputNominalLevel; 8],
+    pub opt_iface_mode: OptIfaceMode,
+}
+
+impl EnsembleOutputParameters {
+    pub const VOL_MIN: u8 = 0;
+    pub const VOL_MAX: u8 = 0x7f;
+    pub const VOL_STEP: u8 = 1;
+}
+
+impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleOutputParameters) -> Self {
+        let mut cmds = Vec::new();
+
+        [params.vol]
+            .iter()
+            .chain(params.headphone_vols.iter())
+            .enumerate()
+            .for_each(|(i, &vol)| {
+                cmds.push(EnsembleCmd::OutVol(
+                    i,
+                    EnsembleOutputParameters::VOL_MAX - vol,
+                ))
+            });
+
+        params
+            .levels
+            .iter()
+            .enumerate()
+            .for_each(|(i, &level)| cmds.push(EnsembleCmd::OutputNominalLevel(i, level)));
+
+        cmds.push(EnsembleCmd::OutputOptIface(params.opt_iface_mode));
+
+        cmds
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleOutputParameters> for BebobAvc {}
+
 /// The trait for parameter protocol.
 pub trait EnsembleParameterProtocol<T>: Ta1394Avc
 where
