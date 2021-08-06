@@ -47,10 +47,14 @@
 //! stream-input-35/36 --> analog-output-1/2
 //! ```
 
-use crate::*;
+use hinawa::{FwNode, FwReq};
 
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::MUSIC_SUBUNIT_0;
+
+use crate::*;
+
+use super::*;
 
 /// The protocol implementation for media and sampling clock of ProFire Lightbridge.
 #[derive(Default)]
@@ -85,4 +89,91 @@ impl SamplingClockSourceOperation for PflClkProtocol {
         // Word clock
         SignalAddr::Unit(SignalUnitAddr::Ext(0x06)),
     ];
+}
+
+/// The protocol implementation for meter information.
+#[derive(Default)]
+pub struct PflMeterProtocol;
+
+const METER_SIZE: usize = 56;
+
+/// The enumeration for detected frequency of any external input.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum PflDetectedInputFreq {
+    Unavailable,
+    R44100,
+    R48000,
+    R88200,
+    R96000,
+}
+
+impl Default for PflDetectedInputFreq {
+    fn default() -> Self {
+        Self::Unavailable
+    }
+}
+
+/// The structure for meter information.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PflMeterState {
+    pub detected_input_freq: PflDetectedInputFreq,
+    pub phys_outputs: [i32; 2],
+    pub sync_status: bool,
+    cache: [u8; METER_SIZE],
+}
+
+impl Default for PflMeterState {
+    fn default() -> Self {
+        Self {
+            detected_input_freq: Default::default(),
+            phys_outputs: Default::default(),
+            sync_status: Default::default(),
+            cache: [0; METER_SIZE],
+        }
+    }
+}
+
+impl PflMeterProtocol {
+    pub const METER_MIN: i32 = 0;
+    pub const METER_MAX: i32 = 0x007fffff;
+    pub const METER_STEP: i32 = 0x100;
+
+    pub fn read_meter(
+        req: &FwReq,
+        node: &FwNode,
+        meter: &mut PflMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let frame = &mut meter.cache;
+
+        read_block(req, node, METER_OFFSET, frame, timeout_ms)?;
+
+        let mut quadlet = [0; 4];
+
+        quadlet.copy_from_slice(&frame[..4]);
+        let val = u32::from_be_bytes(quadlet);
+        meter.detected_input_freq = match val {
+            4 => PflDetectedInputFreq::R96000,
+            3 => PflDetectedInputFreq::R88200,
+            2 => PflDetectedInputFreq::R48000,
+            1 => PflDetectedInputFreq::R44100,
+            _ => PflDetectedInputFreq::Unavailable,
+        };
+
+        meter
+            .phys_outputs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, m)| {
+                let pos = 4 + i * 4;
+                quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
+                *m = i32::from_be_bytes(quadlet);
+            });
+
+        quadlet.copy_from_slice(&frame[20..24]);
+        let val = u32::from_be_bytes(quadlet);
+        meter.sync_status = val != 2;
+
+        Ok(())
+    }
 }
