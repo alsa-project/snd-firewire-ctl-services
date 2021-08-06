@@ -319,6 +319,7 @@ fn opt_iface_mode_from_val(val: u8) -> OptIfaceMode {
 
 const METER_SHORT_FRAME_SIZE: usize = 17;
 const METER_LONG_FRAME_SIZE: usize = 56;
+const MIXER_COEFFICIENT_COUNT: usize = 18;
 
 /// The enumeration of command specific to Apogee Ensemble.
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -329,11 +330,11 @@ pub enum EnsembleCmd {
     OutputNominalLevel(usize, OutputNominalLevel),
     IoRouting(u8), // destination, source
     Hw(HwCmd),
-    HpSrc(u8),     // destination, source
-    MixerSrc0(u8), // mixer_pair, [u8;36]
-    MixerSrc1(u8),
-    MixerSrc2(u8),
-    MixerSrc3(u8),
+    HpSrc(u8), // destination, source
+    MixerSrc0(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    MixerSrc1(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    MixerSrc2(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    MixerSrc3(usize, [i16; MIXER_COEFFICIENT_COUNT]),
     MicGain(u8), // 1/2/3/4, dB(10-75), also available as knob control
     OutputOptIface(OptIfaceMode),
     InputOptIface(OptIfaceMode),
@@ -405,17 +406,41 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::HpSrc(dst) => {
                 vec![EnsembleCmd::HP_SRC, (*dst + 1) % 2]
             }
-            EnsembleCmd::MixerSrc0(pair) => {
-                vec![EnsembleCmd::MIXER_SRC0, *pair]
+            EnsembleCmd::MixerSrc0(pair, coefs) => {
+                let mut data = Vec::with_capacity(2 + 2 * MIXER_COEFFICIENT_COUNT);
+                data.push(EnsembleCmd::MIXER_SRC0);
+                data.push(*pair as u8);
+                coefs
+                    .iter()
+                    .for_each(|coef| data.extend_from_slice(&coef.to_be_bytes()));
+                data
             }
-            EnsembleCmd::MixerSrc1(pair) => {
-                vec![EnsembleCmd::MIXER_SRC1, *pair]
+            EnsembleCmd::MixerSrc1(pair, coefs) => {
+                let mut data = Vec::with_capacity(2 + 2 * MIXER_COEFFICIENT_COUNT);
+                data.push(EnsembleCmd::MIXER_SRC1);
+                data.push(*pair as u8);
+                coefs
+                    .iter()
+                    .for_each(|coef| data.extend_from_slice(&coef.to_be_bytes()));
+                data
             }
-            EnsembleCmd::MixerSrc2(pair) => {
-                vec![EnsembleCmd::MIXER_SRC2, *pair]
+            EnsembleCmd::MixerSrc2(pair, coefs) => {
+                let mut data = Vec::with_capacity(2 + 2 * MIXER_COEFFICIENT_COUNT);
+                data.push(EnsembleCmd::MIXER_SRC2);
+                data.push(*pair as u8);
+                coefs
+                    .iter()
+                    .for_each(|coef| data.extend_from_slice(&coef.to_be_bytes()));
+                data
             }
-            EnsembleCmd::MixerSrc3(pair) => {
-                vec![EnsembleCmd::MIXER_SRC3, *pair]
+            EnsembleCmd::MixerSrc3(pair, coefs) => {
+                let mut data = Vec::with_capacity(2 + 2 * MIXER_COEFFICIENT_COUNT);
+                data.push(EnsembleCmd::MIXER_SRC3);
+                data.push(*pair as u8);
+                coefs
+                    .iter()
+                    .for_each(|coef| data.extend_from_slice(&coef.to_be_bytes()));
+                data
             }
             EnsembleCmd::MicGain(target) => {
                 vec![EnsembleCmd::IN_VOL, *target]
@@ -469,10 +494,46 @@ impl From<&[u8]> for EnsembleCmd {
             Self::IO_ROUTING => Self::IoRouting(raw[1]),
             Self::HW => Self::Hw(HwCmd::from(raw[1])),
             Self::HP_SRC => Self::HpSrc((raw[1] + 1) % 2),
-            Self::MIXER_SRC0 => Self::MixerSrc0(raw[1]),
-            Self::MIXER_SRC1 => Self::MixerSrc1(raw[1]),
-            Self::MIXER_SRC2 => Self::MixerSrc2(raw[1]),
-            Self::MIXER_SRC3 => Self::MixerSrc3(raw[1]),
+            Self::MIXER_SRC0 => {
+                let mut doublet = [0; 2];
+                let mut coefs = [0; MIXER_COEFFICIENT_COUNT];
+                coefs.iter_mut().enumerate().for_each(|(i, coef)| {
+                    let pos = 2 + i * 2;
+                    doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                    *coef = i16::from_be_bytes(doublet);
+                });
+                Self::MixerSrc0(raw[1] as usize, coefs)
+            }
+            Self::MIXER_SRC1 => {
+                let mut doublet = [0; 2];
+                let mut coefs = [0; MIXER_COEFFICIENT_COUNT];
+                coefs.iter_mut().enumerate().for_each(|(i, coef)| {
+                    let pos = 2 + i * 2;
+                    doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                    *coef = i16::from_be_bytes(doublet);
+                });
+                Self::MixerSrc1(raw[1] as usize, coefs)
+            }
+            Self::MIXER_SRC2 => {
+                let mut doublet = [0; 2];
+                let mut coefs = [0; MIXER_COEFFICIENT_COUNT];
+                coefs.iter_mut().enumerate().for_each(|(i, coef)| {
+                    let pos = 2 + i * 2;
+                    doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                    *coef = i16::from_be_bytes(doublet);
+                });
+                Self::MixerSrc2(raw[1] as usize, coefs)
+            }
+            Self::MIXER_SRC3 => {
+                let mut doublet = [0; 2];
+                let mut coefs = [0; MIXER_COEFFICIENT_COUNT];
+                coefs.iter_mut().enumerate().for_each(|(i, coef)| {
+                    let pos = 2 + i * 2;
+                    doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                    *coef = i16::from_be_bytes(doublet);
+                });
+                Self::MixerSrc3(raw[1] as usize, coefs)
+            }
             Self::OPT_IFACE_MODE => {
                 let mode = opt_iface_mode_from_val(raw[2]);
                 if raw[1] > 0 {
@@ -665,25 +726,25 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::MixerSrc0(3);
+        let cmd = EnsembleCmd::MixerSrc0(3, [3; MIXER_COEFFICIENT_COUNT]);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::MixerSrc1(2);
+        let cmd = EnsembleCmd::MixerSrc1(2, [11; MIXER_COEFFICIENT_COUNT]);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::MixerSrc2(1);
+        let cmd = EnsembleCmd::MixerSrc2(1, [17; MIXER_COEFFICIENT_COUNT]);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::MixerSrc3(0);
+        let cmd = EnsembleCmd::MixerSrc3(0, [21; MIXER_COEFFICIENT_COUNT]);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
