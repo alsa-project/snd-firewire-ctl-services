@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Behringer for Firepower series.
 //!
+//! DM1500 is used for Behringer Firepower FCA610.
+//!
 //! ## Diagram of internal signal flow for FCA610
 //!
 //! ```text
@@ -21,6 +23,28 @@
 //! stream-input-3/4 --------------------------> analog-output-3/4
 //! stream-input-5/6 --------------------------> analog-output-5/6
 //! stream-input-7/8 --------------------------> digital-output-1/2
+//! ```
+//!
+//! The protocol implementation for Behringer FCA610 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 3
+//! bootloader:
+//!   timestamp: 2012-10-15T10:47:10+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x0002ad7300156400
+//!   model ID: 0x000003
+//!   revision: 0.0.0
+//! software:
+//!   timestamp: 2012-11-02T03:34:31+0000
+//!   ID: 0x00000610
+//!   revision: 0.0.8348
+//! image:
+//!   base address: 0x400c0080
+//!   maximum size: 0x15b520
 //! ```
 
 use super::*;
