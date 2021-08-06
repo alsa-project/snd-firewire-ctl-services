@@ -454,7 +454,9 @@ impl From<&EnsembleCmd> for Vec<u8> {
                 vec![EnsembleCmd::IO_ROUTING, *dst as u8, *src as u8]
             }
             EnsembleCmd::Hw(op) => {
-                vec![EnsembleCmd::HW, u8::from(*op)]
+                let mut params = Into::<Vec<u8>>::into(op);
+                params.insert(0, EnsembleCmd::HW);
+                params
             }
             EnsembleCmd::HpSrc(dst, src) => {
                 vec![
@@ -581,7 +583,7 @@ impl From<&[u8]> for EnsembleCmd {
                 }
             }
             Self::IO_ROUTING => Self::IoRouting(raw[1] as usize, raw[2] as usize),
-            Self::HW => Self::Hw(HwCmd::from(raw[1])),
+            Self::HW => Self::Hw(HwCmd::from(&raw[1..])),
             Self::HP_SRC => Self::HpSrc((1 + raw[1] as usize) % 2, (raw[2] as usize) / 2),
             Self::MIXER_SRC0 => {
                 let mut doublet = [0; 2];
@@ -685,18 +687,45 @@ impl From<&[u8]> for EnsembleCmd {
     }
 }
 
+/// The mode of stream format.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum StreamMode {
+    Format18x18,
+    Format10x10,
+    Format8x8,
+}
+
+impl Default for StreamMode {
+    fn default() -> Self {
+        StreamMode::Format8x8
+    }
+}
+
+/// The target of display meter.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DisplayMeterTarget {
+    Output,
+    Input,
+}
+
+impl Default for DisplayMeterTarget {
+    fn default() -> Self {
+        Self::Output
+    }
+}
+
 /// The enumeration of command for hardware operation.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum HwCmd {
     /// STREAM_MODE command generates bus reset to change available stream formats.
-    StreamMode,
-    DisplayIlluminate,
-    DisplayMode,
-    DisplayTarget,
-    DisplayOverhold,
+    StreamMode(StreamMode),
+    DisplayIlluminate(bool),
+    DisplayMode(bool),
+    DisplayTarget(DisplayMeterTarget),
+    DisplayOverhold(bool),
     MeterReset,
-    CdMode,
-    Reserved(u8),
+    CdMode(bool),
+    Reserved(Vec<u8>),
 }
 
 impl HwCmd {
@@ -709,32 +738,59 @@ impl HwCmd {
     const CD_MODE: u8 = 0xf5;
 }
 
-impl From<HwCmd> for u8 {
-    fn from(op: HwCmd) -> Self {
+impl From<&HwCmd> for Vec<u8> {
+    fn from(op: &HwCmd) -> Self {
         match op {
-            HwCmd::StreamMode => HwCmd::STREAM_MODE,
-            HwCmd::DisplayIlluminate => HwCmd::DISPLAY_ILLUMINATE,
-            HwCmd::DisplayMode => HwCmd::DISPLAY_MODE,
-            HwCmd::DisplayTarget => HwCmd::DISPLAY_TARGET,
-            HwCmd::DisplayOverhold => HwCmd::DISPLAY_OVERHOLD,
-            HwCmd::MeterReset => HwCmd::METER_RESET,
-            HwCmd::CdMode => HwCmd::CD_MODE,
-            HwCmd::Reserved(val) => val,
+            HwCmd::StreamMode(mode) => {
+                let val = match mode {
+                    StreamMode::Format18x18 => 0,
+                    StreamMode::Format10x10 => 1,
+                    StreamMode::Format8x8 => 2,
+                };
+                vec![HwCmd::STREAM_MODE, val]
+            }
+            HwCmd::DisplayIlluminate(state) => vec![HwCmd::DISPLAY_ILLUMINATE, *state as u8],
+            HwCmd::DisplayMode(state) => vec![HwCmd::DISPLAY_MODE, *state as u8],
+            HwCmd::DisplayTarget(target) => {
+                let val = match target {
+                    DisplayMeterTarget::Output => 0,
+                    DisplayMeterTarget::Input => 1,
+                };
+                vec![HwCmd::DISPLAY_TARGET, val]
+            }
+            HwCmd::DisplayOverhold(state) => vec![HwCmd::DISPLAY_OVERHOLD, *state as u8],
+            HwCmd::MeterReset => vec![HwCmd::METER_RESET],
+            HwCmd::CdMode(state) => vec![HwCmd::CD_MODE, *state as u8],
+            HwCmd::Reserved(val) => val.to_vec(),
         }
     }
 }
 
-impl From<u8> for HwCmd {
-    fn from(val: u8) -> HwCmd {
-        match val {
-            HwCmd::STREAM_MODE => HwCmd::StreamMode,
-            HwCmd::DISPLAY_ILLUMINATE => HwCmd::DisplayIlluminate,
-            HwCmd::DISPLAY_MODE => HwCmd::DisplayMode,
-            HwCmd::DISPLAY_TARGET => HwCmd::DisplayTarget,
-            HwCmd::DISPLAY_OVERHOLD => HwCmd::DisplayOverhold,
+impl From<&[u8]> for HwCmd {
+    fn from(vals: &[u8]) -> HwCmd {
+        match vals[0] {
+            HwCmd::STREAM_MODE => {
+                let mode = match vals[1] {
+                    2 => StreamMode::Format8x8,
+                    1 => StreamMode::Format10x10,
+                    _ => StreamMode::Format18x18,
+                };
+                HwCmd::StreamMode(mode)
+            }
+            HwCmd::DISPLAY_ILLUMINATE => HwCmd::DisplayIlluminate(vals[1] > 0),
+            HwCmd::DISPLAY_MODE => HwCmd::DisplayMode(vals[1] > 0),
+            HwCmd::DISPLAY_TARGET => {
+                let target = if vals[1] > 0 {
+                    DisplayMeterTarget::Input
+                } else {
+                    DisplayMeterTarget::Output
+                };
+                HwCmd::DisplayTarget(target)
+            }
+            HwCmd::DISPLAY_OVERHOLD => HwCmd::DisplayOverhold(vals[1] > 0),
             HwCmd::METER_RESET => HwCmd::MeterReset,
-            HwCmd::CD_MODE => HwCmd::CdMode,
-            _ => HwCmd::Reserved(val),
+            HwCmd::CD_MODE => HwCmd::CdMode(vals[1] > 0),
+            _ => HwCmd::Reserved(vals.to_vec()),
         }
     }
 }
@@ -835,7 +891,7 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::Hw(HwCmd::StreamMode);
+        let cmd = EnsembleCmd::Hw(HwCmd::StreamMode(StreamMode::Format10x10));
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
