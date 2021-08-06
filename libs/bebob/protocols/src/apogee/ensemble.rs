@@ -137,6 +137,28 @@ impl From<&EnsembleConvertParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleConvertParameters> for BebobAvc {}
 
+/// The structure for parameters of display meters.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleDisplayParameters {
+    pub enabled: bool,
+    pub illuminate: bool,
+    pub target: DisplayMeterTarget,
+    pub overhold: bool,
+}
+
+impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleDisplayParameters) -> Self {
+        vec![
+            EnsembleCmd::Hw(HwCmd::DisplayMode(params.enabled)),
+            EnsembleCmd::Hw(HwCmd::DisplayIlluminate(params.illuminate)),
+            EnsembleCmd::Hw(HwCmd::DisplayTarget(params.target)),
+            EnsembleCmd::Hw(HwCmd::DisplayOverhold(params.overhold)),
+        ]
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleDisplayParameters> for BebobAvc {}
+
 /// The trait for parameter protocol.
 pub trait EnsembleParameterProtocol<T>: Ta1394Avc
 where
