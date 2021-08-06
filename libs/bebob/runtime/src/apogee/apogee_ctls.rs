@@ -4,7 +4,7 @@ use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use alsactl::{ElemIfaceType, ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -25,33 +25,47 @@ use bebob_protocols::apogee::ensemble::{EnsembleOperation, EnsembleCmd, HwCmd};
 pub struct HwCtl{
     stream: u32,
     cd: bool,
-    spdif_out_bypass: u32,
+    format_convert: FormatConvertTarget,
+}
+
+fn format_convert_target_to_str(target: &FormatConvertTarget) -> &str {
+    match target {
+        FormatConvertTarget::Disabled => "disabled",
+        FormatConvertTarget::AnalogInputPair0 => "analog-input-1/2",
+        FormatConvertTarget::AnalogInputPair1 => "analog-input-3/4",
+        FormatConvertTarget::AnalogInputPair2 => "analog-input-5/6",
+        FormatConvertTarget::AnalogInputPair3 => "analog-input-7/8",
+        FormatConvertTarget::SpdifOpticalInputPair0 => "spdif-opt-input-1/2",
+        FormatConvertTarget::SpdifCoaxialInputPair0 => "spdif-coax-input-1/2",
+        FormatConvertTarget::SpdifCoaxialOutputPair0 => "spdif-coax-output-1/2",
+        FormatConvertTarget::SpdifOpticalOutputPair0 => "spdif-opt-output-1/2",
+    }
 }
 
 impl<'a> HwCtl {
     const STREAM_MODE_NAME: &'a str = "stream-mode";
     const CD_MODE_NAME: &'a str = "cd-mode";
-    const SPDIF_OUT_BYPASS_NAME: &'a str = "S/PDIF-out-bypass";
+    const SAMPLE_FORMAT_CONVERT: &'a str = "sample-format-convert";
 
     const STREAM_MODE_LABELS: &'a [&'a str] = &["16x16", "10x10", "8x8"];
 
-    const SPDIF_OUT_BYPASS_LABELS: &'a [&'a str] = &[
-        "none",
-        "analog-in-1/2",
-        "analog-in-3/4",
-        "analog-in-5/6",
-        "analog-in-7/8",
-        "spdif-opt-in-1/2",
-        "spdif-coax-in-1/2",
-        "spdif-coax-out-1/2",
-        "spdif-opt-out-1/2",
-    ];
+    const FORMAT_CONVERT_TARGETS: [FormatConvertTarget;9] = [
+        FormatConvertTarget::Disabled,
+        FormatConvertTarget::AnalogInputPair0,
+        FormatConvertTarget::AnalogInputPair1,
+        FormatConvertTarget::AnalogInputPair2,
+        FormatConvertTarget::AnalogInputPair3,
+        FormatConvertTarget::SpdifOpticalInputPair0,
+        FormatConvertTarget::SpdifCoaxialInputPair0,
+        FormatConvertTarget::SpdifCoaxialOutputPair0,
+        FormatConvertTarget::SpdifOpticalOutputPair0,
+     ];
 
     pub fn new() -> Self {
         HwCtl {
             stream: 0,
             cd: false,
-            spdif_out_bypass: 0,
+            format_convert: Default::default(),
         }
     }
 
@@ -77,7 +91,8 @@ impl<'a> HwCtl {
                                     &[self.cd as u8]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = EnsembleOperation::new(EnsembleCmd::Downgrade, &[self.cd as u8]);
+        let cmd = EnsembleCmd::FormatConvert(self.format_convert);
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
@@ -88,9 +103,16 @@ impl<'a> HwCtl {
                                                    0, 0, Self::CD_MODE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::SPDIF_OUT_BYPASS_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::SPDIF_OUT_BYPASS_LABELS, None, true)?;
+        let labels: Vec<&str> = Self::FORMAT_CONVERT_TARGETS.iter()
+            .map(|t| format_convert_target_to_str(t))
+            .collect();
+        let elem_id = alsactl::ElemId::new_by_name( ElemIfaceType::Card,
+            0,
+            0,
+            Self::SAMPLE_FORMAT_CONVERT,
+            0,
+        );
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
@@ -107,10 +129,15 @@ impl<'a> HwCtl {
                 ElemValueAccessor::set_val(elem_value, || Ok(self.cd))?;
                 Ok(true)
             }
-            Self::SPDIF_OUT_BYPASS_NAME => {
-                ElemValueAccessor::set_val(elem_value, || Ok(self.spdif_out_bypass))?;
-                Ok(true)
-            }
+            Self::SAMPLE_FORMAT_CONVERT => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::FORMAT_CONVERT_TARGETS.iter()
+                        .position(|l| *l == self.format_convert)
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+             }
             _ => Ok(false),
         }
     }
@@ -141,15 +168,24 @@ impl<'a> HwCtl {
                 })?;
                 Ok(true)
             }
-            Self::SPDIF_OUT_BYPASS_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Downgrade,
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.spdif_out_bypass = val as u32;
-                    Ok(())
-                })?;
-                Ok(true)
+            Self::SAMPLE_FORMAT_CONVERT => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let &target = Self::FORMAT_CONVERT_TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for target of format converter: {}",
+                                          vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+
+                let cmd = EnsembleCmd::FormatConvert(target);
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map(|_| {
+                        self.format_convert = target;
+                        true
+                    })
             }
             _ => Ok(false),
         }

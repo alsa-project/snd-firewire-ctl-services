@@ -317,6 +317,26 @@ fn opt_iface_mode_from_val(val: u8) -> OptIfaceMode {
     }
 }
 
+/// The target to convert sample format from 24 bit to 16 bit.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum FormatConvertTarget {
+    Disabled,
+    AnalogInputPair0,
+    AnalogInputPair1,
+    AnalogInputPair2,
+    AnalogInputPair3,
+    SpdifOpticalInputPair0,
+    SpdifCoaxialInputPair0,
+    SpdifCoaxialOutputPair0,
+    SpdifOpticalOutputPair0,
+}
+
+impl Default for FormatConvertTarget {
+    fn default() -> Self {
+        Self::Disabled
+    }
+}
+
 const METER_SHORT_FRAME_SIZE: usize = 17;
 const METER_LONG_FRAME_SIZE: usize = 56;
 const MIXER_COEFFICIENT_COUNT: usize = 18;
@@ -338,7 +358,7 @@ pub enum EnsembleCmd {
     MicGain(u8), // 1/2/3/4, dB(10-75), also available as knob control
     OutputOptIface(OptIfaceMode),
     InputOptIface(OptIfaceMode),
-    Downgrade,       // on/off
+    FormatConvert(FormatConvertTarget),
     SpdifResample,   // on/off, iface, direction, rate
     MicPolarity(u8), // index, state
     OutVol(u8),      // main/hp0/hp1, dB(127-0), also available as knob control
@@ -366,7 +386,7 @@ impl EnsembleCmd {
     const MIXER_SRC3: u8 = 0xb3;
     const IN_VOL: u8 = 0xe6;
     const OPT_IFACE_MODE: u8 = 0xf1;
-    const DOWNGRADE: u8 = 0xf2;
+    const FORMAT_CONVERT: u8 = 0xf2;
     const SPDIF_RESAMPLE: u8 = 0xf3;
     const MIC_POLARITY: u8 = 0xf5;
     const OUT_VOL: u8 = 0xf6;
@@ -451,8 +471,19 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::InputOptIface(mode) => {
                 vec![EnsembleCmd::OPT_IFACE_MODE, 1, opt_iface_mode_to_val(mode)]
             }
-            EnsembleCmd::Downgrade => {
-                vec![EnsembleCmd::DOWNGRADE]
+            EnsembleCmd::FormatConvert(state) => {
+                let val = match state {
+                    FormatConvertTarget::Disabled => 0,
+                    FormatConvertTarget::AnalogInputPair0 => 1,
+                    FormatConvertTarget::AnalogInputPair1 => 2,
+                    FormatConvertTarget::AnalogInputPair2 => 3,
+                    FormatConvertTarget::AnalogInputPair3 => 4,
+                    FormatConvertTarget::SpdifOpticalInputPair0 => 5,
+                    FormatConvertTarget::SpdifCoaxialInputPair0 => 6,
+                    FormatConvertTarget::SpdifCoaxialOutputPair0 => 7,
+                    FormatConvertTarget::SpdifOpticalOutputPair0 => 8,
+                };
+                vec![EnsembleCmd::FORMAT_CONVERT, val]
             }
             EnsembleCmd::SpdifResample => {
                 vec![EnsembleCmd::SPDIF_RESAMPLE]
@@ -542,7 +573,20 @@ impl From<&[u8]> for EnsembleCmd {
                     Self::OutputOptIface(mode)
                 }
             }
-            Self::DOWNGRADE => Self::Downgrade,
+            Self::FORMAT_CONVERT => {
+                let target = match raw[1] {
+                    8 => FormatConvertTarget::SpdifOpticalOutputPair0,
+                    7 => FormatConvertTarget::SpdifCoaxialOutputPair0,
+                    6 => FormatConvertTarget::SpdifCoaxialInputPair0,
+                    5 => FormatConvertTarget::SpdifOpticalInputPair0,
+                    4 => FormatConvertTarget::AnalogInputPair3,
+                    3 => FormatConvertTarget::AnalogInputPair2,
+                    2 => FormatConvertTarget::AnalogInputPair1,
+                    1 => FormatConvertTarget::AnalogInputPair0,
+                    _ => FormatConvertTarget::Disabled,
+                };
+                Self::FormatConvert(target)
+            }
             Self::SPDIF_RESAMPLE => Self::SpdifResample,
             Self::MIC_POLARITY => Self::MicPolarity(raw[1]),
             Self::OUT_VOL => Self::OutVol(raw[1]),
@@ -760,7 +804,7 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::Downgrade;
+        let cmd = EnsembleCmd::FormatConvert(FormatConvertTarget::AnalogInputPair0);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
