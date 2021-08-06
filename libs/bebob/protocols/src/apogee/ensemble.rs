@@ -116,6 +116,149 @@ impl SamplingClockSourceOperation for EnsembleClkProtocol {
     ];
 }
 
+/// The target of input for knob.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum KnobInputTarget {
+    Mic0,
+    Mic1,
+    Mic2,
+    Mic3,
+}
+
+impl Default for KnobInputTarget {
+    fn default() -> Self {
+        Self::Mic1
+    }
+}
+
+/// The target of output for knob.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum KnobOutputTarget {
+    AnalogOutputPair0,
+    HeadphonePair0,
+    HeadphonePair1,
+}
+
+impl Default for KnobOutputTarget {
+    fn default() -> Self {
+        Self::AnalogOutputPair0
+    }
+}
+
+/// The structure for meter information.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleMeter {
+    pub knob_input_target: KnobInputTarget,
+    pub knob_output_target: KnobOutputTarget,
+    pub knob_input_vals: [u8; 4],
+    pub knob_output_vals: [u8; 3],
+    pub phys_inputs: [u8; 18],
+    pub phys_outputs: [u8; 16],
+}
+
+impl Default for EnsembleMeter {
+    fn default() -> Self {
+        Self {
+            knob_input_target: Default::default(),
+            knob_output_target: Default::default(),
+            knob_input_vals: Default::default(),
+            knob_output_vals: Default::default(),
+            phys_inputs: [0; 18],
+            phys_outputs: [0; 16],
+        }
+    }
+}
+
+/// The protocol implementation for meter information.
+#[derive(Default)]
+pub struct EnsembleMeterProtocol;
+
+const KNOB_IN_TARGET_MASK: u8 = 0x03;
+const KNOB_IN_TARGET_SHIFT: usize = 3;
+
+const KNOB_OUT_TARGET_MASK: u8 = 0x07;
+const KNOB_OUT_TARGET_SHIFT: usize = 0;
+
+// 33-34: mixer-out-3/4
+// 35: unknown
+// 36-52: stream-in-0..16, missing 17
+const SELECT_POS: usize = 4;
+const IN_GAIN_POS: [usize; 4] = [0, 1, 2, 3];
+const OUT_VOL_POS: [usize; 3] = [7, 6, 5];
+const IN_METER_POS: [usize; 18] = [
+    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+];
+const OUT_METER_POS: [usize; 16] = [
+    35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+];
+
+/// The trait of operation for meter information.
+impl EnsembleMeterProtocol {
+    pub const OUT_KNOB_VAL_MIN: u8 = 0;
+    pub const OUT_KNOB_VAL_MAX: u8 = 0x7f;
+    pub const OUT_KNOB_VAL_STEP: u8 = 1;
+
+    pub const IN_KNOB_VAL_MIN: u8 = 0;
+    pub const IN_KNOB_VAL_MAX: u8 = 75;
+    pub const IN_KNOB_VAL_STEP: u8 = 1;
+
+    pub const LEVEL_MIN: u8 = u8::MIN;
+    pub const LEVEL_MAX: u8 = u8::MAX;
+    pub const LEVEL_STEP: u8 = 1;
+
+    pub fn measure_meter(
+        avc: &mut BebobAvc,
+        meter: &mut EnsembleMeter,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cmd = EnsembleCmd::HwStatusLong([0; METER_LONG_FRAME_SIZE]);
+        let mut op = EnsembleOperation::new(cmd, &[]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            if let EnsembleCmd::HwStatusLong(frame) = &op.cmd {
+                let val = (frame[SELECT_POS] >> KNOB_IN_TARGET_SHIFT) & KNOB_IN_TARGET_MASK;
+                meter.knob_input_target = match val & 0x03 {
+                    3 => KnobInputTarget::Mic3,
+                    2 => KnobInputTarget::Mic2,
+                    1 => KnobInputTarget::Mic1,
+                    _ => KnobInputTarget::Mic0,
+                };
+
+                let val = (frame[SELECT_POS] >> KNOB_OUT_TARGET_SHIFT) & KNOB_OUT_TARGET_MASK;
+                meter.knob_output_target = match val {
+                    4 => KnobOutputTarget::HeadphonePair1,
+                    2 => KnobOutputTarget::HeadphonePair0,
+                    _ => KnobOutputTarget::AnalogOutputPair0,
+                };
+
+                IN_GAIN_POS
+                    .iter()
+                    .zip(meter.knob_input_vals.iter_mut())
+                    .for_each(|(&i, m)| *m = frame[i]);
+
+                OUT_VOL_POS
+                    .iter()
+                    .zip(meter.knob_output_vals.iter_mut())
+                    .for_each(|(&i, m)| {
+                        *m = Self::OUT_KNOB_VAL_MAX - (frame[i] & Self::OUT_KNOB_VAL_MAX);
+                    });
+
+                IN_METER_POS
+                    .iter()
+                    .zip(meter.phys_inputs.iter_mut())
+                    .for_each(|(&i, m)| *m = frame[i]);
+
+                OUT_METER_POS
+                    .iter()
+                    .zip(meter.phys_outputs.iter_mut())
+                    .for_each(|(&i, m)| *m = frame[i]);
+            }
+        })
+    }
+}
+
+const METER_SHORT_FRAME_SIZE: usize = 17;
+const METER_LONG_FRAME_SIZE: usize = 56;
+
 /// The enumeration of command specific to Apogee Ensemble.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum EnsembleCmd {
@@ -135,8 +278,8 @@ pub enum EnsembleCmd {
     SpdifResample,    // on/off, iface, direction, rate
     MicPolarity(u8),  // index, state
     OutVol(u8),       // main/hp0/hp1, dB(127-0), also available as knob control
-    HwStatusShort([u8; 17]),
-    HwStatusLong([u8; 56]),
+    HwStatusShort([u8; METER_SHORT_FRAME_SIZE]),
+    HwStatusLong([u8; METER_LONG_FRAME_SIZE]),
     Reserved(Vec<u8>),
 }
 
@@ -244,11 +387,11 @@ impl From<&[u8]> for EnsembleCmd {
             Self::OUT_VOL => Self::OutVol(raw[1]),
             Self::HW_STATUS => {
                 if raw[1] > 0 {
-                    let mut params = [0; 56];
+                    let mut params = [0; METER_LONG_FRAME_SIZE];
                     params.copy_from_slice(&raw[1..]);
                     Self::HwStatusLong(params)
                 } else {
-                    let mut params = [0; 17];
+                    let mut params = [0; METER_SHORT_FRAME_SIZE];
                     params.copy_from_slice(&raw[1..]);
                     Self::HwStatusShort(params)
                 }
