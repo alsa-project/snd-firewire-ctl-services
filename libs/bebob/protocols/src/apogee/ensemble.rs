@@ -212,7 +212,7 @@ impl EnsembleMeterProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let cmd = EnsembleCmd::HwStatusLong([0; METER_LONG_FRAME_SIZE]);
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             if let EnsembleCmd::HwStatusLong(frame) = &op.cmd {
                 let val = (frame[SELECT_POS] >> KNOB_IN_TARGET_SHIFT) & KNOB_IN_TARGET_MASK;
@@ -800,7 +800,6 @@ impl From<&[u8]> for HwCmd {
 #[derive(Debug)]
 pub struct EnsembleOperation {
     pub cmd: EnsembleCmd,
-    pub params: Vec<u8>,
     op: VendorDependent,
 }
 
@@ -808,7 +807,6 @@ impl Default for EnsembleOperation {
     fn default() -> Self {
         Self {
             cmd: Default::default(),
-            params: Default::default(),
             op: VendorDependent {
                 company_id: APOGEE_OUI,
                 data: Default::default(),
@@ -818,11 +816,11 @@ impl Default for EnsembleOperation {
 }
 
 impl EnsembleOperation {
-    pub fn new(cmd: EnsembleCmd, params: &[u8]) -> Self {
-        let mut op = EnsembleOperation::default();
-        op.cmd = cmd;
-        op.params.extend_from_slice(params);
-        op
+    pub fn new(cmd: EnsembleCmd) -> Self {
+        Self {
+            cmd,
+            ..Default::default()
+        }
     }
 }
 
@@ -832,9 +830,7 @@ impl AvcOp for EnsembleOperation {
 
 impl AvcControl for EnsembleOperation {
     fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
-        self.op.data.clear();
-        self.op.data.append(&mut Into::<Vec<u8>>::into(&self.cmd));
-        self.op.data.append(&mut self.params.clone());
+        self.op.data = Into::<Vec<u8>>::into(&self.cmd);
 
         // At least, 6 bytes should be required to align to 3 quadlets. Unless, the target unit is freezed.
         while self.op.data.len() < 6 {
