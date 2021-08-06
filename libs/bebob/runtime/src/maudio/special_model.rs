@@ -19,7 +19,7 @@ use bebob_protocols::{*, maudio::special::*};
 
 use crate::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
 use crate::common_ctls::*;
-use super::special_ctls::{StateCache, MixerCtl, AuxCtl};
+use super::special_ctls::{StateCache, MixerCtl};
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
@@ -32,6 +32,7 @@ pub struct SpecialModel<T: MediaClockFrequencyOperation + Default> {
     cache: StateCache,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
+    aux_ctl: AuxCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 200;
@@ -52,6 +53,7 @@ impl<T: MediaClockFrequencyOperation + Default> Default for SpecialModel<T> {
             cache: StateCache::new(),
             input_ctl: Default::default(),
             output_ctl: Default::default(),
+            aux_ctl: Default::default(),
         }
     }
 }
@@ -72,8 +74,9 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
         self.output_ctl.load_params(card_cntr, &mut self.cache)?;
 
+        self.aux_ctl.load_params(card_cntr, &mut self.cache)?;
+
         MixerCtl::load(&mut self.cache, card_cntr)?;
-        AuxCtl::load(&mut self.cache, card_cntr)?;
 
         self.cache.upload(unit, &self.req)?;
 
@@ -91,7 +94,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
             Ok(true)
         } else if self.output_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if AuxCtl::read(&mut self.cache, elem_id, elem_value)? {
+        } else if self.aux_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -109,7 +112,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
             Ok(true)
         } else if self.output_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if AuxCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
+        } else if self.aux_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -928,6 +931,220 @@ impl OutputCtl {
                     state,
                     timeout_ms,
                     |params, srcs| params.headphone_pair_sources.copy_from_slice(srcs),
+                )
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default)]
+struct AuxCtl(MaudioSpecialAuxParameters);
+
+const AUX_OUT_VOL_NAME: &str = "aux-output-volume";
+const AUX_STREAM_SRC_NAME: &str = "aux-stream-source";
+const AUX_ANALOG_SRC_NAME: &str = "aux-analog-source";
+const AUX_SPDIF_SRC_NAME: &str = "aux-spdif-source";
+const AUX_ADAT_SRC_NAME: &str = "aux-adat-source";
+
+impl AuxCtl {
+    const OUTPUT_LABELS: [&'static str; 2] = ["aux-output-1", "aux-output-2"];
+
+    const STREAM_INPUT_LABELS: [&'static str; 4] = [
+        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+    ];
+    const ANALOG_INPUT_LABELS: [&'static str; 8] = [
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
+    ];
+    const SPDIF_INPUT_LABELS: [&'static str; 2] = [
+        "spdif-input-1", "spdif-input-2",
+    ];
+    const ADAT_INPUT_LABELS: [&'static str; 8] = [
+        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
+        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
+    ];
+
+    const VOL_TLV: DbInterval = DbInterval {
+        min: -12800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -12800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn add_input_int_elem(
+        card_cntr: &mut CardCntr,
+        name: &str,
+        labels: &[&str],
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                MaudioSpecialAuxProtocol::GAIN_MIN as i32,
+                MaudioSpecialAuxProtocol::GAIN_MAX as i32,
+                MaudioSpecialAuxProtocol::GAIN_STEP as i32,
+                labels.len(),
+                Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
+                true,
+            )
+    }
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        state: &mut StateCache,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
+        let _ = card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                MaudioSpecialAuxProtocol::VOLUME_MIN as i32,
+                MaudioSpecialAuxProtocol::VOLUME_MAX as i32,
+                MaudioSpecialAuxProtocol::VOLUME_STEP as i32,
+                Self::OUTPUT_LABELS.len(),
+                Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)),
+                true,
+            )?;
+
+        let _ = Self::add_input_int_elem(card_cntr, AUX_STREAM_SRC_NAME, &Self::STREAM_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_ANALOG_SRC_NAME, &Self::ANALOG_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_SPDIF_SRC_NAME, &Self::SPDIF_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_ADAT_SRC_NAME, &Self::ADAT_INPUT_LABELS)?;
+
+        self.0.write_to_cache(&mut state.cache);
+
+        Ok(())
+    }
+
+    fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
+        let vals: Vec<i32> = gains.iter().map(|&val| val as i32).collect();
+        elem_value.set_int(&vals);
+        Ok(true)
+    }
+
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            AUX_OUT_VOL_NAME => {
+                Self::read_int(elem_value, &self.0.output_volumes)
+            }
+            AUX_STREAM_SRC_NAME => {
+                Self::read_int(elem_value, &self.0.stream_gains)
+            }
+            AUX_ANALOG_SRC_NAME => {
+                Self::read_int(elem_value, &self.0.analog_gains)
+            }
+            AUX_SPDIF_SRC_NAME => {
+                Self::read_int(elem_value, &self.0.spdif_gains)
+            }
+            AUX_ADAT_SRC_NAME => {
+                Self::read_int(elem_value, &self.0.adat_gains)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_int<F>(
+        curr: &mut MaudioSpecialAuxParameters,
+        elem_value: &ElemValue,
+        labels: &[&str],
+        req: &FwReq,
+        unit: &SndUnit,
+        state: &mut StateCache,
+        timeout_ms: u32,
+        set: F,
+    ) -> Result<bool, Error>
+        where F: Fn(&mut MaudioSpecialAuxParameters, &[i16])
+    {
+        let mut params = curr.clone();
+        let mut vals = vec![0; labels.len()];
+        elem_value.get_int(&mut vals);
+        let levels: Vec<i16> = vals.iter()
+            .map(|&val| val as i16)
+            .collect();
+        set(&mut params, &levels);
+        MaudioSpecialAuxProtocol::update_params(req, &unit.get_node(), &params,
+                                                &mut state.cache, curr, timeout_ms)
+            .map(|_| true)
+    }
+
+    fn write_params(
+        &mut self,
+        state: &mut StateCache,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            AUX_OUT_VOL_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &Self::OUTPUT_LABELS,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.output_volumes.copy_from_slice(&vals),
+                )
+            }
+            AUX_STREAM_SRC_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &Self::STREAM_INPUT_LABELS,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.stream_gains.copy_from_slice(&vals),
+                )
+            }
+            AUX_ANALOG_SRC_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &Self::ANALOG_INPUT_LABELS,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.analog_gains.copy_from_slice(&vals),
+                )
+            }
+            AUX_SPDIF_SRC_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &Self::SPDIF_INPUT_LABELS,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.spdif_gains.copy_from_slice(&vals),
+                )
+            }
+            AUX_ADAT_SRC_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    &Self::ADAT_INPUT_LABELS,
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.adat_gains.copy_from_slice(&vals),
                 )
             }
             _ => Ok(false),

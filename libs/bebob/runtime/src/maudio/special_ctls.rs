@@ -8,10 +8,7 @@ use hinawa::{SndUnit, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 
-use alsa_ctl_tlv_codec::items::DbInterval;
-
 use core::card_cntr::*;
-use core::elem_value_accessor::ElemValueAccessor;
 
 use super::common_proto::CommonProto;
 
@@ -224,115 +221,6 @@ impl MixerCtl for StateCache {
                     req.write_quadlet(unit, MIXER_PHYS_SRC_POS, &mut self.cache)?;
                 }
 
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-const GAIN_SIZE: usize = std::mem::size_of::<i16>();
-
-const GAIN_MIN: i32 = i16::MIN as i32;
-const GAIN_MAX: i32 = 0;
-const GAIN_STEP: i32 = 256;
-const GAIN_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: false};
-
-const VOL_SIZE: usize = std::mem::size_of::<i16>();
-
-const VOL_MIN: i32 = i16::MIN as i32;
-const VOL_MAX: i32 = 0;
-const VOL_STEP: i32 = 256;
-const VOL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: false};
-
-pub trait AuxCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>;
-}
-
-const AUX_OUT_LABELS: &[&str] = &["aux-1", "aux-2"];
-
-const AUX_SRC_PAIR_TO_DST_POS: usize = 0x64;    // 0x64 - 0x8c.
-const AUX_OUT_POS: usize = 0x34;                // 0x34.
-
-const AUX_SRC_PAIR_NAME: &str = "aux-source";
-const AUX_OUT_VOL_NAME: &str = "aux-out-volume";
-
-impl AuxCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        // Gain of inputs to aux mixer.
-        let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
-                        SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
-        (0..src_count).for_each(|i| {
-            let pos = AUX_SRC_PAIR_TO_DST_POS + i * GAIN_SIZE;
-            self.set_i16(pos, GAIN_MIN as i16);
-        });
-
-        // Volume of outputs from aux mixer.
-        (0..AUX_OUT_LABELS.len()).for_each(|i| {
-            let pos = AUX_OUT_POS + i * GAIN_SIZE;
-            self.set_i16(pos, GAIN_MAX as i16);
-        });
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_SRC_PAIR_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, GAIN_MIN, GAIN_MAX, GAIN_STEP, src_count,
-                                        Some(&Into::<Vec<u32>>::into(GAIN_TLV)), true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                        AUX_OUT_LABELS.len(),
-                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
-
-        Ok(())
-    }
-
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            AUX_SRC_PAIR_NAME => {
-                let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
-                                SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
-                ElemValueAccessor::<i32>::set_vals(elem_value, src_count, |idx| {
-                    let pos = AUX_SRC_PAIR_TO_DST_POS + idx * GAIN_SIZE;
-                    Ok(self.get_i16(pos) as i32)
-                })?;
-                Ok(true)
-            }
-            AUX_OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, AUX_OUT_LABELS.len(), |idx| {
-                    let pos = AUX_OUT_POS + idx * VOL_SIZE;
-                    Ok(self.get_i16(pos) as i32)
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            AUX_SRC_PAIR_NAME => {
-                let src_count = STREAM_SRC_PAIR_LABELS.len() + ANALOG_SRC_PAIR_LABELS.len() +
-                                SPDIF_SRC_PAIR_LABELS.len() + ADAT_SRC_PAIR_LABELS.len();
-                ElemValueAccessor::<i32>::get_vals(new, old, src_count, |idx, val| {
-                    let mut pos = AUX_SRC_PAIR_TO_DST_POS + idx * GAIN_SIZE;
-                    self.set_i16(pos, val as i16);
-                    pos -= pos % 4;
-                    req.write_quadlet(unit, pos, &mut self.cache)
-                })?;
-                Ok(true)
-            }
-            AUX_OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, AUX_OUT_LABELS.len(), |idx, val| {
-                    let pos = AUX_OUT_POS + idx * VOL_SIZE;
-                    self.set_i16(pos, val as i16);
-                    Ok(())
-                })?;
-                req.write_quadlet(unit, AUX_OUT_POS, &mut self.cache)?;
                 Ok(true)
             }
             _ => Ok(false),
