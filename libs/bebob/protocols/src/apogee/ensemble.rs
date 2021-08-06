@@ -377,8 +377,8 @@ const MIXER_COEFFICIENT_COUNT: usize = 18;
 /// The enumeration of command specific to Apogee Ensemble.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum EnsembleCmd {
-    InputLimit(u8), // index, state
-    MicPower(u8),   // index, state
+    InputLimit(usize, bool), // index, state
+    MicPower(usize, bool),   // index, state
     InputNominalLevel(usize, InputNominalLevel),
     OutputNominalLevel(usize, OutputNominalLevel),
     IoRouting(usize, usize), // destination, source
@@ -393,8 +393,8 @@ pub enum EnsembleCmd {
     InputOptIface(OptIfaceMode),
     FormatConvert(FormatConvertTarget),
     RateConvert(RateConvertTarget, RateConvertRate),
-    MicPolarity(u8), // index, state
-    OutVol(u8),      // main/hp0/hp1, dB(127-0), also available as knob control
+    MicPolarity(usize, bool), // index, state
+    OutVol(u8),               // main/hp0/hp1, dB(127-0), also available as knob control
     HwStatusShort([u8; METER_SHORT_FRAME_SIZE]),
     HwStatusLong([u8; METER_LONG_FRAME_SIZE]),
     Reserved(Vec<u8>),
@@ -429,11 +429,11 @@ impl EnsembleCmd {
 impl From<&EnsembleCmd> for Vec<u8> {
     fn from(cmd: &EnsembleCmd) -> Self {
         match cmd {
-            EnsembleCmd::InputLimit(ch) => {
-                vec![EnsembleCmd::INPUT_LIMIT, *ch]
+            EnsembleCmd::InputLimit(ch, state) => {
+                vec![EnsembleCmd::INPUT_LIMIT, *ch as u8, *state as u8]
             }
-            EnsembleCmd::MicPower(ch) => {
-                vec![EnsembleCmd::MIC_POWER, *ch]
+            EnsembleCmd::MicPower(ch, state) => {
+                vec![EnsembleCmd::MIC_POWER, *ch as u8, *state as u8]
             }
             EnsembleCmd::InputNominalLevel(ch, state) => {
                 let val = match state {
@@ -548,8 +548,8 @@ impl From<&EnsembleCmd> for Vec<u8> {
                     val,
                 ]
             }
-            EnsembleCmd::MicPolarity(ch) => {
-                vec![EnsembleCmd::MIC_POLARITY, *ch]
+            EnsembleCmd::MicPolarity(ch, state) => {
+                vec![EnsembleCmd::MIC_POLARITY, *ch as u8, *state as u8]
             }
             EnsembleCmd::OutVol(target) => {
                 vec![EnsembleCmd::OUT_VOL, *target]
@@ -564,8 +564,8 @@ impl From<&EnsembleCmd> for Vec<u8> {
 impl From<&[u8]> for EnsembleCmd {
     fn from(raw: &[u8]) -> Self {
         match raw[0] {
-            Self::INPUT_LIMIT => Self::InputLimit(raw[1]),
-            Self::MIC_POWER => Self::MicPower(raw[1]),
+            Self::INPUT_LIMIT => Self::InputLimit(raw[1] as usize, raw[2] > 0),
+            Self::MIC_POWER => Self::MicPower(raw[1] as usize, raw[2] > 0),
             Self::IO_NOMINAL_LEVEL => {
                 if raw[2] > 0 {
                     let state = match raw[3] {
@@ -669,7 +669,7 @@ impl From<&[u8]> for EnsembleCmd {
                 };
                 Self::RateConvert(target, rate)
             }
-            Self::MIC_POLARITY => Self::MicPolarity(raw[1]),
+            Self::MIC_POLARITY => Self::MicPolarity(raw[1] as usize, raw[2] > 0),
             Self::OUT_VOL => Self::OutVol(raw[1]),
             Self::HW_STATUS => {
                 if raw[1] > 0 {
@@ -861,13 +861,13 @@ mod test {
 
     #[test]
     fn vendorcmd_from() {
-        let cmd = EnsembleCmd::InputLimit(1);
+        let cmd = EnsembleCmd::InputLimit(1, true);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::MicPower(1);
+        let cmd = EnsembleCmd::MicPower(1, true);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
@@ -954,7 +954,7 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::MicPolarity(0);
+        let cmd = EnsembleCmd::MicPolarity(0, true);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())

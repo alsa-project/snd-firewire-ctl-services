@@ -557,8 +557,8 @@ impl<'a> InputCtl {
     {
         // Transfer initialized data.
         (0..Self::IN_LABELS.len()).try_for_each(|i| {
-            let mut op = EnsembleOperation::new(EnsembleCmd::InputLimit(i as u8),
-                                        &[self.limits[i] as u8]);
+            let cmd = EnsembleCmd::InputLimit(i, self.limits[i]);
+            let mut op = EnsembleOperation::new(cmd, &[]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             let cmd = EnsembleCmd::InputNominalLevel(i, self.levels[i]);
@@ -569,12 +569,12 @@ impl<'a> InputCtl {
         })?;
 
         (0..Self::MIC_LABELS.len()).try_for_each(|i| {
-            let mut op = EnsembleOperation::new(EnsembleCmd::MicPower(i as u8),
-                                        &[self.phantoms[i] as u8]);
+            let cmd = EnsembleCmd::MicPower(i, self.phantoms[i]);
+            let mut op = EnsembleOperation::new(cmd, &[]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-            let mut op = EnsembleOperation::new(EnsembleCmd::MicPolarity(i as u8),
-                                        &[self.polarities[i] as u8]);
+            let cmd = EnsembleCmd::MicPolarity(i, self.polarities[i]);
+            let mut op = EnsembleOperation::new(cmd, &[]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             Ok(())
@@ -637,8 +637,8 @@ impl<'a> InputCtl {
         match elem_id.get_name().as_str() {
             Self::IN_LIMIT_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::InputLimit(idx as u8),
-                                                &[val as u8]);
+                    let cmd = EnsembleCmd::InputLimit(idx, val);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.limits[idx] = val;
                     Ok(())
@@ -663,8 +663,8 @@ impl<'a> InputCtl {
             }
             Self::MIC_PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::MicPower(idx as u8),
-                                                &[val as u8]);
+                    let cmd = EnsembleCmd::MicPower(idx, val);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.phantoms[idx] = val;
                     Ok(())
@@ -673,8 +673,8 @@ impl<'a> InputCtl {
             }
             Self::MIC_POLARITY_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::MicPolarity(idx as u8),
-                                                &[val as u8]);
+                    let cmd = EnsembleCmd::MicPolarity(idx, val);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.polarities[idx] = val;
                     Ok(())
