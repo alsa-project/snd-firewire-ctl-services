@@ -87,9 +87,9 @@ impl CtlModel<SndUnit> for PflModel {
             Ok(true)
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_ctl.read(elem_id, elem_value)? {
-            Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

@@ -97,6 +97,10 @@ pub struct PflMeterProtocol;
 
 const METER_SIZE: usize = 56;
 
+/// The protocol implementation for input parameters.
+#[derive(Default)]
+pub struct PflInputParametersProtocol;
+
 /// The enumeration for detected frequency of any external input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PflDetectedInputFreq {
@@ -175,5 +179,43 @@ impl PflMeterProtocol {
         meter.sync_status = val != 2;
 
         Ok(())
+    }
+}
+
+const CACHE_SIZE: usize = 24;
+
+/// The structure for input configuration.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PflInputParameters {
+    pub adat_mute: [bool; 4],
+    pub spdif_mute: bool,
+    pub force_smux: bool,
+    cache: [u8; CACHE_SIZE],
+}
+
+const PARAMS_OFFSET: u64 = 0x00700000;
+
+impl PflInputParametersProtocol {
+    pub fn write_input_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut PflInputParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let cache = &mut params.cache;
+
+        params.adat_mute.iter().enumerate().for_each(|(i, m)| {
+            let pos = i * 4;
+            let val = *m as u32;
+            cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        });
+
+        let val = params.spdif_mute as u32;
+        cache[16..20].copy_from_slice(&val.to_be_bytes());
+
+        let val = params.force_smux as u32;
+        cache[20..24].copy_from_slice(&val.to_be_bytes());
+
+        write_block(req, node, PARAMS_OFFSET, cache, timeout_ms)
     }
 }
