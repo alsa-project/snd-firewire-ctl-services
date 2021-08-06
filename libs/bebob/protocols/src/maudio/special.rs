@@ -76,3 +76,48 @@ fn read_clk_freq(avc: &BebobAvc, freq_list: &[u32], timeout_ms: u32) -> Result<u
             Error::new(FileError::Io, &msg)
         })
 }
+
+/// The structure of AV/C vendor-dependent command for specific LED switch.
+pub struct MaudioSpecialLedSwitch {
+    state: bool,
+    op: VendorDependent,
+}
+
+// NOTE: Unknown OUI.
+const SPECIAL_OUI_A: [u8; 3] = [0x03, 0x00, 0x01];
+
+impl Default for MaudioSpecialLedSwitch {
+    fn default() -> Self {
+        Self {
+            state: Default::default(),
+            op: VendorDependent {
+                company_id: SPECIAL_OUI_A,
+                data: vec![0xff, 0xff],
+            },
+        }
+    }
+}
+
+impl MaudioSpecialLedSwitch {
+    pub fn new(state: bool) -> Self {
+        Self {
+            state,
+            ..Default::default()
+        }
+    }
+}
+
+impl AvcOp for MaudioSpecialLedSwitch {
+    const OPCODE: u8 = VendorDependent::OPCODE;
+}
+
+impl AvcControl for MaudioSpecialLedSwitch {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.data[0] = self.state.into();
+        AvcControl::build_operands(&mut self.op, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcControl::parse_operands(&mut self.op, addr, operands)
+    }
+}

@@ -14,49 +14,12 @@ use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
-use ta1394::{AvcOp, AvcControl};
-use ta1394::general::VendorDependent;
 
-use bebob_protocols::*;
+use bebob_protocols::{*, maudio::special::*};
 
 use crate::model::{IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::{FCP_TIMEOUT_MS, CommonProto};
-
-struct LedSwitch{
-    state: bool,
-    op: VendorDependent,
-}
-
-// NOTE: Unknown OUI.
-const SPECIAL_OUI_A: [u8;3] = [0x03, 0x00, 0x01];
-
-impl LedSwitch {
-    pub fn new(state: bool) -> Self {
-        LedSwitch{
-            state,
-            op: VendorDependent{
-                company_id: SPECIAL_OUI_A,
-                data: Vec::new(),
-            },
-        }
-    }
-}
-
-impl AvcOp for LedSwitch {
-    const OPCODE: u8 = VendorDependent::OPCODE;
-}
-
-impl AvcControl for LedSwitch {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
-        self.op.data.extend_from_slice(&[self.state as u8, 0xff]);
-        AvcControl::build_operands(&mut self.op, addr, operands)
-    }
-
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
-        AvcControl::parse_operands(&mut self.op, addr, operands)
-    }
-}
 
 pub struct MeterCtl{
     pub measure_elems: Vec<ElemId>,
@@ -160,7 +123,7 @@ impl<'a> MeterCtl {
         req.read_meters(unit, &mut frames)?;
 
         if self.meters[0] == 0x01 && frames[0] == 0x00 {
-            let mut op = LedSwitch::new(!self.switch);
+            let mut op = MaudioSpecialLedSwitch::new(!self.switch);
             avc.control(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
             self.switch = !self.switch;
         }
