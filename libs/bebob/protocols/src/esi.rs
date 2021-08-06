@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Ego Systems (ESI) for Quatafire series.
 //!
+//! DM1000 is used for ESI Quatafire 610.
+//!
 //! ## Diagram of internal signal flow for Quatafire 610
 //!
 //! ```text
@@ -21,6 +23,28 @@
 //! stream-input-3/4 -------------------> analog-output-3/4
 //! stream-input-5/6 -------------------> analog-output-5/6
 //! stream-input-7/8 -------------------> digital-output-1/2
+//! ```
+//!
+//! The protocol implementation for ESI Quatafire 610 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2004-06-08T02:57:12+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x00000042000f1b10
+//!   model ID: 0x000081
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2004-08-04T06:37:54+0000
+//!   ID: 0x00010064
+//!   revision: 0.0.2632
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
 //! ```
 
 use super::*;
