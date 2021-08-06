@@ -328,7 +328,7 @@ pub enum EnsembleCmd {
     MicPower(u8),   // index, state
     InputNominalLevel(usize, InputNominalLevel),
     OutputNominalLevel(usize, OutputNominalLevel),
-    IoRouting(u8), // destination, source
+    IoRouting(usize, usize), // destination, source
     Hw(HwCmd),
     HpSrc(u8), // destination, source
     MixerSrc0(usize, [i16; MIXER_COEFFICIENT_COUNT]),
@@ -397,8 +397,8 @@ impl From<&EnsembleCmd> for Vec<u8> {
                 };
                 vec![EnsembleCmd::IO_NOMINAL_LEVEL, *ch as u8, 0x00, val]
             }
-            EnsembleCmd::IoRouting(dst) => {
-                vec![EnsembleCmd::IO_ROUTING, *dst]
+            EnsembleCmd::IoRouting(dst, src) => {
+                vec![EnsembleCmd::IO_ROUTING, *dst as u8, *src as u8]
             }
             EnsembleCmd::Hw(op) => {
                 vec![EnsembleCmd::HW, u8::from(*op)]
@@ -491,7 +491,7 @@ impl From<&[u8]> for EnsembleCmd {
                     Self::OutputNominalLevel(raw[1] as usize, state)
                 }
             }
-            Self::IO_ROUTING => Self::IoRouting(raw[1]),
+            Self::IO_ROUTING => Self::IoRouting(raw[1] as usize, raw[2] as usize),
             Self::HW => Self::Hw(HwCmd::from(raw[1])),
             Self::HP_SRC => Self::HpSrc((raw[1] + 1) % 2),
             Self::MIXER_SRC0 => {
@@ -679,8 +679,6 @@ impl AvcControl for EnsembleOperation {
 #[cfg(test)]
 mod test {
     use super::*;
-    use ta1394::AvcAddr;
-    use ta1394::AvcControl;
 
     #[test]
     fn vendorcmd_from() {
@@ -708,7 +706,7 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::IoRouting(1);
+        let cmd = EnsembleCmd::IoRouting(1, 11);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
@@ -785,24 +783,5 @@ mod test {
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
-    }
-
-    #[test]
-    fn apogeecmd_operands() {
-        let operands = vec![0xde, 0xad, 0xbe, 0xef, 0x03, 0x02];
-        let mut op = EnsembleOperation::new(EnsembleCmd::IoRouting(0x03), &[0x02]);
-        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.params, vec![0x02]);
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(&o[..6], operands.as_slice());
-
-        let operands = vec![0xde, 0xad, 0xbe, 0xf3, 0x01, 0x02, 0x03, 0x04];
-        let mut op = EnsembleOperation::new(EnsembleCmd::SpdifResample, &[0x01, 0x02, 0x03, 0x04]);
-        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.params, vec![0x01, 0x02, 0x03, 0x04]);
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(&o[..8], operands.as_slice());
     }
 }
