@@ -24,6 +24,29 @@
 //! ```
 //!
 //! None of the above audio signals is configurable by software.
+//!
+//! The protocol implementation for M-Audio FireWire 1814 was written with firmware version
+//! below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2005-12-07T08:55:54+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x00a9000000a07e01
+//!   model ID: 0x000001
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2007-10-31T03:44:02+0000
+//!   ID: 0x000000a9
+//!   revision: 0.255.65535
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
