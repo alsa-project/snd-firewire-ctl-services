@@ -35,3 +35,20 @@ fn read_block(
         timeout_ms,
     )
 }
+
+fn write_block(
+    req: &FwReq,
+    node: &FwNode,
+    offset: u64,
+    frames: &mut [u8],
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    req.transaction_sync(
+        node,
+        hinawa::FwTcode::WriteBlockRequest,
+        BASE_OFFSET + offset,
+        frames.len(),
+        frames,
+        timeout_ms,
+    )
+}
