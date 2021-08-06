@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Yamaha and Terratec for Go and 24 FW series.
 //!
+//! DM1000E is used for Yamaha GO 44 and GO 46.
+//!
 //! ## Diagram of internal signal flow
 //!
 //! ```text
@@ -40,6 +42,72 @@
 //!                                                    +---------|-|---> (one source only)
 //!                                                              +-|--->
 //!                                                                +--->
+//! ```
+//!
+//! The protocol implementation for Yamaha GO 44 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2005-12-20T10:10:04+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x0002e24700a0de00
+//!   model ID: 0x00000b
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2006-04-20T10:57:53+0000
+//!   ID: 0x0010000b
+//!   revision: 1.29.3359
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
+//!
+//! The protocol implementation for Yamaha GO 46 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2005-12-20T10:10:14+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x000283e700a0de00
+//!   model ID: 0x00000c
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2006-01-26T02:31:32+0000
+//!   ID: 0x0010000c
+//!   revision: 1.34.3359
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
+//!
+//! The protocol implementation for Terratec Phase X24 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2005-07-29T02:05:14+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x0062c9c7000aac07
+//!   model ID: 0x000007
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2005-07-25T01:56:53+0000
+//!   ID: 0x00000007
+//!   revision: 1.32.3359
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
 //! ```
 
 use crate::*;
