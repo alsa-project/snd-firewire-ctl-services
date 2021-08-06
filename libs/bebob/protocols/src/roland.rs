@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Roland for Edirol FA series.
 //!
+//! DM1000 is used for Roland FA-66.
+//!
 //! ## Diagram of internal signal flow for FA-66
 //!
 //! ```text
@@ -20,6 +22,28 @@
 //!                          ++=======++
 //! stream-input-3/4 --------------------------> analog-output-3/4
 //! stream-input-5/6 --------------------------> digital-output-1/2
+//! ```
+//!
+//! The protocol implementation for Roland FA-66 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2004-11-26T04:06:23+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x00c3216f0040ab00
+//!   model ID: 0x000002
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2004-11-26T02:44:31+0000
+//!   ID: 0x00010049
+//!   revision: 0.0.256
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
 //! ```
 
 use super::*;
