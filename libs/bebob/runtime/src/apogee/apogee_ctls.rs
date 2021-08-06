@@ -293,21 +293,31 @@ impl<'a> DisplayCtl {
     }
 }
 
+fn opt_iface_mode_to_str(mode: &OptIfaceMode) -> &str {
+    match mode {
+        OptIfaceMode::Spdif => "S/PDIF",
+        OptIfaceMode::Adat => "ADAT/SMUX",
+    }
+}
+
 pub struct OpticalCtl{
-    output: u32,
-    input: u32,
+    output: OptIfaceMode,
+    input: OptIfaceMode,
 }
 
 impl<'a> OpticalCtl {
     const OUT_MODE_NAME: &'a str = "output-optical-mode";
     const IN_MODE_NAME: &'a str = "input-optical-mode";
 
-    const MODE_LABELS: &'a [&'a str] = &["S/PDIF", "ADAT/SMUX"];
+    const MODES: [OptIfaceMode;2] = [
+        OptIfaceMode::Spdif,
+        OptIfaceMode::Adat,
+    ];
 
     pub fn new() -> Self {
         OpticalCtl {
-            output: 0,
-            input: 0,
+            output: Default::default(),
+            input: Default::default(),
         }
     }
 
@@ -315,19 +325,24 @@ impl<'a> OpticalCtl {
         -> Result<(), Error>
     {
         // Transfer initialized data.
-        let mut op = EnsembleOperation::new(EnsembleCmd::OptIfaceMode(0x00), &[self.output as u8]);
+        let cmd = EnsembleCmd::OutputOptIface(self.output);
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = EnsembleOperation::new(EnsembleCmd::OptIfaceMode(0x01), &[self.input as u8]);
+        let cmd = EnsembleCmd::InputOptIface(self.input);
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
+        let labels: Vec<&str> = Self::MODES.iter()
+            .map(|m| opt_iface_mode_to_str(m))
+            .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::OUT_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MODE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::IN_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MODE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
@@ -337,12 +352,22 @@ impl<'a> OpticalCtl {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.output))?;
-                Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::MODES.iter()
+                        .position(|m| *m == self.output)
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
             }
             Self::IN_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.input))?;
-                Ok(true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::MODES.iter()
+                        .position(|m| *m == self.input)
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -355,23 +380,37 @@ impl<'a> OpticalCtl {
         match elem_id.get_name().as_str() {
             Self::OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::OptIfaceMode(0x00),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.output = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                    let mode = Self::MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(||{
+                            let msg = format!("Invalid index for mode of optical interface: {}",
+                                              val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|m| *m)?;
+                    let cmd = EnsembleCmd::OutputOptIface(mode);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                        .map(|_| self.output = mode)
+                })
+                .map(|_| true)
             }
             Self::IN_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::OptIfaceMode(0x01),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.input = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                    let mode = Self::MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(||{
+                            let msg = format!("Invalid index for mode of optical interface: {}",
+                                              val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|m| *m)?;
+                    let cmd = EnsembleCmd::InputOptIface(mode);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                        .map(|_| self.input = mode)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }

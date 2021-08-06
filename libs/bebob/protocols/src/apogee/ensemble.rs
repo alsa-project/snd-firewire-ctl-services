@@ -288,6 +288,35 @@ impl Default for OutputNominalLevel {
     }
 }
 
+/// The mode of signal in optical interface.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum OptIfaceMode {
+    Spdif,
+    Adat,
+}
+
+impl Default for OptIfaceMode {
+    fn default() -> Self {
+        Self::Spdif
+    }
+}
+
+fn opt_iface_mode_to_val(mode: &OptIfaceMode) -> u8 {
+    if mode.eq(&OptIfaceMode::Adat) {
+        1
+    } else {
+        0
+    }
+}
+
+fn opt_iface_mode_from_val(val: u8) -> OptIfaceMode {
+    if val > 0 {
+        OptIfaceMode::Adat
+    } else {
+        OptIfaceMode::Spdif
+    }
+}
+
 const METER_SHORT_FRAME_SIZE: usize = 17;
 const METER_LONG_FRAME_SIZE: usize = 56;
 
@@ -305,12 +334,13 @@ pub enum EnsembleCmd {
     MixerSrc1(u8),
     MixerSrc2(u8),
     MixerSrc3(u8),
-    MicGain(u8),      // 1/2/3/4, dB(10-75), also available as knob control
-    OptIfaceMode(u8), // direction, mode
-    Downgrade,        // on/off
-    SpdifResample,    // on/off, iface, direction, rate
-    MicPolarity(u8),  // index, state
-    OutVol(u8),       // main/hp0/hp1, dB(127-0), also available as knob control
+    MicGain(u8), // 1/2/3/4, dB(10-75), also available as knob control
+    OutputOptIface(OptIfaceMode),
+    InputOptIface(OptIfaceMode),
+    Downgrade,       // on/off
+    SpdifResample,   // on/off, iface, direction, rate
+    MicPolarity(u8), // index, state
+    OutVol(u8),      // main/hp0/hp1, dB(127-0), also available as knob control
     HwStatusShort([u8; METER_SHORT_FRAME_SIZE]),
     HwStatusLong([u8; METER_LONG_FRAME_SIZE]),
     Reserved(Vec<u8>),
@@ -390,8 +420,11 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::MicGain(target) => {
                 vec![EnsembleCmd::IN_VOL, *target]
             }
-            EnsembleCmd::OptIfaceMode(direction) => {
-                vec![EnsembleCmd::OPT_IFACE_MODE, *direction]
+            EnsembleCmd::OutputOptIface(mode) => {
+                vec![EnsembleCmd::OPT_IFACE_MODE, 0, opt_iface_mode_to_val(mode)]
+            }
+            EnsembleCmd::InputOptIface(mode) => {
+                vec![EnsembleCmd::OPT_IFACE_MODE, 1, opt_iface_mode_to_val(mode)]
             }
             EnsembleCmd::Downgrade => {
                 vec![EnsembleCmd::DOWNGRADE]
@@ -440,7 +473,14 @@ impl From<&[u8]> for EnsembleCmd {
             Self::MIXER_SRC1 => Self::MixerSrc1(raw[1]),
             Self::MIXER_SRC2 => Self::MixerSrc2(raw[1]),
             Self::MIXER_SRC3 => Self::MixerSrc3(raw[1]),
-            Self::OPT_IFACE_MODE => Self::OptIfaceMode(raw[1]),
+            Self::OPT_IFACE_MODE => {
+                let mode = opt_iface_mode_from_val(raw[2]);
+                if raw[1] > 0 {
+                    Self::InputOptIface(mode)
+                } else {
+                    Self::OutputOptIface(mode)
+                }
+            }
             Self::DOWNGRADE => Self::Downgrade,
             Self::SPDIF_RESAMPLE => Self::SpdifResample,
             Self::MIC_POLARITY => Self::MicPolarity(raw[1]),
@@ -649,7 +689,13 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::OptIfaceMode(0);
+        let cmd = EnsembleCmd::OutputOptIface(OptIfaceMode::Adat);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::InputOptIface(OptIfaceMode::Spdif);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
