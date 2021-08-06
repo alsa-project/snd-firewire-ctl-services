@@ -6,7 +6,7 @@ use glib::Error;
 use hinawa::{FwFcpExt, FwNode, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -18,7 +18,7 @@ use ta1394::*;
 use bebob_protocols::{*, maudio::special::*};
 
 use crate::common_ctls::*;
-use super::special_ctls::{StateCache, MixerCtl, InputCtl, OutputCtl, AuxCtl, HpCtl};
+use super::special_ctls::{StateCache, MixerCtl, OutputCtl, AuxCtl, HpCtl};
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
@@ -29,6 +29,7 @@ pub struct SpecialModel<T: MediaClockFrequencyOperation + Default> {
     clk_ctl: ClkCtl<T>,
     meter_ctl: MeterCtl,
     cache: StateCache,
+    input_ctl: InputCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 200;
@@ -47,6 +48,7 @@ impl<T: MediaClockFrequencyOperation + Default> Default for SpecialModel<T> {
             clk_ctl: Default::default(),
             meter_ctl: Default::default(),
             cache: StateCache::new(),
+            input_ctl: Default::default(),
         }
     }
 }
@@ -63,8 +65,9 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
         self.meter_ctl.load_state(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)?;
 
+        self.input_ctl.load_params(card_cntr, &mut self.cache)?;
+
         MixerCtl::load(&mut self.cache, card_cntr)?;
-        InputCtl::load(&mut self.cache, card_cntr)?;
         OutputCtl::load(&mut self.cache, card_cntr)?;
         AuxCtl::load(&mut self.cache, card_cntr)?;
         HpCtl::load(&mut self.cache, card_cntr)?;
@@ -81,7 +84,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
             Ok(true)
         } else if MixerCtl::read(&mut self.cache, elem_id, elem_value)? {
             Ok(true)
-        } else if InputCtl::read(&mut self.cache, elem_id, elem_value)? {
+        } else if self.input_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if OutputCtl::read(&mut self.cache, elem_id, elem_value)? {
             Ok(true)
@@ -101,7 +104,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
             Ok(true)
         } else if MixerCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
             Ok(true)
-        } else if InputCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
+        } else if self.input_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if OutputCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
             Ok(true)
@@ -368,6 +371,250 @@ impl MeterCtl {
     }
 }
 
+#[derive(Default)]
+struct InputCtl(MaudioSpecialInputParameters);
+
+const STREAM_INPUT_GAIN_NAME: &str = "stream-input-gain";
+const ANALOG_INPUT_GAIN_NAME: &str = "analog-input-gain";
+const SPDIF_INPUT_GAIN_NAME: &str = "spdif-input-gain";
+const ADAT_INPUT_GAIN_NAME: &str = "adat-input-gain";
+const ANALOG_INPUT_BALANCE_NAME: &str = "analog-input-balance";
+const SPDIF_INPUT_BALANCE_NAME: &str = "spdif-input-balance";
+const ADAT_INPUT_BALANCE_NAME: &str = "adat-input-balance";
+
+const STREAM_INPUT_LABELS: [&str; 4] = [
+    "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+];
+
+impl InputCtl {
+    const GAIN_TLV: DbInterval = DbInterval { min: -12800, max: 0, linear: false, mute_avail: false };
+
+    fn add_input_gain_elem(
+        card_cntr: &mut CardCntr,
+        name: &str,
+        labels: &[&str],
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                MaudioSpecialInputProtocol::GAIN_MIN as i32,
+                MaudioSpecialInputProtocol::GAIN_MAX as i32,
+                MaudioSpecialInputProtocol::GAIN_STEP as i32,
+                labels.len(),
+                Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
+                true,
+           )
+    }
+
+    fn add_input_balance_elem(
+        card_cntr: &mut CardCntr,
+        name: &str,
+        labels: &[&str],
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                MaudioSpecialInputProtocol::BALANCE_MIN as i32,
+                MaudioSpecialInputProtocol::BALANCE_MAX as i32,
+                MaudioSpecialInputProtocol::BALANCE_STEP as i32,
+                labels.len(),
+                None,
+                true,
+            )
+    }
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        state: &mut StateCache,
+    ) -> Result<(), Error> {
+        [
+            (STREAM_INPUT_GAIN_NAME, &STREAM_INPUT_LABELS[..]),
+            (ANALOG_INPUT_GAIN_NAME, &ANALOG_INPUT_LABELS[..]),
+            (SPDIF_INPUT_GAIN_NAME, &SPDIF_INPUT_LABELS[..]),
+            (ADAT_INPUT_GAIN_NAME, &ADAT_INPUT_LABELS[..]),
+        ].iter()
+            .try_for_each(|(name, labels)| {
+                Self::add_input_gain_elem(card_cntr, name, labels).map(|_| ())
+            })?;
+
+        [
+            (ANALOG_INPUT_BALANCE_NAME, &ANALOG_INPUT_LABELS[..]),
+            (SPDIF_INPUT_BALANCE_NAME, &SPDIF_INPUT_LABELS[..]),
+            (ADAT_INPUT_BALANCE_NAME, &ADAT_INPUT_LABELS[..]),
+        ].iter()
+            .try_for_each(|(name, labels)| {
+                Self::add_input_balance_elem(card_cntr, name, labels).map(|_| ())
+            })?;
+
+        self.0.stream_gains.iter_mut()
+            .chain(self.0.analog_gains.iter_mut())
+            .chain(self.0.spdif_gains.iter_mut())
+            .chain(self.0.adat_gains.iter_mut())
+            .for_each(|gain| *gain = MaudioSpecialInputProtocol::GAIN_MAX);
+
+        self.0.analog_balances.iter_mut()
+            .chain(self.0.spdif_balances.iter_mut())
+            .chain(self.0.adat_balances.iter_mut())
+            .enumerate()
+            .for_each(|(i, balance)| {
+                *balance = if i % 2 == 0 {
+                    MaudioSpecialInputProtocol::BALANCE_MIN
+                } else {
+                    MaudioSpecialInputProtocol::BALANCE_MAX
+                };
+            });
+
+        self.0.write_to_cache(&mut state.cache);
+
+        Ok(())
+    }
+
+    fn read_int(elem_value: &mut ElemValue, gains: &[i16]) -> Result<bool, Error> {
+        ElemValueAccessor::<i32>::set_vals(elem_value, gains.len(), |idx| Ok(gains[idx] as i32))
+            .map(|_| true)
+    }
+
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            STREAM_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.stream_gains),
+            ANALOG_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.analog_gains),
+            SPDIF_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.spdif_gains),
+            ADAT_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.adat_gains),
+            ANALOG_INPUT_BALANCE_NAME => Self::read_int(elem_value, &self.0.analog_balances),
+            SPDIF_INPUT_BALANCE_NAME => Self::read_int(elem_value, &self.0.spdif_balances),
+            ADAT_INPUT_BALANCE_NAME => Self::read_int(elem_value, &self.0.adat_balances),
+            _ => Ok(false),
+        }
+    }
+
+    fn write_int<T>(
+        curr: &mut MaudioSpecialInputParameters,
+        elem_value: &ElemValue,
+        count: usize,
+        req: &FwReq,
+        unit: &SndUnit,
+        state: &mut StateCache,
+        timeout_ms: u32,
+        set: T,
+    ) -> Result<bool, Error>
+        where T: Fn(&mut MaudioSpecialInputParameters, &[i16])
+    {
+        let mut params = curr.clone();
+        let mut vals = vec![0; count];
+        elem_value.get_int(&mut vals);
+        let levels: Vec<i16> = vals.iter()
+            .map(|&val| val as i16)
+            .collect();
+        set(&mut params, &levels);
+        MaudioSpecialInputProtocol::update_params(req, &unit.get_node(), &params,
+                                                  &mut state.cache, curr, timeout_ms)
+            .map(|_| true)
+    }
+
+    fn write_params(
+        &mut self,
+        state: &mut StateCache,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            STREAM_INPUT_GAIN_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    STREAM_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.stream_gains.copy_from_slice(&vals),
+                )
+            }
+            ANALOG_INPUT_GAIN_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    ANALOG_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.analog_gains.copy_from_slice(&vals),
+                )
+            }
+            SPDIF_INPUT_GAIN_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    SPDIF_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.spdif_gains.copy_from_slice(&vals),
+                )
+            }
+            ADAT_INPUT_GAIN_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    ADAT_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.adat_gains.copy_from_slice(&vals),
+                )
+            }
+            ANALOG_INPUT_BALANCE_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    ANALOG_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.analog_balances.copy_from_slice(&vals),
+                )
+            }
+            SPDIF_INPUT_BALANCE_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    SPDIF_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.spdif_balances.copy_from_slice(&vals),
+                )
+            }
+            ADAT_INPUT_BALANCE_NAME => {
+                Self::write_int(
+                    &mut self.0,
+                    elem_value,
+                    ADAT_INPUT_LABELS.len(),
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, vals| params.adat_balances.copy_from_slice(&vals),
+                )
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -398,5 +645,17 @@ mod test {
         assert_eq!(meter_ctl.0.adat_outputs.len(), ADAT_OUTPUT_LABELS.len());
         assert_eq!(meter_ctl.0.headphone.len(), HEADPHONE_LABELS.len());
         assert_eq!(meter_ctl.0.aux_outputs.len(), AUX_OUTPUT_LABELS.len());
+    }
+
+    #[test]
+    fn test_input_label_count() {
+        let input_ctl = InputCtl::default();
+        assert_eq!(input_ctl.0.stream_gains.len(), STREAM_INPUT_LABELS.len());
+        assert_eq!(input_ctl.0.analog_gains.len(), ANALOG_INPUT_LABELS.len());
+        assert_eq!(input_ctl.0.spdif_gains.len(), SPDIF_INPUT_LABELS.len());
+        assert_eq!(input_ctl.0.adat_gains.len(), ADAT_INPUT_LABELS.len());
+        assert_eq!(input_ctl.0.analog_balances.len(), ANALOG_INPUT_LABELS.len());
+        assert_eq!(input_ctl.0.spdif_balances.len(), SPDIF_INPUT_LABELS.len());
+        assert_eq!(input_ctl.0.adat_balances.len(), ADAT_INPUT_LABELS.len());
     }
 }
