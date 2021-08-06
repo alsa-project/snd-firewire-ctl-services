@@ -116,6 +116,55 @@ impl SamplingClockSourceOperation for EnsembleClkProtocol {
     ];
 }
 
+/// The structure of sample format converter.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleConvertParameters {
+    pub format_target: FormatConvertTarget,
+    pub rate_target: RateConvertTarget,
+    pub converted_rate: RateConvertRate,
+    pub cd_mode: bool,
+}
+
+impl From<&EnsembleConvertParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleConvertParameters) -> Self {
+        vec![
+            EnsembleCmd::FormatConvert(params.format_target),
+            EnsembleCmd::RateConvert(params.rate_target, params.converted_rate),
+            EnsembleCmd::Hw(HwCmd::CdMode(params.cd_mode)),
+        ]
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleConvertParameters> for BebobAvc {}
+
+/// The trait for parameter protocol.
+pub trait EnsembleParameterProtocol<T>: Ta1394Avc
+where
+    for<'a> Vec<EnsembleCmd>: From<&'a T>,
+    T: Copy,
+{
+    fn init_params(&mut self, params: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        Vec::<EnsembleCmd>::from(&(*params))
+            .into_iter()
+            .try_for_each(|cmd| {
+                let mut op = EnsembleOperation::new(cmd);
+                self.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            })
+    }
+
+    fn update_params(&mut self, new: &T, old: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        Vec::<EnsembleCmd>::from(new)
+            .into_iter()
+            .zip(Vec::<EnsembleCmd>::from(&(*old)).iter())
+            .filter(|(n, o)| !n.eq(o))
+            .try_for_each(|(n, _)| {
+                let mut op = EnsembleOperation::new(n);
+                self.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            })
+            .map(|_| *old = *new)
+    }
+}
+
 /// The target of input for knob.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum KnobInputTarget {
