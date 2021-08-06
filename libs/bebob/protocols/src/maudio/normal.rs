@@ -6,6 +6,9 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by M-Audio normal FireWire series.
 //!
+//! DM1000 is used for M-Audio FireWire 410. DM1000E is used for M-Audio FireWire Audiophile,
+//! and Solo.
+//!
 //! ## Diagram of internal signal flow for FireWire 410
 //!
 //! ```text
@@ -90,6 +93,95 @@
 //!  stream-input-1/2 -->||  8x4  || --> mixer-output-1/2 --> analog-output-1/2
 //!  stream-input-3/4 -->|| mixer || --> mixer-output-3/4 --> analog-output-3/4
 //!                      ++=======++
+//! ```
+//!
+//! The protocol implementation for M-Audio FireWire 410 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2003-04-04T01:46:25+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x000af510000d6c01
+//!   model ID: 0x000002
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2007-05-04T10:26:56+0000
+//!   ID: 0x00010046
+//!   revision: 0.255.65535
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
+//!
+//! The protocol implementation for M-Audio FireWire Audiophile was written with firmware version
+//! below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2003-10-06T10:00:41+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x002b7e2e000d6c03
+//!   model ID: 0x00000d
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2007-05-04T10:22:12+0000
+//!   ID: 0x00010060
+//!   revision: 0.255.65535
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
+//!
+//! The protocol implementation for M-Audio FireWire Solo was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2004-09-15T01:22:54+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x00c256a4000d6c0b
+//!   model ID: 0x000090
+//!   revision: 0.0.0
+//! software:
+//!   timestamp: 2007-08-08T01:56:28+0000
+//!   ID: 0x00010062
+//!   revision: 0.255.65535
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
+//!
+//! The protocol implementation for M-Audio Ozonic was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2004-09-15T05:56:44+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x0078c1d7000d6c0a
+//!   model ID: 0x000001
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2005-09-05T09:10:22+0000
+//!   ID: 0x0000000a
+//!   revision: 0.0.20
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
 //! ```
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
