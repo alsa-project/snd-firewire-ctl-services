@@ -159,6 +159,66 @@ impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleDisplayParameters> for BebobAvc {}
 
+/// The parameters of analog/digital inputs. The gains, phantoms, and polarities parameters
+/// are available when channel 0-3 levels are for mic.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleInputParameters {
+    pub limits: [bool; 8],
+    pub levels: [InputNominalLevel; 8],
+    pub gains: [u8; 4],
+    pub phantoms: [bool; 4],
+    pub polarities: [bool; 4],
+    pub opt_iface_mode: OptIfaceMode,
+}
+
+impl EnsembleInputParameters {
+    pub const GAIN_MIN: u8 = 0;
+    pub const GAIN_MAX: u8 = 75;
+    pub const GAIN_STEP: u8 = 1;
+}
+
+impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleInputParameters) -> Self {
+        let mut cmds = Vec::new();
+
+        params
+            .limits
+            .iter()
+            .enumerate()
+            .for_each(|(i, &limit)| cmds.push(EnsembleCmd::InputLimit(i, limit)));
+
+        params
+            .levels
+            .iter()
+            .enumerate()
+            .for_each(|(i, &level)| cmds.push(EnsembleCmd::InputNominalLevel(i, level)));
+
+        params
+            .gains
+            .iter()
+            .enumerate()
+            .for_each(|(i, &gain)| cmds.push(EnsembleCmd::MicGain(i, gain)));
+
+        params
+            .phantoms
+            .iter()
+            .enumerate()
+            .for_each(|(i, &phantom)| cmds.push(EnsembleCmd::MicPower(i, phantom)));
+
+        params
+            .polarities
+            .iter()
+            .enumerate()
+            .for_each(|(i, &polarity)| cmds.push(EnsembleCmd::MicPolarity(i, polarity)));
+
+        cmds.push(EnsembleCmd::InputOptIface(params.opt_iface_mode));
+
+        cmds
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleInputParameters> for BebobAvc {}
+
 /// The trait for parameter protocol.
 pub trait EnsembleParameterProtocol<T>: Ta1394Avc
 where
@@ -269,9 +329,9 @@ impl EnsembleMeterProtocol {
     pub const OUT_KNOB_VAL_MAX: u8 = 0x7f;
     pub const OUT_KNOB_VAL_STEP: u8 = 1;
 
-    pub const IN_KNOB_VAL_MIN: u8 = 0;
-    pub const IN_KNOB_VAL_MAX: u8 = 75;
-    pub const IN_KNOB_VAL_STEP: u8 = 1;
+    pub const IN_KNOB_VAL_MIN: u8 = EnsembleInputParameters::GAIN_MIN;
+    pub const IN_KNOB_VAL_MAX: u8 = EnsembleInputParameters::GAIN_MAX;
+    pub const IN_KNOB_VAL_STEP: u8 = EnsembleInputParameters::GAIN_STEP;
 
     pub const LEVEL_MIN: u8 = u8::MIN;
     pub const LEVEL_MAX: u8 = u8::MAX;
