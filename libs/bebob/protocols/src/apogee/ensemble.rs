@@ -369,6 +369,84 @@ impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleSourceParameters> for BebobAvc {}
 
+/// The structure for mixer parameters.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleMixerParameters {
+    /// To (4):
+    ///   mixer-output-0, mixer-output-1, mixer-output-2, mixer-output-3
+    ///
+    /// From (36):
+    /// analog-input-0, analog-input-1, analog-input-2, analog-input-3,
+    /// analog-input-4, analog-input-5, analog-input-6, analog-input-7,
+    /// stream-input-0, stream-input-1, stream-input-2, stream-input-3,
+    /// stream-input-4, stream-input-5, stream-input-6, stream-input-7,
+    /// stream-input-8,stream-input-9, stream-input-10, stream-input-11,
+    /// stream-input-12, stream-input-13, stream-input-14, stream-input-15,
+    /// stream-input-16, stream-input-17,
+    /// adat-input-0, adat-input-1, adat-input-2, adat-input-3,
+    /// adat-input-4, adat-input-5, adat-input-6, adat-input-7,
+    /// spdif-input-0, spdif-input-1,
+    pub src_gains: [[i16; 36]; 4],
+}
+
+impl EnsembleMixerParameters {
+    pub const GAIN_MIN: i16 = 0;
+    pub const GAIN_MAX: i16 = 0xff;
+    pub const GAIN_STEP: i16 = 0x01;
+}
+
+impl Default for EnsembleMixerParameters {
+    fn default() -> Self {
+        let mut src_gains = [[0; 36]; 4];
+
+        src_gains.iter_mut().enumerate().for_each(|(i, gains)| {
+            gains
+                .iter_mut()
+                .enumerate()
+                .filter(|(j, _)| i % 2 == j % 2)
+                .for_each(|(_, gain)| *gain = Self::GAIN_MAX);
+        });
+        Self { src_gains }
+    }
+}
+
+impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleMixerParameters) -> Self {
+        let mut cmds = Vec::new();
+
+        (0..2).for_each(|i| {
+            let mut src0_gains = [0; MIXER_COEFFICIENT_COUNT];
+            let mut src1_gains = [0; MIXER_COEFFICIENT_COUNT];
+            let mut src2_gains = [0; MIXER_COEFFICIENT_COUNT];
+            let mut src3_gains = [0; MIXER_COEFFICIENT_COUNT];
+
+            params.src_gains[i * 2]
+                .iter()
+                .zip(params.src_gains[i * 2 + 1].iter())
+                .enumerate()
+                .for_each(|(j, (&l, &r))| {
+                    let (gains, pos) = match j {
+                        0..=8 => (&mut src0_gains, j),
+                        9..=17 => (&mut src1_gains, j - 9),
+                        18..=26 => (&mut src2_gains, j - 18),
+                        _ => (&mut src3_gains, j - 27),
+                    };
+                    gains[pos * 2] = l;
+                    gains[pos * 2 + 1] = r;
+                });
+
+            cmds.push(EnsembleCmd::MixerSrc0(i, src0_gains));
+            cmds.push(EnsembleCmd::MixerSrc1(i, src1_gains));
+            cmds.push(EnsembleCmd::MixerSrc2(i, src2_gains));
+            cmds.push(EnsembleCmd::MixerSrc3(i, src3_gains));
+        });
+
+        cmds
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleMixerParameters> for BebobAvc {}
+
 /// The trait for parameter protocol.
 pub trait EnsembleParameterProtocol<T>: Ta1394Avc
 where
