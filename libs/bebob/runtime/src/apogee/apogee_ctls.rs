@@ -131,12 +131,10 @@ fn opt_iface_mode_to_str(mode: &OptIfaceMode) -> &str {
 
 pub struct OpticalCtl{
     output: OptIfaceMode,
-    input: OptIfaceMode,
 }
 
 impl<'a> OpticalCtl {
     const OUT_MODE_NAME: &'a str = "output-optical-mode";
-    const IN_MODE_NAME: &'a str = "input-optical-mode";
 
     const MODES: [OptIfaceMode;2] = [
         OptIfaceMode::Spdif,
@@ -146,7 +144,6 @@ impl<'a> OpticalCtl {
     pub fn new() -> Self {
         OpticalCtl {
             output: Default::default(),
-            input: Default::default(),
         }
     }
 
@@ -158,19 +155,11 @@ impl<'a> OpticalCtl {
         let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let cmd = EnsembleCmd::InputOptIface(self.input);
-        let mut op = EnsembleOperation::new(cmd);
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
         let labels: Vec<&str> = Self::MODES.iter()
             .map(|m| opt_iface_mode_to_str(m))
             .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::OUT_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::IN_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -184,15 +173,6 @@ impl<'a> OpticalCtl {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::MODES.iter()
                         .position(|m| *m == self.output)
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-            }
-            Self::IN_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pos = Self::MODES.iter()
-                        .position(|m| *m == self.input)
                         .unwrap();
                     Ok(pos as u32)
                 })
@@ -223,201 +203,6 @@ impl<'a> OpticalCtl {
                         .map(|_| self.output = mode)
                 })
                 .map(|_| true)
-            }
-            Self::IN_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mode = Self::MODES.iter()
-                        .nth(val as usize)
-                        .ok_or_else(||{
-                            let msg = format!("Invalid index for mode of optical interface: {}",
-                                              val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .map(|m| *m)?;
-                    let cmd = EnsembleCmd::InputOptIface(mode);
-                    let mut op = EnsembleOperation::new(cmd);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-                        .map(|_| self.input = mode)
-                })
-                .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-fn input_nominal_level_to_str(level: &InputNominalLevel) -> &str {
-    match level {
-        InputNominalLevel::Professional => "+4dB",
-        InputNominalLevel::Consumer => "-10dB",
-        InputNominalLevel::Microphone => "Mic",
-    }
-}
-
-pub struct InputCtl{
-    limits: [bool; 8],
-    levels: [InputNominalLevel; 8],
-
-    phantoms: [bool; 4],
-    polarities: [bool; 4],
-}
-
-impl<'a> InputCtl {
-    const IN_LIMIT_NAME: &'a str = "input-limit";
-    const IN_LEVEL_NAME: &'a str = "input-level";
-    const MIC_PHANTOM_NAME: &'a str = "mic-phantom";
-    const MIC_POLARITY_NAME: &'a str = "mic-polarity";
-
-    const IN_LABELS: &'a [&'a str] = &[
-        "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7",
-        "analog-8",
-    ];
-
-    const NOMINAL_LEVELS: [InputNominalLevel; 3] = [
-        InputNominalLevel::Professional,
-        InputNominalLevel::Consumer,
-        InputNominalLevel::Microphone,
-    ];
-
-    const MIC_LABELS: &'a [&'a str] = &["mci-1", "mic-2", "mic-3", "mic-4"];
-
-    pub fn new() -> Self {
-        InputCtl {
-            limits: [false;8],
-            levels: Default::default(),
-            phantoms: [false;4],
-            polarities: [false;4],
-        }
-    }
-
-    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        // Transfer initialized data.
-        (0..Self::IN_LABELS.len()).try_for_each(|i| {
-            let cmd = EnsembleCmd::InputLimit(i, self.limits[i]);
-            let mut op = EnsembleOperation::new(cmd);
-            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
-            let cmd = EnsembleCmd::InputNominalLevel(i, self.levels[i]);
-            let mut op = EnsembleOperation::new(cmd);
-            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
-            Ok(())
-        })?;
-
-        (0..Self::MIC_LABELS.len()).try_for_each(|i| {
-            let cmd = EnsembleCmd::MicPower(i, self.phantoms[i]);
-            let mut op = EnsembleOperation::new(cmd);
-            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
-            let cmd = EnsembleCmd::MicPolarity(i, self.polarities[i]);
-            let mut op = EnsembleOperation::new(cmd);
-            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
-            Ok(())
-        })?;
-
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::IN_LIMIT_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::IN_LABELS.len(), true)?;
-
-        let labels: Vec<&str> = Self::NOMINAL_LEVELS.iter()
-            .map(|l| input_nominal_level_to_str(l))
-            .collect();
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::IN_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::IN_LABELS.len(), &labels, None, true)?;
-
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MIC_PHANTOM_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
-
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
-                                                   0, 0, Self::MIC_POLARITY_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
-
-        Ok(())
-    }
-
-    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue) -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            Self::IN_LIMIT_NAME => {
-                elem_value.set_bool(&self.limits);
-                Ok(true)
-            }
-            Self::IN_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, Self::IN_LABELS.len(), |idx| {
-                    let pos = Self::NOMINAL_LEVELS.iter()
-                        .position(|l| l.eq(&self.levels[idx]))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-            }
-            Self::MIC_PHANTOM_NAME => {
-                elem_value.set_bool(&self.phantoms);
-                Ok(true)
-            }
-            Self::MIC_POLARITY_NAME => {
-                elem_value.set_bool(&self.polarities);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
-                 old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            Self::IN_LIMIT_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
-                    let cmd = EnsembleCmd::InputLimit(idx, val);
-                    let mut op = EnsembleOperation::new(cmd);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.limits[idx] = val;
-                    Ok(())
-                })?;
-                Ok(true)
-            }
-            Self::IN_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
-                    let &level = Self::NOMINAL_LEVELS.iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index of input nominal level: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    let cmd = EnsembleCmd::InputNominalLevel(idx, level);
-                    let mut op = EnsembleOperation::new(cmd);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.levels[idx] = level;
-                    Ok(())
-                })?;
-                Ok(true)
-            }
-            Self::MIC_PHANTOM_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
-                    let cmd = EnsembleCmd::MicPower(idx, val);
-                    let mut op = EnsembleOperation::new(cmd);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.phantoms[idx] = val;
-                    Ok(())
-                })?;
-                Ok(true)
-            }
-            Self::MIC_POLARITY_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
-                    let cmd = EnsembleCmd::MicPolarity(idx, val);
-                    let mut op = EnsembleOperation::new(cmd);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.polarities[idx] = val;
-                    Ok(())
-                })?;
-                Ok(true)
             }
             _ => Ok(false),
         }
