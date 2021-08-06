@@ -948,23 +948,6 @@ const AUX_SPDIF_SRC_NAME: &str = "aux-spdif-source";
 const AUX_ADAT_SRC_NAME: &str = "aux-adat-source";
 
 impl AuxCtl {
-    const OUTPUT_LABELS: [&'static str; 2] = ["aux-output-1", "aux-output-2"];
-
-    const STREAM_INPUT_LABELS: [&'static str; 4] = [
-        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
-    ];
-    const ANALOG_INPUT_LABELS: [&'static str; 8] = [
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-    ];
-    const SPDIF_INPUT_LABELS: [&'static str; 2] = [
-        "spdif-input-1", "spdif-input-2",
-    ];
-    const ADAT_INPUT_LABELS: [&'static str; 8] = [
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
-    ];
-
     const VOL_TLV: DbInterval = DbInterval {
         min: -12800,
         max: 0,
@@ -1011,15 +994,15 @@ impl AuxCtl {
                 MaudioSpecialAuxProtocol::VOLUME_MIN as i32,
                 MaudioSpecialAuxProtocol::VOLUME_MAX as i32,
                 MaudioSpecialAuxProtocol::VOLUME_STEP as i32,
-                Self::OUTPUT_LABELS.len(),
+                AUX_OUTPUT_LABELS.len(),
                 Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)),
                 true,
             )?;
 
-        let _ = Self::add_input_int_elem(card_cntr, AUX_STREAM_SRC_NAME, &Self::STREAM_INPUT_LABELS)?;
-        let _ = Self::add_input_int_elem(card_cntr, AUX_ANALOG_SRC_NAME, &Self::ANALOG_INPUT_LABELS)?;
-        let _ = Self::add_input_int_elem(card_cntr, AUX_SPDIF_SRC_NAME, &Self::SPDIF_INPUT_LABELS)?;
-        let _ = Self::add_input_int_elem(card_cntr, AUX_ADAT_SRC_NAME, &Self::ADAT_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_STREAM_SRC_NAME, &STREAM_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_ANALOG_SRC_NAME, &ANALOG_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_SPDIF_SRC_NAME, &SPDIF_INPUT_LABELS)?;
+        let _ = Self::add_input_int_elem(card_cntr, AUX_ADAT_SRC_NAME, &ADAT_INPUT_LABELS)?;
 
         self.0.write_to_cache(&mut state.cache);
 
@@ -1091,7 +1074,7 @@ impl AuxCtl {
                 Self::write_int(
                     &mut self.0,
                     elem_value,
-                    &Self::OUTPUT_LABELS,
+                    &AUX_OUTPUT_LABELS[..],
                     req,
                     unit,
                     state,
@@ -1103,7 +1086,7 @@ impl AuxCtl {
                 Self::write_int(
                     &mut self.0,
                     elem_value,
-                    &Self::STREAM_INPUT_LABELS,
+                    &STREAM_INPUT_LABELS[..],
                     req,
                     unit,
                     state,
@@ -1115,7 +1098,7 @@ impl AuxCtl {
                 Self::write_int(
                     &mut self.0,
                     elem_value,
-                    &Self::ANALOG_INPUT_LABELS,
+                    &ANALOG_INPUT_LABELS[..],
                     req,
                     unit,
                     state,
@@ -1127,7 +1110,7 @@ impl AuxCtl {
                 Self::write_int(
                     &mut self.0,
                     elem_value,
-                    &Self::SPDIF_INPUT_LABELS,
+                    &SPDIF_INPUT_LABELS[..],
                     req,
                     unit,
                     state,
@@ -1139,7 +1122,7 @@ impl AuxCtl {
                 Self::write_int(
                     &mut self.0,
                     elem_value,
-                    &Self::ADAT_INPUT_LABELS,
+                    &ADAT_INPUT_LABELS[..],
                     req,
                     unit,
                     state,
@@ -1202,5 +1185,15 @@ mod test {
         assert_eq!(output_ctl.0.analog_volumes.len(), ANALOG_OUTPUT_LABELS.len());
         assert_eq!(output_ctl.0.headphone_volumes.len(), HEADPHONE_LABELS.len());
         assert_eq!(output_ctl.0.analog_pair_sources.len(), ANALOG_OUTPUT_PAIR_LABELS.len());
+    }
+
+    #[test]
+    fn test_aux_label_count() {
+        let aux_ctl = AuxCtl::default();
+        assert_eq!(aux_ctl.0.output_volumes.len(), AUX_OUTPUT_LABELS.len());
+        assert_eq!(aux_ctl.0.stream_gains.len(), STREAM_INPUT_LABELS.len());
+        assert_eq!(aux_ctl.0.analog_gains.len(), ANALOG_INPUT_LABELS.len());
+        assert_eq!(aux_ctl.0.spdif_gains.len(), SPDIF_INPUT_LABELS.len());
+        assert_eq!(aux_ctl.0.adat_gains.len(), ADAT_INPUT_LABELS.len());
     }
 }

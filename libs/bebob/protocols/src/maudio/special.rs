@@ -262,6 +262,8 @@ const CACHE_SIZE: usize = 160;
 // 0x006c - 0x007c: aux analog input gains
 // 0x007c - 0x0080: aux spdif input gains
 // 0x0080 - 0x0090: aux adat input gains
+// 0x0090 - 0x0094: analog/spdif/adat sources to mixer
+// 0x0094 - 0x0098: stream sources to mixer
 // 0x0098 - 0x009c: source of headphone pair
 // 0x009c - 0x00a0: source of analog output pair
 const STREAM_INPUT_GAIN_POS: usize = 0x0000;
@@ -278,6 +280,8 @@ const AUX_STREAM_INPUT_GAIN_POS: usize = 0x0064;
 const AUX_ANALOG_INPUT_GAIN_POS: usize = 0x006c;
 const AUX_SPDIF_INPUT_GAIN_POS: usize = 0x007c;
 const AUX_ADAT_INPUT_GAIN_POS: usize = 0x0080;
+const MIXER_PHYS_SOURCE_POS: usize = 0x0090;
+const MIXER_STREAM_SOURCE_POS: usize = 0x0094;
 const HEADPHONE_PAIR_SOURCE_POS: usize = 0x0098;
 const ANALOG_OUTPUT_PAIR_SOURCE_POS: usize = 0x009c;
 
@@ -603,6 +607,95 @@ impl MaudioSpecialAuxProtocol{
 }
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol{}
+
+/// The structure for aux parameters.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MaudioSpecialMixerParameters {
+    pub analog_pairs: [[bool; 4]; 2],
+    pub spdif_pairs: [bool; 2],
+    pub adat_pairs: [[bool; 4]; 2],
+    pub stream_pairs: [[bool; 2]; 2],
+}
+
+impl Default for MaudioSpecialMixerParameters {
+    fn default() -> Self {
+        Self {
+            analog_pairs: [[false; 4]; 2],
+            spdif_pairs: [false; 2],
+            adat_pairs: [[false; 4]; 2],
+            stream_pairs: [[true, false], [false, true]],
+        }
+    }
+}
+
+impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters{
+    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
+        let mut quadlet = [0; 4];
+
+        let pos = MIXER_PHYS_SOURCE_POS;
+        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        let mut val = u32::from_be_bytes(quadlet);
+
+        self.analog_pairs.iter().enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter().enumerate()
+                    .for_each(|(j, &enabled)| {
+                        let flag = 1u32 << (i * 4 + j);
+                        val &= !flag;
+                        if enabled {
+                            val |= flag;
+                        }
+                    });
+            });
+
+        self.spdif_pairs.iter().enumerate()
+            .for_each(|(i, &enabled)| {
+                let flag = 1u32 << (16 + i);
+                val &= !flag;
+                if enabled {
+                    val |= flag;
+                }
+            });
+
+        self.adat_pairs.iter().enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter().enumerate()
+                    .for_each(|(j, &enabled)| {
+                        let flag = 1u32 << (8 + i * 4 + j);
+                        val &= !flag;
+                        if enabled {
+                            val |= flag;
+                        }
+                    });
+            });
+
+        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+
+        let pos = MIXER_STREAM_SOURCE_POS;
+        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        let mut val = u32::from_be_bytes(quadlet);
+
+        self.stream_pairs.iter().enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter().enumerate()
+                    .for_each(|(j, &enabled)| {
+                        let flag = 1u32 << (i * 2 + j);
+
+                        val &= !flag;
+                        if enabled {
+                            val |= flag;
+                        }
+                    });
+            });
+
+        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+    }
+}
+
+#[derive(Default)]
+pub struct MaudioSpecialMixerProtocol;
+
+impl MaudioSpecialParameterProtocol<MaudioSpecialMixerParameters> for MaudioSpecialMixerProtocol {}
 
 /// The trait for operation about parameters.
 pub trait MaudioSpecialParameterOperation {
