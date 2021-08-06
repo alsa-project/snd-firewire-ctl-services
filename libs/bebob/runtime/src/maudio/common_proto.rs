@@ -12,11 +12,6 @@ pub trait CommonProto: FwReqExtManual {
 
     const TIMEOUT: u32 = 100;
 
-    fn read_meters(&self, unit: &hinawa::SndUnit, frames: &mut [u8]) -> Result<(), Error> {
-        self.transaction_sync(&unit.get_node(), hinawa::FwTcode::ReadBlockRequest,
-                              Self::METER_ADDR, frames.len(), frames, Self::TIMEOUT)
-    }
-
     fn write_block(&self, unit: &hinawa::SndUnit, offset: u64, frames: &mut [u8]) -> Result<(), Error> {
         self.transaction_sync(&unit.get_node(), hinawa::FwTcode::WriteBlockRequest,
                               Self::BASE_ADDR + offset, frames.len(), frames, Self::TIMEOUT)
