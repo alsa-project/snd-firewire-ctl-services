@@ -19,17 +19,17 @@ use bebob_protocols::{*, maudio::special::*};
 
 use crate::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
 use crate::common_ctls::*;
-use super::special_ctls::StateCache;
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
 
+#[derive(Default)]
 pub struct SpecialModel<T: MediaClockFrequencyOperation + Default> {
     avc: BebobAvc,
     req: FwReq,
     clk_ctl: ClkCtl<T>,
     meter_ctl: MeterCtl,
-    cache: StateCache,
+    cache: MaudioSpecialStateCache,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     aux_ctl: AuxCtl,
@@ -43,22 +43,6 @@ const TIMEOUT_MS: u32 = 100;
 struct ClkCtl<T: MediaClockFrequencyOperation + Default>(Vec<ElemId>, T);
 
 impl<T: MediaClockFrequencyOperation + Default> MediaClkFreqCtlOperation<T> for ClkCtl<T> {}
-
-impl<T: MediaClockFrequencyOperation + Default> Default for SpecialModel<T> {
-    fn default() -> Self {
-        Self {
-            avc: Default::default(),
-            req: Default::default(),
-            clk_ctl: Default::default(),
-            meter_ctl: Default::default(),
-            cache: StateCache::new(),
-            input_ctl: Default::default(),
-            output_ctl: Default::default(),
-            aux_ctl: Default::default(),
-            mixer_ctl: Default::default(),
-        }
-    }
-}
 
 #[derive(Default)]
 struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
@@ -80,7 +64,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
         self.mixer_ctl.load_params(card_cntr, &mut self.cache)?;
 
-        self.cache.upload(unit, &self.req)?;
+        self.cache.download(&self.req, &unit.get_node(), TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -181,7 +165,7 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for Specia
                 &self.req,
                 &unit.get_node(),
                 &params,
-                &mut self.cache.cache,
+                &mut self.cache,
                 &mut self.output_ctl.0,
                 TIMEOUT_MS)?;
         }
@@ -489,7 +473,7 @@ impl InputCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
     ) -> Result<(), Error> {
         [
             (STREAM_INPUT_GAIN_NAME, &STREAM_INPUT_LABELS[..]),
@@ -510,7 +494,7 @@ impl InputCtl {
                 Self::add_input_balance_elem(card_cntr, name, labels).map(|_| ())
             })?;
 
-        self.0.write_to_cache(&mut state.cache);
+        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -539,7 +523,7 @@ impl InputCtl {
         count: usize,
         req: &FwReq,
         unit: &SndUnit,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: T,
     ) -> Result<bool, Error>
@@ -553,13 +537,13 @@ impl InputCtl {
             .collect();
         set(&mut params, &levels);
         MaudioSpecialInputProtocol::update_params(req, &unit.get_node(), &params,
-                                                  &mut state.cache, curr, timeout_ms)
+                                                  state, curr, timeout_ms)
             .map(|_| true)
     }
 
     fn write_params(
         &mut self,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         unit: &SndUnit,
         req: &FwReq,
         elem_id: &ElemId,
@@ -744,7 +728,7 @@ impl OutputCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
     ) -> Result<(), Error> {
         Self::add_volume_elem(card_cntr, OUT_VOL_NAME, &ANALOG_OUTPUT_LABELS)?;
         Self::add_volume_elem(card_cntr, HP_VOL_NAME, &HEADPHONE_LABELS)
@@ -765,7 +749,7 @@ impl OutputCtl {
             headphone_source_to_str,
         )?;
 
-        self.0.write_to_cache(&mut state.cache);
+        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -821,7 +805,7 @@ impl OutputCtl {
         labels: &[&str],
         req: &FwReq,
         unit: &SndUnit,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: T,
     ) -> Result<bool, Error>
@@ -835,7 +819,7 @@ impl OutputCtl {
             .collect();
         set(&mut params, &levels);
         MaudioSpecialOutputProtocol::update_params(req, &unit.get_node(), &params,
-                                                   &mut state.cache, curr, timeout_ms)
+                                                   state, curr, timeout_ms)
             .map(|_| true)
     }
 
@@ -846,7 +830,7 @@ impl OutputCtl {
         item_list: &[T],
         req: &FwReq,
         unit: &SndUnit,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: F,
     ) -> Result<bool, Error>
@@ -871,13 +855,13 @@ impl OutputCtl {
             })?;
         set(&mut params, &srcs);
         MaudioSpecialOutputProtocol::update_params(req, &unit.get_node(), &params,
-                                                   &mut state.cache, curr, timeout_ms)
+                                                   state, curr, timeout_ms)
             .map(|_| true)
     }
 
     fn write_params(
         &mut self,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         unit: &SndUnit,
         req: &FwReq,
         elem_id: &ElemId,
@@ -986,7 +970,7 @@ impl AuxCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
         let _ = card_cntr
@@ -1006,7 +990,7 @@ impl AuxCtl {
         let _ = Self::add_input_int_elem(card_cntr, AUX_SPDIF_SRC_NAME, &SPDIF_INPUT_LABELS)?;
         let _ = Self::add_input_int_elem(card_cntr, AUX_ADAT_SRC_NAME, &ADAT_INPUT_LABELS)?;
 
-        self.0.write_to_cache(&mut state.cache);
+        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -1044,7 +1028,7 @@ impl AuxCtl {
         labels: &[&str],
         req: &FwReq,
         unit: &SndUnit,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: F,
     ) -> Result<bool, Error>
@@ -1058,13 +1042,13 @@ impl AuxCtl {
             .collect();
         set(&mut params, &levels);
         MaudioSpecialAuxProtocol::update_params(req, &unit.get_node(), &params,
-                                                &mut state.cache, curr, timeout_ms)
+                                                state, curr, timeout_ms)
             .map(|_| true)
     }
 
     fn write_params(
         &mut self,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         unit: &SndUnit,
         req: &FwReq,
         elem_id: &ElemId,
@@ -1172,14 +1156,14 @@ impl MixerCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
     ) -> Result<(), Error> {
         let _ = Self::add_bool_elem(card_cntr, MIXER_ANALOG_SRC_NAME, &ANALOG_INPUT_PAIR_LABELS)?;
         let _ = Self::add_bool_elem(card_cntr, MIXER_SPDIF_SRC_NAME, &SPDIF_INPUT_PAIR_LABELS)?;
         let _ = Self::add_bool_elem(card_cntr, MIXER_ADAT_SRC_NAME, &ADAT_INPUT_PAIR_LABELS)?;
         let _ = Self::add_bool_elem(card_cntr, MIXER_STREAM_SRC_NAME, &STREAM_INPUT_PAIR_LABELS)?;
 
-        self.0.write_to_cache(&mut state.cache);
+        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -1217,7 +1201,7 @@ impl MixerCtl {
         labels: &[&str],
         req: &FwReq,
         unit: &SndUnit,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: T,
     ) -> Result<bool, Error>
@@ -1229,13 +1213,13 @@ impl MixerCtl {
         elem_value.get_bool(&mut vals);
         set(&mut params, index, &vals);
         MaudioSpecialMixerProtocol::update_params(req, &unit.get_node(), &params,
-                                                  &mut state.cache, curr, timeout_ms)
+                                                  state, curr, timeout_ms)
             .map(|_| true)
     }
 
     fn write_params(
         &mut self,
-        state: &mut StateCache,
+        state: &mut MaudioSpecialStateCache,
         unit: &SndUnit,
         req: &FwReq,
         elem_id: &ElemId,

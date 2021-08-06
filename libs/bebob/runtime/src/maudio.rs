@@ -7,8 +7,6 @@ pub mod fw410_model;
 pub mod profirelightbridge_model;
 pub mod special_model;
 
-mod special_ctls;
-
 mod common_proto;
 
 

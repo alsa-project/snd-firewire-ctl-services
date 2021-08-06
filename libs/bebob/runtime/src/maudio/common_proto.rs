@@ -3,7 +3,8 @@
 
 use glib::Error;
 
-use hinawa::{FwReqExtManual, SndUnitExt};
+use hinawa::{FwReq, FwReqExtManual};
+use hinawa::SndUnitExt;
 
 pub trait CommonProto: FwReqExtManual {
     const BASE_ADDR: u64 = 0xffc700700000;
@@ -21,3 +22,5 @@ pub trait CommonProto: FwReqExtManual {
                               Self::BASE_ADDR + offset, frames.len(), frames, Self::TIMEOUT)
     }
 }
+
+impl CommonProto for FwReq {}
