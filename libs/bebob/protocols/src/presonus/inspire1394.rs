@@ -145,9 +145,6 @@ pub struct Inspire1394Meter {
     frame: [u8; METER_FRAME_SIZE],
 }
 
-const BASE_OFFSET: u64 = 0xffc700000000;
-const METER_OFFSET: u64 = 0x00600000;
-
 /// The trait for meter information operation.
 pub trait Inspire1394MeterOperation {
     const LEVEL_MIN: i32 = 0;
@@ -161,8 +158,14 @@ pub trait Inspire1394MeterOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let frame = &mut meter.frame;
-        req.transaction_sync(node, FwTcode::ReadBlockRequest, BASE_OFFSET + METER_OFFSET,
-                             METER_FRAME_SIZE, frame, timeout_ms)?;
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            DM_APPL_METER_OFFSET,
+            METER_FRAME_SIZE,
+            frame,
+            timeout_ms,
+        )?;
 
         let mut quadlet = [0u8;4];
         meter.phys_inputs.iter_mut()

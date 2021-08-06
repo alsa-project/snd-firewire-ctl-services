@@ -15,6 +15,8 @@ use ta1394::stream_format::{AmStream, StreamFormat, SupportStatus};
 use ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
 use ta1394::{AvcControl, AvcOp, AvcStatus};
 
+use crate::*;
+
 //
 // Bco Extended Plug Info command
 //
@@ -1516,9 +1518,6 @@ impl Default for BcoBootloaderInformation {
     }
 }
 
-const BCO_BASE_ADDRESS: usize = 0xffffc8000000;
-const BCO_BOOTLOADER_INFORMATION_OFFSET: usize = 0x00020000;
-
 /// The protocol implementation of boot loader information.
 #[derive(Default, Debug)]
 pub struct BcoBootloaderProtocol;
@@ -1550,7 +1549,7 @@ impl BcoBootloaderProtocol {
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
-            (BCO_BASE_ADDRESS + BCO_BOOTLOADER_INFORMATION_OFFSET) as u64,
+            DM_BCO_BOOTLOADER_INFO_OFFSET,
             size,
             &mut buf[..size],
             timeout_ms,
@@ -1560,7 +1559,7 @@ impl BcoBootloaderProtocol {
             req.transaction_sync(
                 node,
                 FwTcode::ReadBlockRequest,
-                (BCO_BASE_ADDRESS + BCO_BOOTLOADER_INFORMATION_OFFSET) as u64,
+                DM_BCO_BOOTLOADER_INFO_OFFSET,
                 size,
                 &mut buf[..size],
                 timeout_ms,

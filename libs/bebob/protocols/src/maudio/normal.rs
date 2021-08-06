@@ -92,11 +92,12 @@
 //!                      ++=======++
 //! ```
 
-use crate::*;
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::MUSIC_SUBUNIT_0;
 
+use crate::*;
 use super::*;
 
 /// The protocol implementation for media and sampling clock of FireWire 410.
@@ -749,7 +750,14 @@ pub trait MaudioNormalMeterProtocol {
         let pos = frame.len() - 4;
         bitmap.copy_from_slice(&frame[pos..]);
 
-        read_block(req, node, METER_OFFSET, frame, timeout_ms)?;
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            DM_APPL_METER_OFFSET,
+            frame.len(),
+            frame,
+            timeout_ms,
+        )?;
 
         let mut quadlet = [0; 4];
 

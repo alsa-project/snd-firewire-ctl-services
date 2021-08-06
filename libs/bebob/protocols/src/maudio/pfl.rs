@@ -47,14 +47,12 @@
 //! stream-input-35/36 --> analog-output-1/2
 //! ```
 
-use hinawa::{FwNode, FwReq};
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::MUSIC_SUBUNIT_0;
 
 use crate::*;
-
-use super::*;
 
 /// The protocol implementation for media and sampling clock of ProFire Lightbridge.
 #[derive(Default)]
@@ -150,7 +148,14 @@ impl PflMeterProtocol {
     ) -> Result<(), Error> {
         let frame = &mut meter.cache;
 
-        read_block(req, node, METER_OFFSET, frame, timeout_ms)?;
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            DM_APPL_METER_OFFSET,
+            frame.len(),
+            frame,
+            timeout_ms,
+        )?;
 
         let mut quadlet = [0; 4];
 
@@ -193,8 +198,6 @@ pub struct PflInputParameters {
     cache: [u8; CACHE_SIZE],
 }
 
-const PARAMS_OFFSET: u64 = 0x00700000;
-
 impl PflInputParametersProtocol {
     pub fn write_input_parameters(
         req: &FwReq,
@@ -219,7 +222,7 @@ impl PflInputParametersProtocol {
         req.transaction_sync(
             node,
             hinawa::FwTcode::WriteBlockRequest,
-            BASE_OFFSET + PARAMS_OFFSET,
+            DM_APPL_PARAM_OFFSET,
             cache.len(),
             cache,
             timeout_ms,
