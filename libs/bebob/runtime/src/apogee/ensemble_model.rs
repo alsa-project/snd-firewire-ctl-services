@@ -15,10 +15,10 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 
 use bebob_protocols::{*, apogee::ensemble::*};
 
-use crate::model::{IN_METER_NAME, OUT_METER_NAME};
+use crate::model::{IN_METER_NAME, OUT_METER_NAME, HP_SRC_NAME, OUT_SRC_NAME};
 
 use crate::common_ctls::*;
-use super::apogee_ctls::{HwCtl, MixerCtl, RouteCtl};
+use super::apogee_ctls::{HwCtl, MixerCtl};
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
@@ -30,9 +30,9 @@ pub struct EnsembleModel {
     display_ctl: DisplayCtl,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
+    route_ctl: RouteCtl,
     hw_ctls: HwCtl,
     mixer_ctls: MixerCtl,
-    route_ctls: RouteCtl,
 }
 
 #[derive(Default)]
@@ -59,9 +59,9 @@ impl Default for EnsembleModel {
             display_ctl: Default::default(),
             input_ctl: Default::default(),
             output_ctl: Default::default(),
+            route_ctl: Default::default(),
             hw_ctls: HwCtl::new(),
             mixer_ctls: MixerCtl::new(),
-            route_ctls: RouteCtl::new(),
         }
     }
 }
@@ -96,9 +96,10 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
         self.output_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
+        self.route_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+
         self.hw_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.mixer_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
-        self.route_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -120,11 +121,11 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.output_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
+        } else if self.route_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
         } else if self.hw_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctls.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.route_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -146,11 +147,11 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.output_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
+        } else if self.route_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+            Ok(true)
         } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-            Ok(true)
-        } else if self.route_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)
@@ -1067,6 +1068,157 @@ impl<'a> OutputCtl {
     }
 }
 
+const CAPTURE_SOURCE_NAME: &str = "capture-source";
+
+#[derive(Default)]
+struct RouteCtl(EnsembleSourceParameters);
+
+impl RouteCtl {
+    const OUTPUT_LABELS: [&'static str; 18] = [
+        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
+        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
+        "spdif-output-1", "spdif-output-2",
+        "adat-output-1", "adat-output-2", "adat-output-3", "adat-output-4",
+        "adat-output-5", "adat-output-6", "adat-output-7", "adat-output-8",
+    ];
+
+    const CAPTURE_LABELS: [&'static str; 18] = [
+        "stream-output-1", "stream-output-2", "stream-output-3", "stream-output-4",
+        "stream-output-5", "stream-output-6", "stream-output-7", "stream-output-8",
+        "stream-output-9", "stream-output-10", "stream-output-11", "stream-output-12",
+        "stream-output-13", "stream-output-14", "stream-output-15", "stream-output-16",
+        "stream-output-17", "stream-output-18",
+    ];
+
+    const HEADPHONE_LABELS: [&'static str; 2] = [
+        "headpone-3/4", "headpone-1/2",
+    ];
+
+    const OUTPUT_SOURCE_LABELS: [&'static str; 40] = [
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
+        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+        "stream-input-5", "stream-input-6", "stream-input-7", "stream-input-8",
+        "stream-input-9", "stream-input-10", "stream-input-11", "stream-input-12",
+        "stream-input-13", "stream-input-14", "stream-input-15", "stream-input-16",
+        "stream-input-17", "stream-input-18",
+        "spdif-input-1", "spdif-input-2",
+        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
+        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
+        "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
+    ];
+
+    const CAPTURE_SOURCE_LABELS: [&'static str; 18] = [
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
+        "spdif-input-1", "spdif-input-2",
+        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
+        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
+    ];
+
+    const HEADPHONE_SOURCE_LABELS: [&'static str; 6] = [
+        "analog-output-1/2",
+        "analog-output-3/4",
+        "analog-output-5/6",
+        "analog-output-7/8",
+        "spdif-output-1/2",
+        "none",
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        avc: &mut BebobAvc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::OUTPUT_LABELS.len(),
+                                         &Self::OUTPUT_SOURCE_LABELS, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CAPTURE_SOURCE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::CAPTURE_LABELS.len(),
+                                         &Self::CAPTURE_SOURCE_LABELS, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::HEADPHONE_LABELS.len(),
+                                         &Self::HEADPHONE_SOURCE_LABELS, None, true)?;
+
+        avc.init_params(&mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_SRC_NAME => {
+                let vals: Vec<u32> = self.0.output_sources.iter()
+                    .map(|&val| val as u32)
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            CAPTURE_SOURCE_NAME => {
+                let vals: Vec<u32> = self.0.capture_sources.iter()
+                    .map(|&val| val as u32)
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            HP_SRC_NAME => {
+                let vals: Vec<u32> = self.0.headphone_sources.iter()
+                    .map(|&val| val as u32)
+                    .collect();
+                elem_value.set_enum(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        avc: &mut BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUT_SRC_NAME => {
+                let mut vals = [0; Self::OUTPUT_LABELS.len()];
+                elem_value.get_enum(&mut vals);
+                let mut params = self.0.clone();
+                params.output_sources.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(src, &val)| *src = val as usize);
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            CAPTURE_SOURCE_NAME => {
+                let mut vals = [0; Self::CAPTURE_LABELS.len()];
+                elem_value.get_enum(&mut vals);
+                let mut params = self.0.clone();
+                params.capture_sources.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(src, &val)| *src = val as usize);
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            HP_SRC_NAME => {
+                let mut vals = [0; Self::HEADPHONE_LABELS.len()];
+                elem_value.get_enum(&mut vals);
+                let mut params = self.0.clone();
+                params.headphone_sources.iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(src, &val)| *src = val as usize);
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
 #[cfg(test)]
 mod test {
     use super::*;
