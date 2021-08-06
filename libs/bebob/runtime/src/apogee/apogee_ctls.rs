@@ -1246,10 +1246,13 @@ impl<'a> MeterCtl {
     }
 
     pub fn measure_states(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = EnsembleOperation::new(EnsembleCmd::HwStatus(true), &[0x01]);
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-        self.cache.copy_from_slice(&op.params);
-        Ok(())
+        let mut op = EnsembleOperation::new(EnsembleCmd::HwStatusLong([0; 56]), &[]);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| {
+                if let EnsembleCmd::HwStatusLong(buf) = &op.cmd {
+                    self.cache.copy_from_slice(buf);
+                }
+            })
     }
 
     pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)

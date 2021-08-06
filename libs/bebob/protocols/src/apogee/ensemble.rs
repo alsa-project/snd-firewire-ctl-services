@@ -135,7 +135,8 @@ pub enum EnsembleCmd {
     SpdifResample,    // on/off, iface, direction, rate
     MicPolarity(u8),  // index, state
     OutVol(u8),       // main/hp0/hp1, dB(127-0), also available as knob control
-    HwStatus(bool),   // [u8;17] or [u8;56]
+    HwStatusShort([u8; 17]),
+    HwStatusLong([u8; 56]),
     Reserved(Vec<u8>),
 }
 
@@ -216,9 +217,8 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::OutVol(target) => {
                 vec![EnsembleCmd::OUT_VOL, *target]
             }
-            EnsembleCmd::HwStatus(is_long) => {
-                vec![EnsembleCmd::HW_STATUS, *is_long as u8]
-            }
+            EnsembleCmd::HwStatusShort(_) => vec![EnsembleCmd::HW_STATUS, 0],
+            EnsembleCmd::HwStatusLong(_) => vec![EnsembleCmd::HW_STATUS, 1],
             EnsembleCmd::Reserved(r) => r.to_vec(),
         }
     }
@@ -242,7 +242,17 @@ impl From<&[u8]> for EnsembleCmd {
             Self::SPDIF_RESAMPLE => Self::SpdifResample,
             Self::MIC_POLARITY => Self::MicPolarity(raw[1]),
             Self::OUT_VOL => Self::OutVol(raw[1]),
-            Self::HW_STATUS => Self::HwStatus(raw[1] > 0),
+            Self::HW_STATUS => {
+                if raw[1] > 0 {
+                    let mut params = [0; 56];
+                    params.copy_from_slice(&raw[1..]);
+                    Self::HwStatusLong(params)
+                } else {
+                    let mut params = [0; 17];
+                    params.copy_from_slice(&raw[1..]);
+                    Self::HwStatusShort(params)
+                }
+            }
             _ => Self::Reserved(raw.to_vec()),
         }
     }
@@ -354,9 +364,10 @@ impl AvcControl for EnsembleOperation {
         AvcControl::parse_operands(&mut self.op, addr, operands)?;
 
         // NOTE: parameters are retrieved by HwStatus command only.
-        let cmd = EnsembleCmd::from(self.op.data.as_slice());
-        if let EnsembleCmd::HwStatus(_) = cmd {
-            self.params = self.op.data[Into::<Vec<u8>>::into(&cmd).len()..].to_vec();
+        match &mut self.cmd {
+            EnsembleCmd::HwStatusShort(buf) => buf.copy_from_slice(&self.op.data[2..]),
+            EnsembleCmd::HwStatusLong(buf) => buf.copy_from_slice(&self.op.data[2..]),
+            _ => (),
         }
 
         Ok(())
@@ -456,12 +467,6 @@ mod test {
         );
 
         let cmd = EnsembleCmd::OutVol(0);
-        assert_eq!(
-            cmd,
-            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
-        );
-
-        let cmd = EnsembleCmd::HwStatus(true);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
