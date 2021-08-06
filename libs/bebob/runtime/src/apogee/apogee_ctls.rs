@@ -4,7 +4,7 @@ use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
-use alsactl::{ElemIfaceType, ElemValueExt, ElemValueExtManual};
+use alsactl::{ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -24,8 +24,6 @@ use bebob_protocols::apogee::ensemble::{EnsembleOperation, EnsembleCmd, HwCmd};
 
 pub struct HwCtl{
     stream: StreamMode,
-    cd: bool,
-    format_convert: FormatConvertTarget,
 }
 
 fn stream_mode_to_str(mode: &StreamMode) -> &str {
@@ -36,24 +34,8 @@ fn stream_mode_to_str(mode: &StreamMode) -> &str {
     }
 }
 
-fn format_convert_target_to_str(target: &FormatConvertTarget) -> &str {
-    match target {
-        FormatConvertTarget::Disabled => "disabled",
-        FormatConvertTarget::AnalogInputPair0 => "analog-input-1/2",
-        FormatConvertTarget::AnalogInputPair1 => "analog-input-3/4",
-        FormatConvertTarget::AnalogInputPair2 => "analog-input-5/6",
-        FormatConvertTarget::AnalogInputPair3 => "analog-input-7/8",
-        FormatConvertTarget::SpdifOpticalInputPair0 => "spdif-opt-input-1/2",
-        FormatConvertTarget::SpdifCoaxialInputPair0 => "spdif-coax-input-1/2",
-        FormatConvertTarget::SpdifCoaxialOutputPair0 => "spdif-coax-output-1/2",
-        FormatConvertTarget::SpdifOpticalOutputPair0 => "spdif-opt-output-1/2",
-    }
-}
-
 impl<'a> HwCtl {
     const STREAM_MODE_NAME: &'a str = "stream-mode";
-    const CD_MODE_NAME: &'a str = "cd-mode";
-    const SAMPLE_FORMAT_CONVERT: &'a str = "sample-format-convert";
 
     const STREAM_MODES: [StreamMode; 3] = [
         StreamMode::Format18x18,
@@ -61,23 +43,9 @@ impl<'a> HwCtl {
         StreamMode::Format8x8,
     ];
 
-    const FORMAT_CONVERT_TARGETS: [FormatConvertTarget;9] = [
-        FormatConvertTarget::Disabled,
-        FormatConvertTarget::AnalogInputPair0,
-        FormatConvertTarget::AnalogInputPair1,
-        FormatConvertTarget::AnalogInputPair2,
-        FormatConvertTarget::AnalogInputPair3,
-        FormatConvertTarget::SpdifOpticalInputPair0,
-        FormatConvertTarget::SpdifCoaxialInputPair0,
-        FormatConvertTarget::SpdifCoaxialOutputPair0,
-        FormatConvertTarget::SpdifOpticalOutputPair0,
-     ];
-
     pub fn new() -> Self {
         HwCtl {
             stream: Default::default(),
-            cd: false,
-            format_convert: Default::default(),
         }
     }
 
@@ -98,15 +66,6 @@ impl<'a> HwCtl {
             _ => StreamMode::Format8x8,
         };
 
-        // Transfer initialized data.
-        let cmd = EnsembleCmd::Hw(HwCmd::CdMode(self.cd));
-        let mut op = EnsembleOperation::new(cmd);
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
-        let cmd = EnsembleCmd::FormatConvert(self.format_convert);
-        let mut op = EnsembleOperation::new(cmd);
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-
         let labels: Vec<&str> = Self::STREAM_MODES.iter()
             .map(|m| stream_mode_to_str(m))
             .collect();
@@ -115,21 +74,6 @@ impl<'a> HwCtl {
             0,
             0,
             Self::STREAM_MODE_NAME,
-            0,
-        );
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::CD_MODE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-
-        let labels: Vec<&str> = Self::FORMAT_CONVERT_TARGETS.iter()
-            .map(|t| format_convert_target_to_str(t))
-            .collect();
-        let elem_id = alsactl::ElemId::new_by_name( ElemIfaceType::Card,
-            0,
-            0,
-            Self::SAMPLE_FORMAT_CONVERT,
             0,
         );
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
@@ -148,19 +92,6 @@ impl<'a> HwCtl {
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::CD_MODE_NAME => {
-                ElemValueAccessor::set_val(elem_value, || Ok(self.cd))?;
-                Ok(true)
-            }
-            Self::SAMPLE_FORMAT_CONVERT => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pos = Self::FORMAT_CONVERT_TARGETS.iter()
-                        .position(|l| *l == self.format_convert)
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-             }
             _ => Ok(false),
         }
     }
@@ -185,36 +116,6 @@ impl<'a> HwCtl {
                 let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
                 let _ = unit.unlock();
                 res.map(|_| true)
-            }
-            Self::CD_MODE_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                let cmd = EnsembleCmd::Hw(HwCmd::CdMode(vals[0]));
-                let mut op = EnsembleOperation::new(cmd);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-                    .map(|_| {
-                        self.cd = vals[0];
-                        true
-                    })
-            }
-            Self::SAMPLE_FORMAT_CONVERT => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let &target = Self::FORMAT_CONVERT_TARGETS.iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for target of format converter: {}",
-                                          vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-
-                let cmd = EnsembleCmd::FormatConvert(target);
-                let mut op = EnsembleOperation::new(cmd);
-                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-                    .map(|_| {
-                        self.format_convert = target;
-                        true
-                    })
             }
             _ => Ok(false),
         }
@@ -1130,153 +1031,6 @@ impl<'a> RouteCtl {
                     Ok(())
                 })?;
                 Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-fn rate_convert_target_to_str(target: &RateConvertTarget) -> &str {
-    match target {
-        RateConvertTarget::Disabled => "disabled",
-        RateConvertTarget::SpdifOpticalOutputPair0 => "spdif-opt-output-1/2",
-        RateConvertTarget::SpdifCoaxialOutputPair0 => "spdif-coax-output-1/2",
-        RateConvertTarget::SpdifOpticalInputPair0 => "spdif-opt-input-1/2",
-        RateConvertTarget::SpdifCoaxialInputPair0 => "spdif-coax-input-1/2",
-    }
-}
-
-fn rate_convert_rate_to_str(rate: &RateConvertRate) -> &str {
-    match rate {
-        RateConvertRate::R44100 => "44100",
-        RateConvertRate::R48000 => "48000",
-        RateConvertRate::R88200 => "88200",
-        RateConvertRate::R96000 => "96000",
-        RateConvertRate::R176400 => "176400",
-        RateConvertRate::R192000 => "192000",
-    }
-}
-
-pub struct ResamplerCtl {
-    target: RateConvertTarget,
-    rate: RateConvertRate,
-}
-
-impl<'a> ResamplerCtl {
-    const TARGET_NAME: &'a str = "sample-rate-convert-target";
-    const RATE_NAME: &'a str = "sample-rate-convert-rate";
-
-    const RATE_CONVERT_TARGETS: [RateConvertTarget; 5] = [
-        RateConvertTarget::Disabled,
-        RateConvertTarget::SpdifOpticalOutputPair0,
-        RateConvertTarget::SpdifCoaxialOutputPair0,
-        RateConvertTarget::SpdifOpticalInputPair0,
-        RateConvertTarget::SpdifCoaxialInputPair0,
-    ];
-
-    const RATE_CONVERT_RATES: [RateConvertRate; 6] = [
-        RateConvertRate::R44100,
-        RateConvertRate::R48000,
-        RateConvertRate::R88200,
-        RateConvertRate::R96000,
-        RateConvertRate::R176400,
-        RateConvertRate::R192000,
-    ];
-
-    pub fn new() -> Self {
-        ResamplerCtl {
-            target: Default::default(),
-            rate: Default::default(),
-        }
-    }
-
-    fn send(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        let cmd = EnsembleCmd::RateConvert(self.target, self.rate);
-        let mut op = EnsembleOperation::new(cmd);
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        // Transfer initialized data.
-        self.send(avc, timeout_ms)?;
-
-        let labels: Vec<&str> = Self::RATE_CONVERT_TARGETS.iter()
-            .map(|t| rate_convert_target_to_str(t))
-            .collect();
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::TARGET_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        let labels: Vec<&str> = Self::RATE_CONVERT_RATES.iter()
-            .map(|r| rate_convert_rate_to_str(r))
-            .collect();
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
-
-        Ok(())
-    }
-
-    pub fn read(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            Self::TARGET_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pos = Self::RATE_CONVERT_TARGETS.iter()
-                        .position(|t| *t == self.target)
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-            }
-            Self::RATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pos = Self::RATE_CONVERT_RATES.iter()
-                        .position(|r| *r == self.rate)
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-             }
-            _ => Ok(false),
-        }
-    }
-
-    pub fn write(&mut self, avc: &BebobAvc, elem_id: &alsactl::ElemId,
-                 _: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            Self::TARGET_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let &target = Self::RATE_CONVERT_TARGETS.iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for target of format converter: {}",
-                                          vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                self.target = target;
-                self.send(avc, timeout_ms)
-                    .map(|_| true)
-            }
-            Self::RATE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let &rate = Self::RATE_CONVERT_RATES.iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for rate of format converter: {}",
-                                          vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                self.rate = rate;
-                self.send(avc, timeout_ms)
-                    .map(|_| true)
             }
             _ => Ok(false),
         }
