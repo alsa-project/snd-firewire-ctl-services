@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::SndUnitExt;
 
@@ -13,7 +13,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
-use bebob_protocols::*;
+use bebob_protocols::{apogee::ensemble::*, *};
 use bebob_protocols::bridgeco::{BcoPlugAddr, BcoPlugDirection, BcoPlugAddrUnitType};
 use bebob_protocols::bridgeco::BcoCompoundAm824StreamFormat;
 use bebob_protocols::bridgeco::ExtendedStreamFormatSingle;
@@ -378,9 +378,17 @@ impl<'a> OpticalCtl {
     }
 }
 
+fn input_nominal_level_to_str(level: &InputNominalLevel) -> &str {
+    match level {
+        InputNominalLevel::Professional => "+4dB",
+        InputNominalLevel::Consumer => "-10dB",
+        InputNominalLevel::Microphone => "Mic",
+    }
+}
+
 pub struct InputCtl{
     limits: [bool; 8],
-    levels: [u32; 8],
+    levels: [InputNominalLevel; 8],
 
     phantoms: [bool; 4],
     polarities: [bool; 4],
@@ -397,14 +405,18 @@ impl<'a> InputCtl {
         "analog-8",
     ];
 
-    const IN_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB", "Mic"];
+    const NOMINAL_LEVELS: [InputNominalLevel; 3] = [
+        InputNominalLevel::Professional,
+        InputNominalLevel::Consumer,
+        InputNominalLevel::Microphone,
+    ];
 
     const MIC_LABELS: &'a [&'a str] = &["mci-1", "mic-2", "mic-3", "mic-4"];
 
     pub fn new() -> Self {
         InputCtl {
             limits: [false;8],
-            levels: [0;8],
+            levels: Default::default(),
             phantoms: [false;4],
             polarities: [false;4],
         }
@@ -419,8 +431,8 @@ impl<'a> InputCtl {
                                         &[self.limits[i] as u8]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-            let mut op = EnsembleOperation::new(EnsembleCmd::IoAttr(i as u8, 0x01),
-                                        &[self.levels[i] as u8]);
+            let cmd = EnsembleCmd::InputNominalLevel(i, self.levels[i]);
+            let mut op = EnsembleOperation::new(cmd, &[]);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             Ok(())
@@ -442,10 +454,12 @@ impl<'a> InputCtl {
                                                    0, 0, Self::IN_LIMIT_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::IN_LABELS.len(), true)?;
 
+        let labels: Vec<&str> = Self::NOMINAL_LEVELS.iter()
+            .map(|l| input_nominal_level_to_str(l))
+            .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::IN_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::IN_LABELS.len(),
-                                         Self::IN_LEVEL_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::IN_LABELS.len(), &labels, None, true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer,
                                                    0, 0, Self::MIC_PHANTOM_NAME, 0);
@@ -466,8 +480,13 @@ impl<'a> InputCtl {
                 Ok(true)
             }
             Self::IN_LEVEL_NAME => {
-                elem_value.set_enum(&self.levels);
-                Ok(true)
+                ElemValueAccessor::<u32>::set_vals(elem_value, Self::IN_LABELS.len(), |idx| {
+                    let pos = Self::NOMINAL_LEVELS.iter()
+                        .position(|l| l.eq(&self.levels[idx]))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
             }
             Self::MIC_PHANTOM_NAME => {
                 elem_value.set_bool(&self.phantoms);
@@ -498,10 +517,16 @@ impl<'a> InputCtl {
             }
             Self::IN_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::IoAttr(idx as u8, 0x01),
-                                                &[val as u8]);
+                    let &level = Self::NOMINAL_LEVELS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of input nominal level: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+                    let cmd = EnsembleCmd::InputNominalLevel(idx, level);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.levels[idx] = val;
+                    self.levels[idx] = level;
                     Ok(())
                 })?;
                 Ok(true)
@@ -531,22 +556,34 @@ impl<'a> InputCtl {
     }
 }
 
+fn output_nominal_level_to_str(level: &OutputNominalLevel) -> &str {
+    match level {
+        OutputNominalLevel::Professional => "+4dB",
+        OutputNominalLevel::Consumer => "-10dB",
+    }
+}
+
 pub struct OutputCtl {
-    levels: [u32; 8],
+    levels: [OutputNominalLevel; 8],
 }
 
 impl<'a> OutputCtl {
-    const OUT_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB"];
+    const OUT_LEVEL_NAME: &'a str = "output-level";
 
     const OUT_LABELS: &'a [&'a str] = &[
         "analog-1", "analog-2", "analog-3", "analog-4", "analog-5", "analog-6", "analog-7",
         "analog-8",
     ];
 
-    const OUT_LEVEL_NAME: &'a str = "output-level";
+    const NOMINAL_LEVELS: [OutputNominalLevel; 2] = [
+        OutputNominalLevel::Professional,
+        OutputNominalLevel::Consumer,
+    ];
 
     pub fn new() -> Self {
-        OutputCtl { levels: [1; 8] }
+        Self {
+            levels: Default::default(),
+        }
     }
 
     pub fn load(&mut self, avc: &BebobAvc, card_cntr: &mut card_cntr::CardCntr, timeout_ms: u32)
@@ -555,16 +592,19 @@ impl<'a> OutputCtl {
         // Transfer initialized data.
         self.levels.iter()
             .enumerate()
-            .try_for_each(|(i, l)| {
-                let mut op = EnsembleOperation::new(EnsembleCmd::IoAttr(i as u8, 0x00),
-                                            &[*l as u8]);
+            .try_for_each(|(i, &l)| {
+                let cmd = EnsembleCmd::OutputNominalLevel(i, l);
+                let mut op = EnsembleOperation::new(cmd, &[]);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                 Ok(())
             })?;
 
+        let labels: Vec<&str> = Self::NOMINAL_LEVELS.iter()
+            .map(|l| output_nominal_level_to_str(l))
+            .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::OUT_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::OUT_LABELS.len(),
-                                         Self::OUT_LEVEL_LABELS, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, Self::OUT_LABELS.len(), &labels, None, true)
+            .map(|_| ())?;
 
         Ok(())
     }
@@ -574,8 +614,13 @@ impl<'a> OutputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_LEVEL_NAME => {
-                elem_value.set_enum(&self.levels);
-                Ok(true)
+                ElemValueAccessor::<u32>::set_vals(elem_value, Self::OUT_LABELS.len(), |i| {
+                    let pos = Self::NOMINAL_LEVELS.iter()
+                        .position(|l| *l == self.levels[i])
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -587,14 +632,22 @@ impl<'a> OutputCtl {
     {
         match elem_id.get_name().as_str() {
             Self::OUT_LEVEL_NAME => {
-                ElemValueAccessor::<u32>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::IoAttr(idx as u8, 0x00),
-                                                &[val as u8]);
+                 ElemValueAccessor::<u32>::get_vals(new, old, Self::OUT_LABELS.len(), |idx, val| {
+                    let &level = Self::NOMINAL_LEVELS.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid value for index of input nominal level: {}",
+                                              val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+
+                    let cmd = EnsembleCmd::OutputNominalLevel(idx, level);
+                    let mut op = EnsembleOperation::new(cmd, &[]);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.levels[idx] = val;
+                    self.levels[idx] = level;
                     Ok(())
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }

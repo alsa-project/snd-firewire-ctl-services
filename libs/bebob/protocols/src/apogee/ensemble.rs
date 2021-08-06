@@ -256,6 +256,38 @@ impl EnsembleMeterProtocol {
     }
 }
 
+/// The nominal level of analog input 0-7.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum InputNominalLevel {
+    /// +4 dBu.
+    Professional,
+    /// -10 dBV.
+    Consumer,
+    /// Widely adjustable with preamp. Available only for channel 0-3.
+    Microphone,
+}
+
+impl Default for InputNominalLevel {
+    fn default() -> Self {
+        Self::Professional
+    }
+}
+
+/// The nominal level of analog ouput 0-7.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum OutputNominalLevel {
+    /// +4 dBu.
+    Professional,
+    /// -10 dBV.
+    Consumer,
+}
+
+impl Default for OutputNominalLevel {
+    fn default() -> Self {
+        Self::Professional
+    }
+}
+
 const METER_SHORT_FRAME_SIZE: usize = 17;
 const METER_LONG_FRAME_SIZE: usize = 56;
 
@@ -264,8 +296,9 @@ const METER_LONG_FRAME_SIZE: usize = 56;
 pub enum EnsembleCmd {
     InputLimit(u8), // index, state
     MicPower(u8),   // index, state
-    IoAttr(u8, u8), // index, direction, state
-    IoRouting(u8),  // destination, source
+    InputNominalLevel(usize, InputNominalLevel),
+    OutputNominalLevel(usize, OutputNominalLevel),
+    IoRouting(u8), // destination, source
     Hw(HwCmd),
     HpSrc(u8),     // destination, source
     MixerSrc0(u8), // mixer_pair, [u8;36]
@@ -292,7 +325,7 @@ impl Default for EnsembleCmd {
 impl EnsembleCmd {
     const INPUT_LIMIT: u8 = 0xe4;
     const MIC_POWER: u8 = 0xe5;
-    const IO_ATTR: u8 = 0xe8;
+    const IO_NOMINAL_LEVEL: u8 = 0xe8;
     const IO_ROUTING: u8 = 0xef;
     const HW: u8 = 0xeb;
     const HP_SRC: u8 = 0xab;
@@ -318,8 +351,20 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::MicPower(ch) => {
                 vec![EnsembleCmd::MIC_POWER, *ch]
             }
-            EnsembleCmd::IoAttr(ch, direction) => {
-                vec![EnsembleCmd::IO_ATTR, *ch, *direction]
+            EnsembleCmd::InputNominalLevel(ch, state) => {
+                let val = match state {
+                    InputNominalLevel::Professional => 0,
+                    InputNominalLevel::Consumer => 1,
+                    InputNominalLevel::Microphone => 2,
+                };
+                vec![EnsembleCmd::IO_NOMINAL_LEVEL, *ch as u8, 0x01, val]
+            }
+            EnsembleCmd::OutputNominalLevel(ch, state) => {
+                let val = match state {
+                    OutputNominalLevel::Professional => 0,
+                    OutputNominalLevel::Consumer => 1,
+                };
+                vec![EnsembleCmd::IO_NOMINAL_LEVEL, *ch as u8, 0x00, val]
             }
             EnsembleCmd::IoRouting(dst) => {
                 vec![EnsembleCmd::IO_ROUTING, *dst]
@@ -372,7 +417,22 @@ impl From<&[u8]> for EnsembleCmd {
         match raw[0] {
             Self::INPUT_LIMIT => Self::InputLimit(raw[1]),
             Self::MIC_POWER => Self::MicPower(raw[1]),
-            Self::IO_ATTR => Self::IoAttr(raw[1], raw[2]),
+            Self::IO_NOMINAL_LEVEL => {
+                if raw[2] > 0 {
+                    let state = match raw[3] {
+                        2 => InputNominalLevel::Microphone,
+                        1 => InputNominalLevel::Consumer,
+                        _ => InputNominalLevel::Professional,
+                    };
+                    Self::InputNominalLevel(raw[1] as usize, state)
+                } else {
+                    let state = match raw[3] {
+                        1 => OutputNominalLevel::Consumer,
+                        _ => OutputNominalLevel::Professional,
+                    };
+                    Self::OutputNominalLevel(raw[1] as usize, state)
+                }
+            }
             Self::IO_ROUTING => Self::IoRouting(raw[1]),
             Self::HW => Self::Hw(HwCmd::from(raw[1])),
             Self::HP_SRC => Self::HpSrc((raw[1] + 1) % 2),
@@ -504,22 +564,20 @@ impl AvcControl for EnsembleOperation {
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
-        AvcControl::parse_operands(&mut self.op, addr, operands)?;
-
-        // NOTE: parameters are retrieved by HwStatus command only.
-        match &mut self.cmd {
-            EnsembleCmd::HwStatusShort(buf) => buf.copy_from_slice(&self.op.data[2..]),
-            EnsembleCmd::HwStatusLong(buf) => buf.copy_from_slice(&self.op.data[2..]),
-            _ => (),
-        }
-
-        Ok(())
+        AvcControl::parse_operands(&mut self.op, addr, operands).map(|_| {
+            // NOTE: parameters are retrieved by HwStatus command only.
+            match &mut self.cmd {
+                EnsembleCmd::HwStatusShort(buf) => buf.copy_from_slice(&self.op.data[2..]),
+                EnsembleCmd::HwStatusLong(buf) => buf.copy_from_slice(&self.op.data[2..]),
+                _ => (),
+            }
+        })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::{EnsembleCmd, EnsembleOperation, HwCmd};
+    use super::*;
     use ta1394::AvcAddr;
     use ta1394::AvcControl;
 
@@ -537,7 +595,13 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::IoAttr(1, 0);
+        let cmd = EnsembleCmd::InputNominalLevel(1, InputNominalLevel::Microphone);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::OutputNominalLevel(1, OutputNominalLevel::Consumer);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
