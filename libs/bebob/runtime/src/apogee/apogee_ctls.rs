@@ -983,9 +983,8 @@ impl<'a> RouteCtl {
     fn update_hp_source(&mut self, avc: &BebobAvc, dst: usize, src: usize, timeout_ms: u32)
         -> Result<(), Error>
     {
-        let val = src * 2 + 1;
-        let mut op = EnsembleOperation::new(EnsembleCmd::HpSrc(dst as u8),
-                                    &[val as u8]);
+        let cmd = EnsembleCmd::HpSrc(dst, src);
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
         self.hp[dst] = src as u32;
         Ok(())

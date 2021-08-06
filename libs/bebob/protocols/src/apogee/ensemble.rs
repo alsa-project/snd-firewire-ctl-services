@@ -383,7 +383,7 @@ pub enum EnsembleCmd {
     OutputNominalLevel(usize, OutputNominalLevel),
     IoRouting(usize, usize), // destination, source
     Hw(HwCmd),
-    HpSrc(u8), // destination, source
+    HpSrc(usize, usize), // destination, source
     MixerSrc0(usize, [i16; MIXER_COEFFICIENT_COUNT]),
     MixerSrc1(usize, [i16; MIXER_COEFFICIENT_COUNT]),
     MixerSrc2(usize, [i16; MIXER_COEFFICIENT_COUNT]),
@@ -456,8 +456,12 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::Hw(op) => {
                 vec![EnsembleCmd::HW, u8::from(*op)]
             }
-            EnsembleCmd::HpSrc(dst) => {
-                vec![EnsembleCmd::HP_SRC, (*dst + 1) % 2]
+            EnsembleCmd::HpSrc(dst, src) => {
+                vec![
+                    EnsembleCmd::HP_SRC,
+                    (1 + *dst as u8) % 2,
+                    (1 + 2 * *src as u8),
+                ]
             }
             EnsembleCmd::MixerSrc0(pair, coefs) => {
                 let mut data = Vec::with_capacity(2 + 2 * MIXER_COEFFICIENT_COUNT);
@@ -578,7 +582,7 @@ impl From<&[u8]> for EnsembleCmd {
             }
             Self::IO_ROUTING => Self::IoRouting(raw[1] as usize, raw[2] as usize),
             Self::HW => Self::Hw(HwCmd::from(raw[1])),
-            Self::HP_SRC => Self::HpSrc((raw[1] + 1) % 2),
+            Self::HP_SRC => Self::HpSrc((1 + raw[1] as usize) % 2, (raw[2] as usize) / 2),
             Self::MIXER_SRC0 => {
                 let mut doublet = [0; 2];
                 let mut coefs = [0; MIXER_COEFFICIENT_COUNT];
@@ -837,7 +841,7 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::HpSrc(1);
+        let cmd = EnsembleCmd::HpSrc(1, 31);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
