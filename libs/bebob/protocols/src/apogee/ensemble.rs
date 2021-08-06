@@ -369,9 +369,9 @@ const OUT_METER_POS: [usize; 16] = [
 
 /// The trait of operation for meter information.
 impl EnsembleMeterProtocol {
-    pub const OUT_KNOB_VAL_MIN: u8 = 0;
-    pub const OUT_KNOB_VAL_MAX: u8 = 0x7f;
-    pub const OUT_KNOB_VAL_STEP: u8 = 1;
+    pub const OUT_KNOB_VAL_MIN: u8 = EnsembleOutputParameters::VOL_MIN;
+    pub const OUT_KNOB_VAL_MAX: u8 = EnsembleOutputParameters::VOL_MAX;
+    pub const OUT_KNOB_VAL_STEP: u8 = EnsembleOutputParameters::VOL_STEP;
 
     pub const IN_KNOB_VAL_MIN: u8 = EnsembleInputParameters::GAIN_MIN;
     pub const IN_KNOB_VAL_MAX: u8 = EnsembleInputParameters::GAIN_MAX;
