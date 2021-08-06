@@ -18,7 +18,7 @@ use bebob_protocols::{*, apogee::ensemble::*};
 use crate::model::{IN_METER_NAME, OUT_METER_NAME, HP_SRC_NAME, OUT_SRC_NAME};
 
 use crate::common_ctls::*;
-use super::apogee_ctls::{HwCtl, MixerCtl};
+use super::apogee_ctls::HwCtl;
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
@@ -31,8 +31,8 @@ pub struct EnsembleModel {
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     route_ctl: RouteCtl,
+    mixer_ctl: MixerCtl,
     hw_ctls: HwCtl,
-    mixer_ctls: MixerCtl,
 }
 
 #[derive(Default)]
@@ -60,8 +60,8 @@ impl Default for EnsembleModel {
             input_ctl: Default::default(),
             output_ctl: Default::default(),
             route_ctl: Default::default(),
+            mixer_ctl: Default::default(),
             hw_ctls: HwCtl::new(),
-            mixer_ctls: MixerCtl::new(),
         }
     }
 }
@@ -98,8 +98,9 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
         self.route_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
+        self.mixer_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+
         self.hw_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
-        self.mixer_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -123,9 +124,9 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.route_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.hw_ctls.read(elem_id, elem_value)? {
+        } else if self.mixer_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_ctls.read(elem_id, elem_value)? {
+        } else if self.hw_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -149,9 +150,9 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.route_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)
@@ -1219,6 +1220,98 @@ impl RouteCtl {
         }
     }
 }
+
+#[derive(Default)]
+struct MixerCtl(EnsembleMixerParameters);
+
+const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
+
+impl MixerCtl {
+    const MIXER_LABELS: [&'static str; 4] = [
+        "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
+    ];
+
+    const MIXER_SRC_LABELS: [&'static str; 36] = [
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
+        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+        "stream-input-5", "stream-input-6", "stream-input-7", "stream-input-8",
+        "stream-input-9", "stream-input-10", "stream-input-11", "stream-input-12",
+        "stream-input-13", "stream-input-14", "stream-input-15", "stream-input-16",
+        "stream-input-17", "stream-input-18",
+        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
+        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
+        "spdif-input-1", "spdif-input-2",
+    ];
+
+    const GAIN_TLV: DbInterval = DbInterval { min: -4800, max: 0, linear: false, mute_avail: true };
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        avc: &mut BebobAvc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
+        let _ = card_cntr
+            .add_int_elems(
+                &elem_id,
+                Self::MIXER_LABELS.len(),
+                EnsembleMixerParameters::GAIN_MIN as i32,
+                EnsembleMixerParameters::GAIN_MAX as i32,
+                EnsembleMixerParameters::GAIN_STEP as i32,
+                Self::MIXER_SRC_LABELS.len(),
+                Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
+                true,
+            )?;
+
+        avc.init_params(&mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_SRC_GAIN_NAME => {
+                let index = elem_id.get_index() as usize;
+                let vals: Vec<i32> = self.0.src_gains[index].iter()
+                    .map(|&val| val as i32)
+                    .collect();
+                elem_value.set_int(&vals);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        avc: &mut BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_SRC_GAIN_NAME => {
+                let mut vals = [0; Self::MIXER_SRC_LABELS.len()];
+                elem_value.get_int(&mut vals);
+
+                let index = elem_id.get_index() as usize;
+
+                let mut params = self.0.clone();
+                params.src_gains[index].iter_mut()
+                    .zip(vals.iter())
+                    .for_each(|(gain, &val)| *gain = val as i16);
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
