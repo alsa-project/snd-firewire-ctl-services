@@ -5,8 +5,6 @@ use glib::Error;
 
 use hinawa::{FwReqExtManual, SndUnitExt};
 
-pub const FCP_TIMEOUT_MS: u32 = 100;
-
 pub trait CommonProto: FwReqExtManual {
     const BASE_ADDR: u64 = 0xffc700700000;
     const METER_ADDR: u64 = 0xffc700600000;
