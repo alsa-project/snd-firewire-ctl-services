@@ -6,11 +6,13 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Apogee Electronics Ensemble FireWire.
 //!
-//! ## Diagram of internal signal flow for FireWire 410
+//! DM1500 ASIC is used for Apogee Ensemble FireWire.
+//!
+//! ## Diagram of internal signal flow for Apogee Ensemble FireWire
 //!
 //! ```text
 //!                                ++==========++
-//! analog-inputs (8 channels) --> ||  36x36   ||
+//! analog-inputs (8 channels) --> ||  18x18   ||
 //! spdif-inputs (2 channels) ---> ||  capture || --> stream-outputs (18 channels)
 //! adat-inputs (8 channels) ----> ||  router  ||
 //!                                ++==========++
@@ -39,7 +41,7 @@
 //!                           |
 //!                           v
 //! spdif-input-1/2 ------------------------> (destination)
-//! 
+//!
 //! analog-input-1/2 ------------------------> (destination)
 //! analog-input-3/4 ------------------------> (destination)
 //! analog-input-5/6 ------------------------> (destination)
@@ -48,11 +50,34 @@
 //!                           ^
 //!                           |
 //!                ++==================++
-//!                || format converter || (optoinal)
+//!                || format converter || (optional)
 //!                ++==================++
 //!                           |
 //!                           v
 //! (source) ------------------------------> spdif-output-1/2
+//! ```
+//!
+//! The protocol implementation for Apogee Ensemble FireWire was written with firmware version
+//! below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 3
+//! bootloader:
+//!   timestamp: 2006-04-07T11:13:17+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x0000f1a50003db05
+//!   model ID: 0x000000
+//!   revision: 0.0.0
+//! software:
+//!   timestamp: 2008-11-08T12:36:10+0000
+//!   ID: 0x0001eeee
+//!   revision: 0.0.5297
+//! image:
+//!   base address: 0x400c0080
+//!   maximum size: 0x156aa8
 //! ```
 
 use crate::*;
