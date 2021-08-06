@@ -100,11 +100,11 @@ impl<'a> HwCtl {
 
         // Transfer initialized data.
         let cmd = EnsembleCmd::Hw(HwCmd::CdMode(self.cd));
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let cmd = EnsembleCmd::FormatConvert(self.format_convert);
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let labels: Vec<&str> = Self::STREAM_MODES.iter()
@@ -181,7 +181,7 @@ impl<'a> HwCtl {
                     })?;
                 unit.lock()?;
                 let cmd = EnsembleCmd::Hw(HwCmd::StreamMode(mode));
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
                 let _ = unit.unlock();
                 res.map(|_| true)
@@ -190,7 +190,7 @@ impl<'a> HwCtl {
                 let mut vals = [false];
                 new.get_bool(&mut vals);
                 let cmd = EnsembleCmd::Hw(HwCmd::CdMode(vals[0]));
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                     .map(|_| {
                         self.cd = vals[0];
@@ -209,7 +209,7 @@ impl<'a> HwCtl {
                     })?;
 
                 let cmd = EnsembleCmd::FormatConvert(target);
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                     .map(|_| {
                         self.format_convert = target;
@@ -260,19 +260,19 @@ impl<'a> DisplayCtl {
     {
         // Transfer initialized data.
         let cmd = EnsembleCmd::Hw(HwCmd::DisplayIlluminate(self.illuminate));
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let cmd = EnsembleCmd::Hw(HwCmd::DisplayMode(self.mode));
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let cmd = EnsembleCmd::Hw(HwCmd::DisplayTarget(self.target));
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let cmd = EnsembleCmd::Hw(HwCmd::DisplayOverhold(self.overhold));
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
@@ -333,7 +333,7 @@ impl<'a> DisplayCtl {
                 let mut vals = [false];
                 new.get_bool(&mut vals);
                 let cmd = EnsembleCmd::Hw(HwCmd::DisplayIlluminate(vals[0]));
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                     .map(|_| {
                         self.illuminate = vals[0];
@@ -344,7 +344,7 @@ impl<'a> DisplayCtl {
                 let mut vals = [false];
                 new.get_bool(&mut vals);
                 let cmd = EnsembleCmd::Hw(HwCmd::DisplayMode(vals[0]));
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                     .map(|_| {
                         self.mode = vals[0];
@@ -361,7 +361,7 @@ impl<'a> DisplayCtl {
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let cmd = EnsembleCmd::Hw(HwCmd::DisplayTarget(target));
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                     .map(|_| {
                         self.target = target;
@@ -372,7 +372,7 @@ impl<'a> DisplayCtl {
                 let mut vals = [false];
                 new.get_bool(&mut vals);
                 let cmd = EnsembleCmd::Hw(HwCmd::DisplayOverhold(vals[0]));
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                     .map(|_| {
                         self.overhold = vals[0];
@@ -417,11 +417,11 @@ impl<'a> OpticalCtl {
     {
         // Transfer initialized data.
         let cmd = EnsembleCmd::OutputOptIface(self.output);
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let cmd = EnsembleCmd::InputOptIface(self.input);
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let labels: Vec<&str> = Self::MODES.iter()
@@ -480,7 +480,7 @@ impl<'a> OpticalCtl {
                         })
                         .map(|m| *m)?;
                     let cmd = EnsembleCmd::OutputOptIface(mode);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                         .map(|_| self.output = mode)
                 })
@@ -497,7 +497,7 @@ impl<'a> OpticalCtl {
                         })
                         .map(|m| *m)?;
                     let cmd = EnsembleCmd::InputOptIface(mode);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                         .map(|_| self.input = mode)
                 })
@@ -558,11 +558,11 @@ impl<'a> InputCtl {
         // Transfer initialized data.
         (0..Self::IN_LABELS.len()).try_for_each(|i| {
             let cmd = EnsembleCmd::InputLimit(i, self.limits[i]);
-            let mut op = EnsembleOperation::new(cmd, &[]);
+            let mut op = EnsembleOperation::new(cmd);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             let cmd = EnsembleCmd::InputNominalLevel(i, self.levels[i]);
-            let mut op = EnsembleOperation::new(cmd, &[]);
+            let mut op = EnsembleOperation::new(cmd);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             Ok(())
@@ -570,11 +570,11 @@ impl<'a> InputCtl {
 
         (0..Self::MIC_LABELS.len()).try_for_each(|i| {
             let cmd = EnsembleCmd::MicPower(i, self.phantoms[i]);
-            let mut op = EnsembleOperation::new(cmd, &[]);
+            let mut op = EnsembleOperation::new(cmd);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             let cmd = EnsembleCmd::MicPolarity(i, self.polarities[i]);
-            let mut op = EnsembleOperation::new(cmd, &[]);
+            let mut op = EnsembleOperation::new(cmd);
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
             Ok(())
@@ -638,7 +638,7 @@ impl<'a> InputCtl {
             Self::IN_LIMIT_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::IN_LABELS.len(), |idx, val| {
                     let cmd = EnsembleCmd::InputLimit(idx, val);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.limits[idx] = val;
                     Ok(())
@@ -654,7 +654,7 @@ impl<'a> InputCtl {
                             Error::new(FileError::Inval, &msg)
                         })?;
                     let cmd = EnsembleCmd::InputNominalLevel(idx, level);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.levels[idx] = level;
                     Ok(())
@@ -664,7 +664,7 @@ impl<'a> InputCtl {
             Self::MIC_PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
                     let cmd = EnsembleCmd::MicPower(idx, val);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.phantoms[idx] = val;
                     Ok(())
@@ -674,7 +674,7 @@ impl<'a> InputCtl {
             Self::MIC_POLARITY_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, Self::MIC_LABELS.len(), |idx, val| {
                     let cmd = EnsembleCmd::MicPolarity(idx, val);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.polarities[idx] = val;
                     Ok(())
@@ -724,7 +724,7 @@ impl<'a> OutputCtl {
             .enumerate()
             .try_for_each(|(i, &l)| {
                 let cmd = EnsembleCmd::OutputNominalLevel(i, l);
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                 Ok(())
             })?;
@@ -772,7 +772,7 @@ impl<'a> OutputCtl {
                         })?;
 
                     let cmd = EnsembleCmd::OutputNominalLevel(idx, level);
-                    let mut op = EnsembleOperation::new(cmd, &[]);
+                    let mut op = EnsembleOperation::new(cmd);
                     avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                     self.levels[idx] = level;
                     Ok(())
@@ -862,7 +862,7 @@ impl<'a> MixerCtl {
             _ => EnsembleCmd::MixerSrc0(p, params),
         };
 
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         self.mixers[index].copy_from_slice(&vals[0..Self::MIXER_SRC_LABELS.len()]);
@@ -1024,7 +1024,7 @@ impl<'a> RouteCtl {
         if let Some(d) = Self::PORT_LABELS.iter().position(|&x| x == dst) {
             if let Some(s) = Self::PORT_LABELS.iter().position(|&x| x == src) {
                 let cmd = EnsembleCmd::IoRouting(d, s);
-                let mut op = EnsembleOperation::new(cmd, &[]);
+                let mut op = EnsembleOperation::new(cmd);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                 Ok(())
             } else {
@@ -1039,7 +1039,7 @@ impl<'a> RouteCtl {
         -> Result<(), Error>
     {
         let cmd = EnsembleCmd::HpSrc(dst, src);
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
         self.hp[dst] = src as u32;
         Ok(())
@@ -1192,7 +1192,7 @@ impl<'a> ResamplerCtl {
 
     fn send(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
         let cmd = EnsembleCmd::RateConvert(self.target, self.rate);
-        let mut op = EnsembleOperation::new(cmd, &[]);
+        let mut op = EnsembleOperation::new(cmd);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 
