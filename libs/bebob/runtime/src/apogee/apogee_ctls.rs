@@ -23,9 +23,17 @@ use crate::model::{HP_SRC_NAME, OUT_SRC_NAME};
 use bebob_protocols::apogee::ensemble::{EnsembleOperation, EnsembleCmd, HwCmd};
 
 pub struct HwCtl{
-    stream: u32,
+    stream: StreamMode,
     cd: bool,
     format_convert: FormatConvertTarget,
+}
+
+fn stream_mode_to_str(mode: &StreamMode) -> &str {
+    match mode {
+        StreamMode::Format18x18 => "18x18",
+        StreamMode::Format10x10 => "10x10",
+        StreamMode::Format8x8 => "8x8",
+    }
 }
 
 fn format_convert_target_to_str(target: &FormatConvertTarget) -> &str {
@@ -47,7 +55,11 @@ impl<'a> HwCtl {
     const CD_MODE_NAME: &'a str = "cd-mode";
     const SAMPLE_FORMAT_CONVERT: &'a str = "sample-format-convert";
 
-    const STREAM_MODE_LABELS: &'a [&'a str] = &["16x16", "10x10", "8x8"];
+    const STREAM_MODES: [StreamMode; 3] = [
+        StreamMode::Format18x18,
+        StreamMode::Format10x10,
+        StreamMode::Format8x8,
+    ];
 
     const FORMAT_CONVERT_TARGETS: [FormatConvertTarget;9] = [
         FormatConvertTarget::Disabled,
@@ -63,7 +75,7 @@ impl<'a> HwCtl {
 
     pub fn new() -> Self {
         HwCtl {
-            stream: 0,
+            stream: Default::default(),
             cd: false,
             format_convert: Default::default(),
         }
@@ -81,23 +93,31 @@ impl<'a> HwCtl {
             .filter(|entry| entry.format == BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw)
             .fold(0, |count, entry| count + entry.count as usize);
         self.stream = match count {
-            18 => 0,
-            10 => 1,
-            _ => 2,
+            18 => StreamMode::Format18x18,
+            10 => StreamMode::Format10x10,
+            _ => StreamMode::Format8x8,
         };
 
         // Transfer initialized data.
-        let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::CdMode),
-                                    &[self.cd as u8]);
+        let cmd = EnsembleCmd::Hw(HwCmd::CdMode(self.cd));
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let cmd = EnsembleCmd::FormatConvert(self.format_convert);
         let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::STREAM_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::STREAM_MODE_LABELS, None, true)?;
+        let labels: Vec<&str> = Self::STREAM_MODES.iter()
+            .map(|m| stream_mode_to_str(m))
+            .collect();
+        let elem_id = alsactl::ElemId::new_by_name(
+            alsactl::ElemIfaceType::Card,
+            0,
+            0,
+            Self::STREAM_MODE_NAME,
+            0,
+        );
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
                                                    0, 0, Self::CD_MODE_NAME, 0);
@@ -122,7 +142,10 @@ impl<'a> HwCtl {
     {
         match elem_id.get_name().as_str() {
             Self::STREAM_MODE_NAME => {
-                ElemValueAccessor::set_val(elem_value, || Ok(self.stream))?;
+                let pos = Self::STREAM_MODES.iter()
+                    .position(|m| m.eq(&self.stream))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             Self::CD_MODE_NAME => {
@@ -148,25 +171,31 @@ impl<'a> HwCtl {
     {
         match elem_id.get_name().as_str() {
             Self::STREAM_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::StreamMode),
-                                                &[val as u8]);
-                    unit.lock()?;
-                    let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
-                    unit.unlock()?;
-                    res
-                })?;
-                Ok(true)
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let &mode = Self::STREAM_MODES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of mode of stream: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                unit.lock()?;
+                let cmd = EnsembleCmd::Hw(HwCmd::StreamMode(mode));
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                let res = avc.control(&AvcAddr::Unit, &mut op, timeout_ms);
+                let _ = unit.unlock();
+                res.map(|_| true)
             }
             Self::CD_MODE_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::CdMode),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.cd = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let cmd = EnsembleCmd::Hw(HwCmd::CdMode(vals[0]));
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map(|_| {
+                        self.cd = vals[0];
+                        true
+                    })
             }
             Self::SAMPLE_FORMAT_CONVERT => {
                 let mut vals = [0];
@@ -195,8 +224,15 @@ impl<'a> HwCtl {
 pub struct DisplayCtl{
     illuminate: bool,
     mode: bool,
-    target: u32,
+    target: DisplayMeterTarget,
     overhold: bool,
+}
+
+fn display_meter_target_to_str(target: &DisplayMeterTarget) -> &str {
+    match target {
+        DisplayMeterTarget::Output => "output",
+        DisplayMeterTarget::Input => "input",
+    }
 }
 
 impl<'a> DisplayCtl {
@@ -205,13 +241,16 @@ impl<'a> DisplayCtl {
     const TARGET_NAME: &'a str = "display-target";
     const OVERHOLD_NAME: &'a str = "display-overhold";
 
-    const TARGET_LABELS: &'a [&'a str] = &["output", "input"];
+    const DISPLAY_METER_TARGETS: [DisplayMeterTarget; 2] = [
+        DisplayMeterTarget::Output,
+        DisplayMeterTarget::Input,
+    ];
 
     pub fn new() -> Self {
         DisplayCtl {
             illuminate: false,
             mode: false,
-            target: 0,
+            target: Default::default(),
             overhold: false,
         }
     }
@@ -220,20 +259,20 @@ impl<'a> DisplayCtl {
         -> Result<(), Error>
     {
         // Transfer initialized data.
-        let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayIlluminate),
-                                    &[self.illuminate as u8]);
+        let cmd = EnsembleCmd::Hw(HwCmd::DisplayIlluminate(self.illuminate));
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayMode),
-                                    &[self.mode as u8]);
+        let cmd = EnsembleCmd::Hw(HwCmd::DisplayMode(self.mode));
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayTarget),
-                                    &[self.target as u8]);
+        let cmd = EnsembleCmd::Hw(HwCmd::DisplayTarget(self.target));
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayOverhold),
-                                    &[self.overhold as u8]);
+        let cmd = EnsembleCmd::Hw(HwCmd::DisplayOverhold(self.overhold));
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
@@ -244,9 +283,12 @@ impl<'a> DisplayCtl {
                                                    0, 0, Self::MODE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
+        let labels: Vec<&str> = Self::DISPLAY_METER_TARGETS.iter()
+            .map(|t| display_meter_target_to_str(t))
+            .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
                                                    0, 0, Self::TARGET_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::TARGET_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
                                                    0, 0, Self::OVERHOLD_NAME, 0);
@@ -268,7 +310,10 @@ impl<'a> DisplayCtl {
                 Ok(true)
             }
             Self::TARGET_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.target))?;
+                let pos = Self::DISPLAY_METER_TARGETS.iter()
+                    .position(|t| t.eq(&self.target))
+                    .unwrap();
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(pos as u32))?;
                 Ok(true)
             }
             Self::OVERHOLD_NAME => {
@@ -285,44 +330,54 @@ impl<'a> DisplayCtl {
     {
         match elem_id.get_name().as_str() {
             Self::ILLUMINATE_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayIlluminate),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.illuminate = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let cmd = EnsembleCmd::Hw(HwCmd::DisplayIlluminate(vals[0]));
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map(|_| {
+                        self.illuminate = vals[0];
+                        true
+                    })
             }
             Self::MODE_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayMode),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.mode = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let cmd = EnsembleCmd::Hw(HwCmd::DisplayMode(vals[0]));
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map(|_| {
+                        self.mode = vals[0];
+                        true
+                    })
             }
             Self::TARGET_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayTarget),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.target = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let &target = Self::DISPLAY_METER_TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for mode of display meter: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                let cmd = EnsembleCmd::Hw(HwCmd::DisplayTarget(target));
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map(|_| {
+                        self.target = target;
+                        true
+                    })
             }
             Self::OVERHOLD_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let mut op = EnsembleOperation::new(EnsembleCmd::Hw(HwCmd::DisplayOverhold),
-                                                &[val as u8]);
-                    avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                    self.overhold = val;
-                    Ok(())
-                })?;
-                Ok(true)
+                let mut vals = [false];
+                new.get_bool(&mut vals);
+                let cmd = EnsembleCmd::Hw(HwCmd::DisplayOverhold(vals[0]));
+                let mut op = EnsembleOperation::new(cmd, &[]);
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map(|_| {
+                        self.overhold = vals[0];
+                        true
+                    })
             }
             _ => Ok(false),
         }
