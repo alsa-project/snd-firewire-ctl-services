@@ -451,24 +451,6 @@ impl InputCtl {
                 Self::add_input_balance_elem(card_cntr, name, labels).map(|_| ())
             })?;
 
-        self.0.stream_gains.iter_mut()
-            .chain(self.0.analog_gains.iter_mut())
-            .chain(self.0.spdif_gains.iter_mut())
-            .chain(self.0.adat_gains.iter_mut())
-            .for_each(|gain| *gain = MaudioSpecialInputProtocol::GAIN_MAX);
-
-        self.0.analog_balances.iter_mut()
-            .chain(self.0.spdif_balances.iter_mut())
-            .chain(self.0.adat_balances.iter_mut())
-            .enumerate()
-            .for_each(|(i, balance)| {
-                *balance = if i % 2 == 0 {
-                    MaudioSpecialInputProtocol::BALANCE_MIN
-                } else {
-                    MaudioSpecialInputProtocol::BALANCE_MAX
-                };
-            });
-
         self.0.write_to_cache(&mut state.cache);
 
         Ok(())
