@@ -167,9 +167,9 @@ impl Default for MaudioSpecialMeterState {
 }
 
 impl MaudioSpecialMeterProtocol {
-    pub const LEVEL_MIN: i32 = 0;
-    pub const LEVEL_MAX: i32 = i16::MAX as i32;
-    pub const LEVEL_STEP: i32 = 0x100;
+    pub const LEVEL_MIN: i16 = 0;
+    pub const LEVEL_MAX: i16 = i16::MAX;
+    pub const LEVEL_STEP: i16 = 0x100;
 
     pub const ROTARY_MIN: i16 = i16::MIN;
     pub const ROTARY_MAX: i16 = 0;
