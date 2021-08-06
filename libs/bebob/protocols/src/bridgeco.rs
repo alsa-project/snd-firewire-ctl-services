@@ -1645,25 +1645,30 @@ fn parse_tstamp(buf: &[u8]) -> Result<glib::DateTime, Error> {
         Error::new(FileError::Nxio, &msg)
     })?;
 
-    let literal = std::str::from_utf8(&buf[8..16]).map_err(|err| {
-        let msg = format!("{}", err);
-        Error::new(FileError::Nxio, &msg)
-    })?;
+    let (hour, minute, seconds) = if &buf[8..16] != &[0; 8] {
+        let literal = std::str::from_utf8(&buf[8..16]).map_err(|err| {
+            let msg = format!("{}", err);
+            Error::new(FileError::Nxio, &msg)
+        })?;
 
-    let hour = u16::from_str_radix(&literal[..2], 10).map_err(|err| {
-        let msg = format!("{}", err);
-        Error::new(FileError::Nxio, &msg)
-    })?;
+        let hour = u16::from_str_radix(&literal[..2], 10).map_err(|err| {
+            let msg = format!("{}", err);
+            Error::new(FileError::Nxio, &msg)
+        })?;
 
-    let minute = u16::from_str_radix(&literal[2..4], 10).map_err(|err| {
-        let msg = format!("{}", err);
-        Error::new(FileError::Nxio, &msg)
-    })?;
+        let minute = u16::from_str_radix(&literal[2..4], 10).map_err(|err| {
+            let msg = format!("{}", err);
+            Error::new(FileError::Nxio, &msg)
+        })?;
 
-    let seconds = u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
-        let msg = format!("{}", err);
-        Error::new(FileError::Nxio, &msg)
-    })?;
+        let seconds = u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
+            let msg = format!("{}", err);
+            Error::new(FileError::Nxio, &msg)
+        })?;
+        Ok((hour, minute, seconds))
+    } else {
+        Ok((0, 0, 0))
+    }?;
 
     let tstamp = glib::DateTime::new_utc(
         year as i32,
