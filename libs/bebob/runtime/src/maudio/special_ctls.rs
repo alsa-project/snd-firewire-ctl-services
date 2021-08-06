@@ -6,14 +6,12 @@ use glib::Error;
 use hinawa::{FwReq, FwTcode};
 use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
-
-use crate::model::{OUT_SRC_NAME, OUT_VOL_NAME, HP_SRC_NAME};
 
 use super::common_proto::CommonProto;
 
@@ -240,122 +238,12 @@ const GAIN_MAX: i32 = 0;
 const GAIN_STEP: i32 = 256;
 const GAIN_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: false};
 
-pub trait OutputCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>;
-}
-
-const ANALOG_OUT_LABELS: &[&str] = &["analog-1", "analog-2", "analog-3", "analog-4"];
-const OUT_PAIR_LABELS: &[&str] = &["output-1/2", "output-3/4"];
-const OUT_PAIR_SRC_LABELS: &[&str] = &["mixer", "aux-1/2"];
-
-const ANALOG_OUT_VOL_POS: usize = 0x08;     // 0x08 - 0x10
-const OUT_PAIR_SRC_POS: usize = 0x9c;       // 0x9c
-
-const OUT_PAIR_SRC_TABLE: [usize;2] = [0, 1];
-
 const VOL_SIZE: usize = std::mem::size_of::<i16>();
 
 const VOL_MIN: i32 = i16::MIN as i32;
 const VOL_MAX: i32 = 0;
 const VOL_STEP: i32 = 256;
 const VOL_TLV: DbInterval = DbInterval{min: -12800, max: 0, linear: false, mute_avail: false};
-
-trait OutputSrcOperation {
-    fn parse_out_src_flags(&self) -> Vec<u32>;
-    fn build_out_src_flags(&self, vals: &[u32]) -> Self;
-}
-
-impl OutputSrcOperation for u32 {
-    fn parse_out_src_flags(&self) -> Vec<u32> {
-        OUT_PAIR_SRC_TABLE.iter().map(|shift| {
-            (*self & (1 << *shift) > 0) as u32
-        }).collect::<Vec<u32>>()
-    }
-
-    fn build_out_src_flags(&self, vals: &[u32]) -> Self {
-        vals.iter().zip(OUT_PAIR_SRC_TABLE.iter()).fold(*self, |mut flags, (v, shift)| {
-            let flag = 1 << shift;
-            flags &= !flag;
-            if *v > 0 {
-                flags |= flag;
-            }
-            flags
-        })
-    }
-}
-
-impl OutputCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        // Volume of outputs to analog ports.
-        (0..ANALOG_OUT_LABELS.len()).for_each(|i| {
-            let pos = ANALOG_OUT_VOL_POS + i * VOL_SIZE;
-            self.set_i16(pos, VOL_MAX as i16);
-        });
-
-        // Source of outputs.
-        let mut flags = self.get_u32(OUT_PAIR_SRC_POS);
-        flags = flags.build_out_src_flags(&[0, 0]);
-        self.set_u32(OUT_PAIR_SRC_POS, flags);
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
-        card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                ANALOG_OUT_LABELS.len(), Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, OUT_PAIR_LABELS.len(), OUT_PAIR_SRC_LABELS, None, true)?;
-
-        Ok(())
-    }
-
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, ANALOG_OUT_LABELS.len(), |idx| {
-                    let pos = ANALOG_OUT_VOL_POS + idx * VOL_SIZE;
-                    Ok(self.get_i16(pos) as i32)
-                }).and(Ok(true))
-            }
-            OUT_SRC_NAME => {
-                let flags = self.get_u32(OUT_PAIR_SRC_POS);
-                let vals = flags.parse_out_src_flags();
-                elem_value.set_enum(&vals);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, ANALOG_OUT_LABELS.len(), |idx, val| {
-                    let mut pos = ANALOG_OUT_VOL_POS + idx * VOL_SIZE;
-                    self.set_i16(pos, val as i16);
-                    pos -= pos % 4;
-                    req.write_quadlet(unit, pos, &mut self.cache)
-                })?;
-                Ok(true)
-            }
-            OUT_SRC_NAME => {
-                let mut vals = [0;OUT_PAIR_SRC_LABELS.len()];
-                new.get_enum(&mut vals);
-                let mut flags = self.get_u32(OUT_PAIR_SRC_POS);
-                flags = flags.build_out_src_flags(&vals);
-                self.set_u32(OUT_PAIR_SRC_POS, flags);
-                req.write_quadlet(unit, OUT_PAIR_SRC_POS, &mut self.cache)?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
 
 pub trait AuxCtl : StateCacheAccessor {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
@@ -445,127 +333,6 @@ impl AuxCtl for StateCache {
                     Ok(())
                 })?;
                 req.write_quadlet(unit, AUX_OUT_POS, &mut self.cache)?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-pub trait HpCtl : StateCacheAccessor {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error>;
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error>;
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>;
-}
-
-const HP_OUT_LABELS: &[&str] = &["headphone-1", "headphone-2", "headphone-3", "headphone-4"];
-const HP_OUT_PAIR_LABELS: &[&str] = &["headphone-1/2", "headphone-3/4"];
-const HP_SRC_PAIR_LABELS: &[&str] = &["mixer-1/2", "mixer-3/4", "aux-1/2"];
-
-const HP_OUT_VOL_POS: usize = 0x38;            // 0x38 - 0x40.
-const HP_SRC_PAIR_POS: usize = 0x98;                // 0x98-0x9f
-
-const HP_DST_PAIR_SHIFT_TABLE: [usize;2] = [0, 16];
-const HP_SRC_PAIR_SHIFT_TABLE: [usize;3] = [0, 1, 2];
-
-const HP_OUT_VOL_NAME: &str = "headphone-volume";
-
-trait HpSrcOperation {
-    fn build_hp_src_flags(&self, vals: &[u32]) -> u32;
-    fn parse_hp_src_flags(&self) -> Vec<u32>;
-}
-
-impl HpSrcOperation for u32 {
-    fn build_hp_src_flags(&self, vals: &[u32]) -> Self {
-        vals.iter().zip(HP_DST_PAIR_SHIFT_TABLE.iter()).fold(*self, |flags, (v, dst_shift)| {
-            HP_SRC_PAIR_SHIFT_TABLE.iter().enumerate().fold(flags, |mut flags, (i, src_shift)| {
-                let flag = 1 << (dst_shift + src_shift);
-                flags &= !flag;
-                if i == *v as usize {
-                    flags |= flag;
-                }
-                flags
-            })
-        })
-    }
-
-    fn parse_hp_src_flags(&self) -> Vec<u32> {
-        HP_DST_PAIR_SHIFT_TABLE.iter().map(|dst_shift| {
-            HP_SRC_PAIR_SHIFT_TABLE.iter().position(|src_shift| {
-                let flag = 1 << (dst_shift + src_shift);
-                flag & *self > 0
-            }).unwrap_or(0) as u32
-        }).collect::<Vec<u32>>()
-    }
-}
-
-impl HpCtl for StateCache {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        // Source of headphone.
-        let mut flags = self.get_u32(HP_SRC_PAIR_POS);
-        flags = flags.build_hp_src_flags(&[0, 1]);
-        self.set_u32(HP_SRC_PAIR_POS, flags);
-
-        // Volume of headphone output.
-        (0..HP_OUT_LABELS.len()).for_each(|i| {
-            let pos = HP_OUT_VOL_POS + i * VOL_SIZE;
-            self.set_i16(pos, VOL_MAX as i16);
-        });
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_OUT_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                        HP_OUT_LABELS.len(),
-                                        Some(&Into::<Vec<u32>>::into(VOL_TLV)), true)?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, HP_OUT_PAIR_LABELS.len(), HP_SRC_PAIR_LABELS, None, true)?;
-
-        Ok(())
-    }
-
-    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            HP_SRC_NAME => {
-                let flags = self.get_u32(HP_SRC_PAIR_POS);
-                let vals = flags.parse_hp_src_flags();
-                elem_value.set_enum(&vals);
-                Ok(true)
-            }
-            HP_OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::set_vals(elem_value, HP_OUT_LABELS.len(), |idx| {
-                    let pos = HP_OUT_VOL_POS + idx * VOL_SIZE;
-                    Ok(self.get_i16(pos) as i32)
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            HP_SRC_NAME => {
-                let mut vals = [0;HP_OUT_PAIR_LABELS.len()];
-                new.get_enum(&mut vals);
-                let prev_flags = self.get_u32(HP_SRC_PAIR_POS);
-                let curr_flags = prev_flags.build_hp_src_flags(&vals);
-                if curr_flags != prev_flags {
-                    self.set_u32(HP_SRC_PAIR_POS, curr_flags);
-                    req.write_quadlet(unit, HP_SRC_PAIR_POS, &mut self.cache)?;
-                }
-                Ok(true)
-            }
-            HP_OUT_VOL_NAME => {
-                ElemValueAccessor::<i32>::get_vals(new, old, HP_OUT_LABELS.len(), |idx, val| {
-                    let mut pos = HP_OUT_VOL_POS + idx * VOL_SIZE;
-                    self.set_i16(pos, val as i16);
-                    pos -= pos % 4;
-                    req.write_quadlet(unit, pos, &mut self.cache)
-                })?;
                 Ok(true)
             }
             _ => Ok(false),
