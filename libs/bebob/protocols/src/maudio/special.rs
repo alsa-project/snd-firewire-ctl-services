@@ -41,8 +41,6 @@ use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 use crate::*;
 
-use super::*;
-
 /// The protocol implementation for media clock of FireWire 1814.
 #[derive(Default)]
 pub struct Fw1814ClkProtocol;
@@ -191,7 +189,14 @@ impl MaudioSpecialMeterProtocol {
         let mut bitmap1 = [0; 4];
         bitmap1.copy_from_slice(&frame[(METER_SIZE - 4)..]);
 
-        read_block(req, node, METER_OFFSET, frame, timeout_ms)?;
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            DM_APPL_METER_OFFSET,
+            frame.len(),
+            frame,
+            timeout_ms,
+        )?;
 
         let mut doublet = [0; 2];
 
@@ -243,8 +248,6 @@ impl MaudioSpecialMeterProtocol {
         Ok(())
     }
 }
-
-const PARAM_OFFSET: u64 = 0x00700000;
 
 const CACHE_SIZE: usize = 160;
 
@@ -303,9 +306,14 @@ impl MaudioSpecialStateCache {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         (0..CACHE_SIZE).step_by(4).try_for_each(|pos| {
-            req.transaction_sync(node, FwTcode::WriteQuadletRequest,
-                                 BASE_OFFSET + PARAM_OFFSET + pos as u64, 4,
-                                 &mut self.0[pos..(pos + 4)], timeout_ms)
+            req.transaction_sync(
+                node,
+                FwTcode::WriteQuadletRequest,
+                DM_APPL_PARAM_OFFSET + pos as u64,
+                4,
+                &mut self.0[pos..(pos + 4)],
+                timeout_ms,
+            )
         })
     }
 }
@@ -746,7 +754,7 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
                     req.transaction_sync(
                         node,
                         FwTcode::WriteQuadletRequest,
-                        BASE_OFFSET + PARAM_OFFSET + pos as u64,
+                        DM_APPL_PARAM_OFFSET + pos as u64,
                         4,
                         &mut new[pos..(pos + 4)],
                         timeout_ms,

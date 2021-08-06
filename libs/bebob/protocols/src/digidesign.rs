@@ -33,8 +33,6 @@ use super::*;
 #[derive(Default)]
 pub struct Mbox2proClkProtocol;
 
-const IO_OFFSET: u64 = 0xffc700700000;
-
 impl MediaClockFrequencyOperation for Mbox2proClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000];
 }
@@ -68,7 +66,13 @@ impl Mbox2proIoProtocol {
     pub fn init(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         let mut frame = [0;12];
         frame[0] = 1;
-        req.transaction_sync(node, FwTcode::WriteBlockRequest, IO_OFFSET, frame.len(), &mut frame,
-                             timeout_ms)
+        req.transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            DM_APPL_PARAM_OFFSET,
+            frame.len(),
+            &mut frame,
+            timeout_ms,
+        )
     }
 }
