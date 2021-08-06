@@ -82,6 +82,11 @@
 
 use crate::*;
 
+use super::*;
+
+use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
+use ta1394::MUSIC_SUBUNIT_0;
+
 /// The protocol implementation for media and sampling clock of Ensemble FireWire.
 #[derive(Default)]
 pub struct EnsembleClkProtocol;
@@ -109,4 +114,376 @@ impl SamplingClockSourceOperation for EnsembleClkProtocol {
         // Word clock
         SignalAddr::Unit(SignalUnitAddr::Ext(6)),
     ];
+}
+
+/// The enumeration of command specific to Apogee Ensemble.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum EnsembleCmd {
+    InputLimit(u8), // index, state
+    MicPower(u8),   // index, state
+    IoAttr(u8, u8), // index, direction, state
+    IoRouting(u8),  // destination, source
+    Hw(HwCmd),
+    HpSrc(u8),     // destination, source
+    MixerSrc0(u8), // mixer_pair, [u8;36]
+    MixerSrc1(u8),
+    MixerSrc2(u8),
+    MixerSrc3(u8),
+    MicGain(u8),      // 1/2/3/4, dB(10-75), also available as knob control
+    OptIfaceMode(u8), // direction, mode
+    Downgrade,        // on/off
+    SpdifResample,    // on/off, iface, direction, rate
+    MicPolarity(u8),  // index, state
+    OutVol(u8),       // main/hp0/hp1, dB(127-0), also available as knob control
+    HwStatus(bool),   // [u8;17] or [u8;56]
+    Reserved(Vec<u8>),
+}
+
+impl Default for EnsembleCmd {
+    fn default() -> Self {
+        Self::Reserved(Vec::new())
+    }
+}
+
+impl EnsembleCmd {
+    const INPUT_LIMIT: u8 = 0xe4;
+    const MIC_POWER: u8 = 0xe5;
+    const IO_ATTR: u8 = 0xe8;
+    const IO_ROUTING: u8 = 0xef;
+    const HW: u8 = 0xeb;
+    const HP_SRC: u8 = 0xab;
+    const MIXER_SRC0: u8 = 0xb0;
+    const MIXER_SRC1: u8 = 0xb1;
+    const MIXER_SRC2: u8 = 0xb2;
+    const MIXER_SRC3: u8 = 0xb3;
+    const IN_VOL: u8 = 0xe6;
+    const OPT_IFACE_MODE: u8 = 0xf1;
+    const DOWNGRADE: u8 = 0xf2;
+    const SPDIF_RESAMPLE: u8 = 0xf3;
+    const MIC_POLARITY: u8 = 0xf5;
+    const OUT_VOL: u8 = 0xf6;
+    const HW_STATUS: u8 = 0xff;
+}
+
+impl From<&EnsembleCmd> for Vec<u8> {
+    fn from(cmd: &EnsembleCmd) -> Self {
+        match cmd {
+            EnsembleCmd::InputLimit(ch) => {
+                vec![EnsembleCmd::INPUT_LIMIT, *ch]
+            }
+            EnsembleCmd::MicPower(ch) => {
+                vec![EnsembleCmd::MIC_POWER, *ch]
+            }
+            EnsembleCmd::IoAttr(ch, direction) => {
+                vec![EnsembleCmd::IO_ATTR, *ch, *direction]
+            }
+            EnsembleCmd::IoRouting(dst) => {
+                vec![EnsembleCmd::IO_ROUTING, *dst]
+            }
+            EnsembleCmd::Hw(op) => {
+                vec![EnsembleCmd::HW, u8::from(*op)]
+            }
+            EnsembleCmd::HpSrc(dst) => {
+                vec![EnsembleCmd::HP_SRC, (*dst + 1) % 2]
+            }
+            EnsembleCmd::MixerSrc0(pair) => {
+                vec![EnsembleCmd::MIXER_SRC0, *pair]
+            }
+            EnsembleCmd::MixerSrc1(pair) => {
+                vec![EnsembleCmd::MIXER_SRC1, *pair]
+            }
+            EnsembleCmd::MixerSrc2(pair) => {
+                vec![EnsembleCmd::MIXER_SRC2, *pair]
+            }
+            EnsembleCmd::MixerSrc3(pair) => {
+                vec![EnsembleCmd::MIXER_SRC3, *pair]
+            }
+            EnsembleCmd::MicGain(target) => {
+                vec![EnsembleCmd::IN_VOL, *target]
+            }
+            EnsembleCmd::OptIfaceMode(direction) => {
+                vec![EnsembleCmd::OPT_IFACE_MODE, *direction]
+            }
+            EnsembleCmd::Downgrade => {
+                vec![EnsembleCmd::DOWNGRADE]
+            }
+            EnsembleCmd::SpdifResample => {
+                vec![EnsembleCmd::SPDIF_RESAMPLE]
+            }
+            EnsembleCmd::MicPolarity(ch) => {
+                vec![EnsembleCmd::MIC_POLARITY, *ch]
+            }
+            EnsembleCmd::OutVol(target) => {
+                vec![EnsembleCmd::OUT_VOL, *target]
+            }
+            EnsembleCmd::HwStatus(is_long) => {
+                vec![EnsembleCmd::HW_STATUS, *is_long as u8]
+            }
+            EnsembleCmd::Reserved(r) => r.to_vec(),
+        }
+    }
+}
+
+impl From<&[u8]> for EnsembleCmd {
+    fn from(raw: &[u8]) -> Self {
+        match raw[0] {
+            Self::INPUT_LIMIT => Self::InputLimit(raw[1]),
+            Self::MIC_POWER => Self::MicPower(raw[1]),
+            Self::IO_ATTR => Self::IoAttr(raw[1], raw[2]),
+            Self::IO_ROUTING => Self::IoRouting(raw[1]),
+            Self::HW => Self::Hw(HwCmd::from(raw[1])),
+            Self::HP_SRC => Self::HpSrc((raw[1] + 1) % 2),
+            Self::MIXER_SRC0 => Self::MixerSrc0(raw[1]),
+            Self::MIXER_SRC1 => Self::MixerSrc1(raw[1]),
+            Self::MIXER_SRC2 => Self::MixerSrc2(raw[1]),
+            Self::MIXER_SRC3 => Self::MixerSrc3(raw[1]),
+            Self::OPT_IFACE_MODE => Self::OptIfaceMode(raw[1]),
+            Self::DOWNGRADE => Self::Downgrade,
+            Self::SPDIF_RESAMPLE => Self::SpdifResample,
+            Self::MIC_POLARITY => Self::MicPolarity(raw[1]),
+            Self::OUT_VOL => Self::OutVol(raw[1]),
+            Self::HW_STATUS => Self::HwStatus(raw[1] > 0),
+            _ => Self::Reserved(raw.to_vec()),
+        }
+    }
+}
+
+/// The enumeration of command for hardware operation.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum HwCmd {
+    /// STREAM_MODE command generates bus reset to change available stream formats.
+    StreamMode,
+    DisplayIlluminate,
+    DisplayMode,
+    DisplayTarget,
+    DisplayOverhold,
+    MeterReset,
+    CdMode,
+    Reserved(u8),
+}
+
+impl HwCmd {
+    const STREAM_MODE: u8 = 0x06;
+    const DISPLAY_ILLUMINATE: u8 = 0x08;
+    const DISPLAY_MODE: u8 = 0x09;
+    const DISPLAY_TARGET: u8 = 0x0a;
+    const DISPLAY_OVERHOLD: u8 = 0x0e;
+    const METER_RESET: u8 = 0x0f;
+    const CD_MODE: u8 = 0xf5;
+}
+
+impl From<HwCmd> for u8 {
+    fn from(op: HwCmd) -> Self {
+        match op {
+            HwCmd::StreamMode => HwCmd::STREAM_MODE,
+            HwCmd::DisplayIlluminate => HwCmd::DISPLAY_ILLUMINATE,
+            HwCmd::DisplayMode => HwCmd::DISPLAY_MODE,
+            HwCmd::DisplayTarget => HwCmd::DISPLAY_TARGET,
+            HwCmd::DisplayOverhold => HwCmd::DISPLAY_OVERHOLD,
+            HwCmd::MeterReset => HwCmd::METER_RESET,
+            HwCmd::CdMode => HwCmd::CD_MODE,
+            HwCmd::Reserved(val) => val,
+        }
+    }
+}
+
+impl From<u8> for HwCmd {
+    fn from(val: u8) -> HwCmd {
+        match val {
+            HwCmd::STREAM_MODE => HwCmd::StreamMode,
+            HwCmd::DISPLAY_ILLUMINATE => HwCmd::DisplayIlluminate,
+            HwCmd::DISPLAY_MODE => HwCmd::DisplayMode,
+            HwCmd::DISPLAY_TARGET => HwCmd::DisplayTarget,
+            HwCmd::DISPLAY_OVERHOLD => HwCmd::DisplayOverhold,
+            HwCmd::METER_RESET => HwCmd::MeterReset,
+            HwCmd::CD_MODE => HwCmd::CdMode,
+            _ => HwCmd::Reserved(val),
+        }
+    }
+}
+
+/// The protocol implementation of AV/C vendor-dependent command specific to Apogee Ensemble.
+#[derive(Debug)]
+pub struct EnsembleOperation {
+    pub cmd: EnsembleCmd,
+    pub params: Vec<u8>,
+    op: VendorDependent,
+}
+
+impl Default for EnsembleOperation {
+    fn default() -> Self {
+        Self {
+            cmd: Default::default(),
+            params: Default::default(),
+            op: VendorDependent {
+                company_id: APOGEE_OUI,
+                data: Default::default(),
+            },
+        }
+    }
+}
+
+impl EnsembleOperation {
+    pub fn new(cmd: EnsembleCmd, params: &[u8]) -> Self {
+        let mut op = EnsembleOperation::default();
+        op.cmd = cmd;
+        op.params.extend_from_slice(params);
+        op
+    }
+}
+
+impl AvcOp for EnsembleOperation {
+    const OPCODE: u8 = VendorDependent::OPCODE;
+}
+
+impl AvcControl for EnsembleOperation {
+    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+        self.op.data.clear();
+        self.op.data.append(&mut Into::<Vec<u8>>::into(&self.cmd));
+        self.op.data.append(&mut self.params.clone());
+
+        // At least, 6 bytes should be required to align to 3 quadlets. Unless, the target unit is freezed.
+        while self.op.data.len() < 6 {
+            self.op.data.push(0xff);
+        }
+
+        AvcControl::build_operands(&mut self.op, addr, operands)
+    }
+
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+        AvcControl::parse_operands(&mut self.op, addr, operands)?;
+
+        // NOTE: parameters are retrieved by HwStatus command only.
+        let cmd = EnsembleCmd::from(self.op.data.as_slice());
+        if let EnsembleCmd::HwStatus(_) = cmd {
+            self.params = self.op.data[Into::<Vec<u8>>::into(&cmd).len()..].to_vec();
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{EnsembleCmd, EnsembleOperation, HwCmd};
+    use ta1394::AvcAddr;
+    use ta1394::AvcControl;
+
+    #[test]
+    fn vendorcmd_from() {
+        let cmd = EnsembleCmd::InputLimit(1);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::MicPower(1);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::IoAttr(1, 0);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::IoRouting(1);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::Hw(HwCmd::StreamMode);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::HpSrc(1);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::MixerSrc0(3);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::MixerSrc1(2);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::MixerSrc2(1);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::MixerSrc3(0);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::OptIfaceMode(0);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::Downgrade;
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::SpdifResample;
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::MicPolarity(0);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::OutVol(0);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
+        let cmd = EnsembleCmd::HwStatus(true);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+    }
+
+    #[test]
+    fn apogeecmd_operands() {
+        let operands = vec![0xde, 0xad, 0xbe, 0xef, 0x03, 0x02];
+        let mut op = EnsembleOperation::new(EnsembleCmd::IoRouting(0x03), &[0x02]);
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.params, vec![0x02]);
+        let mut o = Vec::new();
+        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        assert_eq!(&o[..6], operands.as_slice());
+
+        let operands = vec![0xde, 0xad, 0xbe, 0xf3, 0x01, 0x02, 0x03, 0x04];
+        let mut op = EnsembleOperation::new(EnsembleCmd::SpdifResample, &[0x01, 0x02, 0x03, 0x04]);
+        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
+        assert_eq!(op.params, vec![0x01, 0x02, 0x03, 0x04]);
+        let mut o = Vec::new();
+        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        assert_eq!(&o[..8], operands.as_slice());
+    }
 }
