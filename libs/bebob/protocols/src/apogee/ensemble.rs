@@ -263,6 +263,112 @@ impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleOutputParameters> for BebobAvc {}
 
+/// The structure for parameters of input/output source.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleSourceParameters {
+    /// To (18):
+    ///   analog-output-0, analog-output-1, analog-output-2, analog-output-3,
+    ///   analog-output-4, analog-output-5, analog-output-6, analog-output-7,
+    ///   spdif-output-0, spdif-output-1,
+    ///   adat-output-0, adat-output-1, adat-input-output-2, adat-output-3,
+    ///   adat-output-4, adat-output-5, adat-input-output-6, adat-output-7
+    /// From (40):
+    ///   analog-input-0, analog-input-1, analog-input-2, analog-input-3,
+    ///   analog-input-4, analog-input-5, analog-input-6, analog-input-7,
+    ///   stream-input-0, stream-input-1, stream-input-2, stream-input-3,
+    ///   stream-input-4, stream-input-5, stream-input-6, stream-input-7,
+    ///   stream-input-8, stream-input-9, stream-input-10, stream-input-11,
+    ///   stream-input-12, stream-input-13, stream-input-14, stream-input-15,
+    ///   stream-input-16, stream-input-17,
+    ///   spdif-input-0, spdif-input-1,
+    ///   adat-input-0, adat-input-1, adat-input-2, adat-input-3,
+    ///   adat-input-4, adat-input-5, adat-input-6, adat-input-7,
+    ///   mixer-output-1, mixer-output-2, mixer-output-3, mixer-output-4,
+    pub output_sources: [usize; 18],
+    /// To (18):
+    ///  stream-output-0, stream-output-1, stream-output-2, stream-output-3,
+    ///  stream-output-4, stream-output-5, stream-output-6, stream-output-7,
+    ///  stream-output-8, stream-output-9, stream-output-10, stream-output-11,
+    ///  stream-output-12, stream-output-13, stream-output-14, stream-output-15,
+    ///  stream-output-16, stream-output-17,
+    /// From(18):
+    ///  analog-input-0, analog-input-1, analog-input-2, analog-input-3,
+    ///  analog-input-4, analog-input-5, analog-input-6, analog-input-7,
+    ///  spdif-input-0, spdif-input-1,
+    ///  adat-input-0, adat-input-1, adat-input-2, adat-input-3,
+    ///  adat-input-4, adat-input-5, adat-input-6, adat-input-7,
+    pub capture_sources: [usize; 18],
+    /// From (6):
+    ///  analog-output-1/2, analog-output-3/4, analog-output-5/6, analog-output-7/8,
+    ///  spdif-output-1/2, none,
+    pub headphone_sources: [usize; 2],
+}
+
+impl Default for EnsembleSourceParameters {
+    fn default() -> Self {
+        let mut output_sources = [0; 18];
+        output_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, v)| *v = i + 8);
+
+        let mut capture_sources = [0; 18];
+        capture_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, v)| *v = i);
+
+        let mut headphone_sources = [0; 2];
+        headphone_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, v)| *v = i);
+
+        EnsembleSourceParameters {
+            output_sources,
+            capture_sources,
+            headphone_sources,
+        }
+    }
+}
+
+impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleSourceParameters) -> Self {
+        let mut cmds = Vec::new();
+
+        params
+            .output_sources
+            .iter()
+            .enumerate()
+            .for_each(|(dst_id, &src_id)| {
+                let dst_id = if dst_id < 8 { dst_id } else { dst_id + 18 };
+                cmds.push(EnsembleCmd::IoRouting(dst_id, src_id));
+            });
+
+        params
+            .capture_sources
+            .iter()
+            .enumerate()
+            .for_each(|(dst_id, &src)| {
+                let dst_id = dst_id + 8;
+                let src_id = if src < 8 { src } else { src + 18 };
+                cmds.push(EnsembleCmd::IoRouting(dst_id, src_id));
+            });
+
+        params
+            .headphone_sources
+            .iter()
+            .enumerate()
+            .for_each(|(dst_id, &src_id)| {
+                cmds.push(EnsembleCmd::HpSrc(dst_id, src_id));
+            });
+
+        cmds
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleSourceParameters> for BebobAvc {}
+
 /// The trait for parameter protocol.
 pub trait EnsembleParameterProtocol<T>: Ta1394Avc
 where
