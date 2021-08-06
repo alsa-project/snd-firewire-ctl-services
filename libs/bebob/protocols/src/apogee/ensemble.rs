@@ -337,6 +337,39 @@ impl Default for FormatConvertTarget {
     }
 }
 
+/// The target to convert sample rate.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum RateConvertTarget {
+    Disabled,
+    SpdifOpticalOutputPair0,
+    SpdifCoaxialOutputPair0,
+    SpdifOpticalInputPair0,
+    SpdifCoaxialInputPair0,
+}
+
+impl Default for RateConvertTarget {
+    fn default() -> Self {
+        Self::Disabled
+    }
+}
+
+/// The rate to convert sample rate.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum RateConvertRate {
+    R44100,
+    R48000,
+    R88200,
+    R96000,
+    R176400,
+    R192000,
+}
+
+impl Default for RateConvertRate {
+    fn default() -> Self {
+        Self::R44100
+    }
+}
+
 const METER_SHORT_FRAME_SIZE: usize = 17;
 const METER_LONG_FRAME_SIZE: usize = 56;
 const MIXER_COEFFICIENT_COUNT: usize = 18;
@@ -359,7 +392,7 @@ pub enum EnsembleCmd {
     OutputOptIface(OptIfaceMode),
     InputOptIface(OptIfaceMode),
     FormatConvert(FormatConvertTarget),
-    SpdifResample,   // on/off, iface, direction, rate
+    RateConvert(RateConvertTarget, RateConvertRate),
     MicPolarity(u8), // index, state
     OutVol(u8),      // main/hp0/hp1, dB(127-0), also available as knob control
     HwStatusShort([u8; METER_SHORT_FRAME_SIZE]),
@@ -387,7 +420,7 @@ impl EnsembleCmd {
     const IN_VOL: u8 = 0xe6;
     const OPT_IFACE_MODE: u8 = 0xf1;
     const FORMAT_CONVERT: u8 = 0xf2;
-    const SPDIF_RESAMPLE: u8 = 0xf3;
+    const RATE_CONVERT: u8 = 0xf3;
     const MIC_POLARITY: u8 = 0xf5;
     const OUT_VOL: u8 = 0xf6;
     const HW_STATUS: u8 = 0xff;
@@ -485,8 +518,29 @@ impl From<&EnsembleCmd> for Vec<u8> {
                 };
                 vec![EnsembleCmd::FORMAT_CONVERT, val]
             }
-            EnsembleCmd::SpdifResample => {
-                vec![EnsembleCmd::SPDIF_RESAMPLE]
+            EnsembleCmd::RateConvert(target, rate) => {
+                let triplet = match target {
+                    RateConvertTarget::Disabled => [0, 0, 0],
+                    RateConvertTarget::SpdifOpticalOutputPair0 => [1, 0, 0],
+                    RateConvertTarget::SpdifCoaxialOutputPair0 => [1, 1, 0],
+                    RateConvertTarget::SpdifOpticalInputPair0 => [1, 0, 1],
+                    RateConvertTarget::SpdifCoaxialInputPair0 => [1, 1, 1],
+                };
+                let val = match rate {
+                    RateConvertRate::R44100 => 0,
+                    RateConvertRate::R48000 => 1,
+                    RateConvertRate::R88200 => 2,
+                    RateConvertRate::R96000 => 3,
+                    RateConvertRate::R176400 => 4,
+                    RateConvertRate::R192000 => 5,
+                };
+                vec![
+                    EnsembleCmd::RATE_CONVERT,
+                    triplet[0],
+                    triplet[1],
+                    triplet[2],
+                    val,
+                ]
             }
             EnsembleCmd::MicPolarity(ch) => {
                 vec![EnsembleCmd::MIC_POLARITY, *ch]
@@ -587,7 +641,28 @@ impl From<&[u8]> for EnsembleCmd {
                 };
                 Self::FormatConvert(target)
             }
-            Self::SPDIF_RESAMPLE => Self::SpdifResample,
+            Self::RATE_CONVERT => {
+                let target = if raw[1] == 0 {
+                    RateConvertTarget::Disabled
+                } else {
+                    match (raw[2], raw[3]) {
+                        (0, 0) => RateConvertTarget::SpdifOpticalOutputPair0,
+                        (1, 0) => RateConvertTarget::SpdifCoaxialOutputPair0,
+                        (0, 1) => RateConvertTarget::SpdifOpticalInputPair0,
+                        (1, 1) => RateConvertTarget::SpdifCoaxialInputPair0,
+                        _ => RateConvertTarget::Disabled,
+                    }
+                };
+                let rate = match raw[4] {
+                    5 => RateConvertRate::R192000,
+                    4 => RateConvertRate::R176400,
+                    3 => RateConvertRate::R96000,
+                    2 => RateConvertRate::R88200,
+                    1 => RateConvertRate::R48000,
+                    _ => RateConvertRate::R44100,
+                };
+                Self::RateConvert(target, rate)
+            }
             Self::MIC_POLARITY => Self::MicPolarity(raw[1]),
             Self::OUT_VOL => Self::OutVol(raw[1]),
             Self::HW_STATUS => {
@@ -810,7 +885,10 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::SpdifResample;
+        let cmd = EnsembleCmd::RateConvert(
+            RateConvertTarget::SpdifOpticalInputPair0,
+            RateConvertRate::R88200,
+        );
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
