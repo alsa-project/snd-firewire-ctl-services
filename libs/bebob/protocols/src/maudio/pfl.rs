@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by M-Audio ProFire Lightbridge
 //!
+//! DM1500 is used for M-Audio ProFire Lightbridge.
+//!
 //! ## Diagram of internal signal flow
 //!
 //! ```text
@@ -45,6 +47,29 @@
 //! stream-input-31/32 --> adat-output-31/32
 //! stream-input-33/34 --> spdif-output-1/2
 //! stream-input-35/36 --> analog-output-1/2
+//! ```
+//!
+//! The protocol implementation for M-Audio ProFire Lightbridge was written with firmware version
+//! below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 3
+//! bootloader:
+//!   timestamp: 2006-03-14T05:51:18+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x00418b63000d6c08
+//!   model ID: 0x000008
+//!   revision: 0.0.0
+//! software:
+//!   timestamp: 2006-09-14T02:54:30+0000
+//!   ID: 0x000100a1
+//!   revision: 0.0.5747
+//! image:
+//!   base address: 0x400c0080
+//!   maximum size: 0x12fb24
 //! ```
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
