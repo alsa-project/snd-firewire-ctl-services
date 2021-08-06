@@ -1082,35 +1082,63 @@ impl<'a> RouteCtl {
     }
 }
 
+fn rate_convert_target_to_str(target: &RateConvertTarget) -> &str {
+    match target {
+        RateConvertTarget::Disabled => "disabled",
+        RateConvertTarget::SpdifOpticalOutputPair0 => "spdif-opt-output-1/2",
+        RateConvertTarget::SpdifCoaxialOutputPair0 => "spdif-coax-output-1/2",
+        RateConvertTarget::SpdifOpticalInputPair0 => "spdif-opt-input-1/2",
+        RateConvertTarget::SpdifCoaxialInputPair0 => "spdif-coax-input-1/2",
+    }
+}
+
+fn rate_convert_rate_to_str(rate: &RateConvertRate) -> &str {
+    match rate {
+        RateConvertRate::R44100 => "44100",
+        RateConvertRate::R48000 => "48000",
+        RateConvertRate::R88200 => "88200",
+        RateConvertRate::R96000 => "96000",
+        RateConvertRate::R176400 => "176400",
+        RateConvertRate::R192000 => "192000",
+    }
+}
+
 pub struct ResamplerCtl {
-    enabled: bool,
-    iface: u8,
-    direction: u8,
-    rate: u8,
+    target: RateConvertTarget,
+    rate: RateConvertRate,
 }
 
 impl<'a> ResamplerCtl {
-    const ENABLE_NAME: &'a str = "resampler-enable";
-    const IFACE_NAME: &'a str = "resampler-interface";
-    const DIRECTION_NAME: &'a str = "resampler-direction";
-    const RATE_NAME: &'a str = "resampler-rate";
+    const TARGET_NAME: &'a str = "sample-rate-convert-target";
+    const RATE_NAME: &'a str = "sample-rate-convert-rate";
 
-    const IFACE_LABELS: &'a [&'a str] = &["optical", "coaxial"];
-    const DIRECTION_LABELS: &'a [&'a str] = &["output", "input"];
-    const RATE_LABELS: &'a [&'a str] = &["44100", "48000", "88200", "96000", "176400", "192000"];
+    const RATE_CONVERT_TARGETS: [RateConvertTarget; 5] = [
+        RateConvertTarget::Disabled,
+        RateConvertTarget::SpdifOpticalOutputPair0,
+        RateConvertTarget::SpdifCoaxialOutputPair0,
+        RateConvertTarget::SpdifOpticalInputPair0,
+        RateConvertTarget::SpdifCoaxialInputPair0,
+    ];
+
+    const RATE_CONVERT_RATES: [RateConvertRate; 6] = [
+        RateConvertRate::R44100,
+        RateConvertRate::R48000,
+        RateConvertRate::R88200,
+        RateConvertRate::R96000,
+        RateConvertRate::R176400,
+        RateConvertRate::R192000,
+    ];
 
     pub fn new() -> Self {
         ResamplerCtl {
-            enabled: false,
-            iface: 0,
-            direction: 0,
-            rate: 0,
+            target: Default::default(),
+            rate: Default::default(),
         }
     }
 
     fn send(&mut self, avc: &BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = EnsembleOperation::new(EnsembleCmd::SpdifResample,
-                                    &[self.enabled as u8, self.iface, self.direction, self.rate]);
+        let cmd = EnsembleCmd::RateConvert(self.target, self.rate);
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 
@@ -1120,21 +1148,19 @@ impl<'a> ResamplerCtl {
         // Transfer initialized data.
         self.send(avc, timeout_ms)?;
 
+        let labels: Vec<&str> = Self::RATE_CONVERT_TARGETS.iter()
+            .map(|t| rate_convert_target_to_str(t))
+            .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::ENABLE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+                                                   0, 0, Self::TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::IFACE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::IFACE_LABELS, None, true)?;
-
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
-                                                   0, 0, Self::DIRECTION_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::DIRECTION_LABELS, None, true)?;
-
+        let labels: Vec<&str> = Self::RATE_CONVERT_RATES.iter()
+            .map(|r| rate_convert_rate_to_str(r))
+            .collect();
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card,
                                                    0, 0, Self::RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::RATE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
@@ -1143,22 +1169,24 @@ impl<'a> ResamplerCtl {
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
-            Self::ENABLE_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.enabled))?;
-                Ok(true)
-            }
-            Self::IFACE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.iface as u32))?;
-                Ok(true)
-            }
-            Self::DIRECTION_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.direction as u32))?;
-                Ok(true)
+            Self::TARGET_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::RATE_CONVERT_TARGETS.iter()
+                        .position(|t| *t == self.target)
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
             }
             Self::RATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.rate as u32))?;
-                Ok(true)
-            }
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = Self::RATE_CONVERT_RATES.iter()
+                        .position(|r| *r == self.rate)
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                .map(|_| true)
+             }
             _ => Ok(false),
         }
     }
@@ -1168,33 +1196,33 @@ impl<'a> ResamplerCtl {
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
-            Self::ENABLE_NAME => {
-                ElemValueAccessor::<bool>::get_val(new, |val| {
-                    self.enabled = val;
-                    self.send(avc, timeout_ms)
-                })?;
-                Ok(true)
-            }
-            Self::IFACE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    self.iface = val as u8;
-                    self.send(avc, timeout_ms)
-                })?;
-                Ok(true)
-            }
-            Self::DIRECTION_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    self.direction = val as u8;
-                    self.send(avc, timeout_ms)
-                })?;
-                Ok(true)
+            Self::TARGET_NAME => {
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let &target = Self::RATE_CONVERT_TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for target of format converter: {}",
+                                          vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                self.target = target;
+                self.send(avc, timeout_ms)
+                    .map(|_| true)
             }
             Self::RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    self.rate = val as u8;
-                    self.send(avc, timeout_ms)
-                })?;
-                Ok(true)
+                let mut vals = [0];
+                new.get_enum(&mut vals);
+                let &rate = Self::RATE_CONVERT_RATES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for rate of format converter: {}",
+                                          vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                self.rate = rate;
+                self.send(avc, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
