@@ -285,6 +285,31 @@ const MIXER_STREAM_SOURCE_POS: usize = 0x0094;
 const HEADPHONE_PAIR_SOURCE_POS: usize = 0x0098;
 const ANALOG_OUTPUT_PAIR_SOURCE_POS: usize = 0x009c;
 
+/// The structure for cache of state;
+#[derive(Debug)]
+pub struct MaudioSpecialStateCache(pub [u8; CACHE_SIZE]);
+
+impl Default for MaudioSpecialStateCache {
+    fn default() -> Self {
+        Self ( [0; CACHE_SIZE] )
+    }
+}
+
+impl MaudioSpecialStateCache {
+    pub fn download(
+        &mut self,
+        req: &FwReq,
+        node: &FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        (0..CACHE_SIZE).step_by(4).try_for_each(|pos| {
+            req.transaction_sync(node, FwTcode::WriteQuadletRequest,
+                                 BASE_OFFSET + PARAM_OFFSET + pos as u64, 4,
+                                 &mut self.0[pos..(pos + 4)], timeout_ms)
+        })
+    }
+}
+
 /// The structure for input parameters.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MaudioSpecialInputParameters {
@@ -708,16 +733,16 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
         req: &FwReq,
         node: &FwNode,
         params: &T,
-        cache: &mut [u8; CACHE_SIZE],
+        cache: &mut MaudioSpecialStateCache,
         old: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new = [0; CACHE_SIZE];
-        new.copy_from_slice(cache);
+        new.copy_from_slice(&cache.0);
         params.write_to_cache(&mut new);
         (0..CACHE_SIZE).step_by(4)
             .try_for_each(|pos| {
-                if new[pos..(pos + 4)] != cache[pos..(pos + 4)] {
+                if new[pos..(pos + 4)] != cache.0[pos..(pos + 4)] {
                     req.transaction_sync(
                         node,
                         FwTcode::WriteQuadletRequest,
@@ -727,7 +752,7 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
                         timeout_ms,
                     )
                     .map(|_| {
-                        cache[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]);
+                        cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]);
                         *old = *params;
                     })
                 } else {
