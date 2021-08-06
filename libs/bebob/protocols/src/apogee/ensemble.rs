@@ -447,6 +447,45 @@ impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleMixerParameters> for BebobAvc {}
 
+/// The structure for stream parameters.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EnsembleStreamParameters {
+    pub mode: StreamMode,
+}
+
+impl From<&EnsembleStreamParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleStreamParameters) -> Self {
+        vec![EnsembleCmd::Hw(HwCmd::StreamMode(params.mode))]
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleStreamParameters> for BebobAvc {
+    fn init_params(
+        &mut self,
+        params: &mut EnsembleStreamParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let plug_addr =
+            BcoPlugAddr::new_for_unit(BcoPlugDirection::Output, BcoPlugAddrUnitType::Isoc, 0);
+        let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
+        self.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let info = op.stream_format.as_bco_compound_am824_stream()?;
+        let count = info
+            .entries
+            .iter()
+            .filter(|entry| entry.format == BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw)
+            .fold(0, |count, entry| count + entry.count as usize);
+        params.mode = match count {
+            18 => StreamMode::Format18x18,
+            10 => StreamMode::Format10x10,
+            _ => StreamMode::Format8x8,
+        };
+
+        Ok(())
+    }
+}
+
 /// The trait for parameter protocol.
 pub trait EnsembleParameterProtocol<T>: Ta1394Avc
 where
