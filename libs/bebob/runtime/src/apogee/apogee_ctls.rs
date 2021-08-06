@@ -750,25 +750,28 @@ impl<'a> MixerCtl {
         let mut args = Vec::new();
         args.push((index / 2) as u8);
 
-        let params = (pos..(pos + 9)).fold(Vec::new(), |mut params, i| {
+        let mut idx = 0;
+        let params = (pos..(pos + 9)).fold([0; 18], |mut params, i| {
             let (l, r) = match index % 2 {
                 0 => (vals[i] as i16, self.mixers[index + 1][i] as i16),
                 _ => (self.mixers[index - 1][i] as i16, vals[i] as i16),
             };
-            params.extend_from_slice(&l.to_le_bytes());
-            params.extend_from_slice(&r.to_le_bytes());
+            params[idx] = l;
+            params[idx + 1] = r;
+            idx += 2;
             params
         });
 
-        let p = (index / 2) as u8;
+
+        let p = index / 2;
         let cmd = match pos / 9 {
-            3 => EnsembleCmd::MixerSrc3(p),
-            2 => EnsembleCmd::MixerSrc2(p),
-            1 => EnsembleCmd::MixerSrc1(p),
-            _ => EnsembleCmd::MixerSrc0(p),
+            3 => EnsembleCmd::MixerSrc3(p, params),
+            2 => EnsembleCmd::MixerSrc2(p, params),
+            1 => EnsembleCmd::MixerSrc1(p, params),
+            _ => EnsembleCmd::MixerSrc0(p, params),
         };
 
-        let mut op = EnsembleOperation::new(cmd, &params);
+        let mut op = EnsembleOperation::new(cmd, &[]);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         self.mixers[index].copy_from_slice(&vals[0..Self::MIXER_SRC_LABELS.len()]);
