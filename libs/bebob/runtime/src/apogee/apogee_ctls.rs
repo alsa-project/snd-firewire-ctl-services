@@ -932,8 +932,8 @@ impl<'a> RouteCtl {
     {
         if let Some(d) = Self::PORT_LABELS.iter().position(|&x| x == dst) {
             if let Some(s) = Self::PORT_LABELS.iter().position(|&x| x == src) {
-                let mut op = EnsembleOperation::new(EnsembleCmd::IoRouting(d as u8),
-                                            &[s as u8]);
+                let cmd = EnsembleCmd::IoRouting(d, s);
+                let mut op = EnsembleOperation::new(cmd, &[]);
                 avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
                 Ok(())
             } else {
