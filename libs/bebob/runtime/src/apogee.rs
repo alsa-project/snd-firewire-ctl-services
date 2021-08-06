@@ -4,5 +4,3 @@
 pub mod ensemble_model;
 
 mod apogee_ctls;
-
-mod apogee_proto;
