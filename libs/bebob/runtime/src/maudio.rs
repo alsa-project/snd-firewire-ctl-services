@@ -7,9 +7,6 @@ pub mod fw410_model;
 pub mod profirelightbridge_model;
 pub mod special_model;
 
-mod common_proto;
-
-
 use glib::{Error, FileError};
 
 use hinawa::{FwNode, FwReq};

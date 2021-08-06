@@ -216,6 +216,13 @@ impl PflInputParametersProtocol {
         let val = params.force_smux as u32;
         cache[20..24].copy_from_slice(&val.to_be_bytes());
 
-        write_block(req, node, PARAMS_OFFSET, cache, timeout_ms)
+        req.transaction_sync(
+            node,
+            hinawa::FwTcode::WriteBlockRequest,
+            BASE_OFFSET + PARAMS_OFFSET,
+            cache.len(),
+            cache,
+            timeout_ms,
+        )
     }
 }

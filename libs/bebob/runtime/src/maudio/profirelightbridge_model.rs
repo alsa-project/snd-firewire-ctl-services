@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::{FwFcpExt, FwReq};
 use hinawa::{SndUnit, SndUnitExt};
@@ -18,14 +18,13 @@ use bebob_protocols::{*, maudio::pfl::*};
 use crate::common_ctls::*;
 use crate::model::OUT_METER_NAME;
 
-use super::common_proto::CommonProto;
-
+#[derive(Default)]
 pub struct PflModel {
     avc: BebobAvc,
     req: FwReq,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
-    input_ctl: InputCtl,
+    input_params_ctl: InputParamsCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -51,17 +50,8 @@ impl SamplingClkSrcCtlOperation<PflClkProtocol> for ClkCtl {
 #[derive(Default)]
 struct MeterCtl(PflMeterState, Vec<ElemId>);
 
-impl Default for PflModel {
-    fn default() -> Self {
-        Self{
-            avc: Default::default(),
-            req: Default::default(),
-            clk_ctl: Default::default(),
-            meter_ctl: Default::default(),
-            input_ctl: InputCtl::new(),
-        }
-    }
-}
+#[derive(Default)]
+struct InputParamsCtl(PflInputParameters);
 
 impl CtlModel<SndUnit> for PflModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -75,7 +65,7 @@ impl CtlModel<SndUnit> for PflModel {
 
         self.meter_ctl.load_state(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.input_ctl.load(unit, &self.req, card_cntr)?;
+        self.input_params_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -89,7 +79,7 @@ impl CtlModel<SndUnit> for PflModel {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.input_ctl.read(elem_id, elem_value)? {
+        } else if self.input_params_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -103,7 +93,7 @@ impl CtlModel<SndUnit> for PflModel {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
-        } else if self.input_ctl.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.input_params_ctl.write_params(unit, &self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -247,107 +237,124 @@ impl MeterCtl {
     }
 }
 
-struct InputCtl {
-    cache: [u8; Self::FRAME_COUNT],
-}
+const ADAT_MUTE_NAME: &str = "adat-input-mute";
+const SPDIF_MUTE_NAME: &str = "spdif-input-mute";
+const FORCE_SMUX_NAME: &str = "force-S/MUX";
 
-impl<'a> InputCtl {
-    const FRAME_COUNT: usize = 24;
+impl InputParamsCtl {
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ADAT_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 4, true)?;
 
-    const MUTE_NAME: &'a str = "Input-mute";
-    const FORCE_SMUX_NAME: &'a str = "Force-S/MUX";
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-    const INPUT_LABELS: &'a [&'a str] = &[
-        "ADAT_1-8",
-        "ADAT_9-16",
-        "ADAT_17-24",
-        "ADAT_25-32",
-        "S/PDIF-1/2",
-    ];
-
-    const OFFSET: u64 = 0;
-
-    fn new() -> Self {
-        InputCtl {
-            cache: [0;Self::FRAME_COUNT],
-        }
-    }
-
-    fn load(&mut self, unit: &SndUnit, req: &FwReq, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
-        // For mute of input for ADAT interfaces.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
-                                                   0, 0, Self::MUTE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_LABELS.len(), true)?;
-
-        // For switch to force S/MUX.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer,
-                                                   0, 0, Self::FORCE_SMUX_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, FORCE_SMUX_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        // Initialize cache.
-        let val = 1 as u32;
-        (0..Self::INPUT_LABELS.len()).for_each(|i| {
-            let pos = i * 4;
-            self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
-        });
-
-        req.write_block(unit, Self::OFFSET, &mut self.cache)
+        PflInputParametersProtocol::write_input_parameters(
+            req,
+            &unit.get_node(),
+            &mut self.0,
+            timeout_ms,
+        )
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MUTE_NAME => {
-                let mut quadlet = [0;4];
-                ElemValueAccessor::<bool>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
-                    let pos = idx * 4;
-                    let bytes = &self.cache[pos..(pos + 4)];
-                    quadlet.copy_from_slice(bytes);
-                    Ok(u32::from_be_bytes(quadlet) > 0)
-                })?;
-                Ok(true)
+            ADAT_MUTE_NAME => {
+                ElemValueAccessor::<bool>::set_vals(elem_value, 4, |idx| Ok(self.0.adat_mute[idx]))
+                    .map(|_| true)
             }
-            Self::FORCE_SMUX_NAME => {
-                ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    let mut quadlet = [0;4];
-                    let pos = Self::INPUT_LABELS.len() * 4;
-                    quadlet.copy_from_slice(&self.cache[pos..(pos + 4)]);
-                    Ok(u32::from_be_bytes(quadlet) > 0)
-                })?;
-                Ok(true)
+            SPDIF_MUTE_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.spdif_mute))
+                    .map(|_| true)
+            }
+            FORCE_SMUX_NAME => {
+                ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.force_smux))
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, req: &FwReq, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
+    fn write_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MUTE_NAME => {
+            ADAT_MUTE_NAME => {
                 if unit.get_property_streaming() {
-                    Ok(false)
-                } else {
-                    ElemValueAccessor::<bool>::get_vals(new, old, Self::INPUT_LABELS.len(), |idx, val| {
-                        let val = val as u32;
-                        let pos = idx * 4;
-                        self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
-                        Ok(())
-                    })?;
-                    req.write_block(unit, Self::OFFSET, &mut self.cache)?;
-                    Ok(true)
+                    Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
+
+                let mut params = self.0.clone();
+
+                ElemValueAccessor::<bool>::get_vals(new, old, 4, |idx, val| {
+                    params.adat_mute[idx] = val;
+                    Ok(())
+                })
+                .and_then(|_| {
+                    PflInputParametersProtocol::write_input_parameters(
+                        req,
+                        &unit.get_node(),
+                        &mut params,
+                        timeout_ms,
+                    )?;
+                    self.0 = params;
+                    Ok(true)
+                })
             }
-            Self::FORCE_SMUX_NAME => {
+            SPDIF_MUTE_NAME => {
+                if unit.get_property_streaming() {
+                    Err(Error::new(FileError::Again, "Packet streaming started"))?;
+                }
+
+                let mut params = self.0.clone();
+
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    let val = val as u32;
-                    let pos = Self::INPUT_LABELS.len() * 4;
-                    self.cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
-                    req.write_block(unit, Self::OFFSET, &mut self.cache)
-                })?;
-                Ok(true)
+                    params.spdif_mute = val;
+                    Ok(())
+                })
+                .and_then(|_| {
+                    PflInputParametersProtocol::write_input_parameters(
+                        req,
+                        &unit.get_node(),
+                        &mut params,
+                        timeout_ms,
+                    )?;
+                    self.0 = params;
+                    Ok(true)
+                })
+            }
+            FORCE_SMUX_NAME => {
+                let mut params = self.0.clone();
+
+                ElemValueAccessor::<bool>::get_val(new, |val| {
+                    params.force_smux = val;
+                    Ok(())
+                })
+                .and_then(|_| {
+                    PflInputParametersProtocol::write_input_parameters(
+                        req,
+                        &unit.get_node(),
+                        &mut params,
+                        timeout_ms,
+                    )?;
+                    self.0 = params;
+                    Ok(true)
+                })
             }
             _ => Ok(false),
         }
