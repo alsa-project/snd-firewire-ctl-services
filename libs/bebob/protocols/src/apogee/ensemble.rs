@@ -388,13 +388,13 @@ pub enum EnsembleCmd {
     MixerSrc1(usize, [i16; MIXER_COEFFICIENT_COUNT]),
     MixerSrc2(usize, [i16; MIXER_COEFFICIENT_COUNT]),
     MixerSrc3(usize, [i16; MIXER_COEFFICIENT_COUNT]),
-    MicGain(u8), // 1/2/3/4, dB(10-75), also available as knob control
+    MicGain(usize, u8), // 1/2/3/4, dB(10-75), also available as knob control
     OutputOptIface(OptIfaceMode),
     InputOptIface(OptIfaceMode),
     FormatConvert(FormatConvertTarget),
     RateConvert(RateConvertTarget, RateConvertRate),
     MicPolarity(usize, bool), // index, state
-    OutVol(u8),               // main/hp0/hp1, dB(127-0), also available as knob control
+    OutVol(usize, u8),        // main/hp0/hp1, dB(127-0), also available as knob control
     HwStatusShort([u8; METER_SHORT_FRAME_SIZE]),
     HwStatusLong([u8; METER_LONG_FRAME_SIZE]),
     Reserved(Vec<u8>),
@@ -417,7 +417,7 @@ impl EnsembleCmd {
     const MIXER_SRC1: u8 = 0xb1;
     const MIXER_SRC2: u8 = 0xb2;
     const MIXER_SRC3: u8 = 0xb3;
-    const IN_VOL: u8 = 0xe6;
+    const MIC_GAIN: u8 = 0xe6;
     const OPT_IFACE_MODE: u8 = 0xf1;
     const FORMAT_CONVERT: u8 = 0xf2;
     const RATE_CONVERT: u8 = 0xf3;
@@ -501,8 +501,8 @@ impl From<&EnsembleCmd> for Vec<u8> {
                     .for_each(|coef| data.extend_from_slice(&coef.to_be_bytes()));
                 data
             }
-            EnsembleCmd::MicGain(target) => {
-                vec![EnsembleCmd::IN_VOL, *target]
+            EnsembleCmd::MicGain(target, val) => {
+                vec![EnsembleCmd::MIC_GAIN, *target as u8, *val]
             }
             EnsembleCmd::OutputOptIface(mode) => {
                 vec![EnsembleCmd::OPT_IFACE_MODE, 0, opt_iface_mode_to_val(mode)]
@@ -551,8 +551,8 @@ impl From<&EnsembleCmd> for Vec<u8> {
             EnsembleCmd::MicPolarity(ch, state) => {
                 vec![EnsembleCmd::MIC_POLARITY, *ch as u8, *state as u8]
             }
-            EnsembleCmd::OutVol(target) => {
-                vec![EnsembleCmd::OUT_VOL, *target]
+            EnsembleCmd::OutVol(target, vol) => {
+                vec![EnsembleCmd::OUT_VOL, *target as u8, *vol]
             }
             EnsembleCmd::HwStatusShort(_) => vec![EnsembleCmd::HW_STATUS, 0],
             EnsembleCmd::HwStatusLong(_) => vec![EnsembleCmd::HW_STATUS, 1],
@@ -625,6 +625,7 @@ impl From<&[u8]> for EnsembleCmd {
                 });
                 Self::MixerSrc3(raw[1] as usize, coefs)
             }
+            Self::MIC_GAIN => Self::MicGain(raw[1] as usize, raw[2]),
             Self::OPT_IFACE_MODE => {
                 let mode = opt_iface_mode_from_val(raw[2]);
                 if raw[1] > 0 {
@@ -670,7 +671,7 @@ impl From<&[u8]> for EnsembleCmd {
                 Self::RateConvert(target, rate)
             }
             Self::MIC_POLARITY => Self::MicPolarity(raw[1] as usize, raw[2] > 0),
-            Self::OUT_VOL => Self::OutVol(raw[1]),
+            Self::OUT_VOL => Self::OutVol(raw[1] as usize, raw[2]),
             Self::HW_STATUS => {
                 if raw[1] > 0 {
                     let mut params = [0; METER_LONG_FRAME_SIZE];
@@ -927,6 +928,12 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
+        let cmd = EnsembleCmd::MicGain(195, 233);
+        assert_eq!(
+            cmd,
+            EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
+        );
+
         let cmd = EnsembleCmd::OutputOptIface(OptIfaceMode::Adat);
         assert_eq!(
             cmd,
@@ -960,7 +967,7 @@ mod test {
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
         );
 
-        let cmd = EnsembleCmd::OutVol(0);
+        let cmd = EnsembleCmd::OutVol(0, 113);
         assert_eq!(
             cmd,
             EnsembleCmd::from(Into::<Vec<u8>>::into(&cmd).as_slice())
