@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by M-Audio FireWire 1814 and ProjectMix I/O.
 //!
+//! DM1000 is used for M-Audio FireWire 1814.
+//!
 //! ## Diagram of internal signal flow for FireWire 1814 and ProjectMix I/O.
 //!
 //! ```text
@@ -35,6 +37,29 @@
 //!  stream-input-7/8 -------------------------------------------------------> digital-output-3/4
 //!  stream-input-9/10 ------------------------------------------------------> digital-output-5/6
 //!  stream-input-11/12 -----------------------------------------------------> digital-output-7/8
+//! ```
+//!
+//! The protocol implementation for M-Audio FireWire 1814 was written with firmware version
+//! below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2004-03-30T02:59:09+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x007feef8000d6c04
+//!   model ID: 0x000083
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2007-07-13T08:04:40+0000
+//!   ID: 0x00000000
+//!   revision: 0.0.0
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
 //! ```
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
