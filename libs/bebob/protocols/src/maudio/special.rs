@@ -37,6 +37,8 @@
 //!  stream-input-11/12 -----------------------------------------------------> digital-output-7/8
 //! ```
 
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+
 use crate::*;
 
 use super::*;
@@ -239,5 +241,181 @@ impl MaudioSpecialMeterProtocol {
         meter.sync_status = bitmap1[3] ^ frame[METER_SIZE - 1] > 0;
 
         Ok(())
+    }
+}
+
+const PARAM_OFFSET: u64 = 0x00700000;
+
+const CACHE_SIZE: usize = 160;
+
+// 0x0000 - 0x0008: stream input gains
+// 0x0010 - 0x0020: analog input gains
+// 0x0020 - 0x0024: spdif input gains
+// 0x0024 - 0x0034: adat input gains
+// 0x0040 - 0x0050: analog input balances
+// 0x0050 - 0x0054: spdif input balances
+// 0x0054 - 0x0064: adat input balances
+const STREAM_INPUT_GAIN_POS: usize = 0x0000;
+const ANALOG_INPUT_GAIN_POS: usize = 0x0010;
+const SPDIF_INPUT_GAIN_POS: usize = 0x0020;
+const ADAT_INPUT_GAIN_POS: usize = 0x0024;
+const ANALOG_INPUT_BALANCE_POS: usize = 0x0040;
+const SPDIF_INPUT_BALANCE_POS: usize = 0x0050;
+const ADAT_INPUT_BALANCE_POS: usize = 0x0054;
+
+/// The structure for input parameters.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MaudioSpecialInputParameters {
+    pub stream_gains: [i16; 4],
+
+    pub analog_gains: [i16; 8],
+    pub spdif_gains: [i16; 2],
+    pub adat_gains: [i16; 8],
+
+    pub analog_balances: [i16; 8],
+    pub spdif_balances: [i16; 2],
+    pub adat_balances: [i16; 8],
+}
+
+impl Default for MaudioSpecialInputParameters {
+    fn default() -> Self {
+        Self {
+            stream_gains: [MaudioSpecialInputProtocol::GAIN_MAX; 4],
+            analog_gains: [MaudioSpecialInputProtocol::GAIN_MAX; 8],
+            spdif_gains: [MaudioSpecialInputProtocol::GAIN_MAX; 2],
+            adat_gains: [MaudioSpecialInputProtocol::GAIN_MAX; 8],
+            analog_balances: [
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+            ],
+            spdif_balances: [
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+            ],
+            adat_balances: [
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+                MaudioSpecialInputProtocol::BALANCE_MIN,
+                MaudioSpecialInputProtocol::BALANCE_MAX,
+            ],
+        }
+    }
+}
+
+impl MaudioSpecialParameterOperation for MaudioSpecialInputParameters {
+    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
+        self.stream_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = STREAM_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.analog_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = ANALOG_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.spdif_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = SPDIF_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.adat_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = ADAT_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.analog_balances.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = ANALOG_INPUT_BALANCE_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.spdif_balances.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = SPDIF_INPUT_BALANCE_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.adat_balances.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = ADAT_INPUT_BALANCE_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+    }
+}
+
+#[derive(Default)]
+pub struct MaudioSpecialInputProtocol;
+
+impl MaudioSpecialInputProtocol{
+    pub const GAIN_MIN: i16 = i16::MIN;
+    pub const GAIN_MAX: i16 = 0;
+    pub const GAIN_STEP: i16 = 0x100;
+
+    pub const BALANCE_MIN: i16 = i16::MIN;
+    pub const BALANCE_MAX: i16 = i16::MAX;
+    pub const BALANCE_STEP: i16 = 0x100;
+}
+
+impl MaudioSpecialParameterProtocol<MaudioSpecialInputParameters> for MaudioSpecialInputProtocol {}
+
+/// The trait for operation about parameters.
+pub trait MaudioSpecialParameterOperation {
+    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]);
+}
+
+/// The trait for protocol of parameters.
+pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Copy> {
+    fn update_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        cache: &mut [u8; CACHE_SIZE],
+        old: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = [0; CACHE_SIZE];
+        new.copy_from_slice(cache);
+        params.write_to_cache(&mut new);
+        (0..CACHE_SIZE).step_by(4)
+            .try_for_each(|pos| {
+                if new[pos..(pos + 4)] != cache[pos..(pos + 4)] {
+                    req.transaction_sync(
+                        node,
+                        FwTcode::WriteQuadletRequest,
+                        BASE_OFFSET + PARAM_OFFSET + pos as u64,
+                        4,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                    .map(|_| {
+                        cache[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]);
+                        *old = *params;
+                    })
+                } else {
+                    Ok(())
+                }
+            })
     }
 }
