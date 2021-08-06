@@ -18,7 +18,7 @@ use bebob_protocols::{*, apogee::ensemble::*};
 use crate::model::{IN_METER_NAME, OUT_METER_NAME};
 
 use crate::common_ctls::*;
-use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl};
+use super::apogee_ctls::{HwCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl};
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
@@ -27,8 +27,8 @@ pub struct EnsembleModel {
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
     convert_ctl: ConvertCtl,
+    display_ctl: DisplayCtl,
     hw_ctls: HwCtl,
-    display_ctls: DisplayCtl,
     opt_iface_ctls: OpticalCtl,
     input_ctls: InputCtl,
     out_ctls: OutputCtl,
@@ -57,8 +57,8 @@ impl Default for EnsembleModel {
             clk_ctl: Default::default(),
             meter_ctl: Default::default(),
             convert_ctl: Default::default(),
+            display_ctl: Default::default(),
             hw_ctls: HwCtl::new(),
-            display_ctls: DisplayCtl::new(),
             opt_iface_ctls: OpticalCtl::new(),
             input_ctls: InputCtl::new(),
             out_ctls: OutputCtl::new(),
@@ -84,8 +84,9 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
         self.convert_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
+        self.display_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+
         self.hw_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
-        self.display_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.opt_iface_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.input_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.out_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -106,9 +107,9 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.convert_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.hw_ctls.read(elem_id, elem_value)? {
+        } else if self.display_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.display_ctls.read(elem_id, elem_value)? {
+        } else if self.hw_ctls.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctls.read(elem_id, elem_value)? {
             Ok(true)
@@ -134,9 +135,9 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.convert_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.display_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.display_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -543,6 +544,130 @@ impl ConvertCtl {
     }
 }
 
+#[derive(Default)]
+struct DisplayCtl(EnsembleDisplayParameters);
+
+fn display_meter_target_to_str(target: &DisplayMeterTarget) -> &str {
+    match target {
+        DisplayMeterTarget::Output => "output",
+        DisplayMeterTarget::Input => "input",
+    }
+}
+
+const DISPLAY_ENABLE_NAME: &str = "display-enable";
+const DISPLAY_ILLUMINATE_NAME: &str = "display-illuminate";
+const DISPLAY_TARGET_NAME: &str = "display-target";
+const DISPLAY_OVERHOLD_NAME: &str = "display-overhold";
+
+impl DisplayCtl {
+    const DISPLAY_METER_TARGETS: [DisplayMeterTarget; 2] = [
+        DisplayMeterTarget::Output,
+        DisplayMeterTarget::Input,
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        avc: &mut BebobAvc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_ENABLE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_ILLUMINATE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let labels: Vec<&str> = Self::DISPLAY_METER_TARGETS.iter()
+            .map(|t| display_meter_target_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_OVERHOLD_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        avc.init_params(&mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            DISPLAY_ENABLE_NAME => {
+                elem_value.set_bool(&[self.0.enabled]);
+                Ok(true)
+            }
+            DISPLAY_ILLUMINATE_NAME => {
+                elem_value.set_bool(&[self.0.illuminate]);
+                Ok(true)
+            }
+            DISPLAY_TARGET_NAME => {
+                let pos = Self::DISPLAY_METER_TARGETS.iter()
+                    .position(|t| t.eq(&self.0.target))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            DISPLAY_OVERHOLD_NAME => {
+                elem_value.set_bool(&[self.0.overhold]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        avc: &mut BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            DISPLAY_ENABLE_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                let mut params = self.0.clone();
+                params.enabled = vals[0];
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            DISPLAY_ILLUMINATE_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                let mut params = self.0.clone();
+                params.illuminate = vals[0];
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            DISPLAY_TARGET_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &target = Self::DISPLAY_METER_TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of display meter mode: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                let mut params = self.0.clone();
+                params.target = target;
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            DISPLAY_OVERHOLD_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                let mut params = self.0.clone();
+                params.overhold = vals[0];
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
 #[cfg(test)]
 mod test {
     use super::*;
