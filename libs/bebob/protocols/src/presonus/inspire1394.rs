@@ -23,6 +23,28 @@
 //!               analog-output-1/2
 //!                 headphone-1/2
 //! ```
+//!
+//! The protocol implementation for PreSonus Inspire 1394 was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2005-09-02T05:43:21+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0xe6120493000a9200
+//!   model ID: 0x00009c
+//!   revision: 0.0.1
+//! software:
+//!   timestamp: 2005-09-02T06:23:23+0000
+//!   ID: 0x00010001
+//!   revision: 0.255.65535
+//! image:
+//!   base address: 0x20080000
+//!   maximum size: 0x180000
+//! ```
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
