@@ -6,6 +6,8 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Stanton Magnetics for Final Scratch 2 ScratchAmp.
 //!
+//! DM1000E is used for Stanton Scratchamp.
+//!
 //! ## Diagram of internal signal flow
 //!
 //! ```text
@@ -16,6 +18,28 @@
 //! stream-input-1/2 -----------------> analog-output-1/2
 //! stream-input-3/4 -----------------> analog-output-3/4
 //! stream-input-5/6 -----------------> headphone-1/2
+//! ```
+//!
+//! The protocol implementation for Stanton Scratchamp was written with firmware version below:
+//!
+//! ```sh
+//! $ cargo run --bin bco-bootloader-info -- /dev/fw1
+//! protocol:
+//!   version: 1
+//! bootloader:
+//!   timestamp: 2004-10-06T10:07:36+0000
+//!   version: 0.0.0
+//! hardware:
+//!   GUID: 0x1000000000126000
+//!   model ID: 0x000001
+//!   revision: 0.0.3
+//! software:
+//!   timestamp: 2004-01-01T12:00:00+0000
+//!   ID: 0x00000000
+//!   revision: 0.0.0
+//! image:
+//!   base address: 0x0
+//!   maximum size: 0x120000
 //! ```
 
 use super::*;
