@@ -253,10 +253,15 @@ const CACHE_SIZE: usize = 160;
 // 0x0010 - 0x0020: analog input gains
 // 0x0020 - 0x0024: spdif input gains
 // 0x0024 - 0x0034: adat input gains
+// 0x0034 - 0x0038: aux output volumes
 // 0x0038 - 0x0040: headphone volumes
 // 0x0040 - 0x0050: analog input balances
 // 0x0050 - 0x0054: spdif input balances
 // 0x0054 - 0x0064: adat input balances
+// 0x0064 - 0x006c: aux stream input gains
+// 0x006c - 0x007c: aux analog input gains
+// 0x007c - 0x0080: aux spdif input gains
+// 0x0080 - 0x0090: aux adat input gains
 // 0x0098 - 0x009c: source of headphone pair
 // 0x009c - 0x00a0: source of analog output pair
 const STREAM_INPUT_GAIN_POS: usize = 0x0000;
@@ -264,10 +269,15 @@ const ANALOG_OUTPUT_VOLUME_POS: usize = 0x0008;
 const ANALOG_INPUT_GAIN_POS: usize = 0x0010;
 const SPDIF_INPUT_GAIN_POS: usize = 0x0020;
 const ADAT_INPUT_GAIN_POS: usize = 0x0024;
+const AUX_OUTPUT_VOLUME_POS: usize = 0x0034;
 const HEADPHONE_VOLUME_POS: usize = 0x0038;
 const ANALOG_INPUT_BALANCE_POS: usize = 0x0040;
 const SPDIF_INPUT_BALANCE_POS: usize = 0x0050;
 const ADAT_INPUT_BALANCE_POS: usize = 0x0054;
+const AUX_STREAM_INPUT_GAIN_POS: usize = 0x0064;
+const AUX_ANALOG_INPUT_GAIN_POS: usize = 0x006c;
+const AUX_SPDIF_INPUT_GAIN_POS: usize = 0x007c;
+const AUX_ADAT_INPUT_GAIN_POS: usize = 0x0080;
 const HEADPHONE_PAIR_SOURCE_POS: usize = 0x0098;
 const ANALOG_OUTPUT_PAIR_SOURCE_POS: usize = 0x009c;
 
@@ -508,6 +518,91 @@ impl MaudioSpecialOutputProtocol{
 }
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialOutputParameters> for MaudioSpecialOutputProtocol {}
+
+/// The structure for aux parameters.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MaudioSpecialAuxParameters {
+    pub output_volumes: [i16; 2],
+    pub stream_gains: [i16; 4],
+    pub analog_gains: [i16; 8],
+    pub spdif_gains: [i16; 2],
+    pub adat_gains: [i16; 8],
+}
+
+impl Default for MaudioSpecialAuxParameters {
+    fn default() -> Self {
+        Self {
+            output_volumes: [MaudioSpecialAuxProtocol::VOLUME_MAX; 2],
+            stream_gains: [0; 4],
+            analog_gains: [
+                MaudioSpecialAuxProtocol::GAIN_MAX,
+                MaudioSpecialAuxProtocol::GAIN_MAX,
+                MaudioSpecialAuxProtocol::GAIN_MIN,
+                MaudioSpecialAuxProtocol::GAIN_MIN,
+                MaudioSpecialAuxProtocol::GAIN_MIN,
+                MaudioSpecialAuxProtocol::GAIN_MIN,
+                MaudioSpecialAuxProtocol::GAIN_MIN,
+                MaudioSpecialAuxProtocol::GAIN_MIN,
+            ],
+            spdif_gains: [MaudioSpecialAuxProtocol::GAIN_MIN; 2],
+            adat_gains: [MaudioSpecialAuxProtocol::GAIN_MIN; 8],
+        }
+    }
+}
+
+impl MaudioSpecialParameterOperation for MaudioSpecialAuxParameters{
+    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
+        self.output_volumes.iter()
+            .enumerate()
+            .for_each(|(i, &vol)| {
+                let pos = AUX_OUTPUT_VOLUME_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
+            });
+
+        self.stream_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = AUX_STREAM_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.analog_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = AUX_ANALOG_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.spdif_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = AUX_SPDIF_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+
+        self.adat_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let pos = AUX_ADAT_INPUT_GAIN_POS + i * 2;
+                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            });
+    }
+}
+
+#[derive(Default)]
+pub struct MaudioSpecialAuxProtocol;
+
+impl MaudioSpecialAuxProtocol{
+    pub const GAIN_MIN: i16 = i16::MIN;
+    pub const GAIN_MAX: i16 = 0;
+    pub const GAIN_STEP: i16 = 0x100;
+
+    pub const VOLUME_MIN: i16 = i16::MIN;
+    pub const VOLUME_MAX: i16 = 0;
+    pub const VOLUME_STEP: i16 = 0x100;
+}
+
+impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol{}
 
 /// The trait for operation about parameters.
 pub trait MaudioSpecialParameterOperation {
