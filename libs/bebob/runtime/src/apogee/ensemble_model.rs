@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::FwFcpExt;
 use hinawa::{SndUnit, SndUnitExt};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
@@ -18,7 +18,7 @@ use bebob_protocols::{*, apogee::ensemble::*};
 use crate::model::{IN_METER_NAME, OUT_METER_NAME};
 
 use crate::common_ctls::*;
-use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl, ResamplerCtl};
+use super::apogee_ctls::{HwCtl, DisplayCtl, OpticalCtl, InputCtl, OutputCtl, MixerCtl, RouteCtl};
 
 const FCP_TIMEOUT_MS: u32 = 100;
 
@@ -26,6 +26,7 @@ pub struct EnsembleModel {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     meter_ctl: MeterCtl,
+    convert_ctl: ConvertCtl,
     hw_ctls: HwCtl,
     display_ctls: DisplayCtl,
     opt_iface_ctls: OpticalCtl,
@@ -33,7 +34,6 @@ pub struct EnsembleModel {
     out_ctls: OutputCtl,
     mixer_ctls: MixerCtl,
     route_ctls: RouteCtl,
-    resampler_ctls: ResamplerCtl,
 }
 
 #[derive(Default)]
@@ -56,6 +56,7 @@ impl Default for EnsembleModel {
             avc: Default::default(),
             clk_ctl: Default::default(),
             meter_ctl: Default::default(),
+            convert_ctl: Default::default(),
             hw_ctls: HwCtl::new(),
             display_ctls: DisplayCtl::new(),
             opt_iface_ctls: OpticalCtl::new(),
@@ -63,7 +64,6 @@ impl Default for EnsembleModel {
             out_ctls: OutputCtl::new(),
             mixer_ctls: MixerCtl::new(),
             route_ctls: RouteCtl::new(),
-            resampler_ctls: ResamplerCtl::new(),
         }
     }
 }
@@ -82,6 +82,8 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
         self.meter_ctl.load_state(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
+        self.convert_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+
         self.hw_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.display_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.opt_iface_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -89,7 +91,6 @@ impl CtlModel<SndUnit> for EnsembleModel {
         self.out_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.mixer_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.route_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
-        self.resampler_ctls.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -102,6 +103,8 @@ impl CtlModel<SndUnit> for EnsembleModel {
         } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.convert_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.hw_ctls.read(elem_id, elem_value)? {
             Ok(true)
@@ -117,8 +120,6 @@ impl CtlModel<SndUnit> for EnsembleModel {
             Ok(true)
         } else if self.route_ctls.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.resampler_ctls.read(elem_id, elem_value)? {
-            Ok(true)
         } else {
             Ok(false)
         }
@@ -130,6 +131,8 @@ impl CtlModel<SndUnit> for EnsembleModel {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
         } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+            Ok(true)
+        } else if self.convert_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.hw_ctls.write(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
@@ -144,8 +147,6 @@ impl CtlModel<SndUnit> for EnsembleModel {
         } else if self.mixer_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.route_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-            Ok(true)
-        } else if self.resampler_ctls.write(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(true)
@@ -332,6 +333,210 @@ impl MeterCtl {
                     Ok(self.0.phys_outputs[idx] as i32)
                 })?;
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const FORMAT_CONVERT_TARGET_NAME: &str = "sample-format-convert-target";
+const RATE_CONVERT_TARGET_NAME: &str = "sample-rate-convert-target";
+const RATE_CONVERT_RATE_NAME: &str = "sample-rate-convert-rate";
+const CD_MODE_NAME: &str = "cd-mode";
+
+#[derive(Default)]
+struct ConvertCtl(EnsembleConvertParameters);
+
+fn format_convert_target_to_str(target: &FormatConvertTarget) -> &str {
+    match target {
+        FormatConvertTarget::Disabled => "disabled",
+        FormatConvertTarget::AnalogInputPair0 => "analog-input-1/2",
+        FormatConvertTarget::AnalogInputPair1 => "analog-input-3/4",
+        FormatConvertTarget::AnalogInputPair2 => "analog-input-5/6",
+        FormatConvertTarget::AnalogInputPair3 => "analog-input-7/8",
+        FormatConvertTarget::SpdifOpticalInputPair0 => "spdif-opt-input-1/2",
+        FormatConvertTarget::SpdifCoaxialInputPair0 => "spdif-coax-input-1/2",
+        FormatConvertTarget::SpdifCoaxialOutputPair0 => "spdif-coax-output-1/2",
+        FormatConvertTarget::SpdifOpticalOutputPair0 => "spdif-opt-output-1/2",
+    }
+}
+
+fn rate_convert_target_to_str(target: &RateConvertTarget) -> &str {
+    match target {
+        RateConvertTarget::Disabled => "disabled",
+        RateConvertTarget::SpdifOpticalOutputPair0 => "spdif-opt-output-1/2",
+        RateConvertTarget::SpdifCoaxialOutputPair0 => "spdif-coax-output-1/2",
+        RateConvertTarget::SpdifOpticalInputPair0 => "spdif-opt-input-1/2",
+        RateConvertTarget::SpdifCoaxialInputPair0 => "spdif-coax-input-1/2",
+    }
+}
+
+fn rate_convert_rate_to_str(rate: &RateConvertRate) -> &str {
+    match rate {
+        RateConvertRate::R44100 => "44100",
+        RateConvertRate::R48000 => "48000",
+        RateConvertRate::R88200 => "88200",
+        RateConvertRate::R96000 => "96000",
+        RateConvertRate::R176400 => "176400",
+        RateConvertRate::R192000 => "192000",
+    }
+}
+
+impl ConvertCtl {
+    const FORMAT_CONVERT_TARGETS: [FormatConvertTarget; 9] = [
+        FormatConvertTarget::Disabled,
+        FormatConvertTarget::AnalogInputPair0,
+        FormatConvertTarget::AnalogInputPair1,
+        FormatConvertTarget::AnalogInputPair2,
+        FormatConvertTarget::AnalogInputPair3,
+        FormatConvertTarget::SpdifOpticalInputPair0,
+        FormatConvertTarget::SpdifCoaxialInputPair0,
+        FormatConvertTarget::SpdifCoaxialOutputPair0,
+        FormatConvertTarget::SpdifOpticalOutputPair0,
+     ];
+
+    const RATE_CONVERT_TARGETS: [RateConvertTarget; 5] = [
+        RateConvertTarget::Disabled,
+        RateConvertTarget::SpdifOpticalOutputPair0,
+        RateConvertTarget::SpdifCoaxialOutputPair0,
+        RateConvertTarget::SpdifOpticalInputPair0,
+        RateConvertTarget::SpdifCoaxialInputPair0,
+    ];
+
+    const RATE_CONVERT_RATES: [RateConvertRate; 6] = [
+        RateConvertRate::R44100,
+        RateConvertRate::R48000,
+        RateConvertRate::R88200,
+        RateConvertRate::R96000,
+        RateConvertRate::R176400,
+        RateConvertRate::R192000,
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        avc: &mut BebobAvc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::FORMAT_CONVERT_TARGETS.iter()
+            .map(|t| format_convert_target_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, FORMAT_CONVERT_TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::RATE_CONVERT_TARGETS.iter()
+            .map(|t| rate_convert_target_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_CONVERT_TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::RATE_CONVERT_RATES.iter()
+            .map(|r| rate_convert_rate_to_str(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_CONVERT_RATE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CD_MODE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        avc.init_params(&mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            FORMAT_CONVERT_TARGET_NAME => {
+                let pos = Self::FORMAT_CONVERT_TARGETS.iter()
+                    .position(|t| t.eq(&self.0.format_target))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            RATE_CONVERT_TARGET_NAME => {
+                let pos = Self::RATE_CONVERT_TARGETS.iter()
+                    .position(|t| t.eq(&self.0.rate_target))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            RATE_CONVERT_RATE_NAME => {
+                let pos = Self::RATE_CONVERT_RATES.iter()
+                    .position(|t| t.eq(&self.0.converted_rate))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            CD_MODE_NAME => {
+                elem_value.set_bool(&[self.0.cd_mode]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        avc: &mut BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            FORMAT_CONVERT_TARGET_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &target = Self::FORMAT_CONVERT_TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of format convert target: {}",
+                                          vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                let mut params = self.0.clone();
+                params.format_target = target;
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            CD_MODE_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                let mut params = self.0.clone();
+                params.cd_mode = vals[0];
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            RATE_CONVERT_TARGET_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &target = Self::RATE_CONVERT_TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of rate convert target: {}",
+                                          vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                let mut params = self.0.clone();
+                params.rate_target = target;
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
+            }
+            RATE_CONVERT_RATE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &converted_rate = Self::RATE_CONVERT_RATES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index of rate convert target: {}",
+                                          vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                let mut params = self.0.clone();
+                params.converted_rate = converted_rate;
+                avc.update_params(&params, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
