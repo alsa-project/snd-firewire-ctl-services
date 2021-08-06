@@ -19,7 +19,7 @@ use bebob_protocols::{*, maudio::special::*};
 
 use crate::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
 use crate::common_ctls::*;
-use super::special_ctls::{StateCache, MixerCtl};
+use super::special_ctls::StateCache;
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
@@ -33,6 +33,7 @@ pub struct SpecialModel<T: MediaClockFrequencyOperation + Default> {
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     aux_ctl: AuxCtl,
+    mixer_ctl: MixerCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 200;
@@ -54,6 +55,7 @@ impl<T: MediaClockFrequencyOperation + Default> Default for SpecialModel<T> {
             input_ctl: Default::default(),
             output_ctl: Default::default(),
             aux_ctl: Default::default(),
+            mixer_ctl: Default::default(),
         }
     }
 }
@@ -76,7 +78,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
         self.aux_ctl.load_params(card_cntr, &mut self.cache)?;
 
-        MixerCtl::load(&mut self.cache, card_cntr)?;
+        self.mixer_ctl.load_params(card_cntr, &mut self.cache)?;
 
         self.cache.upload(unit, &self.req)?;
 
@@ -88,13 +90,13 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
     {
         if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if MixerCtl::read(&mut self.cache, elem_id, elem_value)? {
-            Ok(true)
         } else if self.input_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else if self.aux_ctl.read_params(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -106,13 +108,13 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
     {
         if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
             Ok(true)
-        } else if MixerCtl::write(&mut self.cache, unit, &self.req, elem_id, old, new)? {
-            Ok(true)
         } else if self.input_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.aux_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_ctl.write_params(&mut self.cache, unit, &self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1135,6 +1137,169 @@ impl AuxCtl {
     }
 }
 
+#[derive(Default)]
+struct MixerCtl(MaudioSpecialMixerParameters);
+
+const MIXER_ANALOG_SRC_NAME: &str = "mixer-analog-source";
+const MIXER_SPDIF_SRC_NAME: &str = "mixer-spdif-source";
+const MIXER_ADAT_SRC_NAME: &str = "mixer-adat-source";
+const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-source";
+
+const MIXER_LABELS: [&str; 2] = ["mixer-1/2", "mixer-3/4"];
+
+const ANALOG_INPUT_PAIR_LABELS: [&str; 4] = [
+    "analog-input-1/2", "analog-input-3/4", "analog-input-5/6", "analog-input-7/8",
+];
+
+const SPDIF_INPUT_PAIR_LABELS: [&str; 1] = ["spdif-input-1/2"];
+
+const ADAT_INPUT_PAIR_LABELS: [&str; 4] = [
+    "adat-input-1/2", "adat-input-3/4", "adat-input-5/6", "adat-input-7/8",
+];
+
+const STREAM_INPUT_PAIR_LABELS: [&str; 2] = ["stream-input-1/2", "stream-input-3/4"];
+
+impl MixerCtl {
+    fn add_bool_elem(
+        card_cntr: &mut CardCntr,
+        name: &str,
+        labels: &[&str],
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+        card_cntr.add_bool_elems(&elem_id, MIXER_LABELS.len(), labels.len(), true)
+    }
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        state: &mut StateCache,
+    ) -> Result<(), Error> {
+        let _ = Self::add_bool_elem(card_cntr, MIXER_ANALOG_SRC_NAME, &ANALOG_INPUT_PAIR_LABELS)?;
+        let _ = Self::add_bool_elem(card_cntr, MIXER_SPDIF_SRC_NAME, &SPDIF_INPUT_PAIR_LABELS)?;
+        let _ = Self::add_bool_elem(card_cntr, MIXER_ADAT_SRC_NAME, &ADAT_INPUT_PAIR_LABELS)?;
+        let _ = Self::add_bool_elem(card_cntr, MIXER_STREAM_SRC_NAME, &STREAM_INPUT_PAIR_LABELS)?;
+
+        self.0.write_to_cache(&mut state.cache);
+
+        Ok(())
+    }
+
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_ANALOG_SRC_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.0.analog_pairs[index]);
+                Ok(true)
+            }
+            MIXER_SPDIF_SRC_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_bool(&[self.0.spdif_pairs[index]]);
+                Ok(true)
+            }
+            MIXER_ADAT_SRC_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.0.adat_pairs[index]);
+                Ok(true)
+            }
+            MIXER_STREAM_SRC_NAME => {
+                let index = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.0.stream_pairs[index]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_bool<T>(
+        curr: &mut MaudioSpecialMixerParameters,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        labels: &[&str],
+        req: &FwReq,
+        unit: &SndUnit,
+        state: &mut StateCache,
+        timeout_ms: u32,
+        set: T,
+    ) -> Result<bool, Error>
+        where T: Fn(&mut MaudioSpecialMixerParameters, usize, &[bool])
+    {
+        let index = elem_id.get_index() as usize;
+        let mut params = curr.clone();
+        let mut vals = vec![false; labels.len()];
+        elem_value.get_bool(&mut vals);
+        set(&mut params, index, &vals);
+        MaudioSpecialMixerProtocol::update_params(req, &unit.get_node(), &params,
+                                                  &mut state.cache, curr, timeout_ms)
+            .map(|_| true)
+    }
+
+    fn write_params(
+        &mut self,
+        state: &mut StateCache,
+        unit: &SndUnit,
+        req: &FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_ANALOG_SRC_NAME => {
+                Self::write_bool(
+                    &mut self.0,
+                    elem_id,
+                    elem_value,
+                    &ANALOG_INPUT_PAIR_LABELS[..],
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, index, vals| params.analog_pairs[index].copy_from_slice(&vals),
+                )
+            }
+            MIXER_SPDIF_SRC_NAME => {
+                Self::write_bool(
+                    &mut self.0,
+                    elem_id,
+                    elem_value,
+                    &SPDIF_INPUT_PAIR_LABELS[..],
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, index, vals| params.spdif_pairs[index] = vals[0],
+                )
+            }
+            MIXER_ADAT_SRC_NAME => {
+                Self::write_bool(
+                    &mut self.0,
+                    elem_id,
+                    elem_value,
+                    &ADAT_INPUT_PAIR_LABELS[..],
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, index, vals| params.adat_pairs[index].copy_from_slice(&vals),
+                )
+            }
+            MIXER_STREAM_SRC_NAME => {
+                Self::write_bool(
+                    &mut self.0,
+                    elem_id,
+                    elem_value,
+                    &STREAM_INPUT_PAIR_LABELS[..],
+                    req,
+                    unit,
+                    state,
+                    timeout_ms,
+                    |params, index, vals| params.stream_pairs[index].copy_from_slice(&vals),
+                )
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1195,5 +1360,17 @@ mod test {
         assert_eq!(aux_ctl.0.analog_gains.len(), ANALOG_INPUT_LABELS.len());
         assert_eq!(aux_ctl.0.spdif_gains.len(), SPDIF_INPUT_LABELS.len());
         assert_eq!(aux_ctl.0.adat_gains.len(), ADAT_INPUT_LABELS.len());
+    }
+
+    #[test]
+    fn test_mixer_label_count() {
+        let mixer_ctl = MixerCtl::default();
+        assert_eq!(mixer_ctl.0.analog_pairs.len(), MIXER_LABELS.len());
+        assert_eq!(mixer_ctl.0.analog_pairs[0].len(), ANALOG_INPUT_PAIR_LABELS.len());
+        assert_eq!(mixer_ctl.0.spdif_pairs.len(), MIXER_LABELS.len());
+        assert_eq!(mixer_ctl.0.adat_pairs.len(), MIXER_LABELS.len());
+        assert_eq!(mixer_ctl.0.adat_pairs[0].len(), ADAT_INPUT_PAIR_LABELS.len());
+        assert_eq!(mixer_ctl.0.stream_pairs.len(), MIXER_LABELS.len());
+        assert_eq!(mixer_ctl.0.stream_pairs[0].len(), STREAM_INPUT_PAIR_LABELS.len());
     }
 }
