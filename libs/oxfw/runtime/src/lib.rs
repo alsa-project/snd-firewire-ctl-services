@@ -9,7 +9,6 @@ mod loud_model;
 mod common_model;
 
 mod common_ctl;
-mod apogee_ctls;
 
 use glib::{Error, FileError};
 use glib::source;
