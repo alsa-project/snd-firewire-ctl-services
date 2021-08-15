@@ -15,67 +15,6 @@ use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd};
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default, Debug)]
-pub struct MixerCtl;
-
-impl MixerCtl {
-    const TARGET_LABELS: [&'static str; 2] = ["mixer-1", "mixer-2"];
-
-    const SRC_LABELS: [&'static str; 4] = ["stream-1", "stream-2", "analog-1", "analog-2"];
-
-    const MIXER_NAME: &'static str = "mixer-source-gain";
-
-    const GAIN_MIN: i32 = 0;
-    const GAIN_MAX: i32 = 0x3fff;
-    const GAIN_STEP: i32 = 0xff;
-
-    pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        // For gain of mixer sources.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, Self::TARGET_LABELS.len(),
-                                        Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        Self::SRC_LABELS.len(),
-                                        None, true)?;
-
-        Ok(())
-    }
-
-    pub fn read(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            Self::MIXER_NAME => {
-                let dst = elem_id.get_index();
-                ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
-                    avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-                    Ok(op.read_u16() as i32)
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    pub fn write(&mut self, avc: &FwFcp, company_id: &[u8;3], elem_id: &ElemId, old: &ElemValue,
-                 new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        match elem_id.get_name().as_str() {
-            Self::MIXER_NAME => {
-                let dst = elem_id.get_index();
-                ElemValueAccessor::<i32>::get_vals(new, old, 4, |src, val| {
-                    let mut op = ApogeeCmd::new(company_id, VendorCmd::MixerSrc(src as u8, dst as u8));
-                    op.write_u16(val as u16);
-                    avc.control(&AvcAddr::Unit, &mut op, TIMEOUT_MS)
-                })?;
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
-#[derive(Default, Debug)]
 pub struct DisplayCtl;
 
 impl DisplayCtl {
