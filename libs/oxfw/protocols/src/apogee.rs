@@ -5,7 +5,7 @@
 //!
 //! The module includes protocol implementation defined by Apogee Electronics for Duet FireWire.
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::{FwFcp, FwNode, FwReq, FwReqExtManual, FwTcode};
 
@@ -759,10 +759,10 @@ pub enum VendorCmd {
     MicPhantom(u8),
     OutAttr,
     InGain(u8),
-    HwState,        // 11 parameters.
+    HwState, // 11 parameters.
     OutMute,
     MicIn(u8),
-    MixerSrc(u8, u8),       // 7 params (0x0a, 0x10)
+    MixerSrc(u8, u8), // 7 params (0x0a, 0x10)
     UseMixerOut,
     DisplayOverhold,
     DisplayClear,
@@ -776,15 +776,8 @@ pub enum VendorCmd {
     DisplayFollow,
 }
 
-/// The structure to represent protocol of Apogee Duet FireWire.
-pub struct ApogeeCmd{
-    cmd: VendorCmd,
-    vals: Vec<u8>,
-    op: VendorDependent,
-}
-
-impl ApogeeCmd {
-    const APOGEE_PREFIX: [u8; 3] = [0x50, 0x43, 0x4d];    // 'P', 'C', 'M'
+impl VendorCmd {
+    const APOGEE_PREFIX: [u8; 3] = [0x50, 0x43, 0x4d]; // 'P', 'C', 'M'
 
     const MIC_POLARITY: u8 = 0x00;
     const PHONE_IN_LEVEL: u8 = 0x01;
@@ -811,6 +804,119 @@ impl ApogeeCmd {
     const ON: u8 = 0x70;
     const OFF: u8 = 0x60;
 
+    fn build_args(&self) -> Vec<u8> {
+        let mut args = Vec::with_capacity(6);
+        args.extend_from_slice(&Self::APOGEE_PREFIX);
+        args.extend_from_slice(&[0xff; 3]);
+
+        match self {
+            Self::MicPolarity(ch) => {
+                args[3] = Self::MIC_POLARITY;
+                args[4] = 0x80;
+                args[5] = *ch;
+            }
+            Self::PhoneInLine(ch) => {
+                args[3] = Self::PHONE_IN_LEVEL;
+                args[4] = 0x80;
+                args[5] = *ch;
+            }
+            Self::LineInLevel(ch) => {
+                args[3] = Self::LINE_IN_LEVEL;
+                args[4] = 0x80;
+                args[5] = *ch;
+            }
+            Self::MicPhantom(ch) => {
+                args[3] = Self::MIC_PHANTOM;
+                args[4] = 0x80;
+                args[5] = *ch;
+            }
+            Self::OutAttr => {
+                args[3] = Self::OUT_ATTR;
+                args[4] = 0x80;
+            }
+            Self::InGain(ch) => {
+                args[3] = Self::IN_GAIN;
+                args[4] = 0x80;
+                args[5] = *ch;
+            }
+            Self::HwState => args[3] = Self::HW_STATE,
+            Self::OutMute => {
+                args[3] = Self::OUT_MUTE;
+                args[4] = 0x80;
+            }
+            Self::MicIn(ch) => {
+                args[3] = Self::USE_LINE_IN;
+                args[4] = 0x80;
+                args[5] = *ch;
+            }
+            Self::MixerSrc(src, dst) => {
+                args[3] = Self::MIXER_SRC;
+                args[4] = (((*src / 2) << 4) | (*src % 2)) as u8;
+                args[5] = *dst;
+            }
+            Self::UseMixerOut => args[3] = Self::USE_MIXER_OUT,
+            Self::DisplayOverhold => args[3] = Self::DISPLAY_OVERHOLD,
+            Self::DisplayClear => args[3] = Self::DISPLAY_CLEAR,
+            Self::OutVolume => {
+                args[3] = Self::OUT_VOLUME;
+                args[4] = 0x80;
+            }
+            Self::MuteForLineOut => {
+                args[3] = Self::MUTE_FOR_LINE_OUT;
+                args[4] = 0x80;
+            }
+            Self::MuteForHpOut => {
+                args[3] = Self::MUTE_FOR_HP_OUT;
+                args[4] = 0x80;
+            }
+            Self::UnmuteForLineOut => {
+                args[3] = Self::UNMUTE_FOR_LINE_OUT;
+                args[4] = 0x80;
+            }
+            Self::UnmuteForHpOut => {
+                args[3] = Self::UNMUTE_FOR_HP_OUT;
+                args[4] = 0x80;
+            }
+            Self::DisplayInput => args[3] = Self::DISPLAY_INPUT,
+            Self::InClickless => args[3] = Self::IN_CLICKLESS,
+            Self::DisplayFollow => args[3] = Self::DISPLAY_FOLLOW,
+        }
+
+        args
+    }
+
+    fn append_variable(&self, _: &mut Vec<u8>) {
+        match self {
+            _ => (),
+        }
+    }
+
+    fn parse_variable(&mut self, data: &[u8]) -> Result<(), Error> {
+        if &data[..3] != &Self::APOGEE_PREFIX {
+            let msg = format!(
+                "Unexpected prefix: 0x{:02x}{:02x}{:02x}",
+                data[0], data[1], data[2]
+            );
+            Err(Error::new(FileError::Io, &msg))?;
+        } else if data.len() < 7 {
+            let msg = format!("Unexpected length of response: {}", data.len());
+            Err(Error::new(FileError::Io, &msg))?;
+        }
+
+        match self {
+            _ => Ok(()),
+        }
+    }
+}
+
+/// The structure to represent protocol of Apogee Duet FireWire.
+pub struct ApogeeCmd {
+    cmd: VendorCmd,
+    vals: Vec<u8>,
+    op: VendorDependent,
+}
+
+impl ApogeeCmd {
     pub fn new(cmd: VendorCmd) -> Self {
         ApogeeCmd{
             cmd,
@@ -819,95 +925,8 @@ impl ApogeeCmd {
         }
     }
 
-    fn build_args(&self) -> Vec<u8> {
-        let mut args = Vec::with_capacity(6);
-        args.extend_from_slice(&Self::APOGEE_PREFIX);
-        args.extend_from_slice(&[0xff;3]);
-
-        match &self.cmd {
-            VendorCmd::MicPolarity(ch) => {
-                args[3] = Self::MIC_POLARITY;
-                args[4] = 0x80;
-                args[5] = *ch;
-            }
-            VendorCmd::PhoneInLine(ch) => {
-                args[3] = Self::PHONE_IN_LEVEL;
-                args[4] = 0x80;
-                args[5] = *ch;
-            }
-            VendorCmd::LineInLevel(ch) => {
-                args[3] = Self::LINE_IN_LEVEL;
-                args[4] = 0x80;
-                args[5] = *ch;
-            }
-            VendorCmd::MicPhantom(ch) => {
-                args[3] = Self::MIC_PHANTOM;
-                args[4] = 0x80;
-                args[5] = *ch;
-            }
-            VendorCmd::OutAttr => {
-                args[3] = Self::OUT_ATTR;
-                args[4] = 0x80;
-            }
-            VendorCmd::InGain(ch) => {
-                args[3] = Self::IN_GAIN;
-                args[4] = 0x80;
-                args[5] = *ch;
-            }
-            VendorCmd::HwState => args[3] = Self::HW_STATE,
-            VendorCmd::OutMute => {
-                args[3] = Self::OUT_MUTE;
-                args[4] = 0x80;
-            }
-            VendorCmd::MicIn(ch) => {
-                args[3] = Self::USE_LINE_IN;
-                args[4] = 0x80;
-                args[5] = *ch;
-            }
-            VendorCmd::MixerSrc(src, dst) => {
-                args[3] = Self::MIXER_SRC;
-                args[4] = (((*src / 2) << 4) | (*src % 2)) as u8;
-                args[5] = *dst;
-            }
-            VendorCmd::UseMixerOut => args[3] = Self::USE_MIXER_OUT,
-            VendorCmd::DisplayOverhold => args[3] = Self::DISPLAY_OVERHOLD,
-            VendorCmd::DisplayClear => args[3] = Self::DISPLAY_CLEAR,
-            VendorCmd::OutVolume => {
-                args[3] = Self::OUT_VOLUME;
-                args[4] = 0x80;
-            }
-            VendorCmd::MuteForLineOut => {
-                args[3] = Self::MUTE_FOR_LINE_OUT;
-                args[4] = 0x80;
-            }
-            VendorCmd::MuteForHpOut => {
-                args[3] = Self::MUTE_FOR_HP_OUT;
-                args[4] = 0x80;
-            }
-            VendorCmd::UnmuteForLineOut => {
-                args[3] = Self::UNMUTE_FOR_LINE_OUT;
-                args[4] = 0x80;
-            }
-            VendorCmd::UnmuteForHpOut => {
-                args[3] = Self::UNMUTE_FOR_HP_OUT;
-                args[4] = 0x80;
-            }
-            VendorCmd::DisplayInput=> args[3] = Self::DISPLAY_INPUT,
-            VendorCmd::InClickless => args[3] = Self::IN_CLICKLESS,
-            VendorCmd::DisplayFollow => args[3] = Self::DISPLAY_FOLLOW,
-        }
-
-        args
-    }
-
-    fn build_data(&mut self) -> Result<(), Error> {
-        self.op.data = self.build_args();
-        self.op.data.extend_from_slice(&self.vals);
-        Ok(())
-    }
-
     fn parse_data(&mut self) -> Result<(), Error> {
-        let args = self.build_args();
+        let args = self.cmd.build_args();
         if self.op.data[..6] != args[..6] {
             let label = format!("Unexpected arguments in response: {:?} but {:?}", args, self.op.data);
             Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
@@ -919,12 +938,12 @@ impl ApogeeCmd {
 
     pub fn get_enum(&self) -> u32 {
         assert!(self.vals.len() > 0, "Unexpected read operation as bool argument.");
-        (self.vals[0] == Self::ON) as u32
+        (self.vals[0] == VendorCmd::ON) as u32
     }
 
     pub fn put_enum(&mut self, val: u32) {
         assert!(self.vals.len() == 0, "Unexpected write operation as bool argument.");
-        self.vals.push(if val > 0 { Self::ON } else { Self::OFF })
+        self.vals.push(if val > 0 { VendorCmd::ON } else { VendorCmd::OFF })
     }
 
     pub fn read_u16(&self) -> u16 {
@@ -960,7 +979,10 @@ impl AvcOp for ApogeeCmd {
 
 impl AvcControl for ApogeeCmd {
     fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
-        self.build_data()?;
+        let mut data = self.cmd.build_args();
+        self.cmd.append_variable(&mut data);
+        data.extend_from_slice(&self.vals);
+        self.op.data = data;
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
@@ -972,12 +994,13 @@ impl AvcControl for ApogeeCmd {
 
 impl AvcStatus for ApogeeCmd {
     fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
-        self.build_data()?;
+        self.op.data = self.cmd.build_args();
         AvcStatus::build_operands(&mut self.op, addr, operands)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)?;
+        self.cmd.parse_variable(&self.op.data)?;
         self.parse_data()
     }
 }
@@ -996,7 +1019,7 @@ mod test {
 
         let mut o = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(o, operands);
+        assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::UseMixerOut);
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x11, 0xff, 0xff, 0xe3];
@@ -1015,7 +1038,7 @@ mod test {
 
         let mut o = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(o, operands);
+        assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::LineInLevel(1));
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x02, 0x80, 0x01, 0xb9];
@@ -1034,7 +1057,7 @@ mod test {
 
         let mut o = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(o, operands);
+        assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0));
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
@@ -1054,7 +1077,7 @@ mod test {
 
         let mut o = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(o, operands);
+        assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::HwState);
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
