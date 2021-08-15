@@ -7,9 +7,11 @@
 
 use glib::Error;
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+use hinawa::{FwFcp, FwNode, FwReq, FwReqExtManual, FwTcode};
 
 use ta1394::{general::VendorDependent, *};
+
+const APOGEE_OUI: [u8; 3] = [0x00, 0x03, 0xdb];
 
 const METER_OFFSET_BASE: u64 = 0xfffff0080000;
 const METER_INPUT_OFFSET: u64 = 0x0004;
@@ -101,6 +103,63 @@ impl DuetFwMixerMeterProtocol {
                     quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
                     *meter = i32::from_be_bytes(quadlet);
                 });
+        })
+    }
+}
+
+/// The enumeration for target of knob.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwKnobTarget {
+    OutputPair0,
+    InputPair0,
+    InputPair1,
+}
+
+impl Default for DuetFwKnobTarget {
+    fn default() -> Self {
+        Self::OutputPair0
+    }
+}
+
+/// The state of rotary knob.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct DuetFwKnobState {
+    pub output_mute: bool,
+    pub target: DuetFwKnobTarget,
+    pub output_volume: u8,
+    pub input_gains: [u8; 2],
+}
+
+/// The protocol implementation of rotary knob.
+#[derive(Default)]
+pub struct DuetFwKnobProtocol;
+
+impl DuetFwKnobProtocol {
+    pub const VOLUME_MIN: u8 = 0;
+    pub const VOLUME_MAX: u8 = 64;
+    pub const VOLUME_STEP: u8 = 1;
+
+    pub const GAIN_MIN: u8 = 10;
+    pub const GAIN_MAX: u8 = 75;
+    pub const GAIN_STEP: u8 = 1;
+}
+
+impl DuetFwKnobProtocol {
+    pub fn read_state(
+        avc: &mut FwFcp,
+        state: &mut DuetFwKnobState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::HwState);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            state.output_mute = op.vals[0] > 0;
+            state.target = match op.vals[1] {
+                2 => DuetFwKnobTarget::InputPair1,
+                1 => DuetFwKnobTarget::InputPair0,
+                _ => DuetFwKnobTarget::OutputPair0,
+            };
+            state.output_volume = Self::VOLUME_MAX - op.vals[3];
+            state.input_gains.copy_from_slice(&op.vals[4..6]);
         })
     }
 }
