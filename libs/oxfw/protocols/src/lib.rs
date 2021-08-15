@@ -7,5 +7,6 @@
 //! hardware vendors for FW970/971 ASICs.
 
 pub mod apogee;
+pub mod griffin;
 pub mod loud;
 pub mod tascam;
