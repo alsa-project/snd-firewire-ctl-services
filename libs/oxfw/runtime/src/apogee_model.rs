@@ -16,7 +16,6 @@ use ta1394::general::UnitInfo;
 use oxfw_protocols::apogee::*;
 
 use super::common_ctl::CommonCtl;
-use super::apogee_ctls::DisplayCtl;
 
 #[derive(Default, Debug)]
 pub struct ApogeeModel{
@@ -56,7 +55,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
         self.output_ctl.load_params(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
         self.input_ctl.load_params(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
         self.mixer_ctl.load_params(card_cntr)?;
-        self.display_ctl.load(&self.avc, card_cntr)?;
+        self.display_ctl.load_params(card_cntr)?;
 
         Ok(())
     }
@@ -77,7 +76,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
             Ok(true)
         } else if self.mixer_ctl.read_params(&mut self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.display_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
+        } else if self.display_ctl.read_params(&mut self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -96,7 +95,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
             Ok(true)
         } else if self.mixer_ctl.write_params(&mut self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.display_ctl.write(&self.avc, &self.company_id, elem_id, old, new)? {
+        } else if self.display_ctl.write_params(&mut self.avc, elem_id, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -840,6 +839,169 @@ impl MixerCtl {
                     DuetFwMixerProtocol::write_source_gain(avc, dst, src, gain as u16, timeout_ms)
                 })
                 .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct DisplayCtl;
+
+fn display_target_to_str(target: &DuetFwDisplayTarget) -> &str {
+    match target {
+        DuetFwDisplayTarget::Output => "output",
+        DuetFwDisplayTarget::Input => "input",
+    }
+}
+
+fn display_mode_to_str(mode: &DuetFwDisplayMode) -> &str {
+    match mode {
+        DuetFwDisplayMode::Independent => "independent",
+        DuetFwDisplayMode::FollowingToKnobTarget => "follow-to-knob",
+    }
+}
+
+fn display_overhold_to_str(mode: &DuetFwDisplayOverhold) -> &str {
+    match mode {
+        DuetFwDisplayOverhold::Infinite => "infinite",
+        DuetFwDisplayOverhold::TwoSeconds => "2seconds",
+    }
+}
+
+const DISPLAY_TARGET_NAME: &'static str = "meter-target";
+const DISPLAY_MODE_NAME: &'static str = "meter-mode";
+const DISPLAY_OVERHOLDS_NAME: &'static str = "meter-overhold";
+
+impl DisplayCtl {
+    const TARGETS: [DuetFwDisplayTarget; 2] = [
+        DuetFwDisplayTarget::Output,
+        DuetFwDisplayTarget::Input,
+    ];
+
+    const MODES: [DuetFwDisplayMode; 2] = [
+        DuetFwDisplayMode::Independent,
+        DuetFwDisplayMode::FollowingToKnobTarget,
+    ];
+
+    const OVERHOLDS: [DuetFwDisplayOverhold; 2] = [
+        DuetFwDisplayOverhold::Infinite,
+        DuetFwDisplayOverhold::TwoSeconds,
+    ];
+
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::TARGETS.iter()
+            .map(|t| display_target_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_TARGET_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::MODES.iter()
+            .map(|t| display_mode_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::OVERHOLDS.iter()
+            .map(|t| display_overhold_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_OVERHOLDS_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read_params(
+        &mut self,
+        avc: &mut FwFcp,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            DISPLAY_TARGET_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut target = DuetFwDisplayTarget::default();
+                    DuetFwDisplayProtocol::read_target(avc, &mut target, timeout_ms)
+                        .map(|_| {
+                            Self::TARGETS.iter()
+                                .position(|t| t.eq(&target))
+                                .unwrap() as u32
+                        })
+                })
+                .map(|_| true)
+            }
+            DISPLAY_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut mode = DuetFwDisplayMode::default();
+                    DuetFwDisplayProtocol::read_mode(avc, &mut mode, timeout_ms)
+                        .map(|_| {
+                            Self::MODES.iter()
+                                .position(|m| m.eq(&mode))
+                                .unwrap() as u32
+                        })
+                })
+                .map(|_| true)
+            }
+            DISPLAY_OVERHOLDS_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let mut mode = DuetFwDisplayOverhold::default();
+                    DuetFwDisplayProtocol::read_overhold(avc, &mut mode, timeout_ms)
+                        .map(|_| {
+                            Self::OVERHOLDS.iter()
+                                .position(|m| m.eq(&mode))
+                                .unwrap() as u32
+                        })
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        avc: &mut FwFcp,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            DISPLAY_TARGET_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &target = Self::TARGETS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for display targets: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                DuetFwDisplayProtocol::write_target(avc, target, timeout_ms)
+                    .map(|_| true)
+            }
+            DISPLAY_MODE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &mode = Self::MODES.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for display modes: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                DuetFwDisplayProtocol::write_mode(avc, mode, timeout_ms)
+                    .map(|_| true)
+            }
+            DISPLAY_OVERHOLDS_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &mode = Self::OVERHOLDS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for display overholds: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                DuetFwDisplayProtocol::write_overhold(avc, mode, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
