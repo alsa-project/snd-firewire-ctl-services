@@ -426,6 +426,17 @@ impl Default for DuetFwInputXlrNominalLevel {
     }
 }
 
+/// The structure of input parameters.
+#[derive(Default, Debug)]
+pub struct DuetFwInputParameters {
+    pub gains: [u8; 2],
+    pub polarities: [bool; 2],
+    pub xlr_nominal_levels: [DuetFwInputXlrNominalLevel; 2],
+    pub phantom_powerings: [bool; 2],
+    pub srcs: [DuetFwInputSource; 2],
+    pub clickless: bool,
+}
+
 /// The protocol implementation of input parameters.
 #[derive(Default)]
 pub struct DuetFwInputProtocol;
@@ -435,84 +446,145 @@ impl DuetFwInputProtocol {
     pub const GAIN_MAX: u8 = 75;
     pub const GAIN_STEP: u8 = 1;
 
-    pub fn read_gain(
+    pub fn read_parameters(
         avc: &mut FwFcp,
-        idx: usize,
-        gain: &mut u8,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx, Default::default()));
+        params
+            .gains
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, gain)| {
+                let mut op = ApogeeCmd::new(VendorCmd::InGain(i, Default::default()));
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+                    if let VendorCmd::InGain(_, g) = &op.cmd {
+                        *gain = *g
+                    }
+                })
+            })?;
+
+        params
+            .polarities
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, polarity)| {
+                let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(i, Default::default()));
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+                    if let VendorCmd::MicPolarity(_, enabled) = &op.cmd {
+                        *polarity = *enabled
+                    }
+                })
+            })?;
+
+        params
+            .xlr_nominal_levels
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, level)| {
+                let mut op = ApogeeCmd::new(VendorCmd::XlrIsMicLevel(i, Default::default()));
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                let is_mic_level = match &op.cmd {
+                    VendorCmd::XlrIsMicLevel(_, enabled) => *enabled,
+                    _ => unreachable!(),
+                };
+
+                let mut op = ApogeeCmd::new(VendorCmd::XlrIsConsumerLevel(i, Default::default()));
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                let is_consumer_level = match &op.cmd {
+                    VendorCmd::XlrIsConsumerLevel(_, enabled) => *enabled,
+                    _ => unreachable!(),
+                };
+
+                *level = if is_mic_level {
+                    DuetFwInputXlrNominalLevel::Microphone
+                } else {
+                    if is_consumer_level {
+                        DuetFwInputXlrNominalLevel::Consumer
+                    } else {
+                        DuetFwInputXlrNominalLevel::Professional
+                    }
+                };
+
+                Ok(())
+            })?;
+
+        params
+            .phantom_powerings
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, phantom)| {
+                let mut op = ApogeeCmd::new(VendorCmd::MicPhantom(i, Default::default()));
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+                    if let VendorCmd::MicPhantom(_, e) = &op.cmd {
+                        *phantom = *e
+                    }
+                })
+            })?;
+
+        params
+            .srcs
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, src)| {
+                let mut op = ApogeeCmd::new(VendorCmd::InputSourceIsPhone(i, Default::default()));
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+                    if let VendorCmd::InputSourceIsPhone(_, enabled) = &op.cmd {
+                        *src = if *enabled {
+                            DuetFwInputSource::Phone
+                        } else {
+                            DuetFwInputSource::Xlr
+                        };
+                    }
+                })
+            })?;
+
+        let mut op = ApogeeCmd::new(VendorCmd::InClickless(Default::default()));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::InGain(_, g) = &op.cmd {
-                *gain = *g
+            if let VendorCmd::InClickless(e) = &op.cmd {
+                params.clickless = *e
             }
-        })
+        })?;
+
+        Ok(())
     }
 
-    pub fn write_gain(avc: &mut FwFcp, idx: usize, gain: u8, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx, gain));
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_polarity(
+    pub fn write_gain(
         avc: &mut FwFcp,
         idx: usize,
-        polarity: &mut bool,
+        gain: u8,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(idx, Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::MicPolarity(_, enabled) = &op.cmd {
-                *polarity = *enabled
-            }
-        })
+        if params.srcs[idx] == DuetFwInputSource::Xlr
+            && params.xlr_nominal_levels[idx] != DuetFwInputXlrNominalLevel::Microphone
+        {
+            let msg = format!("Gain is not adjustable for line level of XLR.");
+            Err(Error::new(FileError::Inval, &msg))
+        } else {
+            let mut op = ApogeeCmd::new(VendorCmd::InGain(idx, gain));
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map(|_| params.gains[idx] = gain)
+        }
     }
 
     pub fn write_polarity(
         avc: &mut FwFcp,
         idx: usize,
         polarity: bool,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(idx, polarity));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_xlr_nominal_level(
-        avc: &mut FwFcp,
-        idx: usize,
-        level: &mut DuetFwInputXlrNominalLevel,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::XlrIsMicLevel(idx, Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-        let is_mic_level = match &op.cmd {
-            VendorCmd::XlrIsMicLevel(_, enabled) => *enabled,
-            _ => unreachable!(),
-        };
-        let mut op = ApogeeCmd::new(VendorCmd::XlrIsConsumerLevel(idx, Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-        let is_consumer_level = match &op.cmd {
-            VendorCmd::XlrIsConsumerLevel(_, enabled) => *enabled,
-            _ => unreachable!(),
-        };
-
-        *level = if is_mic_level {
-            DuetFwInputXlrNominalLevel::Microphone
-        } else {
-            if is_consumer_level {
-                DuetFwInputXlrNominalLevel::Consumer
-            } else {
-                DuetFwInputXlrNominalLevel::Professional
-            }
-        };
-        Ok(())
+            .map(|_| params.polarities[idx] = polarity)
     }
 
     pub fn write_xlr_nominal_level(
         avc: &mut FwFcp,
         idx: usize,
         level: DuetFwInputXlrNominalLevel,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let (is_mic_level, is_consumer_level) = match level {
@@ -524,78 +596,50 @@ impl DuetFwInputProtocol {
         let mut op = ApogeeCmd::new(VendorCmd::XlrIsMicLevel(idx, is_mic_level));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let mut op = ApogeeCmd::new(VendorCmd::XlrIsConsumerLevel(idx, is_consumer_level));
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_phantom_powering(
-        avc: &mut FwFcp,
-        idx: usize,
-        enable: &mut bool,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::MicPhantom(idx, Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::MicPhantom(_, e) = &op.cmd {
-                *enable = *e
-            }
-        })
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        params.xlr_nominal_levels[idx] = level;
+        Ok(())
     }
 
     pub fn write_phantom_powering(
         avc: &mut FwFcp,
         idx: usize,
         enable: bool,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::MicPhantom(idx, enable));
-        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
-    }
-
-    pub fn read_src(
-        avc: &mut FwFcp,
-        idx: usize,
-        src: &mut DuetFwInputSource,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::InputSourceIsPhone(idx, Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::InputSourceIsPhone(_, enabled) = &op.cmd {
-                *src = if *enabled {
-                    DuetFwInputSource::Phone
-                } else {
-                    DuetFwInputSource::Xlr
-                };
-            }
-        })
+        if params.xlr_nominal_levels[idx] != DuetFwInputXlrNominalLevel::Microphone {
+            let msg = "Phantom powering is available for microphone nominal level";
+            Err(Error::new(FileError::Inval, &msg))
+        } else {
+            let mut op = ApogeeCmd::new(VendorCmd::MicPhantom(idx, enable));
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map(|_| params.phantom_powerings[idx] = enable)
+        }
     }
 
     pub fn write_src(
         avc: &mut FwFcp,
         idx: usize,
         src: DuetFwInputSource,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let is_phone = src == DuetFwInputSource::Phone;
         let mut op = ApogeeCmd::new(VendorCmd::InputSourceIsPhone(idx, is_phone));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| params.srcs[idx] = src)
     }
 
-    pub fn read_clickless(
+    pub fn write_clickless(
         avc: &mut FwFcp,
-        enable: &mut bool,
+        enable: bool,
+        params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::InClickless(Default::default()));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            if let VendorCmd::InClickless(e) = &op.cmd {
-                *enable = *e
-            }
-        })
-    }
-
-    pub fn write_clickless(avc: &mut FwFcp, enable: bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = ApogeeCmd::new(VendorCmd::InClickless(enable));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| params.clickless = enable)
     }
 }
 
