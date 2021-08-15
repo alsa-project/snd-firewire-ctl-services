@@ -16,7 +16,7 @@ use ta1394::general::UnitInfo;
 use oxfw_protocols::apogee::*;
 
 use super::common_ctl::CommonCtl;
-use super::apogee_ctls::{MixerCtl, DisplayCtl};
+use super::apogee_ctls::DisplayCtl;
 
 #[derive(Default, Debug)]
 pub struct ApogeeModel{
@@ -55,7 +55,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
         self.knob_ctl.load_state(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
         self.output_ctl.load_params(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
         self.input_ctl.load_params(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
-        self.mixer_ctl.load(&self.avc, card_cntr)?;
+        self.mixer_ctl.load_params(card_cntr)?;
         self.display_ctl.load(&self.avc, card_cntr)?;
 
         Ok(())
@@ -75,7 +75,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
             Ok(true)
         } else if self.input_ctl.read_params(&mut self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
+        } else if self.mixer_ctl.read_params(&mut self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.display_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
             Ok(true)
@@ -94,7 +94,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
             Ok(true)
         } else if self.input_ctl.write_params(&mut self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(&self.avc, &self.company_id, elem_id, old, new)? {
+        } else if self.mixer_ctl.write_params(&mut self.avc, elem_id, old, new, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.display_ctl.write(&self.avc, &self.company_id, elem_id, old, new)? {
             Ok(true)
@@ -770,6 +770,76 @@ impl InputCtl {
                 new.get_bool(&mut vals);
                 DuetFwInputProtocol::write_clickless(avc, vals[0], timeout_ms)
                     .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct MixerCtl;
+
+const MIXER_SOURCE_GAIN_NAME: &str = "mixer-source-gain";
+
+impl MixerCtl {
+    const DST_LABELS: [&'static str; 2] = ["mixer-output-1", "mixer-output-2"];
+    const SRC_LABELS: [&'static str; 4] = [
+        "stream-input-1", "stream-input-2", "analog-input-1", "analog-input-2",
+    ];
+
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
+        let _ = card_cntr
+            .add_int_elems(
+                &elem_id,
+                Self::DST_LABELS.len(),
+                DuetFwMixerProtocol::GAIN_MIN as i32,
+                DuetFwMixerProtocol::GAIN_MAX as i32,
+                DuetFwMixerProtocol::GAIN_STEP as i32,
+                Self::SRC_LABELS.len(),
+                None,
+                true,
+            )?;
+
+        Ok(())
+    }
+
+    fn read_params(
+        &mut self,
+        avc: &mut FwFcp,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_SOURCE_GAIN_NAME => {
+                let dst = elem_id.get_index() as usize;
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
+                    let mut gain = 0;
+                    DuetFwMixerProtocol::read_source_gain(avc, dst, src, &mut gain, timeout_ms)
+                        .map(|_| gain as i32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        avc: &mut FwFcp,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_SOURCE_GAIN_NAME => {
+                let dst = elem_id.get_index() as usize;
+                ElemValueAccessor::<i32>::get_vals(new, old, Self::SRC_LABELS.len(), |src, gain| {
+                    DuetFwMixerProtocol::write_source_gain(avc, dst, src, gain as u16, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
