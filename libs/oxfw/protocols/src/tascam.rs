@@ -7,6 +7,8 @@
 
 use glib::Error;
 
+use hinawa::FwFcp;
+
 use ta1394::general::VendorDependent;
 use ta1394::{AvcAddr, AvcCmdType, AvcRespCode, Ta1394Avc, Ta1394AvcError};
 use ta1394::{AvcControl, AvcOp, AvcStatus};
@@ -68,7 +70,7 @@ impl FireoneProtocol {
         mode: &mut FireoneDisplayMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::DisplayMode);
+        let mut op = TascamProto::new(VendorCmd::DisplayMode);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *mode = match op.val {
                 7 => FireoneDisplayMode::JogTrack,
@@ -98,7 +100,7 @@ impl FireoneProtocol {
             FireoneDisplayMode::AlwaysOn => 1,
             FireoneDisplayMode::Off => 0,
         } as u8;
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::DisplayMode);
+        let mut op = TascamProto::new(VendorCmd::DisplayMode);
         op.val = val;
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -108,7 +110,7 @@ impl FireoneProtocol {
         mode: &mut FireoneMidiMessageMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::MessageMode);
+        let mut op = TascamProto::new(VendorCmd::MessageMode);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *mode = if op.val > 0 {
                 FireoneMidiMessageMode::MackieHuiEmulation
@@ -127,7 +129,7 @@ impl FireoneProtocol {
             FireoneMidiMessageMode::Native => 0,
             FireoneMidiMessageMode::MackieHuiEmulation => 1,
         };
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::MessageMode);
+        let mut op = TascamProto::new(VendorCmd::MessageMode);
         op.val = val as u8;
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -137,7 +139,7 @@ impl FireoneProtocol {
         mode: &mut FireoneInputMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::MessageMode);
+        let mut op = TascamProto::new(VendorCmd::MessageMode);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *mode = if op.val > 0 {
                 FireoneInputMode::Monaural
@@ -156,7 +158,7 @@ impl FireoneProtocol {
             FireoneInputMode::Stereo => 0,
             FireoneInputMode::Monaural => 1,
         };
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::InputMode);
+        let mut op = TascamProto::new(VendorCmd::InputMode);
         op.val = val as u8;
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -166,7 +168,7 @@ impl FireoneProtocol {
         version: &mut u8,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = TascamProto::new(&TEAC_OUI, VendorCmd::FirmwareVersion);
+        let mut op = TascamProto::new(VendorCmd::FirmwareVersion);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *version = op.val as u8)
     }
@@ -205,14 +207,14 @@ pub struct TascamProto {
     op: VendorDependent,
 }
 
-impl<'a> TascamProto {
-    const TASCAM_PREFIX: &'a [u8] = &[0x46, 0x49, 0x31]; // 'F', 'I', '1'
+impl TascamProto {
+    const TASCAM_PREFIX: [u8; 3] = [0x46, 0x49, 0x31]; // 'F', 'I', '1'
 
-    pub fn new(company_id: &[u8; 3], cmd: VendorCmd) -> Self {
-        TascamProto {
+    pub fn new(cmd: VendorCmd) -> Self {
+        TascamProto{
             cmd,
             val: 0xff,
-            op: VendorDependent::new(company_id),
+            op: VendorDependent::new(&TEAC_OUI),
         }
     }
 
@@ -271,23 +273,11 @@ impl AvcStatus for TascamProto {
 
 /// The structure to represent AV/C protocol for TASCAM FireOne.
 #[derive(Default, Debug)]
-pub struct TascamAvc {
-    pub fcp: hinawa::FwFcp,
-    pub company_id: [u8; 3],
-}
+pub struct TascamAvc(pub FwFcp);
 
-impl TascamAvc {
-    pub fn new() -> Self {
-        TascamAvc {
-            fcp: hinawa::FwFcp::new(),
-            company_id: [0; 3],
-        }
-    }
-}
-
-impl AsRef<hinawa::FwFcp> for TascamAvc {
-    fn as_ref(&self) -> &hinawa::FwFcp {
-        &self.fcp
+impl AsRef<FwFcp> for TascamAvc {
+    fn as_ref(&self) -> &FwFcp {
+        &self.0
     }
 }
 
@@ -326,8 +316,8 @@ mod test {
 
     #[test]
     fn tascam_proto_operands() {
-        let mut op = TascamProto::new(&[0x01, 0x23, 0x45], VendorCmd::DisplayMode);
-        let operands = [0x01, 0x23, 0x45, 0x46, 0x49, 0x31, 0x10, 0x01];
+        let mut op = TascamProto::new(VendorCmd::DisplayMode);
+        let operands = [0x00, 0x02, 0x2e, 0x46, 0x49, 0x31, 0x10, 0x01];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.val, 0x01);
 
@@ -335,8 +325,8 @@ mod test {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands);
 
-        let mut op = TascamProto::new(&[0x54, 0x32, 0x10], VendorCmd::InputMode);
-        let operands = [0x54, 0x32, 0x10, 0x46, 0x49, 0x31, 0x12, 0x1c];
+        let mut op = TascamProto::new(VendorCmd::InputMode);
+        let operands = [0x00, 0x02, 0x2e, 0x46, 0x49, 0x31, 0x12, 0x1c];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.val, 0x1c);
 

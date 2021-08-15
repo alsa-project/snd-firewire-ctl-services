@@ -9,9 +9,6 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 
 use core::card_cntr::*;
 
-use ta1394::{Ta1394Avc, AvcAddr};
-use ta1394::general::UnitInfo;
-
 use oxfw_protocols::tascam::*;
 
 use super::common_ctl::CommonCtl;
@@ -79,11 +76,7 @@ impl TascamModel {
 
 impl CtlModel<SndUnit> for TascamModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.fcp.bind(&unit.get_node())?;
-
-        let mut op = UnitInfo::new();
-        self.avc.status(&AvcAddr::Unit, &mut op, FCP_TIMEOUT_MS)?;
-        self.avc.company_id.copy_from_slice(&op.company_id);
+        self.avc.0.bind(&unit.get_node())?;
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
