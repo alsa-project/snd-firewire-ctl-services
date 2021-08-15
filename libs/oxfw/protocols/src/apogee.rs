@@ -12,7 +12,50 @@ use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 use ta1394::{general::VendorDependent, *};
 
 const METER_OFFSET_BASE: u64 = 0xfffff0080000;
+const METER_INPUT_OFFSET: u64 = 0x0004;
 const METER_MIXER_OFFSET: u64 = 0x0404;
+
+/// The state of meter for analog input.
+#[derive(Default, Debug)]
+pub struct DuetFwInputMeterState(pub [i32; 2]);
+
+/// The protocol implementation of meter for analog input.
+#[derive(Default, Debug)]
+pub struct DuetFwInputMeterProtocol;
+
+impl DuetFwInputMeterProtocol {
+    const ANALOG_INPUT_SIZE: usize = 8;
+
+    pub const LEVEL_MIN: i32 = 0;
+    pub const LEVEL_MAX: i32 = i32::MAX;
+    pub const LEVEL_STEP: i32 = 0x100;
+
+    pub fn read_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut DuetFwInputMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut frame = [0; Self::ANALOG_INPUT_SIZE];
+
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            METER_OFFSET_BASE + METER_INPUT_OFFSET,
+            frame.len(),
+            &mut frame,
+            timeout_ms,
+        )
+        .map(|_| {
+            let mut quadlet = [0; 4];
+            state.0.iter_mut().enumerate().for_each(|(i, meter)| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
+                *meter = i32::from_be_bytes(quadlet);
+            });
+        })
+    }
+}
 
 /// The state of meter for mixer source/output.
 #[derive(Default, Debug)]
