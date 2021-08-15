@@ -150,7 +150,7 @@ impl DuetFwKnobProtocol {
         state: &mut DuetFwKnobState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::HwState);
+        let mut op = ApogeeCmd::new(VendorCmd::HwState);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             state.output_mute = op.vals[0] > 0;
             state.target = match op.vals[1] {
@@ -216,25 +216,25 @@ impl DuetFwOutputProtocol {
     pub const VOLUME_STEP: u8 = 1;
 
     pub fn read_mute(avc: &mut FwFcp, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutMute);
+        let mut op = ApogeeCmd::new(VendorCmd::OutMute);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *mute = op.get_enum() > 0)
     }
 
     pub fn write_mute(avc: &mut FwFcp, mute: bool, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutMute);
+        let mut op = ApogeeCmd::new(VendorCmd::OutMute);
         op.put_enum(mute as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 
     pub fn read_volume(avc: &mut FwFcp, volume: &mut u8, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutVolume);
+        let mut op = ApogeeCmd::new(VendorCmd::OutVolume);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *volume = Self::VOLUME_MAX - op.vals[0])
     }
 
     pub fn write_volume(avc: &mut FwFcp, volume: u8, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutVolume);
+        let mut op = ApogeeCmd::new(VendorCmd::OutVolume);
         op.vals.push(Self::VOLUME_MAX - volume);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -244,7 +244,7 @@ impl DuetFwOutputProtocol {
         src: &mut DuetFwOutputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UseMixerOut);
+        let mut op = ApogeeCmd::new(VendorCmd::UseMixerOut);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *src = if op.get_enum() > 0 {
                 DuetFwOutputSource::MixerOutputPair0
@@ -264,7 +264,7 @@ impl DuetFwOutputProtocol {
         } else {
             0
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UseMixerOut);
+        let mut op = ApogeeCmd::new(VendorCmd::UseMixerOut);
         op.put_enum(val);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -274,7 +274,7 @@ impl DuetFwOutputProtocol {
         level: &mut DuetFwOutputNominalLevel,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutAttr);
+        let mut op = ApogeeCmd::new(VendorCmd::OutAttr);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *level = if op.get_enum() > 0 {
                 DuetFwOutputNominalLevel::Consumer
@@ -294,7 +294,7 @@ impl DuetFwOutputProtocol {
         } else {
             0
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutAttr);
+        let mut op = ApogeeCmd::new(VendorCmd::OutAttr);
         op.put_enum(val);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -321,11 +321,11 @@ impl DuetFwOutputProtocol {
         mode: &mut DuetFwOutputMuteMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForLineOut);
+        let mut op = ApogeeCmd::new(VendorCmd::MuteForLineOut);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let mute_enabled = op.get_enum() > 0;
 
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForLineOut);
+        let mut op = ApogeeCmd::new(VendorCmd::UnmuteForLineOut);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let unmute_enabled = op.get_enum() > 0;
 
@@ -341,11 +341,11 @@ impl DuetFwOutputProtocol {
     ) -> Result<(), Error> {
         let (mute_enabled, unmute_enabled) = Self::build_mute_mode(mode);
 
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForLineOut);
+        let mut op = ApogeeCmd::new(VendorCmd::MuteForLineOut);
         op.put_enum(mute_enabled as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForLineOut);
+        let mut op = ApogeeCmd::new(VendorCmd::UnmuteForLineOut);
         op.put_enum(unmute_enabled as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -355,11 +355,11 @@ impl DuetFwOutputProtocol {
         mode: &mut DuetFwOutputMuteMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForHpOut);
+        let mut op = ApogeeCmd::new(VendorCmd::MuteForHpOut);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let mute_enabled = op.get_enum() > 0;
 
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForHpOut);
+        let mut op = ApogeeCmd::new(VendorCmd::UnmuteForHpOut);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let unmute_enabled = op.get_enum() > 0;
 
@@ -375,11 +375,11 @@ impl DuetFwOutputProtocol {
     ) -> Result<(), Error> {
         let (mute_enabled, unmute_enabled) = Self::build_mute_mode(mode);
 
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForHpOut);
+        let mut op = ApogeeCmd::new(VendorCmd::MuteForHpOut);
         op.put_enum(mute_enabled as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForHpOut);
+        let mut op = ApogeeCmd::new(VendorCmd::UnmuteForHpOut);
         op.put_enum(unmute_enabled as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -432,13 +432,13 @@ impl DuetFwInputProtocol {
         gain: &mut u8,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::InGain(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *gain = op.get_u8())
     }
 
     pub fn write_gain(avc: &mut FwFcp, idx: usize, gain: u8, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::InGain(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx as u8));
         op.put_u8(gain);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -449,7 +449,7 @@ impl DuetFwInputProtocol {
         polarity: &mut bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MicPolarity(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(idx as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *polarity = op.get_enum() > 0)
     }
@@ -460,7 +460,7 @@ impl DuetFwInputProtocol {
         polarity: bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MicPolarity(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MicPolarity(idx as u8));
         op.put_enum(polarity as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -471,10 +471,10 @@ impl DuetFwInputProtocol {
         level: &mut DuetFwInputXlrNominalLevel,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::PhoneInLine(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::PhoneInLine(idx as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let is_line_level = op.get_enum() > 0;
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::LineInLevel(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::LineInLevel(idx as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
         let is_consumer_level = op.get_enum() > 0;
         *level = if is_line_level {
@@ -500,10 +500,10 @@ impl DuetFwInputProtocol {
             DuetFwInputXlrNominalLevel::Professional => (true, false),
             DuetFwInputXlrNominalLevel::Microphone => (false, true),
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::PhoneInLine(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::PhoneInLine(idx as u8));
         op.put_enum(is_line_level as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::LineInLevel(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::LineInLevel(idx as u8));
         op.put_enum(is_consumer_level as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -514,7 +514,7 @@ impl DuetFwInputProtocol {
         enable: &mut bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MicPhantom(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MicPhantom(idx as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *enable = op.get_enum() > 0)
     }
@@ -525,7 +525,7 @@ impl DuetFwInputProtocol {
         enable: bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MicPhantom(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MicPhantom(idx as u8));
         op.put_enum(enable as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -536,7 +536,7 @@ impl DuetFwInputProtocol {
         src: &mut DuetFwInputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MicIn(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MicIn(idx as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *src = if op.get_enum() > 0 {
                 DuetFwInputSource::Phone
@@ -557,7 +557,7 @@ impl DuetFwInputProtocol {
         } else {
             0
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MicIn(idx as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MicIn(idx as u8));
         op.put_enum(val);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -567,13 +567,13 @@ impl DuetFwInputProtocol {
         enable: &mut bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::InClickless);
+        let mut op = ApogeeCmd::new(VendorCmd::InClickless);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *enable = op.get_enum() > 0)
     }
 
     pub fn write_clickless(avc: &mut FwFcp, enable: bool, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::InClickless);
+        let mut op = ApogeeCmd::new(VendorCmd::InClickless);
         op.put_enum(enable as u32);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -595,7 +595,7 @@ impl DuetFwMixerProtocol {
         gain: &mut u16,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MixerSrc(src as u8, dst as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(src as u8, dst as u8));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map(|_| *gain = op.read_u16())
     }
@@ -607,7 +607,7 @@ impl DuetFwMixerProtocol {
         gain: u16,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MixerSrc(src as u8, dst as u8));
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(src as u8, dst as u8));
         op.write_u16(gain);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -662,7 +662,7 @@ impl DuetFwDisplayProtocol {
         target: &mut DuetFwDisplayTarget,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayInput);
+        let mut op = ApogeeCmd::new(VendorCmd::DisplayInput);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *target = if op.get_enum() > 0 {
                 DuetFwDisplayTarget::Input
@@ -682,7 +682,7 @@ impl DuetFwDisplayProtocol {
         } else {
             0
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayInput);
+        let mut op = ApogeeCmd::new(VendorCmd::DisplayInput);
         op.put_enum(val);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -692,7 +692,7 @@ impl DuetFwDisplayProtocol {
         mode: &mut DuetFwDisplayMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayFollow);
+        let mut op = ApogeeCmd::new(VendorCmd::DisplayFollow);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *mode = if op.get_enum() > 0 {
                 DuetFwDisplayMode::FollowingToKnobTarget
@@ -712,7 +712,7 @@ impl DuetFwDisplayProtocol {
         } else {
             0
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayFollow);
+        let mut op = ApogeeCmd::new(VendorCmd::DisplayFollow);
         op.put_enum(val);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -722,7 +722,7 @@ impl DuetFwDisplayProtocol {
         mode: &mut DuetFwDisplayOverhold,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayOverhold);
+        let mut op = ApogeeCmd::new(VendorCmd::DisplayOverhold);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             *mode = if op.get_enum() > 0 {
                 DuetFwDisplayOverhold::TwoSeconds
@@ -742,7 +742,7 @@ impl DuetFwDisplayProtocol {
         } else {
             0
         };
-        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayOverhold);
+        let mut op = ApogeeCmd::new(VendorCmd::DisplayOverhold);
         op.put_enum(val);
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
@@ -811,11 +811,11 @@ impl ApogeeCmd {
     const ON: u8 = 0x70;
     const OFF: u8 = 0x60;
 
-    pub fn new(company_id: &[u8;3], cmd: VendorCmd) -> Self {
+    pub fn new(cmd: VendorCmd) -> Self {
         ApogeeCmd{
             cmd,
             vals: Vec::new(),
-            op: VendorDependent::new(company_id),
+            op: VendorDependent::new(&APOGEE_OUI),
         }
     }
 
@@ -989,8 +989,8 @@ mod test {
     #[test]
     fn apogee_cmd_proto_operands() {
         // No argument command.
-        let mut op = ApogeeCmd::new(&[0x01, 0x23, 0x45], VendorCmd::UseMixerOut);
-        let operands = [0x01, 0x23, 0x45, 0x50, 0x43, 0x4d, 0x11, 0xff, 0xff, 0xe3];
+        let mut op = ApogeeCmd::new(VendorCmd::UseMixerOut);
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x11, 0xff, 0xff, 0xe3];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xe3]);
 
@@ -998,8 +998,8 @@ mod test {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands);
 
-        let mut op = ApogeeCmd::new(&[0x54, 0x32, 0x10], VendorCmd::UseMixerOut);
-        let operands = [0x54, 0x32, 0x10, 0x50, 0x43, 0x4d, 0x11, 0xff, 0xff, 0xe3];
+        let mut op = ApogeeCmd::new(VendorCmd::UseMixerOut);
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x11, 0xff, 0xff, 0xe3];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xe3]);
 
@@ -1008,8 +1008,8 @@ mod test {
         assert_eq!(o, operands);
 
         // One argument command.
-        let mut op = ApogeeCmd::new(&[0x01, 0x23, 0x45], VendorCmd::LineInLevel(1));
-        let operands = [0x01, 0x23, 0x45, 0x50, 0x43, 0x4d, 0x02, 0x80, 0x01, 0xb9];
+        let mut op = ApogeeCmd::new(VendorCmd::LineInLevel(1));
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x02, 0x80, 0x01, 0xb9];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xb9]);
 
@@ -1017,8 +1017,8 @@ mod test {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands);
 
-        let mut op = ApogeeCmd::new(&[0x54, 0x32, 0x10], VendorCmd::LineInLevel(1));
-        let operands = [0x54, 0x32, 0x10, 0x50, 0x43, 0x4d, 0x02, 0x80, 0x01, 0xb9];
+        let mut op = ApogeeCmd::new(VendorCmd::LineInLevel(1));
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x02, 0x80, 0x01, 0xb9];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xb9]);
 
@@ -1027,8 +1027,8 @@ mod test {
         assert_eq!(o, operands);
 
         // Two arguments command.
-        let mut op = ApogeeCmd::new(&[0x01, 0x23, 0x45], VendorCmd::MixerSrc(1, 0));
-        let operands = [0x01, 0x23, 0x45, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0));
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef]);
 
@@ -1036,8 +1036,8 @@ mod test {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands);
 
-        let mut op = ApogeeCmd::new(&[0x54, 0x32, 0x10], VendorCmd::MixerSrc(1, 0));
-        let operands = [0x54, 0x32, 0x10, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0));
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef]);
 
@@ -1046,8 +1046,8 @@ mod test {
         assert_eq!(o, operands);
 
         // Command for block request.
-        let mut op = ApogeeCmd::new(&[0x01, 0x23, 0x45], VendorCmd::HwState);
-        let operands = [0x01, 0x23, 0x45, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
+        let mut op = ApogeeCmd::new(VendorCmd::HwState);
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
                         0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef]);
@@ -1056,8 +1056,8 @@ mod test {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands);
 
-        let mut op = ApogeeCmd::new(&[0x54, 0x32, 0x10], VendorCmd::HwState);
-        let operands = [0x54, 0x32, 0x10, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
+        let mut op = ApogeeCmd::new(VendorCmd::HwState);
+        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
                         0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef]);
