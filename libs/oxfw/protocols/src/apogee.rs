@@ -164,6 +164,227 @@ impl DuetFwKnobProtocol {
     }
 }
 
+/// The enumeration for source of output.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwOutputSource {
+    StreamInputPair0,
+    MixerOutputPair0,
+}
+
+impl Default for DuetFwOutputSource {
+    fn default() -> Self {
+        Self::StreamInputPair0
+    }
+}
+
+/// The enumeration for level of output.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwOutputNominalLevel {
+    /// Fixed level for external amplifier.
+    Instrument,
+    /// -10 dBV, adjustable between 0 to 64 (-64 to 0 dB).
+    Consumer,
+}
+
+impl Default for DuetFwOutputNominalLevel {
+    fn default() -> Self {
+        Self::Instrument
+    }
+}
+
+/// The enumeration for level of output.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwOutputMuteMode {
+    Never,
+    Normal,
+    Swapped,
+}
+
+impl Default for DuetFwOutputMuteMode {
+    fn default() -> Self {
+        Self::Never
+    }
+}
+
+/// The protocol implementation of output parameters.
+#[derive(Default)]
+pub struct DuetFwOutputProtocol;
+
+impl DuetFwOutputProtocol {
+    pub const VOLUME_MIN: u8 = 0;
+    pub const VOLUME_MAX: u8 = 64;
+    pub const VOLUME_STEP: u8 = 1;
+
+    pub fn read_mute(avc: &mut FwFcp, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutMute);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| *mute = op.get_enum() > 0)
+    }
+
+    pub fn write_mute(avc: &mut FwFcp, mute: bool, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutMute);
+        op.put_enum(mute as u32);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn read_volume(avc: &mut FwFcp, volume: &mut u8, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutVolume);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| *volume = Self::VOLUME_MAX - op.vals[0])
+    }
+
+    pub fn write_volume(avc: &mut FwFcp, volume: u8, timeout_ms: u32) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutVolume);
+        op.vals.push(Self::VOLUME_MAX - volume);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn read_src(
+        avc: &mut FwFcp,
+        src: &mut DuetFwOutputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UseMixerOut);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            *src = if op.get_enum() > 0 {
+                DuetFwOutputSource::MixerOutputPair0
+            } else {
+                DuetFwOutputSource::StreamInputPair0
+            };
+        })
+    }
+
+    pub fn write_src(
+        avc: &mut FwFcp,
+        src: DuetFwOutputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = if src == DuetFwOutputSource::MixerOutputPair0 {
+            1
+        } else {
+            0
+        };
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UseMixerOut);
+        op.put_enum(val);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn read_nominal_level(
+        avc: &mut FwFcp,
+        level: &mut DuetFwOutputNominalLevel,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutAttr);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            *level = if op.get_enum() > 0 {
+                DuetFwOutputNominalLevel::Consumer
+            } else {
+                DuetFwOutputNominalLevel::Instrument
+            };
+        })
+    }
+
+    pub fn write_nominal_level(
+        avc: &mut FwFcp,
+        level: DuetFwOutputNominalLevel,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = if level == DuetFwOutputNominalLevel::Consumer {
+            1
+        } else {
+            0
+        };
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::OutAttr);
+        op.put_enum(val);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    fn parse_mute_mode(mute: bool, unmute: bool) -> DuetFwOutputMuteMode {
+        match (mute, unmute) {
+            (true, true) => DuetFwOutputMuteMode::Never,
+            (true, false) => DuetFwOutputMuteMode::Swapped,
+            (false, true) => DuetFwOutputMuteMode::Normal,
+            (false, false) => DuetFwOutputMuteMode::Never,
+        }
+    }
+
+    fn build_mute_mode(mode: DuetFwOutputMuteMode) -> (bool, bool) {
+        match mode {
+            DuetFwOutputMuteMode::Never => (true, true),
+            DuetFwOutputMuteMode::Normal => (false, true),
+            DuetFwOutputMuteMode::Swapped => (true, false),
+        }
+    }
+
+    pub fn read_mute_mode_for_analog_output(
+        avc: &mut FwFcp,
+        mode: &mut DuetFwOutputMuteMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForLineOut);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        let mute_enabled = op.get_enum() > 0;
+
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForLineOut);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        let unmute_enabled = op.get_enum() > 0;
+
+        *mode = Self::parse_mute_mode(mute_enabled, unmute_enabled);
+
+        Ok(())
+    }
+
+    pub fn write_mute_mode_for_analog_output(
+        avc: &mut FwFcp,
+        mode: DuetFwOutputMuteMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let (mute_enabled, unmute_enabled) = Self::build_mute_mode(mode);
+
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForLineOut);
+        op.put_enum(mute_enabled as u32);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForLineOut);
+        op.put_enum(unmute_enabled as u32);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn read_mute_mode_for_hp(
+        avc: &mut FwFcp,
+        mode: &mut DuetFwOutputMuteMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForHpOut);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        let mute_enabled = op.get_enum() > 0;
+
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForHpOut);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        let unmute_enabled = op.get_enum() > 0;
+
+        *mode = Self::parse_mute_mode(mute_enabled, unmute_enabled);
+
+        Ok(())
+    }
+
+    pub fn write_mute_mode_for_hp(
+        avc: &mut FwFcp,
+        mode: DuetFwOutputMuteMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let (mute_enabled, unmute_enabled) = Self::build_mute_mode(mode);
+
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MuteForHpOut);
+        op.put_enum(mute_enabled as u32);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
+
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::UnmuteForHpOut);
+        op.put_enum(unmute_enabled as u32);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+}
+
 /// The enumeration to represent type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
