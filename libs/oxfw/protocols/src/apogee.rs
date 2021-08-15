@@ -4,6 +4,23 @@
 //! Protocol defined by Apogee Electronics for Duet FireWire.
 //!
 //! The module includes protocol implementation defined by Apogee Electronics for Duet FireWire.
+//!
+//! ## Diagram of internal signal flow for Apogee Duet FireWire
+//!
+//! ```text
+//!
+//! xlr-input-1 ----> or ------> analog-input-1 --+-----+---------------> stream-output-1/2
+//!                   ^                           |     |
+//! xlr-input-2 ------|-> or --> analog-input-2 --|--+--+
+//!                   |   ^                       |  |
+//! phone-input-1 --- +   |                       |  |
+//!                       |                       v  v
+//! phone-input-2 --------+                   ++=========++
+//!                                           ||  mixer  ||
+//! stream-input-1/2 -----------------------> ||         || ------------> analog-output-1/2
+//!                                           ||  4 x 2  ||
+//!                                           ++=========++
+//! ```
 
 use glib::{Error, FileError};
 
