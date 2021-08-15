@@ -613,6 +613,141 @@ impl DuetFwMixerProtocol {
     }
 }
 
+/// The enumeration for target of display.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwDisplayTarget {
+    Output,
+    Input,
+}
+
+impl Default for DuetFwDisplayTarget {
+    fn default() -> Self {
+        Self::Output
+    }
+}
+
+/// The enumeration for mode of display.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwDisplayMode {
+    Independent,
+    FollowingToKnobTarget,
+}
+
+impl Default for DuetFwDisplayMode {
+    fn default() -> Self {
+        Self::Independent
+    }
+}
+
+/// The enumeration for overhold of display.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DuetFwDisplayOverhold {
+    Infinite,
+    TwoSeconds,
+}
+
+impl Default for DuetFwDisplayOverhold {
+    fn default() -> Self {
+        Self::Infinite
+    }
+}
+
+/// The protocol implementation of display.
+#[derive(Default)]
+pub struct DuetFwDisplayProtocol;
+
+impl DuetFwDisplayProtocol {
+    pub fn read_target(
+        avc: &mut FwFcp,
+        target: &mut DuetFwDisplayTarget,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayInput);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            *target = if op.get_enum() > 0 {
+                DuetFwDisplayTarget::Input
+            } else {
+                DuetFwDisplayTarget::Output
+            }
+        })
+    }
+
+    pub fn write_target(
+        avc: &mut FwFcp,
+        target: DuetFwDisplayTarget,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = if target == DuetFwDisplayTarget::Input {
+            1
+        } else {
+            0
+        };
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayInput);
+        op.put_enum(val);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn read_mode(
+        avc: &mut FwFcp,
+        mode: &mut DuetFwDisplayMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayFollow);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            *mode = if op.get_enum() > 0 {
+                DuetFwDisplayMode::FollowingToKnobTarget
+            } else {
+                DuetFwDisplayMode::Independent
+            }
+        })
+    }
+
+    pub fn write_mode(
+        avc: &mut FwFcp,
+        mode: DuetFwDisplayMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = if mode == DuetFwDisplayMode::FollowingToKnobTarget {
+            1
+        } else {
+            0
+        };
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayFollow);
+        op.put_enum(val);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+
+    pub fn read_overhold(
+        avc: &mut FwFcp,
+        mode: &mut DuetFwDisplayOverhold,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayOverhold);
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            *mode = if op.get_enum() > 0 {
+                DuetFwDisplayOverhold::TwoSeconds
+            } else {
+                DuetFwDisplayOverhold::Infinite
+            };
+        })
+    }
+
+    pub fn write_overhold(
+        avc: &mut FwFcp,
+        mode: DuetFwDisplayOverhold,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = if mode == DuetFwDisplayOverhold::TwoSeconds {
+            1
+        } else {
+            0
+        };
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::DisplayOverhold);
+        op.put_enum(val);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+}
+
 /// The enumeration to represent type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
