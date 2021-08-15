@@ -24,6 +24,7 @@ pub struct ApogeeModel{
     company_id: [u8; 3],
     common_ctl: CommonCtl,
     meter_ctl: MeterCtl,
+    knob_ctl: KnobCtl,
     output_ctl: OutputCtl,
     mixer_ctl: MixerCtl,
     input_ctl: InputCtl,
@@ -51,6 +52,7 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
 
         self.common_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.meter_ctl.load_state(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.knob_ctl.load_state(card_cntr, &mut self.avc, Self::FCP_TIMEOUT_MS)?;
         self.output_ctl.load(&self.avc, card_cntr)?;
         self.mixer_ctl.load(&self.avc, card_cntr)?;
         self.input_ctl.load(&self.avc, card_cntr)?;
@@ -67,6 +69,8 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
         if self.common_ctl.read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.knob_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(&self.avc, &self.company_id, elem_id, elem_value)? {
             Ok(true)
@@ -108,12 +112,20 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
 impl MeasureModel<hinawa::SndUnit> for ApogeeModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.2);
+        elem_id_list.extend_from_slice(&self.knob_ctl.1);
         elem_id_list.extend_from_slice(&self.hwstate.measure_elems);
     }
 
     fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
         self.meter_ctl.measure_state(unit, &mut self.req, TIMEOUT_MS)?;
-        self.hwstate.measure_states(&unit.get_node(), &self.avc, &self.company_id)
+        self.knob_ctl.measure_state(&mut self.avc, TIMEOUT_MS)?;
+
+        self.hwstate.states[0] = self.knob_ctl.0.output_mute as u8;
+        self.hwstate.states[3] = self.knob_ctl.0.output_volume;
+        self.hwstate.states[4] = self.knob_ctl.0.input_gains[0];
+        self.hwstate.states[5] = self.knob_ctl.0.input_gains[1];
+
+        Ok(())
     }
 
     fn measure_elem(&mut self, _: &hinawa::SndUnit, elem_id: &alsactl::ElemId,
@@ -121,6 +133,8 @@ impl MeasureModel<hinawa::SndUnit> for ApogeeModel {
         -> Result<bool, Error>
     {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.knob_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.hwstate.measure_elems(elem_id, elem_value)? {
             Ok(true)
@@ -234,6 +248,60 @@ impl MeterCtl {
             }
             MIXER_OUTPUT_METER_NAME => {
                 elem_value.set_int(&self.1.mixer_outputs);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct KnobCtl(DuetFwKnobState, Vec<ElemId>);
+
+fn knob_target_to_str(target: &DuetFwKnobTarget) -> &str {
+    match target {
+        DuetFwKnobTarget::OutputPair0 => "OUT",
+        DuetFwKnobTarget::InputPair0 => "IN-1",
+        DuetFwKnobTarget::InputPair1 => "IN-2",
+    }
+}
+
+const KNOB_TARGET_NAME: &'static str = "knob-target";
+
+impl KnobCtl {
+    const KNOB_TARGETS: [DuetFwKnobTarget; 3] = [
+        DuetFwKnobTarget::OutputPair0,
+        DuetFwKnobTarget::InputPair0,
+        DuetFwKnobTarget::InputPair1,
+    ];
+
+    fn load_state(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        fcp: &mut FwFcp,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::KNOB_TARGETS.iter()
+            .map(|t| knob_target_to_str(t))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB_TARGET_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        self.measure_state(fcp, timeout_ms)
+    }
+
+    fn measure_state(&mut self, fcp: &mut FwFcp, timeout_ms: u32) -> Result<(), Error> {
+        DuetFwKnobProtocol::read_state(fcp, &mut self.0, timeout_ms)
+    }
+
+    fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            KNOB_TARGET_NAME => {
+                let pos = Self::KNOB_TARGETS.iter()
+                    .position(|t| t.eq(&self.0.target))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             _ => Ok(false),
