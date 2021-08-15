@@ -3,14 +3,14 @@
 use glib::Error;
 
 use hinawa::{FwNode, FwReq, FwFcp};
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
 use ta1394::{AvcAddr, Ta1394Avc};
 
-use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd, ApogeeMeter, ApogeeMeterProtocol};
+use oxfw_protocols::apogee::{VendorCmd, ApogeeCmd};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -495,7 +495,6 @@ pub struct HwState {
     pub measure_elems: Vec<ElemId>,
 
     req: FwReq,
-    meters: ApogeeMeter,
     states: [u8;8],
 }
 
@@ -504,10 +503,6 @@ impl HwState {
     const SELECTED_KNOB_NAME: &'static str = "selected-knob";
     const OUT_VOLUME_NAME: &'static str = "output-volume";
     const IN_GAIN_NAME: &'static str = "input-gain";
-
-    const ANALOG_IN_METER_NAME: &'static str = "analog-input-meters";
-    const MIXER_SRC_METER_NAME: &'static str = "mixer-source-meters";
-    const MIXER_OUT_METER_NAME: &'static str = "mixer-output-meters";
 
     const KNOB_LABELS: [&'static str; 3] = ["Out", "In-1", "In-2"];
 
@@ -523,10 +518,6 @@ impl HwState {
     const DIAL_IN_MIN: i32 = 10;
     const DIAL_IN_MAX: i32 = 75;
     const DIAL_IN_STEP: i32 = 1;
-
-    const METER_MIN: i32 = 0;
-    const METER_MAX: i32 = i32::MAX;
-    const METER_STEP: i32 = 256;
 
     pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For mute of analog outputs.
@@ -552,27 +543,6 @@ impl HwState {
         let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
                                     Self::DIAL_IN_MIN, Self::DIAL_IN_MAX, Self::DIAL_IN_STEP,
                                     Self::INPUT_LABELS.len(), None, true)?;
-        self.measure_elems.extend_from_slice(&elem_id_list);
-
-        // For meter of inputs.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ANALOG_IN_METER_NAME, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
-                                                   Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                   Self::INPUT_LABELS.len(), None, false)?;
-        self.measure_elems.extend_from_slice(&elem_id_list);
-
-        // For meters of mixer sources.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_SRC_METER_NAME, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
-                                                   Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                   MixerCtl::SRC_LABELS.len(), None, false)?;
-        self.measure_elems.extend_from_slice(&elem_id_list);
-
-        // For meters of mixer sources.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_OUT_METER_NAME, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
-                                                   Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
-                                                   MixerCtl::TARGET_LABELS.len(), None, false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         Ok(())
@@ -643,11 +613,9 @@ impl HwState {
         }
     }
 
-    pub fn measure_states(&mut self, node: &FwNode, avc: &FwFcp, company_id: &[u8;3])
+    pub fn measure_states(&mut self, _: &FwNode, avc: &FwFcp, company_id: &[u8;3])
         -> Result<(), Error>
     {
-        self.req.read_meters(node, &mut self.meters)?;
-
         let mut op = ApogeeCmd::new(company_id, VendorCmd::HwState);
         avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
         op.copy_block(&mut self.states);
@@ -673,18 +641,6 @@ impl HwState {
             }
             Self::IN_GAIN_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| Ok(self.states[4 + idx] as i32))?;
-                Ok(true)
-            }
-            Self::ANALOG_IN_METER_NAME => {
-                elem_value.set_int(&self.meters.analog_inputs);
-                Ok(true)
-            }
-            Self::MIXER_SRC_METER_NAME => {
-                elem_value.set_int(&self.meters.mixer_inputs);
-                Ok(true)
-            }
-            Self::MIXER_OUT_METER_NAME => {
-                elem_value.set_int(&[self.meters.mixer_output]);
                 Ok(true)
             }
             _ => Ok(false),

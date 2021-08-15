@@ -339,61 +339,6 @@ impl AvcStatus for ApogeeCmd {
     }
 }
 
-/// The structure to represent meter of Apogee Duet FireWire.
-#[derive(Default, Debug)]
-pub struct ApogeeMeter{
-    pub analog_inputs: [i32;2],
-    pub mixer_inputs: [i32;2],
-    pub mixer_output: i32,
-}
-
-const METER_ADDR_BASE: u64 = 0xfffff0080000;
-
-const METER_OFFSET_ANALOG_INPUT: u32 = 0x0004;
-const METER_ANALOG_INPUT_SIZE: usize = 8;
-
-const METER_OFFSET_MIXER_SRC: u32 = 0x0404;
-const METER_MIXER_SRC_SIZE: usize = 16;
-
-/// The trait to represent meter protocol of Apogee Duet FireWire.
-pub trait ApogeeMeterProtocol : AsRef<hinawa::FwReq> {
-    fn read_meters(&self, node: &hinawa::FwNode, meters: &mut ApogeeMeter) -> Result<(), Error> {
-        let mut raw = [0;16];
-
-        let addr = METER_ADDR_BASE + METER_OFFSET_ANALOG_INPUT as u64;
-        self.as_ref().transaction_sync(node, hinawa::FwTcode::ReadBlockRequest, addr,
-                                       METER_ANALOG_INPUT_SIZE, &mut raw, 10)?;
-        let mut quadlet = [0;4];
-        meters.analog_inputs.iter_mut()
-            .enumerate()
-            .for_each(|(i, meter)| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                *meter = i32::from_be_bytes(quadlet);
-            });
-
-
-        let addr = METER_ADDR_BASE + METER_OFFSET_MIXER_SRC as u64;
-        self.as_ref().transaction_sync(node, hinawa::FwTcode::ReadBlockRequest, addr,
-                                       METER_MIXER_SRC_SIZE, &mut raw, 10)?;
-
-        meters.mixer_inputs.iter_mut()
-            .enumerate()
-            .for_each(|(i, meter)| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                *meter = i32::from_be_bytes(quadlet);
-            });
-
-        quadlet.copy_from_slice(&raw[8..12]);
-        meters.mixer_output = i32::from_be_bytes(quadlet);
-
-        Ok(())
-    }
-}
-
-impl<O: AsRef<hinawa::FwReq>> ApogeeMeterProtocol for O {}
-
 #[cfg(test)]
 mod test {
     use super::*;
