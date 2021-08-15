@@ -6,5 +6,6 @@
 //! The crate includes various kind of protocols defined by Oxford Semiconductor as well as
 //! hardware vendors for FW970/971 ASICs.
 
-pub mod tascam;
 pub mod apogee;
+pub mod loud;
+pub mod tascam;
