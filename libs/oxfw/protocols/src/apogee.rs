@@ -579,6 +579,40 @@ impl DuetFwInputProtocol {
     }
 }
 
+/// The protocol implementation of mixer.
+#[derive(Default)]
+pub struct DuetFwMixerProtocol;
+
+impl DuetFwMixerProtocol {
+    pub const GAIN_MIN: u16 = 0;
+    pub const GAIN_MAX: u16 = 0x3fff;
+    pub const GAIN_STEP: u16 = 0x80;
+
+    pub fn read_source_gain(
+        avc: &mut FwFcp,
+        dst: usize,
+        src: usize,
+        gain: &mut u16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MixerSrc(src as u8, dst as u8));
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map(|_| *gain = op.read_u16())
+    }
+
+    pub fn write_source_gain(
+        avc: &mut FwFcp,
+        dst: usize,
+        src: usize,
+        gain: u16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut op = ApogeeCmd::new(&APOGEE_OUI, VendorCmd::MixerSrc(src as u8, dst as u8));
+        op.write_u16(gain);
+        avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+    }
+}
+
 /// The enumeration to represent type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
