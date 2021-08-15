@@ -435,14 +435,16 @@ impl DuetFwInputProtocol {
         gain: &mut u8,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx as u8));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
-            .map(|_| *gain = op.get_u8())
+        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx, Default::default()));
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            if let VendorCmd::InGain(_, g) = &op.cmd {
+                *gain = *g
+            }
+        })
     }
 
     pub fn write_gain(avc: &mut FwFcp, idx: usize, gain: u8, timeout_ms: u32) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx as u8));
-        op.put_u8(gain);
+        let mut op = ApogeeCmd::new(VendorCmd::InGain(idx, gain));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 
@@ -761,7 +763,7 @@ pub enum VendorCmd {
     LineInLevel(u8),
     MicPhantom(u8),
     OutAttr,
-    InGain(u8),
+    InGain(usize, u8),
     HwState([u8; 11]),
     OutMute,
     MicIn(u8),
@@ -837,10 +839,10 @@ impl VendorCmd {
                 args[3] = Self::OUT_ATTR;
                 args[4] = 0x80;
             }
-            Self::InGain(ch) => {
+            Self::InGain(ch, _) => {
                 args[3] = Self::IN_GAIN;
                 args[4] = 0x80;
-                args[5] = *ch;
+                args[5] = *ch as u8;
             }
             Self::HwState(_) => args[3] = Self::HW_STATE,
             Self::OutMute => {
@@ -888,8 +890,9 @@ impl VendorCmd {
         args
     }
 
-    fn append_variable(&self, _: &mut Vec<u8>) {
+    fn append_variable(&self, data: &mut Vec<u8>) {
         match self {
+            Self::InGain(_, gain) => data.push(*gain),
             _ => (),
         }
     }
@@ -907,6 +910,18 @@ impl VendorCmd {
         }
 
         match self {
+            Self::InGain(idx, gain) => {
+                if data[3] != Self::IN_GAIN {
+                    let msg = format!("Unexpected cmd code: {}", data[3]);
+                    Err(Error::new(FileError::Io, &msg))
+                } else if data[5] != *idx as u8 {
+                    let msg = format!("Unexpected index of input: {}", data[5]);
+                    Err(Error::new(FileError::Io, &msg))
+                } else {
+                    *gain = data[6];
+                    Ok(())
+                }
+            }
             Self::HwState(raw) => {
                 if data[3] != Self::HW_STATE {
                     let msg = format!("Unexpected cmd code: {}", data[3]);
@@ -968,16 +983,6 @@ impl ApogeeCmd {
     pub fn write_u16(&mut self, val: u16) {
         assert!(self.vals.len() == 0, "Unexpected write operation as u16 argument.");
         self.vals.extend_from_slice(&val.to_be_bytes());
-    }
-
-    pub fn get_u8(&self) -> u8 {
-        assert!(self.vals.len() > 0, "Unexpected read operation as u8 argument.");
-        self.vals[0]
-    }
-
-    pub fn put_u8(&mut self, val: u8) {
-        assert!(self.vals.len() == 0, "Unexpected write operation as u8 argument.");
-        self.vals.push(val);
     }
 }
 
