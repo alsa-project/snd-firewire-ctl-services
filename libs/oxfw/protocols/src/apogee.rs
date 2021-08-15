@@ -48,8 +48,8 @@ pub struct ApogeeCmd{
     op: VendorDependent,
 }
 
-impl<'a> ApogeeCmd {
-    const APOGEE_PREFIX: &'a [u8] = &[0x50, 0x43, 0x4d];    // 'P', 'C', 'M'
+impl ApogeeCmd {
+    const APOGEE_PREFIX: [u8; 3] = [0x50, 0x43, 0x4d];    // 'P', 'C', 'M'
 
     const MIC_POLARITY: u8 = 0x00;
     const PHONE_IN_LEVEL: u8 = 0x01;
