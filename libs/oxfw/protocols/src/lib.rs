@@ -8,5 +8,6 @@
 
 pub mod apogee;
 pub mod griffin;
+pub mod lacie;
 pub mod loud;
 pub mod tascam;
