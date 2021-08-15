@@ -150,16 +150,19 @@ impl DuetFwKnobProtocol {
         state: &mut DuetFwKnobState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::HwState);
+        let mut op = ApogeeCmd::new(VendorCmd::HwState(Default::default()));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
-            state.output_mute = op.vals[0] > 0;
-            state.target = match op.vals[1] {
-                2 => DuetFwKnobTarget::InputPair1,
-                1 => DuetFwKnobTarget::InputPair0,
-                _ => DuetFwKnobTarget::OutputPair0,
-            };
-            state.output_volume = Self::VOLUME_MAX - op.vals[3];
-            state.input_gains.copy_from_slice(&op.vals[4..6]);
+            if let VendorCmd::HwState(raw) = &op.cmd {
+                state.output_mute = raw[0] > 0;
+                state.target = match raw[1] {
+                    2 => DuetFwKnobTarget::InputPair1,
+                    1 => DuetFwKnobTarget::InputPair0,
+                    _ => DuetFwKnobTarget::OutputPair0,
+                };
+                state.output_volume = Self::VOLUME_MAX - raw[3];
+                state.input_gains[0] = raw[4];
+                state.input_gains[1] = raw[5];
+            }
         })
     }
 }
@@ -759,7 +762,7 @@ pub enum VendorCmd {
     MicPhantom(u8),
     OutAttr,
     InGain(u8),
-    HwState, // 11 parameters.
+    HwState([u8; 11]),
     OutMute,
     MicIn(u8),
     MixerSrc(u8, u8), // 7 params (0x0a, 0x10)
@@ -839,7 +842,7 @@ impl VendorCmd {
                 args[4] = 0x80;
                 args[5] = *ch;
             }
-            Self::HwState => args[3] = Self::HW_STATE,
+            Self::HwState(_) => args[3] = Self::HW_STATE,
             Self::OutMute => {
                 args[3] = Self::OUT_MUTE;
                 args[4] = 0x80;
@@ -904,6 +907,15 @@ impl VendorCmd {
         }
 
         match self {
+            Self::HwState(raw) => {
+                if data[3] != Self::HW_STATE {
+                    let msg = format!("Unexpected cmd code: {}", data[3]);
+                    Err(Error::new(FileError::Io, &msg))
+                } else {
+                    raw.copy_from_slice(&data[6..17]);
+                    Ok(())
+                }
+            }
             _ => Ok(()),
         }
     }
@@ -966,10 +978,6 @@ impl ApogeeCmd {
     pub fn put_u8(&mut self, val: u8) {
         assert!(self.vals.len() == 0, "Unexpected write operation as u8 argument.");
         self.vals.push(val);
-    }
-
-    pub fn copy_block(&self, data: &mut [u8;8]) {
-        data.copy_from_slice(&self.vals[..8]);
     }
 }
 
@@ -1069,25 +1077,18 @@ mod test {
         assert_eq!(o, operands);
 
         // Command for block request.
-        let mut op = ApogeeCmd::new(VendorCmd::HwState);
+        let mut op = ApogeeCmd::new(VendorCmd::HwState(Default::default()));
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
                         0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef]);
+        if let VendorCmd::HwState(raw) = &op.cmd {
+            assert_eq!(raw, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef]);
+        } else {
+            unreachable!();
+        }
 
         let mut o = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands[..9]);
-
-        let mut op = ApogeeCmd::new(VendorCmd::HwState);
-        let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x07, 0xff, 0xff,
-                        0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef];
-        AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef, 0xde, 0xad, 0xbe, 0xef]);
-
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(o, operands);
-
     }
 }
