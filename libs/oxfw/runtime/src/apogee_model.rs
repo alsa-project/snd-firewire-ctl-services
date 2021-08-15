@@ -24,7 +24,7 @@ pub struct ApogeeModel{
     hwstate: HwState,
 }
 
-impl<'a> ApogeeModel {
+impl ApogeeModel {
     const FCP_TIMEOUT_MS: u32 = 100;
 }
 

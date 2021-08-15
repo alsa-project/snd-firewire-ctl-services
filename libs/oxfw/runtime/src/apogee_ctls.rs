@@ -17,16 +17,16 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default, Debug)]
 pub struct OutputCtl;
 
-impl<'a> OutputCtl {
-    const SRC_NAME: &'a str = "output-source";
-    const LEVEL_NAME: &'a str = "output-level";
-    const MUTE_FOR_LINE_OUT: &'a str = "mute-for-line-out";
-    const MUTE_FOR_HP_OUT: &'a str = "mute-for-hp-out";
+impl OutputCtl {
+    const SRC_NAME: &'static str = "output-source";
+    const LEVEL_NAME: &'static str = "output-level";
+    const MUTE_FOR_LINE_OUT: &'static str = "mute-for-line-out";
+    const MUTE_FOR_HP_OUT: &'static str = "mute-for-hp-out";
 
-    const SRC_LABELS: &'a [&'a str] = &["stream-1/2", "mixer-1/2"];
-    const LEVEL_LABELS: &'a [&'a str] = &["instrument", "-10dB"];
+    const SRC_LABELS: [&'static str; 2] = ["stream-1/2", "mixer-1/2"];
+    const LEVEL_LABELS: [&'static str; 2] = ["instrument", "-10dB"];
 
-    const MUTE_LABELS: &'a [&'a str] = &[
+    const MUTE_LABELS: [&'static str; 3] = [
         "never",
         "normal",
         "swapped"
@@ -35,19 +35,19 @@ impl<'a> OutputCtl {
     pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For source of analog outputs.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::SRC_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::SRC_LABELS, None, true)?;
 
         // For level of analog outputs.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::LEVEL_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::LEVEL_LABELS, None, true)?;
 
         // For association of mute state to line output.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_FOR_LINE_OUT, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MUTE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::MUTE_LABELS, None, true)?;
 
         // For association of mute state to hp output.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_FOR_HP_OUT, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::MUTE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::MUTE_LABELS, None, true)?;
 
         Ok(())
     }
@@ -174,12 +174,12 @@ impl<'a> OutputCtl {
 #[derive(Default, Debug)]
 pub struct MixerCtl;
 
-impl<'a> MixerCtl {
-    const TARGET_LABELS: &'a [&'a str] = &["mixer-1", "mixer-2"];
+impl MixerCtl {
+    const TARGET_LABELS: [&'static str; 2] = ["mixer-1", "mixer-2"];
 
-    const SRC_LABELS: &'a [&'a str] = &["stream-1", "stream-2", "analog-1", "analog-2"];
+    const SRC_LABELS: [&'static str; 4] = ["stream-1", "stream-2", "analog-1", "analog-2"];
 
-    const MIXER_NAME: &'a str = "mixer-source-gain";
+    const MIXER_NAME: &'static str = "mixer-source-gain";
 
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 0x3fff;
@@ -235,20 +235,20 @@ impl<'a> MixerCtl {
 #[derive(Default, Debug)]
 pub struct InputCtl;
 
-impl<'a> InputCtl {
-    const SRC_NAME: &'a str = "input-source";
-    const PHONE_LEVEL_NAME: &'a str = "input-phone-level";
-    const LINE_LEVEL_NAME: &'a str = "input-line-level";
-    const POLARITY_NAME: &'a str = "mic-polarity";
-    const PHANTOM_NAME: &'a str = "mic-phantom";
-    const CLICKLESS_NAME: &'a str = "input-clickless";
+impl InputCtl {
+    const SRC_NAME: &'static str = "input-source";
+    const PHONE_LEVEL_NAME: &'static str = "input-phone-level";
+    const LINE_LEVEL_NAME: &'static str = "input-line-level";
+    const POLARITY_NAME: &'static str = "mic-polarity";
+    const PHANTOM_NAME: &'static str = "mic-phantom";
+    const CLICKLESS_NAME: &'static str = "input-clickless";
 
-    const TARGET_LABELS: &'a [&'a str] = &["Analog-in-1", "Analog-in-2"];
-    const MIC_LABELS: &'a [&'a str] = &["Mic-1", "Mic-2"];
-    const PHONE_LABELS: &'a [&'a str] = &["Phone-1", "Phone-2"];
-    const SRC_LABELS: &'a [&'a str] = &["Mic", "Phone"];
-    const PHONE_LEVEL_LABELS: &'a [&'a str] = &["Instrument", "Line"];
-    const LINE_LEVEL_LABELS: &'a [&'a str] = &["+4dB", "-10dB"];
+    const TARGET_LABELS: [&'static str; 2] = ["Analog-in-1", "Analog-in-2"];
+    const MIC_LABELS: [&'static str; 2] = ["Mic-1", "Mic-2"];
+    const PHONE_LABELS: [&'static str; 2] = ["Phone-1", "Phone-2"];
+    const SRC_LABELS: [&'static str; 2] = ["Mic", "Phone"];
+    const PHONE_LEVEL_LABELS: [&'static str; 2] = ["Instrument", "Line"];
+    const LINE_LEVEL_LABELS: [&'static str; 2] = ["+4dB", "-10dB"];
 
     pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For polarity of microphone.
@@ -258,13 +258,13 @@ impl<'a> InputCtl {
         // For level of input in phone jack.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHONE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1,
-                                         Self::PHONE_LABELS.len(), Self::PHONE_LEVEL_LABELS,
+                                         Self::PHONE_LABELS.len(), &Self::PHONE_LEVEL_LABELS,
                                          None, true)?;
 
         // For level of line input in phone jack.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1,
-                                         Self::PHONE_LABELS.len(), Self::LINE_LEVEL_LABELS,
+                                         Self::PHONE_LABELS.len(), &Self::LINE_LEVEL_LABELS,
                                          None, true)?;
 
         // For phantom powering of microphone.
@@ -274,7 +274,7 @@ impl<'a> InputCtl {
         // For source of analog inputs.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGET_LABELS.len(),
-                                         Self::SRC_LABELS, None, true)?;
+                                         &Self::SRC_LABELS, None, true)?;
 
         // For input clickless.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::CLICKLESS_NAME, 0);
@@ -400,18 +400,18 @@ impl<'a> InputCtl {
 #[derive(Default, Debug)]
 pub struct DisplayCtl;
 
-impl<'a> DisplayCtl {
-    const TARGET_NAME: &'a str = "display-target";
-    const FOLLOWED_NAME: &'a str = "meter-followed";
-    const OVERHOLDS_NAME: &'a str = "overholds-duration";
+impl DisplayCtl {
+    const TARGET_NAME: &'static str = "display-target";
+    const FOLLOWED_NAME: &'static str = "meter-followed";
+    const OVERHOLDS_NAME: &'static str = "overholds-duration";
 
-    const TARGET_LABELS: &'a [&'a str] = &["output", "input"];
-    const OVERHOLDS_LABELS: &'a [&'a str] = &["infinite", "2 sec"];
+    const TARGET_LABELS: [&'static str; 2] = ["output", "input"];
+    const OVERHOLDS_LABELS: [&'static str; 2] = ["infinite", "2 sec"];
 
     pub fn load(&mut self, _: &FwFcp, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For target of display.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::TARGET_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::TARGET_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::TARGET_LABELS, None, true)?;
 
         // For switch to force meters followed to selected item.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::FOLLOWED_NAME, 0);
@@ -419,7 +419,7 @@ impl<'a> DisplayCtl {
 
         // For overholds duration.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OVERHOLDS_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::OVERHOLDS_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::OVERHOLDS_LABELS, None, true)?;
 
         Ok(())
     }
@@ -499,19 +499,19 @@ pub struct HwState {
     states: [u8;8],
 }
 
-impl<'a> HwState {
-    const OUT_MUTE_NAME: &'a str = "output-mute";
-    const SELECTED_KNOB_NAME: &'a str = "selected-knob";
-    const OUT_VOLUME_NAME: &'a str = "output-volume";
-    const IN_GAIN_NAME: &'a str = "input-gain";
+impl HwState {
+    const OUT_MUTE_NAME: &'static str = "output-mute";
+    const SELECTED_KNOB_NAME: &'static str = "selected-knob";
+    const OUT_VOLUME_NAME: &'static str = "output-volume";
+    const IN_GAIN_NAME: &'static str = "input-gain";
 
-    const ANALOG_IN_METER_NAME: &'a str = "analog-input-meters";
-    const MIXER_SRC_METER_NAME: &'a str = "mixer-source-meters";
-    const MIXER_OUT_METER_NAME: &'a str = "mixer-output-meters";
+    const ANALOG_IN_METER_NAME: &'static str = "analog-input-meters";
+    const MIXER_SRC_METER_NAME: &'static str = "mixer-source-meters";
+    const MIXER_OUT_METER_NAME: &'static str = "mixer-output-meters";
 
-    const KNOB_LABELS: &'a [&'a str] = &["Out", "In-1", "In-2"];
+    const KNOB_LABELS: [&'static str; 3] = ["Out", "In-1", "In-2"];
 
-    const INPUT_LABELS: &'a [&'a str] = &[
+    const INPUT_LABELS: [&'static str; 2] = [
         "analog-input-1",
         "analog-input-2",
     ];
@@ -536,7 +536,7 @@ impl<'a> HwState {
 
         // For selection of knob.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SELECTED_KNOB_NAME, 0);
-        let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, Self::KNOB_LABELS,
+        let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::KNOB_LABELS,
                                                     None, false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
