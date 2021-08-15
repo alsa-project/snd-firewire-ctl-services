@@ -10,9 +10,6 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
-use ta1394::{Ta1394Avc, AvcAddr, AvcSubunitType};
-use ta1394::general::UnitInfo;
-
 use oxfw_protocols::apogee::*;
 
 use super::common_ctl::CommonCtl;
@@ -21,7 +18,6 @@ use super::common_ctl::CommonCtl;
 pub struct ApogeeModel{
     req: FwReq,
     avc: FwFcp,
-    company_id: [u8; 3],
     common_ctl: CommonCtl,
     meter_ctl: MeterCtl,
     knob_ctl: KnobCtl,
@@ -40,14 +36,6 @@ impl ApogeeModel {
 impl CtlModel<hinawa::SndUnit> for ApogeeModel {
     fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.bind(&unit.get_node())?;
-
-        let mut op = UnitInfo{
-            unit_type: AvcSubunitType::Reserved(0xff),
-            unit_id: 0xff,
-            company_id: [0xff;3],
-        };
-        self.avc.status(&AvcAddr::Unit, &mut op, 100)?;
-        self.company_id.copy_from_slice(&op.company_id);
 
         self.common_ctl.load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
         self.meter_ctl.load_state(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
