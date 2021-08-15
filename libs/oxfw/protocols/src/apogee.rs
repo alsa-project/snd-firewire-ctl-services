@@ -600,9 +600,12 @@ impl DuetFwMixerProtocol {
         gain: &mut u16,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(src as u8, dst as u8));
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
-            .map(|_| *gain = op.read_u16())
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(src, dst, Default::default()));
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+            if let VendorCmd::MixerSrc(_, _, g) = &op.cmd {
+                *gain = *g
+            }
+        })
     }
 
     pub fn write_source_gain(
@@ -612,8 +615,7 @@ impl DuetFwMixerProtocol {
         gain: u16,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(src as u8, dst as u8));
-        op.write_u16(gain);
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(src, dst, gain));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 }
@@ -767,7 +769,7 @@ pub enum VendorCmd {
     HwState([u8; 11]),
     OutMute,
     MicIn(u8),
-    MixerSrc(u8, u8), // 7 params (0x0a, 0x10)
+    MixerSrc(usize, usize, u16),
     UseMixerOut,
     DisplayOverhold,
     DisplayClear,
@@ -854,10 +856,10 @@ impl VendorCmd {
                 args[4] = 0x80;
                 args[5] = *ch;
             }
-            Self::MixerSrc(src, dst) => {
+            Self::MixerSrc(src, dst, _) => {
                 args[3] = Self::MIXER_SRC;
                 args[4] = (((*src / 2) << 4) | (*src % 2)) as u8;
-                args[5] = *dst;
+                args[5] = *dst as u8;
             }
             Self::UseMixerOut => args[3] = Self::USE_MIXER_OUT,
             Self::DisplayOverhold => args[3] = Self::DISPLAY_OVERHOLD,
@@ -893,6 +895,7 @@ impl VendorCmd {
     fn append_variable(&self, data: &mut Vec<u8>) {
         match self {
             Self::InGain(_, gain) => data.push(*gain),
+            Self::MixerSrc(_, _, gain) => data.extend_from_slice(&gain.to_be_bytes()),
             _ => (),
         }
     }
@@ -920,6 +923,25 @@ impl VendorCmd {
                 } else {
                     *gain = data[6];
                     Ok(())
+                }
+            }
+            Self::MixerSrc(src, dst, gain) => {
+                if data[3] != Self::MIXER_SRC {
+                    let msg = format!("Unexpected cmd code: {}", data[3]);
+                    Err(Error::new(FileError::Io, &msg))
+                } else {
+                    if data[4] != (((*src / 2) << 4) | (*src % 2)) as u8 {
+                        let msg = format!("Unexpected mixer source: {}", data[4]);
+                        Err(Error::new(FileError::Io, &msg))
+                    } else if data[5] != *dst as u8 {
+                        let msg = format!("Unexpected mixer destination: {}", data[5]);
+                        Err(Error::new(FileError::Io, &msg))
+                    } else {
+                        let mut doublet = [0; 2];
+                        doublet.copy_from_slice(&data[6..8]);
+                        *gain = u16::from_be_bytes(doublet);
+                        Ok(())
+                    }
                 }
             }
             Self::HwState(raw) => {
@@ -971,18 +993,6 @@ impl ApogeeCmd {
     pub fn put_enum(&mut self, val: u32) {
         assert!(self.vals.len() == 0, "Unexpected write operation as bool argument.");
         self.vals.push(if val > 0 { VendorCmd::ON } else { VendorCmd::OFF })
-    }
-
-    pub fn read_u16(&self) -> u16 {
-        assert!(self.vals.len() > 0, "Unexpected read operation as bool argument.");
-        let mut doublet = [0;2];
-        doublet.copy_from_slice(&self.vals[..2]);
-        u16::from_be_bytes(doublet)
-    }
-
-    pub fn write_u16(&mut self, val: u16) {
-        assert!(self.vals.len() == 0, "Unexpected write operation as u16 argument.");
-        self.vals.extend_from_slice(&val.to_be_bytes());
     }
 }
 
@@ -1063,23 +1073,29 @@ mod test {
         assert_eq!(o, operands);
 
         // Two arguments command.
-        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0));
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0, Default::default()));
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef]);
+        if let VendorCmd::MixerSrc(src, dst, gain) = &op.cmd {
+            assert_eq!(*src, 1);
+            assert_eq!(*dst, 0);
+            assert_eq!(*gain, 0xde00);
+        } else {
+            unreachable!();
+        }
 
         let mut o = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
         assert_eq!(o, operands[..9]);
 
-        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0));
+        let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0, 0xde00));
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x10, 0x01, 0x00, 0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.vals, &[0xde, 0x00, 0xad, 0x01, 0xbe, 0x02, 0xef]);
 
         let mut o = Vec::new();
+        op.vals.clear();
         AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
-        assert_eq!(o, operands);
+        assert_eq!(o, operands[..11]);
 
         // Command for block request.
         let mut op = ApogeeCmd::new(VendorCmd::HwState(Default::default()));
