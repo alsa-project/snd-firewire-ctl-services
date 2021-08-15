@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::{FwNode, FwReq, FwFcp};
+use hinawa::FwFcp;
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
 use core::card_cntr::*;
@@ -494,17 +494,13 @@ impl DisplayCtl {
 pub struct HwState {
     pub measure_elems: Vec<ElemId>,
 
-    req: FwReq,
-    states: [u8;8],
+    pub states: [u8;8],
 }
 
 impl HwState {
     const OUT_MUTE_NAME: &'static str = "output-mute";
-    const SELECTED_KNOB_NAME: &'static str = "selected-knob";
     const OUT_VOLUME_NAME: &'static str = "output-volume";
     const IN_GAIN_NAME: &'static str = "input-gain";
-
-    const KNOB_LABELS: [&'static str; 3] = ["Out", "In-1", "In-2"];
 
     const INPUT_LABELS: [&'static str; 2] = [
         "analog-input-1",
@@ -523,12 +519,6 @@ impl HwState {
         // For mute of analog outputs.
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
         let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-        self.measure_elems.extend_from_slice(&elem_id_list);
-
-        // For selection of knob.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SELECTED_KNOB_NAME, 0);
-        let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::KNOB_LABELS,
-                                                    None, false)?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         // For output volume.
@@ -613,26 +603,12 @@ impl HwState {
         }
     }
 
-    pub fn measure_states(&mut self, _: &FwNode, avc: &FwFcp, company_id: &[u8;3])
-        -> Result<(), Error>
-    {
-        let mut op = ApogeeCmd::new(company_id, VendorCmd::HwState);
-        avc.status(&AvcAddr::Unit, &mut op, TIMEOUT_MS)?;
-        op.copy_block(&mut self.states);
-
-        Ok(())
-    }
-
     pub fn measure_elems(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
             Self::OUT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.states[0] > 0))?;
-                Ok(true)
-            }
-            Self::SELECTED_KNOB_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.states[1] as u32))?;
                 Ok(true)
             }
             Self::OUT_VOLUME_NAME => {
