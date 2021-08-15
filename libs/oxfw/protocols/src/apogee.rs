@@ -7,11 +7,60 @@
 
 use glib::Error;
 
-use hinawa::FwReqExtManual;
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
-use ta1394::{Ta1394AvcError, AvcAddr};
-use ta1394::{AvcOp, AvcStatus, AvcControl};
-use ta1394::general::VendorDependent;
+use ta1394::{general::VendorDependent, *};
+
+const METER_OFFSET_BASE: u64 = 0xfffff0080000;
+const METER_MIXER_OFFSET: u64 = 0x0404;
+
+/// The state of meter for mixer source/output.
+#[derive(Default, Debug)]
+pub struct DuetFwMixerMeterState {
+    pub stream_inputs: [i32; 2],
+    pub mixer_outputs: [i32; 2],
+}
+
+/// The protocol implementation of meter for mixer source/output.
+#[derive(Default, Debug)]
+pub struct DuetFwMixerMeterProtocol;
+
+impl DuetFwMixerMeterProtocol {
+    const MIXER_IO_SIZE: usize = 16;
+
+    pub const LEVEL_MIN: i32 = 0;
+    pub const LEVEL_MAX: i32 = i32::MAX;
+    pub const LEVEL_STEP: i32 = 0x100;
+
+    pub fn read_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut DuetFwMixerMeterState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut frame = [0; Self::MIXER_IO_SIZE];
+
+        req.transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            METER_OFFSET_BASE + METER_MIXER_OFFSET,
+            frame.len(),
+            &mut frame,
+            timeout_ms,
+        )
+        .map(|_| {
+            let mut quadlet = [0; 4];
+            state.stream_inputs.iter_mut()
+                .chain(state.mixer_outputs.iter_mut())
+                .enumerate()
+                .for_each(|(i, meter)| {
+                    let pos = i * 4;
+                    quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
+                    *meter = i32::from_be_bytes(quadlet);
+                });
+        })
+    }
+}
 
 /// The enumeration to represent type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
@@ -304,9 +353,7 @@ impl<O: AsRef<hinawa::FwReq>> ApogeeMeterProtocol for O {}
 
 #[cfg(test)]
 mod test {
-    use ta1394::AvcAddr;
-    use ta1394::{AvcStatus, AvcControl};
-    use super::{ApogeeCmd, VendorCmd};
+    use super::*;
 
     #[test]
     fn apogee_cmd_proto_operands() {
