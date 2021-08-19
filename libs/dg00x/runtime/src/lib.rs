@@ -37,9 +37,14 @@ enum Event {
     StreamLock(bool),
 }
 
+enum Model {
+    Digi002(Dg00xModel),
+    Digi003(Dg00xModel),
+}
+
 pub struct Dg00xRuntime {
     unit: hinawa::SndDg00x,
-    model: Dg00xModel,
+    model: Model,
     card_cntr: card_cntr::CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
@@ -93,9 +98,9 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 
         let model = match model_data.specifier_id {
             SPECIFIER_ID_DIGI002 |
-            SPECIFIER_ID_DIGI002_RACK => Dg00xModel::new(false),
+            SPECIFIER_ID_DIGI002_RACK => Model::Digi002(Dg00xModel::new(false)),
             SPECIFIER_ID_DIGI003 |
-            SPECIFIER_ID_DIGI003_RACK => Dg00xModel::new(true),
+            SPECIFIER_ID_DIGI003_RACK => Model::Digi003(Dg00xModel::new(true)),
             _ => Err(Error::new(FileError::Nxio, "Not supported."))?,
         };
 
@@ -120,8 +125,15 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
-        self.model.get_notified_elem_list(&mut self.notified_elems);
+        match &mut self.model {
+            Model::Digi002(m) => m.load(&mut self.unit, &mut self.card_cntr),
+            Model::Digi003(m) => m.load(&mut self.unit, &mut self.card_cntr),
+        }?;
+
+        match &mut self.model {
+            Model::Digi002(m) => m.get_notified_elem_list(&mut self.notified_elems),
+            Model::Digi003(m) => m.get_notified_elem_list(&mut self.notified_elems),
+        }
 
         Ok(())
     }
@@ -139,16 +151,36 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    let _ = self.card_cntr.dispatch_elem_event(
-                        &mut self.unit,
-                        &elem_id,
-                        &events,
-                        &mut self.model,
-                    );
+                    let _ = match &mut self.model {
+                        Model::Digi002(m) => self.card_cntr.dispatch_elem_event(
+                            &mut self.unit,
+                            &elem_id,
+                            &events,
+                            m,
+                        ),
+                        Model::Digi003(m) => self.card_cntr.dispatch_elem_event(
+                            &mut self.unit,
+                            &elem_id,
+                            &events,
+                            m,
+                        ),
+                    };
                 }
                 Event::StreamLock(locked) => {
-                    let _ = self.card_cntr.dispatch_notification(&mut self.unit, &locked,
-                                                            &self.notified_elems, &mut self.model);
+                    let _ = match &mut self.model {
+                        Model::Digi002(m) => self.card_cntr.dispatch_notification(
+                            &mut self.unit,
+                            &locked,
+                            &self.notified_elems,
+                            m,
+                        ),
+                        Model::Digi003(m) => self.card_cntr.dispatch_notification(
+                            &mut self.unit,
+                            &locked,
+                            &self.notified_elems,
+                            m,
+                        ),
+                    };
                 }
             }
         }
