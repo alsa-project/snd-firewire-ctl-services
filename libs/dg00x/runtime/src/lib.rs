@@ -8,10 +8,11 @@ mod common_ctl;
 mod monitor_ctl;
 
 use glib::source;
-use glib::Error;
+use glib::{Error, FileError};
 use nix::sys::signal;
 use std::sync::mpsc;
 use std::thread;
+use std::convert::TryFrom;
 
 use hinawa::{SndUnitExt, SndDg00xExt};
 use hinawa::{FwNodeExt, FwNodeExtManual};
@@ -22,6 +23,9 @@ use core::dispatcher;
 use core::card_cntr;
 use card_cntr::{CtlModel, NotifyModel};
 use core::RuntimeOperation;
+
+use ieee1212_config_rom::ConfigRom;
+use ta1394::config_rom::Ta1394ConfigRom;
 
 use model::Dg00xModel;
 
@@ -58,6 +62,14 @@ impl<'a> Drop for Dg00xRuntime {
     }
 }
 
+// NOTE: Additionally, in model ID field:
+//   0x000001: the console models
+//   0x000002: the rack models
+const SPECIFIER_ID_DIGI002: u32 = 0x0000a3;
+const SPECIFIER_ID_DIGI002_RACK: u32 = 0x0000a4;
+const SPECIFIER_ID_DIGI003: u32 = 0x0000aa;
+const SPECIFIER_ID_DIGI003_RACK: u32 = 0x0000ab;
+
 impl RuntimeOperation<u32> for Dg00xRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndDg00x::new();
@@ -67,8 +79,25 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         card_cntr.card.open(card_id, 0)?;
 
         let node = unit.get_node();
-        let data = node.get_config_rom()?;
-        let model = Dg00xModel::new(&data)?;
+        let rom = node.get_config_rom()?;
+        let config_rom = ConfigRom::try_from(rom)
+            .map_err(|e| {
+                let label = format!("Malformed configuration ROM detected: {}", e);
+                Error::new(FileError::Nxio, &label)
+            })?;
+        let model_data = config_rom.get_model()
+            .ok_or({
+                let msg = "Configuration ROM is not for 1394TA standard";
+                Error::new(FileError::Nxio, &msg)
+            })?;
+
+        let model = match model_data.specifier_id {
+            SPECIFIER_ID_DIGI002 |
+            SPECIFIER_ID_DIGI002_RACK => Dg00xModel::new(false),
+            SPECIFIER_ID_DIGI003 |
+            SPECIFIER_ID_DIGI003_RACK => Dg00xModel::new(true),
+            _ => Err(Error::new(FileError::Nxio, "Not supported."))?,
+        };
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);

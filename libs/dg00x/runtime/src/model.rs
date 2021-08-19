@@ -1,16 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
+use glib::Error;
 
 use core::card_cntr;
 
-use ieee1212_config_rom::ConfigRom;
-use ta1394::config_rom::Ta1394ConfigRom;
-
 use super::common_ctl::CommonCtl;
 use super::monitor_ctl::MonitorCtl;
-
-use std::convert::TryFrom;
 
 pub struct Dg00xModel {
     req: hinawa::FwReq,
@@ -19,30 +14,12 @@ pub struct Dg00xModel {
 }
 
 impl Dg00xModel {
-    pub fn new(raw: &[u8]) -> Result<Self, Error> {
-        let config_rom = ConfigRom::try_from(raw)
-            .map_err(|e| {
-                let label = format!("Malformed configuration ROM detected: {}", e);
-                Error::new(FileError::Nxio, &label)
-            })?;
-
-        let model = config_rom.get_model()
-            .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
-
-        match model.model_id {
-            0x000001 | 0x000002 => Ok(()),
-            _ => Err(Error::new(FileError::Nxio, "Not supported.")),
-        }?;
-
-        let has_word_bnc = model.model_name.find("003") != None;
-
-        let model = Dg00xModel{
+    pub fn new(has_word_bnc: bool) -> Self {
+        Self {
             req: hinawa::FwReq::new(),
             common: CommonCtl::new(has_word_bnc),
             monitor: MonitorCtl::new(),
-        };
-
-        Ok(model)
+        }
     }
 }
 
