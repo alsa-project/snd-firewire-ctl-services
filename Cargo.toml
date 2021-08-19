@@ -4,6 +4,7 @@ members = [
     "libs/core",
     "libs/ieee1212-config-rom",
     "libs/ta1394",
+    "libs/dg00x/protocols",
     "libs/dg00x/runtime",
     "libs/tascam",
     "libs/efw/protocols",
