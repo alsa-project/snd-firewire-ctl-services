@@ -119,6 +119,24 @@ impl CtlModel<SndDg00x> for Digi002Model {
     }
 }
 
+impl MeasureModel<SndDg00x> for Digi002Model {
+    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    }
+
+    fn measure_states(&mut self, _: &mut SndDg00x) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndDg00x,
+        _: &ElemId,
+        _: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+}
+
 pub struct Digi003Model {
     req: FwReq,
     common_ctl: Digi003CommonCtl,
@@ -220,6 +238,24 @@ impl CtlModel<SndDg00x> for Digi003Model {
         } else {
             Ok(false)
         }
+    }
+}
+
+impl MeasureModel<SndDg00x> for Digi003Model {
+    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    }
+
+    fn measure_states(&mut self, _: &mut SndDg00x) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndDg00x,
+        _: &ElemId,
+        _: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
     }
 }
 
