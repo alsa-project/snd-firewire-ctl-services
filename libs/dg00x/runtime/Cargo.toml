@@ -19,3 +19,4 @@ alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
 core = { path = "../../core" }
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 ta1394 = { path = "../../ta1394" }
+dg00x-protocols = { path = "../protocols" }
