@@ -16,11 +16,10 @@ use std::convert::TryFrom;
 use hinawa::{SndUnitExt, SndDg00xExt};
 use hinawa::{FwNodeExt, FwNodeExtManual};
 
-use alsactl::CardExt;
+use alsactl::{CardExt, CardExtManual, ElemEventMask, ElemIfaceType, ElemId, ElemValue, ElemValueExtManual};
 
-use core::dispatcher;
-use core::card_cntr;
-use card_cntr::{CtlModel, NotifyModel};
+use core::dispatcher::*;
+use core::card_cntr::*;
 use core::RuntimeOperation;
 
 use ieee1212_config_rom::ConfigRom;
@@ -32,8 +31,9 @@ enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
-    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    Elem((ElemId, ElemEventMask)),
     StreamLock(bool),
+    Timer,
 }
 
 enum Model {
@@ -44,11 +44,13 @@ enum Model {
 pub struct Dg00xRuntime {
     unit: hinawa::SndDg00x,
     model: Model,
-    card_cntr: card_cntr::CardCntr,
+    card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    notified_elems: Vec<alsactl::ElemId>,
+    dispatchers: Vec<Dispatcher>,
+    notified_elems: Vec<ElemId>,
+    timer: Option<Dispatcher>,
+    measured_elem_id_list: Vec<ElemId>,
 }
 
 impl<'a> Drop for Dg00xRuntime {
@@ -79,7 +81,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         let unit = hinawa::SndDg00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
         let node = unit.get_node();
@@ -108,6 +110,8 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 
         let dispatchers = Vec::new();
         let notified_elems = Vec::new();
+        let measured_elem_id_list = Vec::new();
+        let timer = None;
 
         Ok(Dg00xRuntime {
             unit,
@@ -117,6 +121,8 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
             tx,
             dispatchers,
             notified_elems,
+            measured_elem_id_list,
+            timer,
         })
     }
 
@@ -132,6 +138,16 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         match &mut self.model {
             Model::Digi002(m) => m.get_notified_elem_list(&mut self.notified_elems),
             Model::Digi003(m) => m.get_notified_elem_list(&mut self.notified_elems),
+        }
+
+        match &mut self.model {
+            Model::Digi002(m) => m.get_measure_elem_list(&mut self.measured_elem_id_list),
+            Model::Digi003(m) => m.get_measure_elem_list(&mut self.measured_elem_id_list),
+        }
+
+        if self.measured_elem_id_list.len() > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
+            let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
         Ok(())
@@ -150,20 +166,33 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    let _ = match &mut self.model {
-                        Model::Digi002(m) => self.card_cntr.dispatch_elem_event(
-                            &mut self.unit,
-                            &elem_id,
-                            &events,
-                            m,
-                        ),
-                        Model::Digi003(m) => self.card_cntr.dispatch_elem_event(
-                            &mut self.unit,
-                            &elem_id,
-                            &events,
-                            m,
-                        ),
-                    };
+                    if elem_id.get_name() != Self::TIMER_NAME {
+                        let _ = match &mut self.model {
+                            Model::Digi002(m) => self.card_cntr.dispatch_elem_event(
+                                &mut self.unit,
+                                &elem_id,
+                                &events,
+                                m,
+                            ),
+                            Model::Digi003(m) => self.card_cntr.dispatch_elem_event(
+                                &mut self.unit,
+                                &elem_id,
+                                &events,
+                                m,
+                            ),
+                        };
+                    } else {
+                        let mut elem_value = ElemValue::new();
+                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                            let mut vals = [false];
+                            elem_value.get_bool(&mut vals);
+                            if vals[0] {
+                                let _ = self.start_interval_timer();
+                            } else {
+                                self.stop_interval_timer();
+                            }
+                        }
+                    }
                 }
                 Event::StreamLock(locked) => {
                     let _ = match &mut self.model {
@@ -181,6 +210,20 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                         ),
                     };
                 }
+                Event::Timer => {
+                    let _ = match &mut self.model {
+                        Model::Digi002(m) => self.card_cntr.measure_elems(
+                            &mut self.unit,
+                            &self.measured_elem_id_list,
+                            m,
+                        ),
+                        Model::Digi003(m) => self.card_cntr.measure_elems(
+                            &mut self.unit,
+                            &self.measured_elem_id_list,
+                            m,
+                        ),
+                    };
+                }
             }
         }
 
@@ -191,10 +234,14 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 impl<'a> Dg00xRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
+    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
+
+    const TIMER_NAME: &'a str = "metering";
+    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -218,7 +265,7 @@ impl<'a> Dg00xRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -249,5 +296,25 @@ impl<'a> Dg00xRuntime {
         self.dispatchers.push(dispatcher);
 
         Ok(())
+    }
+
+    fn start_interval_timer(&mut self) -> Result<(), Error> {
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let tx = self.tx.clone();
+        dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
+            let _ = tx.send(Event::Timer);
+            source::Continue(true)
+        });
+
+        self.timer = Some(dispatcher);
+
+        Ok(())
+    }
+
+    fn stop_interval_timer(&mut self) {
+        if let Some(dispatcher) = &self.timer {
+            drop(dispatcher);
+            self.timer = None;
+        }
     }
 }
