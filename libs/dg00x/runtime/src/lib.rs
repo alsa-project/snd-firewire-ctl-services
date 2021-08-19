@@ -27,7 +27,7 @@ use core::RuntimeOperation;
 use ieee1212_config_rom::ConfigRom;
 use ta1394::config_rom::Ta1394ConfigRom;
 
-use model::Dg00xModel;
+use model::*;
 
 enum Event {
     Shutdown,
@@ -38,8 +38,8 @@ enum Event {
 }
 
 enum Model {
-    Digi002(Dg00xModel),
-    Digi003(Dg00xModel),
+    Digi002(Digi002Model),
+    Digi003(Digi003Model),
 }
 
 pub struct Dg00xRuntime {
@@ -98,9 +98,9 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 
         let model = match model_data.specifier_id {
             SPECIFIER_ID_DIGI002 |
-            SPECIFIER_ID_DIGI002_RACK => Model::Digi002(Dg00xModel::new(false)),
+            SPECIFIER_ID_DIGI002_RACK => Model::Digi002(Default::default()),
             SPECIFIER_ID_DIGI003 |
-            SPECIFIER_ID_DIGI003_RACK => Model::Digi003(Dg00xModel::new(true)),
+            SPECIFIER_ID_DIGI003_RACK => Model::Digi003(Default::default()),
             _ => Err(Error::new(FileError::Nxio, "Not supported."))?,
         };
 
