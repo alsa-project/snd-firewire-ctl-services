@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use snd_firewire_ctl_services::*;
-use dg00x::runtime::Dg00xRuntime;
+use dg00x_runtime::runtime::Dg00xRuntime;
 
 struct Dg00xServiceCmd;
 
