@@ -18,6 +18,8 @@ impl Dg00xCommonOperation for Digi002Protocol {
         &[ClockSource::Internal, ClockSource::Spdif, ClockSource::Adat];
 }
 
+impl Dg00xMonitorOperation for Digi002Protocol {}
+
 /// The protocol implementation for Digi 003.
 #[derive(Default)]
 pub struct Digi003Protocol;
@@ -30,6 +32,8 @@ impl Dg00xCommonOperation for Digi003Protocol {
         ClockSource::WordClock,
     ];
 }
+
+impl Dg00xMonitorOperation for Digi003Protocol {}
 
 const BASE_OFFSET: u64 = 0xffffe0000000;
 
@@ -258,5 +262,110 @@ pub trait Dg00xCommonOperation {
                 Ok(None)
             }
         })
+    }
+}
+
+const MONITOR_DST_COUNT: usize = 2;
+const MONITOR_SRC_COUNT: usize = 18;
+
+/// The structure for state of monitor. The gain is between 0x00 and 0x80 for -48.0 and 0.0 dB.
+#[derive(Default, Debug)]
+pub struct Dg00xMonitorState {
+    pub enabled: bool,
+    pub src_gains: [[u8; MONITOR_SRC_COUNT]; MONITOR_DST_COUNT],
+}
+
+const ENABLE_OFFSET: u64 = 0x0124;
+const MONITOR_SRC_GAIN_OFFSET: u64 = 0x0300;
+
+const DST_STEP: usize = 4;
+const SRC_STEP: usize = 8;
+
+/// The trait for monitor operation. At offline mode (no packet streaming runs), the monitor
+/// function is disabled and is not configurable. When packet streaming starts, the monitor
+/// function becomes configurable with reset state.
+pub trait Dg00xMonitorOperation {
+    // 'monitor-output-0', 'monitor-output-1'.
+    const MONITOR_DST_COUNT: usize = 2;
+
+    // 'analog-input-0' .. 'analog-input-7', 'spdif-input-0', 'spdif-input-1',
+    // 'adat-input-0' .. 'adat-input-7'.
+    const MONITOR_SRC_COUNT: usize = 18;
+
+    const GAIN_MIN: u8 = 0;
+    const GAIN_MAX: u8 = 0x80;
+    const GAIN_STEP: u8 = 1;
+
+    fn read_monitor_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut Dg00xMonitorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quadlet(req, node, ENABLE_OFFSET, timeout_ms).map(|val| state.enabled = val > 0)?;
+        state
+            .src_gains
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(dst, gains)| {
+                gains.iter_mut().enumerate().try_for_each(|(src, gain)| {
+                    let offset = (dst * DST_STEP + src * SRC_STEP) as u64;
+                    read_quadlet(req, node, MONITOR_SRC_GAIN_OFFSET + offset, timeout_ms)
+                        .map(|val| *gain = (val >> 24) as u8)
+                })
+            })?;
+
+        Ok(())
+    }
+
+    fn write_monitor_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &Dg00xMonitorState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::write_monitor_enable(req, node, state.enabled, timeout_ms)?;
+
+        state
+            .src_gains
+            .iter()
+            .enumerate()
+            .try_for_each(|(dst, gains)| {
+                gains.iter().enumerate().try_for_each(|(src, gain)| {
+                    Self::write_monitor_source_gain(req, node, dst, src, *gain, timeout_ms)
+                })
+            })?;
+
+        Ok(())
+    }
+
+    fn write_monitor_enable(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        enable: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_quadlet(req, node, ENABLE_OFFSET, enable as u32, timeout_ms)
+    }
+
+    fn write_monitor_source_gain(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        dst: usize,
+        src: usize,
+        gain: u8,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if dst >= Self::MONITOR_DST_COUNT {
+            let msg = format!("Invalid argument for monitor destination: {}", dst);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+        if src >= Self::MONITOR_SRC_COUNT {
+            let msg = format!("Invalid argument for monitor source: {}", src);
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+        let offset = MONITOR_SRC_GAIN_OFFSET + (dst * DST_STEP + src * SRC_STEP) as u64;
+        let val = (gain as u32) << 24;
+        write_quadlet(req, node, offset, val, timeout_ms)
     }
 }
