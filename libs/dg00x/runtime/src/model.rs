@@ -18,6 +18,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct Digi002Model {
     req: FwReq,
     common_ctl: Digi002CommonCtl,
+    meter_ctl: Digi002MeterCtl,
     monitor: MonitorCtl,
 }
 
@@ -26,6 +27,7 @@ impl Default for Digi002Model {
         Self {
             req: FwReq::new(),
             common_ctl: Default::default(),
+            meter_ctl: Default::default(),
             monitor: MonitorCtl::new(),
         }
     }
@@ -47,6 +49,23 @@ impl AsMut<ClockRate> for Digi002CommonCtl {
 }
 
 impl Dg00xCommonCtl<Digi002Protocol> for Digi002CommonCtl {}
+
+#[derive(Default)]
+struct Digi002MeterCtl(Option<ClockRate>, Vec<ElemId>);
+
+impl AsRef<Option<ClockRate>> for Digi002MeterCtl {
+    fn as_ref(&self) -> &Option<ClockRate> {
+        &self.0
+    }
+}
+
+impl AsMut<Option<ClockRate>> for Digi002MeterCtl {
+    fn as_mut(&mut self) -> &mut Option<ClockRate> {
+        &mut self.0
+    }
+}
+
+impl Dg00xMeterCtl<Digi002Protocol> for Digi002MeterCtl {}
 
 impl NotifyModel<SndDg00x, bool> for Digi002Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
@@ -83,6 +102,8 @@ impl CtlModel<SndDg00x> for Digi002Model {
     ) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.common_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.monitor.load(&unit, &self.req, card_cntr)?;
         Ok(())
     }
@@ -94,6 +115,8 @@ impl CtlModel<SndDg00x> for Digi002Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.monitor.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
@@ -120,26 +143,32 @@ impl CtlModel<SndDg00x> for Digi002Model {
 }
 
 impl MeasureModel<SndDg00x> for Digi002Model {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, _: &mut SndDg00x) -> Result<(), Error> {
-        Ok(())
+    fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
+        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)
     }
 
     fn measure_elem(
         &mut self,
         _: &SndDg00x,
-        _: &ElemId,
-        _: &mut ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
 pub struct Digi003Model {
     req: FwReq,
     common_ctl: Digi003CommonCtl,
+    meter_ctl: Digi003MeterCtl,
     monitor: MonitorCtl,
 }
 
@@ -148,6 +177,7 @@ impl Default for Digi003Model {
         Self {
             req: FwReq::new(),
             common_ctl: Default::default(),
+            meter_ctl: Default::default(),
             monitor: MonitorCtl::new(),
         }
     }
@@ -169,6 +199,23 @@ impl AsMut<ClockRate> for Digi003CommonCtl {
 }
 
 impl Dg00xCommonCtl<Digi003Protocol> for Digi003CommonCtl {}
+
+#[derive(Default)]
+struct Digi003MeterCtl(Option<ClockRate>, Vec<ElemId>);
+
+impl AsRef<Option<ClockRate>> for Digi003MeterCtl {
+    fn as_ref(&self) -> &Option<ClockRate> {
+        &self.0
+    }
+}
+
+impl AsMut<Option<ClockRate>> for Digi003MeterCtl {
+    fn as_mut(&mut self) -> &mut Option<ClockRate> {
+        &mut self.0
+    }
+}
+
+impl Dg00xMeterCtl<Digi003Protocol> for Digi003MeterCtl {}
 
 impl NotifyModel<SndDg00x, bool> for Digi003Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
@@ -205,6 +252,8 @@ impl CtlModel<SndDg00x> for Digi003Model {
     ) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.common_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.monitor.load(&unit, &self.req, card_cntr)?;
         Ok(())
     }
@@ -216,6 +265,8 @@ impl CtlModel<SndDg00x> for Digi003Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.monitor.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
@@ -242,20 +293,25 @@ impl CtlModel<SndDg00x> for Digi003Model {
 }
 
 impl MeasureModel<SndDg00x> for Digi003Model {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, _: &mut SndDg00x) -> Result<(), Error> {
-        Ok(())
+    fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
+        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)
     }
 
     fn measure_elem(
         &mut self,
         _: &SndDg00x,
-        _: &ElemId,
-        _: &mut ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -462,6 +518,75 @@ trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRat
         match elem_id.get_name().as_str() {
             CLK_LOCAL_RATE_NAME => {
                 let pos = Self::CLOCK_RATES
+                    .iter()
+                    .position(|r| r.eq(&self.as_ref()))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+fn optional_clock_rate_to_str(rate: &Option<ClockRate>) -> &'static str {
+    if let Some(r) = rate {
+        clock_rate_to_str(r)
+    } else {
+        "N/A"
+    }
+}
+
+const CLK_EXT_RATE_NAME: &str = "external-clock-rate";
+
+trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
+    AsRef<Option<ClockRate>> + AsMut<Option<ClockRate>>
+{
+    const OPTIONAL_CLOCK_RATES: [Option<ClockRate>; 5] = [
+        None,
+        Some(ClockRate::R44100),
+        Some(ClockRate::R48000),
+        Some(ClockRate::R88200),
+        Some(ClockRate::R96000),
+    ];
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndDg00x,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut measured_elem_id_list = Vec::new();
+
+        let labels: Vec<&str> = Self::OPTIONAL_CLOCK_RATES
+            .iter()
+            .map(|r| optional_clock_rate_to_str(r))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_EXT_RATE_NAME, 0);
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        self.measure_states(unit, req, timeout_ms)?;
+
+        Ok(measured_elem_id_list)
+    }
+
+    fn measure_states(
+        &mut self,
+        unit: &mut SndDg00x,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::read_external_clock_source_rate(req, &mut unit.get_node(), timeout_ms)
+            .map(|rate| *self.as_mut() = rate)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            CLK_EXT_RATE_NAME => {
+                let pos = Self::OPTIONAL_CLOCK_RATES
                     .iter()
                     .position(|r| r.eq(&self.as_ref()))
                     .unwrap();
