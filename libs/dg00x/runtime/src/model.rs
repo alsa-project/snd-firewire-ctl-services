@@ -9,28 +9,20 @@ use hinawa::{SndDg00x, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
-use dg00x_protocols::*;
+use core::elem_value_accessor::*;
 
-use super::monitor_ctl::MonitorCtl;
+use alsa_ctl_tlv_codec::items::DbInterval;
+
+use dg00x_protocols::*;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct Digi002Model {
     req: FwReq,
     common_ctl: Digi002CommonCtl,
     meter_ctl: Digi002MeterCtl,
-    monitor: MonitorCtl,
-}
-
-impl Default for Digi002Model {
-    fn default() -> Self {
-        Self {
-            req: FwReq::new(),
-            common_ctl: Default::default(),
-            meter_ctl: Default::default(),
-            monitor: MonitorCtl::new(),
-        }
-    }
+    monitor_ctl: Digi002MonitorCtl,
 }
 
 #[derive(Default)]
@@ -67,26 +59,44 @@ impl AsMut<Option<ClockRate>> for Digi002MeterCtl {
 
 impl Dg00xMeterCtl<Digi002Protocol> for Digi002MeterCtl {}
 
+#[derive(Default)]
+struct Digi002MonitorCtl(Dg00xMonitorState, Vec<ElemId>);
+
+impl AsRef<Dg00xMonitorState> for Digi002MonitorCtl {
+    fn as_ref(&self) -> &Dg00xMonitorState {
+        &self.0
+    }
+}
+
+impl AsMut<Dg00xMonitorState> for Digi002MonitorCtl {
+    fn as_mut(&mut self) -> &mut Dg00xMonitorState {
+        &mut self.0
+    }
+}
+
+impl Dg00xMonitorCtl<Digi002Protocol> for Digi002MonitorCtl {}
+
 impl NotifyModel<SndDg00x, bool> for Digi002Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
-        elem_id_list.extend_from_slice(&self.monitor.notified_elems);
+        elem_id_list.extend_from_slice(&self.monitor_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
         self.common_ctl.handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
+        self.monitor_ctl.handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        unit: &SndDg00x,
+        _: &SndDg00x,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read_notified_elems(elem_id, elem_value)? {
             Ok(true)
-        } else if self.monitor.read_notified_elems(unit, &self.req, elem_id, elem_value)? {
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -104,7 +114,8 @@ impl CtlModel<SndDg00x> for Digi002Model {
             .map(|mut elem_id_list| self.common_ctl.1.append(&mut elem_id_list))?;
         self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
-        self.monitor.load(&unit, &self.req, card_cntr)?;
+        self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -118,7 +129,7 @@ impl CtlModel<SndDg00x> for Digi002Model {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.monitor.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -134,7 +145,7 @@ impl CtlModel<SndDg00x> for Digi002Model {
     ) -> Result<bool, Error> {
         if self.common_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.monitor.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.monitor_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -165,22 +176,12 @@ impl MeasureModel<SndDg00x> for Digi002Model {
     }
 }
 
+#[derive(Default)]
 pub struct Digi003Model {
     req: FwReq,
     common_ctl: Digi003CommonCtl,
     meter_ctl: Digi003MeterCtl,
-    monitor: MonitorCtl,
-}
-
-impl Default for Digi003Model {
-    fn default() -> Self {
-        Self {
-            req: FwReq::new(),
-            common_ctl: Default::default(),
-            meter_ctl: Default::default(),
-            monitor: MonitorCtl::new(),
-        }
-    }
+    monitor_ctl: Digi003MonitorCtl,
 }
 
 #[derive(Default)]
@@ -217,26 +218,44 @@ impl AsMut<Option<ClockRate>> for Digi003MeterCtl {
 
 impl Dg00xMeterCtl<Digi003Protocol> for Digi003MeterCtl {}
 
+#[derive(Default)]
+struct Digi003MonitorCtl(Dg00xMonitorState, Vec<ElemId>);
+
+impl AsRef<Dg00xMonitorState> for Digi003MonitorCtl {
+    fn as_ref(&self) -> &Dg00xMonitorState {
+        &self.0
+    }
+}
+
+impl AsMut<Dg00xMonitorState> for Digi003MonitorCtl {
+    fn as_mut(&mut self) -> &mut Dg00xMonitorState {
+        &mut self.0
+    }
+}
+
+impl Dg00xMonitorCtl<Digi003Protocol> for Digi003MonitorCtl {}
+
 impl NotifyModel<SndDg00x, bool> for Digi003Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.1);
-        elem_id_list.extend_from_slice(&self.monitor.notified_elems);
+        elem_id_list.extend_from_slice(&self.monitor_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
         self.common_ctl.handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
+        self.monitor_ctl.handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        unit: &SndDg00x,
+        _: &SndDg00x,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read_notified_elems(elem_id, elem_value)? {
             Ok(true)
-        } else if self.monitor.read_notified_elems(unit, &self.req, elem_id, elem_value)? {
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -254,7 +273,8 @@ impl CtlModel<SndDg00x> for Digi003Model {
             .map(|mut elem_id_list| self.common_ctl.1.append(&mut elem_id_list))?;
         self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
-        self.monitor.load(&unit, &self.req, card_cntr)?;
+        self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -268,7 +288,7 @@ impl CtlModel<SndDg00x> for Digi003Model {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.monitor.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -284,7 +304,7 @@ impl CtlModel<SndDg00x> for Digi003Model {
     ) -> Result<bool, Error> {
         if self.common_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.monitor.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.monitor_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -592,6 +612,168 @@ trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const MONITOR_ENABLE_NAME: &str = "monitor-enable";
+const MONITOR_SRC_GAIN_NAME: &str = "monitor-source-gain";
+
+trait Dg00xMonitorCtl<T: Dg00xMonitorOperation>:
+    AsRef<Dg00xMonitorState> + AsMut<Dg00xMonitorState>
+{
+    const DST_LABELS: [&'static str; 2] = ["monitor-output-1", "monitor-output-2"];
+    const SRC_LABELS: [&'static str; 18] = [
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
+    ];
+
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -4800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndDg00x,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        assert_eq!(Self::DST_LABELS.len(), T::MONITOR_DST_COUNT);
+        assert_eq!(Self::SRC_LABELS.len(), T::MONITOR_SRC_COUNT);
+
+        let mut measured_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ENABLE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_SRC_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                Self::DST_LABELS.len(),
+                T::GAIN_MIN as i32,
+                T::GAIN_MAX as i32,
+                T::GAIN_STEP as i32,
+                Self::SRC_LABELS.len(),
+                Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        T::read_monitor_state(req, &mut unit.get_node(), self.as_mut(), timeout_ms)?;
+
+        if !unit.get_property_streaming() {
+            self.as_mut().enabled = false;
+        }
+
+        Ok(measured_elem_id_list)
+    }
+
+    fn handle_streaming_event(
+        &mut self,
+        locked: bool,
+        unit: &mut SndDg00x,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        // Just during packet streaming, any write transaction to register has effect to configure
+        // internal multiplexer. Without packet streaming, the transaction has no effect against
+        // the multiplexer even if it's successful to change the value of register.
+        if !locked {
+            self.as_mut().enabled = false;
+            Ok(())
+        } else {
+            // Attempt to update the registers with cached value at the beginning of packet
+            // streaming.
+            T::write_monitor_state(req, &mut unit.get_node(), self.as_mut(), timeout_ms)
+        }
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MONITOR_ENABLE_NAME => {
+                elem_value.set_bool(&[self.as_ref().enabled]);
+                Ok(true)
+            }
+            MONITOR_SRC_GAIN_NAME => {
+                let dst = elem_id.get_index() as usize;
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
+                    Ok(self.as_ref().src_gains[dst][src] as i32)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndDg00x,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MONITOR_ENABLE_NAME => {
+                if !unit.get_property_streaming() {
+                    let msg = "Monitor function is configurable during packet streaming.";
+                    Err(Error::new(FileError::Again, &msg))
+                } else {
+                    let mut vals = [false];
+                    new.get_bool(&mut vals);
+                    T::write_monitor_enable(req, &mut unit.get_node(), vals[0], timeout_ms).map(
+                        |_| {
+                            self.as_mut().enabled = vals[0];
+                            true
+                        },
+                    )
+                }
+            }
+            MONITOR_SRC_GAIN_NAME => {
+                if !self.as_ref().enabled {
+                    let msg = "Monitor is disabled.";
+                    Err(Error::new(FileError::Again, &msg))
+                } else {
+                    let mut node = unit.get_node();
+                    let dst = elem_id.get_index() as usize;
+                    ElemValueAccessor::<i32>::get_vals(
+                        new,
+                        old,
+                        Self::SRC_LABELS.len(),
+                        |src, val| {
+                            T::write_monitor_source_gain(
+                                req, &mut node, dst, src, val as u8, timeout_ms,
+                            )
+                        },
+                    )
+                    .map(|_| true)
+                }
             }
             _ => Ok(false),
         }

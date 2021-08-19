@@ -2,10 +2,6 @@
 // Copyright (c) 2020 Takashi Sakamoto
 mod model;
 
-mod protocol;
-
-mod monitor_ctl;
-
 use glib::source;
 use glib::{Error, FileError};
 use nix::sys::signal;
