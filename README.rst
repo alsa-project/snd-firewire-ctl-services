@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2020/12/08
+2021/08/23
 Takashi Sakamoto
 
 Introduction
@@ -106,6 +106,7 @@ your device, please contact to developer.
   * MOTU 896
   * MOTU Traveler
   * MOTU 828mkII
+  * MOTU 896HD
   * MOTU UltraLite
   * MOTU 8pre
   * MOTU 828mk3

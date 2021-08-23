@@ -9,6 +9,7 @@ mod ultralite;
 mod traveler;
 mod f8pre;
 mod f828mk2;
+mod f896hd;
 mod f828;
 mod f896;
 
