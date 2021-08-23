@@ -727,6 +727,9 @@ impl<'a> V1MonitorInputProtocol<'a> for F896Protocol {
     }
 }
 
-impl<'a> AesebuRateConvertProtocol<'a> for F896Protocol {}
+impl<'a> AesebuRateConvertProtocol<'a> for F896Protocol {
+    const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000060;
+    const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
+}
 
 impl<'a> LevelMetersProtocol<'a> for F896Protocol {}

@@ -421,3 +421,66 @@ impl<'a> V2MainAssignProtocol<'a> for UltraliteProtocol {
         ("S/PDIF-1/2", 0x03),
     ];
 }
+
+/// The protocol implementation for 896HD.
+#[derive(Default)]
+pub struct F896hdProtocol(FwReq);
+
+impl AsRef<FwReq> for F896hdProtocol {
+    fn as_ref(&self) -> &FwReq {
+        &self.0
+    }
+}
+
+impl<'a> CommonProtocol<'a> for F896hdProtocol {}
+
+impl<'a> AssignProtocol<'a> for F896hdProtocol {
+    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+        ("Phone-1/2", 0x01),
+        ("Analog-1/2", 0x02),   // Stream-1/2
+        ("Analog-3/4", 0x03),   // Stream-3/4
+        ("Analog-5/6", 0x04),   // Stream-5/6
+        ("Analog-7/8", 0x05),   // Stream-7/8
+        ("Main-out-1/2", 0x06), // Stream-9/10
+        ("AES/EBU-1/2", 0x07),  // Stream-11/12
+        ("ADAT-1/2", 0x08),     // Stream-13/14
+        ("ADAT-3/4", 0x09),     // Stream-15/16
+        ("ADAT-5/6", 0x0a),     // Stream-17/18
+        ("ADAT-7/8", 0x0b),     // Stream-19/20
+    ];
+}
+
+impl<'a> WordClkProtocol<'a> for F896hdProtocol {}
+
+impl<'a> AesebuRateConvertProtocol<'a> for F896hdProtocol {
+    const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000300;
+    const AESEBU_RATE_CONVERT_SHIFT: usize = 8;
+}
+
+impl<'a> LevelMetersProtocol<'a> for F896hdProtocol {}
+
+impl<'a> V2ClkProtocol<'a> for F896hdProtocol {
+    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+        (ClkRate::R44100, 0x00),
+        (ClkRate::R48000, 0x01),
+        (ClkRate::R88200, 0x02),
+        (ClkRate::R96000, 0x03),
+        (ClkRate::R176400, 0x04),
+        (ClkRate::R192000, 0x05),
+    ];
+
+    const CLK_SRCS: &'a [(V2ClkSrc, u8)] = &[
+        (V2ClkSrc::Internal, 0x00),
+        (V2ClkSrc::AdatOpt, 0x01),
+        (V2ClkSrc::AesebuXlr, 0x02),
+        (V2ClkSrc::WordClk, 0x04),
+        (V2ClkSrc::AdatDsub, 0x05),
+    ];
+
+    const HAS_LCD: bool = false;
+}
+
+impl<'a> V2OptIfaceProtocol<'a> for F896hdProtocol {
+    const OPT_IFACE_MODES: &'a [(V2OptIfaceMode, u8)] =
+        &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
+}
