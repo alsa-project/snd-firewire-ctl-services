@@ -9,6 +9,7 @@ use motu_protocols::ClkRate;
 use super::f828::F828;
 use super::f896::F896;
 use super::f828mk2::F828mk2;
+use super::f896hd::F896hd;
 use super::traveler::Traveler;
 use super::ultralite::UltraLite;
 use super::f8pre::F8pre;
@@ -28,6 +29,7 @@ enum MotuCtlModel {
     F828(F828),
     F896(F896),
     F828mk2(F828mk2),
+    F896hd(F896hd),
     Traveler(Traveler),
     UltraLite(UltraLite),
     F8pre(F8pre),
@@ -43,6 +45,7 @@ impl MotuModel {
             0x000001 => MotuCtlModel::F828(Default::default()),
             0x000002 => MotuCtlModel::F896(Default::default()),
             0x000003 => MotuCtlModel::F828mk2(Default::default()),
+            0x000005 => MotuCtlModel::F896hd(Default::default()),
             0x000009 => MotuCtlModel::Traveler(Default::default()),
             0x00000d => MotuCtlModel::UltraLite(Default::default()),
             0x00000f => MotuCtlModel::F8pre(Default::default()),
@@ -71,6 +74,7 @@ impl MotuModel {
             MotuCtlModel::F828(m) => m.load(unit, card_cntr),
             MotuCtlModel::F896(m) => m.load(unit, card_cntr),
             MotuCtlModel::F828mk2(m) => m.load(unit, card_cntr),
+            MotuCtlModel::F896hd(m) => m.load(unit, card_cntr),
             MotuCtlModel::Traveler(m) => m.load(unit, card_cntr),
             MotuCtlModel::UltraLite(m) => m.load(unit, card_cntr),
             MotuCtlModel::F8pre(m) => m.load(unit, card_cntr),
@@ -100,6 +104,7 @@ impl MotuModel {
             MotuCtlModel::F828(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::F896(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::F828mk2(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+            MotuCtlModel::F896hd(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::Traveler(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::UltraLite(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
             MotuCtlModel::F8pre(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
