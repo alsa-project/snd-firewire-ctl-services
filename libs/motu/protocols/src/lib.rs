@@ -271,14 +271,15 @@ pub enum AesebuRateConvertMode {
     OutputDoubleSystem,
 }
 
-const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000060;
-const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
-const AESEBU_RATE_CONVERT_VALS: [u8; 4] = [0x00, 0x01, 0x02, 0x03];
-
 const AESEBU_RATE_CONVERT_LABEL: &str = "aesebu-rate-convert";
 
 /// The trait for protocol of rate convert specific to AES/EBU input/output signals.
 pub trait AesebuRateConvertProtocol<'a>: CommonProtocol<'a> {
+    const AESEBU_RATE_CONVERT_MASK: u32;
+    const AESEBU_RATE_CONVERT_SHIFT: usize;
+
+    const AESEBU_RATE_CONVERT_VALS: [u8; 4] = [0x00, 0x01, 0x02, 0x03];
+
     const AESEBU_RATE_CONVERT_MODES: [AesebuRateConvertMode; 4] = [
         AesebuRateConvertMode::None,
         AesebuRateConvertMode::InputToSystem,
@@ -293,11 +294,11 @@ pub trait AesebuRateConvertProtocol<'a>: CommonProtocol<'a> {
     ) -> Result<usize, Error> {
         self.get_idx_from_val(
             Self::OFFSET_CLK,
-            AESEBU_RATE_CONVERT_MASK,
-            AESEBU_RATE_CONVERT_SHIFT,
+            Self::AESEBU_RATE_CONVERT_MASK,
+            Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
             unit,
-            &AESEBU_RATE_CONVERT_VALS,
+            &Self::AESEBU_RATE_CONVERT_VALS,
             timeout_ms,
         )
     }
@@ -310,11 +311,11 @@ pub trait AesebuRateConvertProtocol<'a>: CommonProtocol<'a> {
     ) -> Result<(), Error> {
         self.set_idx_to_val(
             Self::OFFSET_CLK,
-            AESEBU_RATE_CONVERT_MASK,
-            AESEBU_RATE_CONVERT_SHIFT,
+            Self::AESEBU_RATE_CONVERT_MASK,
+            Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
             unit,
-            &AESEBU_RATE_CONVERT_VALS,
+            &Self::AESEBU_RATE_CONVERT_VALS,
             idx,
             timeout_ms,
         )
