@@ -24,7 +24,7 @@ enum AsyncUnitEvent {
     SeqAppl(alsaseq::EventDataCtl),
 }
 
-pub struct AsyncRuntime {
+pub struct AsynchRuntime {
     node: hinawa::FwNode,
     model: Fe8Model,
     resp: hinawa::FwResp,
@@ -35,7 +35,7 @@ pub struct AsyncRuntime {
     state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
 }
 
-impl Drop for AsyncRuntime {
+impl Drop for AsynchRuntime {
     fn drop(&mut self) {
         let _ = self.model.finalize_surface(&mut self.node);
         self.resp.release();
@@ -53,7 +53,7 @@ impl Drop for AsyncRuntime {
     }
 }
 
-impl<'a> AsyncRuntime {
+impl<'a> AsynchRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
 
     pub fn new(node: hinawa::FwNode, name: String) -> Result<Self, Error> {
@@ -66,7 +66,7 @@ impl<'a> AsyncRuntime {
 
         let dispatchers = Vec::new();
 
-        Ok(AsyncRuntime {
+        Ok(AsynchRuntime {
             node,
             model: Default::default(),
             resp,
