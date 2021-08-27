@@ -39,7 +39,11 @@ impl<'a> SeqCntr {
         let mut info = alsaseq::PortInfo::new();
         let attr_flags = alsaseq::PortAttrFlag::MIDI_GENERIC | alsaseq::PortAttrFlag::HARDWARE;
         info.set_property_attrs(attr_flags);
-        let cap_flags = alsaseq::PortCapFlag::READ | alsaseq::PortCapFlag::SUBS_READ;
+        let cap_flags =
+            alsaseq::PortCapFlag::READ |
+            alsaseq::PortCapFlag::SUBS_READ |
+            alsaseq::PortCapFlag::WRITE |
+            alsaseq::PortCapFlag::SUBS_WRITE;
         info.set_property_caps(cap_flags);
         info.set_property_name(Some(&Self::SEQ_PORT_NAME));
         self.client.create_port(&mut info)?;
