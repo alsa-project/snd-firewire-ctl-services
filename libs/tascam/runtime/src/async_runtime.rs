@@ -12,7 +12,7 @@ use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
 use core::dispatcher;
 
-use tascam_protocols::asynch::{fe8::*, *};
+use tascam_protocols::asynch::*;
 
 use crate::{fe8_model::Fe8Model, *};
 
@@ -32,21 +32,12 @@ pub struct AsyncRuntime {
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
-    req: hinawa::FwReq,
     state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
 }
-
-const TIMEOUT_MS: u32 = 50;
 
 impl Drop for AsyncRuntime {
     fn drop(&mut self) {
         let _ = self.model.finalize_surface(&mut self.node);
-        let _ = Fe8Protocol::enable_notification(
-            &mut self.req,
-            &mut self.node,
-            false,
-            TIMEOUT_MS,
-        );
         self.resp.release();
 
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -83,7 +74,6 @@ impl<'a> AsyncRuntime {
             tx,
             rx,
             dispatchers,
-            req: hinawa::FwReq::new(),
             state_cntr: Arc::new(Mutex::new(Default::default())),
         })
     }
@@ -170,14 +160,7 @@ impl<'a> AsyncRuntime {
         });
         // Register the address to the unit.
         addr |= (self.node.get_property_local_node_id() as u64) << 48;
-        Fe8Protocol::register_notification_address(
-            &mut self.req,
-            &mut self.node,
-            addr,
-            TIMEOUT_MS,
-        )?;
-
-        Fe8Protocol::enable_notification(&mut self.req, &mut self.node, true, TIMEOUT_MS)?;
+        self.model.register_notification_address(&mut self.node, addr)?;
 
         Ok(())
     }
