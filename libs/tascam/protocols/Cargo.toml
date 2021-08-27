@@ -1,0 +1,10 @@
+[package]
+name = "tascam-protocols"
+version = "0.1.0"
+authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
+edition = "2018"
+license = "GPL-3.0-or-later"
+publish = false
+description = """
+Protocol implementation for TASCAM FireWire series
+"""
