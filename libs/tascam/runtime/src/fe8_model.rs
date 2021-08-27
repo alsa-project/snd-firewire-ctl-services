@@ -3,7 +3,7 @@
 
 use hinawa::FwReq;
 
-use tascam_protocols::asynch::fe8::*;
+use tascam_protocols::asynch::{fe8::*, *};
 
 use crate::*;
 
@@ -33,7 +33,9 @@ impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
         node: &mut FwNode,
         _: &[(MachineItem, ItemValue)],
     ) -> Result<(), Error> {
-        Fe8Protocol::operate_firewire_led(&mut self.req, node, true, TIMEOUT_MS)
+        Fe8Protocol::enable_notification(&mut self.req, node, true, TIMEOUT_MS)?;
+        Fe8Protocol::operate_firewire_led(&mut self.req, node, true, TIMEOUT_MS)?;
+        Ok(())
     }
 
     fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error> {
@@ -59,5 +61,15 @@ impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
             node,
             TIMEOUT_MS,
         )
+    }
+}
+
+impl Fe8Model {
+    pub fn register_notification_address(
+        &mut self,
+        node: &mut FwNode,
+        addr: u64,
+    ) -> Result<(), Error> {
+        Fe8Protocol::register_notification_address(&mut self.req, node, addr, TIMEOUT_MS)
     }
 }
