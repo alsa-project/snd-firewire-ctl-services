@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use snd_firewire_ctl_services::*;
-use tascam::runtime::TascamRuntime;
+use tascam_runtime::runtime::TascamRuntime;
 
 struct TascamServiceCmd;
 
