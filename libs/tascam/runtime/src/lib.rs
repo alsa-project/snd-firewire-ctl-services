@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-mod isoc_console_runtime;
+mod isoch_console_runtime;
 mod isoc_rack_runtime;
 mod async_runtime;
 
@@ -28,14 +28,14 @@ use tascam_protocols::*;
 
 use seq_cntr::*;
 
-use isoc_console_runtime::IsocConsoleRuntime;
+use isoch_console_runtime::IsochConsoleRuntime;
 use isoc_rack_runtime::IsocRackRuntime;
 use async_runtime::AsyncRuntime;
 
 use std::convert::TryFrom;
 
 pub enum TascamRuntime {
-    IsocConsole(IsocConsoleRuntime),
+    IsochConsole(IsochConsoleRuntime),
     IsocRack(IsocRackRuntime),
     Async(AsyncRuntime),
 }
@@ -58,8 +58,8 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                 let name = detect_model_name(&config_rom.root)?;
                 match name {
                     "FW-1884" | "FW-1082" => {
-                        let runtime = IsocConsoleRuntime::new(unit, name, sysnum)?;
-                        Ok(Self::IsocConsole(runtime))
+                        let runtime = IsochConsoleRuntime::new(unit, name, sysnum)?;
+                        Ok(Self::IsochConsole(runtime))
                     }
                     "FW-1804" => {
                         let runtime = IsocRackRuntime::new(unit, name, sysnum)?;
@@ -98,7 +98,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
     fn listen(&mut self) -> Result<(), Error> {
         match self {
-            Self::IsocConsole(unit) => unit.listen(),
+            Self::IsochConsole(unit) => unit.listen(),
             Self::IsocRack(unit) => unit.listen(),
             Self::Async(unit) => unit.listen(),
         }
@@ -106,7 +106,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
     fn run(&mut self) -> Result<(), Error> {
         match self {
-            Self::IsocConsole(unit) => unit.run(),
+            Self::IsochConsole(unit) => unit.run(),
             Self::IsocRack(unit) => unit.run(),
             Self::Async(unit) => unit.run(),
         }
