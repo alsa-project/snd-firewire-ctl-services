@@ -491,3 +491,7 @@ impl Fw1082Protocol {
         }
     }
 }
+
+impl FireWireLedOperation for Fw1082Protocol {
+    const POSITIONS: &'static [u16] = &[0x8e];
+}
