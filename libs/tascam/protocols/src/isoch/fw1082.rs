@@ -20,3 +20,5 @@ impl IsochMeterOperation for Fw1082Protocol {
 impl IsochCommonOperation for Fw1082Protocol {
     const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc] = &[ClkSrc::Internal, ClkSrc::Spdif];
 }
+
+impl IsochConsoleOperation for Fw1082Protocol {}
