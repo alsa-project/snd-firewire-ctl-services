@@ -11,9 +11,7 @@ use core::card_cntr::*;
 
 use tascam_protocols::isoch::{fw1082::*, *};
 
-use super::isoch_ctls::*;
-
-use super::isoc_console_runtime::ConsoleData;
+use crate::{isoc_console_runtime::*, isoch_ctls::*, *};
 
 #[derive(Default)]
 pub struct Fw1082Model {
@@ -21,6 +19,7 @@ pub struct Fw1082Model {
     meter_ctl: MeterCtl,
     common_ctl: CommonCtl,
     console_ctl: ConsoleCtl,
+    seq_state: SequencerState<Fw1082SurfaceState>,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -72,6 +71,54 @@ impl AsMut<IsochConsoleState> for ConsoleCtl {
 }
 
 impl IsochConsoleCtl<Fw1082Protocol> for ConsoleCtl {}
+
+impl AsRef<SequencerState<Fw1082SurfaceState>> for Fw1082Model {
+    fn as_ref(&self) -> &SequencerState<Fw1082SurfaceState> {
+        &self.seq_state
+    }
+}
+
+impl AsMut<SequencerState<Fw1082SurfaceState>> for Fw1082Model {
+    fn as_mut(&mut self) -> &mut SequencerState<Fw1082SurfaceState> {
+        &mut self.seq_state
+    }
+}
+
+impl SequencerCtlOperation<SndTscm, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
+    fn initialize_surface(
+        &mut self,
+        unit: &mut SndTscm,
+        machine_values: &[(MachineItem, ItemValue)],
+    ) -> Result<(), Error> {
+        machine_values.iter().filter(|(item, _)| {
+            MachineItem::Bank.eq(item) || MachineItem::EncoderMode.eq(item) ||
+            Fw1082Protocol::TRANSPORT_ITEMS.iter().find(|i| item.eq(i)).is_some()
+        }).try_for_each(|entry| self.feedback_to_surface(unit, entry))
+    }
+
+    fn finalize_surface(&mut self, unit: &mut SndTscm) -> Result<(), Error> {
+        Fw1082Protocol::finalize_surface(
+            &mut self.seq_state.surface_state,
+            &mut self.req,
+            &mut unit.get_node(),
+            TIMEOUT_MS,
+        )
+    }
+
+    fn feedback_to_surface(
+        &mut self,
+        unit: &mut SndTscm,
+        event: &(MachineItem, ItemValue),
+    ) -> Result<(), Error> {
+        Fw1082Protocol::feedback_to_surface(
+            &mut self.seq_state.surface_state,
+            event,
+            &mut self.req,
+            &mut unit.get_node(),
+            TIMEOUT_MS,
+        )
+    }
+}
 
 impl MeasureModel<SndTscm> for Fw1082Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
