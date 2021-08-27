@@ -127,12 +127,14 @@ impl MachineStateOperation for Fw1082Protocol {
 pub struct Fw1082SurfaceState {
     common: SurfaceCommonState,
     isoch: SurfaceIsochState,
+    specific: SurfaceSpecificState,
 }
 
 impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
     fn initialize_surface_state(state: &mut Fw1082SurfaceState) {
         Self::initialize_surface_common_state(&mut state.common);
         Self::initialize_surface_isoch_state(&mut state.isoch);
+        Self::initialize_surface_specific_state(&mut state.specific);
     }
 
     fn decode_surface_image(
@@ -155,6 +157,14 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
 
         Self::decode_surface_image_isoch(&mut machine_values, &state.isoch, index, before, after);
 
+        Self::decode_surface_image_specific(
+            &mut machine_values,
+            &state.specific,
+            index,
+            before,
+            after,
+        );
+
         machine_values
     }
 
@@ -167,6 +177,7 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
     ) -> Result<(), Error> {
         Self::feedback_to_surface_common(&mut state.common, machine_value);
         Self::feedback_to_surface_isoch(&mut state.isoch, machine_value);
+        Self::feedback_to_surface_specific(&mut state.specific, machine_value);
         Ok(())
     }
 
@@ -306,4 +317,176 @@ impl SurfaceImageIsochOperation for Fw1082Protocol {
         SurfaceBoolValue(9, 0x00080000),
         SurfaceBoolValue(9, 0x00100000),
     ];
+}
+
+/// The mode of encoder items.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Fw1082EncoderMode {
+    Equalizer,
+    Aux0123,
+    Aux4567,
+}
+
+impl Default for Fw1082EncoderMode {
+    fn default() -> Self {
+        Self::Equalizer
+    }
+}
+
+/// The structure for state of surface specific to FW-1082.
+#[derive(Default, Debug)]
+struct SurfaceSpecificState {
+    mode: Fw1082EncoderMode,
+    button_states: [[bool; 3]; 4],
+}
+
+impl Fw1082Protocol {
+    const ENCODER_MODES: [(SurfaceBoolValue, Fw1082EncoderMode); 3] = [
+        (
+            SurfaceBoolValue(8, 0x20000000),
+            Fw1082EncoderMode::Equalizer,
+        ),
+        (SurfaceBoolValue(8, 0x40000000), Fw1082EncoderMode::Aux0123),
+        (SurfaceBoolValue(8, 0x80000000), Fw1082EncoderMode::Aux4567),
+    ];
+
+    const ENCODER_BOOL_ITEMS: [(SurfaceBoolValue, [MachineItem; 3]); 4] = [
+        (
+            SurfaceBoolValue(9, 0x00000800),
+            [MachineItem::Low, MachineItem::Aux(3), MachineItem::Aux(7)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000400),
+            [
+                MachineItem::LowMid,
+                MachineItem::Aux(2),
+                MachineItem::Aux(6),
+            ],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000200),
+            [
+                MachineItem::HighMid,
+                MachineItem::Aux(1),
+                MachineItem::Aux(5),
+            ],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000100),
+            [MachineItem::High, MachineItem::Aux(0), MachineItem::Aux(4)],
+        ),
+    ];
+
+    const ENCODER_U16_ITEMS: [(SurfaceU16Value, [MachineItem; 3]); 4] = [
+        (
+            SurfaceU16Value(14, 0x0000ffff, 0),
+            [
+                MachineItem::Gain,
+                MachineItem::Rotary(0),
+                MachineItem::Rotary(4),
+            ],
+        ),
+        (
+            SurfaceU16Value(14, 0xffff0000, 16),
+            [
+                MachineItem::Freq,
+                MachineItem::Rotary(1),
+                MachineItem::Rotary(5),
+            ],
+        ),
+        (
+            SurfaceU16Value(15, 0x0000ffff, 0),
+            [
+                MachineItem::Q,
+                MachineItem::Rotary(2),
+                MachineItem::Rotary(6),
+            ],
+        ),
+        (
+            SurfaceU16Value(10, 0x0000ffff, 0),
+            [
+                MachineItem::Pan,
+                MachineItem::Rotary(3),
+                MachineItem::Rotary(7),
+            ],
+        ),
+    ];
+
+    fn initialize_surface_specific_state(state: &mut SurfaceSpecificState) {
+        state.mode = Fw1082EncoderMode::Equalizer;
+    }
+
+    fn decode_surface_image_specific(
+        machine_values: &mut Vec<(MachineItem, ItemValue)>,
+        state: &SurfaceSpecificState,
+        index: u32,
+        before: u32,
+        after: u32,
+    ) {
+        let mut curr_mode = state.mode;
+
+        // One of encoder modes should be enabled always.
+        Self::ENCODER_MODES
+            .iter()
+            .enumerate()
+            .filter(|(_, (bool_val, _))| detect_bool_action(bool_val, index, before, after))
+            .for_each(|(idx, (bool_val, mode))| {
+                let push_event = detect_bool_value(bool_val, before);
+                if push_event {
+                    curr_mode = *mode;
+                    machine_values.push((MachineItem::EncoderMode, ItemValue::U16(idx as u16)));
+                }
+            });
+
+        let idx = Self::ENCODER_MODES
+            .iter()
+            .position(|(_, m)| curr_mode.eq(m))
+            .unwrap();
+
+        Self::ENCODER_BOOL_ITEMS
+            .iter()
+            .zip(state.button_states.iter())
+            .filter(|((bool_val, _), _)| {
+                detect_stateful_bool_action(bool_val, index, before, after)
+            })
+            .for_each(|((_, items), s)| {
+                machine_values.push((items[idx], ItemValue::Bool(!s[idx])));
+            });
+
+        Self::ENCODER_U16_ITEMS
+            .iter()
+            .filter(|(u16_val, _)| detect_u16_action(u16_val, index, before, after))
+            .for_each(|(u16_val, items)| {
+                let value = detect_u16_value(u16_val, after);
+                machine_values.push((items[idx], ItemValue::U16(value)));
+            });
+    }
+
+    fn feedback_to_surface_specific(
+        state: &mut SurfaceSpecificState,
+        machine_value: &(MachineItem, ItemValue),
+    ) {
+        match machine_value.1 {
+            ItemValue::Bool(value) => {
+                Self::ENCODER_BOOL_ITEMS
+                    .iter()
+                    .zip(state.button_states.iter_mut())
+                    .for_each(|((_, items), s)| {
+                        let _ = items
+                            .iter()
+                            .zip(s.iter_mut())
+                            .find(|(item, _)| machine_value.0.eq(item))
+                            .map(|(_, s)| *s = value);
+                    });
+            }
+            ItemValue::U16(value) => {
+                if machine_value.0.eq(&MachineItem::EncoderMode) {
+                    let _ = Self::ENCODER_MODES
+                        .iter()
+                        .nth(value as usize)
+                        .map(|(_, m)| state.mode = *m);
+                }
+            }
+        }
+    }
 }
