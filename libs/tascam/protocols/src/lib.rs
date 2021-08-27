@@ -5,6 +5,61 @@
 //!
 //! The crate includes traits, structures, and enumerations for protocol defined by Tascam specific
 //! to its FireWire series.
+//!
+//! # The way to process events for control surface
+//!
+//! Tascam FW-1884, FW-1082, and FE-8 have control surface, in which the hardware make no
+//! superficial change to the surface according to user operation. Instead, the surface notifies
+//! the operation to system.
+//!
+//! In FE-8, the image consists of 32 quadlets. Asynchronous notification is simply sent for one
+//! of quadlet to which user operation effects.
+//!
+//! In FW-1884 and FW-1082, the state of surface is expressed as an image which consists of 64
+//! quadlets. One of the quadlets is multiplexed to data block in isochronous packet as well as
+//! PCM frame in order.
+//!
+//! FW-1884 and FW-1082 has shift button to divert some buttons. Furthermore, FW-1082 has some
+//! rotaries and buttons which change their role according to encoder mode. The module includes
+//! two stuffs to abstract the above design; surface state and machine state. The former is used
+//! used to parse surface imageg and detect event and operate LED. The latter is used to monitor
+//! current state of each surface item by handling the event, and generate normalized events. It's
+//! task of runtime implementation to prepare converter between the machine event and application
+//! specific message such as ALSA Sequencer and Open Sound Control.
+//!
+//! The relationship between the constrol surface, surface state, machine state, and message
+//! converter is illustrated in below diagram:
+//!
+//! ```text
+//!                       ++====================================================++
+//!                       ||                  Service runtime                   ||
+//!                       ||                                                    ||
+//! ++==========++  surface image    +---------+   machine event   +---------+  ||
+//! ||          || ----------------> |         | ----------------> |         |  ||
+//! || surface  ||        ||         | surface |                   | machine |  ||
+//! || hardware ||  LED operation    |  state  |   machine event   |  state  |  ||
+//! ||          || <---------------- |         | <---------------- |         |  ||
+//! ++==========++        ||         +---------+                   +---------+  ||
+//!                       ||                                         ^    |     ||
+//!                       ||                                      machine event ||
+//!                       ||                                         |    v     ||
+//!                       ||                                       +---------+  ||
+//!                       ||                                       |         |  ||
+//!                       ||                                       | message |  ||
+//!                       ||                                       |converter|  ||
+//!                       ||                                       |         |  ||
+//!                       ||                                       +---------+  ||
+//!                       ||                                         ^    |     ||
+//!                       ||                                   specific message ||
+//!                       ||                                         |    |     ||
+//!                       ++=========================================|====|=====++
+//!                                                                  |    |
+//!                                     Inter process communication  |    |
+//!                                     (ALSA Sequencer, OSC, etc.)  |    v
+//!                                                             ++=============++
+//!                                                             || application ||
+//!                                                             ++=============++
+//! ```
 
 pub mod asynch;
 pub mod isoch;
