@@ -75,6 +75,7 @@ impl MachineStateOperation for Fe8Protocol {
 #[derive(Default, Debug)]
 pub struct Fe8SurfaceState {
     common: SurfaceCommonState,
+    led_state: LedState,
 }
 
 impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
@@ -115,12 +116,12 @@ impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
     }
 
     fn finalize_surface(
-        _: &mut Fe8SurfaceState,
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: u32,
+        state: &mut Fe8SurfaceState,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ok(())
+        clear_leds(&mut state.led_state, req, node, timeout_ms)
     }
 }
 

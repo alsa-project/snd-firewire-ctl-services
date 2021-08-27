@@ -5,7 +5,7 @@
 //!
 //! The module includes protocol implementation defined by Tascam for FW-1082.
 
-use super::*;
+use crate::{isoch::*, *};
 
 /// The protocol implementation of FW-1082.
 #[derive(Default)]
@@ -128,6 +128,7 @@ pub struct Fw1082SurfaceState {
     common: SurfaceCommonState,
     isoch: SurfaceIsochState,
     specific: SurfaceSpecificState,
+    led_state: LedState,
 }
 
 impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
@@ -182,12 +183,12 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
     }
 
     fn finalize_surface(
-        _: &mut Fw1082SurfaceState,
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: u32,
+        state: &mut Fw1082SurfaceState,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ok(())
+        clear_leds(&mut state.led_state, req, node, timeout_ms)
     }
 }
 

@@ -5,7 +5,7 @@
 //!
 //! The module includes protocol implementation defined by Tascam for FW-1884.
 
-use super::*;
+use crate::{isoch::*, *};
 
 /// The protocol implementation of FW-1884.
 #[derive(Default)]
@@ -236,6 +236,7 @@ impl MachineStateOperation for Fw1884Protocol {
 pub struct Fw1884SurfaceState {
     common: SurfaceCommonState,
     isoch: SurfaceIsochState,
+    led_state: LedState,
 }
 
 impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
@@ -280,12 +281,12 @@ impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
     }
 
     fn finalize_surface(
-        _: &mut Fw1884SurfaceState,
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: u32,
+        state: &mut Fw1884SurfaceState,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ok(())
+        clear_leds(&mut state.led_state, req, node, timeout_ms)
     }
 }
 

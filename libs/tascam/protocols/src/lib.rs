@@ -14,6 +14,7 @@ use glib::Error;
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 const BASE_OFFSET: u64 = 0xffff00000000;
+const LED_OFFSET: u64 = 0x0404;
 
 fn read_quadlet(
     req: &mut FwReq,
@@ -495,4 +496,49 @@ trait SurfaceImageCommonOperation {
             .find(|((_, item), _)| machine_value.0.eq(item))
             .map(|((_, _), s)| *s = !*s);
     }
+}
+
+#[derive(Default, Debug)]
+struct LedState(Vec<u16>);
+
+fn operate_led(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    pos: u16,
+    enable: bool,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut frame = [0; 4];
+    frame[0..2].copy_from_slice(&(enable as u16).to_be_bytes());
+    frame[2..4].copy_from_slice(&pos.to_be_bytes());
+    write_quadlet(req, node, LED_OFFSET, &mut frame, timeout_ms)
+}
+
+fn operate_led_cached(
+    state: &mut LedState,
+    req: &mut FwReq,
+    node: &mut FwNode,
+    pos: u16,
+    enable: bool,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    operate_led(req, node, pos, enable, timeout_ms).map(|_| {
+        if !enable {
+            state.0.retain(|&p| p != pos);
+        } else if state.0.iter().find(|&p| *p == pos).is_none() {
+            state.0.push(pos);
+        }
+    })
+}
+
+fn clear_leds(
+    state: &mut LedState,
+    req: &mut FwReq,
+    node: &mut FwNode,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let cache = state.0.to_vec();
+    cache
+        .iter()
+        .try_for_each(|&pos| operate_led_cached(state, req, node, pos, false, timeout_ms))
 }
