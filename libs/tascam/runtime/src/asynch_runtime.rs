@@ -105,16 +105,14 @@ impl AsynchRuntime {
         self.seq_cntr
             .client
             .connect_handle_event(move |_, ev_cntr| {
-                let _ = (0..ev_cntr.count_events())
-                    .filter(|&i| {
-                        // At present, controller event is handled.
-                        ev_cntr.get_event_type(i).unwrap_or(alsaseq::EventType::None) == alsaseq::EventType::Controller
-                    }).for_each(|i| {
-                        if let Ok(ctl_data) = ev_cntr.get_ctl_data(i) {
-                            let data = AsyncUnitEvent::SeqAppl(ctl_data);
-                            let _ = tx.send(data);
-                        }
-                    });
+                (0..ev_cntr.count_events()).filter_map(|i| {
+                    ev_cntr.get_event_type(i).ok().filter(|ev_type| {
+                        alsaseq::EventType::Controller.eq(ev_type)
+                    }).and_then(|_| ev_cntr.get_ctl_data(i).ok())
+                }).for_each(|ctl_data| {
+                    let data = AsyncUnitEvent::SeqAppl(ctl_data);
+                    let _ = tx.send(data);
+                });
             });
 
         self.dispatchers.push(dispatcher);
