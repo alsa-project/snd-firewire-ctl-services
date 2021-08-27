@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::FwReq;
-use hinawa::{SndTscm, SndTscmExtManual};
+use hinawa::{SndTscm, SndTscmExtManual, SndUnitExt};
 
-use alsactl::{ElemId, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::*;
 
@@ -22,6 +22,7 @@ pub struct Fw1884Model {
     common_ctl: CommonCtl,
     optical_ctl: OpticalCtl,
     console_ctl: ConsoleCtl,
+    specific_ctl: SpecificCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -92,6 +93,9 @@ impl AsMut<IsochConsoleState> for ConsoleCtl {
 
 impl IsochConsoleCtl<Fw1884Protocol> for ConsoleCtl {}
 
+#[derive(Default)]
+struct SpecificCtl;
+
 impl MeasureModel<SndTscm> for Fw1884Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
@@ -137,6 +141,8 @@ impl CtlModel<SndTscm> for Fw1884Model {
         self.console_ctl.load_params(card_cntr, image)
             .map(|mut elem_id_list| self.console_ctl.1.append(&mut elem_id_list))?;
 
+        self.specific_ctl.load_params(card_cntr)?;
+
         Ok(())
     }
 
@@ -153,6 +159,8 @@ impl CtlModel<SndTscm> for Fw1884Model {
         } else if self.optical_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.console_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -172,8 +180,92 @@ impl CtlModel<SndTscm> for Fw1884Model {
             Ok(true)
         } else if self.console_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
+        } else if self.specific_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
         } else {
             Ok(false)
+        }
+    }
+}
+
+const MONITOR_ROTARY_ASSIGN_NAME: &str = "monitor-rotary-assign";
+
+fn monitor_knob_target_to_str(target: &Fw1884MonitorKnobTarget) -> &'static str {
+    match target {
+        Fw1884MonitorKnobTarget::AnalogOutputPair0 => "analog-output-1/2",
+        Fw1884MonitorKnobTarget::AnalogOutput3Pairs => "analog-output-1/2/3/4/5/6",
+        Fw1884MonitorKnobTarget::AnalogOutput4Pairs => "analog-output-1/2/3/4/5/6/7/8",
+    }
+}
+
+impl SpecificCtl {
+    const MONITOR_ROTARY_ASSIGNS: [Fw1884MonitorKnobTarget; 3] = [
+        Fw1884MonitorKnobTarget::AnalogOutputPair0,
+        Fw1884MonitorKnobTarget::AnalogOutput3Pairs,
+        Fw1884MonitorKnobTarget::AnalogOutput4Pairs,
+    ];
+
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::MONITOR_ROTARY_ASSIGNS.iter()
+            .map(|a| monitor_knob_target_to_str(a))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ROTARY_ASSIGN_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)?;
+        Ok(())
+    }
+
+    fn read_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MONITOR_ROTARY_ASSIGN_NAME => {
+                let target = Fw1884Protocol::get_monitor_knob_target(
+                    req,
+                    &mut unit.get_node(),
+                    timeout_ms,
+                )?;
+                let pos = Self::MONITOR_ROTARY_ASSIGNS.iter()
+                    .position(|a| target.eq(a))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MONITOR_ROTARY_ASSIGN_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &target = Self::MONITOR_ROTARY_ASSIGNS.iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for monitor rotary targets: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                Fw1884Protocol::set_monitor_knob_target(
+                    req,
+                    &mut unit.get_node(),
+                    target,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
         }
     }
 }
