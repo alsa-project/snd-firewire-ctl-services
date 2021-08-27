@@ -50,3 +50,5 @@ impl IsochOpticalOperation for Fw1884Protocol {
         ),
     ];
 }
+
+impl IsochConsoleOperation for Fw1884Protocol {}

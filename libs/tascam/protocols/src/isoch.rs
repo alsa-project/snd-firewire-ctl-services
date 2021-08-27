@@ -548,3 +548,39 @@ pub trait IsochOpticalOperation {
         write_config_flag(req, node, &Self::OPTICAL_OUTPUT_SOURCES, src, timeout_ms)
     }
 }
+
+/// The structure for state of console.
+#[derive(Default, Debug)]
+pub struct IsochConsoleState {
+    pub host_mode: bool,
+}
+
+const MASTER_FADER_ASSIGNS: [(bool, u32, u32); 2] = [
+    (false, 0x00000040, 0x00400000),
+    (true, 0x00000000, 0x00004000),
+];
+
+/// The trait for operation of console model.
+pub trait IsochConsoleOperation {
+    fn parse_console_state(state: &mut IsochConsoleState, image: &[u32]) -> Result<(), Error> {
+        state.host_mode = (image[5] & 0xff000000) != 0xff000000;
+        Ok(())
+    }
+
+    fn get_master_fader_assign(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        read_config_flag(req, node, &MASTER_FADER_ASSIGNS, timeout_ms)
+    }
+
+    fn set_master_fader_assign(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        enable: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config_flag(req, node, &MASTER_FADER_ASSIGNS, enable, timeout_ms)
+    }
+}
