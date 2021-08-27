@@ -9,11 +9,9 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 
 use core::card_cntr::*;
 
-use tascam_protocols::isoch::{fw1884::*, *};
+use tascam_protocols::{isoch::{fw1884::*, *}, *};
 
-use super::isoch_ctls::*;
-
-use super::isoc_console_runtime::ConsoleData;
+use crate::{isoc_console_runtime::*, isoch_ctls::*, *};
 
 #[derive(Default)]
 pub struct Fw1884Model {
@@ -23,6 +21,7 @@ pub struct Fw1884Model {
     optical_ctl: OpticalCtl,
     console_ctl: ConsoleCtl,
     specific_ctl: SpecificCtl,
+    seq_state: SequencerState<Fw1884SurfaceState>,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -95,6 +94,54 @@ impl IsochConsoleCtl<Fw1884Protocol> for ConsoleCtl {}
 
 #[derive(Default)]
 struct SpecificCtl;
+
+impl AsRef<SequencerState<Fw1884SurfaceState>> for Fw1884Model {
+    fn as_ref(&self) -> &SequencerState<Fw1884SurfaceState> {
+        &self.seq_state
+    }
+}
+
+impl AsMut<SequencerState<Fw1884SurfaceState>> for Fw1884Model {
+    fn as_mut(&mut self) -> &mut SequencerState<Fw1884SurfaceState> {
+        &mut self.seq_state
+    }
+}
+
+impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
+    fn initialize_surface(
+        &mut self,
+        unit: &mut SndTscm,
+        machine_values: &[(MachineItem, ItemValue)],
+    ) -> Result<(), Error> {
+        machine_values.iter().filter(|(item, _)| {
+            MachineItem::Bank.eq(item) ||
+            Fw1884Protocol::TRANSPORT_ITEMS.iter().find(|i| item.eq(i)).is_some()
+        }).try_for_each(|entry| self.feedback_to_surface(unit, entry))
+    }
+
+    fn finalize_surface(&mut self, unit: &mut SndTscm) -> Result<(), Error> {
+        Fw1884Protocol::finalize_surface(
+            &mut self.seq_state.surface_state,
+            &mut self.req,
+            &mut unit.get_node(),
+            TIMEOUT_MS,
+        )
+    }
+
+    fn feedback_to_surface(
+        &mut self,
+        unit: &mut SndTscm,
+        event: &(MachineItem, ItemValue),
+    ) -> Result<(), Error> {
+        Fw1884Protocol::feedback_to_surface(
+            &mut self.seq_state.surface_state,
+            event,
+            &mut self.req,
+            &mut unit.get_node(),
+            TIMEOUT_MS,
+        )
+    }
+}
 
 impl MeasureModel<SndTscm> for Fw1884Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
