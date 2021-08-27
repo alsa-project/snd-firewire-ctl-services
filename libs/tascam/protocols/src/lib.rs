@@ -9,6 +9,8 @@
 pub mod asynch;
 pub mod isoch;
 
+pub mod config_rom;
+
 use glib::Error;
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
