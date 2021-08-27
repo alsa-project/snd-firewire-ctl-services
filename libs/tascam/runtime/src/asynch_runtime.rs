@@ -53,8 +53,8 @@ impl Drop for AsynchRuntime {
     }
 }
 
-impl<'a> AsynchRuntime {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
+impl AsynchRuntime {
+    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
 
     pub fn new(node: hinawa::FwNode, name: String) -> Result<Self, Error> {
         let resp = hinawa::FwResp::new();
