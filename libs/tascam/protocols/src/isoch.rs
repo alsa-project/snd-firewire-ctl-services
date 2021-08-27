@@ -584,3 +584,127 @@ pub trait IsochConsoleOperation {
         write_config_flag(req, node, &MASTER_FADER_ASSIGNS, enable, timeout_ms)
     }
 }
+
+const RACK_STATE_SIZE: usize = 72;
+
+/// The structure for state of rack.
+#[derive(Debug)]
+pub struct IsochRackState([u8; RACK_STATE_SIZE]);
+
+impl Default for IsochRackState {
+    fn default() -> Self {
+        Self([0; RACK_STATE_SIZE])
+    }
+}
+
+const INPUT_OFFSET: u64 = 0x0408;
+
+fn write_input_quadlet(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    state: &mut IsochRackState,
+    pos: usize,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    write_quadlet(
+        req,
+        node,
+        INPUT_OFFSET,
+        &mut state.0[pos..(pos + 4)],
+        timeout_ms,
+    )
+}
+
+/// The trait for operation of rack model.
+pub trait IsochRackOperation {
+    const CHANNEL_COUNT: usize = 18;
+
+    const GAIN_MIN: i16 = 0;
+    const GAIN_MAX: i16 = 0x7fff;
+    const GAIN_STEP: i16 = 0x100;
+
+    const BALANCE_MIN: u8 = 0;
+    const BALANCE_MAX: u8 = 255;
+    const BALANCE_STEP: u8 = 1;
+
+    fn init_input_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut IsochRackState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val: i16 = 0x7fff;
+
+        (0..18).try_for_each(|i| {
+            let pos = i * 4;
+
+            // Channel index field.
+            state.0[pos] = i as u8;
+
+            // L/R balance field.
+            state.0[pos + 1] = if i % 2 > 0 { 0xff } else { 0x00 };
+
+            // Level gain field.
+            state.0[(pos + 2)..(pos + 4)].copy_from_slice(&val.to_le_bytes());
+
+            write_input_quadlet(req, node, state, pos, timeout_ms)
+        })
+    }
+
+    fn get_input_gain(state: &IsochRackState, index: usize) -> i16 {
+        let pos = index * 4;
+        i16::from_be_bytes([state.0[pos + 2], state.0[pos + 3]])
+    }
+
+    fn set_input_gain(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        index: usize,
+        gain: i16,
+        state: &mut IsochRackState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let pos = index * 4;
+        state.0[(pos + 2)..(pos + 4)].copy_from_slice(&gain.to_be_bytes());
+        write_input_quadlet(req, node, state, pos, timeout_ms)
+    }
+
+    fn get_input_balance(state: &IsochRackState, index: usize) -> u8 {
+        let pos = index * 4;
+        state.0[pos + 1]
+    }
+
+    fn set_input_balance(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        index: usize,
+        pan: u8,
+        state: &mut IsochRackState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let pos = index * 4;
+        state.0[pos + 1] = pan;
+        write_input_quadlet(req, node, state, pos, timeout_ms)
+    }
+
+    fn get_input_mute(state: &IsochRackState, index: usize) -> bool {
+        let pos = index * 4;
+        state.0[pos] & 0x80 > 0
+    }
+
+    fn set_input_mute(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        index: usize,
+        mute: bool,
+        state: &mut IsochRackState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let pos = index * 4;
+        state.0[pos] &= !0x80;
+        if mute {
+            state.0[pos] |= 0x80;
+        }
+        write_input_quadlet(req, node, state, pos, timeout_ms)
+    }
+}

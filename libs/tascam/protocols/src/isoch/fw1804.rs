@@ -45,3 +45,5 @@ impl IsochOpticalOperation for Fw1804Protocol {
         ),
     ];
 }
+
+impl IsochRackOperation for Fw1804Protocol {}
