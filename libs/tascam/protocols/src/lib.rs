@@ -542,3 +542,17 @@ fn clear_leds(
         .iter()
         .try_for_each(|&pos| operate_led_cached(state, req, node, pos, false, timeout_ms))
 }
+
+/// The trait for operation of FireWire LED.
+pub trait FireWireLedOperation {
+    const POSITIONS: &'static [u16];
+
+    fn operate_firewire_led(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        enable: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        operate_led(req, node, Self::POSITIONS[0], enable, timeout_ms)
+    }
+}

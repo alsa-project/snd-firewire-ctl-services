@@ -209,3 +209,7 @@ impl SurfaceImageCommonOperation for Fe8Protocol {
         ),
     ];
 }
+
+impl FireWireLedOperation for Fe8Protocol {
+    const POSITIONS: &'static [u16] = &[0x16, 0x8e];
+}

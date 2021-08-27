@@ -474,3 +474,7 @@ impl SurfaceImageIsochOperation for Fw1884Protocol {
         SurfaceBoolValue(9, 0x00100000),
     ];
 }
+
+impl FireWireLedOperation for Fw1884Protocol {
+    const POSITIONS: &'static [u16] = &[0x8e];
+}

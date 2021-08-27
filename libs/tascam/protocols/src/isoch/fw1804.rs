@@ -47,3 +47,7 @@ impl IsochOpticalOperation for Fw1804Protocol {
 }
 
 impl IsochRackOperation for Fw1804Protocol {}
+
+impl FireWireLedOperation for Fw1804Protocol {
+    const POSITIONS: &'static [u16] = &[0x8e];
+}
