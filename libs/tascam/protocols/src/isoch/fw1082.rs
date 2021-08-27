@@ -172,13 +172,20 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
     fn feedback_to_surface(
         state: &mut Fw1082SurfaceState,
         machine_value: &(MachineItem, ItemValue),
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: u32,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::feedback_to_surface_common(&mut state.common, machine_value);
         Self::feedback_to_surface_isoch(&mut state.isoch, machine_value);
         Self::feedback_to_surface_specific(&mut state.specific, machine_value);
+
+        if let ItemValue::Bool(value) = machine_value.1 {
+            if let Some(pos) = Self::find_normal_led_pos(&machine_value.0) {
+                operate_led_cached(&mut state.led_state, req, node, pos, value, timeout_ms)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -494,4 +501,51 @@ impl Fw1082Protocol {
 
 impl FireWireLedOperation for Fw1082Protocol {
     const POSITIONS: &'static [u16] = &[0x8e];
+}
+
+impl SurfaceNormalLedOperation for Fw1082Protocol {
+    const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])] = &[
+        (&[MachineItem::Rec(0)], &[5]),
+        (&[MachineItem::Rec(1)], &[24]),
+        (&[MachineItem::Rec(2)], &[37]),
+        (&[MachineItem::Rec(3)], &[56]),
+        (&[MachineItem::Rec(4)], &[69, 133]),
+        (&[MachineItem::Rec(5)], &[88, 152, 165]),
+        (&[MachineItem::Rec(6)], &[101, 184, 197]),
+        (&[MachineItem::Rec(7)], &[120, 216, 229]),
+        (&[MachineItem::Func(0), MachineItem::Func(4)], &[11]),
+        (&[MachineItem::Func(1), MachineItem::Func(5)], &[30, 43]),
+        (&[MachineItem::Func(2), MachineItem::Func(6)], &[62, 75]),
+        (&[MachineItem::Func(3), MachineItem::Func(7)], &[94, 107]),
+        (&[MachineItem::Select(0)], &[0]),
+        (&[MachineItem::Select(1)], &[19, 32]),
+        (&[MachineItem::Select(2)], &[51, 64]),
+        (&[MachineItem::Select(3)], &[83, 96]),
+        (&[MachineItem::Select(4)], &[115, 128]),
+        (&[MachineItem::Select(5)], &[147, 160]),
+        (&[MachineItem::Select(6)], &[179, 192]),
+        (&[MachineItem::Select(7)], &[211, 224]),
+        (&[MachineItem::Solo(0)], &[1]),
+        (&[MachineItem::Solo(1)], &[20, 33]),
+        (&[MachineItem::Solo(2)], &[52, 65]),
+        (&[MachineItem::Solo(3)], &[84, 97]),
+        (&[MachineItem::Solo(4)], &[116, 129]),
+        (&[MachineItem::Solo(5)], &[148, 161]),
+        (&[MachineItem::Solo(6)], &[180, 193]),
+        (&[MachineItem::Solo(7)], &[212, 225]),
+        (&[MachineItem::Mute(0)], &[2]),
+        (&[MachineItem::Mute(1)], &[21, 34]),
+        (&[MachineItem::Mute(2)], &[53, 66]),
+        (&[MachineItem::Mute(3)], &[85, 98]),
+        (&[MachineItem::Mute(4)], &[117, 130]),
+        (&[MachineItem::Mute(5)], &[149, 162]),
+        (&[MachineItem::Mute(6)], &[181, 194]),
+        (&[MachineItem::Mute(7)], &[213, 226]),
+        (&[MachineItem::Shuttle], &[77]),
+        (&[MachineItem::Rew], &[13]),
+        (&[MachineItem::Fwd], &[45]),
+        (&[MachineItem::Stop], &[242]),
+        (&[MachineItem::Play], &[17]),
+        (&[MachineItem::Record], &[146]),
+    ];
 }

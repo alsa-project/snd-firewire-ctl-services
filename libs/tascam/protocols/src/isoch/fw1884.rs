@@ -271,12 +271,19 @@ impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
     fn feedback_to_surface(
         state: &mut Fw1884SurfaceState,
         machine_value: &(MachineItem, ItemValue),
-        _: &mut FwReq,
-        _: &mut FwNode,
-        _: u32,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::feedback_to_surface_common(&mut state.common, machine_value);
         Self::feedback_to_surface_isoch(&mut state.isoch, machine_value);
+
+        if let ItemValue::Bool(value) = machine_value.1 {
+            if let Some(pos) = Self::find_normal_led_pos(&machine_value.0) {
+                operate_led_cached(&mut state.led_state, req, node, pos, value, timeout_ms)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -477,4 +484,91 @@ impl SurfaceImageIsochOperation for Fw1884Protocol {
 
 impl FireWireLedOperation for Fw1884Protocol {
     const POSITIONS: &'static [u16] = &[0x8e];
+}
+
+impl SurfaceNormalLedOperation for Fw1884Protocol {
+    const NORMAL_LEDS: &'static [(&'static [MachineItem], &'static [u16])] = &[
+        (&[MachineItem::Ol(0)], &[3]),
+        (&[MachineItem::Ol(1)], &[22]),
+        (&[MachineItem::Ol(2)], &[35]),
+        (&[MachineItem::Ol(3)], &[54]),
+        (&[MachineItem::Ol(4)], &[67, 131]),
+        (&[MachineItem::Ol(5)], &[86, 150, 163]),
+        (&[MachineItem::Ol(6)], &[99, 182, 195]),
+        (&[MachineItem::Ol(7)], &[118, 214, 227]),
+        (&[MachineItem::Rec(0)], &[5]),
+        (&[MachineItem::Rec(1)], &[24]),
+        (&[MachineItem::Rec(2)], &[37]),
+        (&[MachineItem::Rec(3)], &[56]),
+        (&[MachineItem::Rec(4)], &[69, 133]),
+        (&[MachineItem::Rec(5)], &[88, 152, 165]),
+        (&[MachineItem::Rec(6)], &[101, 184, 197]),
+        (&[MachineItem::Rec(7)], &[120, 216, 229]),
+        (&[MachineItem::Func(6)], &[11]),
+        (&[MachineItem::Func(7)], &[30, 43]),
+        (&[MachineItem::Func(8)], &[62, 75]),
+        (&[MachineItem::Func(9)], &[94, 107]),
+        (&[MachineItem::Select(0)], &[0]),
+        (&[MachineItem::Select(1)], &[19, 32]),
+        (&[MachineItem::Select(2)], &[51, 64]),
+        (&[MachineItem::Select(3)], &[83, 96]),
+        (&[MachineItem::Select(4)], &[115, 128]),
+        (&[MachineItem::Select(5)], &[147, 160]),
+        (&[MachineItem::Select(6)], &[179, 192]),
+        (&[MachineItem::Select(7)], &[211, 224]),
+        (&[MachineItem::Solo(0)], &[1]),
+        (&[MachineItem::Solo(1)], &[20, 33]),
+        (&[MachineItem::Solo(2)], &[52, 65]),
+        (&[MachineItem::Solo(3)], &[84, 97]),
+        (&[MachineItem::Solo(4)], &[116, 129]),
+        (&[MachineItem::Solo(5)], &[148, 161]),
+        (&[MachineItem::Solo(6)], &[180, 193]),
+        (&[MachineItem::Solo(7)], &[212, 225]),
+        (&[MachineItem::Mute(0)], &[2]),
+        (&[MachineItem::Mute(1)], &[21, 34]),
+        (&[MachineItem::Mute(2)], &[53, 66]),
+        (&[MachineItem::Mute(3)], &[85, 98]),
+        (&[MachineItem::Mute(4)], &[117, 130]),
+        (&[MachineItem::Mute(5)], &[149, 162]),
+        (&[MachineItem::Mute(6)], &[181, 194]),
+        (&[MachineItem::Mute(7)], &[213, 226]),
+        (&[MachineItem::Aux(0)], &[155, 168]),
+        (&[MachineItem::Aux(1)], &[89, 102]),
+        (&[MachineItem::Aux(2)], &[156, 169]),
+        (&[MachineItem::Aux(3)], &[91, 104]),
+        (&[MachineItem::Aux(4)], &[188, 200]),
+        (&[MachineItem::Aux(5)], &[92, 105]),
+        (&[MachineItem::Aux(6)], &[187, 201]),
+        (&[MachineItem::Aux(7)], &[6]),
+        (&[MachineItem::Save, MachineItem::Func(0)], &[122, 135]),
+        (&[MachineItem::Revert, MachineItem::Func(1)], &[7]),
+        (&[MachineItem::AllSafe, MachineItem::Func(2)], &[123, 136]),
+        (&[MachineItem::ClrSolo, MachineItem::Func(3)], &[8]),
+        (&[MachineItem::Markers, MachineItem::Func(4)], &[124, 137]),
+        (&[MachineItem::Loop, MachineItem::Func(5)], &[9]),
+        (&[MachineItem::Del], &[25, 38]),
+        (&[MachineItem::Paste], &[26, 39]),
+        (&[MachineItem::Undo], &[27, 40]),
+        (&[MachineItem::Ctrl], &[28, 41]),
+        (&[MachineItem::Cut], &[57, 70]),
+        (&[MachineItem::Copy], &[58, 71]),
+        (&[MachineItem::Alt], &[59, 72]),
+        (&[MachineItem::Shift], &[60, 73]),
+        (&[MachineItem::Pan], &[90, 103]),
+        (&[MachineItem::Read], &[126, 139]),
+        (&[MachineItem::Flip], &[154, 167]),
+        (&[MachineItem::Wrt], &[158, 171]),
+        (&[MachineItem::Tch], &[190, 203]),
+        (&[MachineItem::Latch], &[222, 235]),
+        (&[MachineItem::High], &[12]),
+        (&[MachineItem::HighMid], &[31, 44]),
+        (&[MachineItem::LowMid], &[63, 76]),
+        (&[MachineItem::Low], &[95, 108]),
+        (&[MachineItem::Shuttle], &[77]),
+        (&[MachineItem::Rew], &[13]),
+        (&[MachineItem::Play], &[17]),
+        (&[MachineItem::Fwd], &[45]),
+        (&[MachineItem::Record], &[146]),
+        (&[MachineItem::Stop], &[242]),
+    ];
 }
