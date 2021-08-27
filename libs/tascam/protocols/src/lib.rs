@@ -5,3 +5,5 @@
 //!
 //! The crate includes traits, structures, and enumerations for protocol defined by Tascam specific
 //! to its FireWire series.
+
+pub mod isoch;
