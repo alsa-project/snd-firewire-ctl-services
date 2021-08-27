@@ -17,3 +17,7 @@ ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 [[bin]]
 name = "tascam-config-rom-parser"
 doc = false
+
+[[bin]]
+name = "tascam-hardware-info"
+doc = false
