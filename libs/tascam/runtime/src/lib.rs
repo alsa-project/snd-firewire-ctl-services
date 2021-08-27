@@ -11,8 +11,6 @@ mod fe8_model;
 
 mod protocol;
 
-mod rack_ctl;
-
 mod isoch_ctls;
 
 mod seq_cntr;

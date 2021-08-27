@@ -59,7 +59,7 @@ impl<'a> IsocRackRuntime {
     const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     pub fn new(unit: hinawa::SndTscm, _: &str, sysnum: u32) -> Result<Self, Error> {
-        let model = Fw1804Model::new();
+        let model = Fw1804Model::default();
 
         let card_cntr = card_cntr::CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
