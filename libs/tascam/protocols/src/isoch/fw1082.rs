@@ -16,3 +16,7 @@ impl IsochMeterOperation for Fw1082Protocol {
     const OUTPUT_COUNT: usize = 4;
     const HAS_SOLO: bool = true;
 }
+
+impl IsochCommonOperation for Fw1082Protocol {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc] = &[ClkSrc::Internal, ClkSrc::Spdif];
+}

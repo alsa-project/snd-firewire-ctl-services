@@ -16,3 +16,12 @@ impl IsochMeterOperation for Fw1804Protocol {
     const OUTPUT_COUNT: usize = 18;
     const HAS_SOLO: bool = false;
 }
+
+impl IsochCommonOperation for Fw1804Protocol {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc] = &[
+        ClkSrc::Internal,
+        ClkSrc::Wordclock,
+        ClkSrc::Spdif,
+        ClkSrc::Adat,
+    ];
+}
