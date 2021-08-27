@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 mod isoch_console_runtime;
 mod isoch_rack_runtime;
-mod async_runtime;
+mod asynch_runtime;
 
 mod fw1082_model;
 mod fw1884_model;
@@ -30,14 +30,14 @@ use seq_cntr::*;
 
 use isoch_console_runtime::IsochConsoleRuntime;
 use isoch_rack_runtime::IsochRackRuntime;
-use async_runtime::AsyncRuntime;
+use asynch_runtime::AsynchRuntime;
 
 use std::convert::TryFrom;
 
 pub enum TascamRuntime {
     IsochConsole(IsochConsoleRuntime),
     IsochRack(IsochRackRuntime),
-    Async(AsyncRuntime),
+    Asynch(AsynchRuntime),
 }
 
 impl RuntimeOperation<(String, u32)> for TascamRuntime {
@@ -83,8 +83,8 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                 match name {
                     "FE-8" => {
                         let name = name.to_string();
-                        let runtime = AsyncRuntime::new(node, name)?;
-                        Ok(Self::Async(runtime))
+                        let runtime = AsynchRuntime::new(node, name)?;
+                        Ok(Self::Asynch(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
                 }
@@ -100,7 +100,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
         match self {
             Self::IsochConsole(unit) => unit.listen(),
             Self::IsochRack(unit) => unit.listen(),
-            Self::Async(unit) => unit.listen(),
+            Self::Asynch(unit) => unit.listen(),
         }
     }
 
@@ -108,7 +108,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
         match self {
             Self::IsochConsole(unit) => unit.run(),
             Self::IsochRack(unit) => unit.run(),
-            Self::Async(unit) => unit.run(),
+            Self::Asynch(unit) => unit.run(),
         }
     }
 }
