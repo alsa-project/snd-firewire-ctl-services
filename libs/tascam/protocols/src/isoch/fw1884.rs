@@ -52,3 +52,57 @@ impl IsochOpticalOperation for Fw1884Protocol {
 }
 
 impl IsochConsoleOperation for Fw1884Protocol {}
+
+/// The target of monitor knob.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Fw1884MonitorKnobTarget {
+    /// For analog output 1/2.
+    AnalogOutputPair0,
+    /// For analog output 1, 2, 3, 4, 5, and 6.
+    AnalogOutput3Pairs,
+    /// For analog output 1, 2, 3, 4, 5, 6, 7, and 8.
+    AnalogOutput4Pairs,
+}
+
+impl Default for Fw1884MonitorKnobTarget {
+    fn default() -> Self {
+        Self::AnalogOutputPair0
+    }
+}
+
+const MONITOR_KNOB_TARGETS: [(Fw1884MonitorKnobTarget, u32, u32); 3] = [
+    (
+        Fw1884MonitorKnobTarget::AnalogOutputPair0,
+        0x01000010,
+        0x02001000,
+    ),
+    (
+        Fw1884MonitorKnobTarget::AnalogOutput3Pairs,
+        0x00000010,
+        0x04001000,
+    ),
+    (
+        Fw1884MonitorKnobTarget::AnalogOutput4Pairs,
+        0x00000000,
+        0x00100000,
+    ),
+];
+
+impl Fw1884Protocol {
+    pub fn get_monitor_knob_target(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<Fw1884MonitorKnobTarget, Error> {
+        read_config_flag(req, node, &MONITOR_KNOB_TARGETS, timeout_ms)
+    }
+
+    pub fn set_monitor_knob_target(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        target: Fw1884MonitorKnobTarget,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config_flag(req, node, &MONITOR_KNOB_TARGETS, target, timeout_ms)
+    }
+}
