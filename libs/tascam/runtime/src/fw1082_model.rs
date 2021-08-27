@@ -4,20 +4,51 @@ use glib::Error;
 
 use hinawa::SndTscmExtManual;
 
+use alsactl::ElemId;
+
 use core::card_cntr;
+
+use tascam_protocols::isoch::{fw1082::*, *};
+
+use super::isoch_ctls::*;
 
 use super::protocol::ClkSrc;
 use super::common_ctl::CommonCtl;
-use super::meter_ctl::MeterCtl;
 use super::console_ctl::ConsoleCtl;
 
 use super::isoc_console_runtime::ConsoleData;
 
 pub struct Fw1082Model<'a> {
     req: hinawa::FwReq,
+    meter_ctl: MeterCtl,
     common: CommonCtl<'a>,
-    meter: MeterCtl<'a>,
     console: ConsoleCtl,
+}
+
+#[derive(Default)]
+struct MeterCtl(IsochMeterState, Vec<ElemId>);
+
+impl AsRef<IsochMeterState> for MeterCtl {
+    fn as_ref(&self) -> &IsochMeterState {
+        &self.0
+    }
+}
+
+impl AsMut<IsochMeterState> for MeterCtl {
+    fn as_mut(&mut self) -> &mut IsochMeterState {
+        &mut self.0
+    }
+}
+
+impl IsochMeterCtl<Fw1082Protocol> for MeterCtl {
+    const INPUT_LABELS: &'static [&'static str] = &[
+        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
+        "spdif-input-1", "spdif-input-2",
+    ];
+    const OUTPUT_LABELS: &'static [&'static str] = &[
+        "analog-output-1", "analog-output-2", "spdif-output-1", "spdif-output-2",
+    ];
 }
 
 impl<'a> Fw1082Model<'a> {
@@ -34,9 +65,9 @@ impl<'a> Fw1082Model<'a> {
     pub fn new() -> Self {
         Fw1082Model{
             req: hinawa::FwReq::new(),
+            meter_ctl: Default::default(),
             common: CommonCtl::new(Self::CLK_SRCS,
                                    Self::CLK_SRC_LABELS),
-            meter: MeterCtl::new(Self::CLK_SRC_LABELS, 2, false, false),
             console: ConsoleCtl::new(),
         }
     }
@@ -44,14 +75,14 @@ impl<'a> Fw1082Model<'a> {
 
 impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1082Model<'a> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter.measure_elems);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.console.get_monitored_elems());
     }
 
     fn measure_states(&mut self, unit: &mut hinawa::SndTscm) -> Result<(), Error> {
-        let states = unit.get_state()?;
-        self.meter.parse_states(states);
-        self.console.parse_states(states);
+        let image = unit.get_state()?;
+        self.meter_ctl.parse_state(image)?;
+        self.console.parse_states(image);
         Ok(())
     }
 
@@ -59,7 +90,7 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1082Model<'a> {
                     elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.meter.read(elem_id, elem_value)? {
+        if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.console.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
@@ -75,8 +106,11 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
         unit: &mut hinawa::SndTscm,
         card_cntr: &mut card_cntr::CardCntr,
     ) -> Result<(), Error> {
+        let image = unit.get_state()?;
+        self.meter_ctl.load_state(card_cntr, image)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+
         self.common.load(unit, &self.req, card_cntr)?;
-        self.meter.load(card_cntr)?;
         self.console.load(unit, &self.req, card_cntr)?;
 
         Ok(())
@@ -88,7 +122,9 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
         elem_id: &alsactl::ElemId,
         elem_value: &mut alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        if self.common.read(unit, &self.req, elem_id, elem_value)? {
+        if self.meter_ctl.read_state(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.common.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
         } else if self.console.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
