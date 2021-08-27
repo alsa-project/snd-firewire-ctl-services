@@ -184,6 +184,10 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
             if let Some(pos) = Self::find_normal_led_pos(&machine_value.0) {
                 operate_led_cached(&mut state.led_state, req, node, pos, value, timeout_ms)?;
             }
+        } else if let ItemValue::U16(value) = machine_value.1 {
+            if machine_value.0 == MachineItem::Bank {
+                Self::operate_bank_leds(&mut state.led_state, req, node, value, timeout_ms)?;
+            }
         }
 
         Ok(())
@@ -548,4 +552,8 @@ impl SurfaceNormalLedOperation for Fw1082Protocol {
         (&[MachineItem::Play], &[17]),
         (&[MachineItem::Record], &[146]),
     ];
+}
+
+impl SurfaceBankLedOperation for Fw1082Protocol {
+    const BANK_LEDS: [&'static [u16]; 4] = [&[127, 140], &[159, 172], &[191, 204], &[223, 236]];
 }

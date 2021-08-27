@@ -800,3 +800,25 @@ trait SurfaceImageIsochOperation {
         }
     }
 }
+
+/// The trait for operation of bank LEDs in surface.
+trait SurfaceBankLedOperation {
+    const BANK_LEDS: [&'static [u16]; 4];
+
+    fn operate_bank_leds(
+        state: &mut LedState,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        bank: u16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::BANK_LEDS
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, positions)| {
+                let enable = bank == i as u16;
+                let pos = positions[0];
+                operate_led_cached(state, req, node, pos, enable, timeout_ms)
+            })
+    }
+}
