@@ -6,7 +6,7 @@ use glib::source;
 use nix::sys::signal;
 use std::sync::{mpsc, Arc, Mutex};
 
-use hinawa::{FwNodeExt, FwRespExt, FwRespExtManual};
+use hinawa::{FwNodeExt, FwRcode, FwRespExt, FwRespExtManual};
 
 use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
@@ -37,7 +37,7 @@ pub struct AsyncRuntime {
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<dispatcher::Dispatcher>,
     req: hinawa::FwReq,
-    state_cntr: Arc<Mutex<[u32; 32]>>,
+    state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
     led_states: std::collections::HashMap::<u16, bool>,
     button_states: std::collections::HashMap::<(u32, u32), bool>,
     msg_map: Vec<(u32, u32)>,
@@ -94,7 +94,7 @@ impl<'a> AsyncRuntime {
             rx,
             dispatchers,
             req: hinawa::FwReq::new(),
-            state_cntr: Arc::new(Mutex::new([0;32])),
+            state_cntr: Arc::new(Mutex::new(Default::default())),
             led_states: std::collections::HashMap::new(),
             button_states: std::collections::HashMap::new(),
             msg_map: Vec::new(),
@@ -165,41 +165,21 @@ impl<'a> AsyncRuntime {
         let tx = self.tx.clone();
         let state_cntr = self.state_cntr.clone();
         let node_id = self.node.get_property_node_id();
-        self.resp.connect_requested2(move |_, tcode, _, src, _, _, _, frames| {
-            // This application can handle any write request.
-            if tcode != hinawa::FwTcode::WriteQuadletRequest
-                && tcode != hinawa::FwTcode::WriteBlockRequest
-            {
-                return hinawa::FwRcode::TypeError;
-            }
-
+        self.resp.connect_requested2(move |_, tcode, _, src, _, _, _, frame| {
             if src != node_id {
-                return hinawa::FwRcode::TypeError;
+                FwRcode::AddressError
+            } else {
+                if let Ok(s) = &mut state_cntr.lock() {
+                    let mut events = Vec::new();
+                    let tcode = s.parse_notification(&mut events, tcode, frame);
+                    events.iter().for_each(|&ev| {
+                        let _ = tx.send(AsyncUnitEvent::Surface(ev));
+                    });
+                    tcode
+                } else {
+                    FwRcode::DataError
+                }
             }
-
-            let len = frames.len() / 4;
-
-            // Operate states under mutual exclusive lock.
-            if let Ok(mut states) = state_cntr.clone().lock() {
-                (0..len).for_each(|mut i| {
-                    i *= 4;
-                    let index = frames[i + 1] as usize;
-                    let doublet = [frames[i + 2], frames[i + 3]];
-                    let state = u16::from_be_bytes(doublet) as u32;
-
-                    if states[index] != state {
-                        // Avoid change from initial state.
-                        if states[index] != 0 {
-                            let ev = (index as u32, states[index], state);
-                            let _ = tx.send(AsyncUnitEvent::Surface(ev));
-                        }
-
-                        states[index] = state;
-                    }
-                });
-            }
-
-            hinawa::FwRcode::Complete
         });
         // Register the address to the unit.
         addr |= (self.node.get_property_local_node_id() as u64) << 48;
@@ -337,7 +317,7 @@ impl<'a> AsyncRuntime {
             if !state {
                 let (key, val) = match self.state_cntr.lock() {
                     Ok(s) => {
-                        let states: &[u32;32] = &s;
+                        let states: &[u32;32] = &s.0;
                         Fe8Model::INPUT_FADERS.get_value(states, idx)
                     }
                     Err(_) => return Ok(()),
