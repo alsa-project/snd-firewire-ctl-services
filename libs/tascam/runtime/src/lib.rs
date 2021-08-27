@@ -11,7 +11,6 @@ mod fe8_model;
 
 mod protocol;
 
-mod console_ctl;
 mod rack_ctl;
 
 mod isoch_ctls;

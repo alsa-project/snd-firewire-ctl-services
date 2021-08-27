@@ -619,3 +619,81 @@ pub trait IsochOpticalCtl<T: IsochOpticalOperation> {
         }
     }
 }
+
+const MASTER_FADER_ASSIGN_NAME: &str = "master-fader-assign";
+const HOST_MODE_NAME: &str = "host-mode";
+
+pub trait IsochConsoleCtl<T: IsochConsoleOperation>:
+    AsRef<IsochConsoleState> + AsMut<IsochConsoleState>
+{
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        image: &[u32],
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut measured_elem_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_FADER_ASSIGN_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HOST_MODE_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, false)
+            .map(|mut elem_id_list| measured_elem_list.append(&mut elem_id_list))?;
+
+        self.parse_states(image)?;
+
+        Ok(measured_elem_list)
+    }
+
+    fn parse_states(&mut self, image: &[u32]) -> Result<(), Error> {
+        T::parse_console_state(self.as_mut(), image)
+    }
+
+    fn read_states(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            HOST_MODE_NAME => {
+                elem_value.set_bool(&[self.as_ref().host_mode]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn read_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MASTER_FADER_ASSIGN_NAME => {
+                let enabled = T::get_master_fader_assign(req, &mut unit.get_node(), timeout_ms)?;
+                elem_value.set_bool(&[enabled]);
+                Ok(true)
+            }
+            _ => self.read_states(elem_id, elem_value),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MASTER_FADER_ASSIGN_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                T::set_master_fader_assign(req, &mut unit.get_node(), vals[0], timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
