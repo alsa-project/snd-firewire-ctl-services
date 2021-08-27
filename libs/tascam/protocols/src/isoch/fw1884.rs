@@ -233,28 +233,44 @@ impl MachineStateOperation for Fw1884Protocol {
 
 /// The structure for state of control surface in FW-1884.
 #[derive(Default, Debug)]
-pub struct Fw1884SurfaceState;
+pub struct Fw1884SurfaceState {
+    common: SurfaceCommonState,
+}
 
 impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
-    fn initialize_surface_state(_: &mut Fw1884SurfaceState) {}
+    fn initialize_surface_state(state: &mut Fw1884SurfaceState) {
+        Self::initialize_surface_common_state(&mut state.common);
+    }
 
     fn decode_surface_image(
-        _: &Fw1884SurfaceState,
-        _: &[u32],
-        _: u32,
-        _: u32,
-        _: u32,
+        state: &Fw1884SurfaceState,
+        image: &[u32],
+        index: u32,
+        before: u32,
+        after: u32,
     ) -> Vec<(MachineItem, ItemValue)> {
-        Vec::new()
+        let mut machine_values = Vec::new();
+
+        Self::decode_surface_image_common(
+            &mut machine_values,
+            &state.common,
+            image,
+            index,
+            before,
+            after,
+        );
+
+        machine_values
     }
 
     fn feedback_to_surface(
-        _: &mut Fw1884SurfaceState,
-        _: &(MachineItem, ItemValue),
+        state: &mut Fw1884SurfaceState,
+        machine_value: &(MachineItem, ItemValue),
         _: &mut FwReq,
         _: &mut FwNode,
         _: u32,
     ) -> Result<(), Error> {
+        Self::feedback_to_surface_common(&mut state.common, machine_value);
         Ok(())
     }
 
@@ -266,4 +282,149 @@ impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
     ) -> Result<(), Error> {
         Ok(())
     }
+}
+
+impl SurfaceImageCommonOperation for Fw1884Protocol {
+    const STATEFUL_ITEMS: &'static [(SurfaceBoolValue, MachineItem)] = &[
+        (SurfaceBoolValue(7, 0x00200000), MachineItem::Aux(3)),
+        (SurfaceBoolValue(7, 0x00100000), MachineItem::Aux(1)),
+        (SurfaceBoolValue(7, 0x00040000), MachineItem::Aux(2)),
+        (SurfaceBoolValue(7, 0x00020000), MachineItem::Aux(0)),
+        (SurfaceBoolValue(7, 0x00000800), MachineItem::Aux(7)),
+        (SurfaceBoolValue(7, 0x00000400), MachineItem::Aux(5)),
+        (SurfaceBoolValue(7, 0x00000200), MachineItem::Aux(6)),
+        (SurfaceBoolValue(7, 0x00000100), MachineItem::Aux(4)),
+        (SurfaceBoolValue(6, 0x80000000), MachineItem::Solo(7)),
+        (SurfaceBoolValue(6, 0x40000000), MachineItem::Solo(6)),
+        (SurfaceBoolValue(6, 0x20000000), MachineItem::Solo(5)),
+        (SurfaceBoolValue(6, 0x10000000), MachineItem::Solo(4)),
+        (SurfaceBoolValue(6, 0x08000000), MachineItem::Solo(3)),
+        (SurfaceBoolValue(6, 0x04000000), MachineItem::Solo(2)),
+        (SurfaceBoolValue(6, 0x02000000), MachineItem::Solo(1)),
+        (SurfaceBoolValue(6, 0x01000000), MachineItem::Solo(0)),
+        (SurfaceBoolValue(6, 0x00800000), MachineItem::Select(7)),
+        (SurfaceBoolValue(6, 0x00400000), MachineItem::Select(6)),
+        (SurfaceBoolValue(6, 0x00200000), MachineItem::Select(5)),
+        (SurfaceBoolValue(6, 0x00100000), MachineItem::Select(4)),
+        (SurfaceBoolValue(6, 0x00080000), MachineItem::Select(3)),
+        (SurfaceBoolValue(6, 0x00040000), MachineItem::Select(2)),
+        (SurfaceBoolValue(6, 0x00020000), MachineItem::Select(1)),
+        (SurfaceBoolValue(6, 0x00010000), MachineItem::Select(0)),
+        (SurfaceBoolValue(7, 0x00000080), MachineItem::Mute(7)),
+        (SurfaceBoolValue(7, 0x00000040), MachineItem::Mute(6)),
+        (SurfaceBoolValue(7, 0x00000020), MachineItem::Mute(5)),
+        (SurfaceBoolValue(7, 0x00000010), MachineItem::Mute(4)),
+        (SurfaceBoolValue(7, 0x00000008), MachineItem::Mute(3)),
+        (SurfaceBoolValue(7, 0x00000004), MachineItem::Mute(2)),
+        (SurfaceBoolValue(7, 0x00000002), MachineItem::Mute(1)),
+        (SurfaceBoolValue(7, 0x00000001), MachineItem::Mute(0)),
+        (SurfaceBoolValue(9, 0x00800000), MachineItem::Shuttle),
+        (SurfaceBoolValue(9, 0x00000800), MachineItem::Low),
+        (SurfaceBoolValue(9, 0x00000400), MachineItem::LowMid),
+        (SurfaceBoolValue(9, 0x00000200), MachineItem::HighMid),
+        (SurfaceBoolValue(9, 0x00000100), MachineItem::High),
+    ];
+
+    const STATELESS_ITEMS: &'static [(SurfaceBoolValue, MachineItem)] = &[
+        (SurfaceBoolValue(7, 0x20000000), MachineItem::Copy),
+        (SurfaceBoolValue(7, 0x10000000), MachineItem::Cut),
+        (SurfaceBoolValue(7, 0x01000000), MachineItem::Panel),
+        (SurfaceBoolValue(7, 0x00080000), MachineItem::Pan),
+        (SurfaceBoolValue(7, 0x00010000), MachineItem::Flip),
+        (SurfaceBoolValue(8, 0x10000000), MachineItem::Clock),
+        (SurfaceBoolValue(8, 0x02000000), MachineItem::Computer),
+        (SurfaceBoolValue(8, 0x01000000), MachineItem::Pfl),
+        (SurfaceBoolValue(8, 0x00000040), MachineItem::Ctrl),
+        (SurfaceBoolValue(8, 0x00000020), MachineItem::Undo),
+        (SurfaceBoolValue(8, 0x00000010), MachineItem::Paste),
+        (SurfaceBoolValue(8, 0x00000008), MachineItem::Del),
+        (SurfaceBoolValue(9, 0x04000000), MachineItem::Out),
+        (SurfaceBoolValue(9, 0x02000000), MachineItem::In),
+        (SurfaceBoolValue(9, 0x01000000), MachineItem::Set),
+        (SurfaceBoolValue(9, 0x00400000), MachineItem::LocateRight),
+        (SurfaceBoolValue(9, 0x00200000), MachineItem::LocateLeft),
+        (SurfaceBoolValue(9, 0x00040000), MachineItem::NudgeRight),
+        (SurfaceBoolValue(9, 0x00020000), MachineItem::NudgeLeft),
+        (SurfaceBoolValue(9, 0x00010000), MachineItem::Recall),
+        (SurfaceBoolValue(9, 0x00008000), MachineItem::Right),
+        (SurfaceBoolValue(9, 0x00004000), MachineItem::Down),
+        (SurfaceBoolValue(9, 0x00002000), MachineItem::Left),
+        (SurfaceBoolValue(9, 0x00001000), MachineItem::Up),
+        (SurfaceBoolValue(9, 0x00000080), MachineItem::Latch),
+        (SurfaceBoolValue(9, 0x00000040), MachineItem::Tch),
+        (SurfaceBoolValue(9, 0x00000020), MachineItem::Wrt),
+        (SurfaceBoolValue(9, 0x00000010), MachineItem::Read),
+        (SurfaceBoolValue(9, 0x00000008), MachineItem::Func(9)),
+        (SurfaceBoolValue(9, 0x00000004), MachineItem::Func(8)),
+        (SurfaceBoolValue(9, 0x00000002), MachineItem::Func(7)),
+        (SurfaceBoolValue(9, 0x00000001), MachineItem::Func(6)),
+        (SurfaceBoolValue(9, 0x80000000), MachineItem::Record),
+        (SurfaceBoolValue(9, 0x40000000), MachineItem::Play),
+        (SurfaceBoolValue(9, 0x20000000), MachineItem::Stop),
+        (SurfaceBoolValue(9, 0x10000000), MachineItem::Fwd),
+        (SurfaceBoolValue(9, 0x08000000), MachineItem::Rew),
+    ];
+
+    const ROTARIES: &'static [(SurfaceU16Value, MachineItem)] = &[
+        (SurfaceU16Value(10, 0x0000ffff, 0), MachineItem::Rotary(0)),
+        (SurfaceU16Value(10, 0xffff0000, 16), MachineItem::Rotary(1)),
+        (SurfaceU16Value(11, 0x0000ffff, 0), MachineItem::Rotary(2)),
+        (SurfaceU16Value(11, 0xffff0000, 16), MachineItem::Rotary(3)),
+        (SurfaceU16Value(12, 0x0000ffff, 0), MachineItem::Rotary(4)),
+        (SurfaceU16Value(12, 0xffff0000, 16), MachineItem::Rotary(5)),
+        (SurfaceU16Value(13, 0x0000ffff, 0), MachineItem::Rotary(6)),
+        (SurfaceU16Value(13, 0xffff0000, 16), MachineItem::Rotary(7)),
+        (SurfaceU16Value(14, 0x0000ffff, 0), MachineItem::Gain),
+        (SurfaceU16Value(14, 0xffff0000, 16), MachineItem::Freq),
+        (SurfaceU16Value(15, 0x0000ffff, 0), MachineItem::Q),
+        (SurfaceU16Value(15, 0xffff0000, 16), MachineItem::Wheel),
+    ];
+
+    const FADERS: &'static [(SurfaceBoolValue, SurfaceU16Value, MachineItem)] = &[
+        (
+            SurfaceBoolValue(5, 0x00010000),
+            SurfaceU16Value(0, 0x0000ffff, 0),
+            MachineItem::Input(0),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00020000),
+            SurfaceU16Value(0, 0x0ffff000, 16),
+            MachineItem::Input(1),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00040000),
+            SurfaceU16Value(1, 0x0000ffff, 0),
+            MachineItem::Input(2),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00080000),
+            SurfaceU16Value(1, 0xffff0000, 16),
+            MachineItem::Input(3),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00100000),
+            SurfaceU16Value(2, 0x0000ffff, 0),
+            MachineItem::Input(4),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00200000),
+            SurfaceU16Value(2, 0xffff0000, 16),
+            MachineItem::Input(5),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00400000),
+            SurfaceU16Value(3, 0x0000ffff, 0),
+            MachineItem::Input(6),
+        ),
+        (
+            SurfaceBoolValue(5, 0x00800000),
+            SurfaceU16Value(3, 0xffff0000, 16),
+            MachineItem::Input(7),
+        ),
+        (
+            SurfaceBoolValue(5, 0x01000000),
+            SurfaceU16Value(4, 0x0000ffff, 0),
+            MachineItem::Master,
+        ),
+    ];
 }
