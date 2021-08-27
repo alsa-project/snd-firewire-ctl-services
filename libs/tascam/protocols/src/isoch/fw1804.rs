@@ -25,3 +25,23 @@ impl IsochCommonOperation for Fw1804Protocol {
         ClkSrc::Adat,
     ];
 }
+
+impl IsochOpticalOperation for Fw1804Protocol {
+    const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)] = &[
+        (
+            OpticalOutputSource::StreamInputPairs,
+            0x00000000,
+            0x0000c000,
+        ),
+        (
+            OpticalOutputSource::CoaxialOutputPair0,
+            0x00000004,
+            0x00080400,
+        ),
+        (
+            OpticalOutputSource::AnalogInputPair0,
+            0x00000008,
+            0x00048800,
+        ),
+    ];
+}
