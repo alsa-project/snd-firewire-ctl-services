@@ -8,7 +8,9 @@
 
 pub mod fe8;
 
-use super::*;
+use hinawa::{FwRcode, FwTcode};
+
+use crate::*;
 
 const ENABLE_NOTIFICATION: u64 = 0x0310;
 const ADDR_HIGH_OFFSET: u64 = 0x0314;
@@ -37,5 +39,36 @@ pub trait ExpanderOperation {
     ) -> Result<(), Error> {
         let mut frames = (enable as u32).to_be_bytes();
         write_quadlet(req, node, ENABLE_NOTIFICATION, &mut frames, timeout_ms)
+    }
+}
+
+/// The structure for surface image of asynchronous model.
+#[derive(Default, Debug)]
+pub struct AsynchSurfaceImage(pub [u32; 32]);
+
+impl AsynchSurfaceImage {
+    /// Parse notification into surface event.
+    pub fn parse_notification(
+        &mut self,
+        events: &mut Vec<(u32, u32, u32)>,
+        tcode: FwTcode,
+        frame: &[u8],
+    ) -> FwRcode {
+        if tcode == FwTcode::WriteQuadletRequest || tcode == FwTcode::WriteBlockRequest {
+            let mut quadlet = [0; 4];
+            (0..frame.len()).step_by(4).for_each(|pos| {
+                quadlet.copy_from_slice(&frame[pos..(pos + 4)]);
+                let value = u32::from_be_bytes(quadlet);
+                let index = ((value & 0x00ff0000) >> 16) as usize;
+                let state = value & 0x0000ffff;
+                if self.0[index] != state {
+                    events.push((index as u32, self.0[index], state));
+                    self.0[index] = state;
+                }
+            });
+            FwRcode::Complete
+        } else {
+            FwRcode::TypeError
+        }
     }
 }
