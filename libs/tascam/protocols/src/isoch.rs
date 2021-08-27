@@ -10,7 +10,9 @@ pub mod fw1082;
 pub mod fw1804;
 pub mod fw1884;
 
-use glib::Error;
+use glib::{Error, FileError};
+
+use super::*;
 
 /// The enumeration for source of sampling clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -186,5 +188,287 @@ pub trait IsochMeterOperation {
         }
 
         Ok(())
+    }
+}
+
+fn read_config_flag<T: Copy + Eq>(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    flags: &[(T, u32, u32)],
+    timeout_ms: u32,
+) -> Result<T, Error> {
+    let mut quads = [0; 4];
+    read_quadlet(req, node, CONFIG_FLAG_OFFSET, &mut quads, timeout_ms)?;
+    let val = u32::from_be_bytes(quads);
+    let mask = flags.iter().fold(0, |mask, (_, flag, _)| mask | flag);
+    flags
+        .iter()
+        .find(|&(_, flag, _)| val & mask == *flag)
+        .ok_or_else(|| {
+            let msg = format!("No flag detected: val: 0x{:08x} mask: 0x{:08x}", val, mask);
+            Error::new(FileError::Nxio, &msg)
+        })
+        .map(|&(option, _, _)| option)
+}
+
+fn write_config_flag<T: Copy + Eq>(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    flags: &[(T, u32, u32)],
+    option: T,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let (_, _, flag) = flags.iter().find(|(o, _, _)| option.eq(o)).unwrap();
+    write_quadlet(
+        req,
+        node,
+        CONFIG_FLAG_OFFSET,
+        &mut flag.to_be_bytes(),
+        timeout_ms,
+    )
+}
+
+/// The enumeration for source of output coaxial interface.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CoaxialOutputSource {
+    /// A pair in stream inputs.
+    StreamInputPair,
+    /// Mirror of analog output 0 and 1.
+    AnalogOutputPair0,
+}
+
+impl Default for CoaxialOutputSource {
+    fn default() -> Self {
+        Self::StreamInputPair
+    }
+}
+
+const CLOCK_STATUS_OFFSET: u64 = 0x0228;
+const CONFIG_FLAG_OFFSET: u64 = 0x022c;
+const INPUT_THRESHOLD_OFFSET: u64 = 0x0230;
+
+const CLOCK_SOURCES: [(ClkSrc, u8); 4] = [
+    (ClkSrc::Internal, 0x01),
+    (ClkSrc::Wordclock, 0x02),
+    (ClkSrc::Spdif, 0x03),
+    (ClkSrc::Adat, 0x04),
+];
+
+const CLOCK_RATES: [(ClkRate, u8); 4] = [
+    (ClkRate::R44100, 0x01),
+    (ClkRate::R48000, 0x02),
+    (ClkRate::R88200, 0x03),
+    (ClkRate::R96000, 0x04),
+];
+
+const COAXIAL_OUTPUT_SOURCES: [(CoaxialOutputSource, u32, u32); 2] = [
+    (CoaxialOutputSource::StreamInputPair, 0x00000002, 0x00020000),
+    (
+        CoaxialOutputSource::AnalogOutputPair0,
+        0x00000000,
+        0x00000200,
+    ),
+];
+
+/// The trait for common operation of isochronous models {
+pub trait IsochCommonOperation {
+    const SAMPLING_CLOCK_SOURCES: &'static [ClkSrc];
+
+    const THRESHOLD_MIN: u16 = 1;
+    const THRESHOLD_MAX: u16 = 0x7fff;
+
+    fn get_sampling_clock_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<ClkSrc, Error> {
+        let mut frame = [0; 4];
+        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)?;
+        let src = CLOCK_SOURCES
+            .iter()
+            .find_map(|(src, val)| if *val == frame[3] { Some(*src) } else { None })
+            .ok_or_else(|| {
+                let msg = format!("Unexpected value for source of clock: {}", frame[3]);
+                Error::new(FileError::Io, &msg)
+            })?;
+        Self::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .find_map(|&s| if s == src { Some(src) } else { None })
+            .ok_or_else(|| {
+                let msg = "Unsupported source of sampling clock";
+                Error::new(FileError::Inval, &msg)
+            })
+    }
+
+    fn set_sampling_clock_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        src: ClkSrc,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let _ = Self::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .find(|&s| *s == src)
+            .ok_or_else(|| {
+                let msg = "Unsupported source of sampling clock";
+                Error::new(FileError::Inval, &msg)
+            })?;
+        let val = CLOCK_SOURCES
+            .iter()
+            .find_map(|(s, val)| if *s == src { Some(*val) } else { None })
+            .unwrap();
+        let mut frame = [0; 4];
+        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)?;
+        frame[0] = 0x00;
+        frame[1] = 0x00;
+        frame[3] = val;
+        write_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frame, timeout_ms)
+    }
+
+    fn get_media_clock_rate(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<ClkRate, Error> {
+        let mut frames = [0; 4];
+        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frames, timeout_ms)?;
+        CLOCK_RATES
+            .iter()
+            .find_map(|(src, val)| if *val == frames[1] { Some(*src) } else { None })
+            .ok_or_else(|| {
+                let label = format!("Unexpected value for rate of clock: {}", frames[1]);
+                Error::new(FileError::Io, &label)
+            })
+    }
+
+    fn set_media_clock_rate(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        rate: ClkRate,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = CLOCK_RATES
+            .iter()
+            .find_map(|(r, val)| if *r == rate { Some(*val) } else { None })
+            .unwrap();
+        let mut frames = [0; 4];
+        read_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frames, timeout_ms)?;
+        frames[3] = val;
+        write_quadlet(req, node, CLOCK_STATUS_OFFSET, &mut frames, timeout_ms)
+    }
+
+    fn get_coaxial_output_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<CoaxialOutputSource, Error> {
+        read_config_flag(req, node, &COAXIAL_OUTPUT_SOURCES, timeout_ms)
+    }
+
+    fn set_coaxial_output_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        src: CoaxialOutputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config_flag(req, node, &COAXIAL_OUTPUT_SOURCES, src, timeout_ms)
+    }
+
+    /// Get threshold of input gain for signal detection. The value between 1 and 0x7fff returns.
+    /// The dB level can be calculated by below formula:
+    ///
+    /// ```text
+    /// level = 20 * log10(value / 0x7fff)
+    /// ```
+    fn get_analog_input_threshold_for_signal_detection(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<u16, Error> {
+        let mut quads = [0; 4];
+        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms).map(|_| {
+            let val = (u32::from_be_bytes(quads) & 0x0000ffff) as u16;
+            val.clamp(Self::THRESHOLD_MIN, Self::THRESHOLD_MAX)
+        })
+    }
+
+    /// Set threshold of input gain for signal detection. The value should be between 1 and 0x7fff.
+    /// The value can be calculated by below formula:
+    ///
+    /// ```text
+    /// value = 0x7fff * pow(10, level / 20)
+    /// ```
+    fn set_analog_input_threshold_for_signal_detection(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        value: u16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if value > Self::THRESHOLD_MAX || value < Self::THRESHOLD_MIN {
+            let msg = format!(
+                "Argument should be greater than {} and less than {}, but {}",
+                Self::THRESHOLD_MAX,
+                Self::THRESHOLD_MIN,
+                value
+            );
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut quads = [0; 4];
+        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)?;
+
+        let val = (u32::from_be_bytes(quads) & 0xffff0000) | (value as u32);
+
+        let mut quads = val.to_be_bytes();
+        write_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)
+    }
+
+    /// Get threshold of input gain for over-level detection. The value between 1 and 0x7fff
+    /// returns. The dB level can be calculated by below formula:
+    ///
+    /// ```text
+    /// level = 20 * log10(value / 0x7fff)
+    /// ```
+    fn get_analog_input_threshold_for_over_level_detection(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<u16, Error> {
+        let mut quads = [0; 4];
+        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms).map(|_| {
+            let val = (u32::from_be_bytes(quads) >> 16) as u16;
+            val.clamp(Self::THRESHOLD_MIN, Self::THRESHOLD_MAX)
+        })
+    }
+
+    /// Set threshold of input gain for over-level detection. The value should be between 1 and
+    /// 0x7fff. The value can be calculated by below formula:
+    ///
+    /// ```text
+    /// value = 0x7fff * pow(10, level / 20)
+    /// ```
+    fn set_analog_input_threshold_for_over_level_detection(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        value: u16,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if value > Self::THRESHOLD_MAX || value < Self::THRESHOLD_MIN {
+            let msg = format!(
+                "Argument should be greater than {} and less than {}, but {}",
+                Self::THRESHOLD_MAX,
+                Self::THRESHOLD_MIN,
+                value
+            );
+            Err(Error::new(FileError::Inval, &msg))?;
+        }
+
+        let mut quads = [0; 4];
+        read_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)?;
+
+        let val = (u32::from_be_bytes(quads) & 0x0000ffff) | ((value as u32) << 16);
+
+        let mut quads = val.to_be_bytes();
+        write_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)
     }
 }
