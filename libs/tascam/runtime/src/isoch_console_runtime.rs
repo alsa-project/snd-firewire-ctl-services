@@ -32,7 +32,7 @@ enum ConsoleModel {
     Fw1082(Fw1082Model),
 }
 
-pub struct IsocConsoleRuntime {
+pub struct IsochConsoleRuntime {
     unit: hinawa::SndTscm,
     model: ConsoleModel,
     card_cntr: card_cntr::CardCntr,
@@ -44,7 +44,7 @@ pub struct IsocConsoleRuntime {
     measure_elems: Vec<alsactl::ElemId>,
 }
 
-impl Drop for IsocConsoleRuntime {
+impl Drop for IsochConsoleRuntime {
     fn drop(&mut self) {
         let _ = match &mut self.model {
             ConsoleModel::Fw1884(m) => m.finalize_sequencer(&mut self.unit),
@@ -55,7 +55,7 @@ impl Drop for IsocConsoleRuntime {
     }
 }
 
-impl<'a> IsocConsoleRuntime {
+impl<'a> IsochConsoleRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
@@ -83,7 +83,7 @@ impl<'a> IsocConsoleRuntime {
 
         let dispatchers = Vec::new();
 
-        Ok(IsocConsoleRuntime {
+        Ok(IsochConsoleRuntime {
             unit,
             model,
             card_cntr,
