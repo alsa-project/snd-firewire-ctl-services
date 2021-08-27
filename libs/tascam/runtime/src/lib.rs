@@ -22,9 +22,9 @@ use alsaseq::EventDataCtl;
 
 use core::RuntimeOperation;
 
-use ieee1212_config_rom::{*, entry::*};
+use ieee1212_config_rom::*;
 
-use tascam_protocols::*;
+use tascam_protocols::{config_rom::*, *};
 
 use seq_cntr::*;
 
@@ -39,6 +39,12 @@ pub enum TascamRuntime {
     IsochRack(IsochRackRuntime),
     Asynch(AsynchRuntime),
 }
+
+const TASCAM_OUI: u32 = 0x00022e;
+const FW1884_SW_VERSION: u32 = 0x800000;
+const FE8_SW_VERSION: u32 = 0x800001;
+const FW1082_SW_VERSION: u32 = 0x800003;
+const FW1804_SW_VERSION: u32 = 0x800004;
 
 impl RuntimeOperation<(String, u32)> for TascamRuntime {
     fn new((subsystem, sysnum): (String, u32)) -> Result<Self, Error> {
@@ -55,14 +61,15 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                         let label = format!("Malformed configuration ROM detected: {}", e.to_string());
                         Error::new(FileError::Nxio, &label)
                     })?;
-                let name = detect_model_name(&config_rom.root)?;
-                match name {
-                    "FW-1884" | "FW-1082" => {
-                        let runtime = IsochConsoleRuntime::new(unit, name, sysnum)?;
+                let unit_data = config_rom.get_unit_data()?;
+                match (unit_data.specifier_id, unit_data.version) {
+                    (TASCAM_OUI, FW1884_SW_VERSION) |
+                    (TASCAM_OUI, FW1082_SW_VERSION) => {
+                        let runtime = IsochConsoleRuntime::new(unit, unit_data.model_name, sysnum)?;
                         Ok(Self::IsochConsole(runtime))
                     }
-                    "FW-1804" => {
-                        let runtime = IsochRackRuntime::new(unit, name, sysnum)?;
+                    (TASCAM_OUI, FW1804_SW_VERSION) => {
+                        let runtime = IsochRackRuntime::new(unit, unit_data.model_name, sysnum)?;
                         Ok(Self::IsochRack(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
@@ -79,10 +86,10 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                         let label = format!("Malformed configuration ROM detected: {}", e.to_string());
                         Error::new(FileError::Nxio, &label)
                     })?;
-                let name = detect_model_name(&config_rom.root)?;
-                match name {
-                    "FE-8" => {
-                        let name = name.to_string();
+                let unit_data = config_rom.get_unit_data()?;
+                match (unit_data.specifier_id, unit_data.version) {
+                    (TASCAM_OUI, FE8_SW_VERSION) => {
+                        let name = unit_data.model_name.to_string();
                         let runtime = AsynchRuntime::new(node, name)?;
                         Ok(Self::Asynch(runtime))
                     }
@@ -111,26 +118,6 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
             Self::Asynch(unit) => unit.run(),
         }
     }
-}
-
-fn detect_model_name<'a>(entries: &'a [Entry]) -> Result<&'a str, Error> {
-    entries.iter().find_map(|entry| {
-        EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
-            .and_then(|entries| {
-                entries.iter().find_map(|entry| {
-                    EntryDataAccess::<&[Entry]>::get(entry, KeyType::DependentInfo)
-                        .and_then(|entries| {
-                            entries.iter().find_map(|entry| {
-                                EntryDataAccess::<&str>::get(entry, KeyType::BusDependentInfo)
-                            })
-                        })
-                })
-            })
-    })
-    .ok_or_else(|| {
-        let label = "Invalid format of configuration ROM";
-        Error::new(FileError::Nxio, &label)
-    })
 }
 
 #[derive(Default)]
