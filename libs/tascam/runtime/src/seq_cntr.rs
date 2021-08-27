@@ -17,8 +17,8 @@ impl Drop for SeqCntr {
     }
 }
 
-impl<'a> SeqCntr {
-    const SEQ_PORT_NAME: &'a str = "Control Surface";
+impl SeqCntr {
+    const SEQ_PORT_NAME: &'static str = "Control Surface";
 
     pub fn new(name: &str) -> Result<Self, Error> {
         let client = alsaseq::UserClient::new();
