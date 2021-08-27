@@ -472,3 +472,79 @@ pub trait IsochCommonOperation {
         write_quadlet(req, node, INPUT_THRESHOLD_OFFSET, &mut quads, timeout_ms)
     }
 }
+
+/// The enumeration for source of S/PDIF input.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SpdifCaptureSource {
+    Coaxial,
+    Optical,
+}
+
+impl Default for SpdifCaptureSource {
+    fn default() -> Self {
+        Self::Coaxial
+    }
+}
+
+/// The enumeration for source of optical output.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum OpticalOutputSource {
+    /// 4 pairs in stream inputs.
+    StreamInputPairs,
+    /// Mirror of coaxial output 0 and 1.
+    CoaxialOutputPair0,
+    /// Analog input 0 and 1.
+    AnalogInputPair0,
+    /// Mirror of analog output 0, 1, 2, 3, 4, 5, 6, 7, and 8.
+    AnalogOutputPairs,
+}
+
+impl Default for OpticalOutputSource {
+    fn default() -> Self {
+        Self::StreamInputPairs
+    }
+}
+
+const SPDIF_CAPTURE_SOURCES: [(SpdifCaptureSource, u32, u32); 2] = [
+    (SpdifCaptureSource::Coaxial, 0x00000000, 0x00010000),
+    (SpdifCaptureSource::Optical, 0x00000001, 0x00000100),
+];
+
+/// The trait for operation of optical input/output interface.
+pub trait IsochOpticalOperation {
+    const OPTICAL_OUTPUT_SOURCES: &'static [(OpticalOutputSource, u32, u32)];
+
+    fn get_spdif_capture_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<SpdifCaptureSource, Error> {
+        read_config_flag(req, node, &SPDIF_CAPTURE_SOURCES, timeout_ms)
+    }
+
+    fn set_spdif_capture_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        src: SpdifCaptureSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config_flag(req, node, &SPDIF_CAPTURE_SOURCES, src, timeout_ms)
+    }
+
+    fn get_opt_output_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<OpticalOutputSource, Error> {
+        read_config_flag(req, node, &Self::OPTICAL_OUTPUT_SOURCES, timeout_ms)
+    }
+
+    fn set_opt_output_source(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        src: OpticalOutputSource,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_config_flag(req, node, &Self::OPTICAL_OUTPUT_SOURCES, src, timeout_ms)
+    }
+}
