@@ -506,3 +506,116 @@ pub trait IsochCommonCtl<T: IsochCommonOperation> {
         }
     }
 }
+
+const OPT_OUT_SRC_NAME: &str = "opt-output-source";
+const SPDIF_IN_SRC_NAME: &str = "spdif-input-source";
+
+fn spdif_capture_source_to_str(src: &SpdifCaptureSource) -> &'static str {
+    match src {
+        SpdifCaptureSource::Coaxial => "coaxial",
+        SpdifCaptureSource::Optical => "optical",
+    }
+}
+
+fn optical_output_source_to_str(src: &OpticalOutputSource) -> &'static str {
+    match src {
+        OpticalOutputSource::StreamInputPairs => "stream-input",
+        OpticalOutputSource::CoaxialOutputPair0 => "coaxial-output-1/2",
+        OpticalOutputSource::AnalogInputPair0 => "analog-input-1/2",
+        OpticalOutputSource::AnalogOutputPairs => "analog-output-1/2",
+    }
+}
+
+pub trait IsochOpticalCtl<T: IsochOpticalOperation> {
+    const SPDIF_INPUT_SOURCES: [SpdifCaptureSource; 2] =
+        [SpdifCaptureSource::Coaxial, SpdifCaptureSource::Optical];
+
+    const OPTICAL_OUTPUT_SOURCES: &'static [OpticalOutputSource];
+
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::SPDIF_INPUT_SOURCES
+            .iter()
+            .map(|s| spdif_capture_source_to_str(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::OPTICAL_OUTPUT_SOURCES
+            .iter()
+            .map(|s| optical_output_source_to_str(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_IN_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OPT_OUT_SRC_NAME => {
+                let src = T::get_opt_output_source(req, &mut unit.get_node(), timeout_ms)?;
+                let pos = Self::OPTICAL_OUTPUT_SOURCES
+                    .iter()
+                    .position(|s| s.eq(&src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            SPDIF_IN_SRC_NAME => {
+                let src = T::get_spdif_capture_source(req, &mut unit.get_node(), timeout_ms)?;
+                let pos = Self::SPDIF_INPUT_SOURCES
+                    .iter()
+                    .position(|s| s.eq(&src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OPT_OUT_SRC_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &src = Self::OPTICAL_OUTPUT_SOURCES
+                    .iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for optical output sources: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                T::set_opt_output_source(req, &mut unit.get_node(), src, timeout_ms).map(|_| true)
+            }
+            SPDIF_IN_SRC_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &src = Self::SPDIF_INPUT_SOURCES
+                    .iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid index for spdif input sources: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                T::set_spdif_capture_source(req, &mut unit.get_node(), src, timeout_ms)
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}

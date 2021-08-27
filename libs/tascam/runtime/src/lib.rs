@@ -11,7 +11,6 @@ mod fe8_model;
 
 mod protocol;
 
-mod optical_ctl;
 mod console_ctl;
 mod rack_ctl;
 
@@ -33,13 +32,13 @@ use async_runtime::AsyncRuntime;
 
 use std::convert::TryFrom;
 
-pub enum TascamRuntime<'a> {
-    IsocConsole(IsocConsoleRuntime<'a>),
-    IsocRack(IsocRackRuntime<'a>),
+pub enum TascamRuntime {
+    IsocConsole(IsocConsoleRuntime),
+    IsocRack(IsocRackRuntime),
     Async(AsyncRuntime),
 }
 
-impl<'a> RuntimeOperation<(String, u32)> for TascamRuntime<'a> {
+impl RuntimeOperation<(String, u32)> for TascamRuntime {
     fn new((subsystem, sysnum): (String, u32)) -> Result<Self, Error> {
         match subsystem.as_str() {
             "snd" => {

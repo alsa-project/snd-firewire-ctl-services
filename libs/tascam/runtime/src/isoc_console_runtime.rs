@@ -32,14 +32,14 @@ enum ConsoleUnitEvent {
     Surface((u32, u32, u32)),
 }
 
-enum ConsoleModel<'a> {
-    Fw1884(Fw1884Model<'a>),
+enum ConsoleModel {
+    Fw1884(Fw1884Model),
     Fw1082(Fw1082Model),
 }
 
-pub struct IsocConsoleRuntime<'a> {
+pub struct IsocConsoleRuntime {
     unit: hinawa::SndTscm,
-    model: ConsoleModel<'a>,
+    model: ConsoleModel,
     card_cntr: card_cntr::CardCntr,
     seq_cntr: seq_cntr::SeqCntr,
     rx: mpsc::Receiver<ConsoleUnitEvent>,
@@ -56,7 +56,7 @@ pub struct IsocConsoleRuntime<'a> {
     transport_state: usize,
 }
 
-impl<'a> Drop for IsocConsoleRuntime<'a> {
+impl Drop for IsocConsoleRuntime {
     fn drop(&mut self) {
         let node = self.unit.get_node();
         self.led_states.iter().filter(|&(_, &state)| state).for_each(|(&pos, _)|{
@@ -67,7 +67,7 @@ impl<'a> Drop for IsocConsoleRuntime<'a> {
     }
 }
 
-impl<'a> IsocConsoleRuntime<'a> {
+impl<'a> IsocConsoleRuntime {
     const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
     const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
     const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
