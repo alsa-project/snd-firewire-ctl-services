@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
+use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
+use hinawa::FwReq;
+use hinawa::{SndTscm, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
+
+use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
 
@@ -265,6 +270,237 @@ pub trait IsochMeterCtl<T: IsochMeterOperation>:
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const CLK_SRC_NAME: &str = "clock-source";
+const CLK_RATE_NAME: &str = "clock-rate";
+const SIGNAL_DETECTION_THRESHOLD_NAME: &str = "signal-detection-threshold";
+const OVER_LEVEL_DETECTION_THRESHOLD_NAME: &str = "over-level-detection-threshold";
+const COAX_OUT_SRC_NAME: &str = "coax-output-source";
+
+fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
+    match src {
+        CoaxialOutputSource::StreamInputPair => "stream-input",
+        CoaxialOutputSource::AnalogOutputPair0 => "analog-output-1/2",
+    }
+}
+
+pub trait IsochCommonCtl<T: IsochCommonOperation> {
+    const CLOCK_RATES: [ClkRate; 4] = [
+        ClkRate::R44100,
+        ClkRate::R48000,
+        ClkRate::R88200,
+        ClkRate::R96000,
+    ];
+
+    const COAXIAL_OUTPUT_SOURCES: [CoaxialOutputSource; 2] = [
+        CoaxialOutputSource::StreamInputPair,
+        CoaxialOutputSource::AnalogOutputPair0,
+    ];
+
+    const THRESHOLD_MIN: i32 = T::THRESHOLD_MIN as i32;
+    const THRESHOLD_MAX: i32 = T::THRESHOLD_MAX as i32;
+    const THRESHOLD_STEP: i32 = 1;
+    const THRESHOLD_TLV: DbInterval = DbInterval {
+        min: -9038,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = T::SAMPLING_CLOCK_SOURCES
+            .iter()
+            .map(|&s| clk_src_to_str(&Some(s)))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::CLOCK_RATES
+            .iter()
+            .map(|&r| clk_rate_to_str(&Some(r)))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLK_RATE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            SIGNAL_DETECTION_THRESHOLD_NAME,
+            0,
+        );
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            Self::THRESHOLD_MIN,
+            Self::THRESHOLD_MAX,
+            Self::THRESHOLD_STEP,
+            1,
+            Some(&Into::<Vec<u32>>::into(Self::THRESHOLD_TLV)),
+            true,
+        )?;
+
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
+            0,
+            0,
+            OVER_LEVEL_DETECTION_THRESHOLD_NAME,
+            0,
+        );
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            Self::THRESHOLD_MIN,
+            Self::THRESHOLD_MAX,
+            Self::THRESHOLD_STEP,
+            1,
+            Some(&Into::<Vec<u32>>::into(Self::THRESHOLD_TLV)),
+            true,
+        )?;
+
+        let labels: Vec<&str> = Self::COAXIAL_OUTPUT_SOURCES
+            .iter()
+            .map(|s| coaxial_output_source_to_str(s))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, COAX_OUT_SRC_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            CLK_SRC_NAME => {
+                let src = T::get_sampling_clock_source(req, &mut unit.get_node(), timeout_ms)?;
+                let pos = T::SAMPLING_CLOCK_SOURCES
+                    .iter()
+                    .position(|s| s.eq(&src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            CLK_RATE_NAME => {
+                let rate = T::get_media_clock_rate(req, &mut unit.get_node(), timeout_ms)?;
+                let pos = Self::CLOCK_RATES.iter().position(|r| r.eq(&rate)).unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            SIGNAL_DETECTION_THRESHOLD_NAME => {
+                let value = T::get_analog_input_threshold_for_signal_detection(
+                    req,
+                    &mut unit.get_node(),
+                    timeout_ms,
+                )?;
+                elem_value.set_int(&[value as i32]);
+                Ok(true)
+            }
+            OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
+                let value = T::get_analog_input_threshold_for_over_level_detection(
+                    req,
+                    &mut unit.get_node(),
+                    timeout_ms,
+                )?;
+                elem_value.set_int(&[value as i32]);
+                Ok(true)
+            }
+            COAX_OUT_SRC_NAME => {
+                let src = T::get_coaxial_output_source(req, &mut unit.get_node(), timeout_ms)?;
+                let pos = Self::COAXIAL_OUTPUT_SOURCES
+                    .iter()
+                    .position(|s| s.eq(&src))
+                    .unwrap();
+                elem_value.set_enum(&[pos as u32]);
+                Ok(true)
+            }
+            _ => Ok(true),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            CLK_SRC_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &src = T::SAMPLING_CLOCK_SOURCES
+                    .iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock sources: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                unit.lock()?;
+                let res = T::set_sampling_clock_source(req, &mut unit.get_node(), src, timeout_ms);
+                let _ = unit.unlock();
+                res.map(|_| true)
+            }
+            CLK_RATE_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &rate = Self::CLOCK_RATES
+                    .iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock rates: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                unit.lock()?;
+                let res = T::set_media_clock_rate(req, &mut unit.get_node(), rate, timeout_ms);
+                let _ = unit.unlock();
+                res.map(|_| true)
+            }
+            SIGNAL_DETECTION_THRESHOLD_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                T::set_analog_input_threshold_for_signal_detection(
+                    req,
+                    &mut unit.get_node(),
+                    vals[0] as u16,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                T::set_analog_input_threshold_for_over_level_detection(
+                    req,
+                    &mut unit.get_node(),
+                    vals[0] as u16,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            COAX_OUT_SRC_NAME => {
+                let mut vals = [0];
+                elem_value.get_enum(&mut vals);
+                let &src = Self::COAXIAL_OUTPUT_SOURCES
+                    .iter()
+                    .nth(vals[0] as usize)
+                    .ok_or_else(|| {
+                        let msg = format!("Invalid value for index of clock rates: {}", vals[0]);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                T::set_coaxial_output_source(req, &mut unit.get_node(), src, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

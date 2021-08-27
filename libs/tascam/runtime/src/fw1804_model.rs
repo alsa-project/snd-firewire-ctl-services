@@ -12,18 +12,18 @@ use tascam_protocols::isoch::{fw1804::*, *};
 
 use super::isoch_ctls::*;
 
-use super::protocol::ClkSrc;
-use super::common_ctl::CommonCtl;
 use super::optical_ctl::OpticalCtl;
 use super::rack_ctl::RackCtl;
 
 pub struct Fw1804Model<'a> {
     req: hinawa::FwReq,
     meter_ctl: MeterCtl,
-    common: CommonCtl<'a>,
+    common_ctl: CommonCtl,
     optical: OpticalCtl<'a>,
     rack: RackCtl,
 }
+
+const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default)]
 struct MeterCtl(IsochMeterState, Vec<ElemId>);
@@ -57,21 +57,12 @@ impl IsochMeterCtl<Fw1804Protocol> for MeterCtl {
     ];
 }
 
+#[derive(Default)]
+struct CommonCtl;
+
+impl IsochCommonCtl<Fw1804Protocol> for CommonCtl {}
+
 impl<'a> Fw1804Model<'a> {
-    const CLK_SRCS: &'a [ClkSrc] = &[
-        ClkSrc::Internal,
-        ClkSrc::Wordclock,
-        ClkSrc::Spdif,
-        ClkSrc::Adat,
-    ];
-
-    const CLK_SRC_LABELS: &'a [&'a str] = &[
-        "Internal",
-        "Word-clock",
-        "S/PDIF",
-        "ADAT",
-    ];
-
     const OPT_OUT_SRC_LABELS: &'a [&'a str] = &[
         "ADAT-1/2/3/4/5/6/7/8",
         "S/PDIF-1/2",
@@ -82,8 +73,7 @@ impl<'a> Fw1804Model<'a> {
         Fw1804Model{
             req: hinawa::FwReq::new(),
             meter_ctl: Default::default(),
-            common: CommonCtl::new(Self::CLK_SRCS,
-                                   Self::CLK_SRC_LABELS),
+            common_ctl: Default::default(),
             optical: OpticalCtl::new(Self::OPT_OUT_SRC_LABELS),
             rack: RackCtl::new(),
         }
@@ -120,7 +110,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
     ) -> Result<(), Error> {
         let image = unit.get_state()?;
         self.meter_ctl.load_state(card_cntr, image)?;
-        self.common.load(unit, &self.req, card_cntr)?;
+        self.common_ctl.load_params(card_cntr)?;
         self.optical.load(unit, &self.req, card_cntr)?;
         self.rack.load(unit, &self.req, card_cntr)?;
         Ok(())
@@ -134,7 +124,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.common.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.common_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.optical.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
@@ -152,7 +142,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1804Model<'a> {
         old: &alsactl::ElemValue,
         new: &alsactl::ElemValue,
     ) -> Result<bool, Error> {
-        if self.common.write(unit, &self.req, elem_id, old, new)? {
+        if self.common_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.optical.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)

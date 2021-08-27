@@ -18,4 +18,5 @@ alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "
 alsaseq = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.2.0", version = "0.2" }
 core = { path = "../../core" }
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
+alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
 tascam-protocols = { path = "../protocols" }

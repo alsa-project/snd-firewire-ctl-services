@@ -2,28 +2,28 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::SndTscmExtManual;
+use hinawa::{SndTscm, SndTscmExtManual};
 
-use alsactl::ElemId;
+use alsactl::{ElemId, ElemValue};
 
-use core::card_cntr;
+use core::card_cntr::*;
 
 use tascam_protocols::isoch::{fw1082::*, *};
 
 use super::isoch_ctls::*;
 
-use super::protocol::ClkSrc;
-use super::common_ctl::CommonCtl;
 use super::console_ctl::ConsoleCtl;
 
 use super::isoc_console_runtime::ConsoleData;
 
-pub struct Fw1082Model<'a> {
+pub struct Fw1082Model {
     req: hinawa::FwReq,
     meter_ctl: MeterCtl,
-    common: CommonCtl<'a>,
+    common_ctl: CommonCtl,
     console: ConsoleCtl,
 }
+
+const TIMEOUT_MS: u32 = 50;
 
 #[derive(Default)]
 struct MeterCtl(IsochMeterState, Vec<ElemId>);
@@ -51,30 +51,24 @@ impl IsochMeterCtl<Fw1082Protocol> for MeterCtl {
     ];
 }
 
-impl<'a> Fw1082Model<'a> {
-    const CLK_SRCS: &'a [ClkSrc] = &[
-        ClkSrc::Internal,
-        ClkSrc::Spdif,
-    ];
+#[derive(Default)]
+struct CommonCtl;
 
-    const CLK_SRC_LABELS: &'a [&'a str] = &[
-        "Internal",
-        "S/PDIF",
-    ];
+impl IsochCommonCtl<Fw1082Protocol> for CommonCtl {}
 
+impl Fw1082Model {
     pub fn new() -> Self {
         Fw1082Model{
             req: hinawa::FwReq::new(),
             meter_ctl: Default::default(),
-            common: CommonCtl::new(Self::CLK_SRCS,
-                                   Self::CLK_SRC_LABELS),
+            common_ctl: Default::default(),
             console: ConsoleCtl::new(),
         }
     }
 }
 
-impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1082Model<'a> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl MeasureModel<SndTscm> for Fw1082Model {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.console.get_monitored_elems());
     }
@@ -86,8 +80,8 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1082Model<'a> {
         Ok(())
     }
 
-    fn measure_elem(&mut self, unit: &hinawa::SndTscm, elem_id: &alsactl::ElemId,
-                    elem_value: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, unit: &SndTscm, elem_id: &ElemId,
+                    elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
@@ -100,17 +94,17 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1082Model<'a> {
     }
 }
 
-impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
+impl CtlModel<SndTscm> for Fw1082Model {
     fn load(
         &mut self,
-        unit: &mut hinawa::SndTscm,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndTscm,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         let image = unit.get_state()?;
         self.meter_ctl.load_state(card_cntr, image)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
-        self.common.load(unit, &self.req, card_cntr)?;
+        self.common_ctl.load_params(card_cntr)?;
         self.console.load(unit, &self.req, card_cntr)?;
 
         Ok(())
@@ -118,13 +112,13 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
 
     fn read(
         &mut self,
-        unit: &mut hinawa::SndTscm,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndTscm,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.common.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.common_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.console.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
@@ -135,12 +129,12 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
 
     fn write(
         &mut self,
-        unit: &mut hinawa::SndTscm,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndTscm,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.common.write(unit, &self.req, elem_id, old, new)? {
+        if self.common_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.console.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
@@ -150,7 +144,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1082Model<'a> {
     }
 }
 
-impl<'a> ConsoleData<'a> for Fw1082Model<'a> {
+impl<'a> ConsoleData<'a> for Fw1082Model {
     const SIMPLE_LEDS: &'a [&'a [u16]] = &[
         &[3],               // ol-1
         &[22],              // ol-2
