@@ -2,26 +2,26 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::SndTscmExtManual;
+use hinawa::FwReq;
+use hinawa::{SndTscm, SndTscmExtManual};
 
-use alsactl::ElemId;
+use alsactl::{ElemId, ElemValue};
 
-use core::card_cntr;
+use core::card_cntr::*;
 
 use tascam_protocols::isoch::{fw1884::*, *};
 
 use super::isoch_ctls::*;
 
-use super::optical_ctl::OpticalCtl;
 use super::console_ctl::ConsoleCtl;
 
 use super::isoc_console_runtime::ConsoleData;
 
-pub struct Fw1884Model<'a> {
-    req: hinawa::FwReq,
+pub struct Fw1884Model {
+    req: FwReq,
     meter_ctl: MeterCtl,
     common_ctl: CommonCtl,
-    optical: OpticalCtl<'a>,
+    optical_ctl: OpticalCtl,
     console: ConsoleCtl,
 }
 
@@ -64,26 +64,32 @@ struct CommonCtl;
 
 impl IsochCommonCtl<Fw1884Protocol> for CommonCtl {}
 
-impl<'a> Fw1884Model<'a> {
-    const OPT_OUT_SRC_LABELS: &'a [&'a str] = &[
-        "ADAT-1/2/3/4/5/6/7/8",
-        "S/PDIF-1/2",
-        "Analog-1/2/3/4/5/6/7/8",
-    ];
+#[derive(Default)]
+struct OpticalCtl;
 
+impl IsochOpticalCtl<Fw1884Protocol> for OpticalCtl {
+    const OPTICAL_OUTPUT_SOURCES: &'static [OpticalOutputSource] = &[
+        OpticalOutputSource::StreamInputPairs,
+        OpticalOutputSource::AnalogOutputPairs,
+        OpticalOutputSource::CoaxialOutputPair0,
+        OpticalOutputSource::AnalogInputPair0,
+    ];
+}
+
+impl Fw1884Model {
     pub fn new() -> Self {
         Fw1884Model{
-            req: hinawa::FwReq::new(),
+            req: FwReq::new(),
             meter_ctl: Default::default(),
             common_ctl: Default::default(),
-            optical: OpticalCtl::new(Self::OPT_OUT_SRC_LABELS),
+            optical_ctl: Default::default(),
             console: ConsoleCtl::new(),
         }
     }
 }
 
-impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1884Model<'a> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl MeasureModel<SndTscm> for Fw1884Model {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.console.get_monitored_elems());
     }
@@ -95,8 +101,8 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1884Model<'a> {
         Ok(())
     }
 
-    fn measure_elem(&mut self, unit: &hinawa::SndTscm, elem_id: &alsactl::ElemId,
-                    elem_value: &mut alsactl::ElemValue)
+    fn measure_elem(&mut self, unit: &SndTscm, elem_id: &ElemId,
+                    elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
@@ -109,18 +115,18 @@ impl<'a> card_cntr::MeasureModel<hinawa::SndTscm> for Fw1884Model<'a> {
     }
 }
 
-impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
+impl CtlModel<SndTscm> for Fw1884Model {
     fn load(
         &mut self,
-        unit: &mut hinawa::SndTscm,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndTscm,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         let image = unit.get_state()?;
         self.meter_ctl.load_state(card_cntr, image)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         self.common_ctl.load_params(card_cntr)?;
-        self.optical.load(unit, &self.req, card_cntr)?;
+        self.optical_ctl.load_params(card_cntr)?;
         self.console.load(unit, &self.req, card_cntr)?;
 
         Ok(())
@@ -128,15 +134,15 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
 
     fn read(
         &mut self,
-        unit: &mut hinawa::SndTscm,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndTscm,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.common_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.optical.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.optical_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.console.read(unit, &self.req, elem_id, elem_value)? {
             Ok(true)
@@ -147,14 +153,14 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
 
     fn write(
         &mut self,
-        unit: &mut hinawa::SndTscm,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndTscm,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.optical.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.optical_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.console.write(unit, &self.req, elem_id, old, new)? {
             Ok(true)
@@ -164,7 +170,7 @@ impl<'a> card_cntr::CtlModel<hinawa::SndTscm> for Fw1884Model<'a> {
     }
 }
 
-impl<'a> ConsoleData<'a> for Fw1884Model<'a> {
+impl<'a> ConsoleData<'a> for Fw1884Model {
     const SIMPLE_LEDS: &'a [&'a [u16]] = &[
         &[3],               // ol-1
         &[22],              // ol-2

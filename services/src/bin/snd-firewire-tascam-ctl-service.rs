@@ -5,7 +5,7 @@ use tascam_runtime::TascamRuntime;
 
 struct TascamServiceCmd;
 
-impl<'a> ServiceCmd<'a, (String, u32), TascamRuntime<'a>> for TascamServiceCmd {
+impl<'a> ServiceCmd<'a, (String, u32), TascamRuntime> for TascamServiceCmd {
     const CMD_NAME: &'a str = "snd-firewire-tascam-ctl-service";
     const ARGS: &'a [(&'a str, &'a str)] = &[
         ("SUBSYSTEM", "The name of subsystem; 'snd' or 'fw'"),
