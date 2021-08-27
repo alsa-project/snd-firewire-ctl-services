@@ -126,11 +126,13 @@ impl MachineStateOperation for Fw1082Protocol {
 #[derive(Default, Debug)]
 pub struct Fw1082SurfaceState {
     common: SurfaceCommonState,
+    isoch: SurfaceIsochState,
 }
 
 impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
     fn initialize_surface_state(state: &mut Fw1082SurfaceState) {
         Self::initialize_surface_common_state(&mut state.common);
+        Self::initialize_surface_isoch_state(&mut state.isoch);
     }
 
     fn decode_surface_image(
@@ -151,6 +153,8 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
             after,
         );
 
+        Self::decode_surface_image_isoch(&mut machine_values, &state.isoch, index, before, after);
+
         machine_values
     }
 
@@ -162,6 +166,7 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
         _: u32,
     ) -> Result<(), Error> {
         Self::feedback_to_surface_common(&mut state.common, machine_value);
+        Self::feedback_to_surface_isoch(&mut state.isoch, machine_value);
         Ok(())
     }
 
@@ -272,5 +277,33 @@ impl SurfaceImageCommonOperation for Fw1082Protocol {
             SurfaceU16Value(4, 0x0000ffff, 0),
             MachineItem::Master,
         ),
+    ];
+}
+
+impl SurfaceImageIsochOperation for Fw1082Protocol {
+    const SHIFT_ITEM: SurfaceBoolValue = SurfaceBoolValue(8, 0x01000000);
+
+    const SHIFTED_ITEMS: &'static [(SurfaceBoolValue, [MachineItem; 2])] = &[
+        (
+            SurfaceBoolValue(9, 0x00000008),
+            [MachineItem::Func(3), MachineItem::Func(7)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000004),
+            [MachineItem::Func(2), MachineItem::Func(6)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000002),
+            [MachineItem::Func(1), MachineItem::Func(5)],
+        ),
+        (
+            SurfaceBoolValue(9, 0x00000001),
+            [MachineItem::Func(0), MachineItem::Func(4)],
+        ),
+    ];
+
+    const BANK_CURSORS: [SurfaceBoolValue; 2] = [
+        SurfaceBoolValue(9, 0x00080000),
+        SurfaceBoolValue(9, 0x00100000),
     ];
 }

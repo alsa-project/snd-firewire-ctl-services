@@ -458,9 +458,7 @@ trait SurfaceImageCommonOperation {
             .filter(|((bool_val, _), _)| {
                 detect_stateful_bool_action(bool_val, index, before, after)
             })
-            .for_each(|((_, item), &s)| {
-                machine_values.push((*item, ItemValue::Bool(!s)));
-            });
+            .for_each(|((_, item), &s)| machine_values.push((*item, ItemValue::Bool(!s))));
 
         Self::STATELESS_ITEMS
             .iter()
