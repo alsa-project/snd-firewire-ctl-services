@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::{SndTscm, SndTscmExtManual};
 
 use alsactl::{ElemId, ElemValue};
@@ -12,15 +13,14 @@ use tascam_protocols::isoch::{fw1082::*, *};
 
 use super::isoch_ctls::*;
 
-use super::console_ctl::ConsoleCtl;
-
 use super::isoc_console_runtime::ConsoleData;
 
+#[derive(Default)]
 pub struct Fw1082Model {
-    req: hinawa::FwReq,
+    req: FwReq,
     meter_ctl: MeterCtl,
     common_ctl: CommonCtl,
-    console: ConsoleCtl,
+    console_ctl: ConsoleCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -56,37 +56,45 @@ struct CommonCtl;
 
 impl IsochCommonCtl<Fw1082Protocol> for CommonCtl {}
 
-impl Fw1082Model {
-    pub fn new() -> Self {
-        Fw1082Model{
-            req: hinawa::FwReq::new(),
-            meter_ctl: Default::default(),
-            common_ctl: Default::default(),
-            console: ConsoleCtl::new(),
-        }
+#[derive(Default)]
+struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
+
+impl AsRef<IsochConsoleState> for ConsoleCtl {
+    fn as_ref(&self) -> &IsochConsoleState {
+        &self.0
     }
 }
+
+impl AsMut<IsochConsoleState> for ConsoleCtl {
+    fn as_mut(&mut self) -> &mut IsochConsoleState {
+        &mut self.0
+    }
+}
+
+impl IsochConsoleCtl<Fw1082Protocol> for ConsoleCtl {}
 
 impl MeasureModel<SndTscm> for Fw1082Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
-        elem_id_list.extend_from_slice(&self.console.get_monitored_elems());
+        elem_id_list.extend_from_slice(&self.console_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut hinawa::SndTscm) -> Result<(), Error> {
         let image = unit.get_state()?;
         self.meter_ctl.parse_state(image)?;
-        self.console.parse_states(image);
+        self.console_ctl.parse_states(image)?;
         Ok(())
     }
 
-    fn measure_elem(&mut self, unit: &SndTscm, elem_id: &ElemId,
-                    elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndTscm,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.console.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.console_ctl.read_states(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -105,7 +113,9 @@ impl CtlModel<SndTscm> for Fw1082Model {
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         self.common_ctl.load_params(card_cntr)?;
-        self.console.load(unit, &self.req, card_cntr)?;
+
+        self.console_ctl.load_params(card_cntr, image)
+            .map(|mut elem_id_list| self.console_ctl.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -120,7 +130,7 @@ impl CtlModel<SndTscm> for Fw1082Model {
             Ok(true)
         } else if self.common_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.console.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.console_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -131,12 +141,12 @@ impl CtlModel<SndTscm> for Fw1082Model {
         &mut self,
         unit: &mut SndTscm,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.console.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.console_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)

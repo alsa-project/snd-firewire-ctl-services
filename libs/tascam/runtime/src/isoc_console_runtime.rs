@@ -77,8 +77,8 @@ impl<'a> IsocConsoleRuntime {
 
     pub fn new(unit: hinawa::SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
         let model = match name {
-            "FW-1884" => ConsoleModel::Fw1884(Fw1884Model::new()),
-            "FW-1082" => ConsoleModel::Fw1082(Fw1082Model::new()),
+            "FW-1884" => ConsoleModel::Fw1884(Default::default()),
+            "FW-1082" => ConsoleModel::Fw1082(Default::default()),
             _ => {
                 let label = format!("Unsupported model name: {}", name);
                 return Err(Error::new(FileError::Nxio, &label));
