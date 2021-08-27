@@ -11,6 +11,7 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
+use core::elem_value_accessor::*;
 
 use tascam_protocols::isoch::*;
 
@@ -693,6 +694,145 @@ pub trait IsochConsoleCtl<T: IsochConsoleOperation>:
                 T::set_master_fader_assign(req, &mut unit.get_node(), vals[0], timeout_ms)
                     .map(|_| true)
             }
+            _ => Ok(false),
+        }
+    }
+}
+
+const INPUT_GAIN_NAME: &str = "input-gain";
+const INPUT_BALANCE_NAME: &str = "input-balance";
+const INPUT_MUTE_NAME: &str = "input-mute";
+
+pub trait IsochRackCtl<T: IsochRackOperation>:
+    AsRef<IsochRackState> + AsMut<IsochRackState>
+{
+    const INPUT_LABELS: [&'static str; 18] = [
+        "Analog-1", "Analog-2", "Analog-3", "Analog-4", "Analog-5", "Analog-6", "Analog-7",
+        "Analog-8", "ADAT-1", "ADAT-2", "ADAT-3", "ADAT-4", "ADAT-5", "ADAT-6", "ADAT-7", "ADAT-8",
+        "S/PDIF-1", "S/PDIF-2",
+    ];
+
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(Self::INPUT_LABELS.len(), T::CHANNEL_COUNT);
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::GAIN_MIN as i32,
+            T::GAIN_MAX as i32,
+            T::GAIN_STEP as i32,
+            Self::INPUT_LABELS.len(),
+            None,
+            true,
+        )?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_BALANCE_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::BALANCE_MIN as i32,
+            T::BALANCE_MAX as i32,
+            T::BALANCE_STEP as i32,
+            Self::INPUT_LABELS.len(),
+            None,
+            true,
+        )?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MUTE_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CHANNEL_COUNT, true)?;
+
+        T::init_input_state(req, &mut unit.get_node(), self.as_mut(), timeout_ms)
+    }
+
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_GAIN_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    Ok(T::get_input_gain(self.as_ref(), idx) as i32)
+                })?;
+                Ok(true)
+            }
+            INPUT_BALANCE_NAME => {
+                ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    Ok(T::get_input_balance(self.as_ref(), idx) as i32)
+                })?;
+                Ok(true)
+            }
+            INPUT_MUTE_NAME => {
+                ElemValueAccessor::<bool>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
+                    Ok(T::get_input_mute(self.as_ref(), idx))
+                })?;
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &mut SndTscm,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_GAIN_NAME => ElemValueAccessor::<i32>::get_vals(
+                new,
+                old,
+                Self::INPUT_LABELS.len(),
+                |idx, val| {
+                    T::set_input_gain(
+                        req,
+                        &mut unit.get_node(),
+                        idx,
+                        val as i16,
+                        self.as_mut(),
+                        timeout_ms,
+                    )
+                },
+            )
+            .map(|_| true),
+            INPUT_BALANCE_NAME => ElemValueAccessor::<i32>::get_vals(
+                new,
+                old,
+                Self::INPUT_LABELS.len(),
+                |idx, val| {
+                    T::set_input_balance(
+                        req,
+                        &mut unit.get_node(),
+                        idx,
+                        val as u8,
+                        self.as_mut(),
+                        timeout_ms,
+                    )
+                },
+            )
+            .map(|_| true),
+            INPUT_MUTE_NAME => ElemValueAccessor::<bool>::get_vals(
+                new,
+                old,
+                Self::INPUT_LABELS.len(),
+                |idx, val| {
+                    T::set_input_mute(
+                        req,
+                        &mut unit.get_node(),
+                        idx,
+                        val,
+                        self.as_mut(),
+                        timeout_ms,
+                    )
+                },
+            )
+            .map(|_| true),
             _ => Ok(false),
         }
     }

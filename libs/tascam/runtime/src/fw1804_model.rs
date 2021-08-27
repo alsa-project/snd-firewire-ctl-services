@@ -13,14 +13,13 @@ use tascam_protocols::isoch::{fw1804::*, *};
 
 use super::isoch_ctls::*;
 
-use super::rack_ctl::RackCtl;
-
+#[derive(Default)]
 pub struct Fw1804Model {
     req: FwReq,
     meter_ctl: MeterCtl,
     common_ctl: CommonCtl,
     optical_ctl: OpticalCtl,
-    rack: RackCtl,
+    rack_ctl: RackCtl,
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -73,17 +72,22 @@ impl IsochOpticalCtl<Fw1804Protocol> for OpticalCtl {
     ];
 }
 
-impl Fw1804Model {
-    pub fn new() -> Self {
-        Fw1804Model{
-            req: FwReq::new(),
-            meter_ctl: Default::default(),
-            common_ctl: Default::default(),
-            optical_ctl: Default::default(),
-            rack: RackCtl::new(),
-        }
+#[derive(Default)]
+struct RackCtl(IsochRackState);
+
+impl AsRef<IsochRackState> for RackCtl {
+    fn as_ref(&self) -> &IsochRackState {
+        &self.0
     }
 }
+
+impl AsMut<IsochRackState> for RackCtl {
+    fn as_mut(&mut self) -> &mut IsochRackState {
+        &mut self.0
+    }
+}
+
+impl IsochRackCtl<Fw1804Protocol> for RackCtl {}
 
 impl MeasureModel<SndTscm> for Fw1804Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
@@ -117,7 +121,7 @@ impl CtlModel<SndTscm> for Fw1804Model {
         self.meter_ctl.load_state(card_cntr, image)?;
         self.common_ctl.load_params(card_cntr)?;
         self.optical_ctl.load_params(card_cntr)?;
-        self.rack.load(unit, &self.req, card_cntr)?;
+        self.rack_ctl.load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -133,7 +137,7 @@ impl CtlModel<SndTscm> for Fw1804Model {
             Ok(true)
         } else if self.optical_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.rack.read(unit, &self.req, elem_id, elem_value)? {
+        } else if self.rack_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -151,7 +155,7 @@ impl CtlModel<SndTscm> for Fw1804Model {
             Ok(true)
         } else if self.optical_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.rack.write(unit, &self.req, elem_id, old, new)? {
+        } else if self.rack_ctl.write_params(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
