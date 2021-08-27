@@ -16,6 +16,10 @@ use glib::Error;
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 const BASE_OFFSET: u64 = 0xffff00000000;
+const HW_INFO_REGISTER_OFFSET: u64 = 0x00;
+const HW_INFO_FPGA_OFFSET: u64 = 0x04;
+const HW_INFO_ARM_OFFSET: u64 = 0x08;
+const HW_INFO_HW_OFFSET: u64 = 0x0c;
 const LED_OFFSET: u64 = 0x0404;
 
 fn read_quadlet(
@@ -50,6 +54,40 @@ fn write_quadlet(
         frames,
         timeout_ms,
     )
+}
+
+/// The structure of hardware information.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct HardwareInformation {
+    pub register: u32,
+    pub fpga: u32,
+    pub arm: u32,
+    pub hardware: u32,
+}
+
+/// The structure for protocol implementaion commonly available to Tascam FireWire models.
+#[derive(Debug, Default)]
+pub struct HardwareInformationProtocol;
+
+/// The trait for oepration of hardware information.
+impl HardwareInformationProtocol {
+    pub fn read_hardware_information(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        info: &mut HardwareInformation,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut quads = [0; 4];
+        read_quadlet(req, node, HW_INFO_REGISTER_OFFSET, &mut quads, timeout_ms)
+            .map(|_| info.register = u32::from_be_bytes(quads))?;
+        read_quadlet(req, node, HW_INFO_FPGA_OFFSET, &mut quads, timeout_ms)
+            .map(|_| info.fpga = u32::from_be_bytes(quads))?;
+        read_quadlet(req, node, HW_INFO_ARM_OFFSET, &mut quads, timeout_ms)
+            .map(|_| info.arm = u32::from_be_bytes(quads))?;
+        read_quadlet(req, node, HW_INFO_HW_OFFSET, &mut quads, timeout_ms)
+            .map(|_| info.hardware = u32::from_be_bytes(quads))?;
+        Ok(())
+    }
 }
 
 /// The enumeration for surface items.
