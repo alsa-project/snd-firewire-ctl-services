@@ -282,6 +282,10 @@ impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
             if let Some(pos) = Self::find_normal_led_pos(&machine_value.0) {
                 operate_led_cached(&mut state.led_state, req, node, pos, value, timeout_ms)?;
             }
+        } else if let ItemValue::U16(value) = machine_value.1 {
+            if MachineItem::Bank.eq(&machine_value.0) {
+                Self::operate_bank_leds(&mut state.led_state, req, node, value, timeout_ms)?;
+            }
         }
 
         Ok(())
@@ -571,4 +575,8 @@ impl SurfaceNormalLedOperation for Fw1884Protocol {
         (&[MachineItem::Record], &[146]),
         (&[MachineItem::Stop], &[242]),
     ];
+}
+
+impl SurfaceBankLedOperation for Fw1884Protocol {
+    const BANK_LEDS: [&'static [u16]; 4] = [&[127, 140], &[159, 172], &[191, 204], &[223, 236]];
 }
