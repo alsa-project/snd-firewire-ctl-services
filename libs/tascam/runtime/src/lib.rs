@@ -9,8 +9,6 @@ mod fw1884_model;
 mod fw1804_model;
 mod fe8_model;
 
-mod protocol;
-
 mod isoch_ctls;
 
 mod seq_cntr;

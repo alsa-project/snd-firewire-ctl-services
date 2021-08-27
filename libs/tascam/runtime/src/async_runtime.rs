@@ -14,12 +14,7 @@ use core::dispatcher;
 
 use tascam_protocols::asynch::{fe8::*, *};
 
-use super::seq_cntr;
-
-use super::protocol::{BaseProtocol, GetPosition, DetectAction, DetectPosition};
-use super::protocol::{GetValue, ComputeValue};
-
-use super::fe8_model::Fe8Model;
+use crate::{fe8_model::Fe8Model, *};
 
 enum AsyncUnitEvent {
     Shutdown,
@@ -31,6 +26,7 @@ enum AsyncUnitEvent {
 
 pub struct AsyncRuntime {
     node: hinawa::FwNode,
+    model: Fe8Model,
     resp: hinawa::FwResp,
     seq_cntr: seq_cntr::SeqCntr,
     rx: mpsc::Receiver<AsyncUnitEvent>,
@@ -38,20 +34,13 @@ pub struct AsyncRuntime {
     dispatchers: Vec<dispatcher::Dispatcher>,
     req: hinawa::FwReq,
     state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
-    led_states: std::collections::HashMap::<u16, bool>,
-    button_states: std::collections::HashMap::<(u32, u32), bool>,
-    msg_map: Vec<(u32, u32)>,
 }
 
 const TIMEOUT_MS: u32 = 50;
 
 impl Drop for AsyncRuntime {
     fn drop(&mut self) {
-        self.led_states.iter().for_each(|(&pos, &state)| {
-            if state {
-                let _ = self.req.bright_led(&self.node, pos, false);
-            }
-        });
+        let _ = self.model.finalize_surface(&mut self.node);
         let _ = Fe8Protocol::enable_notification(
             &mut self.req,
             &mut self.node,
@@ -88,6 +77,7 @@ impl<'a> AsyncRuntime {
 
         Ok(AsyncRuntime {
             node,
+            model: Default::default(),
             resp,
             seq_cntr,
             tx,
@@ -95,9 +85,6 @@ impl<'a> AsyncRuntime {
             dispatchers,
             req: hinawa::FwReq::new(),
             state_cntr: Arc::new(Mutex::new(Default::default())),
-            led_states: std::collections::HashMap::new(),
-            button_states: std::collections::HashMap::new(),
-            msg_map: Vec::new(),
         })
     }
 
@@ -138,7 +125,7 @@ impl<'a> AsyncRuntime {
                             let _ = tx.send(data);
                         }
                     });
-        });
+            });
 
         self.dispatchers.push(dispatcher);
 
@@ -195,72 +182,13 @@ impl<'a> AsyncRuntime {
         Ok(())
     }
 
-    fn update_led_if_needed(&mut self, pos: u16, state: bool) -> Result<(), Error> {
-        match self.led_states.get(&pos) {
-            Some(&s) => {
-                if s != state {
-                    self.req.bright_led(&self.node, pos, state)?;
-                }
-            }
-            None => self.req.bright_led(&self.node, pos, state)?,
-        }
-
-        self.led_states.insert(pos, state);
-
-        Ok(())
-    }
-
-
-    fn init_led(&mut self) -> Result<(), Error> {
-        Fe8Model::FW_LED.get_position(|pos| {
-            self.update_led_if_needed(pos, true)
-        })?;
-
-        Fe8Model::SIMPLE_LEDS.iter().try_for_each(|entries| {
-            entries.get_position(|pos| {
-                self.update_led_if_needed(pos, false)
-            })
-        })?;
-
-        Fe8Model::TOGGLED_BUTTONS.iter().try_for_each(|&(key, entries)| {
-            entries.get_position(|pos| {
-                self.update_led_if_needed(pos, false)?;
-                self.button_states.insert(key, false);
-                Ok(())
-            })
-        })?;
-
-        Ok(())
-    }
-
-    fn init_msg_map(&mut self) {
-        Fe8Model::SIMPLE_LEDS.iter().enumerate().for_each(|(i, _)| {
-            let key = (std::u32::MAX, i as u32);
-            self.msg_map.push(key);
-        });
-
-        Fe8Model::TOGGLED_BUTTONS.iter().for_each(|&(key, _)| {
-            self.msg_map.push(key);
-        });
-
-        Fe8Model::INPUT_FADERS.iter().for_each(|&(key, _)| {
-            self.msg_map.push(key);
-        });
-
-        Fe8Model::DIALS.iter().for_each(|&(key, _)| {
-            self.msg_map.push(key);
-        });
-    }
-
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
         self.register_address_space()?;
 
         self.seq_cntr.open_port()?;
 
-        self.init_led()?;
-
-        self.init_msg_map();
+        self.model.initialize_sequencer(&mut self.node)?;
 
         Ok(())
     }
@@ -278,89 +206,29 @@ impl<'a> AsyncRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 AsyncUnitEvent::Surface((index, before, after)) => {
-                    let _ = self.dispatch_surface_event(index, before, after);
+                    // Handle error of mutex lock as unrecoverable one.
+                    let image = self.state_cntr.lock().map_err(|_| {
+                        Error::new(FileError::Failed, "Unrecoverable error at mutex lock")
+                    }).map(|s| s.0.to_vec())?;
+                    let _ = self.model.dispatch_surface_event(
+                        &mut self.node,
+                        &mut self.seq_cntr,
+                        &image,
+                        index,
+                        before,
+                        after,
+                    );
                 }
-                AsyncUnitEvent::SeqAppl(ctl_data) => {
-                    let _ = self.dispatch_seq_event(ctl_data);
+                AsyncUnitEvent::SeqAppl(data) => {
+                    let _ = self.model.dispatch_appl_event(
+                        &mut self.node,
+                        &mut self.seq_cntr,
+                        &data,
+                    );
                 }
             }
         }
 
         Ok(())
     }
-
-    fn xfer_seq_event(&mut self, key: &(u32, u32), value: i32) -> Result<(), Error> {
-        if let Some(param) = self.msg_map.iter().position(|e| e == key) {
-            self.seq_cntr.schedule_event(param as u32, value)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn dispatch_surface_event(&mut self, index: u32, before: u32, after: u32) -> Result<(), Error>
-    {
-        Fe8Model::TOGGLED_BUTTONS.detect_action(index, before, after, |key, pos, state| {
-            if state {
-                let s = match self.button_states.get(key) {
-                    Some(s) => !s,
-                    None => return Ok(()),
-                };
-
-                self.update_led_if_needed(pos, s)?;
-                self.xfer_seq_event(key, s.compute_value())?;
-                self.button_states.insert(*key, s);
-            }
-            Ok(())
-        })?;
-
-        Fe8Model::INPUT_SENSORS.detect_action(index, before, after, |idx, _, state| {
-            if !state {
-                let (key, val) = match self.state_cntr.lock() {
-                    Ok(s) => {
-                        let states: &[u32;32] = &s.0;
-                        Fe8Model::INPUT_FADERS.get_value(states, idx)
-                    }
-                    Err(_) => return Ok(()),
-                };
-                self.xfer_seq_event(&key, val as i32)?;
-            }
-            Ok(())
-        })?;
-
-        Fe8Model::DIALS.detect_action(index, before, after, |key, val| {
-            self.xfer_seq_event(key, val as i32)
-        })?;
-
-        Ok(())
-    }
-
-    fn dispatch_seq_event(&mut self, ctl_data: alsaseq::EventDataCtl) -> Result<(), Error>
-    {
-        if ctl_data.get_channel() != 0 {
-            let label = format!("Channel {} is not supported yet.", ctl_data.get_channel());
-            return Err(Error::new(FileError::Inval, &label));
-        }
-
-        let key = (std::u32::MAX, ctl_data.get_param());
-        let index = match self.msg_map.iter().position(|k| k == &key) {
-            Some(p) => p,
-            None => return Ok(()),
-        };
-
-        let state = ctl_data.get_value() > 0;
-        Fe8Model::SIMPLE_LEDS.detect_position(index, |pos| {
-            self.update_led_if_needed(pos, state)
-        })?;
-
-        Ok(())
-    }
-}
-
-pub trait ConsoleData<'a> {
-    const FW_LED: &'a [u16];
-    const SIMPLE_LEDS: &'a [&'a [u16]];
-    const TOGGLED_BUTTONS: &'a [((u32, u32), &'a [u16])];
-    const INPUT_SENSORS: &'a [(u32, u32)];
-    const INPUT_FADERS: &'a [((u32, u32), u8)];
-    const DIALS: &'a [((u32, u32), u8)];
 }
