@@ -34,7 +34,7 @@ enum ConsoleUnitEvent {
 
 enum ConsoleModel<'a> {
     Fw1884(Fw1884Model<'a>),
-    Fw1082(Fw1082Model<'a>),
+    Fw1082(Fw1082Model),
 }
 
 pub struct IsocConsoleRuntime<'a> {

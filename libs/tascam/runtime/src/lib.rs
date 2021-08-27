@@ -11,7 +11,6 @@ mod fe8_model;
 
 mod protocol;
 
-mod common_ctl;
 mod optical_ctl;
 mod console_ctl;
 mod rack_ctl;
