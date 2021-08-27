@@ -4,6 +4,18 @@
 //! Protocol implementation for FE-8
 //!
 //! The module includes protocol implementation defined by Tascam for FE-8.
+//!
+//! The protocol implementation for Tascam FE-8 was written with firmware version below:
+//!
+//! ```text
+//! $ cargo run --bin tascam-hardware-information /dev/fw1
+//!
+//! Hardware information:
+//!   Register: 0x00010014
+//!   FPGA:     0x00010031
+//!   ARM:      0x000100ad
+//!   Hardware: 0x00020000
+//! ```
 
 use crate::{asynch::*, *};
 

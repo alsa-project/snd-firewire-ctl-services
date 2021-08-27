@@ -4,6 +4,18 @@
 //! Protocol implementation for FW-1884.
 //!
 //! The module includes protocol implementation defined by Tascam for FW-1884.
+//!
+//! The protocol implementation for Tascam FW-1884 was written with firmware version below:
+//!
+//! ```text
+//! $ cargo run --bin tascam-hardware-information /dev/fw1
+//!
+//! Hardware information:
+//!   Register: 0x00000014
+//!   FPGA:     0x00010031
+//!   ARM:      0x000100b7
+//!   Hardware: 0x00030000
+//! ```
 
 use crate::{isoch::*, *};
 
