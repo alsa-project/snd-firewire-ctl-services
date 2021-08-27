@@ -12,9 +12,11 @@ use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
 
 use core::dispatcher;
 
+use tascam_protocols::asynch::{fe8::*, *};
+
 use super::seq_cntr;
 
-use super::protocol::{BaseProtocol, ExpanderProtocol, GetPosition, DetectAction, DetectPosition};
+use super::protocol::{BaseProtocol, GetPosition, DetectAction, DetectPosition};
 use super::protocol::{GetValue, ComputeValue};
 
 use super::fe8_model::Fe8Model;
@@ -41,6 +43,8 @@ pub struct AsyncRuntime {
     msg_map: Vec<(u32, u32)>,
 }
 
+const TIMEOUT_MS: u32 = 50;
+
 impl Drop for AsyncRuntime {
     fn drop(&mut self) {
         self.led_states.iter().for_each(|(&pos, &state)| {
@@ -48,7 +52,12 @@ impl Drop for AsyncRuntime {
                 let _ = self.req.bright_led(&self.node, pos, false);
             }
         });
-        let _ = self.req.enable_notification(&self.node, false);
+        let _ = Fe8Protocol::enable_notification(
+            &mut self.req,
+            &mut self.node,
+            false,
+            TIMEOUT_MS,
+        );
         self.resp.release();
 
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -194,9 +203,14 @@ impl<'a> AsyncRuntime {
         });
         // Register the address to the unit.
         addr |= (self.node.get_property_local_node_id() as u64) << 48;
-        self.req.register_notification_addr(&self.node, addr)?;
+        Fe8Protocol::register_notification_address(
+            &mut self.req,
+            &mut self.node,
+            addr,
+            TIMEOUT_MS,
+        )?;
 
-        self.req.enable_notification(&self.node, true)?;
+        Fe8Protocol::enable_notification(&mut self.req, &mut self.node, true, TIMEOUT_MS)?;
 
         Ok(())
     }
