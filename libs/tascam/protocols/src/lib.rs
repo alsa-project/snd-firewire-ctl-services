@@ -361,3 +361,31 @@ pub trait MachineStateOperation {
         outputs
     }
 }
+
+/// The trait for operation of constol surface.
+pub trait SurfaceImageOperation<T> {
+    fn initialize_surface_state(state: &mut T);
+
+    fn decode_surface_image(
+        state: &T,
+        image: &[u32],
+        index: u32,
+        before: u32,
+        after: u32,
+    ) -> Vec<(MachineItem, ItemValue)>;
+
+    fn feedback_to_surface(
+        state: &mut T,
+        machine_value: &(MachineItem, ItemValue),
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+
+    fn finalize_surface(
+        state: &mut T,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32,
+    ) -> Result<(), Error>;
+}

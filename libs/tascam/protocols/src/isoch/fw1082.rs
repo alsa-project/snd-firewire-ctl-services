@@ -121,3 +121,40 @@ impl MachineStateOperation for Fw1082Protocol {
     const HAS_TRANSPORT: bool = true;
     const HAS_BANK: bool = true;
 }
+
+/// The structure for state of control surface in FW-1082.
+#[derive(Default, Debug)]
+pub struct Fw1082SurfaceState;
+
+impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
+    fn initialize_surface_state(_: &mut Fw1082SurfaceState) {}
+
+    fn decode_surface_image(
+        _: &Fw1082SurfaceState,
+        _: &[u32],
+        _: u32,
+        _: u32,
+        _: u32,
+    ) -> Vec<(MachineItem, ItemValue)> {
+        Vec::new()
+    }
+
+    fn feedback_to_surface(
+        _: &mut Fw1082SurfaceState,
+        _: &(MachineItem, ItemValue),
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn finalize_surface(
+        _: &mut Fw1082SurfaceState,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+}

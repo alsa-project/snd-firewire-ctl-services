@@ -230,3 +230,40 @@ impl MachineStateOperation for Fw1884Protocol {
     const HAS_TRANSPORT: bool = true;
     const HAS_BANK: bool = true;
 }
+
+/// The structure for state of control surface in FW-1884.
+#[derive(Default, Debug)]
+pub struct Fw1884SurfaceState;
+
+impl SurfaceImageOperation<Fw1884SurfaceState> for Fw1884Protocol {
+    fn initialize_surface_state(_: &mut Fw1884SurfaceState) {}
+
+    fn decode_surface_image(
+        _: &Fw1884SurfaceState,
+        _: &[u32],
+        _: u32,
+        _: u32,
+        _: u32,
+    ) -> Vec<(MachineItem, ItemValue)> {
+        Vec::new()
+    }
+
+    fn feedback_to_surface(
+        _: &mut Fw1884SurfaceState,
+        _: &(MachineItem, ItemValue),
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn finalize_surface(
+        _: &mut Fw1884SurfaceState,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+}

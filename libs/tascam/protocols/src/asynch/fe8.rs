@@ -70,3 +70,40 @@ impl MachineStateOperation for Fe8Protocol {
     const HAS_TRANSPORT: bool = false;
     const HAS_BANK: bool = false;
 }
+
+/// The structure for state of control surface in FE-8.
+#[derive(Default, Debug)]
+pub struct Fe8SurfaceState;
+
+impl SurfaceImageOperation<Fe8SurfaceState> for Fe8Protocol {
+    fn initialize_surface_state(_: &mut Fe8SurfaceState) {}
+
+    fn decode_surface_image(
+        _: &Fe8SurfaceState,
+        _: &[u32],
+        _: u32,
+        _: u32,
+        _: u32,
+    ) -> Vec<(MachineItem, ItemValue)> {
+        Vec::new()
+    }
+
+    fn feedback_to_surface(
+        _: &mut Fe8SurfaceState,
+        _: &(MachineItem, ItemValue),
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn finalize_surface(
+        _: &mut Fe8SurfaceState,
+        _: &mut FwReq,
+        _: &mut FwNode,
+        _: u32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+}
