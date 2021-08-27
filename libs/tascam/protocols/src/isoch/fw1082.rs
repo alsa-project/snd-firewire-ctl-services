@@ -183,10 +183,67 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
         if let ItemValue::Bool(value) = machine_value.1 {
             if let Some(pos) = Self::find_normal_led_pos(&machine_value.0) {
                 operate_led_cached(&mut state.led_state, req, node, pos, value, timeout_ms)?;
+            } else {
+                let idx = Self::ENCODER_MODES
+                    .iter()
+                    .position(|(_, m)| m.eq(&state.specific.mode))
+                    .unwrap();
+                let led_state = &mut state.led_state;
+                Self::ENCODER_ITEM_LEDS
+                    .iter()
+                    .zip(state.specific.button_states.iter_mut())
+                    .try_for_each(|((items, positions), s)| {
+                        items
+                            .iter()
+                            .zip(s.iter_mut())
+                            .find(|(item, _)| machine_value.0.eq(item))
+                            .map(|(_, s)| *s = value);
+
+                        if machine_value.0.eq(&items[idx]) {
+                            operate_led_cached(
+                                led_state,
+                                req,
+                                node,
+                                positions[0],
+                                value,
+                                timeout_ms,
+                            )
+                        } else {
+                            Ok(())
+                        }
+                    })?;
             }
         } else if let ItemValue::U16(value) = machine_value.1 {
             if machine_value.0 == MachineItem::Bank {
                 Self::operate_bank_leds(&mut state.led_state, req, node, value, timeout_ms)?;
+            }
+            if machine_value.0 == MachineItem::EncoderMode {
+                // One of encode modes should be activated.
+                Self::ENCODER_MODE_LEDS
+                    .iter()
+                    .try_for_each(|(m, positions)| {
+                        operate_led_cached(
+                            &mut state.led_state,
+                            req,
+                            node,
+                            positions[0],
+                            m.eq(&state.specific.mode),
+                            timeout_ms,
+                        )
+                    })?;
+
+                // Recover the state of button LEDs.
+                let idx = Self::ENCODER_MODES
+                    .iter()
+                    .position(|(_, m)| m.eq(&state.specific.mode))
+                    .unwrap();
+                let led_state = &mut state.led_state;
+                Self::ENCODER_ITEM_LEDS
+                    .iter()
+                    .zip(state.specific.button_states.iter())
+                    .try_for_each(|((_, positions), s)| {
+                        operate_led_cached(led_state, req, node, positions[0], s[idx], timeout_ms)
+                    })?;
             }
         }
 
@@ -556,4 +613,39 @@ impl SurfaceNormalLedOperation for Fw1082Protocol {
 
 impl SurfaceBankLedOperation for Fw1082Protocol {
     const BANK_LEDS: [&'static [u16]; 4] = [&[127, 140], &[159, 172], &[191, 204], &[223, 236]];
+}
+
+impl Fw1082Protocol {
+    const ENCODER_MODE_LEDS: [(Fw1082EncoderMode, &'static [u16]); 3] = [
+        (Fw1082EncoderMode::Equalizer, &[157, 170]),
+        (Fw1082EncoderMode::Aux0123, &[189, 202]),
+        (Fw1082EncoderMode::Aux4567, &[221, 234]),
+    ];
+
+    const ENCODER_ITEM_LEDS: [([MachineItem; 3], &'static [u16]); 4] = [
+        (
+            [MachineItem::Low, MachineItem::Aux(3), MachineItem::Aux(7)],
+            &[95, 108],
+        ),
+        (
+            [
+                MachineItem::LowMid,
+                MachineItem::Aux(2),
+                MachineItem::Aux(6),
+            ],
+            &[63, 76],
+        ),
+        (
+            [
+                MachineItem::HighMid,
+                MachineItem::Aux(1),
+                MachineItem::Aux(5),
+            ],
+            &[31, 44],
+        ),
+        (
+            [MachineItem::High, MachineItem::Aux(0), MachineItem::Aux(4)],
+            &[12],
+        ),
+    ];
 }
