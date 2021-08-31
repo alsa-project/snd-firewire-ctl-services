@@ -2106,3 +2106,99 @@ impl SaffireAmplifierProtocol {
             })
     }
 }
+
+/// The enumeration for order of compressor effect against equalizer/amplifier effect.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaffireChStripCompOrder {
+    Pre,
+    Post,
+}
+
+impl Default for SaffireChStripCompOrder {
+    fn default() -> Self {
+        Self::Pre
+    }
+}
+
+/// The structure for protocol implementation to operate channel strip effects.
+#[derive(Default)]
+pub struct SaffireChStripProtocol;
+
+impl SaffireChStripProtocol {
+    const PAIRED_MODE_OFFSET: usize = 0x7d0;
+    const COMP_ORDER_OFFSET: [usize; 2] = [0x7d4, 0x7d8];
+
+    pub fn read_paired_mode(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        paired_mode: &mut SaffireMixerMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = [0; 4];
+        saffire_read_quadlet(req, node, Self::PAIRED_MODE_OFFSET, &mut buf, timeout_ms).map(|_| {
+            *paired_mode = if u32::from_be_bytes(buf) > 0 {
+                SaffireMixerMode::StereoSeparated
+            } else {
+                SaffireMixerMode::StereoPaired
+            };
+        })
+    }
+
+    pub fn write_paired_mode(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        paired_mode: SaffireMixerMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = match paired_mode {
+            SaffireMixerMode::StereoSeparated => 0x7fffffffu32,
+            SaffireMixerMode::StereoPaired => 0x00000000,
+        };
+        saffire_write_quadlet(
+            req,
+            node,
+            Self::PAIRED_MODE_OFFSET,
+            &val.to_be_bytes(),
+            timeout_ms,
+        )
+    }
+
+    pub fn read_comp_order(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        comp_order: &mut [SaffireChStripCompOrder],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = [0; 8];
+        saffire_read_quadlets(req, node, &Self::COMP_ORDER_OFFSET, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            comp_order.iter_mut().enumerate().for_each(|(i, order)| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                *order = if u32::from_be_bytes(quadlet) > 0 {
+                    SaffireChStripCompOrder::Pre
+                } else {
+                    SaffireChStripCompOrder::Post
+                };
+            });
+        })
+    }
+
+    pub fn write_comp_order(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        comp_order: &[SaffireChStripCompOrder],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        comp_order
+            .iter()
+            .zip(Self::COMP_ORDER_OFFSET.iter())
+            .try_for_each(|(&order, &offset)| {
+                let val = match order {
+                    SaffireChStripCompOrder::Pre => 0x7fffffffu32,
+                    SaffireChStripCompOrder::Post => 0x00000000,
+                };
+                saffire_write_quadlet(req, node, offset, &val.to_be_bytes(), timeout_ms)
+            })
+    }
+}
