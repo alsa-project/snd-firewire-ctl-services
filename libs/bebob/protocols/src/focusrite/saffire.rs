@@ -191,6 +191,7 @@ impl SamplingClockSourceOperation for SaffireClkProtocol {
 pub struct SaffireMeter {
     pub phys_inputs: [i32; 4],
     pub dig_input_detect: bool,
+    pub monitor_knob_value: u16,
 }
 
 /// The protocol implementation of metering in Saffire.
@@ -198,10 +199,15 @@ pub struct SaffireMeter {
 pub struct SaffireMeterProtocol;
 
 impl SaffireMeterProtocol {
-    /// The number of destionation pairs.
+    pub const MONITOR_KNOB_MIN: u16 = 0;
+    pub const MONITOR_KNOB_MAX: u16 = 0x1ff0;
+    pub const MONITOR_KNOB_STEP: u16 = 0x10;
+
     pub const LEVEL_MIN: i32 = 0;
     pub const LEVEL_MAX: i32 = 0x7fffffff;
     pub const LEVEL_STEP: i32 = 1;
+
+    const MONITOR_KNOB_VALUE_OFFSET: usize = 0x00f4;
 
     const PHYS_INPUT_OFFSETS: [usize; 4] = [
         0x100, // analog-input-0
@@ -219,6 +225,19 @@ impl SaffireMeterProtocol {
         meter: &mut SaffireMeter,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        let mut buf = [0; 4];
+        saffire_read_quadlets(
+            req,
+            node,
+            &[Self::MONITOR_KNOB_VALUE_OFFSET],
+            &mut buf,
+            timeout_ms,
+        )
+        .map(|_| {
+            let vals = u32::from_be_bytes(buf);
+            meter.monitor_knob_value = (vals & 0x0000ffff) as u16;
+        })?;
+
         let mut buf = [0; 16];
         saffire_read_quadlets(req, node, &Self::PHYS_INPUT_OFFSETS, &mut buf, timeout_ms).map(
             |_| {
