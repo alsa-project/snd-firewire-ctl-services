@@ -1822,3 +1822,208 @@ impl SaffireCompressorProtocol {
             })
     }
 }
+
+/// The structure for equalizer effect in Saffire.
+#[derive(Default, Debug)]
+pub struct SaffireEqualizerParameters {
+    pub enables: [bool; 2],
+    pub input_gains: [i32; 2],
+    pub output_volumes: [i32; 2],
+}
+
+/// The structure for protocol implementation to operate equalizer parameters.
+///
+/// parameters    | ch0    | ch1    | minimum    | maximum    | min val | max val
+/// ------------- | ------ | ------ | ---------- | ---------- | ------- | -------
+/// enable        | 0x0800 | 0x0804 | 0x00000000 | 0x7fffffff | disable | enable
+/// input gain    | 0x0808 | 0x0810 | 0x0203a7e7 | 0x7f17afff | -18     | +18
+/// output volume | 0x080c | 0x0814 | 0x0203a7e7 | 0x7f17afff | -18     | +18
+/// ------------- | ------ | ------ | ---------- | ---------- | ------- | -------
+/// band 0        | 0x0828 | 0x0878 |      -     |      -     |    -    |    -
+/// band 0        | 0x082c | 0x087c |      -     |      -     |    -    |    -
+/// band 0        | 0x0830 | 0x0880 |      -     |      -     |    -    |    -
+/// band 0        | 0x0834 | 0x0884 |      -     |      -     |    -    |    -
+/// band 0        | 0x0840 | 0x0890 |      -     |      -     |    -    |    -
+/// band 0        | 0x0844 | 0x0894 |      -     |      -     |    -    |    -
+/// band 0        | 0x0850 | 0x08a0 |      -     |      -     |    -    |    -
+/// ------------- | ------ |------- | ---------- | ---------- | ------- | -------
+/// band 1        | 0x08c8 | 0x0918 |      -     |      -     |    -    |    -
+/// band 1        | 0x08cc | 0x091c |      -     |      -     |    -    |    -
+/// band 1        | 0x08d0 | 0x0920 |      -     |      -     |    -    |    -
+/// band 1        | 0x08d4 | 0x0924 |      -     |      -     |    -    |    -
+/// band 1        | 0x08e0 | 0x0930 |      -     |      -     |    -    |    -
+/// band 1        | 0x08e4 | 0x0934 |      -     |      -     |    -    |    -
+/// band 1        | 0x08f0 | 0x0940 |      -     |      -     |    -    |    -
+/// ------------- | ------ |------- | ---------- | ---------- | ------- | -------
+/// band 2        | 0x0968 | 0x09b8 |      -     |      -     |    -    |    -
+/// band 2        | 0x096c | 0x09bc |      -     |      -     |    -    |    -
+/// band 2        | 0x0970 | 0x09c0 |      -     |      -     |    -    |    -
+/// band 2        | 0x0974 | 0x09c4 |      -     |      -     |    -    |    -
+/// band 2        | 0x0980 | 0x09d0 |      -     |      -     |    -    |    -
+/// band 2        | 0x0984 | 0x09d4 |      -     |      -     |    -    |    -
+/// band 2        | 0x0990 | 0x09e0 |      -     |      -     |    -    |    -
+/// ------------- | ------ |------- | ---------- | ---------- | ------- | -------
+/// band 3        | 0x0a08 | 0x0a58 |      -     |      -     |    -    |    -
+/// band 3        | 0x0a0c | 0x0a5c |      -     |      -     |    -    |    -
+/// band 3        | 0x0a10 | 0x0a60 |      -     |      -     |    -    |    -
+/// band 3        | 0x0a14 | 0x0a64 |      -     |      -     |    -    |    -
+/// band 3        | 0x0a20 | 0x0a70 |      -     |      -     |    -    |    -
+/// band 3        | 0x0a24 | 0x0a74 |      -     |      -     |    -    |    -
+/// band 3        | 0x0a30 | 0x0a80 |      -     |      -     |    -    |    -
+#[derive(Default)]
+pub struct SaffireEqualizerProtocol;
+
+impl SaffireEqualizerProtocol {
+    const OFFSETS: [usize; 62] = [
+        0x0800,
+        0x0804,
+        0x0808,
+        0x080c,
+        0x0810,
+        0x0814,
+        // ch 0 band 0.
+        0x0828,
+        0x082c,
+        0x0830,
+        0x0834,
+        0x0840,
+        0x0844,
+        0x0850,
+        // ch 0 band 1.
+        0x08c8,
+        0x08cc,
+        0x08d0,
+        0x08d4,
+        0x08e0,
+        0x08e4,
+        0x08f0,
+        // ch 0 band 2.
+        0x0968,
+        0x096c,
+        0x0970,
+        0x0974,
+        0x0980,
+        0x0984,
+        0x0990,
+        // ch 0 band 3.
+        0x0a08,
+        0x0a0c,
+        0x0a10,
+        0x0a14,
+        0x0a20,
+        0x0a24,
+        0x0a30,
+        // ch 1 band 0.
+        0x0878,
+        0x087c,
+        0x0880,
+        0x0884,
+        0x0890,
+        0x0894,
+        0x08a0,
+        // ch 1 band 1.
+        0x0918,
+        0x091c,
+        0x0920,
+        0x0924,
+        0x0930,
+        0x0934,
+        0x0940,
+        // ch 1 band 2.
+        0x09b8,
+        0x09bc,
+        0x09c0,
+        0x09c4,
+        0x09d0,
+        0x09d4,
+        0x09e0,
+        // ch 1 band 3.
+        0x0a58,
+        0x0a5c,
+        0x0a60,
+        0x0a64,
+        0x0a70,
+        0x0a74,
+        0x0a80,
+    ];
+
+    pub fn read_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut SaffireEqualizerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals: Vec<i32> = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(i32::from_be_bytes(quadlet));
+                vals
+            });
+
+            params.enables[0] = vals[5] > 0;
+            params.enables[1] = vals[13] > 0;
+            params.input_gains[0] = vals[6];
+            params.input_gains[1] = vals[14];
+            params.output_volumes[0] = vals[7];
+            params.output_volumes[1] = vals[15];
+        })
+    }
+
+    pub fn write_enables(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        enables: &[bool],
+        params: &mut SaffireEqualizerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        enables
+            .iter()
+            .zip(params.enables.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[i];
+                let val = if new { 0x7fffffffu32 } else { 0x00000000 };
+                let buf = val.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+
+    pub fn write_input_gains(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        input_gains: &[i32],
+        params: &mut SaffireEqualizerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        input_gains
+            .iter()
+            .zip(params.input_gains.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[2 + i * 2];
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+
+    pub fn write_output_volumes(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        output_volumes: &[i32],
+        params: &mut SaffireEqualizerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        output_volumes
+            .iter()
+            .zip(params.output_volumes.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[2 + i * 2 + 1];
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+}
