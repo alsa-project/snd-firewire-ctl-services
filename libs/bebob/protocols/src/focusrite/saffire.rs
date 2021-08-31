@@ -1688,3 +1688,137 @@ impl SaffireReverbProtocol {
             })
     }
 }
+
+/// The structure for compressor effect in Saffire.
+#[derive(Default, Debug)]
+pub struct SaffireCompressorParameters {
+    pub input_gains: [i32; 2],
+    pub enables: [bool; 2],
+    pub output_volumes: [i32; 2],
+}
+
+/// The structure for protocol implementation to operate compressor parameters.
+///
+/// parameters    | ch 0  | ch 1  | minimum    | maximum    | min val | max val
+/// ------------- | ----- | ----- | ---------- | ---------- | ------- | -------
+/// attack        | 0xc00 | 0xc28 | 0x81539001 | 0x8006d381 | 2 ms    | 100 ms
+/// threshold     | 0xc04 | 0xc2c | 0x9c000001 | 0x00000000 | -50     | 0
+/// release       | 0xc08 | 0xc30 | 0x7ff92c7f | 0x7fffc57f | 0.1 s   | 3.0 s
+/// ratio         | 0xc0c | 0xc34 | 0x0666665f | 0x7f5c28ff | 1.1:1   | 100 ms
+/// gain          | 0xc10 | 0xc38 | 0x0fffffff | 0x7f17aeff | 0       | +18
+/// enable        | 0xc14 | 0xc3c | 0x00000000 | 0x7fffffff | disable | enable
+/// input gain    | 0xc18 | 0xc40 | 0x0203a7e7 | 0x7f17aeff | -18     | +18
+/// output volume | 0xc1c | 0xc44 | 0x0203a7e7 | 0x7f17aeff | -18     | +18
+#[derive(Default)]
+pub struct SaffireCompressorProtocol;
+
+impl SaffireCompressorProtocol {
+    pub const GAIN_MIN: i32 = 0x0fffffff;
+    pub const GAIN_MAX: i32 = 0x7fffffff;
+    pub const GAIN_STEP: i32 = 1;
+
+    pub const VOLUME_MIN: i32 = 0x0fffffff;
+    pub const VOLUME_MAX: i32 = 0x7fffffff;
+    pub const VOLUME_STEP: i32 = 1;
+
+    const OFFSETS: [usize; 16] = [
+        // ch 0.
+        0x0c00,
+        0x0c04,
+        0x0c08,
+        0x0c0c,
+        0x0c10,
+        0x0c14,
+        0x0c18,
+        0x0c1c,
+        // ch 1.
+        0x0c28,
+        0x0c2c,
+        0x0c30,
+        0x0c34,
+        0x0c38,
+        0x0c3c,
+        0x0c40,
+        0x0c48,
+    ];
+
+    pub fn read_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut SaffireCompressorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals: Vec<i32> = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(i32::from_be_bytes(quadlet));
+                vals
+            });
+
+            params.enables[0] = vals[5] > 0;
+            params.enables[1] = vals[13] > 0;
+            params.input_gains[0] = vals[6];
+            params.input_gains[1] = vals[14];
+            params.output_volumes[0] = vals[7];
+            params.output_volumes[1] = vals[15];
+        })
+    }
+
+    pub fn write_enables(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        enables: &[bool],
+        params: &mut SaffireCompressorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        enables
+            .iter()
+            .zip(params.enables.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[i * 8 + 5];
+                let val = if new { 0x7fffffffu32 } else { 0x00000000 };
+                let buf = val.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+
+    pub fn write_input_gains(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        input_gains: &[i32],
+        params: &mut SaffireCompressorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        input_gains
+            .iter()
+            .zip(params.input_gains.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[i * 8 + 6];
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+
+    pub fn write_output_volumes(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        output_volumes: &[i32],
+        params: &mut SaffireCompressorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        output_volumes
+            .iter()
+            .zip(params.output_volumes.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[i * 8 + 7];
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+}
