@@ -86,10 +86,13 @@ pub trait SaffireOutputOperation {
         }
     }
 
+    /// It takes a bit time to read changed flag of hwctl after finishing write transaction to
+    /// change it. Use parse_hwctl argument to suppress parsing the flag.
     fn read_output_parameters(
         req: &FwReq,
         node: &FwNode,
         params: &mut SaffireOutputParameters,
+        parse_hwctl: bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut buf = vec![0; Self::OFFSETS.len() * 4];
@@ -115,11 +118,13 @@ pub trait SaffireOutputOperation {
             .zip(vals.iter())
             .for_each(|(vol, &val)| *vol = 0xff - (val & VOL_MASK) as u8);
 
-        params
-            .hwctls
-            .iter_mut()
-            .zip(vals.iter())
-            .for_each(|(hwctl, &val)| *hwctl = val & HWCTL_FLAG > 0);
+        if parse_hwctl {
+            params
+                .hwctls
+                .iter_mut()
+                .zip(vals.iter())
+                .for_each(|(hwctl, &val)| *hwctl = val & HWCTL_FLAG > 0);
+        }
 
         params
             .dims
