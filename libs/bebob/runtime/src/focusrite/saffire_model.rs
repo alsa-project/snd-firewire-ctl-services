@@ -26,6 +26,7 @@ pub struct SaffireModel {
     specific_ctl: SpecificCtl,
     separated_mixer_ctl: SeparatedMixerCtl,
     paired_mixer_ctl: PairedMixerCtl,
+    reverb_ctl: ReverbCtl,
 }
 
 const FCP_TIMEOUT_MS: u32 = 100;
@@ -114,6 +115,9 @@ impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
     const MIXER_MODE: SaffireMixerMode = SaffireMixerMode::StereoPaired;
 }
 
+#[derive(Default)]
+struct ReverbCtl(SaffireReverbParameters);
+
 impl CtlModel<SndUnit> for SaffireModel {
     fn load(
         &mut self,
@@ -144,6 +148,8 @@ impl CtlModel<SndUnit> for SaffireModel {
                                               &self.req, TIMEOUT_MS)
             .map(|measured_elem_id_list| self.paired_mixer_ctl.0 = measured_elem_id_list)?;
 
+        self.reverb_ctl.load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+
         Ok(())
     }
 
@@ -166,6 +172,8 @@ impl CtlModel<SndUnit> for SaffireModel {
         } else if self.separated_mixer_ctl.read_src_levels(elem_id, elem_value)? {
             Ok(true)
         } else if self.paired_mixer_ctl.read_src_levels(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.reverb_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -194,6 +202,8 @@ impl CtlModel<SndUnit> for SaffireModel {
             Ok(true)
         } else if self.paired_mixer_ctl.write_src_levels(self.specific_ctl.0.mixer_mode, unit,
                                                          &self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.reverb_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -465,6 +475,154 @@ impl SpecificCtl {
                     paired_mixer_ctl.write_state(unit, req, timeout_ms)?;
                 }
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const REVERB_AMOUNT_NAME: &str = "reverb-amount";
+const REVERB_ROOM_SIZE_NAME: &str = "reverb-room-size";
+const REVERB_DIFFUSION_NAME: &str = "reverb-diffusion";
+const REVERB_TONE_NAME: &str = "reverb-tone";
+
+impl ReverbCtl {
+    fn load_params(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndUnit,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_AMOUNT_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            SaffireReverbProtocol::AMOUNT_MIN,
+            SaffireReverbProtocol::AMOUNT_MAX,
+            SaffireReverbProtocol::AMOUNT_STEP,
+            2,
+            None,
+            false,
+        )?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ROOM_SIZE_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            SaffireReverbProtocol::ROOM_SIZE_MIN,
+            SaffireReverbProtocol::ROOM_SIZE_MAX,
+            SaffireReverbProtocol::ROOM_SIZE_STEP,
+            2,
+            None,
+            false,
+        )?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_DIFFUSION_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            SaffireReverbProtocol::DIFFUSION_MIN,
+            SaffireReverbProtocol::DIFFUSION_MAX,
+            SaffireReverbProtocol::DIFFUSION_STEP,
+            2,
+            None,
+            false,
+        )?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TONE_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            SaffireReverbProtocol::TONE_MIN,
+            SaffireReverbProtocol::TONE_MAX,
+            SaffireReverbProtocol::TONE_STEP,
+            2,
+            None,
+            false,
+        )?;
+
+        SaffireReverbProtocol::read_params(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+    }
+
+    fn read_params(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            REVERB_AMOUNT_NAME => {
+                elem_value.set_int(&self.0.amounts);
+                Ok(true)
+            }
+            REVERB_ROOM_SIZE_NAME => {
+                elem_value.set_int(&self.0.room_sizes);
+                Ok(true)
+            }
+            REVERB_DIFFUSION_NAME => {
+                elem_value.set_int(&self.0.diffusions);
+                Ok(true)
+            }
+            REVERB_TONE_NAME => {
+                elem_value.set_int(&self.0.tones);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write_params(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            REVERB_AMOUNT_NAME => {
+                let mut vals = [0; 2];
+                elem_value.get_int(&mut vals);
+                SaffireReverbProtocol::write_amounts(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
+                    &mut self.0,
+                    timeout_ms
+                ).map(|_| true)
+            }
+            REVERB_ROOM_SIZE_NAME => {
+                let mut vals = [0; 2];
+                elem_value.get_int(&mut vals);
+                SaffireReverbProtocol::write_room_sizes(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
+                    &mut self.0,
+                    timeout_ms
+                ).map(|_| true)
+            }
+            REVERB_DIFFUSION_NAME => {
+                let mut vals = [0; 2];
+                elem_value.get_int(&mut vals);
+                SaffireReverbProtocol::write_diffusions(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
+                    &mut self.0,
+                    timeout_ms
+                ).map(|_| true)
+            }
+            REVERB_TONE_NAME => {
+                let mut vals = [0; 2];
+                elem_value.get_int(&mut vals);
+                SaffireReverbProtocol::write_tones(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
+                    &mut self.0,
+                    timeout_ms
+                ).map(|_| true)
             }
             _ => Ok(false),
         }
