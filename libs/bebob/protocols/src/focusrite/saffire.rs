@@ -1517,3 +1517,174 @@ pub trait SaffireMixerOperation {
         )
     }
 }
+
+/// The structure for state of stereo-separated reverb effect in Saffire.
+#[derive(Default, Debug)]
+pub struct SaffireReverbParameters {
+    pub amounts: [i32; 2],
+    pub room_sizes: [i32; 2],
+    pub diffusions: [i32; 2],
+    pub tones: [i32; 2],
+}
+
+/// The protocol implementation to operate parameters of reverb effect.
+///
+/// parameters | ch0    | ch1    | minimum    | maximum    | min val  | max val
+/// ---------- | ------ | ------ | ---------- | ---------- | -------- | --------
+/// amount     | 0x1004 | 0x1018 | 0x00000000 | 0x7fffffff |    -     |    -
+/// room_size  | 0x1008 | 0x101c | 0x00000000 | 0x7fffffff |    -     |    -
+/// diffusion  | 0x100c | 0x1020 | 0x00000000 | 0x7fffffff |    -     |    -
+/// tone sign  | 0x1010 | 0x1024 | 0x00000000 | 0x00000001 | positive | negative
+/// tone value | 0x1014 | 0x1028 | 0x00000000 | 0x7fffffff |    -     |    -
+#[derive(Default)]
+pub struct SaffireReverbProtocol;
+
+impl SaffireReverbProtocol {
+    pub const AMOUNT_MIN: i32 = 0x00000000;
+    pub const AMOUNT_MAX: i32 = 0x7fffffff;
+    pub const AMOUNT_STEP: i32 = 0x00000001;
+
+    pub const ROOM_SIZE_MIN: i32 = 0x00000000;
+    pub const ROOM_SIZE_MAX: i32 = 0x7fffffff;
+    pub const ROOM_SIZE_STEP: i32 = 0x00000001;
+
+    pub const DIFFUSION_MIN: i32 = 0x00000000;
+    pub const DIFFUSION_MAX: i32 = 0x7fffffff;
+    pub const DIFFUSION_STEP: i32 = 0x00000001;
+
+    pub const TONE_MIN: i32 = i32::MIN + 1;
+    pub const TONE_MAX: i32 = i32::MAX;
+    pub const TONE_STEP: i32 = 0x00000001;
+
+    const OFFSETS: [usize; 10] = [
+        // ch 0
+        0x1004, // amount
+        0x1008, // room-size
+        0x100c, // diffusion
+        0x1010, // tone-negative
+        0x1014, // tone-value
+        // ch 1
+        0x1018, // amount
+        0x101c, // room-size
+        0x1020, // diffusion
+        0x1024, // tone-negative
+        0x1028, // tone-value
+    ];
+
+    fn parse_tone(vals: &[i32]) -> i32 {
+        assert_eq!(vals.len(), 2);
+        let mut tone = vals[1];
+        if vals[0] > 0 {
+            tone *= -1;
+        }
+        tone
+    }
+
+    pub fn read_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut SaffireReverbParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(i32::from_be_bytes(quadlet));
+                vals
+            });
+            params.amounts[0] = vals[0];
+            params.amounts[1] = vals[5];
+            params.room_sizes[0] = vals[1];
+            params.room_sizes[1] = vals[6];
+            params.diffusions[0] = vals[2];
+            params.diffusions[1] = vals[7];
+            params.tones[0] = Self::parse_tone(&vals[3..5]);
+            params.tones[1] = Self::parse_tone(&vals[8..10]);
+        })
+    }
+
+    /// write amount parameter.
+    pub fn write_amounts(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        amounts: &[i32],
+        params: &mut SaffireReverbParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        amounts
+            .iter()
+            .zip(params.amounts.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, Self::OFFSETS[i * 5], &buf, timeout_ms)
+                    .map(|_| *old = new)
+            })
+    }
+
+    /// Write room size parameter.
+    pub fn write_room_sizes(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        room_sizes: &[i32],
+        params: &mut SaffireReverbParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        room_sizes
+            .iter()
+            .zip(params.room_sizes.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, Self::OFFSETS[i * 5 + 1], &buf, timeout_ms)
+                    .map(|_| *old = new)
+            })
+    }
+
+    /// Write diffusion parameter.
+    pub fn write_diffusions(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        diffusions: &[i32],
+        params: &mut SaffireReverbParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        diffusions
+            .iter()
+            .zip(params.diffusions.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, Self::OFFSETS[i * 5 + 2], &buf, timeout_ms)
+                    .map(|_| *old = new)
+            })
+    }
+
+    fn build_tone(vals: &mut [u8; 8], tone: i32) {
+        vals[..4].copy_from_slice(&((tone < 0) as u32).to_be_bytes());
+        vals[4..].copy_from_slice(&(tone.abs() as u32).to_be_bytes());
+    }
+
+    /// Write tone parameter.
+    pub fn write_tones(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        tones: &[i32],
+        params: &mut SaffireReverbParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        tones
+            .iter()
+            .zip(params.tones.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let mut buf = [0; 8];
+                Self::build_tone(&mut buf, new);
+                let offsets = &Self::OFFSETS[(i * 5 + 3)..(i * 5 + 5)];
+                saffire_write_quadlets(req, node, offsets, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+}
