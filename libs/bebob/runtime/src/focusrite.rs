@@ -292,13 +292,13 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
                 .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
         }
 
-        self.measure_params(unit, req, timeout_ms)?;
+        T::read_output_parameters(req, &unit.get_node(), self.as_mut(), true, timeout_ms)?;
 
         Ok(measure_elem_id_list)
     }
 
     fn measure_params(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::read_output_parameters(req, &unit.get_node(), self.as_mut(), timeout_ms)
+        T::read_output_parameters(req, &unit.get_node(), self.as_mut(), false, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
