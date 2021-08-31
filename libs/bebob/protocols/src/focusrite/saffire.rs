@@ -2027,3 +2027,82 @@ impl SaffireEqualizerProtocol {
             })
     }
 }
+
+/// The structure for amplifier effect in Saffire.
+#[derive(Default, Debug)]
+pub struct SaffireAmplifierParameters {
+    pub enables: [bool; 2],
+    pub output_volumes: [i32; 2],
+}
+
+/// parameter     | ch0           | ch1           | minimum    | maximum    | min val | max val
+/// ------------- | ------------- | ------------- | ---------- | ---------- | ------- | -------
+/// enable        | 0x1400        | 0x17ec        | 0x00000000 | 0x7fffffff | disable | enable
+/// coefficients  | 0x1454-0x17e4 | 0x1840-0x1bd0 |      -     |      -     |    -    |    -
+/// output volume | 0x17e8        | 0x1bd4        | 0x080e9f9f | 0x3fffffff | -18     | +18
+#[derive(Default)]
+pub struct SaffireAmplifierProtocol;
+
+impl SaffireAmplifierProtocol {
+    const OFFSETS: [usize; 4] = [0x1400, 0x17e8, 0x17ec, 0x1bd4];
+
+    pub fn read_params(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        params: &mut SaffireEqualizerParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut buf = vec![0; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
+            let mut quadlet = [0; 4];
+            let vals: Vec<i32> = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
+                vals.push(i32::from_be_bytes(quadlet));
+                vals
+            });
+
+            params.enables[0] = vals[0] > 0;
+            params.enables[1] = vals[1] > 0;
+            params.output_volumes[0] = vals[2];
+            params.output_volumes[1] = vals[3];
+        })
+    }
+
+    pub fn write_enables(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        enables: &[bool],
+        params: &mut SaffireAmplifierParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        enables
+            .iter()
+            .zip(params.enables.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[i];
+                let val = if new { 0x7fffffffu32 } else { 0x00000000 };
+                let buf = val.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+
+    pub fn write_output_volumes(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        output_volumes: &[i32],
+        params: &mut SaffireAmplifierParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        output_volumes
+            .iter()
+            .zip(params.output_volumes.iter_mut())
+            .enumerate()
+            .try_for_each(|(i, (&new, old))| {
+                let offset = Self::OFFSETS[2 + i];
+                let buf = new.to_be_bytes();
+                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
+            })
+    }
+}
