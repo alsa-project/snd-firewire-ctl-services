@@ -154,6 +154,7 @@ impl V2MainAssignCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -166,7 +167,7 @@ impl V2MainAssignCtl {
             Self::MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_main_vol_assign(&mut unit.get_node(), timeout_ms)
+                        .get_main_vol_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -178,6 +179,7 @@ impl V2MainAssignCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -190,7 +192,7 @@ impl V2MainAssignCtl {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_main_vol_assign(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_main_vol_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }

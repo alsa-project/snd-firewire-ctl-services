@@ -144,14 +144,19 @@ const MAIN_VOL_SHIFT: usize = 16;
 pub trait V2MainAssignProtocol: AsRef<FwReq> {
     const KNOB_TARGETS: &'static [(&'static str, u8)];
 
-    fn get_main_vol_assign(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_main_vol_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_PORT,
             MAIN_VOL_MASK,
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             timeout_ms,
@@ -160,6 +165,7 @@ pub trait V2MainAssignProtocol: AsRef<FwReq> {
 
     fn set_main_vol_assign(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -170,7 +176,7 @@ pub trait V2MainAssignProtocol: AsRef<FwReq> {
             MAIN_VOL_MASK,
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             idx,
