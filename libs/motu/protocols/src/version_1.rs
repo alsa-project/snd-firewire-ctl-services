@@ -639,7 +639,7 @@ impl CommonProtocol for F896Protocol {}
 impl WordClkProtocol for F896Protocol {}
 
 impl V1ClkProtocol for F896Protocol {
-    const CLK_OFFSET: u32 = Self::OFFSET_CLK;
+    const CLK_OFFSET: u32 = OFFSET_CLK;
 
     const CLK_RATE_MASK: u32 = CONF_896_CLK_RATE_MASK;
     const CLK_RATE_SHIFT: usize = CONF_896_CLK_RATE_SHIFT;
@@ -690,7 +690,7 @@ impl V1MonitorInputProtocol for F896Protocol {
                 Error::new(FileError::Inval, &label)
             })?;
         set_idx_to_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
@@ -701,7 +701,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             timeout_ms,
         )?;
         set_idx_to_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
             MONITOR_INPUT_AESEBU_LABEL,
@@ -715,7 +715,7 @@ impl V1MonitorInputProtocol for F896Protocol {
 
     fn get_monitor_input(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let ch_idx = get_idx_from_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
@@ -725,7 +725,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             timeout_ms,
         )?;
         let aesebu_idx = get_idx_from_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
             MONITOR_INPUT_AESEBU_LABEL,
