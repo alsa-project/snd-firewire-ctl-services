@@ -26,7 +26,7 @@ fn clk_src_to_label(src: &V1ClkSrc) -> String {
 }
 
 #[derive(Default)]
-pub struct V1ClkCtl {}
+pub struct V1ClkCtl;
 
 impl<'a> V1ClkCtl {
     const RATE_NAME: &'a str = "sampling- rate";
@@ -118,7 +118,7 @@ impl<'a> V1ClkCtl {
 }
 
 #[derive(Default)]
-pub struct V1MonitorInputCtl {}
+pub struct V1MonitorInputCtl;
 
 impl<'a> V1MonitorInputCtl {
     const MONITOR_INPUT_NAME: &'a str = "monitor-input";
