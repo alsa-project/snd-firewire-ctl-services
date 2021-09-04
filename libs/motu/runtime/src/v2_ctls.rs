@@ -240,6 +240,7 @@ impl V2OptIfaceCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -252,7 +253,7 @@ impl V2OptIfaceCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_opt_in_iface_mode(&mut unit.get_node(), timeout_ms)
+                        .get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -260,7 +261,7 @@ impl V2OptIfaceCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_opt_out_iface_mode(&mut unit.get_node(), timeout_ms)
+                        .get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -272,6 +273,7 @@ impl V2OptIfaceCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -285,7 +287,7 @@ impl V2OptIfaceCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_opt_in_iface_mode(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
@@ -294,7 +296,7 @@ impl V2OptIfaceCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_opt_out_iface_mode(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
