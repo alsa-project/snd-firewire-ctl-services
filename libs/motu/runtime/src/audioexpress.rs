@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::SndMotu;
 
 use core::card_cntr::{CardCntr, CtlModel};
@@ -15,6 +16,7 @@ const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
 pub struct AudioExpress{
+    req: FwReq,
     proto: AudioExpressProtocol,
     clk_ctls: V3ClkCtl,
     phone_assign_ctl: CommonPhoneCtl,
@@ -35,7 +37,7 @@ impl CtlModel<SndMotu> for AudioExpress {
     {
         if self.clk_ctls.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -48,7 +50,7 @@ impl CtlModel<SndMotu> for AudioExpress {
     {
         if self.clk_ctls.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)

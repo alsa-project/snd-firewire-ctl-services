@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::SndMotu;
 
 use alsactl::{ElemId, ElemValue};
@@ -17,6 +18,7 @@ const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
 pub struct UltraLite{
+    req: FwReq,
     proto: UltraliteProtocol,
     clk_ctls: V2ClkCtl,
     main_assign_ctl: V2MainAssignCtl,
@@ -46,7 +48,7 @@ impl CtlModel<SndMotu> for UltraLite {
             Ok(true)
         } else if self.main_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -61,7 +63,7 @@ impl CtlModel<SndMotu> for UltraLite {
             Ok(true)
         } else if self.main_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)

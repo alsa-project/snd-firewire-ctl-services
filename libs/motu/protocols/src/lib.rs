@@ -168,28 +168,39 @@ const PORT_PHONE_SHIFT: usize = 0;
 pub trait AssignProtocol: AsRef<FwReq> {
     const ASSIGN_PORTS: &'static [(&'static str, u8)];
 
-    fn get_phone_assign(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_phone_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_phone_assign(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_phone_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             idx,
