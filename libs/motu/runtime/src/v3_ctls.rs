@@ -116,89 +116,76 @@ pub trait V3ClkCtlOperation<T: V3ClkProtocol> {
     }
 }
 
-#[derive(Default)]
-pub struct V3PortAssignCtl(pub Vec<ElemId>);
+const MAIN_ASSIGN_NAME: &str = "main-assign";
+const RETURN_ASSIGN_NAME: &str = "return-assign";
 
-impl V3PortAssignCtl {
-    const MAIN_ASSIGN_NAME: &'static str = "main-assign";
-    const RETURN_ASSIGN_NAME: &'static str = "return-assign";
+pub trait V3PortAssignCtlOperation<T: V3PortAssignProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let mut notified_elem_id_list = Vec::new();
 
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V3PortAssignProtocol,
-    {
-        let labels: Vec<String> = O::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
+        let labels: Vec<String> = T::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MAIN_ASSIGN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| self.0.extend_from_slice(&elem_id_list))?;
+            .map(|elem_id_list| notified_elem_id_list.extend_from_slice(&elem_id_list))?;
 
         let elem_id =
-            alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::RETURN_ASSIGN_NAME, 0);
+            alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RETURN_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| self.0.extend_from_slice(&elem_id_list))?;
+            .map(|elem_id_list| notified_elem_id_list.extend_from_slice(&elem_id_list))?;
 
-        Ok(())
+        Ok(notified_elem_id_list)
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V3PortAssignProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MAIN_ASSIGN_NAME => {
+            MAIN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_main_assign(req, &mut unit.get_node(), timeout_ms)
+                    T::get_main_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::RETURN_ASSIGN_NAME => {
+            RETURN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_return_assign(req, &mut unit.get_node(), timeout_ms)
+                    T::get_return_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V3PortAssignProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MAIN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_main_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            MAIN_ASSIGN_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_main_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
-            Self::RETURN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_return_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            RETURN_ASSIGN_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_return_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
