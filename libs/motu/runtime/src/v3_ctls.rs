@@ -12,9 +12,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::version_3::*;
 
-use super::model::clk_rate_to_string;
+use super::model::*;
 
-fn clk_src_to_label(src: &V3ClkSrc) -> String {
+fn clk_src_to_str(src: &V3ClkSrc) -> &'static str {
     match src {
         V3ClkSrc::Internal => "Internal",
         V3ClkSrc::SpdifCoax => "S/PDIF-on-coax",
@@ -22,7 +22,6 @@ fn clk_src_to_label(src: &V3ClkSrc) -> String {
         V3ClkSrc::SignalOptA => "Signal-on-opt-A",
         V3ClkSrc::SignalOptB => "Signal-on-opt-B",
     }
-    .to_string()
 }
 
 const RATE_NAME: &str = "sampling-rate";
@@ -30,14 +29,14 @@ const SRC_NAME: &str = "clock-source";
 
 pub trait V3ClkCtlOperation<T: V3ClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::CLK_RATES
+        let labels: Vec<&str> = T::CLK_RATES
             .iter()
-            .map(|e| clk_rate_to_string(&e.0))
+            .map(|e| clk_rate_to_str(&e.0))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = T::CLK_SRCS.iter().map(|e| clk_src_to_label(&e.0)).collect();
+        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|e| clk_src_to_str(&e.0)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
@@ -64,7 +63,7 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
                     let mut node = unit.get_node();
                     let val = T::get_clk_src(req, &mut node, timeout_ms)?;
                     if T::HAS_LCD {
-                        let label = clk_src_to_label(&T::CLK_SRCS[val].0);
+                        let label = clk_src_to_str(&T::CLK_SRCS[val].0);
                         let _ = T::update_clk_display(req, &mut node, &label, timeout_ms);
                     }
                     Ok(val as u32)
@@ -100,7 +99,7 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
                     let mut node = unit.get_node();
                     let mut res = T::set_clk_src(req, &mut node, val as usize, timeout_ms);
                     if res.is_ok() && T::HAS_LCD {
-                        let label = clk_src_to_label(&T::CLK_SRCS[val as usize].0);
+                        let label = clk_src_to_str(&T::CLK_SRCS[val as usize].0);
                         res = T::update_clk_display(req, &mut node, &label, timeout_ms);
                         if res.is_err() {
                             let _ = T::set_clk_src(req, &mut node, prev_src, timeout_ms);
