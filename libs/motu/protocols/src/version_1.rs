@@ -254,7 +254,7 @@ const CLK_RATE_LABEL: &str = "clock-rate-v1";
 const CLK_SRC_LABEL: &str = "clock-source-v1";
 
 /// The trait for configuration of sampling clock in version 1 protocol.
-pub trait V1ClkProtocol: AsRef<FwReq> {
+pub trait V1ClkProtocol {
     const CLK_OFFSET: u32;
 
     const CLK_RATE_MASK: u32;
@@ -349,7 +349,7 @@ const MONITOR_INPUT_DISABLE_LABEL: &str = "monitor-input-enable-v1";
 const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
 
 /// The trait for configuration of input to monitor in version 1 protocol.
-pub trait V1MonitorInputProtocol: AsRef<FwReq> {
+pub trait V1MonitorInputProtocol {
     const MONITOR_INPUT_MODES: &'static [&'static str];
 
     fn set_monitor_input(
@@ -369,13 +369,7 @@ pub trait V1MonitorInputProtocol: AsRef<FwReq> {
 
 /// The protocol implementation for 828.
 #[derive(Default)]
-pub struct F828Protocol(FwReq);
-
-impl AsRef<FwReq> for F828Protocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct F828Protocol;
 
 impl V1ClkProtocol for F828Protocol {
     const CLK_OFFSET: u32 = CONF_828_OFFSET;
@@ -689,13 +683,7 @@ impl F828Protocol {
 
 /// The protocol implementation for 896.
 #[derive(Default)]
-pub struct F896Protocol(FwReq);
-
-impl AsRef<FwReq> for F896Protocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct F896Protocol;
 
 impl WordClkProtocol for F896Protocol {}
 
