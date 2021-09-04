@@ -103,6 +103,15 @@ pub trait V2ClkProtocol: CommonProtocol {
             timeout_ms,
         )
     }
+
+    fn update_clk_display(
+        &self,
+        unit: &SndMotu,
+        label: &str,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        update_clk_display(self.as_ref(), &mut unit.get_node(), label, timeout_ms)
+    }
 }
 
 const MAIN_VOL_LABEL: &str = "main-vol-target-v2";

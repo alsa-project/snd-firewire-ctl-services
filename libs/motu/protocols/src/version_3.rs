@@ -99,6 +99,15 @@ pub trait V3ClkProtocol: CommonProtocol {
             timeout_ms,
         )
     }
+
+    fn update_clk_display(
+        &self,
+        unit: &SndMotu,
+        label: &str,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        update_clk_display(self.as_ref(), &mut unit.get_node(), label, timeout_ms)
+    }
 }
 
 const PORT_MAIN_LABEL: &str = "main-out-assign-v3";
