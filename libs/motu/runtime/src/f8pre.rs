@@ -17,9 +17,8 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct F8pre{
     req: FwReq,
-    proto: F8preProtocol,
     clk_ctls: ClkCtl,
-    opt_iface_ctl: V2OptIfaceCtl,
+    opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
 }
 
@@ -33,12 +32,17 @@ struct ClkCtl;
 
 impl V2ClkCtlOperation<F8preProtocol> for ClkCtl {}
 
+#[derive(Default)]
+struct OptIfaceCtl;
+
+impl V2OptIfaceCtlOperation<F8preProtocol> for OptIfaceCtl {}
+
 impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl.load(&self.proto, card_cntr)?;
+        self.opt_iface_ctl.load(card_cntr)?;
         let _ = self.phone_assign_ctl.load(card_cntr)?;
         Ok(())
     }
@@ -49,7 +53,7 @@ impl CtlModel<SndMotu> for F8pre {
     {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.opt_iface_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -58,13 +62,13 @@ impl CtlModel<SndMotu> for F8pre {
         }
     }
 
-    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
         if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.opt_iface_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.opt_iface_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)

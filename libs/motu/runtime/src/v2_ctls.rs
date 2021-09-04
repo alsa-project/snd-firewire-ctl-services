@@ -177,95 +177,80 @@ fn opt_iface_mode_to_label(mode: &V2OptIfaceMode) -> String {
     .to_string()
 }
 
-#[derive(Default)]
-pub struct V2OptIfaceCtl;
+const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
+const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
-impl V2OptIfaceCtl {
-    const OPT_IN_IFACE_MODE_NAME: &'static str = "optical-iface-in-mode";
-    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-iface-out-mode";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V2OptIfaceProtocol,
-    {
-        let labels: Vec<String> = O::OPT_IFACE_MODES
+pub trait V2OptIfaceCtlOperation<T: V2OptIfaceProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::OPT_IFACE_MODES
             .iter()
             .map(|e| opt_iface_mode_to_label(&e.0))
             .collect();
 
         let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IN_IFACE_MODE_NAME, 0);
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IN_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_OUT_IFACE_MODE_NAME, 0);
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_OUT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V2OptIfaceProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OPT_IN_IFACE_MODE_NAME => {
+            OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::OPT_OUT_IFACE_MODE_NAME => {
+            OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V2OptIfaceProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OPT_IN_IFACE_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
+            OPT_IN_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
-                    let res = O::set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = T::set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::OPT_OUT_IFACE_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
+            OPT_OUT_IFACE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
-                    let res = O::set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = T::set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
