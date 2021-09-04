@@ -49,7 +49,7 @@ pub trait V2ClkProtocol: CommonProtocol {
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         get_idx_from_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
@@ -63,7 +63,7 @@ pub trait V2ClkProtocol: CommonProtocol {
     fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         set_idx_to_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
@@ -78,7 +78,7 @@ pub trait V2ClkProtocol: CommonProtocol {
     fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         get_idx_from_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
@@ -92,7 +92,7 @@ pub trait V2ClkProtocol: CommonProtocol {
     fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         set_idx_to_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
@@ -116,7 +116,7 @@ pub trait V2MainAssignProtocol: CommonProtocol {
     fn get_main_vol_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
         get_idx_from_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             MAIN_VOL_MASK,
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
@@ -135,7 +135,7 @@ pub trait V2MainAssignProtocol: CommonProtocol {
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
         set_idx_to_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             MAIN_VOL_MASK,
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
@@ -171,7 +171,7 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
 
     fn get_opt_in_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         get_idx_from_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
@@ -189,7 +189,7 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         set_idx_to_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
@@ -203,7 +203,7 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
 
     fn get_opt_out_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         get_idx_from_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
@@ -221,7 +221,7 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         set_idx_to_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,

@@ -17,6 +17,9 @@ use hinawa::{SndMotu, SndUnitExt};
 use std::{thread, time};
 
 const BASE_OFFSET: u64 = 0xfffff0000000;
+const OFFSET_CLK: u32 = 0x0b14;
+const OFFSET_PORT: u32 = 0x0c04;
+const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
 
 const BUSY_DURATION: u64 = 150;
 
@@ -139,10 +142,6 @@ pub enum ClkRate {
 
 /// The trait for common protocol.
 pub trait CommonProtocol: AsRef<FwReq> {
-    const OFFSET_CLK: u32 = 0x0b14;
-    const OFFSET_PORT: u32 = 0x0c04;
-    const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
-
     fn update_clk_display(
         &self,
         unit: &SndMotu,
@@ -160,7 +159,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
             frame.copy_from_slice(&chars[(i * 4)..(i * 4 + 4)]);
             frame.reverse();
             let quad = u32::from_ne_bytes(frame);
-            let offset = Self::OFFSET_CLK_DISPLAY + 4 * i as u32;
+            let offset = OFFSET_CLK_DISPLAY + 4 * i as u32;
             write_quad(self.as_ref(), &mut unit.get_node(), offset, quad, timeout_ms)
         })
     }
@@ -177,7 +176,7 @@ pub trait AssignProtocol: CommonProtocol {
     fn get_phone_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
@@ -191,7 +190,7 @@ pub trait AssignProtocol: CommonProtocol {
     fn set_phone_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
-            Self::OFFSET_PORT,
+            OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
@@ -223,7 +222,7 @@ const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 pub trait WordClkProtocol: CommonProtocol {
     fn get_word_out(&self, unit: &SndMotu, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
         get_idx_from_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
@@ -252,7 +251,7 @@ pub trait WordClkProtocol: CommonProtocol {
             WordClkSpeedMode::FollowSystemClk => 1,
         };
         set_idx_to_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
@@ -299,7 +298,7 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
@@ -317,7 +316,7 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         set_idx_to_val(
-            Self::OFFSET_CLK,
+            OFFSET_CLK,
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
