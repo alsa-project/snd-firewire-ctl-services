@@ -17,8 +17,7 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct H4pre {
     req: FwReq,
-    proto: H4preProtocol,
-    clk_ctls: V3ClkCtl,
+    clk_ctls: ClkCtl,
     phone_assign_ctl: PhoneAssignCtl,
 }
 
@@ -27,11 +26,16 @@ struct PhoneAssignCtl;
 
 impl PhoneAssignCtlOperation<H4preProtocol> for PhoneAssignCtl {}
 
+#[derive(Default)]
+struct ClkCtl;
+
+impl V3ClkCtlOperation<H4preProtocol> for ClkCtl {}
+
 impl CtlModel<SndMotu> for H4pre {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.clk_ctls.load(card_cntr)?;
         let _ = self.phone_assign_ctl.load(card_cntr)?;
         Ok(())
     }
@@ -40,7 +44,7 @@ impl CtlModel<SndMotu> for H4pre {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -49,11 +53,11 @@ impl CtlModel<SndMotu> for H4pre {
         }
     }
 
-    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
+    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)

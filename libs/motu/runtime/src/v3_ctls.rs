@@ -25,106 +25,91 @@ fn clk_src_to_label(src: &V3ClkSrc) -> String {
     .to_string()
 }
 
-#[derive(Default)]
-pub struct V3ClkCtl;
+const RATE_NAME: &str = "sampling-rate";
+const SRC_NAME: &str = "clock-source";
 
-impl V3ClkCtl {
-    const RATE_NAME: &'static str = "sampling-rate";
-    const SRC_NAME: &'static str = "clock-source";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V3ClkProtocol,
-    {
-        let labels: Vec<String> = O::CLK_RATES
+pub trait V3ClkCtlOperation<T: V3ClkProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::CLK_RATES
             .iter()
             .map(|e| clk_rate_to_string(&e.0))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = O::CLK_SRCS.iter().map(|e| clk_src_to_label(&e.0)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
+        let labels: Vec<String> = T::CLK_SRCS.iter().map(|e| clk_src_to_label(&e.0)).collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V3ClkProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::RATE_NAME => {
+            RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|val| val as u32)
-                })?;
-                Ok(true)
+                    T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|val| val as u32)
+                })
+                .map(|_| true)
             }
-            Self::SRC_NAME => {
+            SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let mut node = unit.get_node();
-                    let val = O::get_clk_src(req, &mut node, timeout_ms)?;
-                    if O::HAS_LCD {
-                        let label = clk_src_to_label(&O::CLK_SRCS[val].0);
-                        let _ = O::update_clk_display(req, &mut node, &label, timeout_ms);
+                    let val = T::get_clk_src(req, &mut node, timeout_ms)?;
+                    if T::HAS_LCD {
+                        let label = clk_src_to_label(&T::CLK_SRCS[val].0);
+                        let _ = T::update_clk_display(req, &mut node, &label, timeout_ms);
                     }
                     Ok(val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V3ClkProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
+            RATE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
-                    let res = O::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let prev_src = O::get_clk_src(req, &mut unit.get_node(), timeout_ms)?;
+            SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    let prev_src = T::get_clk_src(req, &mut unit.get_node(), timeout_ms)?;
                     unit.lock()?;
                     let mut node = unit.get_node();
-                    let mut res = O::set_clk_src(req, &mut node, val as usize, timeout_ms);
-                    if res.is_ok() && O::HAS_LCD {
-                        let label = clk_src_to_label(&O::CLK_SRCS[val as usize].0);
-                        res = O::update_clk_display(req, &mut node, &label, timeout_ms);
+                    let mut res = T::set_clk_src(req, &mut node, val as usize, timeout_ms);
+                    if res.is_ok() && T::HAS_LCD {
+                        let label = clk_src_to_label(&T::CLK_SRCS[val as usize].0);
+                        res = T::update_clk_display(req, &mut node, &label, timeout_ms);
                         if res.is_err() {
-                            let _ = O::set_clk_src(req, &mut node, prev_src, timeout_ms);
+                            let _ = T::set_clk_src(req, &mut node, prev_src, timeout_ms);
                         }
                     }
                     let _ = unit.unlock();
                     res
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
