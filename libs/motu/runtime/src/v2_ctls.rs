@@ -35,7 +35,7 @@ impl V2ClkCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V2ClkProtocol<'a>,
+        O: V2ClkProtocol,
     {
         let labels: Vec<String> = O::CLK_RATES
             .iter()
@@ -60,7 +60,7 @@ impl V2ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V2ClkProtocol<'a>,
+        O: V2ClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -95,7 +95,7 @@ impl V2ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V2ClkProtocol<'a>,
+        O: V2ClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -137,7 +137,7 @@ impl V2MainAssignCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V2MainAssignProtocol<'a>,
+        O: V2MainAssignProtocol,
     {
         let labels: Vec<String> = O::KNOB_TARGETS.iter().map(|e| e.0.to_string()).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MAIN_VOL_TARGET_NAME, 0);
@@ -155,7 +155,7 @@ impl V2MainAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V2MainAssignProtocol<'a>,
+        O: V2MainAssignProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
@@ -180,7 +180,7 @@ impl V2MainAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V2MainAssignProtocol<'a>,
+        O: V2MainAssignProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
@@ -212,7 +212,7 @@ impl V2OptIfaceCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V2OptIfaceProtocol<'a>,
+        O: V2OptIfaceProtocol,
     {
         let labels: Vec<String> = O::OPT_IFACE_MODES
             .iter()
@@ -239,7 +239,7 @@ impl V2OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V2OptIfaceProtocol<'a>,
+        O: V2OptIfaceProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::OPT_IN_IFACE_MODE_NAME => {
@@ -272,7 +272,7 @@ impl V2OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V2OptIfaceProtocol<'a>,
+        O: V2OptIfaceProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::OPT_IN_IFACE_MODE_NAME => {

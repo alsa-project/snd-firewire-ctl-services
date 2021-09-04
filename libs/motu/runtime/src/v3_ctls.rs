@@ -33,7 +33,7 @@ impl V3ClkCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V3ClkProtocol<'a>,
+        O: V3ClkProtocol,
     {
         let labels: Vec<String> = O::CLK_RATES
             .iter()
@@ -58,7 +58,7 @@ impl V3ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V3ClkProtocol<'a>,
+        O: V3ClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -92,7 +92,7 @@ impl V3ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V3ClkProtocol<'a>,
+        O: V3ClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -135,7 +135,7 @@ impl V3PortAssignCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V3PortAssignProtocol<'a>,
+        O: V3PortAssignProtocol,
     {
         let labels: Vec<String> = O::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
 
@@ -162,7 +162,7 @@ impl V3PortAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V3PortAssignProtocol<'a>,
+        O: V3PortAssignProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::MAIN_ASSIGN_NAME => {
@@ -195,7 +195,7 @@ impl V3PortAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V3PortAssignProtocol<'a>,
+        O: V3PortAssignProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::MAIN_ASSIGN_NAME => {
@@ -226,7 +226,7 @@ impl V3OptIfaceCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V3OptIfaceProtocol<'a>,
+        O: V3OptIfaceProtocol,
     {
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IFACE_IN_MODE_NAME, 0);
@@ -250,7 +250,7 @@ impl V3OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<u32, Error>
     where
-        for<'a> O: V3OptIfaceProtocol<'a>,
+        O: V3OptIfaceProtocol,
     {
         proto
             .get_opt_iface_mode(unit, is_out, is_b, timeout_ms)
@@ -277,7 +277,7 @@ impl V3OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<(), Error>
     where
-        for<'a> O: V3OptIfaceProtocol<'a>,
+        O: V3OptIfaceProtocol,
     {
         let (enabled, no_adat) = match mode {
             0 => (false, false),
@@ -297,7 +297,7 @@ impl V3OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V3OptIfaceProtocol<'a>,
+        O: V3OptIfaceProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::OPT_IFACE_IN_MODE_NAME => {
@@ -326,7 +326,7 @@ impl V3OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V3OptIfaceProtocol<'a>,
+        O: V3OptIfaceProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::OPT_IFACE_IN_MODE_NAME => {

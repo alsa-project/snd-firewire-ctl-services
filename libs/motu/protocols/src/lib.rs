@@ -39,7 +39,7 @@ pub enum ClkRate {
 }
 
 /// The trait for common protocol.
-pub trait CommonProtocol<'a>: AsRef<FwReq> {
+pub trait CommonProtocol: AsRef<FwReq> {
     const OFFSET_CLK: u32 = 0x0b14;
     const OFFSET_PORT: u32 = 0x0c04;
     const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
@@ -169,8 +169,8 @@ const PORT_PHONE_MASK: u32 = 0x0000000f;
 const PORT_PHONE_SHIFT: usize = 0;
 
 /// The trait for headphone assignment protocol.
-pub trait AssignProtocol<'a>: CommonProtocol<'a> {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)];
+pub trait AssignProtocol: CommonProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)];
 
     fn get_phone_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
@@ -216,7 +216,7 @@ const WORD_OUT_SHIFT: usize = 27;
 const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 
 /// The trait for word-clock protocol.
-pub trait WordClkProtocol<'a>: CommonProtocol<'a> {
+pub trait WordClkProtocol: CommonProtocol {
     fn get_word_out(&self, unit: &SndMotu, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
         self.get_idx_from_val(
             Self::OFFSET_CLK,
@@ -274,7 +274,7 @@ pub enum AesebuRateConvertMode {
 const AESEBU_RATE_CONVERT_LABEL: &str = "aesebu-rate-convert";
 
 /// The trait for protocol of rate convert specific to AES/EBU input/output signals.
-pub trait AesebuRateConvertProtocol<'a>: CommonProtocol<'a> {
+pub trait AesebuRateConvertProtocol: CommonProtocol {
     const AESEBU_RATE_CONVERT_MASK: u32;
     const AESEBU_RATE_CONVERT_SHIFT: usize;
 
@@ -380,7 +380,7 @@ const LEVEL_METERS_PROGRAMMABLE_LABEL: &str = "level-meters-programmable";
 const LEVEL_METERS_AESEBU_LABEL: &str = "level-meters-aesebu";
 
 /// The trait for protocol of level meter.
-pub trait LevelMetersProtocol<'a>: CommonProtocol<'a> {
+pub trait LevelMetersProtocol: CommonProtocol {
     const LEVEL_METERS_HOLD_TIME_MODES: [LevelMetersHoldTimeMode; 8] = [
         LevelMetersHoldTimeMode::Off,
         LevelMetersHoldTimeMode::Sec2,

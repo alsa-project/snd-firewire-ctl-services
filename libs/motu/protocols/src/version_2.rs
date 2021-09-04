@@ -40,9 +40,9 @@ const CLK_SRC_MASK: u32 = 0x00000007;
 const CLK_SRC_SHIFT: usize = 0;
 
 /// The trait for version 2 protocol.
-pub trait V2ClkProtocol<'a>: CommonProtocol<'a> {
-    const CLK_RATES: &'a [(ClkRate, u8)];
-    const CLK_SRCS: &'a [(V2ClkSrc, u8)];
+pub trait V2ClkProtocol: CommonProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)];
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)];
 
     const HAS_LCD: bool;
 
@@ -106,8 +106,8 @@ const MAIN_VOL_MASK: u32 = 0x000f0000;
 const MAIN_VOL_SHIFT: usize = 16;
 
 /// The trait for main volume knob assignment in version 2.
-pub trait V2MainAssignProtocol<'a>: CommonProtocol<'a> {
-    const KNOB_TARGETS: &'a [(&'a str, u8)];
+pub trait V2MainAssignProtocol: CommonProtocol {
+    const KNOB_TARGETS: &'static [(&'static str, u8)];
 
     fn get_main_vol_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
@@ -160,8 +160,8 @@ const OPT_OUT_IFACE_SHIFT: usize = 10;
 const OPT_IFACE_MODE_VALS: &[u8] = &[0x00, 0x01, 0x02];
 
 /// The trait for optical interface mode in version 2.
-pub trait V2OptIfaceProtocol<'a>: CommonProtocol<'a> {
-    const OPT_IFACE_MODES: &'a [(V2OptIfaceMode, u8)];
+pub trait V2OptIfaceProtocol: CommonProtocol {
+    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
     fn get_opt_in_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         self.get_idx_from_val(
@@ -234,10 +234,10 @@ impl AsRef<FwReq> for F828mk2Protocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for F828mk2Protocol {}
+impl CommonProtocol for F828mk2Protocol {}
 
-impl<'a> AssignProtocol<'a> for F828mk2Protocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for F828mk2Protocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
         ("Analog-1/2", 0x02), // = Stream-3/4
         ("Analog-3/4", 0x03), // = Stream-5/6
@@ -252,17 +252,17 @@ impl<'a> AssignProtocol<'a> for F828mk2Protocol {
     ];
 }
 
-impl<'a> WordClkProtocol<'a> for F828mk2Protocol {}
+impl WordClkProtocol for F828mk2Protocol {}
 
-impl<'a> V2ClkProtocol<'a> for F828mk2Protocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V2ClkProtocol for F828mk2Protocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'a [(V2ClkSrc, u8)] = &[
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[
         (V2ClkSrc::Internal, 0x00),
         (V2ClkSrc::SignalOpt, 0x01),
         (V2ClkSrc::SpdifCoax, 0x02),
@@ -273,8 +273,8 @@ impl<'a> V2ClkProtocol<'a> for F828mk2Protocol {
     const HAS_LCD: bool = true;
 }
 
-impl<'a> V2OptIfaceProtocol<'a> for F828mk2Protocol {
-    const OPT_IFACE_MODES: &'a [(V2OptIfaceMode, u8)] = &[
+impl V2OptIfaceProtocol for F828mk2Protocol {
+    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
         (V2OptIfaceMode::None, 0x00),
         (V2OptIfaceMode::Adat, 0x01),
         (V2OptIfaceMode::Spdif, 0x02),
@@ -291,27 +291,27 @@ impl AsRef<FwReq> for F8preProtocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for F8preProtocol {}
+impl CommonProtocol for F8preProtocol {}
 
-impl<'a> AssignProtocol<'a> for F8preProtocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[("Phone-1/2", 0x01), ("Main-1/2", 0x02)];
+impl AssignProtocol for F8preProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[("Phone-1/2", 0x01), ("Main-1/2", 0x02)];
 }
 
-impl<'a> V2ClkProtocol<'a> for F8preProtocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V2ClkProtocol for F8preProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'a [(V2ClkSrc, u8)] = &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::AdatOpt, 0x01)];
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::AdatOpt, 0x01)];
 
     const HAS_LCD: bool = false;
 }
 
-impl<'a> V2OptIfaceProtocol<'a> for F8preProtocol {
-    const OPT_IFACE_MODES: &'a [(V2OptIfaceMode, u8)] =
+impl V2OptIfaceProtocol for F8preProtocol {
+    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
         &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
 }
 
@@ -325,10 +325,10 @@ impl AsRef<FwReq> for TravelerProtocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for TravelerProtocol {}
+impl CommonProtocol for TravelerProtocol {}
 
-impl<'a> AssignProtocol<'a> for TravelerProtocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for TravelerProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),   // = Stream-1/2
         ("Analog-1/2", 0x02),  // = Stream-3/4
         ("Analog-3/4", 0x03),  // = Stream-5/6
@@ -343,10 +343,10 @@ impl<'a> AssignProtocol<'a> for TravelerProtocol {
     ];
 }
 
-impl<'a> WordClkProtocol<'a> for TravelerProtocol {}
+impl WordClkProtocol for TravelerProtocol {}
 
-impl<'a> V2ClkProtocol<'a> for TravelerProtocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V2ClkProtocol for TravelerProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
@@ -355,7 +355,7 @@ impl<'a> V2ClkProtocol<'a> for TravelerProtocol {
         (ClkRate::R192000, 0x05),
     ];
 
-    const CLK_SRCS: &'a [(V2ClkSrc, u8)] = &[
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[
         (V2ClkSrc::Internal, 0x00),
         (V2ClkSrc::SignalOpt, 0x01),
         (V2ClkSrc::SpdifCoax, 0x02),
@@ -367,8 +367,8 @@ impl<'a> V2ClkProtocol<'a> for TravelerProtocol {
     const HAS_LCD: bool = true;
 }
 
-impl<'a> V2OptIfaceProtocol<'a> for TravelerProtocol {
-    const OPT_IFACE_MODES: &'a [(V2OptIfaceMode, u8)] = &[
+impl V2OptIfaceProtocol for TravelerProtocol {
+    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] = &[
         (V2OptIfaceMode::None, 0x00),
         (V2OptIfaceMode::Adat, 0x01),
         (V2OptIfaceMode::Spdif, 0x02),
@@ -385,10 +385,10 @@ impl AsRef<FwReq> for UltraliteProtocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for UltraliteProtocol {}
+impl CommonProtocol for UltraliteProtocol {}
 
-impl<'a> AssignProtocol<'a> for UltraliteProtocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for UltraliteProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // Stream-1/2
         ("Analog-1/2", 0x02), // Stream-3/4
         ("Analog-3/4", 0x03), // Stream-5/6
@@ -399,22 +399,22 @@ impl<'a> AssignProtocol<'a> for UltraliteProtocol {
     ];
 }
 
-impl<'a> V2ClkProtocol<'a> for UltraliteProtocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V2ClkProtocol for UltraliteProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'a [(V2ClkSrc, u8)] =
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)] =
         &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::SpdifCoax, 0x02)];
 
     const HAS_LCD: bool = true;
 }
 
-impl<'a> V2MainAssignProtocol<'a> for UltraliteProtocol {
-    const KNOB_TARGETS: &'a [(&'a str, u8)] = &[
+impl V2MainAssignProtocol for UltraliteProtocol {
+    const KNOB_TARGETS: &'static [(&'static str, u8)] = &[
         ("Main-out-1/2", 0x00),
         ("Analog-1/2/3/4/5/6", 0x01),
         ("Analog-1/2/3/4/5/6/7/8", 0x02),
@@ -432,10 +432,10 @@ impl AsRef<FwReq> for F896hdProtocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for F896hdProtocol {}
+impl CommonProtocol for F896hdProtocol {}
 
-impl<'a> AssignProtocol<'a> for F896hdProtocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for F896hdProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),
         ("Analog-1/2", 0x02),   // Stream-1/2
         ("Analog-3/4", 0x03),   // Stream-3/4
@@ -450,17 +450,17 @@ impl<'a> AssignProtocol<'a> for F896hdProtocol {
     ];
 }
 
-impl<'a> WordClkProtocol<'a> for F896hdProtocol {}
+impl WordClkProtocol for F896hdProtocol {}
 
-impl<'a> AesebuRateConvertProtocol<'a> for F896hdProtocol {
+impl AesebuRateConvertProtocol for F896hdProtocol {
     const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000300;
     const AESEBU_RATE_CONVERT_SHIFT: usize = 8;
 }
 
-impl<'a> LevelMetersProtocol<'a> for F896hdProtocol {}
+impl LevelMetersProtocol for F896hdProtocol {}
 
-impl<'a> V2ClkProtocol<'a> for F896hdProtocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V2ClkProtocol for F896hdProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
@@ -469,7 +469,7 @@ impl<'a> V2ClkProtocol<'a> for F896hdProtocol {
         (ClkRate::R192000, 0x05),
     ];
 
-    const CLK_SRCS: &'a [(V2ClkSrc, u8)] = &[
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[
         (V2ClkSrc::Internal, 0x00),
         (V2ClkSrc::AdatOpt, 0x01),
         (V2ClkSrc::AesebuXlr, 0x02),
@@ -480,7 +480,7 @@ impl<'a> V2ClkProtocol<'a> for F896hdProtocol {
     const HAS_LCD: bool = false;
 }
 
-impl<'a> V2OptIfaceProtocol<'a> for F896hdProtocol {
-    const OPT_IFACE_MODES: &'a [(V2OptIfaceMode, u8)] =
+impl V2OptIfaceProtocol for F896hdProtocol {
+    const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
         &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
 }

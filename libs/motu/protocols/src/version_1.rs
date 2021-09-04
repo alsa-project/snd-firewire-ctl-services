@@ -255,18 +255,18 @@ const CLK_RATE_LABEL: &str = "clock-rate-v1";
 const CLK_SRC_LABEL: &str = "clock-source-v1";
 
 /// The trait for configuration of sampling clock in version 1 protocol.
-pub trait V1ClkProtocol<'a>: CommonProtocol<'a> {
+pub trait V1ClkProtocol: CommonProtocol {
     const CLK_OFFSET: u32;
 
     const CLK_RATE_MASK: u32;
     const CLK_RATE_SHIFT: usize;
-    const CLK_RATE_VALS: &'a [u8];
-    const CLK_RATE_LABELS: &'a [ClkRate];
+    const CLK_RATE_VALS: &'static [u8];
+    const CLK_RATE_LABELS: &'static [ClkRate];
 
     const CLK_SRC_MASK: u32;
     const CLK_SRC_SHIFT: usize;
-    const CLK_SRC_VALS: &'a [u8];
-    const CLK_SRC_LABELS: &'a [V1ClkSrc];
+    const CLK_SRC_VALS: &'static [u8];
+    const CLK_SRC_LABELS: &'static [V1ClkSrc];
 
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         self.get_idx_from_val(
@@ -324,8 +324,8 @@ const MONITOR_INPUT_DISABLE_LABEL: &str = "monitor-input-enable-v1";
 const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
 
 /// The trait for configuration of input to monitor in version 1 protocol.
-pub trait V1MonitorInputProtocol<'a>: CommonProtocol<'a> {
-    const MONITOR_INPUT_MODES: &'a [&'a str];
+pub trait V1MonitorInputProtocol: CommonProtocol {
+    const MONITOR_INPUT_MODES: &'static [&'static str];
 
     fn set_monitor_input(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error>;
     fn get_monitor_input(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error>;
@@ -341,20 +341,20 @@ impl AsRef<FwReq> for F828Protocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for F828Protocol {}
+impl CommonProtocol for F828Protocol {}
 
-impl<'a> V1ClkProtocol<'a> for F828Protocol {
+impl V1ClkProtocol for F828Protocol {
     const CLK_OFFSET: u32 = CONF_828_OFFSET;
 
     const CLK_RATE_MASK: u32 = CONF_828_CLK_RATE_MASK;
     const CLK_RATE_SHIFT: usize = CONF_828_CLK_RATE_SHIFT;
-    const CLK_RATE_VALS: &'a [u8] = &[0x00, 0x01];
-    const CLK_RATE_LABELS: &'a [ClkRate] = &[ClkRate::R44100, ClkRate::R48000];
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01];
+    const CLK_RATE_LABELS: &'static [ClkRate] = &[ClkRate::R44100, ClkRate::R48000];
 
     const CLK_SRC_MASK: u32 = CONF_828_CLK_SRC_MASK;
     const CLK_SRC_SHIFT: usize = CONF_828_CLK_SRC_SHIFT;
-    const CLK_SRC_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x21];
-    const CLK_SRC_LABELS: &'a [V1ClkSrc] = &[
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x21];
+    const CLK_SRC_LABELS: &'static [V1ClkSrc] = &[
         V1ClkSrc::Internal,
         V1ClkSrc::AdatDsub,
         V1ClkSrc::Spdif,
@@ -362,8 +362,8 @@ impl<'a> V1ClkProtocol<'a> for F828Protocol {
     ];
 }
 
-impl<'a> V1MonitorInputProtocol<'a> for F828Protocol {
-    const MONITOR_INPUT_MODES: &'a [&'a str] = &[
+impl V1MonitorInputProtocol for F828Protocol {
+    const MONITOR_INPUT_MODES: &'static [&'static str] = &[
         "Disabled",
         "Analog-1/2",
         "Analog-3/4",
@@ -621,17 +621,17 @@ impl AsRef<FwReq> for F896Protocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for F896Protocol {}
+impl CommonProtocol for F896Protocol {}
 
-impl<'a> WordClkProtocol<'a> for F896Protocol {}
+impl WordClkProtocol for F896Protocol {}
 
-impl<'a> V1ClkProtocol<'a> for F896Protocol {
+impl V1ClkProtocol for F896Protocol {
     const CLK_OFFSET: u32 = Self::OFFSET_CLK;
 
     const CLK_RATE_MASK: u32 = CONF_896_CLK_RATE_MASK;
     const CLK_RATE_SHIFT: usize = CONF_896_CLK_RATE_SHIFT;
-    const CLK_RATE_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x03];
-    const CLK_RATE_LABELS: &'a [ClkRate] = &[
+    const CLK_RATE_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x03];
+    const CLK_RATE_LABELS: &'static [ClkRate] = &[
         ClkRate::R44100,
         ClkRate::R48000,
         ClkRate::R88200,
@@ -640,8 +640,8 @@ impl<'a> V1ClkProtocol<'a> for F896Protocol {
 
     const CLK_SRC_MASK: u32 = CONF_896_CLK_SRC_MASK;
     const CLK_SRC_SHIFT: usize = CONF_896_CLK_SRC_SHIFT;
-    const CLK_SRC_VALS: &'a [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
-    const CLK_SRC_LABELS: &'a [V1ClkSrc] = &[
+    const CLK_SRC_VALS: &'static [u8] = &[0x00, 0x01, 0x02, 0x04, 0x05];
+    const CLK_SRC_LABELS: &'static [V1ClkSrc] = &[
         V1ClkSrc::Internal,
         V1ClkSrc::AdatOpt,
         V1ClkSrc::AesebuXlr,
@@ -650,8 +650,8 @@ impl<'a> V1ClkProtocol<'a> for F896Protocol {
     ];
 }
 
-impl<'a> V1MonitorInputProtocol<'a> for F896Protocol {
-    const MONITOR_INPUT_MODES: &'a [&'a str] = &[
+impl V1MonitorInputProtocol for F896Protocol {
+    const MONITOR_INPUT_MODES: &'static [&'static str] = &[
         "Disabled",
         "Analog-1/2",
         "Analog-3/4",
@@ -727,9 +727,9 @@ impl<'a> V1MonitorInputProtocol<'a> for F896Protocol {
     }
 }
 
-impl<'a> AesebuRateConvertProtocol<'a> for F896Protocol {
+impl AesebuRateConvertProtocol for F896Protocol {
     const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000060;
     const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
 }
 
-impl<'a> LevelMetersProtocol<'a> for F896Protocol {}
+impl LevelMetersProtocol for F896Protocol {}
