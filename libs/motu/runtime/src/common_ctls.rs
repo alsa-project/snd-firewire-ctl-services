@@ -13,41 +13,27 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::*;
 
-#[derive(Default)]
-pub struct CommonPhoneCtl(pub Vec<ElemId>);
+const PHONE_ASSIGN_NAME: &str = "phone-assign";
 
-impl CommonPhoneCtl {
-    const PHONE_ASSIGN_NAME: &'static str = "phone-assign";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: AssignProtocol,
-    {
-        let labels: Vec<String> = O::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHONE_ASSIGN_NAME, 0);
-        card_cntr
-            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| self.0.extend_from_slice(&elem_id_list))?;
-
-        Ok(())
+pub trait PhoneAssignCtlOperation<T: AssignProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let labels: Vec<String> = T::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_ASSIGN_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: AssignProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PHONE_ASSIGN_NAME => {
+            PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_phone_assign(req, &mut unit.get_node(), timeout_ms)
+                    T::get_phone_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })
                 .map(|_| true)
@@ -56,23 +42,18 @@ impl CommonPhoneCtl {
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: AssignProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PHONE_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_phone_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+            PHONE_ASSIGN_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_phone_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })
                 .map(|_| true)
             }
