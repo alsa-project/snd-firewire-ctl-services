@@ -44,11 +44,12 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -57,11 +58,12 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -71,11 +73,12 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -84,11 +87,12 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -109,11 +113,12 @@ const PORT_RETURN_SHIFT: usize = 8;
 pub trait V3PortAssignProtocol: AssignProtocol {
     fn get_main_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_PORT,
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
             PORT_MAIN_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -122,11 +127,12 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 
     fn set_main_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_PORT,
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
             PORT_MAIN_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -136,11 +142,12 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 
     fn get_return_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_PORT,
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
             PORT_RETURN_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -149,11 +156,12 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 
     fn set_return_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_PORT,
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
             PORT_RETURN_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -196,7 +204,7 @@ pub trait V3OptIfaceProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
-        self.read_quad(&mut unit.get_node(), OFFSET_OPT, timeout_ms)
+        read_quad(self.as_ref(), &mut unit.get_node(), OFFSET_OPT, timeout_ms)
             .and_then(|mut quad| {
                 quad &= !enabled_mask;
                 quad &= !no_adat_mask;
@@ -206,7 +214,7 @@ pub trait V3OptIfaceProtocol: CommonProtocol {
                 if no_adat {
                     quad |= no_adat_mask;
                 }
-                self.write_quad(&mut unit.get_node(), OFFSET_OPT, quad, timeout_ms)
+                write_quad(self.as_ref(), &mut unit.get_node(), OFFSET_OPT, quad, timeout_ms)
             })
     }
 
@@ -217,7 +225,7 @@ pub trait V3OptIfaceProtocol: CommonProtocol {
         is_b: bool,
         timeout_ms: u32,
     ) -> Result<(bool, bool), Error> {
-        self.read_quad(&mut unit.get_node(), OFFSET_OPT, timeout_ms).map(|quad| {
+        read_quad(self.as_ref(), &mut unit.get_node(), OFFSET_OPT, timeout_ms).map(|quad| {
             let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
             let enabled = (quad & enabled_mask) > 0;
             let no_adat = (quad & no_adat_mask) > 0;

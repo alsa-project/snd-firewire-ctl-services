@@ -48,11 +48,12 @@ pub trait V2ClkProtocol: CommonProtocol {
 
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -61,11 +62,12 @@ pub trait V2ClkProtocol: CommonProtocol {
 
     fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -75,11 +77,12 @@ pub trait V2ClkProtocol: CommonProtocol {
 
     fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -88,11 +91,12 @@ pub trait V2ClkProtocol: CommonProtocol {
 
     fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -111,11 +115,12 @@ pub trait V2MainAssignProtocol: CommonProtocol {
 
     fn get_main_vol_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_PORT,
             MAIN_VOL_MASK,
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -129,11 +134,12 @@ pub trait V2MainAssignProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_PORT,
             MAIN_VOL_MASK,
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -164,11 +170,12 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
     fn get_opt_in_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_PORT,
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             OPT_IFACE_MODE_VALS,
             timeout_ms,
@@ -181,11 +188,12 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_PORT,
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             OPT_IFACE_MODE_VALS,
             idx,
@@ -194,11 +202,12 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
     }
 
     fn get_opt_out_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_PORT,
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             OPT_IFACE_MODE_VALS,
             timeout_ms,
@@ -211,11 +220,12 @@ pub trait V2OptIfaceProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_PORT,
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             OPT_IFACE_MODE_VALS,
             idx,

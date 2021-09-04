@@ -22,6 +22,66 @@ const BUSY_DURATION: u64 = 150;
 
 const DISPLAY_CHARS: usize = 4 * 4;
 
+fn read_quad(
+    req: &FwReq,
+    node: &mut FwNode,
+    offset: u32,
+    timeout_ms: u32
+) -> Result<u32, Error> {
+    let mut frame = [0; 4];
+    req.transaction_sync(
+        node,
+        FwTcode::ReadQuadletRequest,
+        BASE_OFFSET + offset as u64,
+        4,
+        &mut frame,
+        timeout_ms,
+    )
+    .map(|_| u32::from_be_bytes(frame))
+}
+
+// AudioExpress sometimes transfers response subaction with non-standard rcode. This causes
+// Linux firewire subsystem to report 'unsolicited response' error. In the case, send error
+// is reported to userspace applications. As a workaround, the change of register is ensured
+// by following read transaction in failure of write transaction.
+fn write_quad(
+    req: &FwReq,
+    node: &mut FwNode,
+    offset: u32,
+    quad: u32,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut frame = [0; 4];
+    frame.copy_from_slice(&quad.to_be_bytes());
+    req.transaction_sync(
+        node,
+        FwTcode::WriteQuadletRequest,
+        BASE_OFFSET + offset as u64,
+        4,
+        &mut frame,
+        timeout_ms,
+    )
+    .or_else(|err| {
+        // For prevention of RCODE_BUSY.
+        thread::sleep(time::Duration::from_millis(BUSY_DURATION));
+        req.transaction_sync(
+            node,
+            FwTcode::WriteQuadletRequest,
+            BASE_OFFSET + offset as u64,
+            4,
+            &mut frame,
+            timeout_ms,
+        )
+        .and_then(|_| {
+            if u32::from_be_bytes(frame) == quad {
+                Ok(())
+            } else {
+                Err(err)
+            }
+        })
+    })
+}
+
 /// The enumeration to express rate of sampling clock.
 pub enum ClkRate {
     /// 44.1 kHx.
@@ -44,75 +104,17 @@ pub trait CommonProtocol: AsRef<FwReq> {
     const OFFSET_PORT: u32 = 0x0c04;
     const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
 
-    fn read_quad(&self, node: &mut FwNode, offset: u32, timeout_ms: u32) -> Result<u32, Error> {
-        let mut frame = [0; 4];
-        self.as_ref()
-            .transaction_sync(
-                node,
-                FwTcode::ReadQuadletRequest,
-                BASE_OFFSET + offset as u64,
-                4,
-                &mut frame,
-                timeout_ms,
-            )
-            .map(|_| u32::from_be_bytes(frame))
-    }
-
-    // AudioExpress sometimes transfers response subaction with non-standard rcode. This causes
-    // Linux firewire subsystem to report 'unsolicited response' error. In the case, send error
-    // is reported to userspace applications. As a workaround, the change of register is ensured
-    // by following read transaction in failure of write transaction.
-    fn write_quad(
-        &self,
-        node: &mut FwNode,
-        offset: u32,
-        quad: u32,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut frame = [0; 4];
-        frame.copy_from_slice(&quad.to_be_bytes());
-        self.as_ref()
-            .transaction_sync(
-                node,
-                FwTcode::WriteQuadletRequest,
-                BASE_OFFSET + offset as u64,
-                4,
-                &mut frame,
-                timeout_ms,
-            )
-            .or_else(|err| {
-                // For prevention of RCODE_BUSY.
-                thread::sleep(time::Duration::from_millis(BUSY_DURATION));
-                self.as_ref()
-                    .transaction_sync(
-                        node,
-                        FwTcode::WriteQuadletRequest,
-                        BASE_OFFSET + offset as u64,
-                        4,
-                        &mut frame,
-                        timeout_ms,
-                    )
-                    .and_then(|_| {
-                        if u32::from_be_bytes(frame) == quad {
-                            Ok(())
-                        } else {
-                            Err(err)
-                        }
-                    })
-            })
-    }
-
     fn get_idx_from_val(
-        &self,
         offset: u32,
         mask: u32,
         shift: usize,
         label: &str,
+        req: &FwReq,
         node: &mut FwNode,
         vals: &[u8],
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        let quad = self.read_quad(node, offset, timeout_ms)?;
+        let quad = read_quad(req, node, offset, timeout_ms)?;
         let val = ((quad & mask) >> shift) as u8;
         vals.iter().position(|&v| v == val).ok_or_else(|| {
             let label = format!("Detect invalid value for {}: {:02x}", label, val);
@@ -121,11 +123,11 @@ pub trait CommonProtocol: AsRef<FwReq> {
     }
 
     fn set_idx_to_val(
-        &self,
         offset: u32,
         mask: u32,
         shift: usize,
         label: &str,
+        req: &FwReq,
         node: &mut FwNode,
         vals: &[u8],
         idx: usize,
@@ -135,10 +137,10 @@ pub trait CommonProtocol: AsRef<FwReq> {
             let label = format!("Invalid argument for {}: {} {}", label, vals.len(), idx);
             return Err(Error::new(FileError::Inval, &label));
         }
-        let mut quad = self.read_quad(node, offset, timeout_ms)?;
+        let mut quad = read_quad(req, node, offset, timeout_ms)?;
         quad &= !mask;
         quad |= (vals[idx] as u32) << shift;
-        self.write_quad(node, offset, quad, timeout_ms)
+        write_quad(req, node, offset, quad, timeout_ms)
     }
 
     fn update_clk_display(
@@ -159,7 +161,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
             frame.reverse();
             let quad = u32::from_ne_bytes(frame);
             let offset = Self::OFFSET_CLK_DISPLAY + 4 * i as u32;
-            self.write_quad(&mut unit.get_node(), offset, quad, timeout_ms)
+            write_quad(self.as_ref(), &mut unit.get_node(), offset, quad, timeout_ms)
         })
     }
 }
@@ -174,11 +176,12 @@ pub trait AssignProtocol: CommonProtocol {
 
     fn get_phone_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             timeout_ms,
@@ -187,11 +190,12 @@ pub trait AssignProtocol: CommonProtocol {
 
     fn set_phone_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &vals,
             idx,
@@ -218,11 +222,12 @@ const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 /// The trait for word-clock protocol.
 pub trait WordClkProtocol: CommonProtocol {
     fn get_word_out(&self, unit: &SndMotu, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &WORD_OUT_VALS,
             timeout_ms,
@@ -246,11 +251,12 @@ pub trait WordClkProtocol: CommonProtocol {
             WordClkSpeedMode::ForceLowRate => 0,
             WordClkSpeedMode::FollowSystemClk => 1,
         };
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &WORD_OUT_VALS,
             idx,
@@ -292,11 +298,12 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::OFFSET_CLK,
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &Self::AESEBU_RATE_CONVERT_VALS,
             timeout_ms,
@@ -309,11 +316,12 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &Self::AESEBU_RATE_CONVERT_VALS,
             idx,
@@ -406,11 +414,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
@@ -423,11 +432,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
@@ -440,11 +450,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
@@ -457,11 +468,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
@@ -474,11 +486,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_AESEBU_VALS,
             timeout_ms,
@@ -491,11 +504,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_AESEBU_VALS,
             idx,
@@ -508,11 +522,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             timeout_ms,
@@ -525,11 +540,12 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             idx,

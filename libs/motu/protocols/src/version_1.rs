@@ -269,11 +269,12 @@ pub trait V1ClkProtocol: CommonProtocol {
     const CLK_SRC_LABELS: &'static [V1ClkSrc];
 
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
             Self::CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             Self::CLK_RATE_VALS,
             timeout_ms,
@@ -281,11 +282,12 @@ pub trait V1ClkProtocol: CommonProtocol {
     }
 
     fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
             Self::CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             Self::CLK_RATE_VALS,
             idx,
@@ -294,11 +296,12 @@ pub trait V1ClkProtocol: CommonProtocol {
     }
 
     fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
             Self::CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             Self::CLK_SRC_VALS,
             timeout_ms,
@@ -306,11 +309,12 @@ pub trait V1ClkProtocol: CommonProtocol {
     }
 
     fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
             Self::CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             Self::CLK_SRC_VALS,
             idx,
@@ -382,22 +386,24 @@ impl V1MonitorInputProtocol for F828Protocol {
     fn set_monitor_input(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let (disable_idx, ch_idx) = if idx == 0 { (1, 0) } else { (0, idx - 1) };
 
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_MONITOR_INPUT_DISABLE_MASK,
             CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
             MONITOR_INPUT_DISABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             disable_idx,
             timeout_ms,
         )?;
 
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_MONITOR_INPUT_CH_MASK,
             CONF_828_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_828_MONITOR_INPUT_CH_VALS,
             ch_idx,
@@ -406,23 +412,24 @@ impl V1MonitorInputProtocol for F828Protocol {
     }
 
     fn get_monitor_input(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        let mut idx = self
-            .get_idx_from_val(
-                CONF_828_OFFSET,
-                CONF_828_MONITOR_INPUT_DISABLE_MASK,
-                CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
-                MONITOR_INPUT_DISABLE_LABEL,
-                &mut unit.get_node(),
-                &CONF_BOOL_VALS,
-                timeout_ms,
-            )
-            .map(|idx| if idx > 0 { 0 } else { 1 })?;
+        let mut idx = Self::get_idx_from_val(
+            CONF_828_OFFSET,
+            CONF_828_MONITOR_INPUT_DISABLE_MASK,
+            CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
+            MONITOR_INPUT_DISABLE_LABEL,
+            self.as_ref(),
+            &mut unit.get_node(),
+            &CONF_BOOL_VALS,
+            timeout_ms,
+        )
+        .map(|idx| if idx > 0 { 0 } else { 1 })?;
         if idx > 0 {
-            idx += self.get_idx_from_val(
+            idx += Self::get_idx_from_val(
                 CONF_828_OFFSET,
                 CONF_828_MONITOR_INPUT_CH_MASK,
                 CONF_828_MONITOR_INPUT_CH_SHIFT,
                 MONITOR_INPUT_CH_LABEL,
+                self.as_ref(),
                 &mut unit.get_node(),
                 &CONF_828_MONITOR_INPUT_CH_VALS,
                 timeout_ms,
@@ -448,11 +455,12 @@ impl F828Protocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             CONF_828_OFFSET,
             mask,
             shift,
             label,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_828_OPT_IFACE_VALS,
             timeout_ms,
@@ -468,11 +476,12 @@ impl F828Protocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             CONF_828_OFFSET,
             mask,
             shift,
             label,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_828_OPT_IFACE_VALS,
             idx,
@@ -541,11 +550,12 @@ impl F828Protocol {
     }
 
     pub fn get_stream_input_enable(&self, unit: &SndMotu, timeout_ms: u32) -> Result<bool, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_STREAM_INPUT_ENABLE_MASK,
             CONF_828_STREAM_INPUT_ENABLE_SHIFT,
             CONF_828_STREAM_INPUT_ENABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             timeout_ms,
@@ -563,11 +573,12 @@ impl F828Protocol {
             false => 0x00,
             true => 0x01,
         };
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_STREAM_INPUT_ENABLE_MASK,
             CONF_828_STREAM_INPUT_ENABLE_SHIFT,
             CONF_828_STREAM_INPUT_ENABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             idx,
@@ -576,11 +587,12 @@ impl F828Protocol {
     }
 
     pub fn get_output_enable(&self, unit: &SndMotu, timeout_ms: u32) -> Result<bool, Error> {
-        self.get_idx_from_val(
+        Self::get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_OUTPUT_ENABLE_MASK,
             CONF_828_OUTPUT_ENABLE_SHIFT,
             CONF_828_OUTPUT_ENABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             timeout_ms,
@@ -598,11 +610,12 @@ impl F828Protocol {
             false => 0x00,
             true => 0x01,
         };
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_OUTPUT_ENABLE_MASK,
             CONF_828_OUTPUT_ENABLE_SHIFT,
             CONF_828_OUTPUT_ENABLE_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             idx,
@@ -676,21 +689,23 @@ impl V1MonitorInputProtocol for F896Protocol {
                 let label = "Invalid argument for index of monitor input}";
                 Error::new(FileError::Inval, &label)
             })?;
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_896_MONITOR_INPUT_CH_VALS,
             ch_idx,
             timeout_ms,
         )?;
-        self.set_idx_to_val(
+        Self::set_idx_to_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
             MONITOR_INPUT_AESEBU_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             aesebu_idx,
@@ -699,20 +714,22 @@ impl V1MonitorInputProtocol for F896Protocol {
     }
 
     fn get_monitor_input(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        let ch_idx = self.get_idx_from_val(
+        let ch_idx = Self::get_idx_from_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_896_MONITOR_INPUT_CH_VALS,
             timeout_ms,
         )?;
-        let aesebu_idx = self.get_idx_from_val(
+        let aesebu_idx = Self::get_idx_from_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
             MONITOR_INPUT_AESEBU_LABEL,
+            self.as_ref(),
             &mut unit.get_node(),
             &CONF_BOOL_VALS,
             timeout_ms,
