@@ -120,6 +120,7 @@ impl CommonWordClkCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -131,7 +132,7 @@ impl CommonWordClkCtl {
         match elem_id.get_name().as_str() {
             Self::WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_word_out(&mut unit.get_node(), timeout_ms).map(|mode| {
+                    proto.get_word_out(req, &mut unit.get_node(), timeout_ms).map(|mode| {
                         Self::WORD_OUT_MODES
                             .iter()
                             .position(|&m| m == mode)
@@ -148,6 +149,7 @@ impl CommonWordClkCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -163,7 +165,7 @@ impl CommonWordClkCtl {
                     let idx = val as usize;
                     if idx < Self::WORD_OUT_MODES.len() {
                         let mode = Self::WORD_OUT_MODES[idx];
-                        proto.set_word_out(&mut unit.get_node(), mode, timeout_ms)
+                        proto.set_word_out(req, &mut unit.get_node(), mode, timeout_ms)
                     } else {
                         let msg =
                             format!("Invalid argument for index of word clock speed: {}", idx);

@@ -52,7 +52,7 @@ impl CtlModel<SndMotu> for F828mk2 {
             Ok(true)
         } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.word_clk_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.word_clk_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -69,7 +69,7 @@ impl CtlModel<SndMotu> for F828mk2 {
             Ok(true)
         } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.word_clk_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.word_clk_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
