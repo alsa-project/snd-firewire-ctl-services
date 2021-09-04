@@ -129,7 +129,7 @@ impl SpecificCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_optical_input_iface_mode(unit, timeout_ms)
+                        .get_optical_input_iface_mode(&mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -137,7 +137,7 @@ impl SpecificCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_optical_output_iface_mode(unit, timeout_ms)
+                        .get_optical_output_iface_mode(&mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -159,7 +159,7 @@ impl SpecificCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_optical_input_iface_mode(unit, val as usize, timeout_ms);
+                    let res = proto.set_optical_input_iface_mode(&mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
@@ -168,7 +168,7 @@ impl SpecificCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_optical_output_iface_mode(unit, val as usize, timeout_ms);
+                    let res = proto.set_optical_output_iface_mode(&mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;

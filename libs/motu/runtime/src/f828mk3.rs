@@ -4,6 +4,8 @@ use glib::Error;
 
 use hinawa::SndMotu;
 
+use alsactl::{ElemId, ElemValue};
+
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use motu_protocols::version_3::*;
@@ -93,20 +95,22 @@ impl NotifyModel<SndMotu, u32> for F828mk3 {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, unit: &SndMotu, elem_id: &alsactl::ElemId,
-                          elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read_notified_elem(
+        &mut self,
+        _: &SndMotu,
+        _: &ElemId,
+        _: &mut ElemValue
+    ) -> Result<bool, Error> {
         if self.msg_cache & (Self::NOTIFY_OPERATED_AND_COMPLETED) == Self::NOTIFY_OPERATED_AND_COMPLETED {
-            if self.port_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-                Ok(true)
-            } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-                Ok(true)
-            } else if self.word_clk_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-                Ok(true)
-            } else {
+            //if self.port_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            //    Ok(true)
+            //} else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            //    Ok(true)
+            //} else if self.word_clk_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            //    Ok(true)
+            //} else {
                 Ok(false)
-            }
+            //}
         } else {
             Ok(false)
         }

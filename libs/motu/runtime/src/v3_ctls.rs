@@ -51,7 +51,7 @@ impl V3ClkCtl {
 
     pub fn read<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -63,16 +63,17 @@ impl V3ClkCtl {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_rate(unit, timeout_ms).map(|val| val as u32)
+                    proto.get_clk_rate(&mut unit.get_node(), timeout_ms).map(|val| val as u32)
                 })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let val = proto.get_clk_src(unit, timeout_ms)?;
+                    let mut node = unit.get_node();
+                    let val = proto.get_clk_src(&mut node, timeout_ms)?;
                     if O::HAS_LCD {
                         let label = clk_src_to_label(&O::CLK_SRCS[val].0);
-                        let _ = proto.update_clk_display(unit, &label, timeout_ms);
+                        let _ = proto.update_clk_display(&mut node, &label, timeout_ms);
                     }
                     Ok(val as u32)
                 })?;
@@ -84,7 +85,7 @@ impl V3ClkCtl {
 
     pub fn write<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -98,7 +99,7 @@ impl V3ClkCtl {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_rate(unit, val as usize, timeout_ms);
+                    let res = proto.set_clk_rate(&mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -106,14 +107,15 @@ impl V3ClkCtl {
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let prev_src = proto.get_clk_src(unit, timeout_ms)?;
+                    let prev_src = proto.get_clk_src(&mut unit.get_node(), timeout_ms)?;
                     unit.lock()?;
-                    let mut res = proto.set_clk_src(unit, val as usize, timeout_ms);
+                    let mut node = unit.get_node();
+                    let mut res = proto.set_clk_src(&mut node, val as usize, timeout_ms);
                     if res.is_ok() && O::HAS_LCD {
                         let label = clk_src_to_label(&O::CLK_SRCS[val as usize].0);
-                        res = proto.update_clk_display(unit, &label, timeout_ms);
+                        res = proto.update_clk_display(&mut node, &label, timeout_ms);
                         if res.is_err() {
-                            let _ = proto.set_clk_src(unit, prev_src, timeout_ms);
+                            let _ = proto.set_clk_src(&mut node, prev_src, timeout_ms);
                         }
                     }
                     let _ = unit.unlock();
@@ -155,7 +157,7 @@ impl V3PortAssignCtl {
 
     pub fn read<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -168,7 +170,7 @@ impl V3PortAssignCtl {
             Self::MAIN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_main_assign(unit, timeout_ms)
+                        .get_main_assign(&mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -176,7 +178,7 @@ impl V3PortAssignCtl {
             Self::RETURN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_return_assign(unit, timeout_ms)
+                        .get_return_assign(&mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -187,7 +189,7 @@ impl V3PortAssignCtl {
 
     pub fn write<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -200,13 +202,13 @@ impl V3PortAssignCtl {
         match elem_id.get_name().as_str() {
             Self::MAIN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_main_assign(unit, val as usize, timeout_ms)
+                    proto.set_main_assign(&mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::RETURN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_return_assign(unit, val as usize, timeout_ms)
+                    proto.set_return_assign(&mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
@@ -243,7 +245,7 @@ impl V3OptIfaceCtl {
 
     fn get_opt_iface_mode<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         is_out: bool,
         is_b: bool,
@@ -253,7 +255,7 @@ impl V3OptIfaceCtl {
         O: V3OptIfaceProtocol,
     {
         proto
-            .get_opt_iface_mode(unit, is_out, is_b, timeout_ms)
+            .get_opt_iface_mode(&mut unit.get_node(), is_out, is_b, timeout_ms)
             .map(|(enabled, no_adat)| {
                 if enabled {
                     0
@@ -269,7 +271,7 @@ impl V3OptIfaceCtl {
 
     fn set_opt_iface_mode<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         is_out: bool,
         is_b: bool,
@@ -285,12 +287,12 @@ impl V3OptIfaceCtl {
             2 => (true, true),
             _ => unreachable!(),
         };
-        proto.set_opt_iface_mode(unit, is_out, is_b, enabled, no_adat, timeout_ms)
+        proto.set_opt_iface_mode(&mut unit.get_node(), is_out, is_b, enabled, no_adat, timeout_ms)
     }
 
     pub fn read<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -318,7 +320,7 @@ impl V3OptIfaceCtl {
 
     pub fn write<O>(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
         proto: &O,
         elem_id: &ElemId,
         old: &ElemValue,
