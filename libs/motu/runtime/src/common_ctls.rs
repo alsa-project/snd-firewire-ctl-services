@@ -3,6 +3,7 @@
 
 use glib::{Error, FileError};
 
+use hinawa::FwReq;
 use hinawa::{SndMotu, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
@@ -34,6 +35,7 @@ impl CommonPhoneCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -46,7 +48,7 @@ impl CommonPhoneCtl {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_phone_assign(&mut unit.get_node(), timeout_ms)
+                        .get_phone_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -58,6 +60,7 @@ impl CommonPhoneCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -70,7 +73,7 @@ impl CommonPhoneCtl {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_phone_assign(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_phone_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }

@@ -2,6 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::SndMotu;
 
 use core::card_cntr::{CardCntr, CtlModel};
@@ -15,6 +16,7 @@ const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
 pub struct F8pre{
+    req: FwReq,
     proto: F8preProtocol,
     clk_ctls: V2ClkCtl,
     opt_iface_ctl: V2OptIfaceCtl,
@@ -39,7 +41,7 @@ impl CtlModel<SndMotu> for F8pre {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -54,7 +56,7 @@ impl CtlModel<SndMotu> for F8pre {
             Ok(true)
         } else if self.opt_iface_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
