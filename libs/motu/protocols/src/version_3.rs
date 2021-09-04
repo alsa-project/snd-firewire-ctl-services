@@ -355,11 +355,11 @@ pub trait V3OptIfaceOperation {
 pub struct AudioExpressProtocol;
 
 impl AssignOperation for AudioExpressProtocol {
-    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
-        ("Phone-1/2", 0x01),  // = Stream-1/2
-        ("Main-1/2", 0x02),   // = Stream-5/6
-        ("Andlog-1/2", 0x06), // = Stream-3/4
-        ("S/PDIF-1/2", 0x07), // = Stream-7/8
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
+        (TargetPort::PhonePair0, 0x01), // = Stream-1/2
+        (TargetPort::MainPair0, 0x02), // = Stream-5/6
+        (TargetPort::AnalogPair0, 0x06), // = Stream-3/4
+        (TargetPort::SpdifPair0, 0x07), // = Stream-7/8
                               // Blank for Stream-9/10
     ];
 }
@@ -383,22 +383,22 @@ impl V3ClkOperation for AudioExpressProtocol {
 pub struct F828mk3Protocol;
 
 impl AssignOperation for F828mk3Protocol {
-    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
-        ("Main-1/2", 0x00),      // = Stream-11/12
-        ("Analog-1/2", 0x01),    // = Stream-3/4
-        ("Analog-3/4", 0x02),    // = Stream-5/6
-        ("Analog-5/6", 0x03),    // = Stream-7/8
-        ("Analog-7/8", 0x04),    // = Stream-9/10
-        ("S/PDIF-1/2", 0x05),    // = Stream-13/14
-        ("Phone-1/2", 0x06),     // = Stream-1/2
-        ("Optical-A-1/2", 0x07), // = Stream-15/16
-        ("Optical-A-3/4", 0x08), // = Stream-17/18
-        ("Optical-A-5/6", 0x09), // = Stream-19/20
-        ("Optical-A-7/8", 0x0a), // = Stream-21/22
-        ("Optical-B-1/2", 0x0b), // = Stream-23/24
-        ("Optical-B-3/4", 0x0c), // = Stream-25/26
-        ("Optical-B-5/6", 0x0d), // = Stream-27/28
-        ("Optical-B-7/8", 0x0e), // = Stream-29/30
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
+        (TargetPort::MainPair0, 0x00), // = Stream-11/12
+        (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
+        (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
+        (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
+        (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
+        (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
+        (TargetPort::PhonePair0, 0x06), // = Stream-1/2
+        (TargetPort::OpticalAPair0, 0x07), // = Stream-15/16
+        (TargetPort::OpticalAPair1, 0x08), // = Stream-17/18
+        (TargetPort::OpticalAPair2, 0x09), // = Stream-19/20
+        (TargetPort::OpticalAPair3, 0x0a), // = Stream-21/22
+        (TargetPort::OpticalBPair0, 0x0b), // = Stream-23/24
+        (TargetPort::OpticalBPair1, 0x0c), // = Stream-25/26
+        (TargetPort::OpticalBPair2, 0x0d), // = Stream-27/28
+        (TargetPort::OpticalBPair3, 0x0e), // = Stream-29/30
     ];
 }
 
@@ -434,11 +434,11 @@ impl V3OptIfaceOperation for F828mk3Protocol {}
 pub struct H4preProtocol;
 
 impl AssignOperation for H4preProtocol {
-    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
-        ("Phone-1/2", 0x01),  // = Stream-1/2
-        ("Main-1/2", 0x02),   // = Stream-5/6
-        ("Andlog-1/2", 0x06), // = Stream-3/4
-        ("S/PDIF-1/2", 0x07), // = Stream-7/8
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
+        (TargetPort::PhonePair0, 0x01), // = Stream-1/2
+        (TargetPort::MainPair0, 0x02), // = Stream-5/6
+        (TargetPort::AnalogPair0, 0x06), // = Stream-3/4
+        (TargetPort::SpdifPair0, 0x07), // = Stream-7/8
                               // Blank for Stream-9/10
     ];
 }
@@ -462,14 +462,14 @@ impl V3ClkOperation for H4preProtocol {
 pub struct UltraliteMk3Protocol;
 
 impl AssignOperation for UltraliteMk3Protocol {
-    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
-        ("Main-1/2", 0x00),   // = Stream-1/2
-        ("Analog-1/2", 0x01), // = Stream-3/4
-        ("Analog-3/4", 0x02), // = Stream-5/6
-        ("Analog-5/6", 0x03), // = Stream-7/8
-        ("Analog-7/8", 0x04), // = Stream-9/10
-        ("S/PDIF-1/2", 0x05), // = Stream-13/14
-        ("Phone-1/2", 0x06),  // = Stream-11/12
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
+        (TargetPort::MainPair0, 0x00), // = Stream-1/2
+        (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
+        (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
+        (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
+        (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
+        (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
+        (TargetPort::PhonePair0, 0x06), // = Stream-11/12
     ];
 }
 
