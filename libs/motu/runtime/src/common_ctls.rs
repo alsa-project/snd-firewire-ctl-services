@@ -70,89 +70,69 @@ fn word_clk_speed_mode_to_label(mode: &WordClkSpeedMode) -> String {
     .to_string()
 }
 
-#[derive(Default)]
-pub struct CommonWordClkCtl(pub Vec<ElemId>);
+const WORD_OUT_MODE_NAME: &str = "word-out-mode";
 
-impl CommonWordClkCtl {
-    const WORD_OUT_MODE_NAME: &'static str = "word-out-mode";
+const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
+    WordClkSpeedMode::ForceLowRate,
+    WordClkSpeedMode::FollowSystemClk,
+];
 
-    const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
-        WordClkSpeedMode::ForceLowRate,
-        WordClkSpeedMode::FollowSystemClk,
-    ];
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: WordClkProtocol,
+pub trait WordClkCtlOperation<T: WordClkProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
     {
-        let labels: Vec<String> = Self::WORD_OUT_MODES
+        let labels: Vec<String> = WORD_OUT_MODES
             .iter()
             .map(|m| word_clk_speed_mode_to_label(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::WORD_OUT_MODE_NAME, 0);
-        card_cntr
-            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| self.0.extend_from_slice(&elem_id_list))?;
-
-        Ok(())
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, WORD_OUT_MODE_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: WordClkProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::WORD_OUT_MODE_NAME => {
+            WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_word_out(req, &mut unit.get_node(), timeout_ms).map(|mode| {
-                        Self::WORD_OUT_MODES
+                    T::get_word_out(req, &mut unit.get_node(), timeout_ms).map(|mode| {
+                        WORD_OUT_MODES
                             .iter()
                             .position(|&m| m == mode)
-                            .map(|pos| pos as u32)
-                            .unwrap()
+                            .unwrap() as u32
                     })
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: WordClkProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::WORD_OUT_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    let idx = val as usize;
-                    if idx < Self::WORD_OUT_MODES.len() {
-                        let mode = Self::WORD_OUT_MODES[idx];
-                        O::set_word_out(req, &mut unit.get_node(), mode, timeout_ms)
-                    } else {
-                        let msg =
-                            format!("Invalid argument for index of word clock speed: {}", idx);
-                        Err(Error::new(FileError::Inval, &msg))
-                    }
-                })?;
-                Ok(true)
+            WORD_OUT_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    let &mode = WORD_OUT_MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg =
+                                format!("Invalid argument for index of word clock speed: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+                    T::set_word_out(req, &mut unit.get_node(), mode, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
