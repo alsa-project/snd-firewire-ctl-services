@@ -24,7 +24,7 @@ pub struct F896 {
     monitor_input_ctl: V1MonitorInputCtl,
     word_clk_ctl: WordClkCtl,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl,
-    level_meters_ctl: CommonLevelMetersCtl,
+    level_meters_ctl: LevelMetersCtl,
 }
 
 #[derive(Default)]
@@ -37,13 +37,18 @@ struct AesebuRateConvertCtl;
 
 impl AesebuRateConvertCtlOperation<F896Protocol> for AesebuRateConvertCtl {}
 
+#[derive(Default)]
+struct LevelMetersCtl;
+
+impl LevelMetersCtlOperation<F896Protocol> for LevelMetersCtl {}
+
 impl CtlModel<SndMotu> for F896 {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.monitor_input_ctl.load(&self.proto, card_cntr)?;
         let _ = self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        self.level_meters_ctl.load(&self.proto, card_cntr)?;
+        self.level_meters_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -78,7 +83,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self
             .level_meters_ctl
-            .read(unit, &mut self.req,  &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req,  elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -118,7 +123,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self
             .level_meters_ctl
-            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
