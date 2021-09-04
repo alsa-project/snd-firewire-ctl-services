@@ -41,28 +41,39 @@ pub trait V3ClkProtocol: AsRef<FwReq> {
 
     const HAS_LCD: bool;
 
-    fn get_clk_rate(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_clk_rate(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_clk_rate(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_clk_rate(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             idx,
@@ -70,28 +81,39 @@ pub trait V3ClkProtocol: AsRef<FwReq> {
         )
     }
 
-    fn get_clk_src(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_clk_src(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_clk_src(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_clk_src(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             idx,
@@ -101,11 +123,12 @@ pub trait V3ClkProtocol: AsRef<FwReq> {
 
     fn update_clk_display(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         label: &str,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        update_clk_display(self.as_ref(), node, label, timeout_ms)
+        update_clk_display(req, node, label, timeout_ms)
     }
 }
 
