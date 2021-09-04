@@ -26,94 +26,79 @@ fn clk_src_to_label(src: &V1ClkSrc) -> String {
     .to_string()
 }
 
-#[derive(Default)]
-pub struct V1ClkCtl;
+const RATE_NAME: &str = "sampling- rate";
+const SRC_NAME: &str = "clock-source";
 
-impl V1ClkCtl {
-    const RATE_NAME: &'static str = "sampling- rate";
-    const SRC_NAME: &'static str = "clock-source";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V1ClkProtocol,
-    {
-        let labels: Vec<String> = O::CLK_RATE_LABELS
+pub trait V1ClkCtlOperation<T: V1ClkProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::CLK_RATE_LABELS
             .iter()
             .map(|l| clk_rate_to_string(&l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = O::CLK_SRC_LABELS
+        let labels: Vec<String> = T::CLK_SRC_LABELS
             .iter()
             .map(|l| clk_src_to_label(&l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V1ClkProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::RATE_NAME => {
+            RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
-                })?;
-                Ok(true)
+                    T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                })
+                .map(|_| true)
             }
-            Self::SRC_NAME => {
+            SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
-                })?;
-                Ok(true)
+                    T::get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V1ClkProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
+            RATE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
-                    let res = O::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
+            SRC_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
-                    let res = O::set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = T::set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
