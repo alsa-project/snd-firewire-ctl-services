@@ -142,6 +142,7 @@ impl V1MonitorInputCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -154,7 +155,7 @@ impl V1MonitorInputCtl {
             Self::MONITOR_INPUT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_monitor_input(&mut unit.get_node(), timeout_ms)
+                        .get_monitor_input(req, &mut unit.get_node(), timeout_ms)
                         .map(|idx| idx as u32)
                 })?;
                 Ok(true)
@@ -166,6 +167,7 @@ impl V1MonitorInputCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -178,7 +180,7 @@ impl V1MonitorInputCtl {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_monitor_input(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }

@@ -46,7 +46,7 @@ impl CtlModel<SndMotu> for F828 {
             Ok(true)
         } else if self
             .monitor_input_ctl
-            .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -73,7 +73,7 @@ impl CtlModel<SndMotu> for F828 {
             Ok(true)
         } else if self
             .monitor_input_ctl
-            .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
