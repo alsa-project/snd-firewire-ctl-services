@@ -267,26 +267,37 @@ pub trait V1ClkProtocol: AsRef<FwReq> {
     const CLK_SRC_VALS: &'static [u8];
     const CLK_SRC_LABELS: &'static [V1ClkSrc];
 
-    fn get_clk_rate(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_clk_rate(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
             Self::CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
-            self.as_ref(),
+            req,
             node,
             Self::CLK_RATE_VALS,
             timeout_ms,
         )
     }
 
-    fn set_clk_rate(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_clk_rate(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         set_idx_to_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
             Self::CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
-            self.as_ref(),
+            req,
             node,
             Self::CLK_RATE_VALS,
             idx,
@@ -294,26 +305,37 @@ pub trait V1ClkProtocol: AsRef<FwReq> {
         )
     }
 
-    fn get_clk_src(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_clk_src(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
             Self::CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
-            self.as_ref(),
+            req,
             node,
             Self::CLK_SRC_VALS,
             timeout_ms,
         )
     }
 
-    fn set_clk_src(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_clk_src(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         set_idx_to_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
             Self::CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
-            self.as_ref(),
+            req,
             node,
             Self::CLK_SRC_VALS,
             idx,

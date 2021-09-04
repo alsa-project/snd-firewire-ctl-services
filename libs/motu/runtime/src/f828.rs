@@ -2,6 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::{SndMotu, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
@@ -17,6 +18,7 @@ const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
 pub struct F828 {
+    req: FwReq,
     proto: F828Protocol,
     clk_ctls: V1ClkCtl,
     monitor_input_ctl: V1MonitorInputCtl,
@@ -39,7 +41,7 @@ impl CtlModel<SndMotu> for F828 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -66,7 +68,7 @@ impl CtlModel<SndMotu> for F828 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
