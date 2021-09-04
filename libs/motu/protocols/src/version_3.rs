@@ -9,7 +9,7 @@
 use glib::Error;
 
 use hinawa::FwReq;
-use hinawa::SndMotu;
+use hinawa::{SndMotu, SndUnitExt};
 
 use super::*;
 
@@ -49,7 +49,7 @@ pub trait V3ClkProtocol: CommonProtocol {
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             timeout_ms,
         )
@@ -62,7 +62,7 @@ pub trait V3ClkProtocol: CommonProtocol {
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             idx,
             timeout_ms,
@@ -76,7 +76,7 @@ pub trait V3ClkProtocol: CommonProtocol {
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             timeout_ms,
         )
@@ -89,7 +89,7 @@ pub trait V3ClkProtocol: CommonProtocol {
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             idx,
             timeout_ms,
@@ -114,7 +114,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
             PORT_MAIN_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             timeout_ms,
         )
@@ -127,7 +127,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
             PORT_MAIN_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             idx,
             timeout_ms,
@@ -141,7 +141,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
             PORT_RETURN_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             timeout_ms,
         )
@@ -154,7 +154,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
             PORT_RETURN_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             idx,
             timeout_ms,
@@ -196,7 +196,7 @@ pub trait V3OptIfaceProtocol: CommonProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
-        self.read_quad(unit, OFFSET_OPT, timeout_ms)
+        self.read_quad(&mut unit.get_node(), OFFSET_OPT, timeout_ms)
             .and_then(|mut quad| {
                 quad &= !enabled_mask;
                 quad &= !no_adat_mask;
@@ -206,7 +206,7 @@ pub trait V3OptIfaceProtocol: CommonProtocol {
                 if no_adat {
                     quad |= no_adat_mask;
                 }
-                self.write_quad(unit, OFFSET_OPT, quad, timeout_ms)
+                self.write_quad(&mut unit.get_node(), OFFSET_OPT, quad, timeout_ms)
             })
     }
 
@@ -217,7 +217,7 @@ pub trait V3OptIfaceProtocol: CommonProtocol {
         is_b: bool,
         timeout_ms: u32,
     ) -> Result<(bool, bool), Error> {
-        self.read_quad(unit, OFFSET_OPT, timeout_ms).map(|quad| {
+        self.read_quad(&mut unit.get_node(), OFFSET_OPT, timeout_ms).map(|quad| {
             let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
             let enabled = (quad & enabled_mask) > 0;
             let no_adat = (quad & no_adat_mask) > 0;

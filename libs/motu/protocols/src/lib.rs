@@ -11,7 +11,7 @@ pub mod version_2;
 pub mod version_3;
 
 use glib::{Error, FileError};
-use hinawa::{FwReq, FwReqExtManual, FwTcode};
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 use hinawa::{SndMotu, SndUnitExt};
 
 use std::{thread, time};
@@ -44,11 +44,11 @@ pub trait CommonProtocol: AsRef<FwReq> {
     const OFFSET_PORT: u32 = 0x0c04;
     const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
 
-    fn read_quad(&self, unit: &SndMotu, offset: u32, timeout_ms: u32) -> Result<u32, Error> {
+    fn read_quad(&self, node: &mut FwNode, offset: u32, timeout_ms: u32) -> Result<u32, Error> {
         let mut frame = [0; 4];
         self.as_ref()
             .transaction_sync(
-                &unit.get_node(),
+                node,
                 FwTcode::ReadQuadletRequest,
                 BASE_OFFSET + offset as u64,
                 4,
@@ -64,7 +64,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
     // by following read transaction in failure of write transaction.
     fn write_quad(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         offset: u32,
         quad: u32,
         timeout_ms: u32,
@@ -73,7 +73,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
         frame.copy_from_slice(&quad.to_be_bytes());
         self.as_ref()
             .transaction_sync(
-                &unit.get_node(),
+                node,
                 FwTcode::WriteQuadletRequest,
                 BASE_OFFSET + offset as u64,
                 4,
@@ -85,7 +85,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
                 thread::sleep(time::Duration::from_millis(BUSY_DURATION));
                 self.as_ref()
                     .transaction_sync(
-                        &unit.get_node(),
+                        node,
                         FwTcode::WriteQuadletRequest,
                         BASE_OFFSET + offset as u64,
                         4,
@@ -108,11 +108,11 @@ pub trait CommonProtocol: AsRef<FwReq> {
         mask: u32,
         shift: usize,
         label: &str,
-        unit: &SndMotu,
+        node: &mut FwNode,
         vals: &[u8],
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        let quad = self.read_quad(unit, offset, timeout_ms)?;
+        let quad = self.read_quad(node, offset, timeout_ms)?;
         let val = ((quad & mask) >> shift) as u8;
         vals.iter().position(|&v| v == val).ok_or_else(|| {
             let label = format!("Detect invalid value for {}: {:02x}", label, val);
@@ -126,7 +126,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
         mask: u32,
         shift: usize,
         label: &str,
-        unit: &SndMotu,
+        node: &mut FwNode,
         vals: &[u8],
         idx: usize,
         timeout_ms: u32,
@@ -135,10 +135,10 @@ pub trait CommonProtocol: AsRef<FwReq> {
             let label = format!("Invalid argument for {}: {} {}", label, vals.len(), idx);
             return Err(Error::new(FileError::Inval, &label));
         }
-        let mut quad = self.read_quad(unit, offset, timeout_ms)?;
+        let mut quad = self.read_quad(node, offset, timeout_ms)?;
         quad &= !mask;
         quad |= (vals[idx] as u32) << shift;
-        self.write_quad(unit, offset, quad, timeout_ms)
+        self.write_quad(node, offset, quad, timeout_ms)
     }
 
     fn update_clk_display(
@@ -159,7 +159,7 @@ pub trait CommonProtocol: AsRef<FwReq> {
             frame.reverse();
             let quad = u32::from_ne_bytes(frame);
             let offset = Self::OFFSET_CLK_DISPLAY + 4 * i as u32;
-            self.write_quad(unit, offset, quad, timeout_ms)
+            self.write_quad(&mut unit.get_node(), offset, quad, timeout_ms)
         })
     }
 }
@@ -179,7 +179,7 @@ pub trait AssignProtocol: CommonProtocol {
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             timeout_ms,
         )
@@ -192,7 +192,7 @@ pub trait AssignProtocol: CommonProtocol {
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
-            unit,
+            &mut unit.get_node(),
             &vals,
             idx,
             timeout_ms,
@@ -223,7 +223,7 @@ pub trait WordClkProtocol: CommonProtocol {
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
-            unit,
+            &mut unit.get_node(),
             &WORD_OUT_VALS,
             timeout_ms,
         )
@@ -251,7 +251,7 @@ pub trait WordClkProtocol: CommonProtocol {
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
-            unit,
+            &mut unit.get_node(),
             &WORD_OUT_VALS,
             idx,
             timeout_ms,
@@ -297,7 +297,7 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
-            unit,
+            &mut unit.get_node(),
             &Self::AESEBU_RATE_CONVERT_VALS,
             timeout_ms,
         )
@@ -314,7 +314,7 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
-            unit,
+            &mut unit.get_node(),
             &Self::AESEBU_RATE_CONVERT_VALS,
             idx,
             timeout_ms,
@@ -411,7 +411,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
         )
@@ -428,7 +428,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
             timeout_ms,
@@ -445,7 +445,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
         )
@@ -462,7 +462,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
             timeout_ms,
@@ -479,7 +479,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_AESEBU_VALS,
             timeout_ms,
         )
@@ -496,7 +496,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_AESEBU_VALS,
             idx,
             timeout_ms,
@@ -513,7 +513,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             timeout_ms,
         )
@@ -530,7 +530,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
-            unit,
+            &mut unit.get_node(),
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             idx,
             timeout_ms,
