@@ -53,7 +53,7 @@ pub struct MotuRuntime{
     dispatchers: Vec<dispatcher::Dispatcher>,
 }
 
-impl<'a> Drop for MotuRuntime {
+impl Drop for MotuRuntime {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -68,7 +68,7 @@ impl<'a> Drop for MotuRuntime {
     }
 }
 
-impl<'a> RuntimeOperation<u32> for MotuRuntime {
+impl RuntimeOperation<u32> for MotuRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let unit = hinawa::SndMotu::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
@@ -138,9 +138,9 @@ impl<'a> RuntimeOperation<u32> for MotuRuntime {
     }
 }
 
-impl<'a> MotuRuntime {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
+impl MotuRuntime {
+    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
+    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();

@@ -28,13 +28,13 @@ fn clk_src_to_label(src: &V1ClkSrc) -> String {
 #[derive(Default)]
 pub struct V1ClkCtl;
 
-impl<'a> V1ClkCtl {
-    const RATE_NAME: &'a str = "sampling- rate";
-    const SRC_NAME: &'a str = "clock-source";
+impl V1ClkCtl {
+    const RATE_NAME: &'static str = "sampling- rate";
+    const SRC_NAME: &'static str = "clock-source";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: V1ClkProtocol<'b>,
+        for<'a> O: V1ClkProtocol<'a>,
     {
         let labels: Vec<String> = O::CLK_RATE_LABELS
             .iter()
@@ -62,7 +62,7 @@ impl<'a> V1ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V1ClkProtocol<'b>,
+        for<'a> O: V1ClkProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -91,7 +91,7 @@ impl<'a> V1ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V1ClkProtocol<'b>,
+        for<'a> O: V1ClkProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -120,12 +120,12 @@ impl<'a> V1ClkCtl {
 #[derive(Default)]
 pub struct V1MonitorInputCtl;
 
-impl<'a> V1MonitorInputCtl {
-    const MONITOR_INPUT_NAME: &'a str = "monitor-input";
+impl V1MonitorInputCtl {
+    const MONITOR_INPUT_NAME: &'static str = "monitor-input";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: V1MonitorInputProtocol<'b>,
+        for<'a> O: V1MonitorInputProtocol<'a>,
     {
         let labels: Vec<String> = O::MONITOR_INPUT_MODES
             .iter()
@@ -145,7 +145,7 @@ impl<'a> V1MonitorInputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V1MonitorInputProtocol<'b>,
+        for<'a> O: V1MonitorInputProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {
@@ -170,7 +170,7 @@ impl<'a> V1MonitorInputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V1MonitorInputProtocol<'b>,
+        for<'a> O: V1MonitorInputProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {

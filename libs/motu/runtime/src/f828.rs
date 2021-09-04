@@ -96,9 +96,9 @@ fn opt_iface_mode_to_label(mode: &V1OptIfaceMode) -> String {
 #[derive(Default)]
 pub struct SpecificCtl;
 
-impl<'a> SpecificCtl {
-    const OPT_IN_IFACE_MODE_NAME: &'a str = "optical-iface-in-mode";
-    const OPT_OUT_IFACE_MODE_NAME: &'a str = "optical-iface-out-mode";
+impl SpecificCtl {
+    const OPT_IN_IFACE_MODE_NAME: &'static str = "optical-iface-in-mode";
+    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-iface-out-mode";
 
     pub fn load(&mut self, _: &F828Protocol, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = F828Protocol::OPT_IFACE_MODES
