@@ -73,10 +73,12 @@ impl CtlModel<SndMotu> for F828mk3 {
         Ok(())
     }
 
-    fn read(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        unit: &mut SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_assign_ctl.read(unit, &mut self.req,  elem_id, elem_value, TIMEOUT_MS)? {
@@ -92,10 +94,13 @@ impl CtlModel<SndMotu> for F828mk3 {
         }
     }
 
-    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, old: &alsactl::ElemValue,
-             new: &alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue
+    ) -> Result<bool, Error> {
         if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {

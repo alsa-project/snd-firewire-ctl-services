@@ -51,9 +51,7 @@ impl F828mk2 {
 }
 
 impl CtlModel<SndMotu> for F828mk2 {
-    fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
+    fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)
@@ -63,10 +61,12 @@ impl CtlModel<SndMotu> for F828mk2 {
         Ok(())
     }
 
-    fn read(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        unit: &mut SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
@@ -80,10 +80,13 @@ impl CtlModel<SndMotu> for F828mk2 {
         }
     }
 
-    fn write(&mut self, unit: &mut SndMotu, elem_id: &alsactl::ElemId, _: &alsactl::ElemValue,
-             new: &alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue
+    ) -> Result<bool, Error> {
         if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
@@ -99,7 +102,7 @@ impl CtlModel<SndMotu> for F828mk2 {
 }
 
 impl NotifyModel<SndMotu, u32> for F828mk2 {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.0);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.0);
     }
