@@ -21,10 +21,6 @@ const OFFSET_CLK: u32 = 0x0b14;
 const OFFSET_PORT: u32 = 0x0c04;
 const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
 
-const BUSY_DURATION: u64 = 150;
-
-const DISPLAY_CHARS: usize = 4 * 4;
-
 fn read_quad(
     req: &FwReq,
     node: &mut FwNode,
@@ -140,29 +136,33 @@ pub enum ClkRate {
     R192000,
 }
 
+const BUSY_DURATION: u64 = 150;
+const DISPLAY_CHARS: usize = 4 * 4;
+
+fn update_clk_display(
+    req: &FwReq,
+    node: &mut FwNode,
+    label: &str,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let mut chars = [0; DISPLAY_CHARS];
+    chars
+        .iter_mut()
+        .zip(label.bytes())
+        .for_each(|(c, l)| *c = l);
+
+    (0..(DISPLAY_CHARS / 4)).try_for_each(|i| {
+        let mut frame = [0; 4];
+        frame.copy_from_slice(&chars[(i * 4)..(i * 4 + 4)]);
+        frame.reverse();
+        let quad = u32::from_ne_bytes(frame);
+        let offset = OFFSET_CLK_DISPLAY + 4 * i as u32;
+        write_quad(req, node, offset, quad, timeout_ms)
+    })
+}
+
 /// The trait for common protocol.
 pub trait CommonProtocol: AsRef<FwReq> {
-    fn update_clk_display(
-        &self,
-        unit: &SndMotu,
-        label: &str,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut chars = [0; DISPLAY_CHARS];
-        chars
-            .iter_mut()
-            .zip(label.bytes())
-            .for_each(|(c, l)| *c = l);
-
-        (0..(DISPLAY_CHARS / 4)).try_for_each(|i| {
-            let mut frame = [0; 4];
-            frame.copy_from_slice(&chars[(i * 4)..(i * 4 + 4)]);
-            frame.reverse();
-            let quad = u32::from_ne_bytes(frame);
-            let offset = OFFSET_CLK_DISPLAY + 4 * i as u32;
-            write_quad(self.as_ref(), &mut unit.get_node(), offset, quad, timeout_ms)
-        })
-    }
 }
 
 const PORT_PHONE_LABEL: &str = "phone-assign";
