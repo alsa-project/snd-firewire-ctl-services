@@ -169,7 +169,6 @@ pub trait AssignProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)];
 
     fn get_phone_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -188,7 +187,6 @@ pub trait AssignProtocol {
     }
 
     fn set_phone_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -227,7 +225,6 @@ const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 /// The trait for word-clock protocol.
 pub trait WordClkProtocol {
     fn get_word_out(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -252,7 +249,6 @@ pub trait WordClkProtocol {
     }
 
     fn set_word_out(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         mode: WordClkSpeedMode,
@@ -305,7 +301,6 @@ pub trait AesebuRateConvertProtocol {
     ];
 
     fn get_aesebu_rate_convert_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
@@ -323,7 +318,6 @@ pub trait AesebuRateConvertProtocol {
     }
 
     fn set_aesebu_rate_convert_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -423,7 +417,6 @@ pub trait LevelMetersProtocol {
     ];
 
     fn get_level_meters_peak_hold_time_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
@@ -441,7 +434,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn set_level_meters_peak_hold_time_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -461,7 +453,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn get_level_meters_clip_hold_time_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
@@ -479,7 +470,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn set_level_meters_clip_hold_time_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -499,7 +489,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn get_level_meters_aesebu_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
@@ -517,7 +506,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn set_level_meters_aesebu_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -537,7 +525,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn get_level_meters_programmable_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
@@ -555,7 +542,6 @@ pub trait LevelMetersProtocol {
     }
 
     fn set_level_meters_programmable_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,

@@ -58,7 +58,7 @@ impl V1ClkCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -69,13 +69,13 @@ impl V1ClkCtl {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                    O::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
                 })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                    O::get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
                 })?;
                 Ok(true)
             }
@@ -87,7 +87,7 @@ impl V1ClkCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -100,7 +100,7 @@ impl V1ClkCtl {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = O::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -109,7 +109,7 @@ impl V1ClkCtl {
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = O::set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -143,7 +143,7 @@ impl V1MonitorInputCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -154,8 +154,7 @@ impl V1MonitorInputCtl {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto
-                        .get_monitor_input(req, &mut unit.get_node(), timeout_ms)
+                    O::get_monitor_input(req, &mut unit.get_node(), timeout_ms)
                         .map(|idx| idx as u32)
                 })?;
                 Ok(true)
@@ -168,7 +167,7 @@ impl V1MonitorInputCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -180,7 +179,7 @@ impl V1MonitorInputCtl {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
+                    O::set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }

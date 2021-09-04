@@ -56,7 +56,7 @@ impl V2ClkCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -67,17 +67,17 @@ impl V2ClkCtl {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                    O::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
                 })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let mut node = unit.get_node();
-                    proto.get_clk_src(req, &mut node, timeout_ms).and_then(|idx| {
+                    O::get_clk_src(req, &mut node, timeout_ms).and_then(|idx| {
                         if O::HAS_LCD {
                             let label = clk_src_to_label(&O::CLK_SRCS[idx].0);
-                            proto.update_clk_display(req, &mut node, &label, timeout_ms)?;
+                            O::update_clk_display(req, &mut node, &label, timeout_ms)?;
                         }
                         Ok(idx as u32)
                     })
@@ -92,7 +92,7 @@ impl V2ClkCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -105,7 +105,7 @@ impl V2ClkCtl {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = O::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -114,14 +114,14 @@ impl V2ClkCtl {
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let mut node = unit.get_node();
-                    let prev_src = proto.get_clk_src(req, &mut node, timeout_ms)?;
+                    let prev_src = O::get_clk_src(req, &mut node, timeout_ms)?;
                     unit.lock()?;
-                    let mut res = proto.set_clk_src(req, &mut node, val as usize, timeout_ms);
+                    let mut res = O::set_clk_src(req, &mut node, val as usize, timeout_ms);
                     if res.is_ok() && O::HAS_LCD {
                         let label = clk_src_to_label(&O::CLK_SRCS[val as usize].0);
-                        res = proto.update_clk_display(req, &mut node, &label, timeout_ms);
+                        res = O::update_clk_display(req, &mut node, &label, timeout_ms);
                         if res.is_err() {
-                            let _ = proto.set_clk_src(req, &mut node, prev_src, timeout_ms);
+                            let _ = O::set_clk_src(req, &mut node, prev_src, timeout_ms);
                         }
                     }
                     let _ = unit.unlock();
@@ -155,7 +155,7 @@ impl V2MainAssignCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -166,8 +166,7 @@ impl V2MainAssignCtl {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto
-                        .get_main_vol_assign(req, &mut unit.get_node(), timeout_ms)
+                    O::get_main_vol_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -180,7 +179,7 @@ impl V2MainAssignCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -192,7 +191,7 @@ impl V2MainAssignCtl {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_main_vol_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                    O::set_main_vol_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
@@ -241,7 +240,7 @@ impl V2OptIfaceCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -252,16 +251,14 @@ impl V2OptIfaceCtl {
         match elem_id.get_name().as_str() {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto
-                        .get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
+                    O::get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto
-                        .get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
+                    O::get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -274,7 +271,7 @@ impl V2OptIfaceCtl {
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
+        _: &O,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -287,7 +284,7 @@ impl V2OptIfaceCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = O::set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
@@ -296,7 +293,7 @@ impl V2OptIfaceCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    let res = O::set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
