@@ -20,8 +20,13 @@ pub struct F8pre{
     proto: F8preProtocol,
     clk_ctls: V2ClkCtl,
     opt_iface_ctl: V2OptIfaceCtl,
-    phone_assign_ctl: CommonPhoneCtl,
+    phone_assign_ctl: PhoneAssignCtl,
 }
+
+#[derive(Default)]
+struct PhoneAssignCtl;
+
+impl PhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {}
 
 impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
@@ -29,7 +34,7 @@ impl CtlModel<SndMotu> for F8pre {
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.opt_iface_ctl.load(&self.proto, card_cntr)?;
-        self.phone_assign_ctl.load(&self.proto, card_cntr)?;
+        let _ = self.phone_assign_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -41,7 +46,7 @@ impl CtlModel<SndMotu> for F8pre {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -56,7 +61,7 @@ impl CtlModel<SndMotu> for F8pre {
             Ok(true)
         } else if self.opt_iface_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)

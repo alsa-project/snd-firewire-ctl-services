@@ -19,15 +19,20 @@ pub struct AudioExpress{
     req: FwReq,
     proto: AudioExpressProtocol,
     clk_ctls: V3ClkCtl,
-    phone_assign_ctl: CommonPhoneCtl,
+    phone_assign_ctl: PhoneAssignCtl,
 }
+
+#[derive(Default)]
+struct PhoneAssignCtl;
+
+impl PhoneAssignCtlOperation<AudioExpressProtocol> for PhoneAssignCtl {}
 
 impl CtlModel<SndMotu> for AudioExpress {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
-        self.phone_assign_ctl.load(&self.proto, card_cntr)?;
+        self.phone_assign_ctl.load(card_cntr)?;
         Ok(())
     }
 
@@ -37,7 +42,7 @@ impl CtlModel<SndMotu> for AudioExpress {
     {
         if self.clk_ctls.read(unit, &mut self.req,  &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -50,7 +55,7 @@ impl CtlModel<SndMotu> for AudioExpress {
     {
         if self.clk_ctls.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)

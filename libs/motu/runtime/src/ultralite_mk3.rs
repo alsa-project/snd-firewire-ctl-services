@@ -22,9 +22,14 @@ pub struct UltraLiteMk3{
     proto: UltraliteMk3Protocol,
     clk_ctls: V3ClkCtl,
     port_assign_ctl: V3PortAssignCtl,
-    phone_assign_ctl: CommonPhoneCtl,
+    phone_assign_ctl: PhoneAssignCtl,
     msg_cache: u32,
 }
+
+#[derive(Default)]
+struct PhoneAssignCtl(Vec<ElemId>);
+
+impl PhoneAssignCtlOperation<UltraliteMk3Protocol> for PhoneAssignCtl {}
 
 impl UltraLiteMk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
@@ -38,7 +43,8 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
     {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.port_assign_ctl.load(&self.proto, card_cntr)?;
-        self.phone_assign_ctl.load(&self.proto, card_cntr)?;
+        self.phone_assign_ctl.load(card_cntr)
+            .map(|mut elem_id_list| self.phone_assign_ctl.0.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -50,7 +56,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             Ok(true)
         } else if self.port_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -65,7 +71,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             Ok(true)
         } else if self.port_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
