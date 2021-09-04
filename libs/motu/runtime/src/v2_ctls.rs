@@ -119,66 +119,49 @@ pub trait V2ClkCtlOperation<T: V2ClkProtocol> {
     }
 }
 
-#[derive(Default)]
-pub struct V2MainAssignCtl(pub Vec<ElemId>);
+const MAIN_VOL_TARGET_NAME: &str = "main-volume-target";
 
-impl V2MainAssignCtl {
-    const MAIN_VOL_TARGET_NAME: &'static str = "main-volume-target";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V2MainAssignProtocol,
-    {
-        let labels: Vec<String> = O::KNOB_TARGETS.iter().map(|e| e.0.to_string()).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MAIN_VOL_TARGET_NAME, 0);
-        card_cntr
-            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|elem_id_list| self.0.extend_from_slice(&elem_id_list))
+pub trait V2MainAssignCtlOperation<T: V2MainAssignProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let labels: Vec<String> = T::KNOB_TARGETS.iter().map(|e| e.0.to_string()).collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_VOL_TARGET_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V2MainAssignProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MAIN_VOL_TARGET_NAME => {
+            MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_main_vol_assign(req, &mut unit.get_node(), timeout_ms)
+                    T::get_main_vol_assign(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V2MainAssignProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MAIN_VOL_TARGET_NAME => {
+            MAIN_VOL_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_main_vol_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+                    T::set_main_vol_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
