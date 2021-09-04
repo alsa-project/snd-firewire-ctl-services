@@ -306,6 +306,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
 
     fn get_aesebu_rate_convert_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -314,7 +315,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
-            self.as_ref(),
+            req,
             node,
             &Self::AESEBU_RATE_CONVERT_VALS,
             timeout_ms,
@@ -323,6 +324,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
 
     fn set_aesebu_rate_convert_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -332,7 +334,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
-            self.as_ref(),
+            req,
             node,
             &Self::AESEBU_RATE_CONVERT_VALS,
             idx,

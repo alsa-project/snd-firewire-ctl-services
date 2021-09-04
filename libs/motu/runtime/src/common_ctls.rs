@@ -218,6 +218,7 @@ impl CommonAesebuRateConvertCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -230,7 +231,7 @@ impl CommonAesebuRateConvertCtl {
             Self::AESEBU_RATE_CONVERT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_aesebu_rate_convert_mode(&mut unit.get_node(), timeout_ms)
+                        .get_aesebu_rate_convert_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -242,6 +243,7 @@ impl CommonAesebuRateConvertCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -254,7 +256,7 @@ impl CommonAesebuRateConvertCtl {
         match elem_id.get_name().as_str() {
             Self::AESEBU_RATE_CONVERT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_aesebu_rate_convert_mode(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_aesebu_rate_convert_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }

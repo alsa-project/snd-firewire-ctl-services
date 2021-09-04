@@ -60,6 +60,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.read(
             unit,
+            &mut self.req,
             &self.proto,
             elem_id,
             elem_value,
@@ -100,6 +101,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.write(
             unit,
+            &mut self.req,
             &self.proto,
             elem_id,
             old,
