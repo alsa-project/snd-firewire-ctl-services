@@ -226,13 +226,18 @@ const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 
 /// The trait for word-clock protocol.
 pub trait WordClkProtocol: AsRef<FwReq> {
-    fn get_word_out(&self, node: &mut FwNode, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
+    fn get_word_out(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<WordClkSpeedMode, Error> {
         get_idx_from_val(
             OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
-            self.as_ref(),
+            req,
             node,
             &WORD_OUT_VALS,
             timeout_ms,
@@ -248,6 +253,7 @@ pub trait WordClkProtocol: AsRef<FwReq> {
 
     fn set_word_out(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         mode: WordClkSpeedMode,
         timeout_ms: u32,
@@ -261,7 +267,7 @@ pub trait WordClkProtocol: AsRef<FwReq> {
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
-            self.as_ref(),
+            req,
             node,
             &WORD_OUT_VALS,
             idx,
