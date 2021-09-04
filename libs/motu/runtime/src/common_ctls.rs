@@ -240,131 +240,116 @@ fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) 
     .to_string()
 }
 
-#[derive(Default)]
-pub struct CommonLevelMetersCtl;
+const PEAK_HOLD_TIME_MODE_NAME: &str = "meter-peak-hold-time";
+const CLIP_HOLD_TIME_MODE_NAME: &str = "meter-clip-hold-time";
+const AESEBU_MODE_NAME: &str = "AES/EBU-meter";
+const PROGRAMMABLE_MODE_NAME: &str = "programmable-meter";
 
-impl CommonLevelMetersCtl {
-    const PEAK_HOLD_TIME_MODE_NAME: &'static str = "meter-peak-hold-time";
-    const CLIP_HOLD_TIME_MODE_NAME: &'static str = "meter-clip-hold-time";
-    const AESEBU_MODE_NAME: &'static str = "AES/EBU-meter";
-    const PROGRAMMABLE_MODE_NAME: &'static str = "programmable-meter";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: LevelMetersProtocol,
-    {
-        let labels: Vec<String> = O::LEVEL_METERS_HOLD_TIME_MODES
+pub trait LevelMetersCtlOperation<T: LevelMetersProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::LEVEL_METERS_HOLD_TIME_MODES
             .iter()
             .map(|l| level_meters_hold_time_mode_to_string(&l))
             .collect();
         let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PEAK_HOLD_TIME_MODE_NAME, 0);
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PEAK_HOLD_TIME_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::CLIP_HOLD_TIME_MODE_NAME, 0);
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLIP_HOLD_TIME_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = O::LEVEL_METERS_AESEBU_MODES
+        let labels: Vec<String> = T::LEVEL_METERS_AESEBU_MODES
             .iter()
             .map(|l| level_meters_aesebu_mode_to_string(&l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::AESEBU_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, AESEBU_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = O::LEVEL_METERS_PROGRAMMABLE_MODES
+        let labels: Vec<String> = T::LEVEL_METERS_PROGRAMMABLE_MODES
             .iter()
             .map(|l| level_meters_programmable_mode_to_string(&l))
             .collect();
         let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PROGRAMMABLE_MODE_NAME, 0);
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PROGRAMMABLE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: LevelMetersProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PEAK_HOLD_TIME_MODE_NAME => {
+            PEAK_HOLD_TIME_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::CLIP_HOLD_TIME_MODE_NAME => {
+            CLIP_HOLD_TIME_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::AESEBU_MODE_NAME => {
+            AESEBU_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_level_meters_aesebu_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_level_meters_aesebu_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
-            Self::PROGRAMMABLE_MODE_NAME => {
+            PROGRAMMABLE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_level_meters_programmable_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_level_meters_programmable_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: LevelMetersProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PEAK_HOLD_TIME_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            PEAK_HOLD_TIME_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
-            Self::CLIP_HOLD_TIME_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            CLIP_HOLD_TIME_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
-            Self::AESEBU_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_level_meters_aesebu_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            AESEBU_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_level_meters_aesebu_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
-            Self::PROGRAMMABLE_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_level_meters_programmable_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            PROGRAMMABLE_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_level_meters_programmable_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
