@@ -206,13 +206,18 @@ const OPT_IFACE_MODE_VALS: &[u8] = &[0x00, 0x01, 0x02];
 pub trait V2OptIfaceProtocol: AsRef<FwReq> {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
-    fn get_opt_in_iface_mode(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_opt_in_iface_mode(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         get_idx_from_val(
             OFFSET_PORT,
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
-            self.as_ref(),
+            req,
             node,
             OPT_IFACE_MODE_VALS,
             timeout_ms,
@@ -221,6 +226,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
 
     fn set_opt_in_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -230,7 +236,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
-            self.as_ref(),
+            req,
             node,
             OPT_IFACE_MODE_VALS,
             idx,
@@ -238,13 +244,18 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
         )
     }
 
-    fn get_opt_out_iface_mode(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_opt_out_iface_mode(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         get_idx_from_val(
             OFFSET_PORT,
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
-            self.as_ref(),
+            req,
             node,
             OPT_IFACE_MODE_VALS,
             timeout_ms,
@@ -253,6 +264,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
 
     fn set_opt_out_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -262,7 +274,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
-            self.as_ref(),
+            req,
             node,
             OPT_IFACE_MODE_VALS,
             idx,
