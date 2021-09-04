@@ -214,68 +214,139 @@ pub trait V3PortAssignProtocol: AssignProtocol {
     }
 }
 
+/// The enumeration for direction of optical interface.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum V3OptIfaceTarget {
+    A,
+    B,
+}
+
+impl Default for V3OptIfaceTarget {
+    fn default() -> Self {
+        Self::A
+    }
+}
+
+/// The enumeration for mode of optical interface.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum V3OptIfaceMode {
+    Disabled,
+    Adat,
+    Spdif,
+}
+
+impl Default for V3OptIfaceMode {
+    fn default() -> Self {
+        Self::Disabled
+    }
+}
+
+fn get_opt_iface_masks(target: V3OptIfaceTarget, is_out: bool) -> (u32, u32) {
+    let mut enabled_mask = 0x00000001;
+    if is_out {
+        enabled_mask <<= 8;
+    }
+    if target == V3OptIfaceTarget::B {
+        enabled_mask <<= 1;
+    }
+
+    let mut no_adat_mask = 0x00010000;
+    if is_out {
+        no_adat_mask <<= 2;
+    }
+    if target == V3OptIfaceTarget::B {
+        no_adat_mask <<= 4;
+    }
+
+    (enabled_mask, no_adat_mask)
+}
+
 const OFFSET_OPT: u32 = 0x0c94;
+
+fn set_opt_iface_mode(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    target: V3OptIfaceTarget,
+    is_out: bool,
+    mode: V3OptIfaceMode,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
+    read_quad(req, node, OFFSET_OPT, timeout_ms).and_then(|mut quad| {
+        match mode {
+            V3OptIfaceMode::Disabled => {
+                quad &= !enabled_mask;
+                quad &= !no_adat_mask;
+            }
+            V3OptIfaceMode::Adat => {
+                quad |= enabled_mask;
+                quad &= !no_adat_mask;
+            }
+            V3OptIfaceMode::Spdif => {
+                quad |= enabled_mask;
+                quad |= no_adat_mask;
+            }
+        }
+        write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
+    })
+}
+
+fn get_opt_iface_mode(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    target: V3OptIfaceTarget,
+    is_out: bool,
+    timeout_ms: u32,
+) -> Result<V3OptIfaceMode, Error> {
+    read_quad(req, node, OFFSET_OPT, timeout_ms).map(|quad| {
+        let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
+        match (quad & enabled_mask > 0, quad & no_adat_mask > 0) {
+            (false, false) |
+            (false, true) => V3OptIfaceMode::Disabled,
+            (true, false) => V3OptIfaceMode::Adat,
+            (true, true) => V3OptIfaceMode::Spdif,
+        }
+    })
+}
 
 /// The trait for optical interface protocol in version 3.
 pub trait V3OptIfaceProtocol {
-    fn get_opt_iface_masks(is_out: bool, is_b: bool) -> (u32, u32) {
-        let mut enabled_mask = 0x00000001;
-        if is_out {
-            enabled_mask <<= 8;
-        }
-        if is_b {
-            enabled_mask <<= 1;
-        }
-
-        let mut no_adat_mask = 0x00010000;
-        if is_out {
-            no_adat_mask <<= 2;
-        }
-        if is_b {
-            no_adat_mask <<= 4;
-        }
-
-        (enabled_mask, no_adat_mask)
-    }
-
-    fn set_opt_iface_mode(
+    fn set_opt_input_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
-        is_out: bool,
-        is_b: bool,
-        enable: bool,
-        no_adat: bool,
+        target: V3OptIfaceTarget,
+        mode: V3OptIfaceMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let (enabled_mask, no_adat_mask) = Self::get_opt_iface_masks(is_out, is_b);
-        read_quad(req, node, OFFSET_OPT, timeout_ms)
-            .and_then(|mut quad| {
-                quad &= !enabled_mask;
-                quad &= !no_adat_mask;
-                if enable {
-                    quad |= enabled_mask;
-                }
-                if no_adat {
-                    quad |= no_adat_mask;
-                }
-                write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
-            })
+        set_opt_iface_mode(req, node, target, false, mode, timeout_ms)
     }
 
-    fn get_opt_iface_mode(
+    fn get_opt_input_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
-        is_out: bool,
-        is_b: bool,
+        target: V3OptIfaceTarget,
         timeout_ms: u32,
-    ) -> Result<(bool, bool), Error> {
-        read_quad(req, node, OFFSET_OPT, timeout_ms).map(|quad| {
-            let (enabled_mask, no_adat_mask) = Self::get_opt_iface_masks(is_out, is_b);
-            let enabled = (quad & enabled_mask) > 0;
-            let no_adat = (quad & no_adat_mask) > 0;
+    ) -> Result<V3OptIfaceMode, Error> {
+        get_opt_iface_mode(req, node, target, false, timeout_ms)
+    }
 
-            (enabled, no_adat)
-        })
+    fn set_opt_output_iface_mode(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        target: V3OptIfaceTarget,
+        mode: V3OptIfaceMode,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        set_opt_iface_mode(req, node, target, true, mode, timeout_ms)
+    }
+
+    fn get_opt_output_iface_mode(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        target: V3OptIfaceTarget,
+        timeout_ms: u32,
+    ) -> Result<V3OptIfaceMode, Error> {
+        get_opt_iface_mode(req, node, target, true, timeout_ms)
     }
 }
 
