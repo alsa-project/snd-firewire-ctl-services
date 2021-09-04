@@ -352,8 +352,19 @@ const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
 pub trait V1MonitorInputProtocol: AsRef<FwReq> {
     const MONITOR_INPUT_MODES: &'static [&'static str];
 
-    fn set_monitor_input(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error>;
-    fn get_monitor_input(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error>;
+    fn set_monitor_input(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error>;
+    fn get_monitor_input(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error>;
 }
 
 /// The protocol implementation for 828.
@@ -402,7 +413,13 @@ impl V1MonitorInputProtocol for F828Protocol {
         "Analog-8",
     ];
 
-    fn set_monitor_input(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_monitor_input(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let (disable_idx, ch_idx) = if idx == 0 { (1, 0) } else { (0, idx - 1) };
 
         set_idx_to_val(
@@ -410,7 +427,7 @@ impl V1MonitorInputProtocol for F828Protocol {
             CONF_828_MONITOR_INPUT_DISABLE_MASK,
             CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
             MONITOR_INPUT_DISABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             disable_idx,
@@ -422,7 +439,7 @@ impl V1MonitorInputProtocol for F828Protocol {
             CONF_828_MONITOR_INPUT_CH_MASK,
             CONF_828_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_828_MONITOR_INPUT_CH_VALS,
             ch_idx,
@@ -430,13 +447,18 @@ impl V1MonitorInputProtocol for F828Protocol {
         )
     }
 
-    fn get_monitor_input(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_monitor_input(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let mut idx = get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_MONITOR_INPUT_DISABLE_MASK,
             CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
             MONITOR_INPUT_DISABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             timeout_ms,
@@ -448,7 +470,7 @@ impl V1MonitorInputProtocol for F828Protocol {
                 CONF_828_MONITOR_INPUT_CH_MASK,
                 CONF_828_MONITOR_INPUT_CH_SHIFT,
                 MONITOR_INPUT_CH_LABEL,
-                self.as_ref(),
+                req,
                 node,
                 &CONF_828_MONITOR_INPUT_CH_VALS,
                 timeout_ms,
@@ -700,7 +722,13 @@ impl V1MonitorInputProtocol for F896Protocol {
         "AES/EBU-2",
     ];
 
-    fn set_monitor_input(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_monitor_input(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let &(ch_idx, aesebu_idx) =
             CONF_896_MONITOR_INPUT_VALS.iter().nth(idx).ok_or_else(|| {
                 let label = "Invalid argument for index of monitor input}";
@@ -711,7 +739,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_896_MONITOR_INPUT_CH_VALS,
             ch_idx,
@@ -722,7 +750,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
             MONITOR_INPUT_AESEBU_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             aesebu_idx,
@@ -730,13 +758,18 @@ impl V1MonitorInputProtocol for F896Protocol {
         )
     }
 
-    fn get_monitor_input(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_monitor_input(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let ch_idx = get_idx_from_val(
             OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
             MONITOR_INPUT_CH_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_896_MONITOR_INPUT_CH_VALS,
             timeout_ms,
@@ -746,7 +779,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
             MONITOR_INPUT_AESEBU_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             timeout_ms,
