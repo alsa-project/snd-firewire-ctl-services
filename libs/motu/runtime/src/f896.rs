@@ -22,16 +22,21 @@ pub struct F896 {
     proto: F896Protocol,
     clk_ctls: V1ClkCtl,
     monitor_input_ctl: V1MonitorInputCtl,
-    word_clk_ctl: CommonWordClkCtl,
+    word_clk_ctl: WordClkCtl,
     aesebu_rate_convert_ctl: CommonAesebuRateConvertCtl,
     level_meters_ctl: CommonLevelMetersCtl,
 }
+
+#[derive(Default)]
+struct WordClkCtl;
+
+impl WordClkCtlOperation<F896Protocol> for WordClkCtl {}
 
 impl CtlModel<SndMotu> for F896 {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(&self.proto, card_cntr)?;
         self.monitor_input_ctl.load(&self.proto, card_cntr)?;
-        self.word_clk_ctl.load(&self.proto, card_cntr)?;
+        let _ = self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(&self.proto, card_cntr)?;
         self.level_meters_ctl.load(&self.proto, card_cntr)?;
         Ok(())
@@ -55,7 +60,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.read(
@@ -96,7 +101,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.write(
