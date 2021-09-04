@@ -34,7 +34,7 @@ impl V1ClkCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V1ClkProtocol<'a>,
+        O: V1ClkProtocol,
     {
         let labels: Vec<String> = O::CLK_RATE_LABELS
             .iter()
@@ -62,7 +62,7 @@ impl V1ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V1ClkProtocol<'a>,
+        O: V1ClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -91,7 +91,7 @@ impl V1ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V1ClkProtocol<'a>,
+        O: V1ClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -125,7 +125,7 @@ impl V1MonitorInputCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: V1MonitorInputProtocol<'a>,
+        O: V1MonitorInputProtocol,
     {
         let labels: Vec<String> = O::MONITOR_INPUT_MODES
             .iter()
@@ -145,7 +145,7 @@ impl V1MonitorInputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V1MonitorInputProtocol<'a>,
+        O: V1MonitorInputProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {
@@ -170,7 +170,7 @@ impl V1MonitorInputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: V1MonitorInputProtocol<'a>,
+        O: V1MonitorInputProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::MONITOR_INPUT_NAME => {

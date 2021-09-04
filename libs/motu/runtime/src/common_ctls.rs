@@ -20,7 +20,7 @@ impl CommonPhoneCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: AssignProtocol<'a>,
+        O: AssignProtocol,
     {
         let labels: Vec<String> = O::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHONE_ASSIGN_NAME, 0);
@@ -40,7 +40,7 @@ impl CommonPhoneCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: AssignProtocol<'a>,
+        O: AssignProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
@@ -65,7 +65,7 @@ impl CommonPhoneCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: AssignProtocol<'a>,
+        O: AssignProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
@@ -100,7 +100,7 @@ impl CommonWordClkCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: WordClkProtocol<'a>,
+        O: WordClkProtocol,
     {
         let labels: Vec<String> = Self::WORD_OUT_MODES
             .iter()
@@ -123,7 +123,7 @@ impl CommonWordClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: WordClkProtocol<'a>,
+        O: WordClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::WORD_OUT_MODE_NAME => {
@@ -152,7 +152,7 @@ impl CommonWordClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: WordClkProtocol<'a>,
+        O: WordClkProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::WORD_OUT_MODE_NAME => {
@@ -192,7 +192,7 @@ impl CommonAesebuRateConvertCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: AesebuRateConvertProtocol<'a>,
+        O: AesebuRateConvertProtocol,
     {
         let labels: Vec<String> = O::AESEBU_RATE_CONVERT_MODES
             .iter()
@@ -219,7 +219,7 @@ impl CommonAesebuRateConvertCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: AesebuRateConvertProtocol<'a>,
+        O: AesebuRateConvertProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::AESEBU_RATE_CONVERT_MODE_NAME => {
@@ -244,7 +244,7 @@ impl CommonAesebuRateConvertCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: AesebuRateConvertProtocol<'a>,
+        O: AesebuRateConvertProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::AESEBU_RATE_CONVERT_MODE_NAME => {
@@ -300,7 +300,7 @@ impl CommonLevelMetersCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'a> O: LevelMetersProtocol<'a>,
+        O: LevelMetersProtocol,
     {
         let labels: Vec<String> = O::LEVEL_METERS_HOLD_TIME_MODES
             .iter()
@@ -341,7 +341,7 @@ impl CommonLevelMetersCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: LevelMetersProtocol<'a>,
+        O: LevelMetersProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::PEAK_HOLD_TIME_MODE_NAME => {
@@ -390,7 +390,7 @@ impl CommonLevelMetersCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'a> O: LevelMetersProtocol<'a>,
+        O: LevelMetersProtocol,
     {
         match elem_id.get_name().as_str() {
             Self::PEAK_HOLD_TIME_MODE_NAME => {

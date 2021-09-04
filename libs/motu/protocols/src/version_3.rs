@@ -36,9 +36,9 @@ const CLK_SRC_MASK: u32 = 0x000000ff;
 const CLK_SRC_SHIFT: usize = 0;
 
 /// The trait for sampling clock protocol in version 3.
-pub trait V3ClkProtocol<'a>: CommonProtocol<'a> {
-    const CLK_RATES: &'a [(ClkRate, u8)];
-    const CLK_SRCS: &'a [(V3ClkSrc, u8)];
+pub trait V3ClkProtocol: CommonProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)];
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)];
 
     const HAS_LCD: bool;
 
@@ -106,7 +106,7 @@ const PORT_RETURN_MASK: u32 = 0x00000f00;
 const PORT_RETURN_SHIFT: usize = 8;
 
 /// The trait for main/return assignment protocol in version 3.
-pub trait V3PortAssignProtocol<'a>: AssignProtocol<'a> {
+pub trait V3PortAssignProtocol: AssignProtocol {
     fn get_main_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         self.get_idx_from_val(
@@ -165,7 +165,7 @@ pub trait V3PortAssignProtocol<'a>: AssignProtocol<'a> {
 const OFFSET_OPT: u32 = 0x0c94;
 
 /// The trait for optical interface protocol in version 3.
-pub trait V3OptIfaceProtocol<'a>: CommonProtocol<'a> {
+pub trait V3OptIfaceProtocol: CommonProtocol {
     fn get_opt_iface_masks(&self, is_out: bool, is_b: bool) -> (u32, u32) {
         let mut enabled_mask = 0x00000001;
         if is_out {
@@ -237,10 +237,10 @@ impl AsRef<FwReq> for AudioExpressProtocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for AudioExpressProtocol {}
+impl CommonProtocol for AudioExpressProtocol {}
 
-impl<'a> AssignProtocol<'a> for AudioExpressProtocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for AudioExpressProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
         ("Main-1/2", 0x02),   // = Stream-5/6
         ("Andlog-1/2", 0x06), // = Stream-3/4
@@ -249,15 +249,15 @@ impl<'a> AssignProtocol<'a> for AudioExpressProtocol {
     ];
 }
 
-impl<'a> V3ClkProtocol<'a> for AudioExpressProtocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V3ClkProtocol for AudioExpressProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'a [(V3ClkSrc, u8)] =
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
         &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
 
     const HAS_LCD: bool = false;
@@ -273,10 +273,10 @@ impl AsRef<FwReq> for F828mk3Protocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for F828mk3Protocol {}
+impl CommonProtocol for F828mk3Protocol {}
 
-impl<'a> AssignProtocol<'a> for F828mk3Protocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for F828mk3Protocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Main-1/2", 0x00),      // = Stream-11/12
         ("Analog-1/2", 0x01),    // = Stream-3/4
         ("Analog-3/4", 0x02),    // = Stream-5/6
@@ -295,10 +295,10 @@ impl<'a> AssignProtocol<'a> for F828mk3Protocol {
     ];
 }
 
-impl<'a> WordClkProtocol<'a> for F828mk3Protocol {}
+impl WordClkProtocol for F828mk3Protocol {}
 
-impl<'a> V3ClkProtocol<'a> for F828mk3Protocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V3ClkProtocol for F828mk3Protocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
@@ -307,7 +307,7 @@ impl<'a> V3ClkProtocol<'a> for F828mk3Protocol {
         (ClkRate::R192000, 0x05),
     ];
 
-    const CLK_SRCS: &'a [(V3ClkSrc, u8)] = &[
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = &[
         (V3ClkSrc::Internal, 0x00),
         (V3ClkSrc::WordClk, 0x01),
         (V3ClkSrc::SpdifCoax, 0x10),
@@ -318,9 +318,9 @@ impl<'a> V3ClkProtocol<'a> for F828mk3Protocol {
     const HAS_LCD: bool = true;
 }
 
-impl<'a> V3PortAssignProtocol<'a> for F828mk3Protocol {}
+impl V3PortAssignProtocol for F828mk3Protocol {}
 
-impl<'a> V3OptIfaceProtocol<'a> for F828mk3Protocol {}
+impl V3OptIfaceProtocol for F828mk3Protocol {}
 
 /// The protocol implementation for 4pre.
 #[derive(Default)]
@@ -332,10 +332,10 @@ impl AsRef<FwReq> for H4preProtocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for H4preProtocol {}
+impl CommonProtocol for H4preProtocol {}
 
-impl<'a> AssignProtocol<'a> for H4preProtocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for H4preProtocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
         ("Main-1/2", 0x02),   // = Stream-5/6
         ("Andlog-1/2", 0x06), // = Stream-3/4
@@ -344,15 +344,15 @@ impl<'a> AssignProtocol<'a> for H4preProtocol {
     ];
 }
 
-impl<'a> V3ClkProtocol<'a> for H4preProtocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V3ClkProtocol for H4preProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'a [(V3ClkSrc, u8)] =
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
         &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
 
     const HAS_LCD: bool = false;
@@ -368,10 +368,10 @@ impl AsRef<FwReq> for UltraliteMk3Protocol {
     }
 }
 
-impl<'a> CommonProtocol<'a> for UltraliteMk3Protocol {}
+impl CommonProtocol for UltraliteMk3Protocol {}
 
-impl<'a> AssignProtocol<'a> for UltraliteMk3Protocol {
-    const ASSIGN_PORTS: &'a [(&'a str, u8)] = &[
+impl AssignProtocol for UltraliteMk3Protocol {
+    const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Main-1/2", 0x00),   // = Stream-1/2
         ("Analog-1/2", 0x01), // = Stream-3/4
         ("Analog-3/4", 0x02), // = Stream-5/6
@@ -382,18 +382,18 @@ impl<'a> AssignProtocol<'a> for UltraliteMk3Protocol {
     ];
 }
 
-impl<'a> V3ClkProtocol<'a> for UltraliteMk3Protocol {
-    const CLK_RATES: &'a [(ClkRate, u8)] = &[
+impl V3ClkProtocol for UltraliteMk3Protocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
         (ClkRate::R88200, 0x02),
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'a [(V3ClkSrc, u8)] =
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
         &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
 
     const HAS_LCD: bool = true;
 }
 
-impl<'a> V3PortAssignProtocol<'a> for UltraliteMk3Protocol {}
+impl V3PortAssignProtocol for UltraliteMk3Protocol {}
