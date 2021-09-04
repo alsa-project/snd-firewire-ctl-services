@@ -105,68 +105,53 @@ pub trait V1ClkCtlOperation<T: V1ClkProtocol> {
     }
 }
 
-#[derive(Default)]
-pub struct V1MonitorInputCtl;
+const MONITOR_INPUT_NAME: &str = "monitor-input";
 
-impl V1MonitorInputCtl {
-    const MONITOR_INPUT_NAME: &'static str = "monitor-input";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V1MonitorInputProtocol,
-    {
-        let labels: Vec<String> = O::MONITOR_INPUT_MODES
+pub trait V1MonitorInputCtlOperation<T: V1MonitorInputProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::MONITOR_INPUT_MODES
             .iter()
             .map(|e| e.to_string())
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MONITOR_INPUT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_INPUT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         Ok(())
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V1MonitorInputProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MONITOR_INPUT_NAME => {
+            MONITOR_INPUT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_monitor_input(req, &mut unit.get_node(), timeout_ms)
+                    T::get_monitor_input(req, &mut unit.get_node(), timeout_ms)
                         .map(|idx| idx as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V1MonitorInputProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MONITOR_INPUT_NAME => {
+            MONITOR_INPUT_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+                    T::set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }

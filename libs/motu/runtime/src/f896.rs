@@ -19,9 +19,8 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct F896 {
     req: FwReq,
-    proto: F896Protocol,
     clk_ctls: ClkCtl,
-    monitor_input_ctl: V1MonitorInputCtl,
+    monitor_input_ctl: MonitorInputCtl,
     word_clk_ctl: WordClkCtl,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl,
     level_meters_ctl: LevelMetersCtl,
@@ -47,10 +46,15 @@ struct ClkCtl;
 
 impl V1ClkCtlOperation<F896Protocol> for ClkCtl {}
 
+#[derive(Default)]
+struct MonitorInputCtl;
+
+impl V1MonitorInputCtlOperation<F896Protocol> for MonitorInputCtl {}
+
 impl CtlModel<SndMotu> for F896 {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.monitor_input_ctl.load(&self.proto, card_cntr)?;
+        self.monitor_input_ctl.load(card_cntr)?;
         let _ = self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
         self.level_meters_ctl.load(card_cntr)?;
@@ -70,7 +74,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self
             .monitor_input_ctl
-            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -100,7 +104,7 @@ impl CtlModel<SndMotu> for F896 {
         &mut self,
         unit: &mut SndMotu,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
@@ -110,7 +114,7 @@ impl CtlModel<SndMotu> for F896 {
             Ok(true)
         } else if self
             .monitor_input_ctl
-            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
