@@ -29,13 +29,13 @@ fn clk_src_to_label(src: &V2ClkSrc) -> String {
 #[derive(Default)]
 pub struct V2ClkCtl;
 
-impl<'a> V2ClkCtl {
-    const RATE_NAME: &'a str = "sampling- rate";
-    const SRC_NAME: &'a str = "clock-source";
+impl V2ClkCtl {
+    const RATE_NAME: &'static str = "sampling- rate";
+    const SRC_NAME: &'static str = "clock-source";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: V2ClkProtocol<'b>,
+        for<'a> O: V2ClkProtocol<'a>,
     {
         let labels: Vec<String> = O::CLK_RATES
             .iter()
@@ -60,7 +60,7 @@ impl<'a> V2ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V2ClkProtocol<'b>,
+        for<'a> O: V2ClkProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -95,7 +95,7 @@ impl<'a> V2ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V2ClkProtocol<'b>,
+        for<'a> O: V2ClkProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
@@ -132,12 +132,12 @@ impl<'a> V2ClkCtl {
 #[derive(Default)]
 pub struct V2MainAssignCtl(pub Vec<ElemId>);
 
-impl<'a> V2MainAssignCtl {
-    const MAIN_VOL_TARGET_NAME: &'a str = "main-volume-target";
+impl V2MainAssignCtl {
+    const MAIN_VOL_TARGET_NAME: &'static str = "main-volume-target";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: V2MainAssignProtocol<'b>,
+        for<'a> O: V2MainAssignProtocol<'a>,
     {
         let labels: Vec<String> = O::KNOB_TARGETS.iter().map(|e| e.0.to_string()).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MAIN_VOL_TARGET_NAME, 0);
@@ -155,7 +155,7 @@ impl<'a> V2MainAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V2MainAssignProtocol<'b>,
+        for<'a> O: V2MainAssignProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
@@ -180,7 +180,7 @@ impl<'a> V2MainAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V2MainAssignProtocol<'b>,
+        for<'a> O: V2MainAssignProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::MAIN_VOL_TARGET_NAME => {
@@ -206,13 +206,13 @@ fn opt_iface_mode_to_label(mode: &V2OptIfaceMode) -> String {
 #[derive(Default)]
 pub struct V2OptIfaceCtl;
 
-impl<'a> V2OptIfaceCtl {
-    const OPT_IN_IFACE_MODE_NAME: &'a str = "optical-iface-in-mode";
-    const OPT_OUT_IFACE_MODE_NAME: &'a str = "optical-iface-out-mode";
+impl V2OptIfaceCtl {
+    const OPT_IN_IFACE_MODE_NAME: &'static str = "optical-iface-in-mode";
+    const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-iface-out-mode";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: V2OptIfaceProtocol<'b>,
+        for<'a> O: V2OptIfaceProtocol<'a>,
     {
         let labels: Vec<String> = O::OPT_IFACE_MODES
             .iter()
@@ -239,7 +239,7 @@ impl<'a> V2OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V2OptIfaceProtocol<'b>,
+        for<'a> O: V2OptIfaceProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::OPT_IN_IFACE_MODE_NAME => {
@@ -272,7 +272,7 @@ impl<'a> V2OptIfaceCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: V2OptIfaceProtocol<'b>,
+        for<'a> O: V2OptIfaceProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::OPT_IN_IFACE_MODE_NAME => {

@@ -15,12 +15,12 @@ use motu_protocols::*;
 #[derive(Default)]
 pub struct CommonPhoneCtl(pub Vec<ElemId>);
 
-impl<'a> CommonPhoneCtl {
-    const PHONE_ASSIGN_NAME: &'a str = "phone-assign";
+impl CommonPhoneCtl {
+    const PHONE_ASSIGN_NAME: &'static str = "phone-assign";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: AssignProtocol<'b>,
+        for<'a> O: AssignProtocol<'a>,
     {
         let labels: Vec<String> = O::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHONE_ASSIGN_NAME, 0);
@@ -40,7 +40,7 @@ impl<'a> CommonPhoneCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: AssignProtocol<'b>,
+        for<'a> O: AssignProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
@@ -65,7 +65,7 @@ impl<'a> CommonPhoneCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: AssignProtocol<'b>,
+        for<'a> O: AssignProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::PHONE_ASSIGN_NAME => {
@@ -90,8 +90,8 @@ fn word_clk_speed_mode_to_label(mode: &WordClkSpeedMode) -> String {
 #[derive(Default)]
 pub struct CommonWordClkCtl(pub Vec<ElemId>);
 
-impl<'a> CommonWordClkCtl {
-    const WORD_OUT_MODE_NAME: &'a str = "word-out-mode";
+impl CommonWordClkCtl {
+    const WORD_OUT_MODE_NAME: &'static str = "word-out-mode";
 
     const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
         WordClkSpeedMode::ForceLowRate,
@@ -100,7 +100,7 @@ impl<'a> CommonWordClkCtl {
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: WordClkProtocol<'b>,
+        for<'a> O: WordClkProtocol<'a>,
     {
         let labels: Vec<String> = Self::WORD_OUT_MODES
             .iter()
@@ -123,7 +123,7 @@ impl<'a> CommonWordClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: WordClkProtocol<'b>,
+        for<'a> O: WordClkProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::WORD_OUT_MODE_NAME => {
@@ -152,7 +152,7 @@ impl<'a> CommonWordClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: WordClkProtocol<'b>,
+        for<'a> O: WordClkProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::WORD_OUT_MODE_NAME => {
@@ -187,12 +187,12 @@ fn aesebu_rate_convert_mode_to_string(mode: &AesebuRateConvertMode) -> String {
 #[derive(Default)]
 pub struct CommonAesebuRateConvertCtl;
 
-impl<'a> CommonAesebuRateConvertCtl {
-    const AESEBU_RATE_CONVERT_MODE_NAME: &'a str = "AES/EBU-rate-convert";
+impl CommonAesebuRateConvertCtl {
+    const AESEBU_RATE_CONVERT_MODE_NAME: &'static str = "AES/EBU-rate-convert";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: AesebuRateConvertProtocol<'b>,
+        for<'a> O: AesebuRateConvertProtocol<'a>,
     {
         let labels: Vec<String> = O::AESEBU_RATE_CONVERT_MODES
             .iter()
@@ -219,7 +219,7 @@ impl<'a> CommonAesebuRateConvertCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: AesebuRateConvertProtocol<'b>,
+        for<'a> O: AesebuRateConvertProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::AESEBU_RATE_CONVERT_MODE_NAME => {
@@ -244,7 +244,7 @@ impl<'a> CommonAesebuRateConvertCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: AesebuRateConvertProtocol<'b>,
+        for<'a> O: AesebuRateConvertProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::AESEBU_RATE_CONVERT_MODE_NAME => {
@@ -292,15 +292,15 @@ fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) 
 #[derive(Default)]
 pub struct CommonLevelMetersCtl;
 
-impl<'a> CommonLevelMetersCtl {
-    const PEAK_HOLD_TIME_MODE_NAME: &'a str = "meter-peak-hold-time";
-    const CLIP_HOLD_TIME_MODE_NAME: &'a str = "meter-clip-hold-time";
-    const AESEBU_MODE_NAME: &'a str = "AES/EBU-meter";
-    const PROGRAMMABLE_MODE_NAME: &'a str = "programmable-meter";
+impl CommonLevelMetersCtl {
+    const PEAK_HOLD_TIME_MODE_NAME: &'static str = "meter-peak-hold-time";
+    const CLIP_HOLD_TIME_MODE_NAME: &'static str = "meter-clip-hold-time";
+    const AESEBU_MODE_NAME: &'static str = "AES/EBU-meter";
+    const PROGRAMMABLE_MODE_NAME: &'static str = "programmable-meter";
 
     pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
     where
-        for<'b> O: LevelMetersProtocol<'b>,
+        for<'a> O: LevelMetersProtocol<'a>,
     {
         let labels: Vec<String> = O::LEVEL_METERS_HOLD_TIME_MODES
             .iter()
@@ -341,7 +341,7 @@ impl<'a> CommonLevelMetersCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: LevelMetersProtocol<'b>,
+        for<'a> O: LevelMetersProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::PEAK_HOLD_TIME_MODE_NAME => {
@@ -390,7 +390,7 @@ impl<'a> CommonLevelMetersCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        for<'b> O: LevelMetersProtocol<'b>,
+        for<'a> O: LevelMetersProtocol<'a>,
     {
         match elem_id.get_name().as_str() {
             Self::PEAK_HOLD_TIME_MODE_NAME => {
