@@ -44,7 +44,7 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
@@ -58,7 +58,7 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_CLK,
             CLK_RATE_MASK,
             CLK_RATE_SHIFT,
@@ -73,7 +73,7 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
@@ -87,7 +87,7 @@ pub trait V3ClkProtocol: CommonProtocol {
 
     fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_CLK,
             CLK_SRC_MASK,
             CLK_SRC_SHIFT,
@@ -113,7 +113,7 @@ const PORT_RETURN_SHIFT: usize = 8;
 pub trait V3PortAssignProtocol: AssignProtocol {
     fn get_main_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_PORT,
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
@@ -127,7 +127,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 
     fn set_main_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_PORT,
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
@@ -142,7 +142,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 
     fn get_return_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_PORT,
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
@@ -156,7 +156,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 
     fn set_return_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_PORT,
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
