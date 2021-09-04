@@ -30,7 +30,7 @@ fn clk_src_to_label(src: &V2ClkSrc) -> String {
 const RATE_NAME: &str = "sampling- rate";
 const SRC_NAME: &str = "clock-source";
 
-pub trait V2ClkCtlOperation<T: V2ClkProtocol> {
+pub trait V2ClkCtlOperation<T: V2ClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::CLK_RATES
             .iter()
@@ -121,7 +121,7 @@ pub trait V2ClkCtlOperation<T: V2ClkProtocol> {
 
 const MAIN_VOL_TARGET_NAME: &str = "main-volume-target";
 
-pub trait V2MainAssignCtlOperation<T: V2MainAssignProtocol> {
+pub trait V2MainAssignCtlOperation<T: V2MainAssignOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let labels: Vec<String> = T::KNOB_TARGETS.iter().map(|e| e.0.to_string()).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_VOL_TARGET_NAME, 0);
@@ -180,7 +180,7 @@ fn opt_iface_mode_to_label(mode: &V2OptIfaceMode) -> String {
 const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
-pub trait V2OptIfaceCtlOperation<T: V2OptIfaceProtocol> {
+pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::OPT_IFACE_MODES
             .iter()

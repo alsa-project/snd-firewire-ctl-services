@@ -254,7 +254,7 @@ const CLK_RATE_LABEL: &str = "clock-rate-v1";
 const CLK_SRC_LABEL: &str = "clock-source-v1";
 
 /// The trait for configuration of sampling clock in version 1 protocol.
-pub trait V1ClkProtocol {
+pub trait V1ClkOperation {
     const CLK_OFFSET: u32;
 
     const CLK_RATE_MASK: u32;
@@ -345,7 +345,7 @@ const MONITOR_INPUT_DISABLE_LABEL: &str = "monitor-input-enable-v1";
 const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
 
 /// The trait for configuration of input to monitor in version 1 protocol.
-pub trait V1MonitorInputProtocol {
+pub trait V1MonitorInputOperation {
     const MONITOR_INPUT_MODES: &'static [&'static str];
 
     fn set_monitor_input(
@@ -365,7 +365,7 @@ pub trait V1MonitorInputProtocol {
 #[derive(Default)]
 pub struct F828Protocol;
 
-impl V1ClkProtocol for F828Protocol {
+impl V1ClkOperation for F828Protocol {
     const CLK_OFFSET: u32 = CONF_828_OFFSET;
 
     const CLK_RATE_MASK: u32 = CONF_828_CLK_RATE_MASK;
@@ -384,7 +384,7 @@ impl V1ClkProtocol for F828Protocol {
     ];
 }
 
-impl V1MonitorInputProtocol for F828Protocol {
+impl V1MonitorInputOperation for F828Protocol {
     const MONITOR_INPUT_MODES: &'static [&'static str] = &[
         "Disabled",
         "Analog-1/2",
@@ -667,9 +667,9 @@ impl F828Protocol {
 #[derive(Default)]
 pub struct F896Protocol;
 
-impl WordClkProtocol for F896Protocol {}
+impl WordClkOperation for F896Protocol {}
 
-impl V1ClkProtocol for F896Protocol {
+impl V1ClkOperation for F896Protocol {
     const CLK_OFFSET: u32 = OFFSET_CLK;
 
     const CLK_RATE_MASK: u32 = CONF_896_CLK_RATE_MASK;
@@ -694,7 +694,7 @@ impl V1ClkProtocol for F896Protocol {
     ];
 }
 
-impl V1MonitorInputProtocol for F896Protocol {
+impl V1MonitorInputOperation for F896Protocol {
     const MONITOR_INPUT_MODES: &'static [&'static str] = &[
         "Disabled",
         "Analog-1/2",
@@ -784,9 +784,9 @@ impl V1MonitorInputProtocol for F896Protocol {
     }
 }
 
-impl AesebuRateConvertProtocol for F896Protocol {
+impl AesebuRateConvertOperation for F896Protocol {
     const AESEBU_RATE_CONVERT_MASK: u32 = 0x00000060;
     const AESEBU_RATE_CONVERT_SHIFT: usize = 5;
 }
 
-impl LevelMetersProtocol for F896Protocol {}
+impl LevelMetersOperation for F896Protocol {}

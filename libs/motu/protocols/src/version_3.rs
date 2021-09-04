@@ -35,7 +35,7 @@ const CLK_SRC_MASK: u32 = 0x000000ff;
 const CLK_SRC_SHIFT: usize = 0;
 
 /// The trait for sampling clock protocol in version 3.
-pub trait V3ClkProtocol {
+pub trait V3ClkOperation {
     const CLK_RATES: &'static [(ClkRate, u8)];
     const CLK_SRCS: &'static [(V3ClkSrc, u8)];
 
@@ -136,7 +136,7 @@ const PORT_RETURN_MASK: u32 = 0x00000f00;
 const PORT_RETURN_SHIFT: usize = 8;
 
 /// The trait for main/return assignment protocol in version 3.
-pub trait V3PortAssignProtocol: AssignProtocol {
+pub trait V3PortAssignOperation: AssignOperation {
     fn get_main_assign(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -310,7 +310,7 @@ fn get_opt_iface_mode(
 }
 
 /// The trait for optical interface protocol in version 3.
-pub trait V3OptIfaceProtocol {
+pub trait V3OptIfaceOperation {
     fn set_opt_input_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -354,7 +354,7 @@ pub trait V3OptIfaceProtocol {
 #[derive(Default)]
 pub struct AudioExpressProtocol;
 
-impl AssignProtocol for AudioExpressProtocol {
+impl AssignOperation for AudioExpressProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
         ("Main-1/2", 0x02),   // = Stream-5/6
@@ -364,7 +364,7 @@ impl AssignProtocol for AudioExpressProtocol {
     ];
 }
 
-impl V3ClkProtocol for AudioExpressProtocol {
+impl V3ClkOperation for AudioExpressProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
@@ -382,7 +382,7 @@ impl V3ClkProtocol for AudioExpressProtocol {
 #[derive(Default)]
 pub struct F828mk3Protocol;
 
-impl AssignProtocol for F828mk3Protocol {
+impl AssignOperation for F828mk3Protocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Main-1/2", 0x00),      // = Stream-11/12
         ("Analog-1/2", 0x01),    // = Stream-3/4
@@ -402,9 +402,9 @@ impl AssignProtocol for F828mk3Protocol {
     ];
 }
 
-impl WordClkProtocol for F828mk3Protocol {}
+impl WordClkOperation for F828mk3Protocol {}
 
-impl V3ClkProtocol for F828mk3Protocol {
+impl V3ClkOperation for F828mk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
@@ -425,15 +425,15 @@ impl V3ClkProtocol for F828mk3Protocol {
     const HAS_LCD: bool = true;
 }
 
-impl V3PortAssignProtocol for F828mk3Protocol {}
+impl V3PortAssignOperation for F828mk3Protocol {}
 
-impl V3OptIfaceProtocol for F828mk3Protocol {}
+impl V3OptIfaceOperation for F828mk3Protocol {}
 
 /// The protocol implementation for 4pre.
 #[derive(Default)]
 pub struct H4preProtocol;
 
-impl AssignProtocol for H4preProtocol {
+impl AssignOperation for H4preProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
         ("Main-1/2", 0x02),   // = Stream-5/6
@@ -443,7 +443,7 @@ impl AssignProtocol for H4preProtocol {
     ];
 }
 
-impl V3ClkProtocol for H4preProtocol {
+impl V3ClkOperation for H4preProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
@@ -461,7 +461,7 @@ impl V3ClkProtocol for H4preProtocol {
 #[derive(Default)]
 pub struct UltraliteMk3Protocol;
 
-impl AssignProtocol for UltraliteMk3Protocol {
+impl AssignOperation for UltraliteMk3Protocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Main-1/2", 0x00),   // = Stream-1/2
         ("Analog-1/2", 0x01), // = Stream-3/4
@@ -473,7 +473,7 @@ impl AssignProtocol for UltraliteMk3Protocol {
     ];
 }
 
-impl V3ClkProtocol for UltraliteMk3Protocol {
+impl V3ClkOperation for UltraliteMk3Protocol {
     const CLK_RATES: &'static [(ClkRate, u8)] = &[
         (ClkRate::R44100, 0x00),
         (ClkRate::R48000, 0x01),
@@ -487,4 +487,4 @@ impl V3ClkProtocol for UltraliteMk3Protocol {
     const HAS_LCD: bool = true;
 }
 
-impl V3PortAssignProtocol for UltraliteMk3Protocol {}
+impl V3PortAssignOperation for UltraliteMk3Protocol {}

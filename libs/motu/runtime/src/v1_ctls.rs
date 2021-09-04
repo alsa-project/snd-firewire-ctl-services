@@ -29,7 +29,7 @@ fn clk_src_to_label(src: &V1ClkSrc) -> String {
 const RATE_NAME: &str = "sampling- rate";
 const SRC_NAME: &str = "clock-source";
 
-pub trait V1ClkCtlOperation<T: V1ClkProtocol> {
+pub trait V1ClkCtlOperation<T: V1ClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::CLK_RATE_LABELS
             .iter()
@@ -107,7 +107,7 @@ pub trait V1ClkCtlOperation<T: V1ClkProtocol> {
 
 const MONITOR_INPUT_NAME: &str = "monitor-input";
 
-pub trait V1MonitorInputCtlOperation<T: V1MonitorInputProtocol> {
+pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::MONITOR_INPUT_MODES
             .iter()
