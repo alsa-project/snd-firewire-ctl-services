@@ -493,6 +493,7 @@ impl F828Protocol {
         mask: u32,
         shift: usize,
         label: &str,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -501,7 +502,7 @@ impl F828Protocol {
             mask,
             shift,
             label,
-            self.as_ref(),
+            req,
             node,
             &CONF_828_OPT_IFACE_VALS,
             timeout_ms,
@@ -513,6 +514,7 @@ impl F828Protocol {
         mask: u32,
         shift: usize,
         label: &str,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -522,7 +524,7 @@ impl F828Protocol {
             mask,
             shift,
             label,
-            self.as_ref(),
+            req,
             node,
             &CONF_828_OPT_IFACE_VALS,
             idx,
@@ -532,6 +534,7 @@ impl F828Protocol {
 
     pub fn get_optical_output_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -539,6 +542,7 @@ impl F828Protocol {
             CONF_828_OPT_OUT_IFACE_MASK,
             CONF_828_OPT_OUT_IFACE_SHIFT,
             CONF_828_OPT_OUT_IFACE_LABEL,
+            req,
             node,
             timeout_ms,
         )
@@ -546,6 +550,7 @@ impl F828Protocol {
 
     pub fn set_optical_output_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -554,6 +559,7 @@ impl F828Protocol {
             CONF_828_OPT_OUT_IFACE_MASK,
             CONF_828_OPT_OUT_IFACE_SHIFT,
             CONF_828_OPT_OUT_IFACE_LABEL,
+            req,
             node,
             idx,
             timeout_ms,
@@ -562,6 +568,7 @@ impl F828Protocol {
 
     pub fn get_optical_input_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -569,6 +576,7 @@ impl F828Protocol {
             CONF_828_OPT_IN_IFACE_MASK,
             CONF_828_OPT_IN_IFACE_SHIFT,
             CONF_828_OPT_IN_IFACE_LABEL,
+            req,
             node,
             timeout_ms,
         )
@@ -576,6 +584,7 @@ impl F828Protocol {
 
     pub fn set_optical_input_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -584,19 +593,25 @@ impl F828Protocol {
             CONF_828_OPT_IN_IFACE_MASK,
             CONF_828_OPT_IN_IFACE_SHIFT,
             CONF_828_OPT_IN_IFACE_LABEL,
+            req,
             node,
             idx,
             timeout_ms,
         )
     }
 
-    pub fn get_stream_input_enable(&self, node: &mut FwNode, timeout_ms: u32) -> Result<bool, Error> {
+    pub fn get_stream_input_enable(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_STREAM_INPUT_ENABLE_MASK,
             CONF_828_STREAM_INPUT_ENABLE_SHIFT,
             CONF_828_STREAM_INPUT_ENABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             timeout_ms,
@@ -606,6 +621,7 @@ impl F828Protocol {
 
     pub fn set_stream_input_enable(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         enable: bool,
         timeout_ms: u32,
@@ -619,7 +635,7 @@ impl F828Protocol {
             CONF_828_STREAM_INPUT_ENABLE_MASK,
             CONF_828_STREAM_INPUT_ENABLE_SHIFT,
             CONF_828_STREAM_INPUT_ENABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             idx,
@@ -627,13 +643,18 @@ impl F828Protocol {
         )
     }
 
-    pub fn get_output_enable(&self, node: &mut FwNode, timeout_ms: u32) -> Result<bool, Error> {
+    pub fn get_output_enable(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_OUTPUT_ENABLE_MASK,
             CONF_828_OUTPUT_ENABLE_SHIFT,
             CONF_828_OUTPUT_ENABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             timeout_ms,
@@ -643,6 +664,7 @@ impl F828Protocol {
 
     pub fn set_output_enable(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         enable: bool,
         timeout_ms: u32,
@@ -656,7 +678,7 @@ impl F828Protocol {
             CONF_828_OUTPUT_ENABLE_MASK,
             CONF_828_OUTPUT_ENABLE_SHIFT,
             CONF_828_OUTPUT_ENABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &CONF_BOOL_VALS,
             idx,

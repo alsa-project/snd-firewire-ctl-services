@@ -51,7 +51,7 @@ impl CtlModel<SndMotu> for F828 {
             Ok(true)
         } else if self
             .specific_ctls
-            .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -78,7 +78,7 @@ impl CtlModel<SndMotu> for F828 {
             Ok(true)
         } else if self
             .specific_ctls
-            .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -102,7 +102,7 @@ impl SpecificCtl {
     const OPT_IN_IFACE_MODE_NAME: &'static str = "optical-iface-in-mode";
     const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-iface-out-mode";
 
-    pub fn load(&mut self, _: &F828Protocol, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, _: &F828Protocol, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = F828Protocol::OPT_IFACE_MODES
             .iter()
             .map(|l| opt_iface_mode_to_label(&l))
@@ -119,9 +119,10 @@ impl SpecificCtl {
         Ok(())
     }
 
-    pub fn read(
+    fn read(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &F828Protocol,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -131,7 +132,7 @@ impl SpecificCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_optical_input_iface_mode(&mut unit.get_node(), timeout_ms)
+                        .get_optical_input_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -139,7 +140,7 @@ impl SpecificCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_optical_output_iface_mode(&mut unit.get_node(), timeout_ms)
+                        .get_optical_output_iface_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -148,9 +149,10 @@ impl SpecificCtl {
         }
     }
 
-    pub fn write(
+    fn write(
         &mut self,
-        unit: &SndMotu,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &F828Protocol,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -161,7 +163,7 @@ impl SpecificCtl {
             Self::OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_optical_input_iface_mode(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_optical_input_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
@@ -170,7 +172,7 @@ impl SpecificCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_optical_output_iface_mode(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_optical_output_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
                     unit.unlock()?;
                     res
                 })?;
