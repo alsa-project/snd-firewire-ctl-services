@@ -12,9 +12,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::version_1::*;
 
-use super::model::clk_rate_to_string;
+use super::model::*;
 
-fn clk_src_to_label(src: &V1ClkSrc) -> String {
+fn clk_src_to_str(src: &V1ClkSrc) -> &'static str {
     match src {
         V1ClkSrc::Internal => "Internal",
         V1ClkSrc::Spdif => "S/PDIF",
@@ -23,7 +23,6 @@ fn clk_src_to_label(src: &V1ClkSrc) -> String {
         V1ClkSrc::AdatDsub => "Adat-on-Dsub",
         V1ClkSrc::AesebuXlr => "AES/EBU-on-XLR",
     }
-    .to_string()
 }
 
 const RATE_NAME: &str = "sampling- rate";
@@ -31,16 +30,16 @@ const SRC_NAME: &str = "clock-source";
 
 pub trait V1ClkCtlOperation<T: V1ClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::CLK_RATE_LABELS
+        let labels: Vec<&str> = T::CLK_RATE_LABELS
             .iter()
-            .map(|l| clk_rate_to_string(&l))
+            .map(|l| clk_rate_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = T::CLK_SRC_LABELS
+        let labels: Vec<&str> = T::CLK_SRC_LABELS
             .iter()
-            .map(|l| clk_src_to_label(&l))
+            .map(|l| clk_src_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;

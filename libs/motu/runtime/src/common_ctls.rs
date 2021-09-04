@@ -62,12 +62,11 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     }
 }
 
-fn word_clk_speed_mode_to_label(mode: &WordClkSpeedMode) -> String {
+fn word_clk_speed_mode_to_str(mode: &WordClkSpeedMode) -> &'static str {
     match mode {
         WordClkSpeedMode::ForceLowRate => "Force 44.1/48.0 kHz",
         WordClkSpeedMode::FollowSystemClk => "Follow to system clock",
     }
-    .to_string()
 }
 
 const WORD_OUT_MODE_NAME: &str = "word-out-mode";
@@ -80,9 +79,9 @@ const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
 pub trait WordClkCtlOperation<T: WordClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
     {
-        let labels: Vec<String> = WORD_OUT_MODES
+        let labels: Vec<&str> = WORD_OUT_MODES
             .iter()
-            .map(|m| word_clk_speed_mode_to_label(m))
+            .map(|m| word_clk_speed_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, WORD_OUT_MODE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -139,23 +138,22 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
     }
 }
 
-fn aesebu_rate_convert_mode_to_string(mode: &AesebuRateConvertMode) -> String {
+fn aesebu_rate_convert_mode_to_str(mode: &AesebuRateConvertMode) -> &'static str{
     match mode {
         AesebuRateConvertMode::None => "None",
         AesebuRateConvertMode::InputToSystem => "input-is-converted",
         AesebuRateConvertMode::OutputDependsInput => "output-depends-on-input",
         AesebuRateConvertMode::OutputDoubleSystem => "output-is-double",
     }
-    .to_string()
 }
 
 const AESEBU_RATE_CONVERT_MODE_NAME: &str = "AES/EBU-rate-convert";
 
 pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::AESEBU_RATE_CONVERT_MODES
+        let labels: Vec<&str> = T::AESEBU_RATE_CONVERT_MODES
             .iter()
-            .map(|l| aesebu_rate_convert_mode_to_string(&l))
+            .map(|l| aesebu_rate_convert_mode_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(
             ElemIfaceType::Card,
@@ -209,7 +207,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
     }
 }
 
-fn level_meters_hold_time_mode_to_string(mode: &LevelMetersHoldTimeMode) -> String {
+fn level_meters_hold_time_mode_to_string(mode: &LevelMetersHoldTimeMode) -> &'static str {
     match mode {
         LevelMetersHoldTimeMode::Off => "off",
         LevelMetersHoldTimeMode::Sec2 => "2sec",
@@ -220,24 +218,21 @@ fn level_meters_hold_time_mode_to_string(mode: &LevelMetersHoldTimeMode) -> Stri
         LevelMetersHoldTimeMode::Sec480 => "8min",
         LevelMetersHoldTimeMode::Infinite => "infinite",
     }
-    .to_string()
 }
 
-fn level_meters_aesebu_mode_to_string(mode: &LevelMetersAesebuMode) -> String {
+fn level_meters_aesebu_mode_to_string(mode: &LevelMetersAesebuMode) -> &'static str {
     match mode {
         LevelMetersAesebuMode::Output => "output",
         LevelMetersAesebuMode::Input => "input",
     }
-    .to_string()
 }
 
-fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) -> String {
+fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) -> &'static str {
     match mode {
         LevelMetersProgrammableMode::AnalogOutput => "analog-output",
         LevelMetersProgrammableMode::AdatInput => "ADAT-input",
         LevelMetersProgrammableMode::AdatOutput => "ADAT-output",
     }
-    .to_string()
 }
 
 const PEAK_HOLD_TIME_MODE_NAME: &str = "meter-peak-hold-time";
@@ -247,7 +242,7 @@ const PROGRAMMABLE_MODE_NAME: &str = "programmable-meter";
 
 pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::LEVEL_METERS_HOLD_TIME_MODES
+        let labels: Vec<&str> = T::LEVEL_METERS_HOLD_TIME_MODES
             .iter()
             .map(|l| level_meters_hold_time_mode_to_string(&l))
             .collect();
@@ -259,14 +254,14 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
             ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLIP_HOLD_TIME_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = T::LEVEL_METERS_AESEBU_MODES
+        let labels: Vec<&str> = T::LEVEL_METERS_AESEBU_MODES
             .iter()
             .map(|l| level_meters_aesebu_mode_to_string(&l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, AESEBU_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = T::LEVEL_METERS_PROGRAMMABLE_MODES
+        let labels: Vec<&str> = T::LEVEL_METERS_PROGRAMMABLE_MODES
             .iter()
             .map(|l| level_meters_programmable_mode_to_string(&l))
             .collect();

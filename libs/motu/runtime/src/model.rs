@@ -131,7 +131,7 @@ impl MotuModel {
     }
 }
 
-pub fn clk_rate_to_string(rate: &ClkRate) -> String {
+pub fn clk_rate_to_str(rate: &ClkRate) -> &'static str {
     match rate {
         ClkRate::R44100 => "44100",
         ClkRate::R48000 => "48000",
@@ -139,5 +139,5 @@ pub fn clk_rate_to_string(rate: &ClkRate) -> String {
         ClkRate::R96000 => "96000",
         ClkRate::R176400 => "176400",
         ClkRate::R192000 => "192000",
-    }.to_string()
+    }
 }

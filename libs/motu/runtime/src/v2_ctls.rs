@@ -12,9 +12,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::version_2::*;
 
-use super::model::clk_rate_to_string;
+use super::model::*;
 
-fn clk_src_to_label(src: &V2ClkSrc) -> String {
+fn clk_src_to_str(src: &V2ClkSrc) -> &'static str {
     match src {
         V2ClkSrc::Internal => "Internal",
         V2ClkSrc::SpdifCoax => "S/PDIF-on-coax",
@@ -24,7 +24,6 @@ fn clk_src_to_label(src: &V2ClkSrc) -> String {
         V2ClkSrc::AdatDsub => "Adat-on-Dsub",
         V2ClkSrc::AesebuXlr => "AES/EBU-on-XLR",
     }
-    .to_string()
 }
 
 const RATE_NAME: &str = "sampling- rate";
@@ -32,14 +31,14 @@ const SRC_NAME: &str = "clock-source";
 
 pub trait V2ClkCtlOperation<T: V2ClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::CLK_RATES
+        let labels: Vec<&str> = T::CLK_RATES
             .iter()
-            .map(|e| clk_rate_to_string(&e.0))
+            .map(|e| clk_rate_to_str(&e.0))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = T::CLK_SRCS.iter().map(|e| clk_src_to_label(&e.0)).collect();
+        let labels: Vec<&str> = T::CLK_SRCS.iter().map(|e| clk_src_to_str(&e.0)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
@@ -66,7 +65,7 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
                     let mut node = unit.get_node();
                     T::get_clk_src(req, &mut node, timeout_ms).and_then(|idx| {
                         if T::HAS_LCD {
-                            let label = clk_src_to_label(&T::CLK_SRCS[idx].0);
+                            let label = clk_src_to_str(&T::CLK_SRCS[idx].0);
                             T::update_clk_display(req, &mut node, &label, timeout_ms)?;
                         }
                         Ok(idx as u32)
@@ -103,7 +102,7 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
                     unit.lock()?;
                     let mut res = T::set_clk_src(req, &mut node, val as usize, timeout_ms);
                     if res.is_ok() && T::HAS_LCD {
-                        let label = clk_src_to_label(&T::CLK_SRCS[val as usize].0);
+                        let label = clk_src_to_str(&T::CLK_SRCS[val as usize].0);
                         res = T::update_clk_display(req, &mut node, &label, timeout_ms);
                         if res.is_err() {
                             let _ = T::set_clk_src(req, &mut node, prev_src, timeout_ms);
@@ -168,13 +167,12 @@ pub trait V2MainAssignCtlOperation<T: V2MainAssignOperation> {
     }
 }
 
-fn opt_iface_mode_to_label(mode: &V2OptIfaceMode) -> String {
+fn opt_iface_mode_to_str(mode: &V2OptIfaceMode) -> &'static str {
     match mode {
         V2OptIfaceMode::None => "None",
         V2OptIfaceMode::Adat => "ADAT",
         V2OptIfaceMode::Spdif => "S/PDIF",
     }
-    .to_string()
 }
 
 const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
@@ -182,9 +180,9 @@ const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
 pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = T::OPT_IFACE_MODES
+        let labels: Vec<&str> = T::OPT_IFACE_MODES
             .iter()
-            .map(|e| opt_iface_mode_to_label(&e.0))
+            .map(|e| opt_iface_mode_to_str(&e.0))
             .collect();
 
         let elem_id =

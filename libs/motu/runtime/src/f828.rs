@@ -96,12 +96,11 @@ impl CtlModel<SndMotu> for F828 {
     }
 }
 
-fn opt_iface_mode_to_label(mode: &V1OptIfaceMode) -> String {
+fn opt_iface_mode_to_str(mode: &V1OptIfaceMode) -> &'static str {
     match mode {
         V1OptIfaceMode::Adat => "ADAT",
         V1OptIfaceMode::Spdif => "SPDIF",
     }
-    .to_string()
 }
 
 #[derive(Default)]
@@ -112,9 +111,9 @@ const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
 impl SpecificCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = F828Protocol::OPT_IFACE_MODES
+        let labels: Vec<&str> = F828Protocol::OPT_IFACE_MODES
             .iter()
-            .map(|l| opt_iface_mode_to_label(&l))
+            .map(|l| opt_iface_mode_to_str(&l))
             .collect();
 
         let elem_id =
