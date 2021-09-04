@@ -2,6 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::{SndMotu, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
@@ -56,6 +57,7 @@ impl V1ClkCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -67,13 +69,13 @@ impl V1ClkCtl {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_rate(&mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                    proto.get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
                 })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_src(&mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                    proto.get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
                 })?;
                 Ok(true)
             }
@@ -84,6 +86,7 @@ impl V1ClkCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -97,7 +100,7 @@ impl V1ClkCtl {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_rate(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -106,7 +109,7 @@ impl V1ClkCtl {
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_src(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
