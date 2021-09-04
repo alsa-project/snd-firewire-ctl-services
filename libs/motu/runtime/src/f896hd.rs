@@ -20,7 +20,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F896hd {
     req: FwReq,
     proto: F896hdProtocol,
-    clk_ctls: V2ClkCtl,
+    clk_ctls: ClkCtl,
     opt_iface_ctl: V2OptIfaceCtl,
     word_clk_ctl: WordClkCtl,
     aesebu_rate_convert_ctl: AesebuRateConvertCtl,
@@ -42,9 +42,14 @@ struct LevelMetersCtl;
 
 impl LevelMetersCtlOperation<F896hdProtocol> for LevelMetersCtl {}
 
+#[derive(Default)]
+struct ClkCtl;
+
+impl V2ClkCtlOperation<F896hdProtocol> for ClkCtl {}
+
 impl CtlModel<SndMotu> for F896hd {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(&self.proto, card_cntr)?;
         self.word_clk_ctl.load(card_cntr)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
@@ -60,7 +65,7 @@ impl CtlModel<SndMotu> for F896hd {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -100,7 +105,7 @@ impl CtlModel<SndMotu> for F896hd {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self

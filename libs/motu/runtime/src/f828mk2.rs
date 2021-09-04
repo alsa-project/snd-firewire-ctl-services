@@ -20,7 +20,7 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F828mk2{
     req: FwReq,
     proto: F828mk2Protocol,
-    clk_ctls: V2ClkCtl,
+    clk_ctls: ClkCtl,
     opt_iface_ctl: V2OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
     word_clk_ctl: WordClkCtl,
@@ -37,6 +37,11 @@ struct WordClkCtl(Vec<ElemId>);
 
 impl WordClkCtlOperation<F828mk2Protocol> for WordClkCtl {}
 
+#[derive(Default)]
+struct ClkCtl;
+
+impl V2ClkCtlOperation<F828mk2Protocol> for ClkCtl {}
+
 impl F828mk2 {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
@@ -45,7 +50,7 @@ impl CtlModel<SndMotu> for F828mk2 {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(&self.proto, card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.phone_assign_ctl.0.append(&mut elem_id_list))?;
@@ -58,7 +63,7 @@ impl CtlModel<SndMotu> for F828mk2 {
             elem_value: &mut alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -75,7 +80,7 @@ impl CtlModel<SndMotu> for F828mk2 {
              new: &alsactl::ElemValue)
         -> Result<bool, Error>
     {
-        if self.clk_ctls.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.opt_iface_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
