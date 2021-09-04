@@ -122,7 +122,10 @@ const MAIN_VOL_TARGET_NAME: &str = "main-volume-target";
 
 pub trait V2MainAssignCtlOperation<T: V2MainAssignOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let labels: Vec<String> = T::KNOB_TARGETS.iter().map(|e| e.0.to_string()).collect();
+        let labels: Vec<&str> = T::KNOB_TARGETS
+            .iter()
+            .map(|e| target_port_to_str(&e.0))
+            .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_VOL_TARGET_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }

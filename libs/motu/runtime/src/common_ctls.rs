@@ -13,11 +13,16 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::*;
 
+use super::model::*;
+
 const PHONE_ASSIGN_NAME: &str = "phone-assign";
 
 pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let labels: Vec<String> = T::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
+        let labels: Vec<&str> = T::ASSIGN_PORTS
+            .iter()
+            .map(|e| target_port_to_str(&e.0))
+            .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_ASSIGN_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }

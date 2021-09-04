@@ -346,7 +346,7 @@ const MONITOR_INPUT_AESEBU_LABEL: &str = "monitor-input-aesebu-v1";
 
 /// The trait for configuration of input to monitor in version 1 protocol.
 pub trait V1MonitorInputOperation {
-    const MONITOR_INPUT_MODES: &'static [&'static str];
+    const MONITOR_INPUT_MODES: &'static [TargetPort];
 
     fn set_monitor_input(
         req: &mut FwReq,
@@ -385,20 +385,20 @@ impl V1ClkOperation for F828Protocol {
 }
 
 impl V1MonitorInputOperation for F828Protocol {
-    const MONITOR_INPUT_MODES: &'static [&'static str] = &[
-        "Disabled",
-        "Analog-1/2",
-        "Analog-3/4",
-        "Analog-5/6",
-        "Analog-7/8",
-        "Analog-1",
-        "Analog-2",
-        "Analog-3",
-        "Analog-4",
-        "Analog-5",
-        "Analog-6",
-        "Analog-7",
-        "Analog-8",
+    const MONITOR_INPUT_MODES: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
     ];
 
     fn set_monitor_input(
@@ -695,23 +695,23 @@ impl V1ClkOperation for F896Protocol {
 }
 
 impl V1MonitorInputOperation for F896Protocol {
-    const MONITOR_INPUT_MODES: &'static [&'static str] = &[
-        "Disabled",
-        "Analog-1/2",
-        "Analog-3/4",
-        "Analog-5/6",
-        "Analog-7/8",
-        "AES/EBU-1/2",
-        "Analog-1",
-        "Analog-2",
-        "Analog-3",
-        "Analog-4",
-        "Analog-5",
-        "Analog-6",
-        "Analog-7",
-        "Analog-8",
-        "AES/EBU-1",
-        "AES/EBU-2",
+    const MONITOR_INPUT_MODES: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::AesEbuPair0,
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::AesEbu0,
+        TargetPort::AesEbu1,
     ];
 
     fn set_monitor_input(

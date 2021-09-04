@@ -122,7 +122,10 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut notified_elem_id_list = Vec::new();
 
-        let labels: Vec<String> = T::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
+        let labels: Vec<&str> = T::ASSIGN_PORTS
+            .iter()
+            .map(|p| target_port_to_str(&p.0))
+            .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_ASSIGN_NAME, 0);
         card_cntr

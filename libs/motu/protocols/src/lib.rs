@@ -166,7 +166,7 @@ const PORT_PHONE_SHIFT: usize = 0;
 
 /// The trait for headphone assignment protocol.
 pub trait AssignOperation {
-    const ASSIGN_PORTS: &'static [(&'static str, u8)];
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)];
 
     fn get_phone_assign(
         req: &mut FwReq,
@@ -558,5 +558,49 @@ pub trait LevelMetersOperation {
             idx,
             timeout_ms,
         )
+    }
+}
+
+/// The enumeration for port to assign.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TargetPort {
+    Disabled,
+    AnalogPair0,
+    AnalogPair1,
+    AnalogPair2,
+    AnalogPair3,
+    AesEbuPair0,
+    PhonePair0,
+    MainPair0,
+    SpdifPair0,
+    AdatPair0,
+    AdatPair1,
+    AdatPair2,
+    AdatPair3,
+    Analog6Pairs,
+    Analog8Pairs,
+    OpticalAPair0,
+    OpticalAPair1,
+    OpticalAPair2,
+    OpticalAPair3,
+    OpticalBPair0,
+    OpticalBPair1,
+    OpticalBPair2,
+    OpticalBPair3,
+    Analog0,
+    Analog1,
+    Analog2,
+    Analog3,
+    Analog4,
+    Analog5,
+    Analog6,
+    Analog7,
+    AesEbu0,
+    AesEbu1,
+}
+
+impl Default for TargetPort {
+    fn default() -> Self {
+        Self::Disabled
     }
 }
