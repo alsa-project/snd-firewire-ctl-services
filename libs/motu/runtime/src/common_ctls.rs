@@ -149,17 +149,11 @@ fn aesebu_rate_convert_mode_to_string(mode: &AesebuRateConvertMode) -> String {
     .to_string()
 }
 
-#[derive(Default)]
-pub struct CommonAesebuRateConvertCtl;
+const AESEBU_RATE_CONVERT_MODE_NAME: &str = "AES/EBU-rate-convert";
 
-impl CommonAesebuRateConvertCtl {
-    const AESEBU_RATE_CONVERT_MODE_NAME: &'static str = "AES/EBU-rate-convert";
-
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: AesebuRateConvertProtocol,
-    {
-        let labels: Vec<String> = O::AESEBU_RATE_CONVERT_MODES
+pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertProtocol> {
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<String> = T::AESEBU_RATE_CONVERT_MODES
             .iter()
             .map(|l| aesebu_rate_convert_mode_to_string(&l))
             .collect();
@@ -167,7 +161,7 @@ impl CommonAesebuRateConvertCtl {
             ElemIfaceType::Card,
             0,
             0,
-            Self::AESEBU_RATE_CONVERT_MODE_NAME,
+            AESEBU_RATE_CONVERT_MODE_NAME,
             0,
         );
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
@@ -175,49 +169,40 @@ impl CommonAesebuRateConvertCtl {
         Ok(())
     }
 
-    pub fn read<O>(
+    fn read(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: AesebuRateConvertProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::AESEBU_RATE_CONVERT_MODE_NAME => {
+            AESEBU_RATE_CONVERT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    O::get_aesebu_rate_convert_mode(req, &mut unit.get_node(), timeout_ms)
+                    T::get_aesebu_rate_convert_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
-                })?;
-                Ok(true)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
+    fn write(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
         elem_id: &ElemId,
-        _: &ElemValue,
-        new: &ElemValue,
+        elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: AesebuRateConvertProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::AESEBU_RATE_CONVERT_MODE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    O::set_aesebu_rate_convert_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })?;
-                Ok(true)
+            AESEBU_RATE_CONVERT_MODE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    T::set_aesebu_rate_convert_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
