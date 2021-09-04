@@ -39,7 +39,7 @@ const CLK_SRC_MASK: u32 = 0x00000007;
 const CLK_SRC_SHIFT: usize = 0;
 
 /// The trait for version 2 protocol.
-pub trait V2ClkProtocol: AsRef<FwReq> {
+pub trait V2ClkProtocol {
     const CLK_RATES: &'static [(ClkRate, u8)];
     const CLK_SRCS: &'static [(V2ClkSrc, u8)];
 
@@ -141,7 +141,7 @@ const MAIN_VOL_MASK: u32 = 0x000f0000;
 const MAIN_VOL_SHIFT: usize = 16;
 
 /// The trait for main volume knob assignment in version 2.
-pub trait V2MainAssignProtocol: AsRef<FwReq> {
+pub trait V2MainAssignProtocol {
     const KNOB_TARGETS: &'static [(&'static str, u8)];
 
     fn get_main_vol_assign(
@@ -203,7 +203,7 @@ const OPT_OUT_IFACE_SHIFT: usize = 10;
 const OPT_IFACE_MODE_VALS: &[u8] = &[0x00, 0x01, 0x02];
 
 /// The trait for optical interface mode in version 2.
-pub trait V2OptIfaceProtocol: AsRef<FwReq> {
+pub trait V2OptIfaceProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
     fn get_opt_in_iface_mode(
@@ -285,13 +285,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
 
 /// The protocol implementation for 828mkII.
 #[derive(Default)]
-pub struct F828mk2Protocol(FwReq);
-
-impl AsRef<FwReq> for F828mk2Protocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct F828mk2Protocol;
 
 impl AssignProtocol for F828mk2Protocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
@@ -340,13 +334,7 @@ impl V2OptIfaceProtocol for F828mk2Protocol {
 
 /// The protocol implementation for 8pre.
 #[derive(Default)]
-pub struct F8preProtocol(FwReq);
-
-impl AsRef<FwReq> for F8preProtocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct F8preProtocol;
 
 impl AssignProtocol for F8preProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[("Phone-1/2", 0x01), ("Main-1/2", 0x02)];
@@ -372,13 +360,7 @@ impl V2OptIfaceProtocol for F8preProtocol {
 
 /// The protocol implementation for Traveler.
 #[derive(Default)]
-pub struct TravelerProtocol(FwReq);
-
-impl AsRef<FwReq> for TravelerProtocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct TravelerProtocol;
 
 impl AssignProtocol for TravelerProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
@@ -430,13 +412,7 @@ impl V2OptIfaceProtocol for TravelerProtocol {
 
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
-pub struct UltraliteProtocol(FwReq);
-
-impl AsRef<FwReq> for UltraliteProtocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct UltraliteProtocol;
 
 impl AssignProtocol for UltraliteProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
@@ -475,13 +451,7 @@ impl V2MainAssignProtocol for UltraliteProtocol {
 
 /// The protocol implementation for 896HD.
 #[derive(Default)]
-pub struct F896hdProtocol(FwReq);
-
-impl AsRef<FwReq> for F896hdProtocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct F896hdProtocol;
 
 impl AssignProtocol for F896hdProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
