@@ -142,28 +142,39 @@ const PORT_RETURN_SHIFT: usize = 8;
 
 /// The trait for main/return assignment protocol in version 3.
 pub trait V3PortAssignProtocol: AssignProtocol {
-    fn get_main_assign(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_main_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_PORT,
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
             PORT_MAIN_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_main_assign(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_main_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_PORT,
             PORT_MAIN_MASK,
             PORT_MAIN_SHIFT,
             PORT_MAIN_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             idx,
@@ -171,28 +182,39 @@ pub trait V3PortAssignProtocol: AssignProtocol {
         )
     }
 
-    fn get_return_assign(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_return_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_PORT,
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
             PORT_RETURN_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_return_assign(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_return_assign(
+        &self,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_PORT,
             PORT_RETURN_MASK,
             PORT_RETURN_SHIFT,
             PORT_RETURN_LABEL,
-            self.as_ref(),
+            req,
             node,
             &vals,
             idx,
