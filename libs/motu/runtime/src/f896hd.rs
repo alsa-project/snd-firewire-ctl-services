@@ -45,7 +45,7 @@ impl CtlModel<SndMotu> for F896hd {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -86,7 +86,7 @@ impl CtlModel<SndMotu> for F896hd {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self

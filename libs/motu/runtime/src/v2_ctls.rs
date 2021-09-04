@@ -2,6 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::Error;
 
+use hinawa::FwReq;
 use hinawa::{SndMotu, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
@@ -54,6 +55,7 @@ impl V2ClkCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -65,17 +67,17 @@ impl V2ClkCtl {
         match elem_id.get_name().as_str() {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    proto.get_clk_rate(&mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                    proto.get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
                 })?;
                 Ok(true)
             }
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let mut node = unit.get_node();
-                    proto.get_clk_src(&mut node, timeout_ms).and_then(|idx| {
+                    proto.get_clk_src(req, &mut node, timeout_ms).and_then(|idx| {
                         if O::HAS_LCD {
                             let label = clk_src_to_label(&O::CLK_SRCS[idx].0);
-                            proto.update_clk_display(&mut node, &label, timeout_ms)?;
+                            proto.update_clk_display(req, &mut node, &label, timeout_ms)?;
                         }
                         Ok(idx as u32)
                     })
@@ -89,6 +91,7 @@ impl V2ClkCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -102,7 +105,7 @@ impl V2ClkCtl {
             Self::RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.set_clk_rate(&mut unit.get_node(), val as usize, timeout_ms);
+                    let res = proto.set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
                     let _ = unit.unlock();
                     res
                 })?;
@@ -111,14 +114,14 @@ impl V2ClkCtl {
             Self::SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let mut node = unit.get_node();
-                    let prev_src = proto.get_clk_src(&mut node, timeout_ms)?;
+                    let prev_src = proto.get_clk_src(req, &mut node, timeout_ms)?;
                     unit.lock()?;
-                    let mut res = proto.set_clk_src(&mut node, val as usize, timeout_ms);
+                    let mut res = proto.set_clk_src(req, &mut node, val as usize, timeout_ms);
                     if res.is_ok() && O::HAS_LCD {
                         let label = clk_src_to_label(&O::CLK_SRCS[val as usize].0);
-                        res = proto.update_clk_display(&mut node, &label, timeout_ms);
+                        res = proto.update_clk_display(req, &mut node, &label, timeout_ms);
                         if res.is_err() {
-                            let _ = proto.set_clk_src(&mut node, prev_src, timeout_ms);
+                            let _ = proto.set_clk_src(req, &mut node, prev_src, timeout_ms);
                         }
                     }
                     let _ = unit.unlock();
