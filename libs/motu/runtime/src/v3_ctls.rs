@@ -251,6 +251,7 @@ impl V3OptIfaceCtl {
     fn get_opt_iface_mode<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         is_out: bool,
         is_b: bool,
@@ -260,7 +261,7 @@ impl V3OptIfaceCtl {
         O: V3OptIfaceProtocol,
     {
         proto
-            .get_opt_iface_mode(&mut unit.get_node(), is_out, is_b, timeout_ms)
+            .get_opt_iface_mode(req, &mut unit.get_node(), is_out, is_b, timeout_ms)
             .map(|(enabled, no_adat)| {
                 if enabled {
                     0
@@ -277,6 +278,7 @@ impl V3OptIfaceCtl {
     fn set_opt_iface_mode<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         is_out: bool,
         is_b: bool,
@@ -292,12 +294,13 @@ impl V3OptIfaceCtl {
             2 => (true, true),
             _ => unreachable!(),
         };
-        proto.set_opt_iface_mode(&mut unit.get_node(), is_out, is_b, enabled, no_adat, timeout_ms)
+        proto.set_opt_iface_mode(req, &mut unit.get_node(), is_out, is_b, enabled, no_adat, timeout_ms)
     }
 
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -309,13 +312,13 @@ impl V3OptIfaceCtl {
         match elem_id.get_name().as_str() {
             Self::OPT_IFACE_IN_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    self.get_opt_iface_mode(unit, proto, false, idx > 0, timeout_ms)
+                    self.get_opt_iface_mode(unit, req, proto, false, idx > 0, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::OPT_IFACE_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    self.get_opt_iface_mode(unit, proto, true, idx > 0, timeout_ms)
+                    self.get_opt_iface_mode(unit, req, proto, true, idx > 0, timeout_ms)
                 })?;
                 Ok(true)
             }
@@ -326,6 +329,7 @@ impl V3OptIfaceCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -339,7 +343,7 @@ impl V3OptIfaceCtl {
             Self::OPT_IFACE_IN_MODE_NAME => {
                 unit.lock()?;
                 let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    self.set_opt_iface_mode(unit, proto, false, idx > 0, val, timeout_ms)
+                    self.set_opt_iface_mode(unit, req, proto, false, idx > 0, val, timeout_ms)
                 });
                 let _ = unit.unlock();
                 res.and(Ok(true))
@@ -347,7 +351,7 @@ impl V3OptIfaceCtl {
             Self::OPT_IFACE_OUT_MODE_NAME => {
                 unit.lock()?;
                 let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    self.set_opt_iface_mode(unit, proto, true, idx > 0, val, timeout_ms)
+                    self.set_opt_iface_mode(unit, req, proto, true, idx > 0, val, timeout_ms)
                 });
                 let _ = unit.unlock();
                 res.and(Ok(true))
