@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::FwReq;
 use hinawa::{SndMotu, SndUnitExt};
@@ -192,135 +192,125 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignProtocol> {
     }
 }
 
-#[derive(Default)]
-pub struct V3OptIfaceCtl;
+fn opt_iface_mode_to_str(mode: &V3OptIfaceMode) -> &'static str {
+    match mode {
+        V3OptIfaceMode::Disabled => "Disabled",
+        V3OptIfaceMode::Adat => "ADAT",
+        V3OptIfaceMode::Spdif => "S/PDIF",
+    }
+}
 
-impl V3OptIfaceCtl {
-    const OPT_IFACE_IN_MODE_NAME: &'static str = "optical-iface-in-mode";
-    const OPT_IFACE_OUT_MODE_NAME: &'static str = "optical-iface-out-mode";
+const OPT_IFACE_IN_MODE_NAME: &str = "optical-iface-in-mode";
+const OPT_IFACE_OUT_MODE_NAME: &str = "optical-iface-out-mode";
 
-    const OPT_IFACE_MODE_LABELS: &'static [&'static str] = &["None", "ADAT", "S/PDIF"];
+pub trait V3OptIfaceCtlOperation<T: V3OptIfaceProtocol> {
+    const MODES: [V3OptIfaceMode; 3] = [
+        V3OptIfaceMode::Disabled,
+        V3OptIfaceMode::Adat,
+        V3OptIfaceMode::Spdif,
+    ];
+    const TARGETS: [V3OptIfaceTarget; 2] = [V3OptIfaceTarget::A, V3OptIfaceTarget::B];
 
-    pub fn load<O>(&mut self, _: &O, card_cntr: &mut CardCntr) -> Result<(), Error>
-    where
-        O: V3OptIfaceProtocol,
-    {
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IFACE_IN_MODE_NAME, 0);
-        let _ =
-            card_cntr.add_enum_elems(&elem_id, 1, 2, Self::OPT_IFACE_MODE_LABELS, None, true)?;
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::MODES.iter()
+            .map(|m| opt_iface_mode_to_str(m))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_IN_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGETS.len(), &labels, None, true)?;
 
-        let elem_id =
-            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OPT_IFACE_OUT_MODE_NAME, 0);
-        let _ =
-            card_cntr.add_enum_elems(&elem_id, 1, 2, Self::OPT_IFACE_MODE_LABELS, None, true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_OUT_MODE_NAME, 0);
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGETS.len(), &labels, None, true)?;
 
         Ok(())
     }
 
-    fn get_opt_iface_mode<O>(
-        &mut self,
+    fn read(
+        &self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        _: &O,
-        is_out: bool,
-        is_b: bool,
-        timeout_ms: u32,
-    ) -> Result<u32, Error>
-    where
-        O: V3OptIfaceProtocol,
-    {
-        O::get_opt_iface_mode(req, &mut unit.get_node(), is_out, is_b, timeout_ms)
-            .map(|(enabled, no_adat)| {
-                if enabled {
-                    0
-                } else {
-                    if no_adat {
-                        2
-                    } else {
-                        1
-                    }
-                }
-            })
-    }
-
-    fn set_opt_iface_mode<O>(
-        &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        _: &O,
-        is_out: bool,
-        is_b: bool,
-        mode: u32,
-        timeout_ms: u32,
-    ) -> Result<(), Error>
-    where
-        O: V3OptIfaceProtocol,
-    {
-        let (enabled, no_adat) = match mode {
-            0 => (false, false),
-            1 => (true, false),
-            2 => (true, true),
-            _ => unreachable!(),
-        };
-        O::set_opt_iface_mode(req, &mut unit.get_node(), is_out, is_b, enabled, no_adat, timeout_ms)
-    }
-
-    pub fn read<O>(
-        &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V3OptIfaceProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OPT_IFACE_IN_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    self.get_opt_iface_mode(unit, req, proto, false, idx > 0, timeout_ms)
-                })?;
-                Ok(true)
+            OPT_IFACE_IN_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, Self::TARGETS.len(), |idx| {
+                    T::get_opt_input_iface_mode(
+                        req,
+                        &mut unit.get_node(),
+                        Self::TARGETS[idx],
+                        timeout_ms
+                    )
+                        .map(|mode| {
+                            Self::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32
+                        })
+                })
+                .map(|_| true)
             }
-            Self::OPT_IFACE_OUT_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    self.get_opt_iface_mode(unit, req, proto, true, idx > 0, timeout_ms)
-                })?;
-                Ok(true)
+            OPT_IFACE_OUT_MODE_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, Self::TARGETS.len(), |idx| {
+                    T::get_opt_output_iface_mode(
+                        req,
+                        &mut unit.get_node(),
+                        Self::TARGETS[idx],
+                        timeout_ms
+                    )
+                        .map(|mode| {
+                            Self::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32
+                        })
+                })
+                .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    pub fn write<O>(
-        &mut self,
+    fn write(
+        &self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        proto: &O,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: V3OptIfaceProtocol,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OPT_IFACE_IN_MODE_NAME => {
+            OPT_IFACE_IN_MODE_NAME => {
                 unit.lock()?;
-                let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    self.set_opt_iface_mode(unit, req, proto, false, idx > 0, val, timeout_ms)
+                let res = ElemValueAccessor::<u32>::get_vals(new, old, Self::TARGETS.len(), |idx, val| {
+                    let &mode = Self::MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index for mode of opt interface: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+                    T::set_opt_input_iface_mode(
+                        req,
+                        &mut unit.get_node(),
+                        Self::TARGETS[idx],
+                        mode,
+                        timeout_ms,
+                    )
                 });
                 let _ = unit.unlock();
                 res.and(Ok(true))
             }
-            Self::OPT_IFACE_OUT_MODE_NAME => {
+            OPT_IFACE_OUT_MODE_NAME => {
                 unit.lock()?;
-                let res = ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
-                    self.set_opt_iface_mode(unit, req, proto, true, idx > 0, val, timeout_ms)
+                let res = ElemValueAccessor::<u32>::get_vals(new, old, Self::TARGETS.len(), |idx, val| {
+                    let &mode = Self::MODES.iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index for mode of opt interface: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+                    T::set_opt_input_iface_mode(
+                        req,
+                        &mut unit.get_node(),
+                        Self::TARGETS[idx],
+                        mode,
+                        timeout_ms,
+                    )
                 });
                 let _ = unit.unlock();
                 res.and(Ok(true))

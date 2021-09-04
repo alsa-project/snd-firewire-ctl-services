@@ -19,10 +19,9 @@ const TIMEOUT_MS: u32 = 100;
 #[derive(Default)]
 pub struct F828mk3 {
     req: FwReq,
-    proto: F828mk3Protocol,
     clk_ctls: ClkCtl,
     port_assign_ctl: PortAssignCtl,
-    opt_iface_ctl: V3OptIfaceCtl,
+    opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
     word_clk_ctl: WordClkCtl,
     msg_cache: u32,
@@ -48,6 +47,11 @@ struct PortAssignCtl(Vec<ElemId>);
 
 impl V3PortAssignCtlOperation<F828mk3Protocol> for PortAssignCtl {}
 
+#[derive(Default)]
+struct OptIfaceCtl;
+
+impl V3OptIfaceCtlOperation<F828mk3Protocol> for OptIfaceCtl {}
+
 impl F828mk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
@@ -61,7 +65,7 @@ impl CtlModel<SndMotu> for F828mk3 {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.port_assign_ctl.0.append(&mut elem_id_list))?;
-        self.opt_iface_ctl.load(&self.proto, card_cntr)?;
+        self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.phone_assign_ctl.0.append(&mut elem_id_list))?;
         self.word_clk_ctl.load(card_cntr)
@@ -77,7 +81,7 @@ impl CtlModel<SndMotu> for F828mk3 {
             Ok(true)
         } else if self.port_assign_ctl.read(unit, &mut self.req,  elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.opt_iface_ctl.read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -96,7 +100,7 @@ impl CtlModel<SndMotu> for F828mk3 {
             Ok(true)
         } else if self.port_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.opt_iface_ctl.write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.opt_iface_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
