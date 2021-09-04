@@ -12,7 +12,6 @@ pub mod version_3;
 
 use glib::{Error, FileError};
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-use hinawa::{SndMotu, SndUnitExt};
 
 use std::{thread, time};
 
@@ -169,7 +168,7 @@ const PORT_PHONE_SHIFT: usize = 0;
 pub trait AssignProtocol: AsRef<FwReq> {
     const ASSIGN_PORTS: &'static [(&'static str, u8)];
 
-    fn get_phone_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_phone_assign(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_PORT,
@@ -177,13 +176,13 @@ pub trait AssignProtocol: AsRef<FwReq> {
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_phone_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_phone_assign(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_PORT,
@@ -191,7 +190,7 @@ pub trait AssignProtocol: AsRef<FwReq> {
             PORT_PHONE_SHIFT,
             PORT_PHONE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             idx,
             timeout_ms,
@@ -216,14 +215,14 @@ const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 
 /// The trait for word-clock protocol.
 pub trait WordClkProtocol: AsRef<FwReq> {
-    fn get_word_out(&self, unit: &SndMotu, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
+    fn get_word_out(&self, node: &mut FwNode, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
         get_idx_from_val(
             OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &WORD_OUT_VALS,
             timeout_ms,
         )
@@ -238,7 +237,7 @@ pub trait WordClkProtocol: AsRef<FwReq> {
 
     fn set_word_out(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         mode: WordClkSpeedMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -252,7 +251,7 @@ pub trait WordClkProtocol: AsRef<FwReq> {
             WORD_OUT_SHIFT,
             WORD_OUT_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &WORD_OUT_VALS,
             idx,
             timeout_ms,
@@ -290,7 +289,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
 
     fn get_aesebu_rate_convert_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
@@ -299,7 +298,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &Self::AESEBU_RATE_CONVERT_VALS,
             timeout_ms,
         )
@@ -307,7 +306,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
 
     fn set_aesebu_rate_convert_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -317,7 +316,7 @@ pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
             Self::AESEBU_RATE_CONVERT_SHIFT,
             AESEBU_RATE_CONVERT_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &Self::AESEBU_RATE_CONVERT_VALS,
             idx,
             timeout_ms,
@@ -406,7 +405,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_peak_hold_time_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
@@ -415,7 +414,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
         )
@@ -423,7 +422,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_peak_hold_time_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -433,7 +432,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
             timeout_ms,
@@ -442,7 +441,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_clip_hold_time_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
@@ -451,7 +450,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
         )
@@ -459,7 +458,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_clip_hold_time_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -469,7 +468,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
             timeout_ms,
@@ -478,7 +477,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_aesebu_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
@@ -487,7 +486,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_AESEBU_VALS,
             timeout_ms,
         )
@@ -495,7 +494,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_aesebu_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -505,7 +504,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_AESEBU_VALS,
             idx,
             timeout_ms,
@@ -514,7 +513,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_programmable_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
@@ -523,7 +522,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             timeout_ms,
         )
@@ -531,7 +530,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_programmable_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -541,7 +540,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             idx,
             timeout_ms,

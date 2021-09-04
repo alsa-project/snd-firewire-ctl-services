@@ -9,7 +9,6 @@
 use glib::Error;
 
 use hinawa::FwReq;
-use hinawa::SndMotu;
 
 use super::*;
 
@@ -46,7 +45,7 @@ pub trait V2ClkProtocol: AsRef<FwReq> {
 
     const HAS_LCD: bool;
 
-    fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_clk_rate(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
@@ -54,13 +53,13 @@ pub trait V2ClkProtocol: AsRef<FwReq> {
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_clk_rate(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_CLK,
@@ -68,14 +67,14 @@ pub trait V2ClkProtocol: AsRef<FwReq> {
             CLK_RATE_SHIFT,
             CLK_RATE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             idx,
             timeout_ms,
         )
     }
 
-    fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_clk_src(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
@@ -83,13 +82,13 @@ pub trait V2ClkProtocol: AsRef<FwReq> {
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             timeout_ms,
         )
     }
 
-    fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_clk_src(&self, node: &mut FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         set_idx_to_val(
             OFFSET_CLK,
@@ -97,7 +96,7 @@ pub trait V2ClkProtocol: AsRef<FwReq> {
             CLK_SRC_SHIFT,
             CLK_SRC_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             idx,
             timeout_ms,
@@ -106,11 +105,11 @@ pub trait V2ClkProtocol: AsRef<FwReq> {
 
     fn update_clk_display(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         label: &str,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        update_clk_display(self.as_ref(), &mut unit.get_node(), label, timeout_ms)
+        update_clk_display(self.as_ref(), node, label, timeout_ms)
     }
 }
 
@@ -122,7 +121,7 @@ const MAIN_VOL_SHIFT: usize = 16;
 pub trait V2MainAssignProtocol: AsRef<FwReq> {
     const KNOB_TARGETS: &'static [(&'static str, u8)];
 
-    fn get_main_vol_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_main_vol_assign(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_PORT,
@@ -130,7 +129,7 @@ pub trait V2MainAssignProtocol: AsRef<FwReq> {
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             timeout_ms,
         )
@@ -138,7 +137,7 @@ pub trait V2MainAssignProtocol: AsRef<FwReq> {
 
     fn set_main_vol_assign(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -149,7 +148,7 @@ pub trait V2MainAssignProtocol: AsRef<FwReq> {
             MAIN_VOL_SHIFT,
             MAIN_VOL_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             &vals,
             idx,
             timeout_ms,
@@ -178,14 +177,14 @@ const OPT_IFACE_MODE_VALS: &[u8] = &[0x00, 0x01, 0x02];
 pub trait V2OptIfaceProtocol: AsRef<FwReq> {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
-    fn get_opt_in_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_opt_in_iface_mode(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         get_idx_from_val(
             OFFSET_PORT,
             OPT_IN_IFACE_MASK,
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             OPT_IFACE_MODE_VALS,
             timeout_ms,
         )
@@ -193,7 +192,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
 
     fn set_opt_in_iface_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -203,21 +202,21 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
             OPT_IN_IFACE_SHIFT,
             OPT_IN_IFACE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             OPT_IFACE_MODE_VALS,
             idx,
             timeout_ms,
         )
     }
 
-    fn get_opt_out_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_opt_out_iface_mode(&self, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         get_idx_from_val(
             OFFSET_PORT,
             OPT_OUT_IFACE_MASK,
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             OPT_IFACE_MODE_VALS,
             timeout_ms,
         )
@@ -225,7 +224,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
 
     fn set_opt_out_iface_mode(
         &self,
-        unit: &SndMotu,
+        node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -235,7 +234,7 @@ pub trait V2OptIfaceProtocol: AsRef<FwReq> {
             OPT_OUT_IFACE_SHIFT,
             OPT_OUT_IFACE_LABEL,
             self.as_ref(),
-            &mut unit.get_node(),
+            node,
             OPT_IFACE_MODE_VALS,
             idx,
             timeout_ms,
