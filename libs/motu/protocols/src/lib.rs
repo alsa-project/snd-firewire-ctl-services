@@ -424,6 +424,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_peak_hold_time_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -432,7 +433,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
@@ -441,6 +442,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_peak_hold_time_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -450,7 +452,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
             LEVEL_METERS_PEAK_HOLD_TIME_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
@@ -460,6 +462,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_clip_hold_time_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -468,7 +471,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             timeout_ms,
@@ -477,6 +480,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_clip_hold_time_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -486,7 +490,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
             LEVEL_METERS_CLIP_HOLD_TIME_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_HOLD_TIME_VALS,
             idx,
@@ -496,6 +500,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_aesebu_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -504,7 +509,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_AESEBU_VALS,
             timeout_ms,
@@ -513,6 +518,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_aesebu_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -522,7 +528,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
             LEVEL_METERS_AESEBU_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_AESEBU_VALS,
             idx,
@@ -532,6 +538,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn get_level_meters_programmable_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
@@ -540,7 +547,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             timeout_ms,
@@ -549,6 +556,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
 
     fn set_level_meters_programmable_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
@@ -558,7 +566,7 @@ pub trait LevelMetersProtocol: AsRef<FwReq> {
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
             LEVEL_METERS_PROGRAMMABLE_LABEL,
-            self.as_ref(),
+            req,
             node,
             &LEVEL_METERS_PROGRAMMABLE_VALS,
             idx,

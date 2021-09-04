@@ -342,6 +342,7 @@ impl CommonLevelMetersCtl {
     pub fn read<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -354,7 +355,7 @@ impl CommonLevelMetersCtl {
             Self::PEAK_HOLD_TIME_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_level_meters_peak_hold_time_mode(&mut unit.get_node(), timeout_ms)
+                        .get_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -362,7 +363,7 @@ impl CommonLevelMetersCtl {
             Self::CLIP_HOLD_TIME_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_level_meters_clip_hold_time_mode(&mut unit.get_node(), timeout_ms)
+                        .get_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -370,7 +371,7 @@ impl CommonLevelMetersCtl {
             Self::AESEBU_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_level_meters_aesebu_mode(&mut unit.get_node(), timeout_ms)
+                        .get_level_meters_aesebu_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -378,7 +379,7 @@ impl CommonLevelMetersCtl {
             Self::PROGRAMMABLE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     proto
-                        .get_level_meters_programmable_mode(&mut unit.get_node(), timeout_ms)
+                        .get_level_meters_programmable_mode(req, &mut unit.get_node(), timeout_ms)
                         .map(|val| val as u32)
                 })?;
                 Ok(true)
@@ -390,6 +391,7 @@ impl CommonLevelMetersCtl {
     pub fn write<O>(
         &mut self,
         unit: &mut SndMotu,
+        req: &mut FwReq,
         proto: &O,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -402,25 +404,25 @@ impl CommonLevelMetersCtl {
         match elem_id.get_name().as_str() {
             Self::PEAK_HOLD_TIME_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_level_meters_peak_hold_time_mode(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::CLIP_HOLD_TIME_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_level_meters_clip_hold_time_mode(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::AESEBU_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_level_meters_aesebu_mode(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_level_meters_aesebu_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
             Self::PROGRAMMABLE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    proto.set_level_meters_programmable_mode(&mut unit.get_node(), val as usize, timeout_ms)
+                    proto.set_level_meters_programmable_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
