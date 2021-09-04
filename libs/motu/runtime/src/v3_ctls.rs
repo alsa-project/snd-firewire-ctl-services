@@ -28,7 +28,7 @@ fn clk_src_to_label(src: &V3ClkSrc) -> String {
 const RATE_NAME: &str = "sampling-rate";
 const SRC_NAME: &str = "clock-source";
 
-pub trait V3ClkCtlOperation<T: V3ClkProtocol> {
+pub trait V3ClkCtlOperation<T: V3ClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::CLK_RATES
             .iter()
@@ -119,7 +119,7 @@ pub trait V3ClkCtlOperation<T: V3ClkProtocol> {
 const MAIN_ASSIGN_NAME: &str = "main-assign";
 const RETURN_ASSIGN_NAME: &str = "return-assign";
 
-pub trait V3PortAssignCtlOperation<T: V3PortAssignProtocol> {
+pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut notified_elem_id_list = Vec::new();
 
@@ -130,8 +130,7 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignProtocol> {
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|elem_id_list| notified_elem_id_list.extend_from_slice(&elem_id_list))?;
 
-        let elem_id =
-            alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RETURN_ASSIGN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RETURN_ASSIGN_NAME, 0);
         card_cntr
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|elem_id_list| notified_elem_id_list.extend_from_slice(&elem_id_list))?;
@@ -203,7 +202,7 @@ fn opt_iface_mode_to_str(mode: &V3OptIfaceMode) -> &'static str {
 const OPT_IFACE_IN_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_IFACE_OUT_MODE_NAME: &str = "optical-iface-out-mode";
 
-pub trait V3OptIfaceCtlOperation<T: V3OptIfaceProtocol> {
+pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
     const MODES: [V3OptIfaceMode; 3] = [
         V3OptIfaceMode::Disabled,
         V3OptIfaceMode::Adat,

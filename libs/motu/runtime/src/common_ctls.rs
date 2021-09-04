@@ -15,7 +15,7 @@ use motu_protocols::*;
 
 const PHONE_ASSIGN_NAME: &str = "phone-assign";
 
-pub trait PhoneAssignCtlOperation<T: AssignProtocol> {
+pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let labels: Vec<String> = T::ASSIGN_PORTS.iter().map(|e| e.0.to_string()).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_ASSIGN_NAME, 0);
@@ -77,7 +77,7 @@ const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
     WordClkSpeedMode::FollowSystemClk,
 ];
 
-pub trait WordClkCtlOperation<T: WordClkProtocol> {
+pub trait WordClkCtlOperation<T: WordClkOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
     {
         let labels: Vec<String> = WORD_OUT_MODES
@@ -151,7 +151,7 @@ fn aesebu_rate_convert_mode_to_string(mode: &AesebuRateConvertMode) -> String {
 
 const AESEBU_RATE_CONVERT_MODE_NAME: &str = "AES/EBU-rate-convert";
 
-pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertProtocol> {
+pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::AESEBU_RATE_CONVERT_MODES
             .iter()
@@ -245,7 +245,7 @@ const CLIP_HOLD_TIME_MODE_NAME: &str = "meter-clip-hold-time";
 const AESEBU_MODE_NAME: &str = "AES/EBU-meter";
 const PROGRAMMABLE_MODE_NAME: &str = "programmable-meter";
 
-pub trait LevelMetersCtlOperation<T: LevelMetersProtocol> {
+pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<String> = T::LEVEL_METERS_HOLD_TIME_MODES
             .iter()
