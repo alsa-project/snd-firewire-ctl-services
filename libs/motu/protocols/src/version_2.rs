@@ -46,7 +46,6 @@ pub trait V2ClkProtocol {
     const HAS_LCD: bool;
 
     fn get_clk_rate(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -65,7 +64,6 @@ pub trait V2ClkProtocol {
     }
 
     fn set_clk_rate(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -86,7 +84,6 @@ pub trait V2ClkProtocol {
     }
 
     fn get_clk_src(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -105,7 +102,6 @@ pub trait V2ClkProtocol {
     }
 
     fn set_clk_src(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -126,7 +122,6 @@ pub trait V2ClkProtocol {
     }
 
     fn update_clk_display(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         label: &str,
@@ -145,7 +140,6 @@ pub trait V2MainAssignProtocol {
     const KNOB_TARGETS: &'static [(&'static str, u8)];
 
     fn get_main_vol_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -164,7 +158,6 @@ pub trait V2MainAssignProtocol {
     }
 
     fn set_main_vol_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -207,7 +200,6 @@ pub trait V2OptIfaceProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
     fn get_opt_in_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -225,7 +217,6 @@ pub trait V2OptIfaceProtocol {
     }
 
     fn set_opt_in_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -245,7 +236,6 @@ pub trait V2OptIfaceProtocol {
     }
 
     fn get_opt_out_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -263,7 +253,6 @@ pub trait V2OptIfaceProtocol {
     }
 
     fn set_opt_out_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,

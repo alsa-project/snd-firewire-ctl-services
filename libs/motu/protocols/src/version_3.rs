@@ -42,7 +42,6 @@ pub trait V3ClkProtocol {
     const HAS_LCD: bool;
 
     fn get_clk_rate(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -61,7 +60,6 @@ pub trait V3ClkProtocol {
     }
 
     fn set_clk_rate(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -82,7 +80,6 @@ pub trait V3ClkProtocol {
     }
 
     fn get_clk_src(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -101,7 +98,6 @@ pub trait V3ClkProtocol {
     }
 
     fn set_clk_src(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -122,7 +118,6 @@ pub trait V3ClkProtocol {
     }
 
     fn update_clk_display(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         label: &str,
@@ -143,7 +138,6 @@ const PORT_RETURN_SHIFT: usize = 8;
 /// The trait for main/return assignment protocol in version 3.
 pub trait V3PortAssignProtocol: AssignProtocol {
     fn get_main_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -162,7 +156,6 @@ pub trait V3PortAssignProtocol: AssignProtocol {
     }
 
     fn set_main_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -183,7 +176,6 @@ pub trait V3PortAssignProtocol: AssignProtocol {
     }
 
     fn get_return_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -202,7 +194,6 @@ pub trait V3PortAssignProtocol: AssignProtocol {
     }
 
     fn set_return_assign(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -227,7 +218,7 @@ const OFFSET_OPT: u32 = 0x0c94;
 
 /// The trait for optical interface protocol in version 3.
 pub trait V3OptIfaceProtocol {
-    fn get_opt_iface_masks(&self, is_out: bool, is_b: bool) -> (u32, u32) {
+    fn get_opt_iface_masks(is_out: bool, is_b: bool) -> (u32, u32) {
         let mut enabled_mask = 0x00000001;
         if is_out {
             enabled_mask <<= 8;
@@ -248,7 +239,6 @@ pub trait V3OptIfaceProtocol {
     }
 
     fn set_opt_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         is_out: bool,
@@ -257,7 +247,7 @@ pub trait V3OptIfaceProtocol {
         no_adat: bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
+        let (enabled_mask, no_adat_mask) = Self::get_opt_iface_masks(is_out, is_b);
         read_quad(req, node, OFFSET_OPT, timeout_ms)
             .and_then(|mut quad| {
                 quad &= !enabled_mask;
@@ -273,7 +263,6 @@ pub trait V3OptIfaceProtocol {
     }
 
     fn get_opt_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         is_out: bool,
@@ -281,7 +270,7 @@ pub trait V3OptIfaceProtocol {
         timeout_ms: u32,
     ) -> Result<(bool, bool), Error> {
         read_quad(req, node, OFFSET_OPT, timeout_ms).map(|quad| {
-            let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
+            let (enabled_mask, no_adat_mask) = Self::get_opt_iface_masks(is_out, is_b);
             let enabled = (quad & enabled_mask) > 0;
             let no_adat = (quad & no_adat_mask) > 0;
 

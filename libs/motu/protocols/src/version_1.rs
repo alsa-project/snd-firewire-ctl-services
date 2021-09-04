@@ -268,7 +268,6 @@ pub trait V1ClkProtocol {
     const CLK_SRC_LABELS: &'static [V1ClkSrc];
 
     fn get_clk_rate(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -286,7 +285,6 @@ pub trait V1ClkProtocol {
     }
 
     fn set_clk_rate(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -306,7 +304,6 @@ pub trait V1ClkProtocol {
     }
 
     fn get_clk_src(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -324,7 +321,6 @@ pub trait V1ClkProtocol {
     }
 
     fn set_clk_src(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -353,14 +349,12 @@ pub trait V1MonitorInputProtocol {
     const MONITOR_INPUT_MODES: &'static [&'static str];
 
     fn set_monitor_input(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32
     ) -> Result<(), Error>;
     fn get_monitor_input(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -408,7 +402,6 @@ impl V1MonitorInputProtocol for F828Protocol {
     ];
 
     fn set_monitor_input(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -442,7 +435,6 @@ impl V1MonitorInputProtocol for F828Protocol {
     }
 
     fn get_monitor_input(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -483,7 +475,6 @@ impl F828Protocol {
     pub const OPT_IFACE_MODES: [V1OptIfaceMode; 2] = [V1OptIfaceMode::Adat, V1OptIfaceMode::Spdif];
 
     fn get_opt_iface_mode(
-        &self,
         mask: u32,
         shift: usize,
         label: &str,
@@ -504,7 +495,6 @@ impl F828Protocol {
     }
 
     fn set_opt_iface_mode(
-        &self,
         mask: u32,
         shift: usize,
         label: &str,
@@ -527,12 +517,11 @@ impl F828Protocol {
     }
 
     pub fn get_optical_output_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_opt_iface_mode(
+        Self::get_opt_iface_mode(
             CONF_828_OPT_OUT_IFACE_MASK,
             CONF_828_OPT_OUT_IFACE_SHIFT,
             CONF_828_OPT_OUT_IFACE_LABEL,
@@ -543,13 +532,12 @@ impl F828Protocol {
     }
 
     pub fn set_optical_output_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_opt_iface_mode(
+        Self::set_opt_iface_mode(
             CONF_828_OPT_OUT_IFACE_MASK,
             CONF_828_OPT_OUT_IFACE_SHIFT,
             CONF_828_OPT_OUT_IFACE_LABEL,
@@ -561,12 +549,11 @@ impl F828Protocol {
     }
 
     pub fn get_optical_input_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        self.get_opt_iface_mode(
+        Self::get_opt_iface_mode(
             CONF_828_OPT_IN_IFACE_MASK,
             CONF_828_OPT_IN_IFACE_SHIFT,
             CONF_828_OPT_IN_IFACE_LABEL,
@@ -577,13 +564,12 @@ impl F828Protocol {
     }
 
     pub fn set_optical_input_iface_mode(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.set_opt_iface_mode(
+        Self::set_opt_iface_mode(
             CONF_828_OPT_IN_IFACE_MASK,
             CONF_828_OPT_IN_IFACE_SHIFT,
             CONF_828_OPT_IN_IFACE_LABEL,
@@ -595,7 +581,6 @@ impl F828Protocol {
     }
 
     pub fn get_stream_input_enable(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -614,7 +599,6 @@ impl F828Protocol {
     }
 
     pub fn set_stream_input_enable(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         enable: bool,
@@ -638,7 +622,6 @@ impl F828Protocol {
     }
 
     pub fn get_output_enable(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
@@ -657,7 +640,6 @@ impl F828Protocol {
     }
 
     pub fn set_output_enable(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         enable: bool,
@@ -733,7 +715,6 @@ impl V1MonitorInputProtocol for F896Protocol {
     ];
 
     fn set_monitor_input(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
@@ -769,7 +750,6 @@ impl V1MonitorInputProtocol for F896Protocol {
     }
 
     fn get_monitor_input(
-        &self,
         req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
