@@ -36,7 +36,7 @@ const CLK_SRC_MASK: u32 = 0x000000ff;
 const CLK_SRC_SHIFT: usize = 0;
 
 /// The trait for sampling clock protocol in version 3.
-pub trait V3ClkProtocol: CommonProtocol {
+pub trait V3ClkProtocol: AsRef<FwReq> {
     const CLK_RATES: &'static [(ClkRate, u8)];
     const CLK_SRCS: &'static [(V3ClkSrc, u8)];
 
@@ -182,7 +182,7 @@ pub trait V3PortAssignProtocol: AssignProtocol {
 const OFFSET_OPT: u32 = 0x0c94;
 
 /// The trait for optical interface protocol in version 3.
-pub trait V3OptIfaceProtocol: CommonProtocol {
+pub trait V3OptIfaceProtocol: AsRef<FwReq> {
     fn get_opt_iface_masks(&self, is_out: bool, is_b: bool) -> (u32, u32) {
         let mut enabled_mask = 0x00000001;
         if is_out {
@@ -254,8 +254,6 @@ impl AsRef<FwReq> for AudioExpressProtocol {
     }
 }
 
-impl CommonProtocol for AudioExpressProtocol {}
-
 impl AssignProtocol for AudioExpressProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
@@ -289,8 +287,6 @@ impl AsRef<FwReq> for F828mk3Protocol {
         &self.0
     }
 }
-
-impl CommonProtocol for F828mk3Protocol {}
 
 impl AssignProtocol for F828mk3Protocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
@@ -349,8 +345,6 @@ impl AsRef<FwReq> for H4preProtocol {
     }
 }
 
-impl CommonProtocol for H4preProtocol {}
-
 impl AssignProtocol for H4preProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
@@ -384,8 +378,6 @@ impl AsRef<FwReq> for UltraliteMk3Protocol {
         &self.0
     }
 }
-
-impl CommonProtocol for UltraliteMk3Protocol {}
 
 impl AssignProtocol for UltraliteMk3Protocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[

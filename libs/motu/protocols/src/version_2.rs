@@ -40,7 +40,7 @@ const CLK_SRC_MASK: u32 = 0x00000007;
 const CLK_SRC_SHIFT: usize = 0;
 
 /// The trait for version 2 protocol.
-pub trait V2ClkProtocol: CommonProtocol {
+pub trait V2ClkProtocol: AsRef<FwReq> {
     const CLK_RATES: &'static [(ClkRate, u8)];
     const CLK_SRCS: &'static [(V2ClkSrc, u8)];
 
@@ -119,7 +119,7 @@ const MAIN_VOL_MASK: u32 = 0x000f0000;
 const MAIN_VOL_SHIFT: usize = 16;
 
 /// The trait for main volume knob assignment in version 2.
-pub trait V2MainAssignProtocol: CommonProtocol {
+pub trait V2MainAssignProtocol: AsRef<FwReq> {
     const KNOB_TARGETS: &'static [(&'static str, u8)];
 
     fn get_main_vol_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
@@ -175,7 +175,7 @@ const OPT_OUT_IFACE_SHIFT: usize = 10;
 const OPT_IFACE_MODE_VALS: &[u8] = &[0x00, 0x01, 0x02];
 
 /// The trait for optical interface mode in version 2.
-pub trait V2OptIfaceProtocol: CommonProtocol {
+pub trait V2OptIfaceProtocol: AsRef<FwReq> {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)];
 
     fn get_opt_in_iface_mode(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
@@ -253,8 +253,6 @@ impl AsRef<FwReq> for F828mk2Protocol {
     }
 }
 
-impl CommonProtocol for F828mk2Protocol {}
-
 impl AssignProtocol for F828mk2Protocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // = Stream-1/2
@@ -310,8 +308,6 @@ impl AsRef<FwReq> for F8preProtocol {
     }
 }
 
-impl CommonProtocol for F8preProtocol {}
-
 impl AssignProtocol for F8preProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[("Phone-1/2", 0x01), ("Main-1/2", 0x02)];
 }
@@ -343,8 +339,6 @@ impl AsRef<FwReq> for TravelerProtocol {
         &self.0
     }
 }
-
-impl CommonProtocol for TravelerProtocol {}
 
 impl AssignProtocol for TravelerProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
@@ -404,8 +398,6 @@ impl AsRef<FwReq> for UltraliteProtocol {
     }
 }
 
-impl CommonProtocol for UltraliteProtocol {}
-
 impl AssignProtocol for UltraliteProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[
         ("Phone-1/2", 0x01),  // Stream-1/2
@@ -450,8 +442,6 @@ impl AsRef<FwReq> for F896hdProtocol {
         &self.0
     }
 }
-
-impl CommonProtocol for F896hdProtocol {}
 
 impl AssignProtocol for F896hdProtocol {
     const ASSIGN_PORTS: &'static [(&'static str, u8)] = &[

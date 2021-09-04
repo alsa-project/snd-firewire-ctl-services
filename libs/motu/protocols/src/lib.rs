@@ -161,16 +161,12 @@ fn update_clk_display(
     })
 }
 
-/// The trait for common protocol.
-pub trait CommonProtocol: AsRef<FwReq> {
-}
-
 const PORT_PHONE_LABEL: &str = "phone-assign";
 const PORT_PHONE_MASK: u32 = 0x0000000f;
 const PORT_PHONE_SHIFT: usize = 0;
 
 /// The trait for headphone assignment protocol.
-pub trait AssignProtocol: CommonProtocol {
+pub trait AssignProtocol: AsRef<FwReq> {
     const ASSIGN_PORTS: &'static [(&'static str, u8)];
 
     fn get_phone_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
@@ -219,7 +215,7 @@ const WORD_OUT_SHIFT: usize = 27;
 const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 
 /// The trait for word-clock protocol.
-pub trait WordClkProtocol: CommonProtocol {
+pub trait WordClkProtocol: AsRef<FwReq> {
     fn get_word_out(&self, unit: &SndMotu, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
         get_idx_from_val(
             OFFSET_CLK,
@@ -279,7 +275,7 @@ pub enum AesebuRateConvertMode {
 const AESEBU_RATE_CONVERT_LABEL: &str = "aesebu-rate-convert";
 
 /// The trait for protocol of rate convert specific to AES/EBU input/output signals.
-pub trait AesebuRateConvertProtocol: CommonProtocol {
+pub trait AesebuRateConvertProtocol: AsRef<FwReq> {
     const AESEBU_RATE_CONVERT_MASK: u32;
     const AESEBU_RATE_CONVERT_SHIFT: usize;
 
@@ -387,7 +383,7 @@ const LEVEL_METERS_PROGRAMMABLE_LABEL: &str = "level-meters-programmable";
 const LEVEL_METERS_AESEBU_LABEL: &str = "level-meters-aesebu";
 
 /// The trait for protocol of level meter.
-pub trait LevelMetersProtocol: CommonProtocol {
+pub trait LevelMetersProtocol: AsRef<FwReq> {
     const LEVEL_METERS_HOLD_TIME_MODES: [LevelMetersHoldTimeMode; 8] = [
         LevelMetersHoldTimeMode::Off,
         LevelMetersHoldTimeMode::Sec2,
