@@ -82,6 +82,45 @@ fn write_quad(
     })
 }
 
+fn get_idx_from_val(
+    offset: u32,
+    mask: u32,
+    shift: usize,
+    label: &str,
+    req: &FwReq,
+    node: &mut FwNode,
+    vals: &[u8],
+    timeout_ms: u32,
+) -> Result<usize, Error> {
+    let quad = read_quad(req, node, offset, timeout_ms)?;
+    let val = ((quad & mask) >> shift) as u8;
+    vals.iter().position(|&v| v == val).ok_or_else(|| {
+        let label = format!("Detect invalid value for {}: {:02x}", label, val);
+        Error::new(FileError::Io, &label)
+    })
+}
+
+fn set_idx_to_val(
+    offset: u32,
+    mask: u32,
+    shift: usize,
+    label: &str,
+    req: &FwReq,
+    node: &mut FwNode,
+    vals: &[u8],
+    idx: usize,
+    timeout_ms: u32,
+) -> Result<(), Error> {
+    if idx >= vals.len() {
+        let label = format!("Invalid argument for {}: {} {}", label, vals.len(), idx);
+        return Err(Error::new(FileError::Inval, &label));
+    }
+    let mut quad = read_quad(req, node, offset, timeout_ms)?;
+    quad &= !mask;
+    quad |= (vals[idx] as u32) << shift;
+    write_quad(req, node, offset, quad, timeout_ms)
+}
+
 /// The enumeration to express rate of sampling clock.
 pub enum ClkRate {
     /// 44.1 kHx.
@@ -103,45 +142,6 @@ pub trait CommonProtocol: AsRef<FwReq> {
     const OFFSET_CLK: u32 = 0x0b14;
     const OFFSET_PORT: u32 = 0x0c04;
     const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
-
-    fn get_idx_from_val(
-        offset: u32,
-        mask: u32,
-        shift: usize,
-        label: &str,
-        req: &FwReq,
-        node: &mut FwNode,
-        vals: &[u8],
-        timeout_ms: u32,
-    ) -> Result<usize, Error> {
-        let quad = read_quad(req, node, offset, timeout_ms)?;
-        let val = ((quad & mask) >> shift) as u8;
-        vals.iter().position(|&v| v == val).ok_or_else(|| {
-            let label = format!("Detect invalid value for {}: {:02x}", label, val);
-            Error::new(FileError::Io, &label)
-        })
-    }
-
-    fn set_idx_to_val(
-        offset: u32,
-        mask: u32,
-        shift: usize,
-        label: &str,
-        req: &FwReq,
-        node: &mut FwNode,
-        vals: &[u8],
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        if idx >= vals.len() {
-            let label = format!("Invalid argument for {}: {} {}", label, vals.len(), idx);
-            return Err(Error::new(FileError::Inval, &label));
-        }
-        let mut quad = read_quad(req, node, offset, timeout_ms)?;
-        quad &= !mask;
-        quad |= (vals[idx] as u32) << shift;
-        write_quad(req, node, offset, quad, timeout_ms)
-    }
 
     fn update_clk_display(
         &self,
@@ -176,7 +176,7 @@ pub trait AssignProtocol: CommonProtocol {
 
     fn get_phone_assign(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
@@ -190,7 +190,7 @@ pub trait AssignProtocol: CommonProtocol {
 
     fn set_phone_assign(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_PORT,
             PORT_PHONE_MASK,
             PORT_PHONE_SHIFT,
@@ -222,7 +222,7 @@ const WORD_OUT_VALS: [u8; 2] = [0x00, 0x01];
 /// The trait for word-clock protocol.
 pub trait WordClkProtocol: CommonProtocol {
     fn get_word_out(&self, unit: &SndMotu, timeout_ms: u32) -> Result<WordClkSpeedMode, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
@@ -251,7 +251,7 @@ pub trait WordClkProtocol: CommonProtocol {
             WordClkSpeedMode::ForceLowRate => 0,
             WordClkSpeedMode::FollowSystemClk => 1,
         };
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_CLK,
             WORD_OUT_MASK,
             WORD_OUT_SHIFT,
@@ -298,7 +298,7 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::OFFSET_CLK,
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
@@ -316,7 +316,7 @@ pub trait AesebuRateConvertProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_CLK,
             Self::AESEBU_RATE_CONVERT_MASK,
             Self::AESEBU_RATE_CONVERT_SHIFT,
@@ -414,7 +414,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
@@ -432,7 +432,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PEAK_HOLD_TIME_MASK,
             LEVEL_METERS_PEAK_HOLD_TIME_SHIFT,
@@ -450,7 +450,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
@@ -468,7 +468,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_CLIP_HOLD_TIME_MASK,
             LEVEL_METERS_CLIP_HOLD_TIME_SHIFT,
@@ -486,7 +486,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
@@ -504,7 +504,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_AESEBU_MASK,
             LEVEL_METERS_AESEBU_SHIFT,
@@ -522,7 +522,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,
@@ -540,7 +540,7 @@ pub trait LevelMetersProtocol: CommonProtocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             LEVEL_METERS_OFFSET,
             LEVEL_METERS_PROGRAMMABLE_MASK,
             LEVEL_METERS_PROGRAMMABLE_SHIFT,

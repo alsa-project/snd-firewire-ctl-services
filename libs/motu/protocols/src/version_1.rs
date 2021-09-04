@@ -269,7 +269,7 @@ pub trait V1ClkProtocol: CommonProtocol {
     const CLK_SRC_LABELS: &'static [V1ClkSrc];
 
     fn get_clk_rate(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
             Self::CLK_RATE_SHIFT,
@@ -282,7 +282,7 @@ pub trait V1ClkProtocol: CommonProtocol {
     }
 
     fn set_clk_rate(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
             Self::CLK_RATE_SHIFT,
@@ -296,7 +296,7 @@ pub trait V1ClkProtocol: CommonProtocol {
     }
 
     fn get_clk_src(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
             Self::CLK_SRC_SHIFT,
@@ -309,7 +309,7 @@ pub trait V1ClkProtocol: CommonProtocol {
     }
 
     fn set_clk_src(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
             Self::CLK_SRC_SHIFT,
@@ -386,7 +386,7 @@ impl V1MonitorInputProtocol for F828Protocol {
     fn set_monitor_input(&self, unit: &SndMotu, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         let (disable_idx, ch_idx) = if idx == 0 { (1, 0) } else { (0, idx - 1) };
 
-        Self::set_idx_to_val(
+        set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_MONITOR_INPUT_DISABLE_MASK,
             CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
@@ -398,7 +398,7 @@ impl V1MonitorInputProtocol for F828Protocol {
             timeout_ms,
         )?;
 
-        Self::set_idx_to_val(
+        set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_MONITOR_INPUT_CH_MASK,
             CONF_828_MONITOR_INPUT_CH_SHIFT,
@@ -412,7 +412,7 @@ impl V1MonitorInputProtocol for F828Protocol {
     }
 
     fn get_monitor_input(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        let mut idx = Self::get_idx_from_val(
+        let mut idx = get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_MONITOR_INPUT_DISABLE_MASK,
             CONF_828_MONITOR_INPUT_DISABLE_SHIFT,
@@ -424,7 +424,7 @@ impl V1MonitorInputProtocol for F828Protocol {
         )
         .map(|idx| if idx > 0 { 0 } else { 1 })?;
         if idx > 0 {
-            idx += Self::get_idx_from_val(
+            idx += get_idx_from_val(
                 CONF_828_OFFSET,
                 CONF_828_MONITOR_INPUT_CH_MASK,
                 CONF_828_MONITOR_INPUT_CH_SHIFT,
@@ -455,7 +455,7 @@ impl F828Protocol {
         unit: &SndMotu,
         timeout_ms: u32,
     ) -> Result<usize, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             CONF_828_OFFSET,
             mask,
             shift,
@@ -476,7 +476,7 @@ impl F828Protocol {
         idx: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::set_idx_to_val(
+        set_idx_to_val(
             CONF_828_OFFSET,
             mask,
             shift,
@@ -550,7 +550,7 @@ impl F828Protocol {
     }
 
     pub fn get_stream_input_enable(&self, unit: &SndMotu, timeout_ms: u32) -> Result<bool, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_STREAM_INPUT_ENABLE_MASK,
             CONF_828_STREAM_INPUT_ENABLE_SHIFT,
@@ -573,7 +573,7 @@ impl F828Protocol {
             false => 0x00,
             true => 0x01,
         };
-        Self::set_idx_to_val(
+        set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_STREAM_INPUT_ENABLE_MASK,
             CONF_828_STREAM_INPUT_ENABLE_SHIFT,
@@ -587,7 +587,7 @@ impl F828Protocol {
     }
 
     pub fn get_output_enable(&self, unit: &SndMotu, timeout_ms: u32) -> Result<bool, Error> {
-        Self::get_idx_from_val(
+        get_idx_from_val(
             CONF_828_OFFSET,
             CONF_828_OUTPUT_ENABLE_MASK,
             CONF_828_OUTPUT_ENABLE_SHIFT,
@@ -610,7 +610,7 @@ impl F828Protocol {
             false => 0x00,
             true => 0x01,
         };
-        Self::set_idx_to_val(
+        set_idx_to_val(
             CONF_828_OFFSET,
             CONF_828_OUTPUT_ENABLE_MASK,
             CONF_828_OUTPUT_ENABLE_SHIFT,
@@ -689,7 +689,7 @@ impl V1MonitorInputProtocol for F896Protocol {
                 let label = "Invalid argument for index of monitor input}";
                 Error::new(FileError::Inval, &label)
             })?;
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
@@ -700,7 +700,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             ch_idx,
             timeout_ms,
         )?;
-        Self::set_idx_to_val(
+        set_idx_to_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
@@ -714,7 +714,7 @@ impl V1MonitorInputProtocol for F896Protocol {
     }
 
     fn get_monitor_input(&self, unit: &SndMotu, timeout_ms: u32) -> Result<usize, Error> {
-        let ch_idx = Self::get_idx_from_val(
+        let ch_idx = get_idx_from_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_CH_MASK,
             CONF_896_MONITOR_INPUT_CH_SHIFT,
@@ -724,7 +724,7 @@ impl V1MonitorInputProtocol for F896Protocol {
             &CONF_896_MONITOR_INPUT_CH_VALS,
             timeout_ms,
         )?;
-        let aesebu_idx = Self::get_idx_from_val(
+        let aesebu_idx = get_idx_from_val(
             Self::OFFSET_CLK,
             CONF_896_MONITOR_INPUT_AESEBU_MASK,
             CONF_896_MONITOR_INPUT_AESEBU_SHIFT,
