@@ -185,7 +185,7 @@ fn aesebu_rate_convert_mode_to_string(mode: &AesebuRateConvertMode) -> String {
 }
 
 #[derive(Default)]
-pub struct CommonAesebuRateConvertCtl {}
+pub struct CommonAesebuRateConvertCtl;
 
 impl<'a> CommonAesebuRateConvertCtl {
     const AESEBU_RATE_CONVERT_MODE_NAME: &'a str = "AES/EBU-rate-convert";
@@ -290,7 +290,7 @@ fn level_meters_programmable_mode_to_string(mode: &LevelMetersProgrammableMode) 
 }
 
 #[derive(Default)]
-pub struct CommonLevelMetersCtl {}
+pub struct CommonLevelMetersCtl;
 
 impl<'a> CommonLevelMetersCtl {
     const PEAK_HOLD_TIME_MODE_NAME: &'a str = "meter-peak-hold-time";

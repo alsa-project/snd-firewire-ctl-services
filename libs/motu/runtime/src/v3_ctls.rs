@@ -25,7 +25,7 @@ fn clk_src_to_label(src: &V3ClkSrc) -> String {
 }
 
 #[derive(Default)]
-pub struct V3ClkCtl {}
+pub struct V3ClkCtl;
 
 impl<'a> V3ClkCtl {
     const RATE_NAME: &'a str = "sampling-rate";
@@ -216,7 +216,7 @@ impl<'a> V3PortAssignCtl {
 }
 
 #[derive(Default)]
-pub struct V3OptIfaceCtl {}
+pub struct V3OptIfaceCtl;
 
 impl<'a> V3OptIfaceCtl {
     const OPT_IFACE_IN_MODE_NAME: &'a str = "optical-iface-in-mode";

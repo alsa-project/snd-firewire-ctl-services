@@ -27,7 +27,7 @@ fn clk_src_to_label(src: &V2ClkSrc) -> String {
 }
 
 #[derive(Default)]
-pub struct V2ClkCtl {}
+pub struct V2ClkCtl;
 
 impl<'a> V2ClkCtl {
     const RATE_NAME: &'a str = "sampling- rate";
@@ -204,7 +204,7 @@ fn opt_iface_mode_to_label(mode: &V2OptIfaceMode) -> String {
 }
 
 #[derive(Default)]
-pub struct V2OptIfaceCtl {}
+pub struct V2OptIfaceCtl;
 
 impl<'a> V2OptIfaceCtl {
     const OPT_IN_IFACE_MODE_NAME: &'a str = "optical-iface-in-mode";

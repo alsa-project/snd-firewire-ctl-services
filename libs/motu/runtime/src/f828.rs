@@ -94,7 +94,7 @@ fn opt_iface_mode_to_label(mode: &V1OptIfaceMode) -> String {
 }
 
 #[derive(Default)]
-pub struct SpecificCtl {}
+pub struct SpecificCtl;
 
 impl<'a> SpecificCtl {
     const OPT_IN_IFACE_MODE_NAME: &'a str = "optical-iface-in-mode";
