@@ -20,14 +20,19 @@ const TIMEOUT_MS: u32 = 100;
 pub struct F828 {
     req: FwReq,
     proto: F828Protocol,
-    clk_ctls: V1ClkCtl,
+    clk_ctls: ClkCtl,
     monitor_input_ctl: V1MonitorInputCtl,
     specific_ctls: SpecificCtl,
 }
 
+#[derive(Default)]
+struct ClkCtl;
+
+impl V1ClkCtlOperation<F828Protocol> for ClkCtl {}
+
 impl CtlModel<SndMotu> for F828 {
     fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.clk_ctls.load(&self.proto, card_cntr)?;
+        self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(&self.proto, card_cntr)?;
         self.specific_ctls.load(&self.proto, card_cntr)?;
         Ok(())
@@ -41,7 +46,7 @@ impl CtlModel<SndMotu> for F828 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &mut self.req, &self.proto, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -68,7 +73,7 @@ impl CtlModel<SndMotu> for F828 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &mut self.req, &self.proto, elem_id, old, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
