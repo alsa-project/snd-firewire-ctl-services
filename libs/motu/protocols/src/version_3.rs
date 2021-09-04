@@ -249,6 +249,7 @@ pub trait V3OptIfaceProtocol: AsRef<FwReq> {
 
     fn set_opt_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         is_out: bool,
         is_b: bool,
@@ -257,7 +258,7 @@ pub trait V3OptIfaceProtocol: AsRef<FwReq> {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
-        read_quad(self.as_ref(), node, OFFSET_OPT, timeout_ms)
+        read_quad(req, node, OFFSET_OPT, timeout_ms)
             .and_then(|mut quad| {
                 quad &= !enabled_mask;
                 quad &= !no_adat_mask;
@@ -267,18 +268,19 @@ pub trait V3OptIfaceProtocol: AsRef<FwReq> {
                 if no_adat {
                     quad |= no_adat_mask;
                 }
-                write_quad(self.as_ref(), node, OFFSET_OPT, quad, timeout_ms)
+                write_quad(req, node, OFFSET_OPT, quad, timeout_ms)
             })
     }
 
     fn get_opt_iface_mode(
         &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         is_out: bool,
         is_b: bool,
         timeout_ms: u32,
     ) -> Result<(bool, bool), Error> {
-        read_quad(self.as_ref(), node, OFFSET_OPT, timeout_ms).map(|quad| {
+        read_quad(req, node, OFFSET_OPT, timeout_ms).map(|quad| {
             let (enabled_mask, no_adat_mask) = self.get_opt_iface_masks(is_out, is_b);
             let enabled = (quad & enabled_mask) > 0;
             let no_adat = (quad & no_adat_mask) > 0;
