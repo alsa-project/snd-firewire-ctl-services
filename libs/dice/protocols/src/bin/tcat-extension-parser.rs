@@ -80,10 +80,10 @@ fn print_mixer(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections, c
     })
 }
 
-fn print_peak(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
+fn print_peak(req: &mut FwReq, node: &mut FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
     -> Result<(), Error>
 {
-    proto.read_peak_entries(node, sections, caps, TIMEOUT_MS)
+    PeakSectionProtocol::read_peak_entries(req, node, sections, caps, TIMEOUT_MS)
         .map(|entries| {
             println!("Peak:");
             entries.iter()
@@ -203,14 +203,14 @@ fn main() {
             let d = dispatcher.clone();
             let th = thread::spawn(move || d.run());
 
-            let proto = FwReq::new();
+            let mut proto = FwReq::new();
             let result = proto.read_extension_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
                     let caps = proto.read_caps(&mut node, &sections, TIMEOUT_MS)?;
                     print_caps(&caps);
                     print_mixer(&proto, &mut node, &sections, &caps)?;
-                    print_peak(&proto, &mut node, &sections, &caps)?;
+                    print_peak(&mut proto, &mut node, &sections, &caps)?;
                     print_current_router_entries(&proto, &mut node, &sections, &caps)?;
                     print_current_stream_format_entries(&proto, &mut node, &sections, &caps)?;
                     print_standalone_config(&proto, &mut node, &sections)?;

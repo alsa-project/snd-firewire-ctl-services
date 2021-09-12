@@ -259,7 +259,13 @@ impl MeterCtl {
         timeout_ms: u32
     ) -> Result<(), Error>
     {
-        let entries = req.read_peak_entries(node, sections, caps, timeout_ms)?;
+        let entries = PeakSectionProtocol::read_peak_entries(
+            req,
+            node,
+            sections,
+            caps,
+            timeout_ms
+        )?;
 
         self.real_meter.iter_mut().chain(self.stream_meter.iter_mut()).chain(self.mixer_meter.iter_mut())
             .zip(self.real_blk_dsts.iter().chain(self.stream_blk_dsts.iter()).chain(self.mixer_blk_dsts.iter()))
