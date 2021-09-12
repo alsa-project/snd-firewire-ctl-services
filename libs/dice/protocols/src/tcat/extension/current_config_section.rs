@@ -10,7 +10,11 @@ use super::{*, cmd_section::*, caps_section::*};
 use super::router_entry::*;
 use super::stream_format_entry::*;
 
-pub trait CurrentConfigSectionProtocol: ProtocolExtension {
+/// The structure of protocol implementation of current configuration section.
+#[derive(Default)]
+pub struct CurrentConfigSectionProtocol;
+
+impl CurrentConfigSectionProtocol {
     const LOW_ROUTER_CONFIG_OFFSET: usize = 0x0000;
     const LOW_STREAM_CONFIG_OFFSET: usize = 0x1000;
     const MID_ROUTER_CONFIG_OFFSET: usize = 0x2000;
@@ -18,8 +22,8 @@ pub trait CurrentConfigSectionProtocol: ProtocolExtension {
     const HIGH_ROUTER_CONFIG_OFFSET: usize = 0x4000;
     const HIGH_STREAM_CONFIG_OFFSET: usize = 0x5000;
 
-    fn read_current_router_entries(
-        &self,
+    pub fn read_current_router_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -34,18 +38,31 @@ pub trait CurrentConfigSectionProtocol: ProtocolExtension {
 
         let mut data = [0;4];
         let offset = sections.current_config.offset + offset;
-        ProtocolExtension::read(self, node, offset, &mut data, timeout_ms)
+        ProtocolExtension::read(
+            req,
+            node,
+            offset,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))?;
 
         let entry_count = std::cmp::min(u32::from_be_bytes(data) as usize,
                                         caps.router.maximum_entry_count as usize);
 
-        RouterEntryProtocol::read_router_entries(&self, node, caps, offset + 4, entry_count, timeout_ms)
+        RouterEntryProtocol::read_router_entries(
+            req,
+            node,
+            caps,
+            offset + 4,
+            entry_count,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))
     }
 
-    fn read_current_stream_format_entries(
-        &self,
+    pub fn read_current_stream_format_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -58,9 +75,13 @@ pub trait CurrentConfigSectionProtocol: ProtocolExtension {
             RateMode::High => Self::HIGH_STREAM_CONFIG_OFFSET,
         };
         let offset = sections.current_config.offset + offset;
-        StreamFormatEntryProtocol::read_stream_format_entries(&self, node, caps, offset, timeout_ms)
+        StreamFormatEntryProtocol::read_stream_format_entries(
+            req,
+            node,
+            caps,
+            offset,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))
     }
 }
-
-impl<O: AsRef<FwReq>> CurrentConfigSectionProtocol for O {}
