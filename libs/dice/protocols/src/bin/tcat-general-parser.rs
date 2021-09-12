@@ -183,14 +183,14 @@ fn main() {
             let d = dispatcher.clone();
             let th = thread::spawn(move || d.run());
 
-            let mut proto = FwReq::new();
-            let result = proto.read_general_sections(&mut node, TIMEOUT_MS)
+            let mut req = FwReq::new();
+            let result = GeneralProtocol::read_general_sections(&mut req, &mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
-                    print_global_section(&mut proto, &mut node, &sections)?;
-                    print_tx_stream_formats(&mut proto, &mut node, &sections)?;
-                    print_rx_stream_formats(&mut proto, &mut node, &sections)?;
-                    print_ext_sync(&mut proto, &mut node, &sections);
+                    print_global_section(&mut req, &mut node, &sections)?;
+                    print_tx_stream_formats(&mut req, &mut node, &sections)?;
+                    print_rx_stream_formats(&mut req, &mut node, &sections)?;
+                    print_ext_sync(&mut req, &mut node, &sections);
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
