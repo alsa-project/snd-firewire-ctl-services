@@ -7,12 +7,16 @@
 //! in protocol extension defined by TCAT for ASICs of DICE.
 use super::{*, caps_section::*};
 
-pub trait MixerSectionProtocol: ProtocolExtension {
+/// The structure for protocol implementation of mixer section.
+#[derive(Default)]
+pub struct MixerSectionProtocol;
+
+impl MixerSectionProtocol {
     const SATURATION_OFFSET: usize = 0x00;
     const COEFF_OFFSET: usize = 0x04;
 
-    fn read_saturation(
-        &self,
+    pub fn read_saturation(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -23,8 +27,13 @@ pub trait MixerSectionProtocol: ProtocolExtension {
         }
 
         let mut data = [0;4];
-        ProtocolExtension::read(self, node, sections.mixer.offset + Self::SATURATION_OFFSET, &mut data,
-                                timeout_ms)
+        ProtocolExtension::read(
+            req,
+            node,
+            sections.mixer.offset + Self::SATURATION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Mixer, &e.to_string()))
             .map(|_| {
                 let val = u32::from_be_bytes(data);
@@ -34,8 +43,8 @@ pub trait MixerSectionProtocol: ProtocolExtension {
             })
     }
 
-    fn read_coef(
-        &self,
+    pub fn read_coef(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -49,14 +58,19 @@ pub trait MixerSectionProtocol: ProtocolExtension {
 
         let offset = 4 * (src + dst * caps.mixer.input_count as usize);
         let mut data = [0;4];
-        ProtocolExtension::read(self, node, sections.mixer.offset + Self::COEFF_OFFSET + offset,
-                                &mut data, timeout_ms)
+        ProtocolExtension::read(
+            req,
+            node,
+            sections.mixer.offset + Self::COEFF_OFFSET + offset,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Mixer, &e.to_string()))
             .map(|_|  u32::from_be_bytes(data))
     }
 
-    fn write_coef(
-        &self,
+    pub fn write_coef(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -72,10 +86,13 @@ pub trait MixerSectionProtocol: ProtocolExtension {
         let offset = 4 * (src + dst * caps.mixer.input_count as usize);
         let mut data = [0;4];
         data.copy_from_slice(&val.to_be_bytes());
-        ProtocolExtension::write(self, node, sections.mixer.offset + Self::COEFF_OFFSET + offset,
-                                 &mut data, timeout_ms)
+        ProtocolExtension::write(
+            req,
+            node,
+            sections.mixer.offset + Self::COEFF_OFFSET + offset,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Mixer, &e.to_string()))
     }
 }
-
-impl<O: AsRef<FwReq>> MixerSectionProtocol for O {}
