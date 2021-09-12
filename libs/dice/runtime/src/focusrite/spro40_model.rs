@@ -161,7 +161,7 @@ impl SpecificCtl {
     const ANALOG_OUT_0_1_PAD_NAME: &'static str = "analog-output-1/2-pad";
     const OPT_OUT_IFACE_MODE_NAME: &'static str = "optical-output-interface-mode";
 
-    const OPT_OUT_IFACE_MODES: [OptOutIfaceMode;2] = [
+    const OPT_OUT_IFACE_MODES: [OptOutIfaceMode; 2] = [
         OptOutIfaceMode::Adat,
         OptOutIfaceMode::Spdif,
     ];
@@ -190,7 +190,8 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let enabled = req.read_analog_out_0_1_pad_offset(
+                let enabled = SPro40Protocol::read_analog_out_0_1_pad(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     timeout_ms
@@ -199,7 +200,8 @@ impl SpecificCtl {
                 Ok(true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mode = req.read_opt_out_iface_mode(
+                let mode = SPro40Protocol::read_opt_out_iface_mode(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     timeout_ms
@@ -225,7 +227,8 @@ impl SpecificCtl {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                req.write_analog_out_0_1_pad_offset(
+                SPro40Protocol::write_analog_out_0_1_pad(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     vals[0],
@@ -243,7 +246,8 @@ impl SpecificCtl {
                                           vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                req.write_opt_out_iface_mode(
+                SPro40Protocol::write_opt_out_iface_mode(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     mode,
