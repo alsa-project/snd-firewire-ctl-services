@@ -25,7 +25,7 @@ pub struct Pfire2626Model {
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<Pfire2626State>,
+    tcd22xx_ctl: Pfire2626Tcd22xxCtl,
     specific_ctl: Pfire2626SpecificCtl,
 }
 
@@ -163,12 +163,25 @@ impl MeasureModel<SndDice> for Pfire2626Model {
 }
 
 #[derive(Default)]
+struct Pfire2626Tcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<Pfire2626Protocol> for Pfire2626Tcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
+        &self.0
+    }
+
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
+    }
+}
+
+#[derive(Default)]
 pub struct Pfire610Model {
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<Pfire610State>,
+    tcd22xx_ctl: Pfire610Tcd22xxCtl,
     specific_ctl: Pfire610SpecificCtl,
 }
 
@@ -302,6 +315,19 @@ impl MeasureModel<SndDice> for Pfire610Model {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[derive(Default)]
+struct Pfire610Tcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<Pfire610Protocol> for Pfire610Tcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
+        &self.0
+    }
+
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
     }
 }
 

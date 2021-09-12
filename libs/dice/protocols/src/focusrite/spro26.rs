@@ -15,11 +15,7 @@ use super::*;
 #[derive(Default)]
 pub struct SPro26Protocol;
 
-/// The structure to represent state of TCD22xx on Saffire Pro 26.
-#[derive(Default, Debug)]
-pub struct SPro26State(Tcd22xxState);
-
-impl Tcd22xxSpec for SPro26State {
+impl Tcd22xxSpecOperation for SPro26Protocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 6, label: None},
         Input{id: SrcBlkId::Aes, offset: 4, count: 2, label: Some("S/PDIF-coax")},
@@ -41,14 +37,6 @@ impl Tcd22xxSpec for SPro26State {
         SrcBlk{id: SrcBlkId::Ins0, ch: 4},
         SrcBlk{id: SrcBlkId::Ins0, ch: 5},
     ];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
 }
 
 const SW_NOTICE_OFFSET: usize = 0x000c;

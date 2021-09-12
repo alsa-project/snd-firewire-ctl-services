@@ -23,7 +23,7 @@ pub struct Mbox3Model{
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<Mbox3State>,
+    tcd22xx_ctl: Mbox3Tcd22xxCtl,
     standalone_ctl: StandaloneCtl,
     hw_ctl: HwCtl,
     reverb_ctl: ReverbCtl,
@@ -174,6 +174,19 @@ impl MeasureModel<SndDice> for Mbox3Model {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[derive(Default)]
+struct Mbox3Tcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<Mbox3Protocol> for Mbox3Tcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
+        &self.0
+    }
+
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
     }
 }
 

@@ -22,7 +22,7 @@ pub struct FStudioProjectModel{
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<FStudioProjectState>,
+    tcd22xx_ctl: FStudioProjectTcd22xxCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -138,5 +138,18 @@ impl MeasureModel<SndDice> for FStudioProjectModel {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[derive(Default)]
+struct FStudioProjectTcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<FStudioProjectProtocol> for FStudioProjectTcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
+        &self.0
+    }
+
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
     }
 }
