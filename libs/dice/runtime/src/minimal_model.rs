@@ -26,7 +26,11 @@ impl CtlModel<SndDice> for MinimalModel {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut node = unit.get_node();
 
-        self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
+        self.sections = GeneralProtocol::read_general_sections(
+            &mut self.req,
+            &mut node,
+            TIMEOUT_MS
+        )?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
             &mut node,

@@ -13,7 +13,7 @@ pub struct FStudioProtocol;
 const OFFSET: usize = 0x00700000;
 
 fn presonus_read(
-    req: &FwReq,
+    req: &mut FwReq,
     node: &mut FwNode,
     offset: usize,
     raw: &mut [u8],
@@ -23,7 +23,7 @@ fn presonus_read(
 }
 
 fn presonus_write(
-    req: &FwReq,
+    req: &mut FwReq,
     node: &mut FwNode,
     offset: usize,
     raw: &mut [u8],

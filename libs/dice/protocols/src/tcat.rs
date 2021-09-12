@@ -10,10 +10,6 @@
 //! range of registers accessible by IEEE 1394 asynchronous transaction. In the crate, the range
 //! is called as `section`, therefore the features are categorized to the section.
 //!
-//! All of the protocol is implemented to trait per section in which `AsRef<hinawa::FwReq>` is
-//! used for supertrait. Any call of method in the trait initiates asynchronous transaction to
-//! operate the registers.
-//!
 //! ## Utilities
 //!
 //! Some programs are available under 'src/bin' directory.
@@ -213,19 +209,23 @@ impl ErrorDomain for GeneralProtocolError {
     }
 }
 
-/// The trait for general protocol.
-pub trait GeneralProtocol: AsRef<FwReq> {
-    const BASE_ADDR: u64 = 0xffffe0000000;
+/// The structure for protocol implementation of TCAT general protocol.
+#[derive(Default)]
+pub struct GeneralProtocol;
+
+const BASE_ADDR: u64 = 0xffffe0000000;
+
+impl GeneralProtocol {
     const MAX_FRAME_SIZE: usize = 512;
 
-    fn read(
-        &self,
+    pub fn read(
+        req: &mut FwReq,
         node: &mut FwNode,
         offset: usize,
         mut frames: &mut [u8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut addr = Self::BASE_ADDR + offset as u64;
+        let mut addr = BASE_ADDR + offset as u64;
 
         while frames.len() > 0 {
             let len = std::cmp::min(frames.len(), Self::MAX_FRAME_SIZE);
@@ -235,7 +235,7 @@ pub trait GeneralProtocol: AsRef<FwReq> {
                 FwTcode::ReadBlockRequest
             };
 
-            self.as_ref().transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
 
             addr += len as u64;
             frames = &mut frames[len..];
@@ -244,14 +244,14 @@ pub trait GeneralProtocol: AsRef<FwReq> {
         Ok(())
     }
 
-    fn write(
-        &self,
+    pub fn write(
+        req: &mut FwReq,
         node: &mut FwNode,
         offset: usize,
         mut frames: &mut [u8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut addr = Self::BASE_ADDR + (offset as u64);
+        let mut addr = BASE_ADDR + (offset as u64);
 
         while frames.len() > 0 {
             let len = std::cmp::min(frames.len(), Self::MAX_FRAME_SIZE);
@@ -261,7 +261,7 @@ pub trait GeneralProtocol: AsRef<FwReq> {
                 FwTcode::WriteBlockRequest
             };
 
-            self.as_ref().transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+            req.transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
 
             addr += len as u64;
             frames = &mut frames[len..];
@@ -270,18 +270,16 @@ pub trait GeneralProtocol: AsRef<FwReq> {
         Ok(())
     }
 
-    fn read_general_sections(
-        &self,
+    pub fn read_general_sections(
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
     ) -> Result<GeneralSections, Error> {
-        let mut data = [0;GeneralSections::SIZE];
-        self.read(node, 0, &mut data, timeout_ms)
+        let mut data = [0; GeneralSections::SIZE];
+        GeneralProtocol::read(req, node, 0, &mut data, timeout_ms)
             .map(|_| GeneralSections::from(&data[..]))
     }
 }
-
-impl<O: AsRef<FwReq>> GeneralProtocol for O {}
 
 /// The structure to represent parameter of stream format for IEC 60958.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]

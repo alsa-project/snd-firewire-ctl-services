@@ -121,7 +121,11 @@ impl DiceModel {
             } else {
                 // MEMO: workaround for old firmware. Invalidate a negative effect by failure of
                 // previous transaction.
-                let _ = req.read_general_sections(&mut unit.get_node(), 100);
+                let _ = GeneralProtocol::read_general_sections(
+                    &mut req,
+                    &mut unit.get_node(),
+                    100
+                )?;
             }
         }
 
