@@ -358,44 +358,39 @@ impl IofwCtls {
 #[derive(Default)]
 struct Io14fwMeterCtl(IofwMeterState, Vec<ElemId>);
 
-impl AsRef<IofwMeterState> for Io14fwMeterCtl {
-    fn as_ref(&self) -> &IofwMeterState {
+impl MeterCtlOperation<Io14fwProtocol> for Io14fwMeterCtl {
+    fn meter(&self) -> &IofwMeterState {
         &self.0
     }
-}
 
-impl AsMut<IofwMeterState> for Io14fwMeterCtl {
-    fn as_mut(&mut self) -> &mut IofwMeterState {
+    fn meter_mut(&mut self) -> &mut IofwMeterState {
         &mut self.0
     }
 }
-
-impl MeterCtlOperation<Io14fwProtocol> for Io14fwMeterCtl {}
 
 #[derive(Default)]
 struct Io26fwMeterCtl(IofwMeterState, Vec<ElemId>);
 
-impl AsRef<IofwMeterState> for Io26fwMeterCtl {
-    fn as_ref(&self) -> &IofwMeterState {
+impl MeterCtlOperation<Io26fwProtocol> for Io26fwMeterCtl {
+    fn meter(&self) -> &IofwMeterState {
         &self.0
     }
-}
 
-impl AsMut<IofwMeterState> for Io26fwMeterCtl {
-    fn as_mut(&mut self) -> &mut IofwMeterState {
+    fn meter_mut(&mut self) -> &mut IofwMeterState {
         &mut self.0
     }
 }
-
-impl MeterCtlOperation<Io26fwProtocol> for Io26fwMeterCtl {}
 
 const ANALOG_INPUT_METER_NAME: &str = "analog-input-meters";
 const DIGITAL_A_INPUT_METER_NAME: &str = "digital-a-input-meters";
 const DIGITAL_B_INPUT_METER_NAME: &str = "digital-b-input-meters";
 const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
 
-trait MeterCtlOperation<T: IofwMeterOperation>: AsRef<IofwMeterState> + AsMut<IofwMeterState> {
+trait MeterCtlOperation<T: IofwMeterOperation> {
     const LEVEL_TLV: DbInterval = DbInterval{min: -9000, max: 0, linear: false, mute_avail: false};
+
+    fn meter(&self) -> &IofwMeterState;
+    fn meter_mut(&mut self) -> &mut IofwMeterState;
 
     fn load(
         &mut self,
@@ -406,7 +401,7 @@ trait MeterCtlOperation<T: IofwMeterOperation>: AsRef<IofwMeterState> + AsMut<Io
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_meter_state();
         T::read_meter(req, &mut unit.get_node(), &mut state, timeout_ms)?;
-        *self.as_mut() = state;
+        *self.meter_mut() = state;
 
         let mut measured_elem_id_list = Vec::new();
 
@@ -475,7 +470,7 @@ trait MeterCtlOperation<T: IofwMeterOperation>: AsRef<IofwMeterState> + AsMut<Io
         req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        T::read_meter(req, &mut unit.get_node(), self.as_mut(), timeout_ms)
+        T::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
     }
 
     fn read_measured_elem(
@@ -485,19 +480,19 @@ trait MeterCtlOperation<T: IofwMeterOperation>: AsRef<IofwMeterState> + AsMut<Io
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ANALOG_INPUT_METER_NAME => {
-                elem_value.set_int(&self.as_ref().analog_inputs);
+                elem_value.set_int(&self.meter().analog_inputs);
                 Ok(true)
             }
             DIGITAL_A_INPUT_METER_NAME => {
-                elem_value.set_int(&self.as_ref().digital_a_inputs);
+                elem_value.set_int(&self.meter().digital_a_inputs);
                 Ok(true)
             }
             DIGITAL_B_INPUT_METER_NAME => {
-                elem_value.set_int(&self.as_ref().digital_b_inputs);
+                elem_value.set_int(&self.meter().digital_b_inputs);
                 Ok(true)
             }
             MIXER_OUT_METER_NAME => {
-                elem_value.set_int(&self.as_ref().mixer_outputs);
+                elem_value.set_int(&self.meter().mixer_outputs);
                 Ok(true)
             }
             _ => Ok(false),
@@ -508,36 +503,28 @@ trait MeterCtlOperation<T: IofwMeterOperation>: AsRef<IofwMeterState> + AsMut<Io
 #[derive(Default)]
 struct Io14fwMixerCtl(IofwMixerState, Vec<ElemId>);
 
-impl AsRef<IofwMixerState> for Io14fwMixerCtl {
-    fn as_ref(&self) -> &IofwMixerState {
+impl MixerCtlOperation<Io14fwProtocol> for Io14fwMixerCtl {
+    fn state(&self) -> &IofwMixerState {
         &self.0
     }
-}
 
-impl AsMut<IofwMixerState> for Io14fwMixerCtl {
-    fn as_mut(&mut self) -> &mut IofwMixerState {
+    fn state_mut(&mut self) -> &mut IofwMixerState {
         &mut self.0
     }
 }
-
-impl MixerCtlOperation<Io14fwProtocol> for Io14fwMixerCtl {}
 
 #[derive(Default)]
 struct Io26fwMixerCtl(IofwMixerState, Vec<ElemId>);
 
-impl AsRef<IofwMixerState> for Io26fwMixerCtl {
-    fn as_ref(&self) -> &IofwMixerState {
+impl MixerCtlOperation<Io26fwProtocol> for Io26fwMixerCtl {
+    fn state(&self) -> &IofwMixerState {
         &self.0
     }
-}
 
-impl AsMut<IofwMixerState> for Io26fwMixerCtl {
-    fn as_mut(&mut self) -> &mut IofwMixerState {
+    fn state_mut(&mut self) -> &mut IofwMixerState {
         &mut self.0
     }
 }
-
-impl MixerCtlOperation<Io26fwProtocol> for Io26fwMixerCtl {}
 
 const INPUT_GAIN_NAME: &str = "monitor-input-gain";
 const INPUT_MUTE_NAME: &str = "monitor-input-mute";
@@ -550,7 +537,10 @@ const OUTPUT_MUTE_NAME: &str = "monitor-output-mute";
 const MIX_BLEND_KNOB_NAME: &str = "mix-blend-knob";
 const MAIN_LEVEL_KNOB_NAME: &str = "main-level-knob";
 
-trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<IofwMixerState> {
+trait MixerCtlOperation<T: IofwMixerOperation> {
+    fn state(&self) -> &IofwMixerState;
+    fn state_mut(&mut self) -> &mut IofwMixerState;
+
     const LEVEL_MIN: i32 = 0;
     const LEVEL_MAX: i32 = 0x007fff00;
     const LEVEL_STEP: i32 = 0x100;
@@ -573,7 +563,7 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
         T::read_mixer_src_mutes(req, &mut node, &mut state, timeout_ms)?;
         T::read_mixer_out_vols(req, &mut node, &mut state, timeout_ms)?;
         T::read_mixer_out_mutes(req, &mut node, &mut state, timeout_ms)?;
-        *self.as_mut() = state;
+        *self.state_mut() = state;
 
         let mut measured_elem_id_list = Vec::new();
 
@@ -662,7 +652,7 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
         match elem_id.get_name().as_str() {
             INPUT_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let gains = &self.as_ref().gains[mixer];
+                let gains = &self.state().gains[mixer];
                 let mut vals = Vec::new();
                 vals.extend_from_slice(&gains.analog_inputs);
                 vals.extend_from_slice(&gains.digital_a_inputs);
@@ -672,7 +662,7 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
             }
             INPUT_MUTE_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mutes = &self.as_ref().mutes[mixer];
+                let mutes = &self.state().mutes[mixer];
                 let mut vals = Vec::new();
                 vals.extend_from_slice(&mutes.analog_inputs);
                 vals.extend_from_slice(&mutes.digital_a_inputs);
@@ -682,14 +672,14 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
             }
             STREAM_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let gains = &self.as_ref().gains[mixer];
+                let gains = &self.state().gains[mixer];
                 let mut vals = Vec::new();
                 vals.extend_from_slice(&gains.stream_inputs);
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             OUTPUT_MUTE_NAME => {
-                elem_value.set_bool(&self.as_ref().out_mutes);
+                elem_value.set_bool(&self.state().out_mutes);
                 Ok(true)
             }
             _ => self.read_measured_elem(elem_id, elem_value),
@@ -707,7 +697,7 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
         match elem_id.get_name().as_str() {
             INPUT_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut gains = self.as_ref().gains[mixer].clone();
+                let mut gains = self.state().gains[mixer].clone();
 
                 let analog_input_count = gains.analog_inputs.len();
                 let digital_a_input_count = gains.digital_a_inputs.len();
@@ -728,14 +718,14 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
                     &mut unit.get_node(),
                     mixer,
                     &gains,
-                    self.as_mut(),
+                    self.state_mut(),
                     timeout_ms
                 )
                     .map(|_| true)
             }
             INPUT_MUTE_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut mutes = self.as_ref().mutes[mixer].clone();
+                let mut mutes = self.state().mutes[mixer].clone();
 
                 let analog_input_count = mutes.analog_inputs.len();
                 let digital_a_input_count = mutes.digital_a_inputs.len();
@@ -756,14 +746,14 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
                     &mut unit.get_node(),
                     mixer,
                     &mutes,
-                    self.as_mut(),
+                    self.state_mut(),
                     timeout_ms
                 )
                     .map(|_| true)
             }
             STREAM_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut gains = self.as_ref().gains[mixer].clone();
+                let mut gains = self.state().gains[mixer].clone();
 
                 elem_value.get_int(&mut gains.stream_inputs);
 
@@ -772,21 +762,33 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
                     &mut unit.get_node(),
                     mixer,
                     &gains,
-                    self.as_mut(),
+                    self.state_mut(),
                     timeout_ms
                 )
                     .map(|_| true)
             }
             OUTPUT_VOL_NAME => {
-                let mut vals = self.as_ref().out_vols.clone();
+                let mut vals = self.state().out_vols.clone();
                 elem_value.get_int(&mut vals);
-                T::write_mixer_out_vols(req, &mut unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                T::write_mixer_out_vols(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
+                    self.state_mut(),
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             OUTPUT_MUTE_NAME => {
-                let mut vals = self.as_ref().out_mutes.clone();
+                let mut vals = self.state().out_mutes.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_mixer_out_mutes(req, &mut unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                T::write_mixer_out_mutes(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
+                    self.state_mut(),
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -801,17 +803,17 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
     ) -> Result<(), Error> {
         let mut node = unit.get_node();
 
-        let old = self.as_ref().knobs.mix_blend as i32;
-        T::read_knob_state(req, &mut node, self.as_mut(), timeout_ms)?;
+        let old = self.state().knobs.mix_blend as i32;
+        T::read_knob_state(req, &mut node, self.state_mut(), timeout_ms)?;
 
-        let new = self.as_ref().knobs.mix_blend as i32;
+        let new = self.state().knobs.mix_blend as i32;
         if new != old {
             // NOTE: The calculation is done within 32 bit storage without overflow.
             let val = Self::LEVEL_MAX * new / Self::KNOB_MAX;
-            let mut new = self.as_ref().out_vols.clone();
+            let mut new = self.state().out_vols.clone();
             new[0] = val;
             new[1] = val;
-            T::write_mixer_out_vols(req, &mut node, &new, self.as_mut(), timeout_ms)?;
+            T::write_mixer_out_vols(req, &mut node, &new, self.state_mut(), timeout_ms)?;
         }
 
         Ok(())
@@ -824,15 +826,15 @@ trait MixerCtlOperation<T: IofwMixerOperation>: AsRef<IofwMixerState> + AsMut<Io
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUTPUT_VOL_NAME => {
-                elem_value.set_int(&self.as_ref().out_vols);
+                elem_value.set_int(&self.state().out_vols);
                 Ok(true)
             }
             MIX_BLEND_KNOB_NAME => {
-                elem_value.set_int(&[self.as_ref().knobs.mix_blend as i32]);
+                elem_value.set_int(&[self.state().knobs.mix_blend as i32]);
                 Ok(true)
             }
             MAIN_LEVEL_KNOB_NAME => {
-                elem_value.set_int(&[self.as_ref().knobs.main_level as i32]);
+                elem_value.set_int(&[self.state().knobs.main_level as i32]);
                 Ok(true)
             }
             _ => Ok(false),
