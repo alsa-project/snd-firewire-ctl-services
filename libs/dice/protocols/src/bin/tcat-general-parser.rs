@@ -25,7 +25,7 @@ fn print_sections(sections: &GeneralSections) {
              sections.ext_sync.offset, sections.ext_sync.size);
 }
 
-fn print_global_section(proto: &FwReq, node: &FwNode, sections: &GeneralSections) -> Result<(), Error> {
+fn print_global_section(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
     let owner = proto.read_owner_addr(node, sections, TIMEOUT_MS)?;
     println!("Owner:");
     println!("  node ID:        0x{:04x}", owner >> 48);
@@ -82,7 +82,7 @@ fn print_global_section(proto: &FwReq, node: &FwNode, sections: &GeneralSections
     Ok(())
 }
 
-fn print_tx_stream_formats(proto: &FwReq, node: &FwNode, sections: &GeneralSections) -> Result<(), Error> {
+fn print_tx_stream_formats(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
     let entries = proto.read_tx_stream_format_entries(node, sections, TIMEOUT_MS)?;
     println!("Tx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
@@ -103,7 +103,7 @@ fn print_tx_stream_formats(proto: &FwReq, node: &FwNode, sections: &GeneralSecti
     Ok(())
 }
 
-fn print_rx_stream_formats(proto: &FwReq, node: &FwNode, sections: &GeneralSections) -> Result<(), Error> {
+fn print_rx_stream_formats(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
     let entries = proto.read_rx_stream_format_entries(node, sections, TIMEOUT_MS)?;
     println!("Rx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
@@ -124,7 +124,7 @@ fn print_rx_stream_formats(proto: &FwReq, node: &FwNode, sections: &GeneralSecti
     Ok(())
 }
 
-fn print_ext_sync(proto: &FwReq, node: &FwNode, sections: &GeneralSections) {
+fn print_ext_sync(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) {
     let _ = proto.read_ext_sync_block(node, sections, TIMEOUT_MS)
         .map(|blk| {
             println!("External sync:");
@@ -171,7 +171,7 @@ fn main() {
                         .map(|src| (node, src))
                 })
         })
-        .and_then(|(node, src)| {
+        .and_then(|(mut node, src)| {
             let ctx = MainContext::new();
             let _ = src.attach(Some(&ctx));
             let dispatcher = Arc::new(MainLoop::new(Some(&ctx), false));
@@ -179,13 +179,13 @@ fn main() {
             let th = thread::spawn(move || d.run());
 
             let proto = FwReq::new();
-            let result = proto.read_general_sections(&node, TIMEOUT_MS)
+            let result = proto.read_general_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
-                    print_global_section(&proto, &node, &sections)?;
-                    print_tx_stream_formats(&proto, &node, &sections)?;
-                    print_rx_stream_formats(&proto, &node, &sections)?;
-                    print_ext_sync(&proto, &node, &sections);
+                    print_global_section(&proto, &mut node, &sections)?;
+                    print_tx_stream_formats(&proto, &mut node, &sections)?;
+                    print_rx_stream_formats(&proto, &mut node, &sections)?;
+                    print_ext_sync(&proto, &mut node, &sections);
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
