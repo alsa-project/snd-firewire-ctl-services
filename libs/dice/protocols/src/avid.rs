@@ -14,6 +14,27 @@ use super::tcat::*;
 use super::tcat::extension::{*, appl_section::*};
 use super::tcat::tcd22xx_spec::*;
 
+const USE_CASE_OFFSET: usize = 0x00;
+const MASTER_KNOB_ASSIGN_OFFSET: usize = 0x0c;
+const BUTTON_LED_STATE_OFFSET: usize = 0x10;
+const DIM_LED_USAGE_OFFSET: usize = 0x1c;
+const BUTTON_HOLD_DURATION_OFFSET: usize = 0x20;
+const HPF_ENABLE_OFFSET: usize = 0x24; // High pass filter for analog inputs.
+const OUT_0_TRIM_OFFSET: usize = 0x28;
+const OUT_1_TRIM_OFFSET: usize = 0x2c;
+const OUT_2_TRIM_OFFSET: usize = 0x30;
+const OUT_3_TRIM_OFFSET: usize = 0x34;
+const OUT_4_TRIM_OFFSET: usize = 0x38;
+const OUT_5_TRIM_OFFSET: usize = 0x3c;
+const REVERB_TYPE_OFFSET: usize = 0x40;
+const REVERB_VOLUME_OFFSET: usize = 0x44;
+const REVERB_DURATION_OFFSET: usize = 0x48;
+const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
+
+/// The structure for protocol implementaion of Avid Mbox 3 Pro.
+#[derive(Default)]
+pub struct Mbox3Protocol;
+
 /// The structure to represent state of TCD22xx on Mbox 3 Pro.
 #[derive(Default, Debug)]
 pub struct Mbox3State(Tcd22xxState);
@@ -91,34 +112,43 @@ impl From<StandaloneUseCase> for u32 {
     }
 }
 
-/// The trait and its implementation to represent standalone protocol for Avid Mbox 3 pro.
-pub trait AvidMbox3StandaloneProtocol: ApplSectionProtocol {
-    const USE_CASE_OFFSET: usize = 0x00;
-
-    fn read_standalone_use_case(
-        &self,
+impl Mbox3Protocol {
+    pub fn read_standalone_use_case(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<StandaloneUseCase, Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::USE_CASE_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            USE_CASE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(data).into())
     }
 
-    fn write_standalone_use_case(
-        &self,
+    pub fn write_standalone_use_case(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         use_case: StandaloneUseCase,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = u32::from(use_case).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::USE_CASE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            USE_CASE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 }
-
-impl<O: AsRef<FwReq>> AvidMbox3StandaloneProtocol for O {}
 
 /// The alternative type to represent assignment map for master knob.
 pub type MasterKnobAssigns = [bool;6];
@@ -328,37 +358,29 @@ impl From<&ButtonLedState> for [u8;ButtonLedState::SIZE] {
     }
 }
 
-/// The trait and its implementation to represent hardware protocol for Avid Mbox 3 pro.
-pub trait AvidMbox3HwProtocol: ApplSectionProtocol {
-    const MASTER_KNOB_ASSIGN_OFFSET: usize = 0x0c;
-    const BUTTON_LED_STATE_OFFSET: usize = 0x10;
-    const DIM_LED_USAGE_OFFSET: usize = 0x1c;
-    const BUTTON_HOLD_DURATION_OFFSET: usize = 0x20;
-    const HPF_ENABLE_OFFSET: usize = 0x24;      // High pass filter for analog inputs.
-    const OUT_0_TRIM_OFFSET: usize = 0x28;
-    const OUT_1_TRIM_OFFSET: usize = 0x2c;
-    const OUT_2_TRIM_OFFSET: usize = 0x30;
-    const OUT_3_TRIM_OFFSET: usize = 0x34;
-    const OUT_4_TRIM_OFFSET: usize = 0x38;
-    const OUT_5_TRIM_OFFSET: usize = 0x3c;
+const OUT_TRIM_OFFSETS: [usize; 6] = [
+    OUT_0_TRIM_OFFSET, OUT_1_TRIM_OFFSET,
+    OUT_2_TRIM_OFFSET, OUT_3_TRIM_OFFSET,
+    OUT_4_TRIM_OFFSET, OUT_5_TRIM_OFFSET,
+];
 
-    const OUTPUT_COUNT: usize = 6;
-
-    const OUT_TRIM_OFFSETS: [usize;6] = [
-        Self::OUT_0_TRIM_OFFSET, Self::OUT_1_TRIM_OFFSET,
-        Self::OUT_2_TRIM_OFFSET, Self::OUT_3_TRIM_OFFSET,
-        Self::OUT_4_TRIM_OFFSET, Self::OUT_5_TRIM_OFFSET,
-    ];
-
-    fn read_hw_master_knob_assign(
-        &self,
+impl Mbox3Protocol {
+    pub fn read_master_knob_assign(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         assigns: &mut MasterKnobAssigns,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::MASTER_KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            MASTER_KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| {
                 let val = u32::from_be_bytes(data);
                 assigns.iter_mut()
@@ -368,8 +390,8 @@ pub trait AvidMbox3HwProtocol: ApplSectionProtocol {
             })
     }
 
-    fn write_hw_master_knob_assign(
-        &self,
+    pub fn write_master_knob_assign(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         assigns: &MasterKnobAssigns,
@@ -381,147 +403,223 @@ pub trait AvidMbox3HwProtocol: ApplSectionProtocol {
             .filter(|&(_, &assigned)| assigned)
             .fold(0, |val, (i, _)| val | (1 << i));
         data.copy_from_slice(&val.to_be_bytes());
-        self.write_appl_data(node, sections, Self::MASTER_KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            MASTER_KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_hw_button_led_state(
-        &self,
+    pub fn read_button_led_state(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<ButtonLedState, Error> {
         let mut data = [0;ButtonLedState::SIZE];
-        self.read_appl_data(node, sections, Self::BUTTON_LED_STATE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            BUTTON_LED_STATE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| ButtonLedState::from(data))
     }
 
-    fn write_hw_button_led_state(
-        &self,
+    pub fn write_button_led_state(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &ButtonLedState,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = Into::<[u8;ButtonLedState::SIZE]>::into(state);
-        self.write_appl_data(node, sections, Self::BUTTON_LED_STATE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            BUTTON_LED_STATE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_hw_dim_led_usage(
-        &self,
+    pub fn read_dim_led_usage(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<bool, Error> {
         let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::DIM_LED_USAGE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            DIM_LED_USAGE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(data) > 0)
     }
 
-    fn write_hw_dim_led_usage(
-        &self,
+    pub fn write_dim_led_usage(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         usage: bool,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = (usage as u32).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::DIM_LED_USAGE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            DIM_LED_USAGE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_hw_hold_duration(
-        &self,
+    pub fn read_hold_duration(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<u8, Error> {
         let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::BUTTON_HOLD_DURATION_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            BUTTON_HOLD_DURATION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(data) as u8)
     }
 
-    fn write_hw_hold_duration(
-        &self,
+    pub fn write_hold_duration(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         duration: u8,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = (duration as u32).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::BUTTON_HOLD_DURATION_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            BUTTON_HOLD_DURATION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_hw_hpf_enable(
-        &self,
+    pub fn read_hpf_enable(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         inputs: &mut [bool;4],
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::HPF_ENABLE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            HPF_ENABLE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| {
                 let val = u32::from_be_bytes(data);
-                inputs.iter_mut().enumerate().for_each(|(i, v)| *v = val & (1 << i) > 0);
+                inputs
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(i, v)| *v = val & (1 << i) > 0);
             })
     }
 
-    fn write_hw_hpf_enable(
-        &self,
+    pub fn write_hpf_enable(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         inputs: [bool;4],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let val = inputs.iter().enumerate().filter(|(_, &v)| v).fold(0 as u32, |val, (i, _)| val | (1 << i));
-        self.write_appl_data(node, sections, Self::HPF_ENABLE_OFFSET, &mut val.to_be_bytes().clone(),
-                             timeout_ms)
+        let val = inputs
+            .iter()
+            .enumerate()
+            .filter(|(_, &v)| v).fold(0 as u32, |val, (i, _)| val | (1 << i));
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            HPF_ENABLE_OFFSET,
+            &mut val.to_be_bytes().clone(),
+            timeout_ms
+        )
     }
 
-    fn read_hw_output_trim(
-        &self,
+    pub fn read_output_trim(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         idx: usize,
         timeout_ms: u32
     ) -> Result<u8, Error> {
-        Self::OUT_TRIM_OFFSETS.iter()
+        let &offset = OUT_TRIM_OFFSETS.iter()
             .nth(idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid value for index of output: {} greater than {}",
-                                  idx, Self::OUT_TRIM_OFFSETS.len());
+                let msg = format!("Invalid index of output: {} greater than {}",
+                                  idx, OUT_TRIM_OFFSETS.len());
                 Error::new(FileError::Inval, &msg)
-            })
-            .and_then(|&offset| {
-                let mut data = [0;4];
-                self.read_appl_data(node, sections, offset, &mut data, timeout_ms)
-                    .map(|_| u32::from_be_bytes(data) as u8)
-            })
+            })?;
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut data,
+            timeout_ms
+        )
+            .map(|_| u32::from_be_bytes(data) as u8)
     }
 
-    fn write_hw_output_trim(
-        &self,
+    pub fn write_output_trim(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         idx: usize,
         trim: u8,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        Self::OUT_TRIM_OFFSETS.iter()
+        let &offset = OUT_TRIM_OFFSETS.iter()
             .nth(idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid value for index of output: {} greater than {}",
-                                  idx, Self::OUT_TRIM_OFFSETS.len());
+                let msg = format!("Invalid index of output: {} greater than {}",
+                                  idx, OUT_TRIM_OFFSETS.len());
                 Error::new(FileError::Inval, &msg)
-            })
-            .and_then(|&offset| {
-                let mut data = [0;4];
-                data.copy_from_slice(&(trim as u32).to_be_bytes());
-                self.write_appl_data(node, sections, offset, &mut data, timeout_ms)
-            })
+            })?;
+        let mut data = [0; 4];
+        data.copy_from_slice(&(trim as u32).to_be_bytes());
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut data,
+            timeout_ms
+        )
     }
 }
-
-impl<O: AsRef<FwReq>> AvidMbox3HwProtocol for O {}
 
 /// The enumration to represent type of reverb DSP.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -583,103 +681,150 @@ impl From<ReverbType> for u32 {
     }
 }
 
-/// The trait and its implementation to represent reverb protocol for Avid Mbox 3 pro.
-pub trait AvidMbox3ReverbProtocol: ApplSectionProtocol {
-    const REVERB_TYPE_OFFSET: usize = 0x40;
-    const REVERB_VOLUME_OFFSET: usize = 0x44;
-    const REVERB_DURATION_OFFSET: usize = 0x48;
-    const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
-
-    fn read_reverb_type(
-        &self,
+impl Mbox3Protocol {
+    pub fn read_reverb_type(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<ReverbType, Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::REVERB_TYPE_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_TYPE_OFFSET,
+            &mut data,
+            timeout_ms)
             .map(|_| ReverbType::from(u32::from_be_bytes(data)))
     }
 
-    fn write_reverb_type(
-        &self,
+    pub fn write_reverb_type(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         reverb_type: ReverbType,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = u32::from(reverb_type).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::REVERB_TYPE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_TYPE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_reverb_volume(
-        &self,
+    pub fn read_reverb_volume(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<u8, Error> {
         let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::REVERB_VOLUME_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_VOLUME_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(data) as u8)
     }
 
-    fn write_reverb_volume(
-        &self,
+    pub fn write_reverb_volume(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         volume: u8,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = (volume as u32).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::REVERB_VOLUME_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_VOLUME_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_reverb_duration(
-        &self,
+    pub fn read_reverb_duration(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<u8, Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::REVERB_DURATION_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_DURATION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(data) as u8)
     }
 
-    fn write_reverb_duration(
-        &self,
+    pub fn write_reverb_duration(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         duration: u8,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = (duration as u32).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::REVERB_DURATION_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_DURATION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
-    fn read_reverb_feedback(
-        &self,
+    pub fn read_reverb_feedback(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<u8, Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::REVERB_FEEDBACK_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_FEEDBACK_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(data) as u8)
     }
 
-    fn write_reverb_feedback(
-        &self,
+    pub fn write_reverb_feedback(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         feedback: u8,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut data = (feedback as u32).to_be_bytes().clone();
-        self.write_appl_data(node, sections, Self::REVERB_FEEDBACK_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            REVERB_FEEDBACK_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 }
-
-impl<O: AsRef<FwReq>> AvidMbox3ReverbProtocol for O {}
 
 /// The trait and its implementation to parse notification defined by Avid.
 pub trait AvidMbox3Notification : TcatNotification {
