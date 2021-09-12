@@ -128,7 +128,7 @@ pub enum OptIfaceMode{
 
 /// The enumeration for mode of standalone converter.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum StandaloneConerterMode{
+pub enum StandaloneConverterMode{
     AdDa,
     AdOnly,
 }
@@ -212,22 +212,22 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
     }
 
     fn read_standalone_converter_mode(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
-        -> Result<StandaloneConerterMode, Error>
+        -> Result<StandaloneConverterMode, Error>
     {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::STANDALONE_MODE_OFFSET, &mut data, timeout_ms)
             .map(|_| {
                 let val = u32::from_be_bytes(data);
                 if val & Self::STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
-                    StandaloneConerterMode::AdOnly
+                    StandaloneConverterMode::AdOnly
                 } else {
-                    StandaloneConerterMode::AdDa
+                    StandaloneConverterMode::AdDa
                 }
             })
     }
 
     fn write_standalone_converter_mode(&self, node: &T, sections: &ExtensionSections,
-                                       mode: StandaloneConerterMode, timeout_ms: u32)
+                                       mode: StandaloneConverterMode, timeout_ms: u32)
         -> Result<(), Error>
     {
         let mut data = [0;4];
@@ -235,7 +235,7 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
         let mut val = u32::from_be_bytes(data);
 
         val &= !Self::STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
-        if mode == StandaloneConerterMode::AdOnly {
+        if mode == StandaloneConverterMode::AdOnly {
             val |= Self::STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
         }
         data.copy_from_slice(&val.to_be_bytes());
