@@ -234,12 +234,12 @@ struct HwStateCtl {
     fw_led_ctl: FwLedCtl,
 }
 
-impl HwStateCtl {
-    // TODO: For Jack detection in ALSA applications.
-    const ANALOG_JACK_STATE_NAME: &'static str = "analog-jack-state";
-    const HP_JACK_STATE_NAME: &'static str = "headphone-jack-state";
-    const VALID_MASTER_LEVEL_NAME: &'static str = "valid-master-level";
+// TODO: For Jack detection in ALSA applications.
+const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
+const HP_JACK_STATE_NAME: &str = "headphone-jack-state";
+const VALID_MASTER_LEVEL_NAME: &str = "valid-master-level";
 
+impl HwStateCtl {
     const ANALOG_JACK_STATES: [StudioAnalogJackState; 4] = [
         StudioAnalogJackState::FrontSelected,
         StudioAnalogJackState::FrontInserted,
@@ -251,15 +251,15 @@ impl HwStateCtl {
         let labels = Self::ANALOG_JACK_STATES.iter()
             .map(|s| analog_jack_state_to_str(s))
             .collect::<Vec<_>>();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ANALOG_JACK_STATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_JACK_STATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_ANALOG_JACK_STATE_COUNT, &labels, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_JACK_STATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, HP_JACK_STATE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 2, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::VALID_MASTER_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VALID_MASTER_LEVEL_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
@@ -303,7 +303,7 @@ impl HwStateCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::ANALOG_JACK_STATE_NAME => {
+            ANALOG_JACK_STATE_NAME => {
                 let analog_jack_states = &segments.hw_state.data.analog_jack_states;
                 ElemValueAccessor::<u32>::set_vals(elem_value, analog_jack_states.len(), |idx| {
                     let pos = Self::ANALOG_JACK_STATES.iter()
@@ -313,11 +313,11 @@ impl HwStateCtl {
                 })
                 .map(|_| true)
             }
-            Self::HP_JACK_STATE_NAME => {
+            HP_JACK_STATE_NAME => {
                 elem_value.set_bool(&segments.hw_state.data.hp_state);
                 Ok(true)
             }
-            Self::VALID_MASTER_LEVEL_NAME => {
+            VALID_MASTER_LEVEL_NAME => {
                 elem_value.set_bool(&[segments.hw_state.data.valid_master_level]);
                 Ok(true)
             }
@@ -378,27 +378,27 @@ fn low_pass_freq_to_string(freq: &LowPassFreq) -> String {
 #[derive(Default, Debug)]
 struct PhysOutCtl(pub Vec<ElemId>);
 
+const MASTER_OUT_DIM_NAME: &str = "master-out-dim";
+const MASTER_OUT_VOL_NAME: &str = "master-out-volume";
+const MASTER_OUT_DIM_VOL_NAME: &str = "master-out-dim-volume";
+
+const OUT_STEREO_LINK_NAME: &str = "output-stereo-link";
+const OUT_MUTE_NAME: &str = "output-mute";
+const OUT_SRC_NAME: &str = "output-source";
+
+const OUT_GRP_SELECT_NAME: &str = "output-group:select";
+const OUT_GRP_SRC_ENABLE_NAME: &str = "output-group:source-enable";
+const OUT_GRP_SRC_TRIM_NAME: &str = "output-group:source-trim";
+const OUT_GRP_SRC_DELAY_NAME: &str = "output-group:source-delay";
+const OUT_GRP_SRC_ASSIGN_NAME: &str = "output-group:source-assign";
+const OUT_GRP_BASS_MANAGEMENT_NAME: &str = "output-group:bass-management";
+const OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME: &str = "output-group:main-cross-over-frequency";
+const OUT_GRP_MAIN_LEVEL_TO_SUB_NAME: &str = "output-group:main-level-to-sub";
+const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &str = "output-group:sub-level-to-sub";
+const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &str = "output-group:main-filter-for-main";
+const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &str = "output-group:main-filter-for-sub";
+
 impl PhysOutCtl {
-    const MASTER_OUT_DIM_NAME: &'static str = "master-out-dim";
-    const MASTER_OUT_VOL_NAME: &'static str = "master-out-volume";
-    const MASTER_OUT_DIM_VOL_NAME: &'static str = "master-out-dim-volume";
-
-    const OUT_STEREO_LINK_NAME: &'static str = "output-stereo-link";
-    const OUT_MUTE_NAME: &'static str = "output-mute";
-    const OUT_SRC_NAME: &'static str = "output-source";
-
-    const OUT_GRP_SELECT_NAME: &'static str = "output-group:select";
-    const OUT_GRP_SRC_ENABLE_NAME: &'static str = "output-group:source-enable";
-    const OUT_GRP_SRC_TRIM_NAME: &'static str = "output-group:source-trim";
-    const OUT_GRP_SRC_DELAY_NAME: &'static str = "output-group:source-delay";
-    const OUT_GRP_SRC_ASSIGN_NAME: &'static str = "output-group:source-assign";
-    const OUT_GRP_BASS_MANAGEMENT_NAME: &'static str = "output-group:bass-management";
-    const OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME: &'static str = "output-group:main-cross-over-frequency";
-    const OUT_GRP_MAIN_LEVEL_TO_SUB_NAME: &'static str = "output-group:main-level-to-sub";
-    const OUT_GRP_SUB_LEVEL_TO_SUB_NAME: &'static str = "output-group:sub-level-to-sub";
-    const OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME: &'static str = "output-group:main-filter-for-main";
-    const OUT_GRP_MAIN_FILTER_FOR_SUB_NAME: &'static str = "output-group:main-filter-for-sub";
-
     const PHYS_OUT_SRCS: [SrcEntry;59] = [
         SrcEntry::Unused,
         SrcEntry::Analog(0), SrcEntry::Analog(1), SrcEntry::Analog(2), SrcEntry::Analog(3),
@@ -456,76 +456,76 @@ impl PhysOutCtl {
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         // For master output.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MASTER_OUT_DIM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUT_DIM_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MASTER_OUT_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUT_VOL_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
                                 1, Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MASTER_OUT_DIM_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUT_DIM_VOL_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
                                 1, Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         // For source of output pair.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_STEREO_LINK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_STEREO_LINK_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_MUTE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::PHYS_OUT_SRCS.iter()
             .map(|src| src_pair_entry_to_string(src))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         // For output group.
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SELECT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_SELECT_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::OUT_GRPS, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_SRC_ENABLE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_TRIM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_SRC_TRIM_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::TRIM_MIN, Self::TRIM_MAX, Self::TRIM_STEP,
                                 STUDIO_PHYS_OUT_PAIR_COUNT * 2, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_DELAY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_SRC_DELAY_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::DELAY_MIN, Self::DELAY_MAX, Self::DELAY_STEP,
                                 STUDIO_PHYS_OUT_PAIR_COUNT * 2, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SRC_ASSIGN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_SRC_ASSIGN_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, STUDIO_OUTPUT_GROUP_COUNT, STUDIO_PHYS_OUT_PAIR_COUNT * 2, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_BASS_MANAGEMENT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_BASS_MANAGEMENT_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::CROSS_OVER_FREQS.iter()
             .map(|src| cross_over_freq_to_string(src))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_LEVEL_TO_SUB_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_MAIN_LEVEL_TO_SUB_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
                                 STUDIO_OUTPUT_GROUP_COUNT, Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_SUB_LEVEL_TO_SUB_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_SUB_LEVEL_TO_SUB_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
                                 STUDIO_OUTPUT_GROUP_COUNT, Some(&Into::<Vec<u32>>::into(Self::VOL_TLV)), true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
@@ -533,14 +533,14 @@ impl PhysOutCtl {
         let labels: Vec<String> = Self::HIGH_PASS_FREQS.iter()
             .map(|src| high_pass_freq_to_string(src))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = Self::LOW_PASS_FREQS.iter()
             .map(|src| low_pass_freq_to_string(src))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_GRP_MAIN_FILTER_FOR_SUB_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_GRP_MAIN_FILTER_FOR_SUB_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_OUTPUT_GROUP_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
@@ -554,35 +554,35 @@ impl PhysOutCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MASTER_OUT_DIM_NAME => {
+            MASTER_OUT_DIM_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.phys_out.data.master_out.dim_enabled)
                 })
                 .map(|_| true)
             }
-            Self::MASTER_OUT_VOL_NAME => {
+            MASTER_OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.phys_out.data.master_out.vol)
                 })
                 .map(|_| true)
             }
-            Self::MASTER_OUT_DIM_VOL_NAME => {
+            MASTER_OUT_DIM_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.phys_out.data.master_out.dim_vol)
                 })
                 .map(|_| true)
             }
-            Self::OUT_STEREO_LINK_NAME => {
+            OUT_STEREO_LINK_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, STUDIO_PHYS_OUT_PAIR_COUNT, |idx| {
                     Ok(segments.phys_out.data.out_pair_srcs[idx].stereo_link)
                 })
                 .map(|_| true)
             }
-            Self::OUT_MUTE_NAME => {
+            OUT_MUTE_NAME => {
                 elem_value.set_bool(&segments.phys_out.data.out_mutes);
                 Ok(true)
             }
-            Self::OUT_SRC_NAME => {
+            OUT_SRC_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
                      let pos = Self::PHYS_OUT_SRCS.iter()
                         .position(|s| s.eq(&param.src))
@@ -591,36 +591,36 @@ impl PhysOutCtl {
                  })
                 .map(|_| true)
             }
-            Self::OUT_GRP_SELECT_NAME => {
+            OUT_GRP_SELECT_NAME => {
                 elem_value.set_enum(&[segments.phys_out.data.selected_out_grp as u32]);
                 Ok(true)
             }
-            Self::OUT_GRP_SRC_ENABLE_NAME => {
+            OUT_GRP_SRC_ENABLE_NAME => {
                 elem_value.set_bool(&segments.phys_out.data.out_assign_to_grp);
                 Ok(true)
             }
-            Self::OUT_GRP_SRC_TRIM_NAME => {
+            OUT_GRP_SRC_TRIM_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
                     Ok(param.vol)
                 })
             }
-            Self::OUT_GRP_SRC_DELAY_NAME => {
+            OUT_GRP_SRC_DELAY_NAME => {
                 Self::read_out_src_param(segments, elem_value, |param| {
                     Ok(param.delay)
                 })
             }
-            Self::OUT_GRP_SRC_ASSIGN_NAME => {
+            OUT_GRP_SRC_ASSIGN_NAME => {
                 let index = elem_id.get_index() as usize;
                 elem_value.set_bool(&segments.phys_out.data.out_grps[index].assigned_phys_outs);
                 Ok(true)
             }
-            Self::OUT_GRP_BASS_MANAGEMENT_NAME => {
+            OUT_GRP_BASS_MANAGEMENT_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
                     Ok(segments.phys_out.data.out_grps[idx].bass_management)
                 })
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
+            OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
                     let pos = Self::CROSS_OVER_FREQS.iter()
                         .position(|freq| freq.eq(&segments.phys_out.data.out_grps[idx].main_cross_over_freq))
@@ -629,19 +629,19 @@ impl PhysOutCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
+            OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
                     Ok(segments.phys_out.data.out_grps[idx].main_level_to_sub)
                 })
                 .map(|_| true)
             }
-            Self::OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
+            OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
                     Ok(segments.phys_out.data.out_grps[idx].sub_level_to_sub)
                 })
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
+            OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
                     let pos = Self::HIGH_PASS_FREQS.iter()
                         .position(|freq| freq.eq(&segments.phys_out.data.out_grps[idx].main_filter_for_main))
@@ -650,7 +650,7 @@ impl PhysOutCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
+            OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_OUTPUT_GROUP_COUNT, |idx| {
                     let pos = Self::LOW_PASS_FREQS.iter()
                         .position(|freq| freq.eq(&segments.phys_out.data.out_grps[idx].main_filter_for_sub))
@@ -696,7 +696,7 @@ impl PhysOutCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MASTER_OUT_DIM_NAME => {
+            MASTER_OUT_DIM_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.phys_out.data.master_out.dim_enabled = val;
                     Ok(())
@@ -704,7 +704,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::MASTER_OUT_VOL_NAME => {
+            MASTER_OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     segments.phys_out.data.master_out.vol = val;
                     Ok(())
@@ -712,7 +712,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::MASTER_OUT_DIM_VOL_NAME => {
+            MASTER_OUT_DIM_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     segments.phys_out.data.master_out.dim_vol = val;
                     Ok(())
@@ -720,7 +720,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_STEREO_LINK_NAME => {
+            OUT_STEREO_LINK_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, STUDIO_PHYS_OUT_PAIR_COUNT, |idx, val| {
                     segments.phys_out.data.out_pair_srcs[idx].stereo_link = val;
                     Ok(())
@@ -728,12 +728,12 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_MUTE_NAME => {
+            OUT_MUTE_NAME => {
                 new.get_bool(&mut segments.phys_out.data.out_mutes);
                 req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms)
                     .map(|_| true)
             }
-            Self::OUT_SRC_NAME => {
+            OUT_SRC_NAME => {
                 Self::write_out_src_param(unit, req, segments, new, old, timeout_ms, |param, val: u32| {
                      Self::PHYS_OUT_SRCS.iter()
                          .nth(val as usize)
@@ -744,19 +744,19 @@ impl PhysOutCtl {
                         .map(|&s| param.src = s)
                  })
             }
-            Self::OUT_GRP_SELECT_NAME => {
+            OUT_GRP_SELECT_NAME => {
                 let mut vals = [0];
                 new.get_enum(&mut vals);
                 segments.phys_out.data.selected_out_grp = vals[0] as usize;
                 req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms)
                     .map(|_| true)
             }
-            Self::OUT_GRP_SRC_ENABLE_NAME => {
+            OUT_GRP_SRC_ENABLE_NAME => {
                 new.get_bool(&mut segments.phys_out.data.out_assign_to_grp);
                 req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms)
                     .map(|_| true)
             }
-            Self::OUT_GRP_SRC_TRIM_NAME => {
+            OUT_GRP_SRC_TRIM_NAME => {
                 Self::write_out_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.vol = val;
                     Ok(())
@@ -764,7 +764,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_SRC_DELAY_NAME => {
+            OUT_GRP_SRC_DELAY_NAME => {
                 Self::write_out_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.delay = val;
                     Ok(())
@@ -772,7 +772,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_SRC_ASSIGN_NAME => {
+            OUT_GRP_SRC_ASSIGN_NAME => {
                 let mut vals = [false;STUDIO_PHYS_OUT_PAIR_COUNT * 2];
                 new.get_bool(&mut vals);
                 let count = vals.iter().filter(|&v| *v).count();
@@ -787,7 +787,7 @@ impl PhysOutCtl {
                         .map(|_| true)
                 }
             }
-            Self::OUT_GRP_BASS_MANAGEMENT_NAME => {
+            OUT_GRP_BASS_MANAGEMENT_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
                     segments.phys_out.data.out_grps[idx].bass_management = val;
                     Ok(())
@@ -795,7 +795,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
+            OUT_GRP_MAIN_CROSS_OVER_FREQ_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
                     Self::CROSS_OVER_FREQS.iter()
                         .nth(val as usize)
@@ -808,7 +808,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
+            OUT_GRP_MAIN_LEVEL_TO_SUB_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
                     segments.phys_out.data.out_grps[idx].main_level_to_sub = val;
                     Ok(())
@@ -816,7 +816,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
+            OUT_GRP_SUB_LEVEL_TO_SUB_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
                     segments.phys_out.data.out_grps[idx].sub_level_to_sub = val;
                     Ok(())
@@ -824,7 +824,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
+            OUT_GRP_MAIN_FILTER_FOR_MAIN_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
                     Self::HIGH_PASS_FREQS.iter()
                         .nth(val as usize)
@@ -837,7 +837,7 @@ impl PhysOutCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.phys_out, timeout_ms))
                 .map(|_| true)
             }
-            Self::OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
+            OUT_GRP_MAIN_FILTER_FOR_SUB_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_OUTPUT_GROUP_COUNT, |idx, val| {
                     Self::LOW_PASS_FREQS.iter()
                         .nth(val as usize)
@@ -896,35 +896,35 @@ pub struct MixerCtl{
     measured_elem_list: Vec<ElemId>,
 }
 
+const SRC_PAIR_MODE_NAME: &str = "mixer-input-mode";
+const SRC_ENTRY_NAME: &str = "mixer-input-source";
+const SRC_STEREO_LINK_NAME: &str = "mixer-input-stereo-link";
+const SRC_GAIN_NAME: &str = "mixer-input-gain";
+const SRC_PAN_NAME: &str = "mixer-input-pan";
+const REVERB_SRC_GAIN_NAME: &str = "reverb-input-gain";
+const AUX01_SRC_GAIN_NAME: &str = "aux-1/2-input-gain";
+const AUX23_SRC_GAIN_NAME: &str = "aux-3/4-input-gain";
+const SRC_MUTE_NAME: &str = "mixer-input-mute";
+
+const OUT_DIM_NAME: &str = "mixer-output-dim";
+const OUT_VOL_NAME: &str = "mixer-output-volume";
+const OUT_DIM_VOL_NAME: &str = "mixer-output-dim-volume";
+const REVERB_RETURN_MUTE_NAME: &str = "reverb-return-mute";
+const REVERB_RETURN_GAIN_NAME: &str = "reverb-return-gain";
+
+const POST_FADER_NAME: &str = "mixer-post-fader";
+
+const CH_STRIP_AS_PLUGIN_NAME: &str = "channel-strip-as-plugin";
+const CH_STRIP_SRC_NAME: &str = "channel-strip-source";
+const CH_STRIP_23_AT_MID_RATE: &str = "channel-strip-3/4-at-mid-rate";
+
+const MIXER_ENABLE_NAME: &str = "mixer-direct-monitoring";
+
+const MIXER_INPUT_METER_NAME: &str = "mixer-input-meter";
+const MIXER_OUTPUT_METER_NAME: &str = "mixer-output-meter";
+const AUX_OUTPUT_METER_NAME: &str = "aux-output-meter";
+
 impl MixerCtl {
-    const SRC_PAIR_MODE_NAME: &'static str = "mixer-input-mode";
-    const SRC_ENTRY_NAME: &'static str = "mixer-input-source";
-    const SRC_STEREO_LINK_NAME: &'static str = "mixer-input-stereo-link";
-    const SRC_GAIN_NAME: &'static str = "mixer-input-gain";
-    const SRC_PAN_NAME: &'static str = "mixer-input-pan";
-    const REVERB_SRC_GAIN_NAME: &'static str = "reverb-input-gain";
-    const AUX01_SRC_GAIN_NAME: &'static str = "aux-1/2-input-gain";
-    const AUX23_SRC_GAIN_NAME: &'static str = "aux-3/4-input-gain";
-    const SRC_MUTE_NAME: &'static str = "mixer-input-mute";
-
-    const OUT_DIM_NAME: &'static str = "mixer-output-dim";
-    const OUT_VOL_NAME: &'static str = "mixer-output-volume";
-    const OUT_DIM_VOL_NAME: &'static str = "mixer-output-dim-volume";
-    const REVERB_RETURN_MUTE_NAME: &'static str = "reverb-return-mute";
-    const REVERB_RETURN_GAIN_NAME: &'static str = "reverb-return-gain";
-
-    const POST_FADER_NAME: &'static str = "mixer-post-fader";
-
-    const CH_STRIP_AS_PLUGIN_NAME: &'static str = "channel-strip-as-plugin";
-    const CH_STRIP_SRC_NAME: &'static str = "channel-strip-source";
-    const CH_STRIP_23_AT_MID_RATE: &'static str = "channel-strip-3/4-at-mid-rate";
-
-    const MIXER_ENABLE_NAME: &'static str = "mixer-direct-monitoring";
-
-    const MIXER_INPUT_METER_NAME: &'static str = "mixer-input-meter";
-    const MIXER_OUTPUT_METER_NAME: &'static str = "mixer-output-meter";
-    const AUX_OUTPUT_METER_NAME: &'static str = "aux-output-meter";
-
     const SRC_PAIR_MODES: [MonitorSrcPairMode; 3] = [
         MonitorSrcPairMode::Inactive,
         MonitorSrcPairMode::Active,
@@ -968,8 +968,8 @@ impl MixerCtl {
         let item_labels: Vec<&str> = Self::SRC_PAIR_MODES.iter()
             .map(|m| src_pair_mode_to_str(m))
             .collect();
-        self.state_add_elem_enum(card_cntr, Self::SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
-        self.state_add_elem_bool(card_cntr, Self::SRC_STEREO_LINK_NAME, 1, labels.len())?;
+        self.state_add_elem_enum(card_cntr, SRC_PAIR_MODE_NAME, 1, labels.len(), &item_labels)?;
+        self.state_add_elem_bool(card_cntr, SRC_STEREO_LINK_NAME, 1, labels.len())?;
 
         let labels: Vec<String> = (0..(state.src_pairs.len() * 2))
             .map(|i| format!("Mixer-source-{}", i + 1))
@@ -977,52 +977,52 @@ impl MixerCtl {
         let item_labels: Vec<String> = Self::SRC_PAIR_ENTRIES.iter()
             .map(|s| src_pair_entry_to_string(s))
             .collect();
-        self.state_add_elem_enum(card_cntr, Self::SRC_ENTRY_NAME, 1, labels.len(), &item_labels)?;
-        self.state_add_elem_level(card_cntr, Self::SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_pan(card_cntr, Self::SRC_PAN_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::REVERB_SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::AUX01_SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::AUX23_SRC_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_bool(card_cntr, Self::SRC_MUTE_NAME, 1, labels.len())?;
+        self.state_add_elem_enum(card_cntr, SRC_ENTRY_NAME, 1, labels.len(), &item_labels)?;
+        self.state_add_elem_level(card_cntr, SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_pan(card_cntr, SRC_PAN_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, REVERB_SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, AUX01_SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, AUX23_SRC_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, SRC_MUTE_NAME, 1, labels.len())?;
 
         let labels = &Self::OUT_LABELS;
-        self.state_add_elem_bool(card_cntr, Self::REVERB_RETURN_MUTE_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::REVERB_RETURN_GAIN_NAME, 1, labels.len())?;
-        self.state_add_elem_bool(card_cntr, Self::OUT_DIM_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::OUT_VOL_NAME, 1, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::OUT_DIM_VOL_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, REVERB_RETURN_MUTE_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, REVERB_RETURN_GAIN_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, OUT_DIM_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, OUT_VOL_NAME, 1, labels.len())?;
+        self.state_add_elem_level(card_cntr, OUT_DIM_VOL_NAME, 1, labels.len())?;
 
         let labels = &Self::SEND_TARGET_LABELS;
-        self.state_add_elem_bool(card_cntr, Self::POST_FADER_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, POST_FADER_NAME, 1, labels.len())?;
 
         let labels: Vec<String> = (0..2)
             .map(|i| format!("Channel-strip-{}/{}", i + 1, i + 2))
             .collect();
-        self.state_add_elem_bool(card_cntr, Self::CH_STRIP_AS_PLUGIN_NAME, 1, labels.len())?;
+        self.state_add_elem_bool(card_cntr, CH_STRIP_AS_PLUGIN_NAME, 1, labels.len())?;
         let labels: Vec<String> = (0..4)
             .map(|i| format!("Channel-strip-{}", i))
             .collect();
-        self.state_add_elem_enum(card_cntr, Self::CH_STRIP_SRC_NAME, 1, labels.len(), &item_labels)?; 
-        self.state_add_elem_bool(card_cntr, Self::CH_STRIP_23_AT_MID_RATE, 1, 1)?;
+        self.state_add_elem_enum(card_cntr, CH_STRIP_SRC_NAME, 1, labels.len(), &item_labels)?;
+        self.state_add_elem_bool(card_cntr, CH_STRIP_23_AT_MID_RATE, 1, 1)?;
 
-        self.state_add_elem_bool(card_cntr, Self::MIXER_ENABLE_NAME, 1, 1)?;
+        self.state_add_elem_bool(card_cntr, MIXER_ENABLE_NAME, 1, 1)?;
 
         // For metering.
         let meter = &segments.mixer_meter.data;
         let labels: Vec<String> = (0..meter.src_inputs.len())
             .map(|i| format!("mixer-input-{}", i))
             .collect();
-        self.meter_add_elem_level(card_cntr, Self::MIXER_INPUT_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, MIXER_INPUT_METER_NAME, labels.len())?;
 
         let labels: Vec<String> = (0..meter.mixer_outputs.len())
             .map(|i| format!("mixer-output-{}", i))
             .collect();
-        self.meter_add_elem_level(card_cntr, Self::MIXER_OUTPUT_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, MIXER_OUTPUT_METER_NAME, labels.len())?;
 
         let labels: Vec<String> = (0..meter.mixer_outputs.len())
             .map(|i| format!("aux-output-{}", i))
             .collect();
-        self.meter_add_elem_level(card_cntr, Self::AUX_OUTPUT_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, AUX_OUTPUT_METER_NAME, labels.len())?;
 
         Ok(())
     }
@@ -1154,7 +1154,7 @@ impl MixerCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::SRC_PAIR_MODE_NAME => {
+            SRC_PAIR_MODE_NAME => {
                 let state = &mut segments.mixer_state.data;
                 ElemValueAccessor::<u32>::get_vals(new, old, state.src_pairs.len(), |idx, val| {
                     if let Some(m) = Self::SRC_PAIR_MODES.iter().nth(val as usize) {
@@ -1178,7 +1178,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms))
                 .map(|_| true)
             }
-            Self::SRC_ENTRY_NAME => {
+            SRC_ENTRY_NAME => {
                 Self::state_write_src_param(unit, req, segments, new, old, timeout_ms, |param, val: u32| {
                     Self::SRC_PAIR_ENTRIES.iter()
                         .nth(val as usize)
@@ -1189,7 +1189,7 @@ impl MixerCtl {
                         .map(|&s| param.src = s)
                 })
             }
-            Self::SRC_STEREO_LINK_NAME => {
+            SRC_STEREO_LINK_NAME => {
                 let pair_count = segments.mixer_state.data.src_pairs.len();
                 ElemValueAccessor::<bool>::get_vals(new, old, pair_count, |idx, val| {
                     segments.mixer_state.data.src_pairs[idx].stereo_link = val;
@@ -1198,75 +1198,75 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms))
                 .map(|_| true)
             }
-            Self::SRC_GAIN_NAME => {
+            SRC_GAIN_NAME => {
                 Self::state_write_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.gain_to_main = val;
                     Ok(())
                 })
             }
-            Self::SRC_PAN_NAME => {
+            SRC_PAN_NAME => {
                 Self::state_write_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.pan_to_main = val;
                     Ok(())
                 })
             }
-            Self::REVERB_SRC_GAIN_NAME => {
+            REVERB_SRC_GAIN_NAME => {
                 Self::state_write_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.gain_to_reverb = val;
                     Ok(())
                 })
             }
-            Self::AUX01_SRC_GAIN_NAME => {
+            AUX01_SRC_GAIN_NAME => {
                 Self::state_write_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.gain_to_aux0 = val;
                     Ok(())
                 })
             }
-            Self::AUX23_SRC_GAIN_NAME => {
+            AUX23_SRC_GAIN_NAME => {
                 Self::state_write_src_param(unit, req, segments, new, old, timeout_ms, |param, val| {
                     param.gain_to_aux1 = val;
                     Ok(())
                 })
             }
-            Self::SRC_MUTE_NAME => {
+            SRC_MUTE_NAME => {
                 new.get_bool(&mut segments.mixer_state.data.mutes);
                 req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                     .map(|_| true)
             }
-            Self::OUT_DIM_NAME => {
+            OUT_DIM_NAME => {
                 Self::state_write_out_pair(unit, req, segments, new, old, timeout_ms, |pair, val| {
                     pair.dim_enabled = val;
                     Ok(())
                 })
             }
-            Self::OUT_VOL_NAME=> {
+            OUT_VOL_NAME=> {
                 Self::state_write_out_pair(unit, req, segments, new, old, timeout_ms, |pair, val| {
                     pair.vol = val;
                     Ok(())
                 })
             }
-            Self::OUT_DIM_VOL_NAME => {
+            OUT_DIM_VOL_NAME => {
                 Self::state_write_out_pair(unit, req, segments, new, old, timeout_ms, |pair, val| {
                     pair.dim_vol = val;
                     Ok(())
                 })
             }
-            Self::REVERB_RETURN_MUTE_NAME => {
+            REVERB_RETURN_MUTE_NAME => {
                 new.get_bool(&mut segments.mixer_state.data.reverb_return_mute);
                 req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                     .map(|_| true)
             }
-            Self::REVERB_RETURN_GAIN_NAME => {
+            REVERB_RETURN_GAIN_NAME => {
                 new.get_int(&mut segments.mixer_state.data.reverb_return_gain);
                 req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                     .map(|_| true)
             }
-            Self::CH_STRIP_AS_PLUGIN_NAME => {
+            CH_STRIP_AS_PLUGIN_NAME => {
                 new.get_bool(&mut segments.mixer_state.data.ch_strip_as_plugin);
                 req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                     .map(|_| true)
             }
-            Self::CH_STRIP_SRC_NAME => {
+            CH_STRIP_SRC_NAME => {
                 let count = segments.mixer_state.data.ch_strip_src.len();
                 ElemValueAccessor::<u32>::get_vals(new, old, count, |idx, val| {
                     Self::SRC_PAIR_ENTRIES.iter()
@@ -1280,7 +1280,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms))
                 .map(|_| true)
             }
-            Self::CH_STRIP_23_AT_MID_RATE => {
+            CH_STRIP_23_AT_MID_RATE => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.ch_strip_23_at_mid_rate = val;
                     Ok(())
@@ -1288,12 +1288,12 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms))
                 .map(|_| true)
             }
-            Self::POST_FADER_NAME => {
+            POST_FADER_NAME => {
                 new.get_bool(&mut segments.mixer_state.data.post_fader);
                 req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                     .map(|_| true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.enabled = val;
                     Ok(())
@@ -1360,7 +1360,7 @@ impl MixerCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::SRC_PAIR_MODE_NAME => {
+            SRC_PAIR_MODE_NAME => {
                 let pair_count = segments.mixer_state.data.src_pairs.len();
                 ElemValueAccessor::<u32>::set_vals(elem_value, pair_count, |idx| {
                     let pos = Self::SRC_PAIR_MODES.iter()
@@ -1370,14 +1370,14 @@ impl MixerCtl {
                 })
                 .map(|_| true)
             }
-            Self::SRC_STEREO_LINK_NAME => {
+            SRC_STEREO_LINK_NAME => {
                 let pair_count = segments.mixer_state.data.src_pairs.len();
                 ElemValueAccessor::<bool>::set_vals(elem_value, pair_count, |idx| {
                     Ok(segments.mixer_state.data.src_pairs[idx].stereo_link)
                 })
                 .map(|_| true)
             }
-            Self::SRC_ENTRY_NAME => {
+            SRC_ENTRY_NAME => {
                 Self::state_read_src_param(segments, elem_value, |param| {
                     let pos = Self::SRC_PAIR_ENTRIES.iter()
                         .position(|m| m.eq(&param.src))
@@ -1385,51 +1385,51 @@ impl MixerCtl {
                     Ok(pos as u32)
                 })
             }
-            Self::SRC_GAIN_NAME => {
+            SRC_GAIN_NAME => {
                 Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_main))
             }
-            Self::SRC_PAN_NAME => {
+            SRC_PAN_NAME => {
                 Self::state_read_src_param(segments, elem_value, |param| Ok(param.pan_to_main))
             }
-            Self::REVERB_SRC_GAIN_NAME => {
+            REVERB_SRC_GAIN_NAME => {
                 Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_reverb))
             }
-            Self::AUX01_SRC_GAIN_NAME => {
+            AUX01_SRC_GAIN_NAME => {
                 Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_aux0))
             }
-            Self::AUX23_SRC_GAIN_NAME => {
+            AUX23_SRC_GAIN_NAME => {
                 Self::state_read_src_param(segments, elem_value, |param| Ok(param.gain_to_aux1))
             }
-            Self::SRC_MUTE_NAME => {
+            SRC_MUTE_NAME => {
                 elem_value.set_bool(&segments.mixer_state.data.mutes);
                 Ok(true)
             }
-            Self::OUT_DIM_NAME => {
+            OUT_DIM_NAME => {
                 Self::state_read_out_pair(segments, elem_value, |pair| Ok(pair.dim_enabled))
             }
-            Self::OUT_VOL_NAME => {
+            OUT_VOL_NAME => {
                 Self::state_read_out_pair(segments, elem_value, |pair| Ok(pair.vol))
             }
-            Self::OUT_DIM_VOL_NAME => {
+            OUT_DIM_VOL_NAME => {
                 Self::state_read_out_pair(segments, elem_value, |pair| Ok(pair.dim_vol))
             }
-            Self::REVERB_RETURN_MUTE_NAME => {
+            REVERB_RETURN_MUTE_NAME => {
                 elem_value.set_bool(&segments.mixer_state.data.reverb_return_mute);
                 Ok(true)
             }
-            Self::REVERB_RETURN_GAIN_NAME => {
+            REVERB_RETURN_GAIN_NAME => {
                 elem_value.set_int(&segments.mixer_state.data.reverb_return_gain);
                 Ok(true)
             }
-            Self::POST_FADER_NAME => {
+            POST_FADER_NAME => {
                 elem_value.set_bool(&segments.mixer_state.data.post_fader);
                 Ok(true)
             }
-            Self::CH_STRIP_AS_PLUGIN_NAME => {
+            CH_STRIP_AS_PLUGIN_NAME => {
                 elem_value.set_bool(&segments.mixer_state.data.ch_strip_as_plugin);
                 Ok(true)
             }
-            Self::CH_STRIP_SRC_NAME => {
+            CH_STRIP_SRC_NAME => {
                 let count = segments.mixer_state.data.ch_strip_src.len();
                 ElemValueAccessor::<u32>::set_vals(elem_value, count, |idx| {
                     let pos = Self::SRC_PAIR_ENTRIES.iter()
@@ -1439,11 +1439,11 @@ impl MixerCtl {
                 })
                 .map(|_| true)
             }
-            Self::CH_STRIP_23_AT_MID_RATE => {
+            CH_STRIP_23_AT_MID_RATE => {
                 elem_value.set_bool(&[segments.mixer_state.data.ch_strip_23_at_mid_rate]);
                 Ok(true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 elem_value.set_bool(&[segments.mixer_state.data.enabled]);
                 Ok(true)
             }
@@ -1458,15 +1458,15 @@ impl MixerCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIXER_INPUT_METER_NAME => {
+            MIXER_INPUT_METER_NAME => {
                 elem_value.set_int(&segments.mixer_meter.data.src_inputs);
                 Ok(true)
             }
-            Self::MIXER_OUTPUT_METER_NAME => {
+            MIXER_OUTPUT_METER_NAME => {
                 elem_value.set_int(&segments.mixer_meter.data.mixer_outputs);
                 Ok(true)
             }
-            Self::AUX_OUTPUT_METER_NAME => {
+            AUX_OUTPUT_METER_NAME => {
                 elem_value.set_int(&segments.mixer_meter.data.aux_outputs);
                 Ok(true)
             }
@@ -1499,11 +1499,11 @@ pub struct ConfigCtl{
     midi_send: MidiSendCtl,
 }
 
-impl ConfigCtl {
-    const OPT_IFACE_MODE_NAME: &'static str = "opt-iface-mode";
-    const STANDALONE_CLK_SRC_NAME: &'static str = "standalone-clock-source";
-    const CLOCK_RECOVERY_NAME: &'static str = "clock-recovery";
+const OPT_IFACE_MODE_NAME: &str = "opt-iface-mode";
+const STANDALONE_CLK_SRC_NAME: &str = "standalone-clock-source";
+const CLOCK_RECOVERY_NAME: &str = "clock-recovery";
 
+impl ConfigCtl {
     const OPT_IFACE_MODES: [OptIfaceMode; 2] = [OptIfaceMode::Adat, OptIfaceMode::Spdif];
 
     const STANDALONE_CLK_SRCS: [StudioStandaloneClkSrc; 6] = [
@@ -1519,18 +1519,18 @@ impl ConfigCtl {
         let labels: Vec<&str> = Self::OPT_IFACE_MODES.iter()
             .map(|m| opt_iface_mode_to_str(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_IFACE_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<&str> = Self::STANDALONE_CLK_SRCS.iter()
             .map(|r| standalone_clk_src_to_str(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STANDALONE_CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         self.standalone_rate.load(card_cntr)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::CLOCK_RECOVERY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CLOCK_RECOVERY_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         self.midi_send.load(card_cntr)?;
@@ -1545,7 +1545,7 @@ impl ConfigCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OPT_IFACE_MODE_NAME => {
+            OPT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::OPT_IFACE_MODES.iter()
                         .position(|m| m.eq(&segments.config.data.opt_iface_mode))
@@ -1554,7 +1554,7 @@ impl ConfigCtl {
                 })
                 .map(|_| true)
             }
-            Self::STANDALONE_CLK_SRC_NAME => {
+            STANDALONE_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::STANDALONE_CLK_SRCS.iter()
                         .position(|s| s.eq(&segments.config.data.standalone_src))
@@ -1563,7 +1563,7 @@ impl ConfigCtl {
                 })
                 .map(|_| true)
             }
-            Self::CLOCK_RECOVERY_NAME => {
+            CLOCK_RECOVERY_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || Ok(segments.config.data.clock_recovery))
                 .map(|_| true)
             }
@@ -1589,7 +1589,7 @@ impl ConfigCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OPT_IFACE_MODE_NAME => {
+            OPT_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::OPT_IFACE_MODES.iter()
                         .nth(val as usize)
@@ -1602,7 +1602,7 @@ impl ConfigCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.config, timeout_ms))
                 .map(|_| true)
             }
-            Self::STANDALONE_CLK_SRC_NAME => {
+            STANDALONE_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::STANDALONE_CLK_SRCS.iter()
                         .nth(val as usize)
@@ -1615,7 +1615,7 @@ impl ConfigCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.config, timeout_ms))
                 .map(|_| true)
             }
-            Self::CLOCK_RECOVERY_NAME => {
+            CLOCK_RECOVERY_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.config.data.clock_recovery = val;
                     Ok(())
@@ -1638,20 +1638,20 @@ impl ConfigCtl {
     }
 }
 
-fn effect_button_mode_to_string(mode: &RemoteEffectButtonMode) -> String {
+fn effect_button_mode_to_str(mode: &RemoteEffectButtonMode) -> &'static str {
     match mode {
         RemoteEffectButtonMode::Reverb => "Reverb",
         RemoteEffectButtonMode::Midi => "Midi",
-    }.to_string()
+    }
 }
 
-fn knob_push_mode_to_string(mode: &KnobPushMode) -> String {
+fn knob_push_mode_to_str(mode: &KnobPushMode) -> &'static str {
     match mode {
         KnobPushMode::Pan => "Pan",
         KnobPushMode::GainToReverb => "Reverb",
         KnobPushMode::GainToAux0 => "Aux-1/2",
         KnobPushMode::GainToAux1 => "Aux-3/4",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -1660,13 +1660,13 @@ pub struct RemoteCtl{
     prog_ctl: TcKonnektProgramCtl,
 }
 
-impl RemoteCtl {
-    const USER_ASSIGN_NAME: &'static str = "remote-user-assign";
-    const EFFECT_BUTTON_MODE_NAME: &'static str = "remote-effect-button-mode";
-    const FALLBACK_TO_MASTER_ENABLE_NAME: &'static str = "remote-fallback-to-master-enable";
-    const FALLBACK_TO_MASTER_DURATION_NAME: &'static str = "remote-fallback-to-master-duration";
-    const KNOB_PUSH_MODE_NAME: &'static str = "remote-knob-push-mode";
+const USER_ASSIGN_NAME: &str = "remote-user-assign";
+const EFFECT_BUTTON_MODE_NAME: &str = "remote-effect-button-mode";
+const FALLBACK_TO_MASTER_ENABLE_NAME: &str = "remote-fallback-to-master-enable";
+const FALLBACK_TO_MASTER_DURATION_NAME: &str = "remote-fallback-to-master-duration";
+const KNOB_PUSH_MODE_NAME: &str = "remote-knob-push-mode";
 
+impl RemoteCtl {
     const EFFECT_BUTTON_MODES: [RemoteEffectButtonMode; 2] = [
         RemoteEffectButtonMode::Reverb,
         RemoteEffectButtonMode::Midi,
@@ -1691,30 +1691,30 @@ impl RemoteCtl {
         let labels: Vec<String> = MixerCtl::SRC_PAIR_ENTRIES.iter()
             .map(|src| src_pair_entry_to_string(src))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USER_ASSIGN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USER_ASSIGN_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, STUDIO_REMOTE_USER_ASSIGN_COUNT, &labels, None, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::EFFECT_BUTTON_MODES.iter()
-            .map(|m| effect_button_mode_to_string(m))
+        let labels: Vec<&str> = Self::EFFECT_BUTTON_MODES.iter()
+            .map(|m| effect_button_mode_to_str(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EFFECT_BUTTON_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, EFFECT_BUTTON_MODE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::FALLBACK_TO_MASTER_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, FALLBACK_TO_MASTER_ENABLE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::FALLBACK_TO_MASTER_DURATION_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, FALLBACK_TO_MASTER_DURATION_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::DURATION_MIN, Self::DURATION_MAX, Self::DURATION_STEP,
                                 1, None, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = Self::KNOB_PUSH_MODES.iter()
-            .map(|m| knob_push_mode_to_string(m))
+        let labels: Vec<&str> = Self::KNOB_PUSH_MODES.iter()
+            .map(|m| knob_push_mode_to_str(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::KNOB_PUSH_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, KNOB_PUSH_MODE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
@@ -1741,7 +1741,7 @@ impl RemoteCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::USER_ASSIGN_NAME => {
+            USER_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, STUDIO_REMOTE_USER_ASSIGN_COUNT, |idx, val| {
                     MixerCtl::SRC_PAIR_ENTRIES.iter()
                         .nth(val as usize)
@@ -1754,7 +1754,7 @@ impl RemoteCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.remote, timeout_ms))
                 .map(|_| true)
             }
-            Self::EFFECT_BUTTON_MODE_NAME => {
+            EFFECT_BUTTON_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     Self::EFFECT_BUTTON_MODES.iter()
                         .nth(val as usize)
@@ -1767,7 +1767,7 @@ impl RemoteCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.remote, timeout_ms))
                 .map(|_| true)
             }
-            Self::FALLBACK_TO_MASTER_ENABLE_NAME => {
+            FALLBACK_TO_MASTER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.remote.data.fallback_to_master_enable = val;
                     Ok(())
@@ -1775,7 +1775,7 @@ impl RemoteCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.remote, timeout_ms))
                 .map(|_| true)
             }
-            Self::FALLBACK_TO_MASTER_DURATION_NAME => {
+            FALLBACK_TO_MASTER_DURATION_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     segments.remote.data.fallback_to_master_duration = val as u32;
                     Ok(())
@@ -1783,7 +1783,7 @@ impl RemoteCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.remote, timeout_ms))
                 .map(|_| true)
             }
-            Self::KNOB_PUSH_MODE_NAME => {
+            KNOB_PUSH_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     Self::KNOB_PUSH_MODES.iter()
                         .nth(val as usize)
@@ -1807,7 +1807,7 @@ impl RemoteCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::USER_ASSIGN_NAME => {
+            USER_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, STUDIO_REMOTE_USER_ASSIGN_COUNT, |idx| {
                     let pos = MixerCtl::SRC_PAIR_ENTRIES.iter()
                         .position(|p| p.eq(&segments.remote.data.user_assigns[idx]))
@@ -1816,7 +1816,7 @@ impl RemoteCtl {
                 })
                 .map(|_| true)
             }
-            Self::EFFECT_BUTTON_MODE_NAME => {
+            EFFECT_BUTTON_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::EFFECT_BUTTON_MODES.iter()
                         .position(|m| m.eq(&segments.remote.data.effect_button_mode))
@@ -1825,19 +1825,19 @@ impl RemoteCtl {
                 })
                 .map(|_| true)
             }
-            Self::FALLBACK_TO_MASTER_ENABLE_NAME => {
+            FALLBACK_TO_MASTER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.remote.data.fallback_to_master_enable)
                 })
                 .map(|_| true)
             }
-            Self::FALLBACK_TO_MASTER_DURATION_NAME => {
+            FALLBACK_TO_MASTER_DURATION_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.remote.data.fallback_to_master_duration as i32)
                 })
                 .map(|_| true)
             }
-            Self::KNOB_PUSH_MODE_NAME => {
+            KNOB_PUSH_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::KNOB_PUSH_MODES.iter()
                         .position(|m| m.eq(&segments.remote.data.knob_push_mode))
@@ -1861,12 +1861,12 @@ fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
 #[derive(Default, Debug)]
 pub struct LineoutCtl;
 
-impl LineoutCtl {
-    const LINE_OUT_45_LEVEL_NAME: &'static str = "line-out-5/6-level";
-    const LINE_OUT_67_LEVEL_NAME: &'static str = "line-out-7/8-level";
-    const LINE_OUT_89_LEVEL_NAME: &'static str = "line-out-9/10-level";
-    const LINE_OUT_1011_LEVEL_NAME: &'static str = "line-out-11/12-level";
+const LINE_OUT_45_LEVEL_NAME: &str = "line-out-5/6-level";
+const LINE_OUT_67_LEVEL_NAME: &str = "line-out-7/8-level";
+const LINE_OUT_89_LEVEL_NAME: &str = "line-out-9/10-level";
+const LINE_OUT_1011_LEVEL_NAME: &str = "line-out-11/12-level";
 
+impl LineoutCtl {
     const NOMINAL_SIGNAL_LEVELS: [NominalSignalLevel; 2] = [
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
@@ -1877,16 +1877,16 @@ impl LineoutCtl {
             .map(|m| nominal_signal_level_to_str(m))
             .collect();
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_45_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_OUT_45_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_67_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_OUT_67_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_89_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_OUT_89_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_OUT_1011_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_OUT_1011_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -1899,16 +1899,16 @@ impl LineoutCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::LINE_OUT_45_LEVEL_NAME => {
+            LINE_OUT_45_LEVEL_NAME => {
                 Self::read_as_index(elem_value, segments.out_level.data.line_45)
             }
-            Self::LINE_OUT_67_LEVEL_NAME => {
+            LINE_OUT_67_LEVEL_NAME => {
                 Self::read_as_index(elem_value, segments.out_level.data.line_67)
             }
-            Self::LINE_OUT_89_LEVEL_NAME => {
+            LINE_OUT_89_LEVEL_NAME => {
                 Self::read_as_index(elem_value, segments.out_level.data.line_89)
             }
-            Self::LINE_OUT_1011_LEVEL_NAME => {
+            LINE_OUT_1011_LEVEL_NAME => {
                 Self::read_as_index(elem_value, segments.out_level.data.line_1011)
             }
             _ => Ok(false),
@@ -1938,22 +1938,22 @@ impl LineoutCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::LINE_OUT_45_LEVEL_NAME => {
+            LINE_OUT_45_LEVEL_NAME => {
                 Self::write_as_index(unit, req, segments, elem_value, timeout_ms, |data, level| {
                     data.line_45 = level
                 })
             }
-            Self::LINE_OUT_67_LEVEL_NAME => {
+            LINE_OUT_67_LEVEL_NAME => {
                 Self::write_as_index(unit, req, segments, elem_value, timeout_ms, |data, level| {
                     data.line_67 = level
                 })
             }
-            Self::LINE_OUT_89_LEVEL_NAME => {
+            LINE_OUT_89_LEVEL_NAME => {
                 Self::write_as_index(unit, req, segments, elem_value, timeout_ms, |data, level| {
                     data.line_89 = level
                 })
             }
-            Self::LINE_OUT_1011_LEVEL_NAME => {
+            LINE_OUT_1011_LEVEL_NAME => {
                 Self::write_as_index(unit, req, segments, elem_value, timeout_ms, |data, level| {
                     data.line_1011 = level
                 })

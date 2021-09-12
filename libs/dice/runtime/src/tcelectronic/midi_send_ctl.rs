@@ -14,31 +14,31 @@ use core::elem_value_accessor::*;
 #[derive(Default, Debug)]
 pub struct MidiSendCtl;
 
+const NORMAL_EVENT_CH_NAME: &str = "midi-normal-event-channel";
+const NORMAL_EVENT_CC_NAME: &str = "midi-normal-event-cc";
+const PUSHED_EVENT_CH_NAME: &str = "midi-pushed-event-channel";
+const PUSHED_EVENT_CC_NAME: &str = "midi-pushed-event-cc";
+const EVENT_TO_PORT_NAME: &str = "midi-event-to-port";
+const EVENT_TO_STREAM_NAME: &str = "midi-event-to-stream";
+
 impl MidiSendCtl {
-    const NORMAL_EVENT_CH_NAME: &'static str = "midi-normal-event-channel";
-    const NORMAL_EVENT_CC_NAME: &'static str = "midi-normal-event-cc";
-    const PUSHED_EVENT_CH_NAME: &'static str = "midi-pushed-event-channel";
-    const PUSHED_EVENT_CC_NAME: &'static str = "midi-pushed-event-cc";
-    const EVENT_TO_PORT_NAME: &'static str = "midi-event-to-port";
-    const EVENT_TO_STREAM_NAME: &'static str = "midi-event-to-stream";
-
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::NORMAL_EVENT_CH_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, NORMAL_EVENT_CH_NAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::NORMAL_EVENT_CC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, NORMAL_EVENT_CC_NAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::PUSHED_EVENT_CH_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, PUSHED_EVENT_CH_NAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::PUSHED_EVENT_CC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, PUSHED_EVENT_CC_NAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::EVENT_TO_PORT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, EVENT_TO_PORT_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, Self::EVENT_TO_STREAM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, EVENT_TO_STREAM_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
@@ -54,27 +54,27 @@ impl MidiSendCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::NORMAL_EVENT_CH_NAME => {
+            NORMAL_EVENT_CH_NAME => {
                 ElemValueAccessor::<u8>::set_val(elem_value, || Ok(segment.data.as_ref().normal.ch))
                 .map(|_| true)
             }
-            Self::NORMAL_EVENT_CC_NAME => {
+            NORMAL_EVENT_CC_NAME => {
                 ElemValueAccessor::<u8>::set_val(elem_value, || Ok(segment.data.as_ref().normal.cc))
                 .map(|_| true)
             }
-            Self::PUSHED_EVENT_CH_NAME => {
+            PUSHED_EVENT_CH_NAME => {
                 ElemValueAccessor::<u8>::set_val(elem_value, || Ok(segment.data.as_ref().pushed.ch))
                 .map(|_| true)
             }
-            Self::PUSHED_EVENT_CC_NAME => {
+            PUSHED_EVENT_CC_NAME => {
                 ElemValueAccessor::<u8>::set_val(elem_value, || Ok(segment.data.as_ref().pushed.cc))
                 .map(|_| true)
             }
-            Self::EVENT_TO_PORT_NAME => {
+            EVENT_TO_PORT_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || Ok(segment.data.as_ref().send_to_port))
                 .map(|_| true)
             }
-            Self::EVENT_TO_STREAM_NAME => {
+            EVENT_TO_STREAM_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || Ok(segment.data.as_ref().send_to_stream))
                 .map(|_| true)
             }
@@ -97,7 +97,7 @@ impl MidiSendCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::NORMAL_EVENT_CH_NAME => {
+            NORMAL_EVENT_CH_NAME => {
                 ElemValueAccessor::<u8>::get_val(elem_value, |val| {
                     Self::state_write(unit, proto, segment, timeout_ms, |state| {
                         state.normal.ch = val;
@@ -105,7 +105,7 @@ impl MidiSendCtl {
                 })
                 .map(|_| true)
             }
-            Self::NORMAL_EVENT_CC_NAME => {
+            NORMAL_EVENT_CC_NAME => {
                 ElemValueAccessor::<u8>::get_val(elem_value, |val| {
                     Self::state_write(unit, proto, segment, timeout_ms, |state| {
                         state.normal.cc = val;
@@ -113,7 +113,7 @@ impl MidiSendCtl {
                 })
                 .map(|_| true)
             }
-            Self::PUSHED_EVENT_CH_NAME => {
+            PUSHED_EVENT_CH_NAME => {
                 ElemValueAccessor::<u8>::get_val(elem_value, |val| {
                     Self::state_write(unit, proto, segment, timeout_ms, |state| {
                         state.pushed.ch = val;
@@ -121,7 +121,7 @@ impl MidiSendCtl {
                 })
                 .map(|_| true)
             }
-            Self::PUSHED_EVENT_CC_NAME => {
+            PUSHED_EVENT_CC_NAME => {
                 ElemValueAccessor::<u8>::get_val(elem_value, |val| {
                     Self::state_write(unit, proto, segment, timeout_ms, |state| {
                         state.pushed.cc = val;
@@ -129,7 +129,7 @@ impl MidiSendCtl {
                 })
                 .map(|_| true)
             }
-            Self::EVENT_TO_PORT_NAME => {
+            EVENT_TO_PORT_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     Self::state_write(unit, proto, segment, timeout_ms, |state| {
                         state.send_to_port = val;
@@ -137,7 +137,7 @@ impl MidiSendCtl {
                 })
                 .map(|_| true)
             }
-            Self::EVENT_TO_STREAM_NAME => {
+            EVENT_TO_STREAM_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     Self::state_write(unit, proto, segment, timeout_ms, |state| {
                         state.send_to_stream = val;

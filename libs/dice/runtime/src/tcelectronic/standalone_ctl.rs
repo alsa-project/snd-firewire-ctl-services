@@ -12,22 +12,22 @@ use dice_protocols::tcelectronic::{*, standalone::*};
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
-fn standalone_rate_to_string(rate: &TcKonnektStandaloneClkRate) -> String {
+fn standalone_rate_to_str(rate: &TcKonnektStandaloneClkRate) -> &'static str {
     match rate {
         TcKonnektStandaloneClkRate::R44100 => "44100",
         TcKonnektStandaloneClkRate::R48000 => "48000",
         TcKonnektStandaloneClkRate::R88200 => "88200",
         TcKonnektStandaloneClkRate::R96000 => "96000",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
 pub struct TcKonnektStandaloneCtl;
 
-impl TcKonnektStandaloneCtl {
-    const RATE_NAME: &'static str = "standalone-clock-rate";
+const RATE_NAME: &str = "standalone-clock-rate";
 
-    const RATES: [TcKonnektStandaloneClkRate;4] = [
+impl TcKonnektStandaloneCtl {
+    const RATES: [TcKonnektStandaloneClkRate; 4] = [
         TcKonnektStandaloneClkRate::R44100,
         TcKonnektStandaloneClkRate::R48000,
         TcKonnektStandaloneClkRate::R88200,
@@ -35,10 +35,10 @@ impl TcKonnektStandaloneCtl {
     ];
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = Self::RATES.iter()
-            .map(|r| standalone_rate_to_string(r))
+        let labels: Vec<&str> = Self::RATES.iter()
+            .map(|r| standalone_rate_to_str(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -53,7 +53,7 @@ impl TcKonnektStandaloneCtl {
         where for<'b> S: TcKonnektSegmentData + AsRef<TcKonnektStandaloneClkRate>,
     {
         match elem_id.get_name().as_str() {
-            Self::RATE_NAME => {
+            RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let rate = segment.data.as_ref();
                     let pos = Self::RATES.iter()
@@ -81,7 +81,7 @@ impl TcKonnektStandaloneCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec
     {
         match elem_id.get_name().as_str() {
-            Self::RATE_NAME => {
+            RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::RATES.iter()
                         .nth(val as usize)
@@ -90,9 +90,9 @@ impl TcKonnektStandaloneCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&r| *segment.data.as_mut() = r)
-                })
-                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
-                .map(|_| true)
+                })?;
+                proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
