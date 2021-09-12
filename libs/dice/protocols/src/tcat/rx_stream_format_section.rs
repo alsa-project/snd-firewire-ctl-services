@@ -87,17 +87,19 @@ impl From<&RxStreamEntry> for Vec<u8> {
     }
 }
 
-pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
-    const SIZE_OFFSET: usize = 0x04;
+/// The structure for protocol implementation of rx stream format section.
+#[derive(Default)]
+pub struct RxStreamFormatSectionProtocol;
 
-    fn read_rx_stream_format_entries(
-        &self,
+impl RxStreamFormatSectionProtocol {
+    pub fn read_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<Vec<RxStreamEntry>, Error> {
         let mut data = [0;8];
-        self.read(node, sections.rx_stream_format.offset, &mut data, timeout_ms)
+        GeneralProtocol::read(req, node, sections.rx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
 
         let mut quadlet = [0;4];
@@ -110,7 +112,13 @@ pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
         let mut entries = Vec::new();
         let mut data = vec![0;size];
         (0..count).try_for_each(|i| {
-            self.read(node, sections.rx_stream_format.offset + 8 + (i * size), &mut data, timeout_ms)
+            GeneralProtocol::read(
+                req,
+                node,
+                sections.rx_stream_format.offset + 8 + (i * size),
+                &mut data,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
             let entry = RxStreamEntry::try_from(&data[..])
                 .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
@@ -120,18 +128,18 @@ pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
         Ok(entries)
     }
 
-    fn write_rx_stream_format_entries(
-        &self,
+    pub fn write_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         entries: &[RxStreamEntry],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;8];
-        self.read(node, sections.rx_stream_format.offset, &mut data, timeout_ms)
+        let mut data = [0; 8];
+        GeneralProtocol::read(req, node, sections.rx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
 
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&data[..4]);
         let count = std::cmp::min(u32::from_be_bytes(quadlet) as usize, entries.len());
 
@@ -141,8 +149,14 @@ pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
         (0..count).try_for_each(|i| {
             let mut expected_fmt = entries[i].clone();
 
-            let mut curr = vec![0;size];
-            self.read(node, sections.rx_stream_format.offset + 8 + (i * size), &mut curr, timeout_ms)
+            let mut curr = vec![0; size];
+            GeneralProtocol::read(
+                req,
+                node,
+                sections.rx_stream_format.offset + 8 + (i * size),
+                &mut curr,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
             let curr_fmt = RxStreamEntry::try_from(&curr[..])
                 .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
@@ -150,7 +164,13 @@ pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
 
             if expected_fmt != curr_fmt {
                 let mut raw = Into::<Vec<u8>>::into(&expected_fmt);
-                self.write(node, sections.rx_stream_format.offset + 8 + (i * size), &mut raw, timeout_ms)
+                GeneralProtocol::write(
+                    req,
+                    node,
+                    sections.rx_stream_format.offset + 8 + (i * size),
+                    &mut raw,
+                    timeout_ms
+                )
                     .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
             }
 
@@ -160,5 +180,3 @@ pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
         Ok(())
     }
 }
-
-impl<O: AsRef<FwReq>> RxStreamFormatSectionProtocol for O {}
