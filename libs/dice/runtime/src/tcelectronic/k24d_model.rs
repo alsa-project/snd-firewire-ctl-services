@@ -22,7 +22,7 @@ use super::prog_ctl::*;
 
 #[derive(Default)]
 pub struct K24dModel{
-    proto: K24dProto,
+    req: FwReq,
     sections: GeneralSections,
     segments: K24dSegments,
     ctl: CommonCtl,
@@ -44,23 +44,22 @@ const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<SndDice> for K24dModel {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let node = unit.get_node();
+        let mut node = unit.get_node();
 
-        self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
-        let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
-        let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
+        self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
+        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.ch_strip_ctl.load(unit, &self.proto, &mut self.segments.ch_strip_state,
+        self.ch_strip_ctl.load(unit, &mut self.req, &mut self.segments.ch_strip_state,
                                &mut self.segments.ch_strip_meter, TIMEOUT_MS, card_cntr)?;
-        self.reverb_ctl.load(unit, &self.proto, &mut self.segments.reverb_state, &mut self.segments.reverb_meter,
+        self.reverb_ctl.load(unit, &mut self.req, &mut self.segments.reverb_state, &mut self.segments.reverb_meter,
                              TIMEOUT_MS, card_cntr)?;
 
-        let node = unit.get_node();
-        self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.knob, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.hw_state, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.config, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.knob, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments.mixer_state, &self.segments.mixer_meter, card_cntr)?;
@@ -79,7 +78,7 @@ impl CtlModel<SndDice> for K24dModel {
     fn read(&mut self, unit: &mut SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.ctl.read(unit, &mut self.req, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.ch_strip_ctl.read(&self.segments.ch_strip_state, &self.segments.ch_strip_meter,
                                          elem_id, elem_value)? {
@@ -116,41 +115,41 @@ impl CtlModel<SndDice> for K24dModel {
     fn write(&mut self, unit: &mut SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+        if self.ctl.write(unit, &mut self.req, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.ch_strip_ctl.write(unit, &self.proto, &mut self.segments.ch_strip_state, elem_id,
+        } else if self.ch_strip_ctl.write(unit, &mut self.req, &mut self.segments.ch_strip_state, elem_id,
                                           old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.reverb_ctl.write(unit, &self.proto, &mut self.segments.reverb_state, elem_id,
+        } else if self.reverb_ctl.write(unit, &mut self.req, &mut self.segments.reverb_state, elem_id,
                                         new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.hw_state_ctl.write(unit, &self.proto, &mut self.segments.hw_state, elem_id, new, TIMEOUT_MS)? {
+        } else if self.hw_state_ctl.write(unit, &mut self.req, &mut self.segments.hw_state, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments.mixer_state, elem_id,
+        } else if self.mixer_ctl.write(unit, &mut self.req, &mut self.segments.mixer_state, elem_id,
                                        old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.reverb_return_ctl.write(unit, &self.proto, &mut self.segments.mixer_state, elem_id, new,
+        } else if self.reverb_return_ctl.write(unit, &mut self.req, &mut self.segments.mixer_state, elem_id, new,
                                                TIMEOUT_MS)? {
             Ok(true)
-        } else if self.standalone_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+        } else if self.standalone_ctl.write(unit, &mut self.req, &mut self.segments.config, elem_id, new,
                                             TIMEOUT_MS)? {
             Ok(true)
-        } else if self.coax_iface_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+        } else if self.coax_iface_ctl.write(unit, &mut self.req, &mut self.segments.config, elem_id, new,
                                             TIMEOUT_MS)? {
             Ok(true)
-        } else if self.opt_iface_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+        } else if self.opt_iface_ctl.write(unit, &mut self.req, &mut self.segments.config, elem_id, new,
                                            TIMEOUT_MS)? {
             Ok(true)
-        } else if self.knob_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
+        } else if self.knob_ctl.write(unit, &mut self.req, &mut self.segments.knob, elem_id, new,
                                       TIMEOUT_MS)? {
             Ok(true)
-        } else if self.knob2_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
+        } else if self.knob2_ctl.write(unit, &mut self.req, &mut self.segments.knob, elem_id, new,
                                        TIMEOUT_MS)? {
             Ok(true)
-        } else if self.prog_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
+        } else if self.prog_ctl.write(unit, &mut self.req, &mut self.segments.knob, elem_id, new,
                                       TIMEOUT_MS)? {
             Ok(true)
-        } else if self.specific_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new,
+        } else if self.specific_ctl.write(unit, &mut self.req, &mut self.segments, elem_id, new,
                                           TIMEOUT_MS)? {
             Ok(true)
         } else {
@@ -172,15 +171,15 @@ impl NotifyModel<SndDice, u32> for K24dModel {
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
+        self.ctl.parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
 
-        let node = unit.get_node();
-        self.proto.parse_notification(&node, &mut self.segments.ch_strip_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.mixer_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.config, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.knob, TIMEOUT_MS, *msg)?;
+        let mut node = unit.get_node();
+        self.req.parse_notification(&mut node, &mut self.segments.ch_strip_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.mixer_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.config, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.knob, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 
@@ -209,7 +208,7 @@ impl NotifyModel<SndDice, u32> for K24dModel {
     }
 }
 
-impl MeasureModel<hinawa::SndDice> for K24dModel {
+impl MeasureModel<SndDice> for K24dModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.measured_elem_list);
@@ -218,12 +217,12 @@ impl MeasureModel<hinawa::SndDice> for K24dModel {
     }
 
     fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
-        self.ch_strip_ctl.measure_states(unit, &self.proto, &self.segments.ch_strip_state,
+        self.ctl.measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.ch_strip_ctl.measure_states(unit, &mut self.req, &self.segments.ch_strip_state,
                                          &mut self.segments.ch_strip_meter, TIMEOUT_MS)?;
-        self.reverb_ctl.measure_states(unit, &self.proto, &self.segments.reverb_state,
+        self.reverb_ctl.measure_states(unit, &mut self.req, &self.segments.reverb_state,
                                        &mut self.segments.reverb_meter, TIMEOUT_MS)?;
-        self.proto.read_segment(&unit.get_node(), &mut self.segments.mixer_meter, TIMEOUT_MS)?;
+        self.req.read_segment(&mut unit.get_node(), &mut self.segments.mixer_meter, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -243,14 +242,6 @@ impl MeasureModel<hinawa::SndDice> for K24dModel {
         }
     }
 }
-#[derive(Default, Debug)]
-struct K24dProto(FwReq);
-
-impl AsRef<FwReq> for K24dProto {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
 
 #[derive(Default, Debug)]
 struct K24dSpecificCtl(Vec<ElemId>);
@@ -262,9 +253,7 @@ impl K24dSpecificCtl {
     const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = PHYS_OUT_SRCS.iter()
-            .map(|s| phys_out_src_to_string(s))
-            .collect();
+        let labels: Vec<&str> = PHYS_OUT_SRCS.iter().map(|s| phys_out_src_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_23_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
@@ -280,9 +269,12 @@ impl K24dSpecificCtl {
         Ok(())
     }
 
-    fn read(&mut self, segments: &K24dSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        segments: &K24dSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_23_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
@@ -315,10 +307,15 @@ impl K24dSpecificCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, proto: &K24dProto, segments: &mut K24dSegments, elem_id: &ElemId,
-             elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        segments: &mut K24dSegments,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_23_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -330,7 +327,7 @@ impl K24dSpecificCtl {
                         })
                         .and_then(|&s| {
                             segments.config.data.out_23_src = s;
-                            proto.write_segment(&unit.get_node(), &mut segments.config, timeout_ms)
+                            req.write_segment(&mut unit.get_node(), &mut segments.config, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -338,21 +335,21 @@ impl K24dSpecificCtl {
             Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.use_ch_strip_as_plugin = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::USE_REVERB_AT_MID_RATE => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.use_reverb_at_mid_rate = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.enabled = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }

@@ -21,7 +21,7 @@ use super::shell_ctl::*;
 
 #[derive(Default)]
 pub struct ItwinModel{
-    proto: ItwinProto,
+    req: FwReq,
     sections: GeneralSections,
     segments: ItwinSegments,
     ctl: CommonCtl,
@@ -39,23 +39,22 @@ const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<SndDice> for ItwinModel {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let node = unit.get_node();
+        let mut node = unit.get_node();
 
-        self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
-        let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
-        let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
+        self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
+        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.ch_strip_ctl.load(unit, &self.proto, &mut self.segments.ch_strip_state,
+        self.ch_strip_ctl.load(unit, &mut self.req, &mut self.segments.ch_strip_state,
                                &mut self.segments.ch_strip_meter, TIMEOUT_MS, card_cntr)?;
-        self.reverb_ctl.load(unit, &self.proto, &mut self.segments.reverb_state, &mut self.segments.reverb_meter,
+        self.reverb_ctl.load(unit, &mut self.req, &mut self.segments.reverb_state, &mut self.segments.reverb_meter,
                              TIMEOUT_MS, card_cntr)?;
 
-        let node = unit.get_node();
-        self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.knob, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.hw_state, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.mixer_state, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.config, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.knob, TIMEOUT_MS)?;
 
         self.hw_state_ctl.load(card_cntr)?;
         self.mixer_ctl.load(&self.segments.mixer_state, &self.segments.mixer_meter, card_cntr)?;
@@ -70,7 +69,7 @@ impl CtlModel<SndDice> for ItwinModel {
     fn read(&mut self, unit: &mut SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.ctl.read(unit, &mut self.req, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.ch_strip_ctl.read(&self.segments.ch_strip_state, &self.segments.ch_strip_meter,
                                          elem_id, elem_value)? {
@@ -99,30 +98,30 @@ impl CtlModel<SndDice> for ItwinModel {
     fn write(&mut self, unit: &mut SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+        if self.ctl.write(unit, &mut self.req, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.ch_strip_ctl.write(unit, &self.proto, &mut self.segments.ch_strip_state, elem_id,
+        } else if self.ch_strip_ctl.write(unit, &mut self.req, &mut self.segments.ch_strip_state, elem_id,
                                           old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.reverb_ctl.write(unit, &self.proto, &mut self.segments.reverb_state, elem_id,
+        } else if self.reverb_ctl.write(unit, &mut self.req, &mut self.segments.reverb_state, elem_id,
                                         new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.hw_state_ctl.write(unit, &self.proto, &mut self.segments.hw_state, elem_id,
+        } else if self.hw_state_ctl.write(unit, &mut self.req, &mut self.segments.hw_state, elem_id,
                                           new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments.mixer_state, elem_id, old, new,
+        } else if self.mixer_ctl.write(unit, &mut self.req, &mut self.segments.mixer_state, elem_id, old, new,
                                        TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_stream_src_pair_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id,
+        } else if self.mixer_stream_src_pair_ctl.write(unit, &mut self.req, &mut self.segments.config, elem_id,
                                                        new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.standalone_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+        } else if self.standalone_ctl.write(unit, &mut self.req, &mut self.segments.config, elem_id, new,
                                             TIMEOUT_MS)? {
             Ok(true)
-        } else if self.knob_ctl.write(unit, &self.proto, &mut self.segments.knob, elem_id, new,
+        } else if self.knob_ctl.write(unit, &mut self.req, &mut self.segments.knob, elem_id, new,
                                       TIMEOUT_MS)? {
             Ok(true)
-        } else if self.specific_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
+        } else if self.specific_ctl.write(unit, &mut self.req, &mut self.segments, elem_id, old, new,
                                           TIMEOUT_MS)? {
             Ok(true)
         } else {
@@ -143,15 +142,15 @@ impl NotifyModel<SndDice, u32> for ItwinModel {
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
+        self.ctl.parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
 
-        let node = unit.get_node();
-        self.proto.parse_notification(&node, &mut self.segments.ch_strip_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.mixer_state, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.config, TIMEOUT_MS, *msg)?;
-        self.proto.parse_notification(&node, &mut self.segments.knob, TIMEOUT_MS, *msg)?;
+        let mut node = unit.get_node();
+        self.req.parse_notification(&mut node, &mut self.segments.ch_strip_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.reverb_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.hw_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.mixer_state, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.config, TIMEOUT_MS, *msg)?;
+        self.req.parse_notification(&mut node, &mut self.segments.knob, TIMEOUT_MS, *msg)?;
         Ok(())
     }
 
@@ -178,7 +177,7 @@ impl NotifyModel<SndDice, u32> for ItwinModel {
     }
 }
 
-impl MeasureModel<hinawa::SndDice> for ItwinModel {
+impl MeasureModel<SndDice> for ItwinModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.measured_elem_list);
@@ -187,13 +186,13 @@ impl MeasureModel<hinawa::SndDice> for ItwinModel {
     }
 
     fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
-        self.ch_strip_ctl.measure_states(unit, &self.proto, &self.segments.ch_strip_state,
+        self.ctl.measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.ch_strip_ctl.measure_states(unit, &mut self.req, &self.segments.ch_strip_state,
                                          &mut self.segments.ch_strip_meter, TIMEOUT_MS)?;
-        self.reverb_ctl.measure_states(unit, &self.proto, &self.segments.reverb_state,
+        self.reverb_ctl.measure_states(unit, &mut self.req, &self.segments.reverb_state,
                                        &mut self.segments.reverb_meter, TIMEOUT_MS)?;
 
-        self.proto.read_segment(&unit.get_node(), &mut self.segments.mixer_meter, TIMEOUT_MS)?;
+        self.req.read_segment(&mut unit.get_node(), &mut self.segments.mixer_meter, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -211,15 +210,6 @@ impl MeasureModel<hinawa::SndDice> for ItwinModel {
         } else {
             Ok(false)
         }
-    }
-}
-
-#[derive(Default, Debug)]
-struct ItwinProto(FwReq);
-
-impl AsRef<FwReq> for ItwinProto {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
     }
 }
 
@@ -244,12 +234,12 @@ fn itwin_phys_out_src_to_string(src: &ItwinOutputPairSrc) -> String {
     }.to_string()
 }
 
-fn listening_mode_to_string(mode: &ListeningMode) -> String {
+fn listening_mode_to_str(mode: &ListeningMode) -> &'static str {
     match mode {
         ListeningMode::Monaural => "Monaural",
         ListeningMode::Stereo => "Stereo",
         ListeningMode::Side => "Side",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -299,8 +289,8 @@ impl ItwinSpecificCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let labels: Vec<String> = Self::LISTENING_MODES.iter()
-            .map(|m| listening_mode_to_string(m))
+        let labels: Vec<&str> = Self::LISTENING_MODES.iter()
+            .map(|m| listening_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::LISTENING_MODE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -309,9 +299,12 @@ impl ItwinSpecificCtl {
         Ok(())
     }
 
-    fn read(&mut self, segments: &ItwinSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        segments: &ItwinSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::CLK_RECOVERY_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
@@ -338,15 +331,21 @@ impl ItwinSpecificCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, proto: &ItwinProto, segments: &mut ItwinSegments, elem_id: &ElemId,
-             old: &ElemValue, new: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        segments: &mut ItwinSegments,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::CLK_RECOVERY_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.knob.data.clock_recovery = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.knob, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.knob, timeout_ms)
                 })
                 .map(|_| true)
             }
@@ -367,7 +366,7 @@ impl ItwinSpecificCtl {
                 })
                 .and_then(|_| {
                     if count > 0 {
-                        proto.write_segment(&unit.get_node(), &mut segments.config, timeout_ms)?;
+                        req.write_segment(&mut unit.get_node(), &mut segments.config, timeout_ms)?;
                     }
                     Ok(true)
                 })
@@ -375,7 +374,7 @@ impl ItwinSpecificCtl {
             Self::MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.enabled = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.mixer_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
@@ -389,7 +388,7 @@ impl ItwinSpecificCtl {
                         })
                         .and_then(|&m| {
                             segments.hw_state.data.listening_mode = m;
-                            proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                            req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -398,9 +397,12 @@ impl ItwinSpecificCtl {
         }
     }
 
-    fn read_notified_elem(&mut self, segments: &ItwinSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read_notified_elem(
+        &mut self,
+        segments: &ItwinSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::LISTENING_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
