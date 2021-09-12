@@ -134,7 +134,7 @@ impl IofwCtls {
             ClockRate::R44100 |
             ClockRate::R48000 |
             ClockRate::AnyLow => {
-                let entries = TxStreamFormatSectionProtocol::read_tx_stream_format_entries(
+                let entries = TxStreamFormatSectionProtocol::read_entries(
                     req,
                     &mut node,
                     sections,
@@ -151,7 +151,7 @@ impl IofwCtls {
             ClockRate::R88200 |
             ClockRate::R96000 |
             ClockRate::AnyMid => {
-                let entries = TxStreamFormatSectionProtocol::read_tx_stream_format_entries(
+                let entries = TxStreamFormatSectionProtocol::read_entries(
                     req,
                     &mut node,
                     sections,
