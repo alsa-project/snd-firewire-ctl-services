@@ -18,7 +18,7 @@ use crate::common_ctl::*;
 
 #[derive(Default)]
 pub struct IoFwModel{
-    proto: FwReq,
+    req: FwReq,
     sections: GeneralSections,
     ctl: CommonCtl,
     state: AlesisIoFwState,
@@ -31,16 +31,16 @@ const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<SndDice> for IoFwModel {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let node = unit.get_node();
+        let mut node = unit.get_node();
 
-        self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
-        let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
-        let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
+        self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
+        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.state = AlesisIoFwState::new(&node, &self.proto, &self.sections, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr, unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
-        self.mixer_ctl.load(card_cntr, unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
+        self.state = AlesisIoFwState::new(&mut node, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr, unit, &mut self.req, &mut self.state, TIMEOUT_MS)?;
+        self.mixer_ctl.load(card_cntr, unit, &mut self.req, &mut self.state, TIMEOUT_MS)?;
         self.out_ctl.load(card_cntr, &mut self.state)?;
 
         Ok(())
@@ -49,11 +49,11 @@ impl CtlModel<SndDice> for IoFwModel {
     fn read(&mut self, unit: &mut SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.ctl.read(unit, &mut self.req, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
             Ok(true)
-        } else if self.out_ctl.read(unit, &self.proto, &self.state, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.out_ctl.read(unit, &mut self.req, &self.state, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -63,11 +63,11 @@ impl CtlModel<SndDice> for IoFwModel {
     fn write(&mut self, unit: &mut SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+        if self.ctl.write(unit, &mut self.req, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, &self.proto, &mut self.state, elem_id, new, TIMEOUT_MS)? {
+        } else if self.mixer_ctl.write(unit, &mut self.req, &mut self.state, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.out_ctl.write(unit, &self.proto, &self.state, elem_id, new, TIMEOUT_MS)? {
+        } else if self.out_ctl.write(unit, &mut self.req, &self.state, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -81,7 +81,7 @@ impl NotifyModel<SndDice, u32> for IoFwModel {
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)
+        self.ctl.parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
@@ -91,7 +91,7 @@ impl NotifyModel<SndDice, u32> for IoFwModel {
     }
 }
 
-impl MeasureModel<hinawa::SndDice> for IoFwModel {
+impl MeasureModel<SndDice> for IoFwModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
@@ -99,9 +99,9 @@ impl MeasureModel<hinawa::SndDice> for IoFwModel {
     }
 
     fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
-        self.meter_ctl.measure_states(unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
-        self.mixer_ctl.measure_states(unit, &self.proto, &mut self.state, TIMEOUT_MS)?;
+        self.ctl.measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &mut self.req, &mut self.state, TIMEOUT_MS)?;
+        self.mixer_ctl.measure_states(unit, &mut self.req, &mut self.state, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -133,16 +133,19 @@ impl Default for AlesisIoFwState {
 }
 
 impl AlesisIoFwState {
-    fn new(node: &FwNode, proto: &FwReq, sections: &GeneralSections, timeout_ms: u32)
-        -> Result<Self, Error>
-    {
-        let config = proto.read_clock_config(node, sections, timeout_ms)?;
+    fn new(
+        node: &mut FwNode,
+        req: &mut FwReq,
+        sections: &GeneralSections,
+        timeout_ms: u32
+    ) -> Result<Self, Error> {
+        let config = req.read_clock_config(node, sections, timeout_ms)?;
         match config.rate {
             ClockRate::R32000 |
             ClockRate::R44100 |
             ClockRate::R48000 |
             ClockRate::AnyLow => {
-                let entries = proto.read_tx_stream_format_entries(node, sections, timeout_ms)?;
+                let entries = req.read_tx_stream_format_entries(node, sections, timeout_ms)?;
                 if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 16 {
                     Ok(Self::Io26(Default::default()))
                 } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 8 {
@@ -154,7 +157,7 @@ impl AlesisIoFwState {
             ClockRate::R88200 |
             ClockRate::R96000 |
             ClockRate::AnyMid => {
-                let entries = proto.read_tx_stream_format_entries(node, sections, timeout_ms)?;
+                let entries = req.read_tx_stream_format_entries(node, sections, timeout_ms)?;
                 if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 4 {
                     Ok(Self::Io26(Default::default()))
                 } else if entries.len() == 2 && entries[0].pcm == 6 && entries[1].pcm == 4 {
@@ -166,7 +169,7 @@ impl AlesisIoFwState {
             ClockRate::R176400 |
             ClockRate::R192000 |
             ClockRate::AnyHigh => {
-                let nickname = proto.read_nickname(node, sections, timeout_ms)?;
+                let nickname = req.read_nickname(node, sections, timeout_ms)?;
                 match nickname.as_str() {
                     "iO 26" => Ok(Self::Io26(Default::default())),
                     "iO 14" => Ok(Self::Io14(Default::default())),
@@ -238,11 +241,15 @@ impl MeterCtl {
     const LEVEL_STEP: i32 = 0x100;
     const LEVEL_TLV: DbInterval = DbInterval{min: -9000, max: 0, linear: false, mute_avail: false};
 
-    fn load(&mut self, card_cntr: &mut CardCntr, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState,
-            timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        proto.read_meter(&unit.get_node(), state, timeout_ms)?;
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &mut AlesisIoFwState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        req.read_meter(&mut unit.get_node(), state, timeout_ms)?;
 
         let m = AsRef::<IoMeter>::as_ref(state);
 
@@ -269,15 +276,22 @@ impl MeterCtl {
         Ok(())
     }
 
-    fn measure_states(&mut self, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        proto.read_meter(&unit.get_node(), state, timeout_ms)
+    fn measure_states(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &mut AlesisIoFwState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        req.read_meter(&mut unit.get_node(), state, timeout_ms)
     }
 
-    fn read_measured_elem(&self, state: &AlesisIoFwState, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read_measured_elem(
+        &self,
+        state: &AlesisIoFwState,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::ANALOG_INPUT_METER_NAME => {
                 let m = AsRef::<IoMeter>::as_ref(state);
@@ -328,15 +342,19 @@ impl MixerCtl {
     const KNOB_MAX: i32 = 0x100;
     const KNOB_STEP: i32 = 1;
 
-    fn load(&mut self, card_cntr: &mut CardCntr, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState,
-            timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        let node = unit.get_node();
-        proto.read_mixer_src_gains(&node, state, timeout_ms)?;
-        proto.read_mixer_src_mutes(&node, state, timeout_ms)?;
-        proto.read_mixer_out_vols(&node, state, timeout_ms)?;
-        proto.read_mixer_out_mutes(&node, state, timeout_ms)?;
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &mut AlesisIoFwState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut node = unit.get_node();
+        req.read_mixer_src_gains(&mut node, state, timeout_ms)?;
+        req.read_mixer_src_mutes(&mut node, state, timeout_ms)?;
+        req.read_mixer_out_vols(&mut node, state, timeout_ms)?;
+        req.read_mixer_out_mutes(&mut node, state, timeout_ms)?;
 
         let s = AsRef::<IoMixerState>::as_ref(state);
 
@@ -377,9 +395,12 @@ impl MixerCtl {
         Ok(())
     }
 
-    fn read(&self, state: &AlesisIoFwState, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &self,
+        state: &AlesisIoFwState,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::INPUT_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
@@ -418,10 +439,15 @@ impl MixerCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState, elem_id: &ElemId,
-             elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &mut AlesisIoFwState,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::INPUT_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
@@ -430,7 +456,7 @@ impl MixerCtl {
                 let analog_input_count = gains.analog_inputs.len();
                 let digital_a_input_count = gains.digital_a_inputs.len();
                 let digital_b_input_count = gains.digital_b_inputs.len();
-                let mut vals = vec![0;analog_input_count + digital_a_input_count + digital_b_input_count];
+                let mut vals = vec![0; analog_input_count + digital_a_input_count + digital_b_input_count];
                 elem_value.get_int(&mut vals);
 
                 let analog_inputs = &vals[..analog_input_count];
@@ -441,7 +467,7 @@ impl MixerCtl {
                 gains.digital_a_inputs.copy_from_slice(&digital_a_inputs);
                 gains.digital_b_inputs.copy_from_slice(&digital_b_inputs);
 
-                proto.write_mixer_src_gains(&unit.get_node(), state, mixer, &gains, timeout_ms)?;
+                req.write_mixer_src_gains(&mut unit.get_node(), state, mixer, &gains, timeout_ms)?;
 
                 Ok(true)
             }
@@ -452,7 +478,7 @@ impl MixerCtl {
                 let analog_input_count = mutes.analog_inputs.len();
                 let digital_a_input_count = mutes.digital_a_inputs.len();
                 let digital_b_input_count = mutes.digital_b_inputs.len();
-                let mut vals = vec![false;analog_input_count + digital_a_input_count + digital_b_input_count];
+                let mut vals = vec![false; analog_input_count + digital_a_input_count + digital_b_input_count];
                 elem_value.get_bool(&mut vals);
 
                 let analog_inputs = &vals[..analog_input_count];
@@ -463,7 +489,7 @@ impl MixerCtl {
                 mutes.digital_a_inputs.copy_from_slice(&digital_a_inputs);
                 mutes.digital_b_inputs.copy_from_slice(&digital_b_inputs);
 
-                proto.write_mixer_src_mutes(&unit.get_node(), state, mixer, &mutes, timeout_ms)?;
+                req.write_mixer_src_mutes(&mut unit.get_node(), state, mixer, &mutes, timeout_ms)?;
 
                 Ok(true)
             }
@@ -473,7 +499,7 @@ impl MixerCtl {
 
                 elem_value.get_int(&mut gains.stream_inputs);
 
-                proto.write_mixer_src_gains(&unit.get_node(), state, mixer, &gains, timeout_ms)?;
+                req.write_mixer_src_gains(&mut unit.get_node(), state, mixer, &gains, timeout_ms)?;
 
                 Ok(true)
             }
@@ -481,28 +507,31 @@ impl MixerCtl {
                 let s = AsRef::<IoMixerState>::as_ref(state);
                 let mut vals = s.out_vols.clone();
                 elem_value.get_int(&mut vals);
-                proto.write_mixer_out_vols(&unit.get_node(), state, &vals, timeout_ms)?;
+                req.write_mixer_out_vols(&mut unit.get_node(), state, &vals, timeout_ms)?;
                 Ok(true)
             }
             Self::OUTPUT_MUTE_NAME => {
                 let s = AsRef::<IoMixerState>::as_ref(state);
                 let mut vals = s.out_mutes.clone();
                 elem_value.get_bool(&mut vals);
-                proto.write_mixer_out_mutes(&unit.get_node(), state, &vals, timeout_ms)?;
+                req.write_mixer_out_mutes(&mut unit.get_node(), state, &vals, timeout_ms)?;
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn measure_states(&mut self, unit: &SndDice, proto: &FwReq, state: &mut AlesisIoFwState,
-                      timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        let node = unit.get_node();
+    fn measure_states(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &mut AlesisIoFwState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut node = unit.get_node();
 
         let old = AsRef::<IoMixerState>::as_ref(state).knobs.mix_blend as i32;
-        proto.read_knob_state(&node, state, timeout_ms)?;
+        req.read_knob_state(&mut node, state, timeout_ms)?;
 
         let new = AsRef::<IoMixerState>::as_ref(state).knobs.mix_blend as i32;
         if new != old {
@@ -511,15 +540,18 @@ impl MixerCtl {
             let mut new = AsRef::<IoMixerState>::as_ref(state).out_vols.clone();
             new[0] = val;
             new[1] = val;
-            proto.write_mixer_out_vols(&node, state, &new, timeout_ms)?;
+            req.write_mixer_out_vols(&mut node, state, &new, timeout_ms)?;
         }
 
         Ok(())
     }
 
-    fn read_measured_elem(&self, state: &AlesisIoFwState, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read_measured_elem(
+        &self,
+        state: &AlesisIoFwState,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUTPUT_VOL_NAME => {
                 let s = AsRef::<IoMixerState>::as_ref(state);
@@ -541,27 +573,27 @@ impl MixerCtl {
     }
 }
 
-fn nominal_signal_level_to_string(level: &NominalSignalLevel) -> String {
+fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
     match level {
         NominalSignalLevel::Consumer => "-10dBV",
         NominalSignalLevel::Professional => "+4dBu",
-    }.to_string()
+    }
 }
 
-fn digital_b_67_src_to_string(src: &DigitalB67Src) -> String {
+fn digital_b_67_src_to_str(src: &DigitalB67Src) -> &'static str {
     match src {
         DigitalB67Src::Spdif12 => "S/PDIF-input-1/2",
         DigitalB67Src::Adat67 => "ADAT-input-7/8",
-    }.to_string()
+    }
 }
 
-fn mixer_out_pair_to_string(pair: &MixerOutPair) -> String {
+fn mixer_out_pair_to_str(pair: &MixerOutPair) -> &'static str {
     match pair {
         MixerOutPair::Mixer01 => "Mixer-output-1/2",
         MixerOutPair::Mixer23 => "Mixer-output-3/4",
         MixerOutPair::Mixer45 => "Mixer-output-5/6",
         MixerOutPair::Mixer67 => "Mixer-output-7/8",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -573,17 +605,17 @@ impl OutCtl {
     const SPDIF_OUT_SRC_NAME: &'static str = "S/PDIF-1/2-output-source";
     const HP23_SRC_NAME: &'static str = "Headphone-3/4-output-source";
 
-    const OUT_LEVELS: [NominalSignalLevel;2] = [
+    const OUT_LEVELS: [NominalSignalLevel; 2] = [
         NominalSignalLevel::Consumer,
         NominalSignalLevel::Professional,
     ];
 
-    const DIGITAL_B_67_SRCS: [DigitalB67Src;2] = [
+    const DIGITAL_B_67_SRCS: [DigitalB67Src; 2] = [
         DigitalB67Src::Spdif12,
         DigitalB67Src::Adat67,
     ];
 
-    const MIXER_OUT_PAIRS: [MixerOutPair;4] = [
+    const MIXER_OUT_PAIRS: [MixerOutPair; 4] = [
         MixerOutPair::Mixer01,
         MixerOutPair::Mixer23,
         MixerOutPair::Mixer45,
@@ -592,22 +624,22 @@ impl OutCtl {
 
     fn load(&mut self, card_cntr: &mut CardCntr, state: &AlesisIoFwState) -> Result<(), Error> {
         let m = AsRef::<IoMeter>::as_ref(state);
-        let labels: Vec<String> = Self::OUT_LEVELS.iter()
-            .map(|l| nominal_signal_level_to_string(l))
+        let labels: Vec<&str> = Self::OUT_LEVELS.iter()
+            .map(|l| nominal_signal_level_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, m.analog_inputs.len(), &labels, None, true)?;
 
         if m.digital_b_inputs.len() == 8 {
-            let labels: Vec<String> = Self::DIGITAL_B_67_SRCS.iter()
-                .map(|s| digital_b_67_src_to_string(s))
+            let labels: Vec<&str> = Self::DIGITAL_B_67_SRCS.iter()
+                .map(|s| digital_b_67_src_to_str(s))
                 .collect();
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DIGITAL_B_67_SRC_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
-        let labels: Vec<String> = Self::MIXER_OUT_PAIRS.iter()
-            .map(|p| mixer_out_pair_to_string(p))
+        let labels: Vec<&str> = Self::MIXER_OUT_PAIRS.iter()
+            .map(|p| mixer_out_pair_to_str(p))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
@@ -618,50 +650,44 @@ impl OutCtl {
         Ok(())
     }
 
-    fn read(&self, unit: &SndDice, proto: &FwReq, state: &AlesisIoFwState, elem_id: &ElemId,
-            elem_value: &mut ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &AlesisIoFwState,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_LEVEL_NAME => {
                 let m = &AsRef::<IoMeter>::as_ref(state);
                 let mut levels = vec![NominalSignalLevel::default();m.analog_inputs.len()];
-                proto.read_out_levels(&unit.get_node(), &mut levels, timeout_ms)?;
+                req.read_out_levels(&mut unit.get_node(), &mut levels, timeout_ms)?;
                 let vals: Vec<u32> = levels.iter()
-                    .map(|level| {
-                        let pos = Self::OUT_LEVELS.iter()
-                            .position(|l| l.eq(level))
-                            .expect("Programming error...");
-                        pos as u32
-                    })
+                    .map(|level| Self::OUT_LEVELS.iter().position(|l| l.eq(level)).unwrap() as u32)
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
             Self::DIGITAL_B_67_SRC_NAME => {
                 let mut src = DigitalB67Src::default();
-                proto.read_mixer_digital_b_67_src(&unit.get_node(), &mut src, timeout_ms)?;
-                let pos = Self::DIGITAL_B_67_SRCS.iter()
-                    .position(|s| s.eq(&src))
-                    .expect("Programming error...");
+                req.read_mixer_digital_b_67_src(&mut unit.get_node(), &mut src, timeout_ms)?;
+                let pos = Self::DIGITAL_B_67_SRCS.iter().position(|s| s.eq(&src)).unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             Self::SPDIF_OUT_SRC_NAME => {
                 let mut pair = MixerOutPair::default();
-                proto.read_spdif_out_src(&unit.get_node(), &mut pair, timeout_ms)?;
-                let pos = Self::MIXER_OUT_PAIRS.iter()
-                    .position(|p| p.eq(&pair))
-                    .expect("Programming error...");
+                req.read_spdif_out_src(&mut unit.get_node(), &mut pair, timeout_ms)?;
+                let pos = Self::MIXER_OUT_PAIRS.iter().position(|p| p.eq(&pair)).unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             Self::HP23_SRC_NAME => {
                 let mut pair = MixerOutPair::default();
-                proto.read_hp23_out_src(&unit.get_node(), &mut pair, timeout_ms)?;
-                let pos = Self::MIXER_OUT_PAIRS.iter()
-                    .position(|p| p.eq(&pair))
-                    .expect("Programming error...");
+                req.read_hp23_out_src(&mut unit.get_node(), &mut pair, timeout_ms)?;
+                let pos = Self::MIXER_OUT_PAIRS.iter().position(|p| p.eq(&pair)).unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
@@ -669,54 +695,56 @@ impl OutCtl {
         }
     }
 
-    fn write(&self, unit: &SndDice, proto: &FwReq, state: &AlesisIoFwState, elem_id: &ElemId,
-             elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        state: &AlesisIoFwState,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_LEVEL_NAME => {
                 let m = &AsRef::<IoMeter>::as_ref(state);
-                let mut vals = vec![0;m.analog_inputs.len()];
+                let mut vals = vec![0; m.analog_inputs.len()];
                 elem_value.get_enum(&mut vals);
                 let levels: Vec<NominalSignalLevel> = vals.iter()
                     .map(|v| NominalSignalLevel::from(*v))
                     .collect();
-                proto.write_out_levels(&unit.get_node(), &levels, timeout_ms)
+                req.write_out_levels(&mut unit.get_node(), &levels, timeout_ms)
                     .map(|_| true)
             }
             Self::DIGITAL_B_67_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::DIGITAL_B_67_SRCS.iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of source of digital B 7/8: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .and_then(|s| proto.write_mixer_digital_b_67_src(&unit.get_node(), s, timeout_ms))
+                    let src = Self::DIGITAL_B_67_SRCS.iter().nth(val as usize).ok_or_else(|| {
+                        let msg = format!("Invalid value for index of source of digital B 7/8: {}",
+                                          val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                    req.write_mixer_digital_b_67_src(&mut unit.get_node(), src, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::SPDIF_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::MIXER_OUT_PAIRS.iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of pair of mixer output: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .and_then(|p| proto.write_spdif_out_src(&unit.get_node(), p, timeout_ms))
+                    let src = Self::MIXER_OUT_PAIRS.iter().nth(val as usize).ok_or_else(|| {
+                        let msg = format!("Invalid value for index of pair of mixer output: {}",
+                                          val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                    req.write_spdif_out_src(&mut unit.get_node(), src, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::HP23_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::MIXER_OUT_PAIRS.iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of pair of mixer output: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })
-                        .and_then(|p| proto.write_hp23_out_src(&unit.get_node(), p, timeout_ms))
+                    let src = Self::MIXER_OUT_PAIRS.iter().nth(val as usize).ok_or_else(|| {
+                        let msg = format!("Invalid value for index of pair of mixer output: {}",
+                                          val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
+                    req.write_hp23_out_src(&mut unit.get_node(), src, timeout_ms)
                 })
                 .map(|_| true)
             }
