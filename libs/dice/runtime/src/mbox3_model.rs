@@ -200,7 +200,8 @@ impl StandaloneCtl {
         match elem_id.get_name().as_str() {
             Self::USE_CASE_NAME=> {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let usecase = req.read_standalone_use_case(
+                    let usecase = Mbox3Protocol::read_standalone_use_case(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         timeout_ms
@@ -231,7 +232,7 @@ impl StandaloneCtl {
                         let msg = format!("Invalid value for standalone usecase: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                    AvidMbox3StandaloneProtocol::write_standalone_use_case(
+                    Mbox3Protocol::write_standalone_use_case(
                         req,
                         &mut unit.get_node(),
                         sections,
@@ -296,7 +297,8 @@ impl HwCtl {
         match elem_id.get_name().as_str() {
             Self::MASTER_KNOB_ASSIGN_NAME => {
                 let mut assigns = MasterKnobAssigns::default();
-                req.read_hw_master_knob_assign(
+                Mbox3Protocol::read_master_knob_assign(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &mut assigns,
@@ -308,7 +310,12 @@ impl HwCtl {
                     })
             }
             Self::DIM_LED_USAGE_NAME => {
-                req.read_hw_dim_led_usage(&mut unit.get_node(), sections, timeout_ms)
+                Mbox3Protocol::read_dim_led_usage(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    timeout_ms
+                )
                     .map(|usage| {
                         elem_value.set_bool(&[usage]);
                         true
@@ -316,14 +323,25 @@ impl HwCtl {
             }
             Self::HOLD_DURATION_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    req.read_hw_hold_duration(&mut unit.get_node(), sections, timeout_ms)
+                    Mbox3Protocol::read_hold_duration(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )
                         .map(|duration| duration as i32)
                 })
                 .map(|_| true)
             }
             Self::INPUT_HPF_NAME => {
                 let mut vals = [false;Self::INPUT_COUNT];
-                req.read_hw_hpf_enable(&mut unit.get_node(), sections, &mut vals, timeout_ms)
+                Mbox3Protocol::read_hpf_enable(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &mut vals,
+                    timeout_ms
+                )
                     .map(|_| {
                         elem_value.set_bool(&vals);
                         true
@@ -331,7 +349,13 @@ impl HwCtl {
             }
             Self::OUTPUT_TRIM_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::OUTPUT_COUNT, |idx| {
-                    req.read_hw_output_trim(&mut unit.get_node(), sections, idx, timeout_ms)
+                    Mbox3Protocol::read_output_trim(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        idx,
+                        timeout_ms
+                    )
                         .map(|trim| trim as i32)
                 })
                 .map(|_| true)
@@ -354,30 +378,61 @@ impl HwCtl {
             Self::MASTER_KNOB_ASSIGN_NAME => {
                 let mut assign = MasterKnobAssigns::default();
                 new.get_bool(&mut assign);
-                req.write_hw_master_knob_assign(&mut unit.get_node(), sections, &assign, timeout_ms)
+                Mbox3Protocol::write_master_knob_assign(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &assign,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             Self::DIM_LED_USAGE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    req.write_hw_dim_led_usage(&mut unit.get_node(), sections, val, timeout_ms)
+                    Mbox3Protocol::write_dim_led_usage(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        val,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::HOLD_DURATION_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
-                    req.write_hw_hold_duration(&mut unit.get_node(), sections, val as u8, timeout_ms)
+                    Mbox3Protocol::write_hold_duration(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        val as u8,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::INPUT_HPF_NAME => {
                 let mut vals = [false;Self::INPUT_COUNT];
                 new.get_bool(&mut vals);
-                req.write_hw_hpf_enable(&mut unit.get_node(), sections, vals, timeout_ms)?;
+                Mbox3Protocol::write_hpf_enable(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    vals,
+                    timeout_ms
+                )?;
                 Ok(true)
             }
             Self::OUTPUT_TRIM_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::OUTPUT_COUNT, |idx, val| {
-                    req.write_hw_output_trim(&mut unit.get_node(), sections, idx, val as u8, timeout_ms)
+                    Mbox3Protocol::write_output_trim(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        idx,
+                        val as u8,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
@@ -451,7 +506,8 @@ impl ReverbCtl {
         match elem_id.get_name().as_str() {
             Self::TYPE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, ||{
-                    let reverb_type = req.read_reverb_type(
+                    let reverb_type = Mbox3Protocol::read_reverb_type(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         timeout_ms
@@ -463,21 +519,36 @@ impl ReverbCtl {
             }
             Self::VOL_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    req.read_reverb_volume(&mut unit.get_node(), sections, timeout_ms)
+                    Mbox3Protocol::read_reverb_volume(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )
                         .map(|vol| vol as i32)
                 })
                 .map(|_| true)
             }
             Self::DURATION_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    req.read_reverb_duration(&mut unit.get_node(), sections, timeout_ms)
+                    Mbox3Protocol::read_reverb_duration(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )
                         .map(|duration| duration as i32)
                 })
                 .map(|_| true)
             }
             Self::FEEDBACK_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    req.read_reverb_feedback(&mut unit.get_node(), sections, timeout_ms)
+                    Mbox3Protocol::read_reverb_feedback(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )
                         .map(|feedback| feedback as i32)
                 })
                 .map(|_| true)
@@ -503,25 +574,49 @@ impl ReverbCtl {
                         let msg = format!("Invalid value for index of reverb type: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                    req.write_reverb_type(&mut unit.get_node(), sections, reverb_type, timeout_ms)
+                    Mbox3Protocol::write_reverb_type(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        reverb_type,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::VOL_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
-                    req.write_reverb_volume(&mut unit.get_node(), sections, val as u8, timeout_ms)
+                    Mbox3Protocol::write_reverb_volume(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        val as u8,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::DURATION_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
-                    req.write_reverb_duration(&mut unit.get_node(), sections, val as u8, timeout_ms)
+                    Mbox3Protocol::write_reverb_duration(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        val as u8,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::FEEDBACK_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
-                    req.write_reverb_feedback(&mut unit.get_node(), sections, val as u8, timeout_ms)
+                    Mbox3Protocol::write_reverb_feedback(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        val as u8,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
@@ -615,7 +710,7 @@ impl ButtonCtl {
         let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         self.1.append(&mut elem_id_list);
 
-        req.read_hw_button_led_state(&mut unit.get_node(), sections, timeout_ms)
+        Mbox3Protocol::read_button_led_state(req, &mut unit.get_node(), sections, timeout_ms)
             .map(|state| self.0 = state)?;
 
         Ok(())
@@ -669,7 +764,8 @@ impl ButtonCtl {
                             let msg = format!("Invalid value for index of mute button state: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    req.write_hw_button_led_state(
+                    Mbox3Protocol::write_button_led_state(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         &state,
@@ -690,7 +786,8 @@ impl ButtonCtl {
                             let msg = format!("Invalid value for index of mono button state: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    req.write_hw_button_led_state(
+                    Mbox3Protocol::write_button_led_state(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         &state,
@@ -711,7 +808,8 @@ impl ButtonCtl {
                             let msg = format!("Invalid value for index of mono button state: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    req.write_hw_button_led_state(
+                    Mbox3Protocol::write_button_led_state(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         &state,
@@ -793,7 +891,8 @@ impl ButtonCtl {
         }
 
         if changed {
-            req.write_hw_button_led_state(
+            Mbox3Protocol::write_button_led_state(
+                req,
                 &mut unit.get_node(),
                 sections,
                 &self.0,
