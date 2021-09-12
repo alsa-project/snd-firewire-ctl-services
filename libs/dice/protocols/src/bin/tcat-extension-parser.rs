@@ -61,7 +61,7 @@ fn print_caps(caps: &ExtensionCaps) {
     println!("    asic_type:        {}", label);
 }
 
-fn print_mixer(proto: &FwReq, node: &FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
+fn print_mixer(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
     -> Result<(), Error>
 {
     println!("Mixer:");
@@ -80,7 +80,7 @@ fn print_mixer(proto: &FwReq, node: &FwNode, sections: &ExtensionSections, caps:
     })
 }
 
-fn print_peak(proto: &FwReq, node: &FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
+fn print_peak(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
     -> Result<(), Error>
 {
     proto.read_peak_entries(node, sections, caps, TIMEOUT_MS)
@@ -96,7 +96,7 @@ fn print_peak(proto: &FwReq, node: &FwNode, sections: &ExtensionSections, caps: 
 
 const RATE_MODES: [RateMode;3] = [RateMode::Low, RateMode::Middle, RateMode::High];
 
-fn print_current_router_entries(proto: &FwReq, node: &FwNode, sections: &ExtensionSections,
+fn print_current_router_entries(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections,
                                 caps: &ExtensionCaps)
     -> Result<(), Error>
 {
@@ -125,7 +125,7 @@ fn print_stream_format_entry(entry: &FormatEntry) {
     });
 }
 
-fn print_current_stream_format_entries(proto: &FwReq, node: &FwNode, sections: &ExtensionSections,
+fn print_current_stream_format_entries(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections,
                                        caps: &ExtensionCaps)
     -> Result<(), Error>
 {
@@ -150,7 +150,7 @@ fn print_current_stream_format_entries(proto: &FwReq, node: &FwNode, sections: &
     })
 }
 
-fn print_standalone_config(proto: &FwReq, node: &FwNode, sections: &ExtensionSections) -> Result<(), Error> {
+fn print_standalone_config(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections) -> Result<(), Error> {
     println!("Standalone configurations:");
     let src = proto.read_standalone_clock_source(node, sections, TIMEOUT_MS)?;
     println!("  clock source: {}", src);
@@ -196,7 +196,7 @@ fn main() {
                         .map(|src| (node, src))
                 })
         })
-        .and_then(|(node, src)| {
+        .and_then(|(mut node, src)| {
             let ctx = MainContext::new();
             let _ = src.attach(Some(&ctx));
             let dispatcher = Arc::new(MainLoop::new(Some(&ctx), false));
@@ -204,16 +204,16 @@ fn main() {
             let th = thread::spawn(move || d.run());
 
             let proto = FwReq::new();
-            let result = proto.read_extension_sections(&node, TIMEOUT_MS)
+            let result = proto.read_extension_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
-                    let caps = proto.read_caps(&node, &sections, TIMEOUT_MS)?;
+                    let caps = proto.read_caps(&mut node, &sections, TIMEOUT_MS)?;
                     print_caps(&caps);
-                    print_mixer(&proto, &node, &sections, &caps)?;
-                    print_peak(&proto, &node, &sections, &caps)?;
-                    print_current_router_entries(&proto, &node, &sections, &caps)?;
-                    print_current_stream_format_entries(&proto, &node, &sections, &caps)?;
-                    print_standalone_config(&proto, &node, &sections)?;
+                    print_mixer(&proto, &mut node, &sections, &caps)?;
+                    print_peak(&proto, &mut node, &sections, &caps)?;
+                    print_current_router_entries(&proto, &mut node, &sections, &caps)?;
+                    print_current_stream_format_entries(&proto, &mut node, &sections, &caps)?;
+                    print_standalone_config(&proto, &mut node, &sections)?;
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
