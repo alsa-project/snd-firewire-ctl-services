@@ -13,7 +13,7 @@ use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*};
-use dice_protocols::lexicon::{meter::*, mixer::*};
+use dice_protocols::lexicon::*;
 
 use crate::common_ctl::*;
 
@@ -129,11 +129,11 @@ impl MeterCtl {
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
-            (Self::SPDIF_INPUT_NAME, 2),
-            (Self::STREAM_INPUT_NAME, 10),
-            (Self::ANALOG_INPUT_NAME, 8),
-            (Self::BUS_OUTPUT_NAME, 8),
-            (Self::MAIN_OUTPUT_NAME, 2),
+            (Self::SPDIF_INPUT_NAME, IonixProtocol::SPDIF_INPUT_COUNT),
+            (Self::STREAM_INPUT_NAME, IonixProtocol::STREAM_INPUT_COUNT),
+            (Self::ANALOG_INPUT_NAME, IonixProtocol::ANALOG_INPUT_COUNT),
+            (Self::BUS_OUTPUT_NAME, IonixProtocol::MIXER_BUS_COUNT),
+            (Self::MAIN_OUTPUT_NAME, IonixProtocol::MIXER_MAIN_COUNT),
         ].iter()
             .try_for_each(|&(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
@@ -151,7 +151,12 @@ impl MeterCtl {
         req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        req.read_meters(&mut unit.get_node(), &mut self.meters, timeout_ms)
+        IonixProtocol::read_meters(
+            req,
+            &mut unit.get_node(),
+            &mut self.meters,
+            timeout_ms
+        )
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -216,17 +221,17 @@ impl MixerCtl {
             .map(|s| mixer_src_to_string(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::BUS_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, MIXER_BUS_CHANNEL_COUNT,
+        let _ = card_cntr.add_int_elems(&elem_id, IonixProtocol::MIXER_BUS_COUNT,
                                         Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP, labels.len(),
                                         Some(&Vec::<u32>::from(Self::GAIN_TLV)), true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MAIN_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, MIXER_MAIN_CHANNEL_COUNT,
+        let _ = card_cntr.add_int_elems(&elem_id, IonixProtocol::MIXER_MAIN_COUNT,
                                         Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP, labels.len(),
                                         Some(&Vec::<u32>::from(Self::GAIN_TLV)), true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, MIXER_REVERB_CHANNEL_COUNT,
+        let _ = card_cntr.add_int_elems(&elem_id, IonixProtocol::MIXER_REVERB_COUNT,
                                         Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP, labels.len(),
                                         Some(&Vec::<u32>::from(Self::GAIN_TLV)), true)?;
 
@@ -246,7 +251,8 @@ impl MixerCtl {
                 let mixer = elem_id.get_index() as usize;
                 let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
-                    req.read_mixer_bus_src_gain(
+                    IonixProtocol::read_mixer_bus_src_gain(
+                        req,
                         &mut node,
                         mixer,
                         Self::MIXER_SRCS[idx],
@@ -260,7 +266,8 @@ impl MixerCtl {
                 let mixer = elem_id.get_index() as usize;
                 let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
-                    req.read_mixer_main_src_gain(
+                    IonixProtocol::read_mixer_main_src_gain(
+                        req,
                         &mut node,
                         mixer,
                         Self::MIXER_SRCS[idx],
@@ -274,7 +281,8 @@ impl MixerCtl {
                 let mixer = elem_id.get_index() as usize;
                 let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
-                    req.read_mixer_reverb_src_gain(
+                    IonixProtocol::read_mixer_reverb_src_gain(
+                        req,
                         &mut node,
                         mixer,
                         Self::MIXER_SRCS[idx],
@@ -302,7 +310,8 @@ impl MixerCtl {
                 let mixer = elem_id.get_index() as usize;
                 let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
-                    req.write_mixer_bus_src_gain(
+                    IonixProtocol::write_mixer_bus_src_gain(
+                        req,
                         &mut node,
                         mixer,
                         Self::MIXER_SRCS[idx],
@@ -316,7 +325,8 @@ impl MixerCtl {
                 let mixer = elem_id.get_index() as usize;
                 let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
-                    req.write_mixer_main_src_gain(
+                    IonixProtocol::write_mixer_main_src_gain(
+                        req,
                         &mut node,
                         mixer,
                         Self::MIXER_SRCS[idx],
@@ -330,7 +340,8 @@ impl MixerCtl {
                 let mixer = elem_id.get_index() as usize;
                 let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
-                    req.write_mixer_reverb_src_gain(
+                    IonixProtocol::write_mixer_reverb_src_gain(
+                        req,
                         &mut node,
                         mixer,
                         Self::MIXER_SRCS[idx],
