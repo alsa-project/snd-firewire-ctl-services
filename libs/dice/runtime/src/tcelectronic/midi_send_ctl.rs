@@ -44,8 +44,12 @@ impl MidiSendCtl {
         Ok(())
     }
 
-    pub fn read<S>(&self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<TcKonnektMidiSender>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -78,8 +82,15 @@ impl MidiSendCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    )
         -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<TcKonnektMidiSender>,
@@ -138,15 +149,19 @@ impl MidiSendCtl {
         }
     }
 
-    fn state_write<T, S, F>(unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                            timeout_ms: u32, cb: F)
-        -> Result<(), Error>
+    fn state_write<T, S, F>(
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        timeout_ms: u32,
+        cb: F
+    ) -> Result<(), Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<TcKonnektMidiSender>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&mut TcKonnektMidiSender)
     {
         cb(&mut segment.data.as_mut());
-        proto.write_segment(&unit.get_node(), segment, timeout_ms)
+        proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
     }
 }

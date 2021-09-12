@@ -44,8 +44,12 @@ impl TcKonnektStandaloneCtl {
         Ok(())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where for<'b> S: TcKonnektSegmentData + AsRef<TcKonnektStandaloneClkRate>,
     {
         match elem_id.get_name().as_str() {
@@ -63,9 +67,15 @@ impl TcKonnektStandaloneCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               for<'b> S: TcKonnektSegmentData + AsMut<TcKonnektStandaloneClkRate>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec
@@ -81,7 +91,7 @@ impl TcKonnektStandaloneCtl {
                         })
                         .map(|&r| *segment.data.as_mut() = r)
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
             _ => Ok(false),
