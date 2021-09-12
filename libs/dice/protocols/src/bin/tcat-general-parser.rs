@@ -82,8 +82,8 @@ fn print_global_section(proto: &FwReq, node: &mut FwNode, sections: &GeneralSect
     Ok(())
 }
 
-fn print_tx_stream_formats(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
-    let entries = proto.read_tx_stream_format_entries(node, sections, TIMEOUT_MS)?;
+fn print_tx_stream_formats(req: &mut FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
+    let entries = TxStreamFormatSectionProtocol::read_entries(req, node, sections, TIMEOUT_MS)?;
     println!("Tx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
         println!("  Stream {}:", i);
@@ -183,7 +183,7 @@ fn main() {
                 .and_then(|sections| {
                     print_sections(&sections);
                     print_global_section(&proto, &mut node, &sections)?;
-                    print_tx_stream_formats(&proto, &mut node, &sections)?;
+                    print_tx_stream_formats(&mut proto, &mut node, &sections)?;
                     print_rx_stream_formats(&proto, &mut node, &sections)?;
                     print_ext_sync(&mut proto, &mut node, &sections);
                     Ok(())

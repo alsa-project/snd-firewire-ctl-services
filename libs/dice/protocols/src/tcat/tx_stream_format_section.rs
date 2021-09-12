@@ -88,20 +88,28 @@ impl From<&TxStreamFormatEntry> for Vec<u8>
     }
 }
 
-pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
-    const SIZE_OFFSET: usize = 0x04;
+/// The structure for protocol implementation of tx stream format section.
+#[derive(Default)]
+pub struct TxStreamFormatSectionProtocol;
 
-    fn read_tx_stream_format_entries(
-        &self,
+impl TxStreamFormatSectionProtocol {
+    pub fn read_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<Vec<TxStreamFormatEntry>, Error> {
-        let mut data = [0;8];
-        self.read(node, sections.tx_stream_format.offset, &mut data, timeout_ms)
+        let mut data = [0; 8];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.tx_stream_format.offset,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
 
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&data[..4]);
         let count = u32::from_be_bytes(quadlet) as usize;
 
@@ -111,7 +119,13 @@ pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
         let mut entries = Vec::new();
         let mut data = vec![0;size];
         (0..count).try_for_each(|i| {
-            self.read(node, sections.tx_stream_format.offset + 8 + (i * size), &mut data, timeout_ms)
+            GeneralProtocol::read(
+                req,
+                node,
+                sections.tx_stream_format.offset + 8 + (i * size),
+                &mut data,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
             let entry = TxStreamFormatEntry::try_from(&data[..])
                 .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
@@ -121,18 +135,18 @@ pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
         .map(|_| entries)
     }
 
-    fn write_tx_stream_format_entries(
-        &self,
+    pub fn write_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         entries: &[TxStreamFormatEntry],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;8];
-        self.read(node, sections.tx_stream_format.offset, &mut data, timeout_ms)
+        let mut data = [0; 8];
+        GeneralProtocol::read(req, node, sections.tx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
 
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&data[..4]);
         let count = std::cmp::min(u32::from_be_bytes(quadlet) as usize, entries.len());
 
@@ -142,8 +156,14 @@ pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
         (0..count).try_for_each(|i| {
             let mut expected_fmt = entries[i].clone();
 
-            let mut curr = vec![0;size];
-            self.read(node, sections.tx_stream_format.offset + 8 + (i * size), &mut curr, timeout_ms)
+            let mut curr = vec![0; size];
+            GeneralProtocol::read(
+                req,
+                node,
+                sections.tx_stream_format.offset + 8 + (i * size),
+                &mut curr,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
             let curr_fmt = TxStreamFormatEntry::try_from(&curr[..])
                 .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
@@ -151,7 +171,13 @@ pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
 
             if expected_fmt != curr_fmt {
                 let mut raw = Into::<Vec<u8>>::into(&expected_fmt);
-                self.write(node, sections.tx_stream_format.offset + 8 + (i * size), &mut raw, timeout_ms)
+                GeneralProtocol::write(
+                    req,
+                    node,
+                    sections.tx_stream_format.offset + 8 + (i * size),
+                    &mut raw,
+                    timeout_ms
+                )
                     .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
             }
 
@@ -159,5 +185,3 @@ pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
         })
     }
 }
-
-impl<O: AsRef<FwReq>> TxStreamFormatSectionProtocol for O {}
