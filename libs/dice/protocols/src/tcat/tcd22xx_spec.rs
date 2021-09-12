@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use hinawa::FwNode;
+use hinawa::{FwNode, FwReq};
 
 use super::extension::{*, caps_section::*, cmd_section::*, mixer_section::*, router_section::*,
                        current_config_section::*};
@@ -208,13 +208,11 @@ pub trait Tcd22xxSpec {
     }
 }
 
-pub trait Tcd22xxRouterOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
-    where U: CmdSectionProtocol + RouterSectionProtocol + CurrentConfigSectionProtocol,
-{
+pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> {
     fn update_router_entries(
         &mut self,
         node: &mut FwNode,
-        proto: &U,
+        req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         entries: Vec<RouterEntry>,
@@ -240,8 +238,22 @@ pub trait Tcd22xxRouterOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<
         let state = self.as_mut();
         if entries != state.router_entries {
             let rate_mode = state.rate_mode;
-            proto.write_router_entries(node, sections, caps, &entries, timeout_ms)?;
-            proto.initiate(node, sections, caps, Opcode::LoadRouter(rate_mode), timeout_ms)?;
+            RouterSectionProtocol::write_router_entries(
+                req,
+                node,
+                sections,
+                caps,
+                &entries,
+                timeout_ms
+            )?;
+            CmdSectionProtocol::initiate(
+                req,
+                node,
+                sections,
+                caps,
+                Opcode::LoadRouter(rate_mode),
+                timeout_ms
+            )?;
             state.router_entries = entries;
         }
 
@@ -251,7 +263,7 @@ pub trait Tcd22xxRouterOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<
     fn cache_router_entries(
         &mut self,
         node: &mut FwNode,
-        proto: &U,
+        req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32
@@ -260,8 +272,15 @@ pub trait Tcd22xxRouterOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<
 
         let real_blk_pair = self.compute_avail_real_blk_pair(rate_mode);
 
-        let (tx_entries, rx_entries) = proto.read_current_stream_format_entries(node, sections, caps,
-                                                                                rate_mode, timeout_ms)?;
+        let (tx_entries, rx_entries) =
+            CurrentConfigSectionProtocol::read_current_stream_format_entries(
+                req,
+                node,
+                sections,
+                caps,
+                rate_mode,
+                timeout_ms
+            )?;
         let stream_blk_pair = self.compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
 
         let mixer_blk_pair = self.compute_avail_mixer_blk_pair(caps, rate_mode);
@@ -271,18 +290,24 @@ pub trait Tcd22xxRouterOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<
         state.stream_blk_pair = stream_blk_pair;
         state.mixer_blk_pair = mixer_blk_pair;
 
-        let entries = proto.read_current_router_entries(node, sections, caps, rate_mode, timeout_ms)?;
-        self.update_router_entries(node, proto, sections, caps, entries, timeout_ms)
+        let entries = CurrentConfigSectionProtocol::read_current_router_entries(
+            req,
+            node,
+            sections,
+            caps,
+            rate_mode,
+            timeout_ms
+        )?;
+        self.update_router_entries(node, req, sections, caps, entries, timeout_ms)
     }
 }
 
-pub trait Tcd22xxMixerOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
-    where U: MixerSectionProtocol,
+pub trait Tcd22xxMixerOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
 {
     fn update_mixer_coef(
         &mut self,
         node: &mut FwNode,
-        proto: &U,
+        req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         entries: &[Vec<i32>],
@@ -294,7 +319,16 @@ pub trait Tcd22xxMixerOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<T
             (0..cache[dst_ch].len()).take(entries[dst_ch].len()).try_for_each(|src_ch| {
                 let coef = entries[dst_ch][src_ch];
                 if cache[dst_ch][src_ch] != coef {
-                    proto.write_coef(node, sections, caps, dst_ch, src_ch, coef as u32, timeout_ms)?;
+                    MixerSectionProtocol::write_coef(
+                        req,
+                        node,
+                        sections,
+                        caps,
+                        dst_ch,
+                        src_ch,
+                        coef as u32,
+                        timeout_ms
+                    )?;
                     cache[dst_ch][src_ch] = coef;
                 }
                 Ok(())
@@ -305,7 +339,7 @@ pub trait Tcd22xxMixerOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<T
     fn cache_mixer_coefs(
         &mut self,
         node: &mut FwNode,
-        proto: &U,
+        req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32
@@ -319,7 +353,15 @@ pub trait Tcd22xxMixerOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<T
         (0..output_count as usize).try_for_each(|dst_ch| {
             let mut entry = Vec::new();
             (0..input_count as usize).try_for_each(|src_ch| {
-                let coef = proto.read_coef(node, sections, caps, dst_ch, src_ch, timeout_ms)?;
+                let coef = MixerSectionProtocol::read_coef(
+                    req,
+                    node,
+                    sections,
+                    caps,
+                    dst_ch,
+                    src_ch,
+                    timeout_ms
+                )?;
                 entry.push(coef as i32);
                 Ok(())
             })?;
@@ -329,35 +371,34 @@ pub trait Tcd22xxMixerOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<T
     }
 }
 
-pub trait Tcd22xxStateOperation<U> : Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
-                                     Tcd22xxRouterOperation<U> +  Tcd22xxMixerOperation<U>
-    where U: CmdSectionProtocol + MixerSectionProtocol + RouterSectionProtocol +
-             CurrentConfigSectionProtocol,
+pub trait Tcd22xxStateOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
+                                 Tcd22xxRouterOperation +  Tcd22xxMixerOperation
 {
-    fn cache(&mut self, node: &mut FwNode, proto: &U, sections: &ExtensionSections, caps: &ExtensionCaps,
-             rate_mode: RateMode, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn cache(
+        &mut self,
+        node: &mut FwNode,
+        req: &mut FwReq,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        rate_mode: RateMode,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.as_mut().rate_mode = rate_mode;
-        self.cache_router_entries(node, proto, sections, caps, timeout_ms)?;
-        self.cache_mixer_coefs(node, proto, sections, caps, timeout_ms)?;
+        self.cache_router_entries(node, req, sections, caps, timeout_ms)?;
+        self.cache_mixer_coefs(node, req, sections, caps, timeout_ms)?;
         Ok(())
     }
 }
 
-impl<O, U> Tcd22xxRouterOperation<U> for O
+impl<O> Tcd22xxRouterOperation for O
     where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-          U: CmdSectionProtocol + RouterSectionProtocol + CurrentConfigSectionProtocol,
 {}
 
-impl<O, U> Tcd22xxMixerOperation<U> for O
+impl<O> Tcd22xxMixerOperation for O
     where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-          U: MixerSectionProtocol,
 {}
 
-impl<O, U> Tcd22xxStateOperation<U> for O
+impl<O> Tcd22xxStateOperation for O
     where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
-             Tcd22xxRouterOperation<U> +  Tcd22xxMixerOperation<U>,
-          U: CmdSectionProtocol + MixerSectionProtocol + RouterSectionProtocol +
-             CurrentConfigSectionProtocol,
+             Tcd22xxRouterOperation +  Tcd22xxMixerOperation,
 {}
