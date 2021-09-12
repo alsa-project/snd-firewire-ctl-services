@@ -155,7 +155,7 @@ impl StandaloneSectionProtocol {
         timeout_ms: u32
     ) -> Result<ClockSource, Error> {
         let mut quadlet = [0; 4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.standalone.offset + Self::CLK_SRC_OFFSET,
@@ -175,7 +175,7 @@ impl StandaloneSectionProtocol {
     ) -> Result<(), Error> {
         let mut quadlet = [0;4];
         quadlet.copy_from_slice(&(u8::from(src) as u32).to_be_bytes());
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.standalone.offset + Self::CLK_SRC_OFFSET,
@@ -192,7 +192,7 @@ impl StandaloneSectionProtocol {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         let mut quadlet = [0; 4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.standalone.offset + Self::AES_CFG_OFFSET,
@@ -212,7 +212,7 @@ impl StandaloneSectionProtocol {
     ) -> Result<(), Error> {
         let mut quadlet = [0;4];
         quadlet.copy_from_slice(&(enable as u32).to_be_bytes());
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.standalone.offset + Self::AES_CFG_OFFSET,
@@ -229,7 +229,7 @@ impl StandaloneSectionProtocol {
         timeout_ms: u32
     ) -> Result<AdatParam, Error> {
         let mut quadlet = [0;4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.standalone.offset + Self::ADAT_CFG_OFFSET,
@@ -247,7 +247,7 @@ impl StandaloneSectionProtocol {
         param: AdatParam,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.standalone.offset + Self::ADAT_CFG_OFFSET,
@@ -264,7 +264,7 @@ impl StandaloneSectionProtocol {
         timeout_ms: u32
     ) -> Result<WordClockParam, Error> {
         let mut quadlet = [0; 4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.standalone.offset + Self::WC_CFG_OFFSET,
@@ -284,7 +284,7 @@ impl StandaloneSectionProtocol {
     ) -> Result<(), Error> {
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&Into::<[u8;4]>::into(param)[..4]);
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.standalone.offset + Self::WC_CFG_OFFSET,
@@ -301,7 +301,7 @@ impl StandaloneSectionProtocol {
         timeout_ms: u32
     ) -> Result<ClockRate, Error> {
         let mut quadlet = [0; 4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.standalone.offset + Self::INTERNAL_CFG_OFFSET,
@@ -321,7 +321,7 @@ impl StandaloneSectionProtocol {
     ) -> Result<(), Error> {
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&(u8::from(rate) as u32).to_be_bytes());
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.standalone.offset + Self::INTERNAL_CFG_OFFSET,

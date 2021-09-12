@@ -174,7 +174,7 @@ pub fn read_router_entries(
     }
 
     let mut raw = vec![0;entry_count * RouterEntry::SIZE];
-    ProtocolExtension::read(req, node, offset, &mut raw, timeout_ms)
+    extension_read(req, node, offset, &mut raw, timeout_ms)
         .map(|_| {
             let mut entries = vec![RouterEntry::default();entry_count];
             entries.iter_mut()
@@ -203,7 +203,7 @@ pub fn write_router_entries(
 
     let mut data = [0;4];
     data.copy_from_slice(&(entries.len() as u32).to_be_bytes());
-    ProtocolExtension::write(req, node, offset, &mut data, timeout_ms)?;
+    extension_write(req, node, offset, &mut data, timeout_ms)?;
 
     let mut raw = vec![0;entries.len() * RouterEntry::SIZE];
     entries.iter()
@@ -212,7 +212,7 @@ pub fn write_router_entries(
             let pos = i * 4;
             entry.build(&mut raw[pos..(pos + 4)]);
         });
-    ProtocolExtension::write(req, node, offset + 4, &mut raw, timeout_ms)
+    extension_write(req, node, offset + 4, &mut raw, timeout_ms)
 }
 
 #[cfg(test)]

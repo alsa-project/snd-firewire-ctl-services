@@ -141,7 +141,7 @@ impl CmdSectionProtocol {
             _ => 0,
         };
         data[0] = Self::EXECUTE;
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.cmd.offset + Self::OPCODE_OFFSET,
@@ -154,7 +154,7 @@ impl CmdSectionProtocol {
         while count < 10 {
             std::thread::sleep(std::time::Duration::from_millis(50));
 
-            ProtocolExtension::read(
+            extension_read(
                 req,
                 node,
                 sections.cmd.offset,
@@ -164,7 +164,7 @@ impl CmdSectionProtocol {
                 .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
 
             if (data[0] & Self::EXECUTE) != Self::EXECUTE {
-                ProtocolExtension::read(
+                extension_read(
                     req,
                     node,
                     sections.cmd.offset + Self::RETURN_OFFSET,

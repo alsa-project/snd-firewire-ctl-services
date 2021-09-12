@@ -202,7 +202,7 @@ impl CapsSectionProtocol {
         timeout_ms: u32
     ) -> Result<ExtensionCaps, Error> {
         let mut data = [0; ExtensionCaps::SIZE];
-        ProtocolExtension::read(req, node, sections.caps.offset, &mut data, timeout_ms)
+        extension_read(req, node, sections.caps.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::Caps, &e.to_string()))
             .map(|_| ExtensionCaps::from(&data[..]))
     }

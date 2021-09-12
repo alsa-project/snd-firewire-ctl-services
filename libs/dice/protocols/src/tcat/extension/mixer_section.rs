@@ -27,7 +27,7 @@ impl MixerSectionProtocol {
         }
 
         let mut data = [0;4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.mixer.offset + Self::SATURATION_OFFSET,
@@ -58,7 +58,7 @@ impl MixerSectionProtocol {
 
         let offset = 4 * (src + dst * caps.mixer.input_count as usize);
         let mut data = [0;4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.mixer.offset + Self::COEFF_OFFSET + offset,
@@ -86,7 +86,7 @@ impl MixerSectionProtocol {
         let offset = 4 * (src + dst * caps.mixer.input_count as usize);
         let mut data = [0;4];
         data.copy_from_slice(&val.to_be_bytes());
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.mixer.offset + Self::COEFF_OFFSET + offset,

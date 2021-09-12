@@ -72,7 +72,7 @@ pub fn read_stream_format_entries(
     timeout_ms: u32
 ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
     let mut data = [0;8];
-    ProtocolExtension::read(req, node, offset, &mut data, timeout_ms)?;
+    extension_read(req, node, offset, &mut data, timeout_ms)?;
 
     let mut quadlet = [0;4];
     quadlet.copy_from_slice(&data[..4]);
@@ -95,7 +95,7 @@ pub fn read_stream_format_entries(
     (0..tx_count)
         .try_for_each(|i| {
             let mut raw = [0;FormatEntry::SIZE];
-            ProtocolExtension::read(
+            extension_read(
                 req,
                 node,
                 offset + 8 + FormatEntry::SIZE * i,
@@ -114,7 +114,7 @@ pub fn read_stream_format_entries(
     (0..rx_count)
         .try_for_each(|i| {
             let mut raw = [0;FormatEntry::SIZE];
-            ProtocolExtension::read(
+            extension_read(
                 req,
                 node,
                 offset + 8 + FormatEntry::SIZE * (tx_count + i),
@@ -163,7 +163,7 @@ pub fn write_stream_format_entries(
     rx.iter().for_each(|entry| {
         data.extend_from_slice(entry);
     });
-    ProtocolExtension::write(req, node, offset, &mut data, timeout_ms)
+    extension_write(req, node, offset, &mut data, timeout_ms)
 }
 
 #[cfg(test)]
