@@ -175,16 +175,12 @@ impl Tcd22xxSpec for  ExtensionState {
         SrcBlk{id: SrcBlkId::Ins1, ch: 2},
         SrcBlk{id: SrcBlkId::Ins1, ch: 3},
     ];
-}
 
-impl AsRef<Tcd22xxState> for ExtensionState {
-    fn as_ref(&self) -> &Tcd22xxState {
+    fn state(&self) -> &Tcd22xxState {
         &self.0
     }
-}
 
-impl AsMut<Tcd22xxState> for ExtensionState {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
         &mut self.0
     }
 }

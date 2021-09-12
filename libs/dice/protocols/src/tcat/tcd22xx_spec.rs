@@ -47,6 +47,9 @@ pub trait Tcd22xxSpec {
     // From specification of ADAT/SMUX.
     const ADAT_CHANNELS: [u8;3] = [8, 4, 2];
 
+    fn state(&self) -> &Tcd22xxState;
+    fn state_mut(&mut self) -> &mut Tcd22xxState;
+
     fn get_adat_channel_count(rate_mode: RateMode) -> u8 {
         let index = match rate_mode {
             RateMode::Low => 0,
@@ -208,7 +211,7 @@ pub trait Tcd22xxSpec {
     }
 }
 
-pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> {
+pub trait Tcd22xxRouterOperation: Tcd22xxSpec {
     fn update_router_entries(
         &mut self,
         node: &mut FwNode,
@@ -218,7 +221,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd2
         entries: Vec<RouterEntry>,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let state = self.as_ref();
+        let state = self.state();
         let srcs: Vec<_> = state.real_blk_pair.0.iter()
             .chain(state.stream_blk_pair.0.iter())
             .chain(state.mixer_blk_pair.0.iter())
@@ -235,7 +238,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd2
             Err(Error::new(FileError::Inval, &msg))?
         }
 
-        let state = self.as_mut();
+        let state = self.state_mut();
         if entries != state.router_entries {
             let rate_mode = state.rate_mode;
             RouterSectionProtocol::write_router_entries(
@@ -268,7 +271,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd2
         caps: &ExtensionCaps,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let rate_mode = self.as_ref().rate_mode;
+        let rate_mode = self.state().rate_mode;
 
         let real_blk_pair = self.compute_avail_real_blk_pair(rate_mode);
 
@@ -285,7 +288,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd2
 
         let mixer_blk_pair = self.compute_avail_mixer_blk_pair(caps, rate_mode);
 
-        let state = self.as_mut();
+        let state = self.state_mut();
         state.real_blk_pair = real_blk_pair;
         state.stream_blk_pair = stream_blk_pair;
         state.mixer_blk_pair = mixer_blk_pair;
@@ -302,8 +305,7 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd2
     }
 }
 
-pub trait Tcd22xxMixerOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>
-{
+pub trait Tcd22xxMixerOperation: Tcd22xxSpec {
     fn update_mixer_coef(
         &mut self,
         node: &mut FwNode,
@@ -313,7 +315,7 @@ pub trait Tcd22xxMixerOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22
         entries: &[Vec<i32>],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let cache = &mut self.as_mut().mixer_cache;
+        let cache = &mut self.state_mut().mixer_cache;
 
         (0..cache.len()).take(entries.len()).try_for_each(|dst_ch| {
             (0..cache[dst_ch].len()).take(entries[dst_ch].len()).try_for_each(|src_ch| {
@@ -344,12 +346,12 @@ pub trait Tcd22xxMixerOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22
         caps: &ExtensionCaps,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let rate_mode = self.as_ref().rate_mode;
+        let rate_mode = self.state().rate_mode;
 
         let output_count = Self::get_mixer_out_port_count(rate_mode);
         let input_count = Self::get_mixer_in_port_count();
 
-        self.as_mut().mixer_cache = Vec::new();
+        self.state_mut().mixer_cache = Vec::new();
         (0..output_count as usize).try_for_each(|dst_ch| {
             let mut entry = Vec::new();
             (0..input_count as usize).try_for_each(|src_ch| {
@@ -365,14 +367,13 @@ pub trait Tcd22xxMixerOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22
                 entry.push(coef as i32);
                 Ok(())
             })?;
-            self.as_mut().mixer_cache.push(entry);
+            self.state_mut().mixer_cache.push(entry);
             Ok(())
         })
     }
 }
 
-pub trait Tcd22xxStateOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
-                                 Tcd22xxRouterOperation +  Tcd22xxMixerOperation
+pub trait Tcd22xxStateOperation: Tcd22xxSpec + Tcd22xxRouterOperation +  Tcd22xxMixerOperation
 {
     fn cache(
         &mut self,
@@ -383,7 +384,7 @@ pub trait Tcd22xxStateOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22
         rate_mode: RateMode,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        self.as_mut().rate_mode = rate_mode;
+        self.state_mut().rate_mode = rate_mode;
         self.cache_router_entries(node, req, sections, caps, timeout_ms)?;
         self.cache_mixer_coefs(node, req, sections, caps, timeout_ms)?;
         Ok(())
@@ -391,14 +392,13 @@ pub trait Tcd22xxStateOperation: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22
 }
 
 impl<O> Tcd22xxRouterOperation for O
-    where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    where O: Tcd22xxSpec,
 {}
 
 impl<O> Tcd22xxMixerOperation for O
-    where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
+    where O: Tcd22xxSpec,
 {}
 
 impl<O> Tcd22xxStateOperation for O
-    where O: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState> +
-             Tcd22xxRouterOperation +  Tcd22xxMixerOperation,
+    where O: Tcd22xxSpec + Tcd22xxRouterOperation +  Tcd22xxMixerOperation,
 {}

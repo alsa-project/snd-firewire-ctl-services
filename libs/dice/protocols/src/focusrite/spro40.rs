@@ -21,18 +21,8 @@ const IO_FLAGS_OFFSET: usize = 0x005c;
 pub struct SPro40Protocol;
 
 /// The structure to represent state of TCD22xx on Saffire Pro 40.
-#[derive(Debug)]
-pub struct SPro40State{
-    tcd22xx: Tcd22xxState,
-}
-
-impl Default for SPro40State {
-    fn default() -> Self {
-        SPro40State{
-            tcd22xx: Tcd22xxState::default(),
-        }
-    }
-}
+#[derive(Default, Debug)]
+pub struct SPro40State(Tcd22xxState);
 
 impl Tcd22xxSpec for SPro40State {
     const INPUTS: &'static [Input] = &[
@@ -61,17 +51,13 @@ impl Tcd22xxSpec for SPro40State {
         SrcBlk{id: SrcBlkId::Ins1, ch: 6},
         SrcBlk{id: SrcBlkId::Ins1, ch: 7},
     ];
-}
 
-impl AsMut<Tcd22xxState> for SPro40State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.tcd22xx
+    fn state(&self) -> &Tcd22xxState {
+        &self.0
     }
-}
 
-impl AsRef<Tcd22xxState> for SPro40State {
-    fn as_ref(&self) -> &Tcd22xxState {
-        &self.tcd22xx
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }
 

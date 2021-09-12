@@ -89,17 +89,13 @@ impl Tcd22xxSpec for Pfire2626State {
         SrcBlk{id: SrcBlkId::Ins1, ch: 6},
         SrcBlk{id: SrcBlkId::Ins1, ch: 7},
     ];
-}
 
-impl AsMut<Tcd22xxState> for Pfire2626State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
-}
-
-impl AsRef<Tcd22xxState> for Pfire2626State {
-    fn as_ref(&self) -> &Tcd22xxState {
+    fn state(&self) -> &Tcd22xxState {
         &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }
 
@@ -121,16 +117,12 @@ impl Tcd22xxSpec for Pfire610State {
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];
-}
 
-impl AsRef<Tcd22xxState> for Pfire610State {
-    fn as_ref(&self) -> &Tcd22xxState {
+    fn state(&self) -> &Tcd22xxState {
         &self.0
     }
-}
 
-impl AsMut<Tcd22xxState> for Pfire610State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
         &mut self.0
     }
 }
