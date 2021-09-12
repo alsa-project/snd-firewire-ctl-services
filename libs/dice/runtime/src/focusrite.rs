@@ -7,9 +7,10 @@ pub mod spro26_model;
 
 use glib::Error;
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
+use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use dice_protocols::tcat::extension::*;
 use dice_protocols::focusrite::*;
@@ -17,205 +18,205 @@ use dice_protocols::focusrite::*;
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
-#[derive(Default, Debug)]
-pub struct OutGroupCtl(Vec<ElemId>);
+const VOL_NAME: &str = "output-group-volume";
+const VOL_HWCTL_NAME: &str = "output-group-volume-hwctl";
+const VOL_MUTE_NAME: &str = "output-group-volume-mute";
+const MUTE_NAME: &str = "output-group-mute";
+const DIM_NAME: &str = "output-group-dim";
+const DIM_HWCTL_NAME: &str= "output-group-dim-hwctl";
+const MUTE_HWCTL_NAME: &str = "output-group-mute-hwctl";
 
-impl OutGroupCtl {
-    const VOL_NAME: &'static str = "output-group-volume";
-    const VOL_HWCTL_NAME: &'static str = "output-group-volume-hwctl";
-    const VOL_MUTE_NAME: &'static str = "output-group-volume-mute";
-    const MUTE_NAME: &'static str = "output-group-mute";
-    const DIM_NAME: &'static str = "output-group-dim";
-    const DIM_HWCTL_NAME: &'static str= "output-group-dim-hwctl";
-    const MUTE_HWCTL_NAME: &'static str = "output-group-mute-hwctl";
-
+trait OutGroupCtlOperation<T: SaffireproOutGroupOperation>:
+AsRef<OutGroupState> + AsMut<OutGroupState> {
     const LEVEL_MIN: i32 = 0x00;
     const LEVEL_MAX: i32 = 0x7f;
     const LEVEL_STEP: i32 = 0x01;
 
-    pub fn load<T, S>(
+    fn load(
         &mut self,
         card_cntr: &mut CardCntr,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &ExtensionSections,
-        state: &mut S,
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where T: FocusriteSaffireOutGroupProtocol<S>,
-              S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
-    {
+    ) -> Result<Vec<ElemId>, Error> {
+
         let mut node = unit.get_node();
-        proto.read_out_group_mute(&mut node, sections, state, timeout_ms)?;
-        proto.read_out_group_dim(&mut node, sections, state, timeout_ms)?;
-        proto.read_out_group_vols(&mut node, sections, state, timeout_ms)?;
-        proto.read_out_group_vol_mute_hwctls(&mut node, sections, state, timeout_ms)?;
-        proto.read_out_group_dim_mute_hwctls(&mut node, sections, state, timeout_ms)?;
+        let mut state = T::create_out_group_state();
+        T::read_out_group_mute(req, &mut node, sections, &mut state, timeout_ms)?;
+        T::read_out_group_dim(req, &mut node, sections, &mut state, timeout_ms)?;
+        T::read_out_group_vols(req, &mut node, sections, &mut state, timeout_ms)?;
+        T::read_out_group_vol_mute_hwctls(req, &mut node, sections, &mut state, timeout_ms)?;
+        T::read_out_group_dim_mute_hwctls(req, &mut node, sections, &mut state, timeout_ms)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MUTE_NAME, 0);
+        *self.as_mut() = state;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
-            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::DIM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
-            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        let output_count = S::ENTRY_COUNT;
+        let output_count = T::ENTRY_COUNT;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                 output_count, None, true)
-            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::VOL_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_MUTE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
 
-        if S::HAS_VOL_HWCTL {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::VOL_HWCTL_NAME, 0);
+        if T::HAS_VOL_HWCTL {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_HWCTL_NAME, 0);
             card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
         }
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::DIM_HWCTL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_HWCTL_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MUTE_HWCTL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_HWCTL_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
 
-        Ok(())
+        Ok(notified_elem_id_list)
     }
 
-    pub fn read<S>(
+    fn read(
         &mut self,
-        state: &S,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where S: AsRef<OutGroupState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::VOL_MUTE_NAME => {
-                elem_value.set_bool(&state.as_ref().vol_mutes);
+            VOL_MUTE_NAME => {
+                elem_value.set_bool(&self.as_ref().vol_mutes);
                 Ok(true)
             }
-            Self::VOL_HWCTL_NAME => {
-                elem_value.set_bool(&state.as_ref().vol_hwctls);
+            VOL_HWCTL_NAME => {
+                elem_value.set_bool(&self.as_ref().vol_hwctls);
                 Ok(true)
             }
-            Self::DIM_HWCTL_NAME => {
-                elem_value.set_bool(&state.as_ref().dim_hwctls);
+            DIM_HWCTL_NAME => {
+                elem_value.set_bool(&self.as_ref().dim_hwctls);
                 Ok(true)
             }
-            Self::MUTE_HWCTL_NAME => {
-                elem_value.set_bool(&state.as_ref().mute_hwctls);
+            MUTE_HWCTL_NAME => {
+                elem_value.set_bool(&self.as_ref().mute_hwctls);
                 Ok(true)
             }
-            _ => self.read_notified_elem(state, elem_id, elem_value),
+            _ => self.read_notified_elem(elem_id, elem_value),
         }
     }
 
-    pub fn write<T, S>(
+    fn write(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &ExtensionSections,
-        state: &mut S,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where T: FocusriteSaffireOutGroupProtocol<S>,
-              S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MUTE_NAME => {
+            MUTE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    proto.write_out_group_mute(
+                    T::write_out_group_mute(
+                        req,
                         &mut unit.get_node(),
                         sections,
-                        state,
+                        self.as_mut(),
                         val,
                         timeout_ms
                     )
                 })
                 .map(|_| true)
             }
-            Self::DIM_NAME => {
+            DIM_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    proto.write_out_group_dim(
+                    T::write_out_group_dim(
+                        req,
                         &mut unit.get_node(),
                         sections,
-                        state,
+                        self.as_mut(),
                         val,
                         timeout_ms
                     )
                 })
                 .map(|_| true)
             }
-            Self::VOL_NAME => {
-                let mut vals = vec![0i32;state.as_ref().vols.len()];
+            VOL_NAME => {
+                let mut vals = vec![0i32; T::ENTRY_COUNT];
                 elem_value.get_int(&mut vals);
                 let vols: Vec<i8> = vals.iter()
                     .map(|&v| (Self::LEVEL_MAX - v) as i8)
                     .collect();
-                proto.write_out_group_vols(
+                T::write_out_group_vols(
+                    req,
                     &mut unit.get_node(),
                     sections,
-                    state,
+                    self.as_mut(),
                     &vols,
                     timeout_ms
                 )
                 .map(|_| true)
             }
-            Self::VOL_MUTE_NAME => {
-                let mut vol_mutes = state.as_ref().vol_mutes.clone();
-                let vol_hwctls = state.as_ref().vol_hwctls.clone();
+            VOL_MUTE_NAME => {
+                let mut vol_mutes = vec![false; T::ENTRY_COUNT];
                 elem_value.get_bool(&mut vol_mutes);
-                proto.write_out_group_vol_mute_hwctls(
+                let vol_hwctls = self.as_ref().vol_hwctls.clone();
+                T::write_out_group_vol_mute_hwctls(
+                    req,
                     &mut unit.get_node(),
                     sections,
-                    state,
+                    self.as_mut(),
                     &vol_mutes,
                     &vol_hwctls,
                     timeout_ms
                 )
                 .map(|_| true)
             }
-            Self::VOL_HWCTL_NAME => {
-                let vol_mutes = state.as_ref().vol_mutes.clone();
-                let mut vol_hwctls = state.as_ref().vol_hwctls.clone();
+            VOL_HWCTL_NAME => {
+                let mut vol_hwctls = self.as_ref().vol_hwctls.clone();
                 elem_value.get_bool(&mut vol_hwctls);
-                proto.write_out_group_vol_mute_hwctls(
+                let vol_mutes = vec![false; T::ENTRY_COUNT];
+                T::write_out_group_vol_mute_hwctls(
+                    req,
                     &mut unit.get_node(),
                     sections,
-                    state,
+                    self.as_mut(),
                     &vol_mutes,
                     &vol_hwctls,
                     timeout_ms
                 )
                 .map(|_| true)
             }
-            Self::DIM_HWCTL_NAME => {
-                let mute_hwctls = state.as_ref().mute_hwctls.clone();
-                let mut dim_hwctls = state.as_ref().dim_hwctls.clone();
+            DIM_HWCTL_NAME => {
+                let mut dim_hwctls = vec![false; T::ENTRY_COUNT];
                 elem_value.get_bool(&mut dim_hwctls);
-                proto.write_out_group_dim_mute_hwctls(
+                let mute_hwctls = self.as_ref().mute_hwctls.clone();
+                T::write_out_group_dim_mute_hwctls(
+                    req,
                     &mut unit.get_node(),
                     sections,
-                    state,
+                    self.as_mut(),
                     &dim_hwctls,
                     &mute_hwctls,
                     timeout_ms
                 )?;
                 Ok(true)
             }
-            Self::MUTE_HWCTL_NAME => {
-                let mut mute_hwctls = state.as_ref().mute_hwctls.clone();
-                let dim_hwctls = state.as_ref().dim_hwctls.clone();
+            MUTE_HWCTL_NAME => {
+                let mut mute_hwctls = vec![false; T::ENTRY_COUNT];
                 elem_value.get_bool(&mut mute_hwctls);
-                proto.write_out_group_dim_mute_hwctls(
+                let dim_hwctls = self.as_ref().dim_hwctls.clone();
+                T::write_out_group_dim_mute_hwctls(
+                    req,
                     &mut unit.get_node(),
                     sections,
-                    state,
+                    self.as_mut(),
                     &dim_hwctls,
                     &mute_hwctls,
                     timeout_ms
@@ -226,39 +227,34 @@ impl OutGroupCtl {
         }
     }
 
-    pub fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.0);
-    }
-
-    pub fn parse_notification<T, S>(
+    fn parse_notification(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &ExtensionSections,
-        state: &mut S,
         msg: u32,
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where T: FocusriteSaffireOutGroupProtocol<S>,
-              S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
-    {
+    ) -> Result<(), Error> {
         if msg.has_dim_mute_change() {
             let mut node = unit.get_node();
-            proto.read_out_group_mute(&mut node, sections, state, timeout_ms)?;
-            proto.read_out_group_dim(&mut node, sections, state, timeout_ms)?;
+            let state = self.as_mut();
+            T::read_out_group_mute(req, &mut node, sections, state, timeout_ms)?;
+            T::read_out_group_dim(req, &mut node, sections, state, timeout_ms)?;
         }
 
         if msg.has_vol_change() {
-            proto.read_out_group_knob_value(
+            let state = self.as_mut();
+            T::read_out_group_knob_value(
+                req,
                 &mut unit.get_node(),
                 sections,
                 state,
                 timeout_ms
             )?;
 
-            let vol = state.as_ref().hw_knob_value;
-            let hwctls = state.as_ref().vol_hwctls.clone();
-            state.as_mut().vols.iter_mut()
+            let vol = state.hw_knob_value;
+            let hwctls = state.vol_hwctls.clone();
+            state.vols.iter_mut()
                 .zip(hwctls.iter())
                 .filter(|(_, &hwctl)| hwctl)
                 .for_each(|(v, _)| *v = vol);
@@ -267,25 +263,22 @@ impl OutGroupCtl {
         Ok(())
     }
 
-    pub fn read_notified_elem<S>(
+    fn read_notified_elem(
         &self,
-        state: &S,
         elem_id: &ElemId,
         elem_value: &ElemValue
-    ) -> Result<bool, Error>
-        where S: AsRef<OutGroupState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MUTE_NAME => {
-                elem_value.set_bool(&[state.as_ref().mute_enabled]);
+            MUTE_NAME => {
+                elem_value.set_bool(&[self.as_ref().mute_enabled]);
                 Ok(true)
             }
-            Self::DIM_NAME => {
-                elem_value.set_bool(&[state.as_ref().dim_enabled]);
+            DIM_NAME => {
+                elem_value.set_bool(&[self.as_ref().dim_enabled]);
                 Ok(true)
             }
-            Self::VOL_NAME => {
-                let vols: Vec<i32> = state.as_ref().vols.iter()
+            VOL_NAME => {
+                let vols: Vec<i32> = self.as_ref().vols.iter()
                     .map(|&v| Self::LEVEL_MAX - (v as i32))
                     .collect();
                 elem_value.set_int(&vols);

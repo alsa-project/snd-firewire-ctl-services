@@ -31,6 +31,23 @@ pub struct SPro40Model {
 
 const TIMEOUT_MS: u32 = 20;
 
+#[derive(Default)]
+struct OutGroupCtl(OutGroupState, Vec<ElemId>);
+
+impl AsRef<OutGroupState> for OutGroupCtl {
+    fn as_ref(&self) -> &OutGroupState {
+        &self.0
+    }
+}
+
+impl AsMut<OutGroupState> for OutGroupCtl {
+    fn as_mut(&mut self) -> &mut OutGroupState {
+        &mut self.0
+    }
+}
+
+impl OutGroupCtlOperation<SPro40Protocol> for OutGroupCtl {}
+
 impl CtlModel<SndDice> for SPro40Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut node = unit.get_node();
@@ -46,8 +63,8 @@ impl CtlModel<SndDice> for SPro40Model {
 
         self.tcd22xx_ctl.cache(unit, &mut self.req, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
-        self.out_grp_ctl.load(card_cntr, unit, &mut self.req, &self.extension_sections,
-                              &mut self.tcd22xx_ctl.state, TIMEOUT_MS)?;
+        self.out_grp_ctl.load(card_cntr, unit, &mut self.req, &self.extension_sections, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.out_grp_ctl.1.append(&mut elem_id_list))?;
         self.specific_ctl.load(card_cntr)?;
 
         Ok(())
@@ -61,7 +78,7 @@ impl CtlModel<SndDice> for SPro40Model {
         } else if self.tcd22xx_ctl.read(unit, &mut self.req, &self.extension_sections, elem_id,
                                     elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.out_grp_ctl.read(&self.tcd22xx_ctl.state, elem_id, elem_value)? {
+        } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.specific_ctl.read(unit, &mut self.req, &self.extension_sections, elem_id, elem_value,
                                          TIMEOUT_MS)? {
@@ -80,7 +97,7 @@ impl CtlModel<SndDice> for SPro40Model {
                                      old, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.out_grp_ctl.write(unit, &mut self.req, &self.extension_sections,
-                                         &mut self.tcd22xx_ctl.state, elem_id, new, TIMEOUT_MS)? {
+                                         elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.specific_ctl.write(unit, &mut self.req, &self.extension_sections, elem_id,
                                           new, TIMEOUT_MS)? {
@@ -95,7 +112,7 @@ impl NotifyModel<SndDice, u32> for SPro40Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
-        self.out_grp_ctl.get_notified_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
@@ -103,7 +120,7 @@ impl NotifyModel<SndDice, u32> for SPro40Model {
         self.tcd22xx_ctl.parse_notification(unit, &mut self.req, &self.sections,
                                         &self.extension_sections, TIMEOUT_MS, *msg)?;
         self.out_grp_ctl.parse_notification(unit, &mut self.req, &self.extension_sections,
-                                            &mut self.tcd22xx_ctl.state, *msg, TIMEOUT_MS)?;
+                                            *msg, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -114,7 +131,7 @@ impl NotifyModel<SndDice, u32> for SPro40Model {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
-        } else if self.out_grp_ctl.read_notified_elem(&self.tcd22xx_ctl.state, elem_id, elem_value)? {
+        } else if self.out_grp_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)

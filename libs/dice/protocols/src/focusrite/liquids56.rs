@@ -31,14 +31,12 @@ pub struct LiquidS56Protocol;
 #[derive(Debug)]
 pub struct LiquidS56State{
     tcd22xx: Tcd22xxState,
-    out_grp: OutGroupState,
 }
 
 impl Default for LiquidS56State {
     fn default() -> Self {
         LiquidS56State{
             tcd22xx: Tcd22xxState::default(),
-            out_grp: Self::create_out_group_state(),
         }
     }
 }
@@ -118,7 +116,7 @@ const MIC_AMP_2_EMULATION_SW_NOTICE: u32 = 0x00000009;
 const MIC_AMP_POLARITY_SW_NOTICE: u32 = 0x0000000a;
 const INPUT_LEVEL_SW_NOTICE: u32 = 0x0000000b;
 
-impl OutGroupSpec for LiquidS56State {
+impl SaffireproOutGroupOperation for LiquidS56Protocol {
     const ENTRY_COUNT: usize = 10;
     const HAS_VOL_HWCTL: bool = true;
     const OUT_CTL_OFFSET: usize = 0x000c;
@@ -126,18 +124,6 @@ impl OutGroupSpec for LiquidS56State {
 
     const SRC_NOTICE: u32 = SRC_SW_NOTICE;
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
-}
-
-impl AsMut<OutGroupState> for LiquidS56State {
-    fn as_mut(&mut self) -> &mut OutGroupState {
-        &mut self.out_grp
-    }
-}
-
-impl AsRef<OutGroupState> for LiquidS56State {
-    fn as_ref(&self) -> &OutGroupState {
-        &self.out_grp
-    }
 }
 
 /// The enumeration to represent type of signal for optical output interface.
