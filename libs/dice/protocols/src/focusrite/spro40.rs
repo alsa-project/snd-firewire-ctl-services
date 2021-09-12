@@ -24,14 +24,12 @@ pub struct SPro40Protocol;
 #[derive(Debug)]
 pub struct SPro40State{
     tcd22xx: Tcd22xxState,
-    out_grp: OutGroupState,
 }
 
 impl Default for SPro40State {
     fn default() -> Self {
         SPro40State{
             tcd22xx: Tcd22xxState::default(),
-            out_grp: Self::create_out_group_state(),
         }
     }
 }
@@ -84,7 +82,7 @@ const DIM_MUTE_SW_NOTICE: u32 = 0x00000002;
 const OUT_PAD_SW_NOTICE: u32 = 0x00000003;
 const IO_FLAG_SW_NOTICE: u32 = 0x00000004;
 
-impl OutGroupSpec for SPro40State {
+impl SaffireproOutGroupOperation for SPro40Protocol {
     const ENTRY_COUNT: usize = 10;
     const HAS_VOL_HWCTL: bool = true;
     const OUT_CTL_OFFSET: usize = 0x000c;
@@ -92,18 +90,6 @@ impl OutGroupSpec for SPro40State {
 
     const SRC_NOTICE: u32 = SRC_SW_NOTICE;
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
-}
-
-impl AsMut<OutGroupState> for SPro40State {
-    fn as_mut(&mut self) -> &mut OutGroupState {
-        &mut self.out_grp
-    }
-}
-
-impl AsRef<OutGroupState> for SPro40State {
-    fn as_ref(&self) -> &OutGroupState {
-        &self.out_grp
-    }
 }
 
 /// The enumeration to represent type of signal for optical output interface.
