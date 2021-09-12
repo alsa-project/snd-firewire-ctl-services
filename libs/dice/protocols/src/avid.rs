@@ -58,16 +58,12 @@ impl Tcd22xxSpec for  Mbox3State {
         SrcBlk{id: SrcBlkId::Ins0, ch: 2},
         SrcBlk{id: SrcBlkId::Ins0, ch: 3},
     ];
-}
 
-impl AsRef<Tcd22xxState> for Mbox3State {
-    fn as_ref(&self) -> &Tcd22xxState {
+    fn state(&self) -> &Tcd22xxState {
         &self.0
     }
-}
 
-impl AsMut<Tcd22xxState> for Mbox3State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
         &mut self.0
     }
 }

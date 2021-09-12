@@ -25,16 +25,12 @@ impl Tcd22xxSpec for  FStudioProjectState {
         SrcBlk{id: SrcBlkId::Ins0, ch: 6},
         SrcBlk{id: SrcBlkId::Ins0, ch: 7},
     ];
-}
 
-impl AsRef<Tcd22xxState> for FStudioProjectState {
-    fn as_ref(&self) -> &Tcd22xxState {
+    fn state(&self) -> &Tcd22xxState {
         &self.0
     }
-}
 
-impl AsMut<Tcd22xxState> for FStudioProjectState {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
         &mut self.0
     }
 }

@@ -16,18 +16,8 @@ use super::*;
 pub struct SPro26Protocol;
 
 /// The structure to represent state of TCD22xx on Saffire Pro 26.
-#[derive(Debug)]
-pub struct SPro26State{
-    tcd22xx: Tcd22xxState,
-}
-
-impl Default for SPro26State {
-    fn default() -> Self {
-        SPro26State{
-            tcd22xx: Tcd22xxState::default(),
-        }
-    }
-}
+#[derive(Default, Debug)]
+pub struct SPro26State(Tcd22xxState);
 
 impl Tcd22xxSpec for SPro26State {
     const INPUTS: &'static [Input] = &[
@@ -51,17 +41,13 @@ impl Tcd22xxSpec for SPro26State {
         SrcBlk{id: SrcBlkId::Ins0, ch: 4},
         SrcBlk{id: SrcBlkId::Ins0, ch: 5},
     ];
-}
 
-impl AsMut<Tcd22xxState> for SPro26State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.tcd22xx
+    fn state(&self) -> &Tcd22xxState {
+        &self.0
     }
-}
 
-impl AsRef<Tcd22xxState> for SPro26State {
-    fn as_ref(&self) -> &Tcd22xxState {
-        &self.tcd22xx
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }
 

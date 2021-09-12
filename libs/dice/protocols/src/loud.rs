@@ -37,16 +37,12 @@ impl Tcd22xxSpec for BlackbirdState {
     // mode. At higher rate, digital 4 channels are composed by them in ADAT IV mode. But the
     // highest rate is not available in a point of TCAT glocal protocol.
     const ADAT_CHANNELS: [u8;3] = [8, 8, 4];
-}
 
-impl AsMut<Tcd22xxState> for BlackbirdState {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
-}
-
-impl AsRef<Tcd22xxState> for BlackbirdState {
-    fn as_ref(&self) -> &Tcd22xxState {
+    fn state(&self) -> &Tcd22xxState {
         &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }

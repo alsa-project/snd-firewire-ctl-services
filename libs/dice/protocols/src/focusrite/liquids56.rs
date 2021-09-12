@@ -28,18 +28,8 @@ const LED_OFFSET: usize = 0x02bc;
 pub struct LiquidS56Protocol;
 
 /// The structure to represent state of TCD22xx on Liquid Saffire 56.
-#[derive(Debug)]
-pub struct LiquidS56State{
-    tcd22xx: Tcd22xxState,
-}
-
-impl Default for LiquidS56State {
-    fn default() -> Self {
-        LiquidS56State{
-            tcd22xx: Tcd22xxState::default(),
-        }
-    }
-}
+#[derive(Default, Debug)]
+pub struct LiquidS56State(Tcd22xxState);
 
 impl Tcd22xxSpec for LiquidS56State {
     const INPUTS: &'static [Input] = &[
@@ -90,17 +80,13 @@ impl Tcd22xxSpec for LiquidS56State {
         SrcBlk{id: SrcBlkId::Adat, ch: 14},
         SrcBlk{id: SrcBlkId::Adat, ch: 15},
     ];
-}
 
-impl AsMut<Tcd22xxState> for LiquidS56State {
-    fn as_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.tcd22xx
+    fn state(&self) -> &Tcd22xxState {
+        &self.0
     }
-}
 
-impl AsRef<Tcd22xxState> for LiquidS56State {
-    fn as_ref(&self) -> &Tcd22xxState {
-        &self.tcd22xx
+    fn state_mut(&mut self) -> &mut Tcd22xxState {
+        &mut self.0
     }
 }
 

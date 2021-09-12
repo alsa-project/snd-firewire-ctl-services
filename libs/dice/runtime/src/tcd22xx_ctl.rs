@@ -19,9 +19,7 @@ use dice_protocols::tcat::extension::{current_config_section::*, standalone_sect
 use dice_protocols::tcat::tcd22xx_spec::*;
 
 #[derive(Default, Debug)]
-pub struct Tcd22xxCtl<S>
-    where S: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-{
+pub struct Tcd22xxCtl<S: Tcd22xxSpec> {
     pub state: S,
     caps: ExtensionCaps,
     meter_ctl: MeterCtl,
@@ -30,9 +28,7 @@ pub struct Tcd22xxCtl<S>
     standalone_ctl: StandaloneCtl,
 }
 
-impl<S> Tcd22xxCtl<S>
-    where S: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-{
+impl<S: Tcd22xxSpec> Tcd22xxCtl<S> {
     pub fn load(
         &mut self,
         unit: &mut SndDice,
@@ -203,7 +199,7 @@ impl MeterCtl {
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
     const COEF_STEP: i32 = 1;
 
-    pub fn load<T>(
+    pub fn load<T: Tcd22xxSpec>(
         &mut self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -212,9 +208,7 @@ impl MeterCtl {
         state: &T,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where T: Tcd22xxSpec,
-    {
+    ) -> Result<(), Error> {
         let (_, real_blk_dsts) = state.compute_avail_real_blk_pair(RateMode::Low);
         self.real_blk_dsts = real_blk_dsts;
         let mut elem_id_list = Self::add_an_elem_for_meter(card_cntr, Self::OUT_METER_NAME, &self.real_blk_dsts)?;
@@ -332,7 +326,7 @@ impl RouterCtl {
 
     const NONE_SRC_LABEL: &'static str = "None";
 
-    pub fn load<T>(
+    pub fn load<T: Tcd22xxSpec>(
         &mut self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -342,9 +336,7 @@ impl RouterCtl {
         clk_caps: &ClockCaps,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where T: Tcd22xxSpec,
-    {
+    ) -> Result<(), Error> {
         self.real_blk_pair = state.compute_avail_real_blk_pair(RateMode::Low);
 
         // Compute the pair of blocks for tx/rx streams at each of available mode of rate. It's for
@@ -407,14 +399,12 @@ impl RouterCtl {
         Ok(())
     }
 
-    pub fn read<T>(
+    pub fn read<T: Tcd22xxSpec>(
         &self,
         state: &T,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where T: AsRef<Tcd22xxState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_SRC_NAME => {
                 Self::read_elem_src(state, elem_value, &self.real_blk_pair.1,
@@ -435,7 +425,7 @@ impl RouterCtl {
         }
     }
 
-    pub fn write<T>(
+    pub fn write<T: Tcd22xxSpec>(
         &self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -446,9 +436,7 @@ impl RouterCtl {
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::OUT_SRC_NAME => {
                 Self::write_elem_src(node, req, sections, caps, state, old, new, &self.real_blk_pair.1,
@@ -470,15 +458,13 @@ impl RouterCtl {
         }
     }
 
-    fn add_an_elem_for_src<T>(
+    fn add_an_elem_for_src<T: Tcd22xxSpec>(
         card_cntr: &mut CardCntr,
         label: &str,
         dsts: &[DstBlk],
         srcs: &[&[SrcBlk]],
         state: &T
-    ) -> Result<Vec<ElemId>, Error>
-        where T: Tcd22xxSpec,
-    {
+    ) -> Result<Vec<ElemId>, Error> {
         let targets = dsts.iter().map(|&dst| state.get_dst_blk_label(dst)).collect::<Vec<String>>();
         let mut sources = srcs.iter()
             .flat_map(|srcs| srcs.iter())
@@ -491,18 +477,16 @@ impl RouterCtl {
         Ok(elem_id_list)
     }
 
-    fn read_elem_src<T>(
+    fn read_elem_src<T: Tcd22xxSpec>(
         state: &T,
         elem_value: &ElemValue,
         dsts: &[DstBlk],
         srcs: &[&[SrcBlk]]
-    )
-        where T: AsRef<Tcd22xxState>,
-    {
+    ) {
         let _ = ElemValueAccessor::<u32>::set_vals(elem_value, dsts.len(), |idx| {
             let dst = dsts[idx];
 
-            let val = state.as_ref().router_entries.iter()
+            let val = state.state().router_entries.iter()
                 .find(|entry| entry.dst.eq(&dst))
                 .and_then(|entry| {
                     srcs.iter()
@@ -515,7 +499,7 @@ impl RouterCtl {
         });
     }
 
-    fn write_elem_src<T>(
+    fn write_elem_src<T: Tcd22xxSpec>(
         node: &mut FwNode,
         req: &mut FwReq,
         sections: &ExtensionSections,
@@ -526,10 +510,8 @@ impl RouterCtl {
         dsts: &[DstBlk],
         srcs: &[&[SrcBlk]],
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-    {
-        let mut entries = state.as_ref().router_entries.clone();
+    ) -> Result<(), Error> {
+        let mut entries = state.state().router_entries.clone();
 
         ElemValueAccessor::<u32>::get_vals(new, old, dsts.len(), |idx, val| {
             let dst = dsts[idx];
@@ -574,14 +556,12 @@ impl MixerCtl {
     const COEF_STEP: i32 = 1;
     const COEF_TLV: DbInterval = DbInterval{min: -6000, max: 400, linear: false, mute_avail: false};
 
-    pub fn load<T>(
+    pub fn load<T: Tcd22xxSpec>(
         &mut self,
         caps: &ExtensionCaps,
         state: &T,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-    {
+    ) -> Result<(), Error> {
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SRC_GAIN_NAME, 0);
@@ -594,18 +574,16 @@ impl MixerCtl {
         Ok(())
     }
 
-    pub fn read<T>(
+    pub fn read<T: Tcd22xxSpec>(
         &self,
         state: &T,
         elem_id: &ElemId,
         elem_value: &ElemValue
-    ) -> Result<bool, Error>
-        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_GAIN_NAME => {
                 let dst_ch = elem_id.get_index() as usize;
-                let res = state.as_ref().mixer_cache.iter()
+                let res = state.state().mixer_cache.iter()
                     .nth(dst_ch)
                     .map(|entries| {
                         elem_value.set_int(entries);
@@ -618,7 +596,7 @@ impl MixerCtl {
         }
     }
 
-    pub fn write<T>(
+    pub fn write<T: Tcd22xxSpec>(
         &mut self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -629,13 +607,11 @@ impl MixerCtl {
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where T: Tcd22xxSpec + AsRef<Tcd22xxState> + AsMut<Tcd22xxState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::SRC_GAIN_NAME => {
                 let dst_ch = elem_id.get_index() as usize;
-                let mut cache = state.as_mut().mixer_cache.clone();
+                let mut cache = state.state_mut().mixer_cache.clone();
                 let res = match cache.iter_mut().nth(dst_ch) {
                     Some(entries) => {
                         let _ = ElemValueAccessor::<i32>::get_vals(new, old, entries.len(), |src_ch, val| {
