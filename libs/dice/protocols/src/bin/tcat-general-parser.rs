@@ -124,8 +124,8 @@ fn print_rx_stream_formats(proto: &FwReq, node: &mut FwNode, sections: &GeneralS
     Ok(())
 }
 
-fn print_ext_sync(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) {
-    let _ = proto.read_ext_sync_block(node, sections, TIMEOUT_MS)
+fn print_ext_sync(req: &mut FwReq, node: &mut FwNode, sections: &GeneralSections) {
+    let _ = ExtSyncSectionProtocol::read_block(req, node, sections, TIMEOUT_MS)
         .map(|blk| {
             println!("External sync:");
             println!("  source:         {}", blk.get_sync_src());
@@ -178,14 +178,14 @@ fn main() {
             let d = dispatcher.clone();
             let th = thread::spawn(move || d.run());
 
-            let proto = FwReq::new();
+            let mut proto = FwReq::new();
             let result = proto.read_general_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
                     print_global_section(&proto, &mut node, &sections)?;
                     print_tx_stream_formats(&proto, &mut node, &sections)?;
                     print_rx_stream_formats(&proto, &mut node, &sections)?;
-                    print_ext_sync(&proto, &mut node, &sections);
+                    print_ext_sync(&mut proto, &mut node, &sections);
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
