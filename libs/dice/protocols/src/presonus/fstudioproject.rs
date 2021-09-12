@@ -3,10 +3,11 @@
 use crate::tcat::extension::*;
 use crate::tcat::tcd22xx_spec::*;
 
-#[derive(Default, Debug)]
-pub struct FStudioProjectState(Tcd22xxState);
+/// The structure for protocol implementation of PreSonus FireStudio Project.
+#[derive(Default)]
+pub struct FStudioProjectProtocol;
 
-impl Tcd22xxSpec for  FStudioProjectState {
+impl Tcd22xxSpecOperation for  FStudioProjectProtocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Aes,  offset: 2, count: 2, label: Some("S/PDIF")},
@@ -25,12 +26,4 @@ impl Tcd22xxSpec for  FStudioProjectState {
         SrcBlk{id: SrcBlkId::Ins0, ch: 6},
         SrcBlk{id: SrcBlkId::Ins0, ch: 7},
     ];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
 }

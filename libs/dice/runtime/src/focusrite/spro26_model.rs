@@ -24,7 +24,7 @@ pub struct SPro26Model {
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<SPro26State>,
+    tcd22xx_ctl: SPro26Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
 }
 
@@ -171,5 +171,18 @@ impl MeasureModel<SndDice> for SPro26Model {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[derive(Default)]
+struct SPro26Tcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<SPro26Protocol> for SPro26Tcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
+        &self.0
+    }
+
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
     }
 }

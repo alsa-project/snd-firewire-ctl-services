@@ -20,11 +20,7 @@ const IO_FLAGS_OFFSET: usize = 0x005c;
 #[derive(Default)]
 pub struct SPro40Protocol;
 
-/// The structure to represent state of TCD22xx on Saffire Pro 40.
-#[derive(Default, Debug)]
-pub struct SPro40State(Tcd22xxState);
-
-impl Tcd22xxSpec for SPro40State {
+impl Tcd22xxSpecOperation for SPro40Protocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins1, offset: 0, count: 6, label: None},
         Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: Some("S/PDIF-coax")},
@@ -51,14 +47,6 @@ impl Tcd22xxSpec for SPro40State {
         SrcBlk{id: SrcBlkId::Ins1, ch: 6},
         SrcBlk{id: SrcBlkId::Ins1, ch: 7},
     ];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
 }
 
 const SW_NOTICE_OFFSET: usize = 0x0068;

@@ -36,6 +36,31 @@ impl PfireSpecificOperation for Pfire2626Protocol {
     const SUPPORT_STANDALONE_CONVERTER: bool = true;
 }
 
+impl Tcd22xxSpecOperation for Pfire2626Protocol {
+    const INPUTS: &'static [Input] = &[
+        Input{id: SrcBlkId::Ins1, offset: 0, count: 8, label: None},
+        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
+        Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
+        Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: None},
+    ];
+    const OUTPUTS: &'static [Output] = &[
+        Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
+        Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
+        Output{id: DstBlkId::Aes, offset: 0, count: 2, label: None},
+    ];
+    const FIXED: &'static [SrcBlk] = &[
+        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 4},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 5},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 6},
+        SrcBlk{id: SrcBlkId::Ins1, ch: 7},
+    ];
+}
+
 /// The structure for protocol implementation specific to ProFire 610.
 pub struct Pfire610Protocol;
 
@@ -62,49 +87,8 @@ pub trait PfireClkSpec {
     const AVAIL_CLK_SRCS: &'static [ClockSource];
 }
 
-/// The structure to represent state of TCD22xx on ProFire 2626.
-#[derive(Default, Debug)]
-pub struct Pfire2626State(Tcd22xxState);
-
-impl Tcd22xxSpec for Pfire2626State {
-    const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins1, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
-        Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: None},
-    ];
-    const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
-        Output{id: DstBlkId::Aes, offset: 0, count: 2, label: None},
-    ];
-    const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 4},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 5},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 6},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 7},
-    ];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
-}
-
-/// The structure to represent state of TCD22xx on ProFire 610.
-#[derive(Default, Debug)]
-pub struct Pfire610State(Tcd22xxState);
-
 // NOTE: the second rx stream is firstly available at higher sampling rate.
-impl Tcd22xxSpec for Pfire610State {
+impl Tcd22xxSpecOperation for Pfire610Protocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 4, label: None},
         Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
@@ -117,14 +101,6 @@ impl Tcd22xxSpec for Pfire610State {
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
 }
 
 /// The enumeration for mode of optical interface.

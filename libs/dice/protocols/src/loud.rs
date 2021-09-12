@@ -9,10 +9,11 @@
 use super::tcat::extension::*;
 use super::tcat::tcd22xx_spec::*;
 
-#[derive(Default, Debug)]
-pub struct BlackbirdState(Tcd22xxState);
+/// The structure for protocol implementation of Mackie Onyx Blackbird.
+#[derive(Default)]
+pub struct BlackbirdProtocol;
 
-impl Tcd22xxSpec for BlackbirdState {
+impl Tcd22xxSpecOperation for BlackbirdProtocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 8, label: None},
         Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
@@ -37,12 +38,4 @@ impl Tcd22xxSpec for BlackbirdState {
     // mode. At higher rate, digital 4 channels are composed by them in ADAT IV mode. But the
     // highest rate is not available in a point of TCAT glocal protocol.
     const ADAT_CHANNELS: [u8;3] = [8, 8, 4];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
 }

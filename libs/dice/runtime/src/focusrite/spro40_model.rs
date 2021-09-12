@@ -24,7 +24,7 @@ pub struct SPro40Model {
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<SPro40State>,
+    tcd22xx_ctl: SPro40Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
     specific_ctl: SpecificCtl,
 }
@@ -179,6 +179,19 @@ impl MeasureModel<SndDice> for SPro40Model {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[derive(Default)]
+struct SPro40Tcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<SPro40Protocol> for SPro40Tcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
+        &self.0
+    }
+
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
     }
 }
 

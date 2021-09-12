@@ -31,15 +31,11 @@ const REVERB_VOLUME_OFFSET: usize = 0x44;
 const REVERB_DURATION_OFFSET: usize = 0x48;
 const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
 
-/// The structure for protocol implementaion of Avid Mbox 3 Pro.
+/// The structure for protocol implementation of Avid Mbox 3 Pro.
 #[derive(Default)]
 pub struct Mbox3Protocol;
 
-/// The structure to represent state of TCD22xx on Mbox 3 Pro.
-#[derive(Default, Debug)]
-pub struct Mbox3State(Tcd22xxState);
-
-impl Tcd22xxSpec for  Mbox3State {
+impl Tcd22xxSpecOperation for  Mbox3Protocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 6, label: None},
         Input{id: SrcBlkId::Ins1, offset: 0, count: 2, label: Some("Reverb")},
@@ -58,14 +54,6 @@ impl Tcd22xxSpec for  Mbox3State {
         SrcBlk{id: SrcBlkId::Ins0, ch: 2},
         SrcBlk{id: SrcBlkId::Ins0, ch: 3},
     ];
-
-    fn state(&self) -> &Tcd22xxState {
-        &self.0
-    }
-
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
-        &mut self.0
-    }
 }
 
 /// The enumeration to represent usecase of standalone mode.

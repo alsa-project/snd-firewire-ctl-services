@@ -22,7 +22,7 @@ pub struct ExtensionModel{
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<ExtensionState>,
+    tcd22xx_ctl: ExtensionTcd22xxCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -141,10 +141,10 @@ impl MeasureModel<SndDice> for ExtensionModel {
     }
 }
 
-#[derive(Default, Debug)]
-struct ExtensionState(Tcd22xxState);
+#[derive(Default)]
+struct ExtensionProtocol;
 
-impl Tcd22xxSpec for  ExtensionState {
+impl Tcd22xxSpecOperation for  ExtensionProtocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 0, count: 16, label: None},
         Input{id: SrcBlkId::Ins1, offset: 0, count: 16, label: None},
@@ -175,12 +175,17 @@ impl Tcd22xxSpec for  ExtensionState {
         SrcBlk{id: SrcBlkId::Ins1, ch: 2},
         SrcBlk{id: SrcBlkId::Ins1, ch: 3},
     ];
+}
 
-    fn state(&self) -> &Tcd22xxState {
+#[derive(Default)]
+struct ExtensionTcd22xxCtl(Tcd22xxCtl);
+
+impl Tcd22xxCtlOperation<ExtensionProtocol> for ExtensionTcd22xxCtl {
+    fn tcd22xx_ctl(&self) -> &Tcd22xxCtl {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Tcd22xxState {
+    fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
         &mut self.0
     }
 }
