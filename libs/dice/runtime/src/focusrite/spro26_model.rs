@@ -33,19 +33,15 @@ const TIMEOUT_MS: u32 = 20;
 #[derive(Default)]
 struct OutGroupCtl(OutGroupState, Vec<ElemId>);
 
-impl AsRef<OutGroupState> for OutGroupCtl {
-    fn as_ref(&self) -> &OutGroupState {
+impl OutGroupCtlOperation<SPro26Protocol> for OutGroupCtl {
+    fn state(&self) -> &OutGroupState {
         &self.0
     }
-}
 
-impl AsMut<OutGroupState> for OutGroupCtl {
-    fn as_mut(&mut self) -> &mut OutGroupState {
+    fn state_mut(&mut self) -> &mut OutGroupState {
         &mut self.0
     }
 }
-
-impl OutGroupCtlOperation<SPro26Protocol> for OutGroupCtl {}
 
 impl CtlModel<SndDice> for SPro26Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
