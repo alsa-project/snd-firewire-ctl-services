@@ -7,9 +7,13 @@
 //! in protocol extension defined by TCAT for ASICs of DICE.
 use super::{*, caps_section::*, router_entry::*};
 
-pub trait PeakSectionProtocol: ProtocolExtension {
-    fn read_peak_entries(
-        &self,
+/// The structure for protocol implementation of peak section.
+#[derive(Default)]
+pub struct PeakSectionProtocol;
+
+impl PeakSectionProtocol {
+    pub fn read_peak_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -20,10 +24,14 @@ pub trait PeakSectionProtocol: ProtocolExtension {
         }
 
         let entries = caps.router.maximum_entry_count as usize;
-        RouterEntryProtocol::read_router_entries(&self, node, caps, sections.peak.offset, entries,
-                                                 timeout_ms)
+        RouterEntryProtocol::read_router_entries(
+            req,
+            node,
+            caps,
+            sections.peak.offset,
+            entries,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Peak, &e.to_string()))
     }
 }
-
-impl<O: AsRef<FwReq>> PeakSectionProtocol for O {}
