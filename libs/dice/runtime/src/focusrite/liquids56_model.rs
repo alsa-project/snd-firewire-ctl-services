@@ -290,7 +290,8 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let enabled = req.read_analog_out_0_1_pad_offset(
+                let enabled = LiquidS56Protocol::read_analog_out_0_1_pad_offset(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     timeout_ms
@@ -299,7 +300,8 @@ impl SpecificCtl {
                 Ok(true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mode = req.read_opt_out_iface_mode(
+                let mode = LiquidS56Protocol::read_opt_out_iface_mode(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     timeout_ms
@@ -310,7 +312,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_TRANSFORMER_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
-                    req.read_mic_amp_transformer(
+                    LiquidS56Protocol::read_mic_amp_transformer(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -321,7 +324,8 @@ impl SpecificCtl {
             }
             Self::ANALOG_INPUT_LEVEL_NAME => {
                 let mut levels = [AnalogInputLevel::Reserved(0);8];
-                req.read_analog_input_level(
+                LiquidS56Protocol::read_analog_input_level(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &mut levels,
@@ -340,7 +344,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_EMULATION_TYPE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
-                    let emulation_type = req.read_mic_amp_emulation_type(
+                    let emulation_type = LiquidS56Protocol::read_mic_amp_emulation_type(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -355,7 +360,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_HARMONICS_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
-                    let harmonics = req.read_mic_amp_harmonics(
+                    let harmonics = LiquidS56Protocol::read_mic_amp_harmonics(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -367,7 +373,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_POLARITY_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
-                    req.read_mic_amp_polarity(
+                    LiquidS56Protocol::read_mic_amp_polarity(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -378,7 +385,8 @@ impl SpecificCtl {
             }
             Self::LED_STATE_NAME => {
                 let mut state = LedState::default();
-                req.read_led_state(
+                LiquidS56Protocol::read_led_state(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &mut state,
@@ -390,7 +398,8 @@ impl SpecificCtl {
             }
             Self::METER_DISPLAY_TARGETS_NAME => {
                 let mut targets = [0;8];
-                req.read_meter_display_targets(
+                LiquidS56Protocol::read_meter_display_targets(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &mut
@@ -427,7 +436,8 @@ impl SpecificCtl {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
                 let mut vals = [false];
                 new.get_bool(&mut vals);
-                req.write_analog_out_0_1_pad_offset(
+                LiquidS56Protocol::write_analog_out_0_1_pad_offset(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     vals[0],
@@ -445,7 +455,8 @@ impl SpecificCtl {
                                           vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                req.write_opt_out_iface_mode(
+                LiquidS56Protocol::write_opt_out_iface_mode(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     mode,
@@ -455,7 +466,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_TRANSFORMER_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
-                    req.write_mic_amp_transformer(
+                    LiquidS56Protocol::write_mic_amp_transformer(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -488,7 +500,8 @@ impl SpecificCtl {
                             Ok(())
                         }
                     })?;
-                req.write_analog_input_level(
+                LiquidS56Protocol::write_analog_input_level(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &levels,
@@ -504,7 +517,8 @@ impl SpecificCtl {
                             let msg = format!("Invalid index of emulation type: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    req.write_mic_amp_emulation_type(
+                    LiquidS56Protocol::write_mic_amp_emulation_type(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -516,7 +530,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_HARMONICS_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
-                    req.write_mic_amp_harmonics(
+                    LiquidS56Protocol::write_mic_amp_harmonics(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -528,7 +543,8 @@ impl SpecificCtl {
             }
             Self::MIC_AMP_POLARITY_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
-                    req.write_mic_amp_polarity(
+                    LiquidS56Protocol::write_mic_amp_polarity(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         idx,
@@ -547,7 +563,8 @@ impl SpecificCtl {
                     spdif: vals[2],
                     midi_in: vals[3]
                 };
-                req.write_led_state(
+                LiquidS56Protocol::write_led_state(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &state,
@@ -570,7 +587,8 @@ impl SpecificCtl {
                             Err(Error::new(FileError::Inval, &msg))
                         }
                     })?;
-                req.write_meter_display_targets(
+                LiquidS56Protocol::write_meter_display_targets(
+                    req,
                     &mut unit.get_node(),
                     sections,
                     &targets,

@@ -6,11 +6,26 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Liquid Saffire 56.
 
+use hinawa::FwReq;
+
 use crate::tcat::extension::*;
 use crate::tcat::tcd22xx_spec::*;
 use crate::*;
 
 use super::*;
+
+const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
+const IO_FLAGS_OFFSET: usize = 0x005c;
+const EMULATION_TYPE_OFFSET: usize = 0x0278;
+const HARMONICS_OFFSET: usize = 0x0280;
+const POLARITY_OFFSET: usize = 0x0288;
+const METER_DISPLAY_TARGET_OFFSET: usize = 0x029c;
+const ANALOG_INPUT_LEVEL_OFFSET: usize = 0x02b4;
+const LED_OFFSET: usize = 0x02bc;
+
+/// The structure for protocol implementation specific to Liquid Saffire 56.
+#[derive(Default)]
+pub struct LiquidS56Protocol;
 
 /// The structure to represent state of TCD22xx on Liquid Saffire 56.
 #[derive(Debug)]
@@ -271,60 +286,79 @@ impl LedState {
 }
 
 /// The trait to represent protocol specific to Saffire Pro 26.
-pub trait LiquidS56Protocol: ApplSectionProtocol {
-    const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
-    const IO_FLAGS_OFFSET: usize = 0x005c;
-    const EMULATION_TYPE_OFFSET: usize = 0x0278;
-    const HARMONICS_OFFSET: usize = 0x0280;
-    const POLARITY_OFFSET: usize = 0x0288;
-    const METER_DISPLAY_TARGET_OFFSET: usize = 0x029c;
-    const ANALOG_INPUT_LEVEL_OFFSET: usize = 0x02b4;
-    const LED_OFFSET: usize = 0x02bc;
-
+impl LiquidS56Protocol {
     fn write_sw_notice(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         notice: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         notice.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, SW_NOTICE_OFFSET, &mut raw, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            SW_NOTICE_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
     }
 
-    fn read_analog_out_0_1_pad_offset(
-        &self,
+    pub fn read_analog_out_0_1_pad_offset(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) ->Result<bool, Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::ANALOG_OUT_0_1_PAD_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            ANALOG_OUT_0_1_PAD_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(raw) > 0)
     }
 
-    fn write_analog_out_0_1_pad_offset(
-        &self,
+    pub fn write_analog_out_0_1_pad_offset(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         enable: bool,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         enable.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, Self::ANALOG_OUT_0_1_PAD_OFFSET, &mut raw, timeout_ms)?;
-        self.write_sw_notice(node, sections, DIM_MUTE_SW_NOTICE, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            ANALOG_OUT_0_1_PAD_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, DIM_MUTE_SW_NOTICE, timeout_ms)
     }
 
-    fn read_opt_out_iface_mode(
-        &self,
+    pub fn read_opt_out_iface_mode(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<OptOutIfaceMode, Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
                 let val = u32::from_be_bytes(raw);
                 if val & 0x00000001 > 0 {
@@ -337,15 +371,22 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
             })
     }
 
-    fn write_opt_out_iface_mode(
-        &self,
+    pub fn write_opt_out_iface_mode(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: OptOutIfaceMode,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)?;
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
 
         let mut val = u32::from_be_bytes(raw);
         val &= !0x00000003;
@@ -356,32 +397,53 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
             val |= 0x00000002;
         }
         val.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)?;
-        self.write_sw_notice(node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
     }
 
-    fn read_mic_amp_transformer(
-        &self,
+    pub fn read_mic_amp_transformer(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
         timeout_ms: u32
     ) -> Result<bool, Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(raw) & (1 << (ch + 4)) > 0)
     }
 
-    fn write_mic_amp_transformer(
-        &self,
+    pub fn write_mic_amp_transformer(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
         state: bool,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)?;
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
 
         let mut val = u32::from_be_bytes(raw);
         val &= !0x00000018;
@@ -391,17 +453,24 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
             val &= !(1 << (ch + 4));
         }
         val.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)?;
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
         let sw_notice = if ch == 0 {
             MIC_AMP_1_EMULATION_SW_NOTICE
         } else {
             MIC_AMP_2_EMULATION_SW_NOTICE
         };
-        self.write_sw_notice(node, sections, sw_notice, timeout_ms)
+        Self::write_sw_notice(req, node, sections, sw_notice, timeout_ms)
     }
 
-    fn read_mic_amp_emulation_type(
-        &self,
+    pub fn read_mic_amp_emulation_type(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
@@ -409,14 +478,21 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
     ) -> Result<MicAmpEmulationType, Error> {
         assert!(ch < 2);
 
-        let mut raw = [0;4];
-        let offset = Self::EMULATION_TYPE_OFFSET + ch * 4;
-        self.read_appl_data(node, sections, offset, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        let offset = EMULATION_TYPE_OFFSET + ch * 4;
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| MicAmpEmulationType::from(u32::from_be_bytes(raw)))
     }
 
-    fn write_mic_amp_emulation_type(
-        &self,
+    pub fn write_mic_amp_emulation_type(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
@@ -425,22 +501,29 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
     ) -> Result<(), Error> {
         assert!(ch < 2);
 
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         emulation_type.build_quadlet(&mut raw);
-        let offset = Self::EMULATION_TYPE_OFFSET + ch * 4;
-        self.write_appl_data(node, sections, offset, &mut raw, timeout_ms)?;
+        let offset = EMULATION_TYPE_OFFSET + ch * 4;
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut raw,
+            timeout_ms
+        )?;
 
         let sw_notice = if ch == 0 {
             MIC_AMP_1_EMULATION_SW_NOTICE
         } else {
             MIC_AMP_2_EMULATION_SW_NOTICE
         };
-        self.write_sw_notice(node, sections, sw_notice, timeout_ms)
+        Self::write_sw_notice(req, node, sections, sw_notice, timeout_ms)
     }
 
     /// The return value is between 0x00 to 0x15.
-    fn read_mic_amp_harmonics(
-        &self,
+    pub fn read_mic_amp_harmonics(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
@@ -448,14 +531,21 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
     ) -> Result<u8, Error> {
         assert!(ch < 2);
 
-        let mut raw = [0;4];
-        let offset = Self::HARMONICS_OFFSET + ch * 4;
-        self.read_appl_data(node, sections, offset, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        let offset = HARMONICS_OFFSET + ch * 4;
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(raw) as u8)
     }
 
-    fn write_mic_amp_harmonics(
-        &self,
+    pub fn write_mic_amp_harmonics(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
@@ -464,21 +554,28 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
     ) -> Result<(), Error> {
         assert!(ch < 2);
 
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         (harmonics as u32).build_quadlet(&mut raw);
-        let offset = Self::HARMONICS_OFFSET + ch * 4;
-        self.write_appl_data(node, sections, offset, &mut raw, timeout_ms)?;
+        let offset = HARMONICS_OFFSET + ch * 4;
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut raw,
+            timeout_ms
+        )?;
 
         let sw_notice = if ch == 0 {
             MIC_AMP_1_HARMONICS_SW_NOTICE
         } else {
             MIC_AMP_2_HARMONICS_SW_NOTICE
         };
-        self.write_sw_notice(node, sections, sw_notice, timeout_ms)
+        Self::write_sw_notice(req, node, sections, sw_notice, timeout_ms)
     }
 
-    fn read_mic_amp_polarity(
-        &self,
+    pub fn read_mic_amp_polarity(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
@@ -486,14 +583,21 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
     ) -> Result<bool, Error> {
         assert!(ch < 2);
 
-        let mut raw = [0;4];
-        let offset = Self::POLARITY_OFFSET + ch * 4;
-        self.read_appl_data(node, sections, offset, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        let offset = POLARITY_OFFSET + ch * 4;
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(raw) > 0)
     }
 
-    fn write_mic_amp_polarity(
-        &self,
+    pub fn write_mic_amp_polarity(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
@@ -502,22 +606,36 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
     ) -> Result<(), Error> {
         assert!(ch < 2);
 
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         inverted.build_quadlet(&mut raw);
-        let offset = Self::POLARITY_OFFSET + ch * 4;
-        self.write_appl_data(node, sections, offset, &mut raw, timeout_ms)?;
-        self.write_sw_notice(node, sections, MIC_AMP_POLARITY_SW_NOTICE, timeout_ms)
+        let offset = POLARITY_OFFSET + ch * 4;
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            offset,
+            &mut raw,
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, MIC_AMP_POLARITY_SW_NOTICE, timeout_ms)
     }
 
-    fn read_analog_input_level(
-        &self,
+    pub fn read_analog_input_level(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         levels: &mut [AnalogInputLevel;8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;8];
-        self.read_appl_data(node, sections, Self::ANALOG_INPUT_LEVEL_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 8];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            ANALOG_INPUT_LEVEL_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
                 let mut quads = [0u32;2];
                 quads.parse_quadlet_block(&raw);
@@ -530,62 +648,90 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
             })
     }
 
-    fn write_analog_input_level(
-        &self,
+    pub fn write_analog_input_level(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        levels: &[AnalogInputLevel;8],
+        levels: &[AnalogInputLevel; 8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut quads = [0u32;2];
+        let mut quads = [0u32; 2];
         levels[..4].iter()
             .enumerate()
             .for_each(|(i, &level)| quads[0] |= (u8::from(level) as u32) << (i * 8));
         levels[4..].iter()
             .enumerate()
             .for_each(|(i, &level)| quads[1] |= (u8::from(level) as u32) << (i * 8));
-        let mut raw = [0;8];
+        let mut raw = [0; 8];
         quads.build_quadlet_block(&mut raw);
-        self.write_appl_data(node, sections, Self::ANALOG_INPUT_LEVEL_OFFSET, &mut raw, timeout_ms)?;
-        self.write_sw_notice(node, sections, INPUT_LEVEL_SW_NOTICE, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            ANALOG_INPUT_LEVEL_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, INPUT_LEVEL_SW_NOTICE, timeout_ms)
     }
 
-    fn read_led_state(
-        &self,
+    pub fn read_led_state(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &mut LedState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::LED_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            LED_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| state.parse(&raw))
     }
 
-    fn write_led_state(
-        &self,
+    pub fn write_led_state(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &LedState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         state.build(&mut raw);
-        self.write_appl_data(node, sections, Self::LED_OFFSET, &mut raw, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            LED_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
     }
 
     /// The target of meter display represent index of router entry.
-    fn read_meter_display_targets(
-        &self,
+    pub fn read_meter_display_targets(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        targets: &mut [usize;8],
+        targets: &mut [usize; 8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;8];
-        self.read_appl_data(node, sections, Self::METER_DISPLAY_TARGET_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 8];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            METER_DISPLAY_TARGET_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
-                let mut quads = [0u32;2];
+                let mut quads = [0u32; 2];
                 quads[0].parse_quadlet(&raw[..4]);
                 quads[1].parse_quadlet(&raw[4..]);
                 targets[..4].iter_mut()
@@ -597,14 +743,14 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
             })
     }
 
-    fn write_meter_display_targets(
-        &self,
+    pub fn write_meter_display_targets(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        targets: &[usize;8],
+        targets: &[usize; 8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut quads = [0u32;2];
+        let mut quads = [0u32; 2];
         targets[..4].iter()
             .enumerate()
             .for_each(|(i, &target)| quads[0] |= (target as u32) << (i * 8));
@@ -613,8 +759,13 @@ pub trait LiquidS56Protocol: ApplSectionProtocol {
             .for_each(|(i, &target)| quads[1] |= (target as u32) << (i * 8));
         let mut raw = [0;8];
         quads.build_quadlet_block(&mut raw);
-        self.write_appl_data(node,  sections, Self::METER_DISPLAY_TARGET_OFFSET, &mut raw, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            METER_DISPLAY_TARGET_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
     }
 }
-
-impl<O: ApplSectionProtocol> LiquidS56Protocol for O {}
