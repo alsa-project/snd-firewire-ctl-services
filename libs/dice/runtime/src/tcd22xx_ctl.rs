@@ -1119,7 +1119,7 @@ where
         timeout_ms: u32,
         msg: u32
     ) -> Result<(), Error> {
-        if msg.has_clock_accepted() {
+        if GeneralProtocol::has_clock_accepted(msg) {
             self.cache(unit, req, sections, extension_sections, timeout_ms)?;
         }
         Ok(())

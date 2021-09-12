@@ -14,7 +14,6 @@ use glib::Error;
 
 use hinawa::{FwNode, FwReq};
 
-use super::tcat::*;
 use super::tcat::extension::{*, appl_section::*};
 use super::*;
 
@@ -51,6 +50,11 @@ pub trait SaffireproOutGroupOperation {
     const VOL_HWCTL_OFFSET: usize =  Self::OUT_CTL_OFFSET + 0x001c;
     const DIM_MUTE_HWCTL_OFFSET: usize = Self::OUT_CTL_OFFSET + 0x0030;
     const HW_KNOB_VALUE_OFFSET: usize = Self::OUT_CTL_OFFSET + 0x0048;
+
+    const NOTIFY_DIM_MUTE_CHANGE: u32 = 0x00200000;
+
+    /// Just supported by Liquid Saffire 56 and Saffire Pro 40.
+    const NOTIFY_VOL_CHANGE: u32 = 0x00400000;
 
     fn create_out_group_state() -> OutGroupState {
         OutGroupState {
@@ -442,22 +446,12 @@ pub trait SaffireproOutGroupOperation {
         )
             .map(|_| state.hw_knob_value = u32::from_be_bytes(raw) as i8)
     }
-}
 
-/// The trait to parse notification defined by Focusrite.
-pub trait FocusriteSaffireOutGroupNotification :  TcatNotification {
-    const NOTIFY_DIM_MUTE_CHANGE: u32 = 0x00200000;
-
-    /// Just supported by Liquid Saffire 56 and Saffire Pro 40.
-    const NOTIFY_VOL_CHANGE: u32 = 0x00400000;
-
-    fn has_dim_mute_change(self) -> bool {
-        self.bitand(Self::NOTIFY_DIM_MUTE_CHANGE) > 0
+    fn has_dim_mute_change(msg: u32) -> bool {
+        msg & Self::NOTIFY_DIM_MUTE_CHANGE > 0
     }
 
-    fn has_vol_change(self) -> bool {
-        self.bitand(Self::NOTIFY_VOL_CHANGE) > 0
+    fn has_vol_change(msg: u32) -> bool {
+        msg & Self::NOTIFY_VOL_CHANGE > 0
     }
 }
-
-impl<O: TcatNotification> FocusriteSaffireOutGroupNotification for O {}
