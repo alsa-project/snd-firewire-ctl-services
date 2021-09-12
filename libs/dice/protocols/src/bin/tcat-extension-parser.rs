@@ -96,13 +96,20 @@ fn print_peak(req: &mut FwReq, node: &mut FwNode, sections: &ExtensionSections, 
 
 const RATE_MODES: [RateMode;3] = [RateMode::Low, RateMode::Middle, RateMode::High];
 
-fn print_current_router_entries(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections,
+fn print_current_router_entries(req: &mut FwReq, node: &mut FwNode, sections: &ExtensionSections,
                                 caps: &ExtensionCaps)
     -> Result<(), Error>
 {
     println!("Current router entries:");
     RATE_MODES.iter().try_for_each(|&mode| {
-        proto.read_current_router_entries(node, sections, caps, mode, TIMEOUT_MS)
+        CurrentConfigSectionProtocol::read_current_router_entries(
+            req,
+            node,
+            sections,
+            caps,
+            mode,
+            TIMEOUT_MS
+        )
             .map(|entries| {
                 println!("  {}:", mode);
                 entries.iter().enumerate().for_each(|(i, entry)| {
@@ -125,13 +132,20 @@ fn print_stream_format_entry(entry: &FormatEntry) {
     });
 }
 
-fn print_current_stream_format_entries(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections,
+fn print_current_stream_format_entries(req: &mut FwReq, node: &mut FwNode, sections: &ExtensionSections,
                                        caps: &ExtensionCaps)
     -> Result<(), Error>
 {
     println!("Current stream format entries:");
     RATE_MODES.iter().try_for_each(|&mode| {
-        proto.read_current_stream_format_entries(node, sections, caps, mode, TIMEOUT_MS)
+        CurrentConfigSectionProtocol::read_current_stream_format_entries(
+            req,
+            node,
+            sections,
+            caps,
+            mode,
+            TIMEOUT_MS
+        )
             .map(|(tx_entries, rx_entries)| {
                 println!("  {}:", mode);
                 tx_entries.iter()
@@ -216,8 +230,8 @@ fn main() {
                     print_caps(&caps);
                     print_mixer(&proto, &mut node, &sections, &caps)?;
                     print_peak(&mut proto, &mut node, &sections, &caps)?;
-                    print_current_router_entries(&proto, &mut node, &sections, &caps)?;
-                    print_current_stream_format_entries(&proto, &mut node, &sections, &caps)?;
+                    print_current_router_entries(&mut proto, &mut node, &sections, &caps)?;
+                    print_current_stream_format_entries(&mut proto, &mut node, &sections, &caps)?;
                     print_standalone_config(&proto, &mut node, &sections)?;
                     Ok(())
                 })

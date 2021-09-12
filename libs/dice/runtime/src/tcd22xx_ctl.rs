@@ -217,7 +217,14 @@ impl MeterCtl {
         self.real_meter = vec![0;self.real_blk_dsts.len()];
 
         let (tx_entries, rx_entries) =
-            req.read_current_stream_format_entries(node, sections, caps, RateMode::Low, timeout_ms)?;
+            CurrentConfigSectionProtocol::read_current_stream_format_entries(
+                req,
+                node,
+                sections,
+                caps,
+                RateMode::Low,
+                timeout_ms
+            )?;
         let (_, stream_blk_dsts) = state.compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
         self.stream_blk_dsts = stream_blk_dsts;
         let mut elem_id_list = Self::add_an_elem_for_meter(card_cntr, Self::STREAM_TX_METER_NAME,
@@ -347,7 +354,14 @@ impl RouterCtl {
             });
         rate_modes.iter()
             .try_for_each(|&m| {
-                req.read_current_stream_format_entries(node, sections, caps, m, timeout_ms)
+                CurrentConfigSectionProtocol::read_current_stream_format_entries(
+                    req,
+                    node,
+                    sections,
+                    caps,
+                    m,
+                    timeout_ms
+                )
                     .map(|(tx, rx)| {
                         let (tx_blk, rx_blk) = state.compute_avail_stream_blk_pair(&tx, &rx);
                         tx_blk.iter()
