@@ -260,9 +260,8 @@ impl Default for Io26MixerState {
     }
 }
 
-pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
-    where T: AsRef<FwNode>,
-          U: AsMut<IoMixerState> + AsRef<IoMixerState>,
+pub trait IoMixerProtocol<U>: AlesisIoProtocol
+    where U: AsMut<IoMixerState> + AsRef<IoMixerState>,
 {
     const MONITOR_SRC_GAIN_OFFSET: usize = 0x0038;
     const MONITOR_OUT_VOL_OFFSET: usize = 0x0438;
@@ -277,7 +276,12 @@ pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
     const MAX_MIXER_SRC_COUNT: usize = MAX_ANALOG_INPUT_COUNT + DIGITAL_A_INPUT_COUNT +
                                        MAX_DIGITAL_B_INPUT_COUNT + STREAM_INPUT_COUNT;
 
-    fn read_mixer_src_gains(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_mixer_src_gains(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         state.as_mut().gains.iter_mut()
             .enumerate()
             .try_for_each(|(i, m)| {
@@ -288,9 +292,14 @@ pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
             })
     }
 
-    fn write_mixer_src_gains(&self, node: &T, state: &mut U, mixer: usize, gains: &IoMixerGain, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_src_gains(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        mixer: usize,
+        gains: &IoMixerGain,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         ((mixer / 2) as u32).build_quadlet(&mut raw);
         self.write_block(node, Self::MIXER_SELECT_OFFSET, &mut raw, timeout_ms)?;
@@ -315,7 +324,12 @@ pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
             .map(|_| state.as_mut().gains[mixer].parse(&new))
     }
 
-    fn read_mixer_src_mutes(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_mixer_src_mutes(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         state.as_mut().mutes.iter_mut()
             .enumerate()
             .try_for_each(|(i, m)| {
@@ -326,10 +340,14 @@ pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
             })
     }
 
-    fn write_mixer_src_mutes(&self, node: &T, state: &mut U, mixer_pair: usize, mutes: &IoMixerMute,
-                             timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_src_mutes(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        mixer_pair: usize,
+        mutes: &IoMixerMute,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         (mixer_pair as u32).build_quadlet(&mut raw);
         self.write_block(node, Self::MIXER_SELECT_OFFSET, &mut raw, timeout_ms)?;
@@ -339,15 +357,24 @@ pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
             .map(|_| state.as_mut().mutes[mixer_pair].parse(&raw))
     }
 
-    fn read_mixer_out_vols(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_mixer_out_vols(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4 * IO_MIXER_COUNT];
         self.read_block(node, Self::MONITOR_OUT_VOL_OFFSET, &mut raw, timeout_ms)
             .map(|_| state.as_mut().out_vols.parse_quadlet_block(&raw))
     }
 
-    fn write_mixer_out_vols(&self, node: &T, state: &mut U, vols: &[i32], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_out_vols(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        vols: &[i32],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(state.as_ref().out_vols.len(), vols.len());
 
         vols.iter()
@@ -363,28 +390,41 @@ pub trait IoMixerProtocol<T, U> : AlesisIoProtocol<T>
             })
     }
 
-    fn read_mixer_out_mutes(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_mixer_out_mutes(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.read_flags(node, Self::MONITOR_OUT_MUTE_OFFSET, &mut state.as_mut().out_mutes, timeout_ms)
     }
 
-    fn write_mixer_out_mutes(&self, node: &T, state: &mut U, mutes: &[bool], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_out_mutes(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        mutes: &[bool],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(state.as_ref().out_mutes.len(), mutes.len());
 
         self.write_flags(node, Self::MONITOR_OUT_MUTE_OFFSET, mutes, timeout_ms)
             .map(|_| state.as_mut().out_mutes.copy_from_slice(mutes))
     }
 
-    fn read_knob_state(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_knob_state(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;8];
         self.read_block(node, Self::KNOB_STATE_OFFSET, &mut raw, timeout_ms)
             .map(|_| state.as_mut().knobs.parse(&raw))
     }
 }
 
-impl<O, T, U> IoMixerProtocol<T, U> for O
-    where O: AlesisIoProtocol<T>,
-          T: AsRef<FwNode>,
+impl<O, U> IoMixerProtocol<U> for O
+    where O: AlesisIoProtocol,
           U: AsMut<IoMixerState> + AsRef<IoMixerState>,
 {}

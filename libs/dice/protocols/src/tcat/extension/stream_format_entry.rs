@@ -64,12 +64,14 @@ impl From<FormatEntry> for FormatEntryData {
     }
 }
 
-pub trait StreamFormatEntryProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
-    fn read_stream_format_entries(&self, node: &T, caps: &ExtensionCaps, offset: usize, timeout_ms: u32)
-        -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error>
-    {
+pub trait StreamFormatEntryProtocol: ProtocolExtension {
+    fn read_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        caps: &ExtensionCaps,
+        offset: usize,
+        timeout_ms: u32
+    ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
         let mut data = [0;8];
         ProtocolExtension::read(self, node, offset, &mut data, timeout_ms)?;
 
@@ -121,10 +123,14 @@ pub trait StreamFormatEntryProtocol<T> : ProtocolExtension<T>
         Ok((tx_entries, rx_entries))
     }
 
-    fn write_stream_format_entries(&self, node: &T, caps: &ExtensionCaps, offset: usize,
-                                   pair: &(Vec<FormatEntryData>, Vec<FormatEntryData>), timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        caps: &ExtensionCaps,
+        offset: usize,
+        pair: &(Vec<FormatEntryData>, Vec<FormatEntryData>),
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let (tx, rx) = pair;
 
         if tx.len() != caps.general.max_tx_streams as usize {
@@ -152,7 +158,7 @@ pub trait StreamFormatEntryProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> StreamFormatEntryProtocol<T> for O {}
+impl<O: AsRef<FwReq>> StreamFormatEntryProtocol for O {}
 
 #[cfg(test)]
 mod test {

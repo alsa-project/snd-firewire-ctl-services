@@ -49,13 +49,18 @@ impl From<IonixMeterEntry> for u32 {
 }
 
 /// The trait to represent protocol for hardware meter.
-pub trait IonixMeterProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
+pub trait IonixMeterProtocol: IonixProtocol {
     const METER_OFFSET: usize = 0x0500;
 
     // NOTE: 90 entries are valid at all of supported sampling rate.
     const ENTRY_COUNT: usize = 90;
 
-    fn read_meters(&self, node: &T, meters: &mut IonixMeter, timeout_ms: u32) -> Result<(), Error> {
+    fn read_meters(
+        &self,
+        node: &mut FwNode,
+        meters: &mut IonixMeter,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = vec![0;Self::ENTRY_COUNT * 4];
         IonixProtocol::read(self, node, Self::METER_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -98,7 +103,6 @@ pub trait IonixMeterProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
     }
 }
 
-impl<O, T> IonixMeterProtocol<T> for O
-    where O: IonixProtocol<T>,
-          T: AsRef<FwNode>,
+impl<O> IonixMeterProtocol for O
+    where O: IonixProtocol,
 {}

@@ -9,7 +9,7 @@ use glib::Error;
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use dice_protocols::tcat::extension::*;
 use dice_protocols::focusrite::*;
@@ -18,7 +18,7 @@ use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
 #[derive(Default, Debug)]
-struct OutGroupCtl(Vec<ElemId>);
+pub struct OutGroupCtl(Vec<ElemId>);
 
 impl OutGroupCtl {
     const VOL_NAME: &'static str = "output-group-volume";
@@ -33,7 +33,7 @@ impl OutGroupCtl {
     const LEVEL_MAX: i32 = 0x7f;
     const LEVEL_STEP: i32 = 0x01;
 
-    fn load<T, S>(
+    pub fn load<T, S>(
         &mut self,
         card_cntr: &mut CardCntr,
         unit: &mut SndDice,
@@ -42,7 +42,7 @@ impl OutGroupCtl {
         state: &mut S,
         timeout_ms: u32
     ) -> Result<(), Error>
-        where T: FocusriteSaffireOutGroupProtocol<FwNode, S>,
+        where T: FocusriteSaffireOutGroupProtocol<S>,
               S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
     {
         let mut node = unit.get_node();
@@ -84,7 +84,7 @@ impl OutGroupCtl {
         Ok(())
     }
 
-    fn read<S>(
+    pub fn read<S>(
         &mut self,
         state: &S,
         elem_id: &ElemId,
@@ -113,7 +113,7 @@ impl OutGroupCtl {
         }
     }
 
-    fn write<T, S>(
+    pub fn write<T, S>(
         &mut self,
         unit: &mut SndDice,
         proto: &mut T,
@@ -123,7 +123,7 @@ impl OutGroupCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: FocusriteSaffireOutGroupProtocol<FwNode, S>,
+        where T: FocusriteSaffireOutGroupProtocol<S>,
               S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
     {
         match elem_id.get_name().as_str() {
@@ -226,11 +226,11 @@ impl OutGroupCtl {
         }
     }
 
-    fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
+    pub fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.0);
     }
 
-    fn parse_notification<T, S>(
+    pub fn parse_notification<T, S>(
         &mut self,
         unit: &mut SndDice,
         proto: &mut T,
@@ -239,7 +239,7 @@ impl OutGroupCtl {
         msg: u32,
         timeout_ms: u32
     ) -> Result<(), Error>
-        where T: FocusriteSaffireOutGroupProtocol<FwNode, S>,
+        where T: FocusriteSaffireOutGroupProtocol<S>,
               S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
     {
         if msg.has_dim_mute_change() {
@@ -267,7 +267,7 @@ impl OutGroupCtl {
         Ok(())
     }
 
-    fn read_notified_elem<S>(
+    pub fn read_notified_elem<S>(
         &self,
         state: &S,
         elem_id: &ElemId,

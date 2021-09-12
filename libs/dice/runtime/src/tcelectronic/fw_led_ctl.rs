@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use dice_protocols::tcelectronic::*;
 use dice_protocols::tcelectronic::fw_led::*;
@@ -77,7 +77,7 @@ impl FwLedCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<FireWireLedState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {

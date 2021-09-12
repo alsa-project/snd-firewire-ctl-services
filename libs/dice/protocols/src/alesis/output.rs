@@ -117,15 +117,18 @@ impl From<MixerOutPair> for u32 {
 }
 
 /// The trait to represent output protocol for iO FireWire series.
-pub trait IoOutputProtocol<T: AsRef<FwNode>> : AlesisIoProtocol<T> {
+pub trait IoOutputProtocol: AlesisIoProtocol {
     const OUT_LEVEL_OFFSET: usize = 0x0564;
     const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
     const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
     const HP34_SRC_OFFSET: usize = 0x0570;
 
-    fn read_out_levels(&self, node: &T, levels: &mut [NominalSignalLevel], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_levels(
+        &self,
+        node: &mut FwNode,
+        levels: &mut [NominalSignalLevel],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut flags = vec![false;levels.len()];
         self.read_flags(node, Self::OUT_LEVEL_OFFSET, &mut flags[..], timeout_ms)
             .map(|_| {
@@ -135,57 +138,85 @@ pub trait IoOutputProtocol<T: AsRef<FwNode>> : AlesisIoProtocol<T> {
             })
     }
 
-    fn write_out_levels(&self, node: &T, levels: &[NominalSignalLevel], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_out_levels(
+        &self,
+        node: &mut FwNode,
+        levels: &[NominalSignalLevel],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut flags: Vec<bool> = levels.iter()
             .map(|l| u32::from(*l) > 0)
             .collect();
         self.write_flags(node, Self::OUT_LEVEL_OFFSET, &mut flags, timeout_ms)
     }
 
-    fn read_mixer_digital_b_67_src(&self, node: &T, src: &mut DigitalB67Src, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_mixer_digital_b_67_src(
+        &self,
+        node: &mut FwNode,
+        src: &mut DigitalB67Src,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         self.read_block(node, Self::MIXER_DIGITAL_B_67_SRC_OFFSET, &mut raw, timeout_ms)
             .map(|_| src.parse_quadlet(&raw))
     }
 
-    fn write_mixer_digital_b_67_src(&self, node: &T, src: &DigitalB67Src, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_digital_b_67_src(
+        &self,
+        node: &mut FwNode,
+        src: &DigitalB67Src,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         src.build_quadlet(&mut raw);
         self.write_block(node, Self::MIXER_DIGITAL_B_67_SRC_OFFSET, &mut raw, timeout_ms)
     }
 
-    fn read_spdif_out_src(&self, node: &T, src: &mut MixerOutPair, timeout_ms: u32) -> Result<(), Error> {
+    fn read_spdif_out_src(
+        &self,
+        node: &mut FwNode,
+        src: &mut MixerOutPair,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         self.read_block(node, Self::SPDIF_OUT_SRC_OFFSET, &mut raw, timeout_ms)
             .map(|_| src.parse_quadlet(&raw))
     }
 
-    fn write_spdif_out_src(&self, node: &T, src: &MixerOutPair, timeout_ms: u32) -> Result<(), Error> {
+    fn write_spdif_out_src(
+        &self,
+        node: &mut FwNode,
+        src: &MixerOutPair,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         src.build_quadlet(&mut raw);
         self.write_block(node, Self::SPDIF_OUT_SRC_OFFSET, &mut raw, timeout_ms)
     }
 
-    fn read_hp23_out_src(&self, node: &T, src: &mut MixerOutPair, timeout_ms: u32) -> Result<(), Error> {
+    fn read_hp23_out_src(
+        &self,
+        node: &mut FwNode,
+        src: &mut MixerOutPair,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         self.read_block(node, Self::HP34_SRC_OFFSET, &mut raw, timeout_ms)
             .map(|_| src.parse_quadlet(&raw))
     }
 
-    fn write_hp23_out_src(&self, node: &T, src: &MixerOutPair, timeout_ms: u32) -> Result<(), Error> {
+    fn write_hp23_out_src(
+        &self,
+        node: &mut FwNode,
+        src: &MixerOutPair,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         src.build_quadlet(&mut raw);
         self.write_block(node, Self::HP34_SRC_OFFSET, &mut raw, timeout_ms)
     }
 }
 
-impl<O, T> IoOutputProtocol<T> for O
-    where T: AsRef<FwNode>,
-          O: AlesisIoProtocol<T>,
+impl<O> IoOutputProtocol for O
+    where O: AlesisIoProtocol,
 {}

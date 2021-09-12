@@ -11,7 +11,7 @@ use hinawa::FwNode;
 
 use super::*;
 
-pub trait IonixEffectProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
+pub trait IonixEffectProtocol: IonixProtocol {
     // NOTE: states of all effect are available with structured data by read block request with 512 bytes.
     const EFFECT_OFFSET: usize = 0x00004000;
 
@@ -20,7 +20,7 @@ pub trait IonixEffectProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
     const SYSEX_MSG_PREFIX: u8 = 0xf0;
     const SYSEX_MSG_SUFFIX: u8 = 0xf7;
 
-    fn write_data(&self, node: &T, data: &[u8], timeout_ms: u32) -> Result<(), Error> {
+    fn write_data(&self, node: &mut FwNode, data: &[u8], timeout_ms: u32) -> Result<(), Error> {
         // NOTE: The data has prefix.
         let mut msgs = Self::DATA_PREFIX.to_vec();
         msgs.extend_from_slice(&data);
@@ -43,7 +43,6 @@ pub trait IonixEffectProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
     }
 }
 
-impl<O, T> IonixEffectProtocol<T> for O
-    where T: AsRef<FwNode>,
-          O: IonixProtocol<T>,
+impl<O> IonixEffectProtocol for O
+    where O: IonixProtocol,
 {}

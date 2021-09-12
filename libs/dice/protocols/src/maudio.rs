@@ -134,9 +134,7 @@ pub enum StandaloneConverterMode{
 }
 
 /// The trait for protocol defined by M-Audio specific to ProFire series.
-pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
-    where T: AsRef<FwNode>,
-{
+pub trait MaudioPfireApplProtocol: ApplSectionProtocol {
     const KNOB_ASSIGN_OFFSET: usize = 0x00;
     const STANDALONE_MODE_OFFSET: usize = 0x04;
 
@@ -144,10 +142,13 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
     const OPT_IFACE_B_IS_SPDIF_FLAG: u32 = 0x10;
     const STANDALONE_CONVERTER_IS_AD_ONLY_FLAG: u32 = 0x02;
 
-    fn read_knob_assign(&self, node: &T, sections: &ExtensionSections, targets: &mut [bool;KNOB_COUNT],
-                        timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_knob_assign(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        targets: &mut [bool;KNOB_COUNT],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
             .map(|_| {
@@ -158,10 +159,13 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_knob_assign(&self, node: &T, sections: &ExtensionSections,
-                         targets: &[bool;KNOB_COUNT], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_knob_assign(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        targets: &[bool;KNOB_COUNT],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)?;
         let mut val = u32::from_be_bytes(data);
@@ -179,9 +183,12 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
         self.write_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
     }
 
-    fn read_opt_iface_b_mode(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
-        -> Result<OptIfaceMode, Error>
-    {
+    fn read_opt_iface_b_mode(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32
+    ) -> Result<OptIfaceMode, Error> {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
             .map(|_| {
@@ -194,10 +201,13 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_opt_iface_b_mode(&self, node: &T, sections: &ExtensionSections, mode: OptIfaceMode,
-                              timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_opt_iface_b_mode(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        mode: OptIfaceMode,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)?;
         let mut val = u32::from_be_bytes(data);
@@ -211,9 +221,12 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
         self.write_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
     }
 
-    fn read_standalone_converter_mode(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
-        -> Result<StandaloneConverterMode, Error>
-    {
+    fn read_standalone_converter_mode(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32
+    ) -> Result<StandaloneConverterMode, Error> {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::STANDALONE_MODE_OFFSET, &mut data, timeout_ms)
             .map(|_| {
@@ -226,10 +239,13 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_standalone_converter_mode(&self, node: &T, sections: &ExtensionSections,
-                                       mode: StandaloneConverterMode, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_standalone_converter_mode(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        mode: StandaloneConverterMode,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut data = [0;4];
         self.read_appl_data(node, sections, Self::STANDALONE_MODE_OFFSET, &mut data, timeout_ms)?;
         let mut val = u32::from_be_bytes(data);
@@ -244,4 +260,4 @@ pub trait MaudioPfireApplProtocol<T> : ApplSectionProtocol<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> MaudioPfireApplProtocol<T> for O {}
+impl<O: AsRef<FwReq>> MaudioPfireApplProtocol for O {}

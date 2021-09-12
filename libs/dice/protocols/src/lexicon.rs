@@ -16,19 +16,30 @@ use hinawa::FwNode;
 use super::tcat::*;
 
 /// The trait to represent protocol defined by Lexicon for I-ONIX FW810s.
-pub trait IonixProtocol<T: AsRef<FwNode>> : GeneralProtocol<T> {
+pub trait IonixProtocol: GeneralProtocol {
     const BASE_OFFSET: usize = 0x00200000;
 
-    fn read(&self, node: &T, offset: usize, frame: &mut [u8], timeout_ms: u32) -> Result<(), Error> {
+    fn read(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        frame: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         GeneralProtocol::read(self, node, Self::BASE_OFFSET + offset, frame, timeout_ms)
     }
 
-    fn write(&self, node: &T, offset: usize, frame: &mut [u8], timeout_ms: u32) -> Result<(), Error> {
+    fn write(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        frame: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         GeneralProtocol::write(self, node, Self::BASE_OFFSET + offset, frame, timeout_ms)
     }
 }
 
-impl<O, T> IonixProtocol<T> for O
-    where T: AsRef<FwNode>,
-          O: GeneralProtocol<T>,
+impl<O> IonixProtocol for O
+    where O: GeneralProtocol,
 {}

@@ -58,25 +58,30 @@ impl<U> Default for TcKonnektSegment<U>
 }
 
 /// The trait to represent protocol for segment.
-pub trait TcKonnektSegmentProtocol<T, U> : GeneralProtocol<T>
-    where T: AsRef<FwNode>,
-          U: TcKonnektSegmentData,
+pub trait TcKonnektSegmentProtocol<U> : GeneralProtocol
+    where U: TcKonnektSegmentData,
           TcKonnektSegment<U>: TcKonnektSegmentSpec,
 {
     const BASE_OFFSET: usize = 0x00a01000;
 
-    fn read_segment(&self, node: &T, segment: &mut TcKonnektSegment<U>, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_segment(
+        &self,
+        node: &mut FwNode,
+        segment: &mut TcKonnektSegment<U>,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(segment.raw.len(), TcKonnektSegment::<U>::SIZE, "Programming error...");
 
         self.read(node, Self::BASE_OFFSET + TcKonnektSegment::<U>::OFFSET, &mut segment.raw, timeout_ms)
             .map(|_| segment.data.parse(&segment.raw))
     }
 
-    fn write_segment(&self, node: &T, segment: &mut TcKonnektSegment<U>, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_segment(
+        &self,
+        node: &mut FwNode,
+        segment: &mut TcKonnektSegment<U>,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(segment.raw.len(), TcKonnektSegment::<U>::SIZE, "Programming error...");
 
         let mut raw = segment.raw.clone();
@@ -96,9 +101,8 @@ pub trait TcKonnektSegmentProtocol<T, U> : GeneralProtocol<T>
     }
 }
 
-impl<O, T, U> TcKonnektSegmentProtocol<T, U> for O
-    where O: GeneralProtocol<T>,
-          T: AsRef<FwNode>,
+impl<O, U> TcKonnektSegmentProtocol<U> for O
+    where O: GeneralProtocol,
           U: TcKonnektSegmentData,
           TcKonnektSegment<U>: TcKonnektSegmentSpec,
 {}
@@ -130,15 +134,18 @@ impl<O, U> TcKonnektSegmentNotification<U> for O
 
 
 /// The trait to parse notification.
-pub trait TcKonnektNotifiedSegmentProtocol<T, U, V> : TcKonnektSegmentProtocol<T, U>
-    where T: AsRef<FwNode>,
-          U: TcKonnektSegmentData,
+pub trait TcKonnektNotifiedSegmentProtocol<U, V>: TcKonnektSegmentProtocol<U>
+    where U: TcKonnektSegmentData,
           TcKonnektSegment<U>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
           V: TcKonnektSegmentNotification<U>,
 {
-    fn parse_notification(&self, node: &T, segment: &mut TcKonnektSegment<U>, timeout_ms: u32, msg: V)
-        -> Result<(), Error>
-    {
+    fn parse_notification(
+        &self,
+        node: &mut FwNode,
+        segment: &mut TcKonnektSegment<U>,
+        timeout_ms: u32,
+        msg: V
+    ) -> Result<(), Error> {
         if msg.has_segment_change(segment) {
             self.read_segment(node, segment, timeout_ms)
         } else {
@@ -147,9 +154,8 @@ pub trait TcKonnektNotifiedSegmentProtocol<T, U, V> : TcKonnektSegmentProtocol<T
     }
 }
 
-impl<O, T, U, V> TcKonnektNotifiedSegmentProtocol<T, U, V> for O
-    where O: TcKonnektSegmentProtocol<T, U>,
-          T: AsRef<FwNode>,
+impl<O, U, V> TcKonnektNotifiedSegmentProtocol<U, V> for O
+    where O: TcKonnektSegmentProtocol<U>,
           U: TcKonnektSegmentData,
           TcKonnektSegment<U>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
           V: TcKonnektSegmentNotification<U>,

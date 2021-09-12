@@ -95,13 +95,16 @@ impl AsMut<IoMeter> for Io26Meter {
 }
 
 /// The trait to represent protofol of hardware meter.
-pub trait IoMeterProtocol<T: AsRef<FwNode>> : AlesisIoProtocol<T> {
+pub trait IoMeterProtocol: AlesisIoProtocol {
     const METER_OFFSET: usize = 0x04c0;
     const SIZE: usize = 160;
 
-    fn read_meter<M>(&self, node: &T, meter: &mut M, timeout_ms: u32) -> Result<(), Error>
-        where M: AsMut<IoMeter>,
-    {
+    fn read_meter<M: AsMut<IoMeter>>(
+        &self,
+        node: &mut FwNode,
+        meter: &mut M,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = vec![0;Self::SIZE];
         self.read_block(node, Self::METER_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -117,7 +120,4 @@ pub trait IoMeterProtocol<T: AsRef<FwNode>> : AlesisIoProtocol<T> {
     }
 }
 
-impl<O, T> IoMeterProtocol<T> for O
-    where T: AsRef<FwNode>,
-          O: AlesisIoProtocol<T>,
-{}
+impl<O: AlesisIoProtocol> IoMeterProtocol for O {}

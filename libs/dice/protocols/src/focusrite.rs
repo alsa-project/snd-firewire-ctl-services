@@ -65,21 +65,28 @@ pub trait OutGroupSpec {
     }
 }
 
-pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
-    where T: AsRef<FwNode>,
-          S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
+pub trait FocusriteSaffireOutGroupProtocol<S>: ApplSectionProtocol
+    where S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
 {
-    fn write_notice(&self, node: &T, sections: &ExtensionSections, notice: u32, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_notice(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        notice: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         notice.build_quadlet(&mut raw);
         self.write_appl_data(node, sections, S::SW_NOTICE_OFFSET, &mut raw, timeout_ms)
     }
 
-    fn read_out_group_mute(&self, node: &T, sections: &ExtensionSections, state: &mut S, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_group_mute(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = vec![0;4];
         self.read_appl_data(node, sections, S::MUTE_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -89,10 +96,14 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_out_group_mute(&self, node: &T, sections: &ExtensionSections, state: &mut S, enable: bool,
-                          timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_out_group_mute(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        enable: bool,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         enable.build_quadlet(&mut raw);
         self.write_appl_data(node, sections, S::MUTE_OFFSET, &mut raw, timeout_ms)?;
@@ -100,9 +111,13 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             .map(|_| state.as_mut().mute_enabled = enable)
     }
 
-    fn read_out_group_dim(&self, node: &T, sections: &ExtensionSections, state: &mut S, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_group_dim(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = vec![0;4];
         self.read_appl_data(node, sections, S::DIM_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -112,10 +127,14 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_out_group_dim(&self, node: &T, sections: &ExtensionSections, state: &mut S, enable: bool,
-                         timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_out_group_dim(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        enable: bool,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         enable.build_quadlet(&mut raw);
         self.write_appl_data(node, sections, S::DIM_OFFSET, &mut raw, timeout_ms)?;
@@ -123,10 +142,13 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             .map(|_| state.as_mut().dim_enabled = enable)
     }
 
-    fn read_out_group_vols(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                           timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_group_vols(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = vec![0;(S::ENTRY_COUNT + 1) / 2 * 4];
         self.read_appl_data(node, sections, S::VOL_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -142,10 +164,14 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_out_group_vols(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                            vols: &[i8], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_out_group_vols(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        vols: &[i8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(state.as_ref().vols.len(), vols.len());
 
         let mut raw = vec![0;(S::ENTRY_COUNT + 1) / 2 * 4];
@@ -163,10 +189,13 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             .map(|_| state.as_mut().vols.copy_from_slice(&vols))
     }
 
-    fn read_out_group_vol_mute_hwctls(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                                      timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_group_vol_mute_hwctls(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = vec![0;(S::ENTRY_COUNT + 1) / 2 * 4];
         self.read_appl_data(node, sections, S::VOL_HWCTL_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -189,10 +218,15 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_out_group_vol_mute_hwctls(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                                       vol_mutes: &[bool], vol_hwctls: &[bool], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_out_group_vol_mute_hwctls(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        vol_mutes: &[bool],
+        vol_hwctls: &[bool],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(vol_mutes.len(), vol_hwctls.len());
         assert_eq!(state.as_ref().vol_mutes.len(), vol_mutes.len());
         assert_eq!(state.as_ref().vol_hwctls.len(), vol_hwctls.len());
@@ -252,10 +286,13 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn read_out_group_dim_mute_hwctls(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                                     timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_group_dim_mute_hwctls(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         self.read_appl_data(node, sections, S::DIM_MUTE_HWCTL_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
@@ -270,10 +307,15 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn write_out_group_dim_mute_hwctls(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                                      dim_hwctls: &[bool], mute_hwctls: &[bool], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_out_group_dim_mute_hwctls(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        dim_hwctls: &[bool],
+        mute_hwctls: &[bool],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert_eq!(dim_hwctls.len(), mute_hwctls.len());
         assert_eq!(state.as_ref().dim_hwctls.len(), dim_hwctls.len());
         assert_eq!(state.as_ref().mute_hwctls.len(), mute_hwctls.len());
@@ -297,19 +339,21 @@ pub trait FocusriteSaffireOutGroupProtocol<T, S> : ApplSectionProtocol<T>
             })
     }
 
-    fn read_out_group_knob_value(&self, node: &T, sections: &ExtensionSections, state: &mut S,
-                                 timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read_out_group_knob_value(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        state: &mut S,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         self.read_appl_data(node, sections, S::HW_KNOB_VALUE_OFFSET, &mut raw, timeout_ms)
             .map(|_| state.as_mut().hw_knob_value = u32::from_be_bytes(raw) as i8)
     }
 }
 
-impl<O, T, S> FocusriteSaffireOutGroupProtocol<T, S> for O
-    where O: ApplSectionProtocol<T>,
-          T: AsRef<FwNode>,
+impl<O, S> FocusriteSaffireOutGroupProtocol<S> for O
+    where O: ApplSectionProtocol,
           S: OutGroupSpec + AsRef<OutGroupState> + AsMut<OutGroupState>,
 {}
 

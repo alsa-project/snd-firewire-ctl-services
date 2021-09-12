@@ -88,17 +88,20 @@ impl From<Opcode> for u16 {
     }
 }
 
-pub trait CmdSectionProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
+pub trait CmdSectionProtocol: ProtocolExtension {
     const OPCODE_OFFSET: usize = 0x00;
     const RETURN_OFFSET: usize = 0x04;
 
     const EXECUTE: u8 = 0x80;
 
-    fn initiate(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps, opcode: Opcode, timeout_ms: u32)
-        -> Result<u32, Error>
-    {
+    fn initiate(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        opcode: Opcode,
+        timeout_ms: u32
+    ) -> Result<u32, Error> {
         if let Opcode::LoadRouter(_) = opcode {
             if caps.mixer.is_readonly {
                 Err(Error::new(ProtocolExtensionError::Cmd, "Router configuration is immutable"))?
@@ -158,4 +161,4 @@ pub trait CmdSectionProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> CmdSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> CmdSectionProtocol for O {}

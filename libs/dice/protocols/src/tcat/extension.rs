@@ -139,29 +139,41 @@ impl ErrorDomain for ProtocolExtensionError {
     }
 }
 
-pub trait ProtocolExtension<T: AsRef<FwNode>> : GeneralProtocol<T> {
+pub trait ProtocolExtension: GeneralProtocol {
     const EXTENSION_OFFSET: usize = 0x00200000;
 
-    fn read(&self, node: &T, offset: usize, frames: &mut [u8], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        frames: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         GeneralProtocol::read(self, node, Self::EXTENSION_OFFSET + offset, frames, timeout_ms)
     }
 
-    fn write(&self, node: &T, offset: usize, frames: &mut [u8], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        frames: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         GeneralProtocol::write(self, node, Self::EXTENSION_OFFSET + offset, frames, timeout_ms)
     }
 
-    fn read_extension_sections(&self, node: &T, timeout_ms: u32) -> Result<ExtensionSections, Error> {
+    fn read_extension_sections(
+        &self,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<ExtensionSections, Error> {
         let mut data = [0;ExtensionSections::SIZE];
         ProtocolExtension::read(self, node, 0, &mut data, timeout_ms)
             .map(|_| ExtensionSections::from(&data[..]))
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> ProtocolExtension<T> for O {}
+impl<O: AsRef<FwReq>> ProtocolExtension for O {}
 
 /// The enumeration to represent ID of destination block.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

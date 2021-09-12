@@ -8,13 +8,14 @@
 
 use super::{*, caps_section::*, router_entry::*};
 
-pub trait RouterSectionProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
-    fn read_router_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                           timeout_ms: u32)
-        -> Result<Vec<RouterEntry>, Error>
-    {
+pub trait RouterSectionProtocol: ProtocolExtension {
+    fn read_router_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        timeout_ms: u32
+    ) -> Result<Vec<RouterEntry>, Error> {
         let mut data = [0;4];
         ProtocolExtension::read(self, node, sections.router.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))?;
@@ -26,14 +27,18 @@ pub trait RouterSectionProtocol<T> : ProtocolExtension<T>
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))
     }
 
-    fn write_router_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                            entries: &[RouterEntry], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_router_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        entries: &[RouterEntry],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         RouterEntryProtocol::write_router_entries(&self, node, caps, sections.router.offset,
                                                   entries, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> RouterSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> RouterSectionProtocol for O {}
