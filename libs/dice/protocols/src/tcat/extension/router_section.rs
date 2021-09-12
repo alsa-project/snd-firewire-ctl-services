@@ -8,37 +8,57 @@
 
 use super::{*, caps_section::*, router_entry::*};
 
-pub trait RouterSectionProtocol: ProtocolExtension {
-    fn read_router_entries(
-        &self,
+/// The structure for protocol implementation of router section.
+#[derive(Default)]
+pub struct RouterSectionProtocol;
+
+impl RouterSectionProtocol {
+    pub fn read_router_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32
     ) -> Result<Vec<RouterEntry>, Error> {
         let mut data = [0;4];
-        ProtocolExtension::read(self, node, sections.router.offset, &mut data, timeout_ms)
+        ProtocolExtension::read(
+            req,
+            node,
+            sections.router.offset,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))?;
 
         let entry_count = std::cmp::min(u32::from_be_bytes(data) as usize,
                                         caps.router.maximum_entry_count as usize);
-        RouterEntryProtocol::read_router_entries(&self, node, caps, sections.router.offset + 4,
-                                                 entry_count, timeout_ms)
+        RouterEntryProtocol::read_router_entries(
+            req,
+            node,
+            caps,
+            sections.router.offset + 4,
+            entry_count,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))
     }
 
-    fn write_router_entries(
-        &self,
+    pub fn write_router_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         entries: &[RouterEntry],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        RouterEntryProtocol::write_router_entries(&self, node, caps, sections.router.offset,
-                                                  entries, timeout_ms)
+        RouterEntryProtocol::write_router_entries(
+            req,
+            node,
+            caps,
+            sections.router.offset,
+            entries,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Router, &e.to_string()))
     }
 }
-
-impl<O: AsRef<FwReq>> RouterSectionProtocol for O {}
