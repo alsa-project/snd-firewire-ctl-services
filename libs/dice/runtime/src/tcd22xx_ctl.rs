@@ -283,7 +283,7 @@ impl MeterCtl {
                     .unwrap_or(0);
             });
 
-        self.out_sat = req.read_saturation(node, sections, caps, timeout_ms)?;
+        self.out_sat = MixerSectionProtocol::read_saturation(req, node, sections, caps, timeout_ms)?;
 
         Ok(())
     }

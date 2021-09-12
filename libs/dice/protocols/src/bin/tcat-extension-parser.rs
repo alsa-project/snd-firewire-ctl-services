@@ -61,12 +61,12 @@ fn print_caps(caps: &ExtensionCaps) {
     println!("    asic_type:        {}", label);
 }
 
-fn print_mixer(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
+fn print_mixer(req: &mut FwReq, node: &mut FwNode, sections: &ExtensionSections, caps: &ExtensionCaps)
     -> Result<(), Error>
 {
     println!("Mixer:");
     println!("  Saturation:");
-    let entries = proto.read_saturation(node, sections, caps, TIMEOUT_MS)?;
+    let entries = MixerSectionProtocol::read_saturation(req, node, sections, caps, TIMEOUT_MS)?;
     entries.iter().enumerate().for_each(|(i, saturation)| {
         println!("    dst {}: {}", i, saturation);
     });
@@ -74,7 +74,7 @@ fn print_mixer(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections, c
     println!("  Coefficiency:");
     (0..(caps.mixer.output_count as usize)).try_for_each(|dst| {
         (0..(caps.mixer.input_count as usize)).try_for_each(|src| {
-            proto.read_coef(node, sections, caps, dst, src, TIMEOUT_MS)
+            MixerSectionProtocol::read_coef(req, node, sections, caps, dst, src, TIMEOUT_MS)
                 .map(|coef| println!("    dst {} <- src {}: {}", dst, src, coef))
         })
     })
@@ -228,7 +228,7 @@ fn main() {
                         TIMEOUT_MS
                     )?;
                     print_caps(&caps);
-                    print_mixer(&proto, &mut node, &sections, &caps)?;
+                    print_mixer(&mut proto, &mut node, &sections, &caps)?;
                     print_peak(&mut proto, &mut node, &sections, &caps)?;
                     print_current_router_entries(&mut proto, &mut node, &sections, &caps)?;
                     print_current_stream_format_entries(&mut proto, &mut node, &sections, &caps)?;
