@@ -115,13 +115,13 @@ impl DiceModel {
     {
         // Replace model data when protocol extension is available.
         if let Model::Minimal(_) = &mut self.model {
-            let proto = FwReq::default();
-            if proto.read_extension_sections(&unit.get_node(), 100).is_ok() {
+            let req = FwReq::default();
+            if req.read_extension_sections(&mut unit.get_node(), 100).is_ok() {
                 self.model = Model::Extension(ExtensionModel::default());
             } else {
                 // MEMO: workaround for old firmware. Invalidate a negative effect by failure of
                 // previous transaction.
-                let _ = proto.read_general_sections(&unit.get_node(), 100);
+                let _ = req.read_general_sections(&mut unit.get_node(), 100);
             }
         }
 
