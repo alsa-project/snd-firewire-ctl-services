@@ -20,7 +20,7 @@ impl StreamFormatSectionProtocol {
         caps: &ExtensionCaps,
         timeout_ms: u32
     ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
-        StreamFormatEntryProtocol::read_stream_format_entries(
+        read_stream_format_entries(
             req,
             node,
             caps,
@@ -38,7 +38,7 @@ impl StreamFormatSectionProtocol {
         pair: &(Vec<FormatEntryData>, Vec<FormatEntryData>),
         timeout_ms: u32
     ) -> Result<(), Error> {
-        StreamFormatEntryProtocol::write_stream_format_entries(
+        write_stream_format_entries(
             req,
             node,
             caps,

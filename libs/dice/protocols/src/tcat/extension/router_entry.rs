@@ -159,65 +159,61 @@ impl RouterEntry {
     }
 }
 
-pub trait RouterEntryProtocol: ProtocolExtension {
-    fn read_router_entries(
-        &self,
-        node: &mut FwNode,
-        caps: &ExtensionCaps,
-        offset: usize,
-        entry_count: usize,
-        timeout_ms: u32
-    ) -> Result<Vec<RouterEntry>, Error> {
-        if entry_count > caps.router.maximum_entry_count as usize {
-            let msg = format!("Invalid entries to read: {} but greater than {}",
-                              entry_count, caps.router.maximum_entry_count);
-            Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
-        }
-
-        let mut raw = vec![0;entry_count * RouterEntry::SIZE];
-        ProtocolExtension::read(self, node, offset, &mut raw, timeout_ms)
-            .map(|_| {
-                let mut entries = vec![RouterEntry::default();entry_count];
-                entries.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, entry)| {
-                        let pos = i * 4;
-                        entry.parse(&raw[pos..(pos + 4)]);
-                    });
-                entries
-            })
+pub fn read_router_entries(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    caps: &ExtensionCaps,
+    offset: usize,
+    entry_count: usize,
+    timeout_ms: u32
+) -> Result<Vec<RouterEntry>, Error> {
+    if entry_count > caps.router.maximum_entry_count as usize {
+        let msg = format!("Invalid entries to read: {} but greater than {}",
+                          entry_count, caps.router.maximum_entry_count);
+        Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
     }
 
-    fn write_router_entries(
-        &self,
-        node: &mut FwNode,
-        caps: &ExtensionCaps,
-        offset: usize,
-        entries: &[RouterEntry],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        if entries.len() > caps.router.maximum_entry_count as usize {
-            let msg = format!("Invalid number of entries to read: {} but greater than {}",
-                              entries.len(), caps.router.maximum_entry_count * 4);
-            Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
-        }
-
-        let mut data = [0;4];
-        data.copy_from_slice(&(entries.len() as u32).to_be_bytes());
-        ProtocolExtension::write(self, node, offset, &mut data, timeout_ms)?;
-
-        let mut raw = vec![0;entries.len() * RouterEntry::SIZE];
-        entries.iter()
-            .enumerate()
-            .for_each(|(i, entry)| {
-                let pos = i * 4;
-                entry.build(&mut raw[pos..(pos + 4)]);
-            });
-        ProtocolExtension::write(self, node, offset + 4, &mut raw, timeout_ms)
-    }
+    let mut raw = vec![0;entry_count * RouterEntry::SIZE];
+    ProtocolExtension::read(req, node, offset, &mut raw, timeout_ms)
+        .map(|_| {
+            let mut entries = vec![RouterEntry::default();entry_count];
+            entries.iter_mut()
+                .enumerate()
+                .for_each(|(i, entry)| {
+                    let pos = i * 4;
+                    entry.parse(&raw[pos..(pos + 4)]);
+                });
+            entries
+        })
 }
 
-impl<O: AsRef<FwReq>> RouterEntryProtocol for O {}
+pub fn write_router_entries(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    caps: &ExtensionCaps,
+    offset: usize,
+    entries: &[RouterEntry],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    if entries.len() > caps.router.maximum_entry_count as usize {
+        let msg = format!("Invalid number of entries to read: {} but greater than {}",
+                          entries.len(), caps.router.maximum_entry_count * 4);
+        Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
+    }
+
+    let mut data = [0;4];
+    data.copy_from_slice(&(entries.len() as u32).to_be_bytes());
+    ProtocolExtension::write(req, node, offset, &mut data, timeout_ms)?;
+
+    let mut raw = vec![0;entries.len() * RouterEntry::SIZE];
+    entries.iter()
+        .enumerate()
+        .for_each(|(i, entry)| {
+            let pos = i * 4;
+            entry.build(&mut raw[pos..(pos + 4)]);
+        });
+    ProtocolExtension::write(req, node, offset + 4, &mut raw, timeout_ms)
+}
 
 #[cfg(test)]
 mod test {

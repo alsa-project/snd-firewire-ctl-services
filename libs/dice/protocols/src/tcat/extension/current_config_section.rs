@@ -50,7 +50,7 @@ impl CurrentConfigSectionProtocol {
         let entry_count = std::cmp::min(u32::from_be_bytes(data) as usize,
                                         caps.router.maximum_entry_count as usize);
 
-        RouterEntryProtocol::read_router_entries(
+        read_router_entries(
             req,
             node,
             caps,
@@ -75,7 +75,7 @@ impl CurrentConfigSectionProtocol {
             RateMode::High => Self::HIGH_STREAM_CONFIG_OFFSET,
         };
         let offset = sections.current_config.offset + offset;
-        StreamFormatEntryProtocol::read_stream_format_entries(
+        read_stream_format_entries(
             req,
             node,
             caps,

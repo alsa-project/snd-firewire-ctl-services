@@ -24,7 +24,7 @@ impl PeakSectionProtocol {
         }
 
         let entries = caps.router.maximum_entry_count as usize;
-        RouterEntryProtocol::read_router_entries(
+        read_router_entries(
             req,
             node,
             caps,
