@@ -32,19 +32,15 @@ pub struct Pfire2626Model {
 #[derive(Default)]
 struct Pfire2626SpecificCtl([bool; Pfire2626Protocol::KNOB_COUNT]);
 
-impl AsRef<[bool]> for Pfire2626SpecificCtl {
-    fn as_ref(&self) -> &[bool] {
+impl SpecificCtlOperation<Pfire2626Protocol> for Pfire2626SpecificCtl {
+    fn state(&self) -> &[bool] {
         &self.0
     }
-}
 
-impl AsMut<[bool]> for Pfire2626SpecificCtl {
-    fn as_mut(&mut self) -> &mut [bool] {
+    fn state_mut(&mut self) -> &mut [bool] {
         &mut self.0
     }
 }
-
-impl SpecificCtlOperation<Pfire2626Protocol> for Pfire2626SpecificCtl {}
 
 impl CtlModel<SndDice> for Pfire2626Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -188,19 +184,15 @@ pub struct Pfire610Model {
 #[derive(Default)]
 struct Pfire610SpecificCtl([bool; Pfire610Protocol::KNOB_COUNT]);
 
-impl AsRef<[bool]> for Pfire610SpecificCtl {
-    fn as_ref(&self) -> &[bool] {
+impl SpecificCtlOperation<Pfire610Protocol> for Pfire610SpecificCtl {
+    fn state(&self) -> &[bool] {
         &self.0
     }
-}
 
-impl AsMut<[bool]> for Pfire610SpecificCtl {
-    fn as_mut(&mut self) -> &mut [bool] {
+    fn state_mut(&mut self) -> &mut [bool] {
         &mut self.0
     }
 }
-
-impl SpecificCtlOperation<Pfire610Protocol> for Pfire610SpecificCtl {}
 
 impl CtlModel<SndDice> for Pfire610Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -349,7 +341,10 @@ const MASTER_KNOB_NAME: &str = "master-knob-target";
 const OPT_IFACE_B_MODE_NAME: &str = "optical-iface-b-mode";
 const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 
-trait SpecificCtlOperation<T: PfireSpecificOperation>: AsRef<[bool]> + AsMut<[bool]> {
+trait SpecificCtlOperation<T: PfireSpecificOperation> {
+    fn state(&self) -> &[bool];
+    fn state_mut(&mut self) -> &mut [bool];
+
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
     const MASTER_KNOB_TARGET_LABELS: [&'static str; 4] = [
         "analog-out-1/2",
@@ -411,10 +406,10 @@ trait SpecificCtlOperation<T: PfireSpecificOperation>: AsRef<[bool]> + AsMut<[bo
                     req,
                     &mut unit.get_node(),
                     sections,
-                    &mut self.as_mut(),
+                    &mut self.state_mut(),
                     timeout_ms
                 )?;
-                elem_value.set_bool(&self.as_ref());
+                elem_value.set_bool(&self.state());
                 Ok(true)
             }
             OPT_IFACE_B_MODE_NAME => {
@@ -463,14 +458,14 @@ trait SpecificCtlOperation<T: PfireSpecificOperation>: AsRef<[bool]> + AsMut<[bo
         match elem_id.get_name().as_str() {
             MASTER_KNOB_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, T::KNOB_COUNT, |idx, val| {
-                    self.as_mut()[idx] = val;
+                    self.state_mut()[idx] = val;
                     Ok(())
                 })?;
                 T::write_knob_assign(
                     req,
                     &mut unit.get_node(),
                     sections,
-                    &self.as_ref(),
+                    &self.state(),
                     timeout_ms
                 )?;
                 Ok(true)
