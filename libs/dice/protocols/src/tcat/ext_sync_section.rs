@@ -52,9 +52,13 @@ impl ExtSyncBlock {
     }
 }
 
-pub trait ExtSyncSectionProtocol: GeneralProtocol {
-    fn read_ext_sync_block(
-        &self,
+/// The structure for protocol implementaion of external synchronization section.
+#[derive(Default)]
+pub struct ExtSyncSectionProtocol;
+
+impl ExtSyncSectionProtocol {
+    pub fn read_block(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
@@ -65,10 +69,8 @@ pub trait ExtSyncSectionProtocol: GeneralProtocol {
             Err(Error::new(FileError::Nxio, &msg))
         } else {
             let mut data = vec![0;sections.ext_sync.size];
-            self.read(node, sections.ext_sync.offset, &mut data, timeout_ms)
+            GeneralProtocol::read(req, node, sections.ext_sync.offset, &mut data, timeout_ms)
                 .map(|_| ExtSyncBlock(data))
         }
     }
 }
-
-impl<O: AsRef<FwReq>> ExtSyncSectionProtocol for O {}
