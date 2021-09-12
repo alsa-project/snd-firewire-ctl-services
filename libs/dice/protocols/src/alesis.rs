@@ -11,69 +11,106 @@ pub mod mixer;
 pub mod output;
 
 use glib::Error;
-use hinawa::FwNode;
+use hinawa::{FwNode, FwReq};
 
 use super::{*, tcat::*};
 
-/// The trait to represent protocol defined by Alesis for iO FireWire series.
-pub trait AlesisIoProtocol: GeneralProtocol {
-    const BASE_OFFSET: usize = 0x00200000;
+use meter::*;
+use mixer::*;
+use output::*;
 
-    fn read_block(
-        &self,
-        node: &mut FwNode,
-        offset: usize,
-        frame: &mut [u8],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        self.read(node, Self::BASE_OFFSET + offset, frame, timeout_ms)
-    }
+/// The structure for protocol implementation specific to iO 14 FireWire.
+#[derive(Default)]
+pub struct Io14fwProtocol;
 
-    fn write_block(
-        &self,
-        node: &mut FwNode,
-        offset: usize,
-        frame: &mut [u8],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        self.write(node, Self::BASE_OFFSET + offset, frame, timeout_ms)
-    }
-
-    fn read_flags(
-        &self,
-        node: &mut FwNode,
-        offset: usize,
-        flags: &mut [bool],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        let mut raw = [0;4];
-        self.read_block(node, offset, &mut raw, timeout_ms)
-            .map(|_| {
-                let mut val = 0u32;
-                val.parse_quadlet(&raw[..]);
-                flags.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, flag)| {
-                        *flag = val & (1 << i) > 0;
-                    });
-            })
-    }
-
-    fn write_flags(
-        &self,
-        node: &mut FwNode,
-        offset: usize,
-        flags: &[bool],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        let val = flags.iter()
-            .enumerate()
-            .filter(|(_, &flag)| flag)
-            .fold(0 as u32, |val, (i, _)| val | (1 << i));
-        let mut raw = [0;4];
-        val.build_quadlet(&mut raw[..]);
-        self.write_block(node, offset, &mut raw, timeout_ms)
-    }
+impl IofwMeterOperation for Io14fwProtocol {
+    const ANALOG_INPUT_COUNT: usize = 4;
+    const DIGITAL_B_INPUT_COUNT: usize = 2;
 }
 
-impl<O: GeneralProtocol> AlesisIoProtocol for O {}
+impl IofwMixerOperation for Io14fwProtocol {
+    const ANALOG_INPUT_COUNT: usize = 4;
+    const DIGITAL_B_INPUT_COUNT: usize = 2;
+}
+
+impl IofwOutputOperation for Io14fwProtocol {
+    const ANALOG_OUTPUT_COUNT: usize = 4;
+    const HAS_OPT_IFACE_B: bool = false;
+}
+
+/// The structure for protocol implementation specific to iO 26 FireWire.
+#[derive(Default)]
+pub struct Io26fwProtocol;
+
+impl IofwMeterOperation for Io26fwProtocol {
+    const ANALOG_INPUT_COUNT: usize = 8;
+    const DIGITAL_B_INPUT_COUNT: usize = 8;
+}
+
+impl IofwMixerOperation for Io26fwProtocol {
+    const ANALOG_INPUT_COUNT: usize = 8;
+    const DIGITAL_B_INPUT_COUNT: usize = 8;
+}
+
+impl IofwOutputOperation for Io26fwProtocol {
+    const ANALOG_OUTPUT_COUNT: usize = 8;
+    const HAS_OPT_IFACE_B: bool = true;
+}
+
+const BASE_OFFSET: usize = 0x00200000;
+
+fn alesis_read_block(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: usize,
+    frame: &mut [u8],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    GeneralProtocol::read(req, node, BASE_OFFSET + offset, frame, timeout_ms)
+}
+
+fn alesis_write_block(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: usize,
+    frame: &mut [u8],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    GeneralProtocol::write(req, node, BASE_OFFSET + offset, frame, timeout_ms)
+}
+
+fn alesis_read_flags(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: usize,
+    flags: &mut [bool],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    let mut raw = [0;4];
+    alesis_read_block(req, node, offset, &mut raw, timeout_ms)
+        .map(|_| {
+            let mut val = 0u32;
+            val.parse_quadlet(&raw[..]);
+            flags.iter_mut()
+                .enumerate()
+                .for_each(|(i, flag)| {
+                    *flag = val & (1 << i) > 0;
+                });
+        })
+}
+
+fn alesis_write_flags(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: usize,
+    flags: &[bool],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    let val = flags.iter()
+        .enumerate()
+        .filter(|(_, &flag)| flag)
+        .fold(0 as u32, |val, (i, _)| val | (1 << i));
+    let mut raw = [0;4];
+    val.build_quadlet(&mut raw[..]);
+    alesis_write_block(req, node, offset, &mut raw, timeout_ms)
+}
