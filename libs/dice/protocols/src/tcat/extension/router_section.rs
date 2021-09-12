@@ -32,7 +32,7 @@ impl RouterSectionProtocol {
 
         let entry_count = std::cmp::min(u32::from_be_bytes(data) as usize,
                                         caps.router.maximum_entry_count as usize);
-        RouterEntryProtocol::read_router_entries(
+        read_router_entries(
             req,
             node,
             caps,
@@ -51,7 +51,7 @@ impl RouterSectionProtocol {
         entries: &[RouterEntry],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        RouterEntryProtocol::write_router_entries(
+        write_router_entries(
             req,
             node,
             caps,
