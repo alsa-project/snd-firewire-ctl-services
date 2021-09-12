@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
+
+//! Protocol implementation for PreSonus FireStudio.
+
 use glib::Error;
 
 use hinawa::{FwNode, FwReq};
@@ -32,6 +35,7 @@ fn presonus_write(
     GeneralProtocol::write(req, node, OFFSET + offset, raw, timeout_ms)
 }
 
+/// The structure for hardware meter.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FStudioMeter{
     pub analog_inputs: [u8;8],

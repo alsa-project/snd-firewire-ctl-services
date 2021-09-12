@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
+
+//! Protocol implementation for PreSonus FireStudio Mobile.
+
 use crate::tcat::extension::*;
 use crate::tcat::tcd22xx_spec::*;
 
