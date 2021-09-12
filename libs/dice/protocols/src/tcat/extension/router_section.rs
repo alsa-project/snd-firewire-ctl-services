@@ -21,7 +21,7 @@ impl RouterSectionProtocol {
         timeout_ms: u32
     ) -> Result<Vec<RouterEntry>, Error> {
         let mut data = [0;4];
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.router.offset,

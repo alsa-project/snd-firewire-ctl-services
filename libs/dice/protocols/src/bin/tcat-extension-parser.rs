@@ -218,7 +218,7 @@ fn main() {
             let th = thread::spawn(move || d.run());
 
             let mut req = FwReq::new();
-            let result = req.read_extension_sections(&mut node, TIMEOUT_MS)
+            let result = ProtocolExtension::read_extension_sections(&mut req, &mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
                     let caps = CapsSectionProtocol::read_caps(

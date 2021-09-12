@@ -139,41 +139,43 @@ impl ErrorDomain for ProtocolExtensionError {
     }
 }
 
-pub trait ProtocolExtension: GeneralProtocol {
-    const EXTENSION_OFFSET: usize = 0x00200000;
+const EXTENSION_OFFSET: usize = 0x00200000;
 
-    fn read(
-        &self,
-        node: &mut FwNode,
-        offset: usize,
-        frames: &mut [u8],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        GeneralProtocol::read(self, node, Self::EXTENSION_OFFSET + offset, frames, timeout_ms)
-    }
+fn extension_read(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: usize,
+    frames: &mut [u8],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    GeneralProtocol::read(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
+}
 
-    fn write(
-        &self,
-        node: &mut FwNode,
-        offset: usize,
-        frames: &mut [u8],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        GeneralProtocol::write(self, node, Self::EXTENSION_OFFSET + offset, frames, timeout_ms)
-    }
+fn extension_write(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    offset: usize,
+    frames: &mut [u8],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    GeneralProtocol::write(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
+}
 
-    fn read_extension_sections(
-        &self,
+/// The structure for protocol implementation of extension section.
+#[derive(Default)]
+pub struct ProtocolExtension;
+
+impl ProtocolExtension {
+    pub fn read_extension_sections(
+        req: &mut FwReq,
         node: &mut FwNode,
         timeout_ms: u32
     ) -> Result<ExtensionSections, Error> {
-        let mut data = [0;ExtensionSections::SIZE];
-        ProtocolExtension::read(self, node, 0, &mut data, timeout_ms)
+        let mut data = [0; ExtensionSections::SIZE];
+        extension_read(req, node, 0, &mut data, timeout_ms)
             .map(|_| ExtensionSections::from(&data[..]))
     }
 }
-
-impl<O: AsRef<FwReq>> ProtocolExtension for O {}
 
 /// The enumeration to represent ID of destination block.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

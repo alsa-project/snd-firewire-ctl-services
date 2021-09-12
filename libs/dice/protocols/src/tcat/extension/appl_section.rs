@@ -21,7 +21,7 @@ impl ApplSectionProtocol {
         frames: &mut [u8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             sections.application.offset + offset,
@@ -39,7 +39,7 @@ impl ApplSectionProtocol {
         frames: &mut [u8],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        ProtocolExtension::write(
+        extension_write(
             req,
             node,
             sections.application.offset + offset,

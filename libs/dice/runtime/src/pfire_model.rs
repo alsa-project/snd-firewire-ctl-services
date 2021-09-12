@@ -55,7 +55,11 @@ impl CtlModel<SndDice> for Pfire2626Model {
         let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.extension_sections = self.req.read_extension_sections(&mut node, TIMEOUT_MS)?;
+        self.extension_sections = ProtocolExtension::read_extension_sections(
+            &mut self.req,
+            &mut node,
+            TIMEOUT_MS
+        )?;
         self.tcd22xx_ctl.load(unit, &mut self.req, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
         self.specific_ctl.load(card_cntr)?;
@@ -185,7 +189,11 @@ impl CtlModel<SndDice> for Pfire610Model {
         let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.extension_sections = self.req.read_extension_sections(&mut node, TIMEOUT_MS)?;
+        self.extension_sections = ProtocolExtension::read_extension_sections(
+            &mut self.req,
+            &mut node,
+            TIMEOUT_MS
+        )?;
         self.tcd22xx_ctl.load(unit, &mut self.req, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
         self.specific_ctl.load(card_cntr)?;

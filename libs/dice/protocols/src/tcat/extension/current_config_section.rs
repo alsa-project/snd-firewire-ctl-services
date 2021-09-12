@@ -38,7 +38,7 @@ impl CurrentConfigSectionProtocol {
 
         let mut data = [0;4];
         let offset = sections.current_config.offset + offset;
-        ProtocolExtension::read(
+        extension_read(
             req,
             node,
             offset,
