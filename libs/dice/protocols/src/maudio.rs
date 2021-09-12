@@ -14,6 +14,43 @@ use super::tcat::global_section::*;
 use super::tcat::tcd22xx_spec::*;
 use super::tcat::extension::{*, appl_section::*};
 
+const KNOB_ASSIGN_OFFSET: usize = 0x00;
+const STANDALONE_MODE_OFFSET: usize = 0x04;
+
+/// The structure for protocol implementation specific to ProFire 2626.
+pub struct Pfire2626Protocol;
+
+impl PfireClkSpec for Pfire2626Protocol {
+    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
+            ClockSource::Aes1,
+            ClockSource::Aes4,
+            ClockSource::Adat,
+            ClockSource::Tdif,
+            ClockSource::WordClock,
+            ClockSource::Internal,
+    ];
+}
+
+impl PfireSpecificOperation for Pfire2626Protocol {
+    const HAS_OPT_IFACE_B: bool = true;
+    const SUPPORT_STANDALONE_CONVERTER: bool = true;
+}
+
+/// The structure for protocol implementation specific to ProFire 610.
+pub struct Pfire610Protocol;
+
+impl PfireClkSpec for Pfire610Protocol {
+    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
+            ClockSource::Aes1,
+            ClockSource::Internal,
+    ];
+}
+
+impl PfireSpecificOperation for Pfire610Protocol {
+    const HAS_OPT_IFACE_B: bool = false;
+    const SUPPORT_STANDALONE_CONVERTER: bool = false;
+}
+
 /// The trait to represent available rate and source of sampling clock.
 pub trait PfireClkSpec {
     const AVAIL_CLK_RATES: [ClockRate; 7] = [
@@ -66,17 +103,6 @@ impl AsRef<Tcd22xxState> for Pfire2626State {
     }
 }
 
-impl PfireClkSpec for Pfire2626State {
-    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
-            ClockSource::Aes1,
-            ClockSource::Aes4,
-            ClockSource::Adat,
-            ClockSource::Tdif,
-            ClockSource::WordClock,
-            ClockSource::Internal,
-    ];
-}
-
 /// The structure to represent state of TCD22xx on ProFire 610.
 #[derive(Default, Debug)]
 pub struct Pfire610State(Tcd22xxState);
@@ -109,16 +135,6 @@ impl AsMut<Tcd22xxState> for Pfire610State {
     }
 }
 
-impl PfireClkSpec for Pfire610State {
-    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
-            ClockSource::Aes1,
-            ClockSource::Internal,
-    ];
-}
-
-/// The number of targets available to knob master.
-pub const KNOB_COUNT: usize = 4;
-
 /// The enumeration for mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptIfaceMode{
@@ -133,26 +149,35 @@ pub enum StandaloneConverterMode{
     AdOnly,
 }
 
-/// The trait for protocol defined by M-Audio specific to ProFire series.
-pub trait MaudioPfireApplProtocol: ApplSectionProtocol {
-    const KNOB_ASSIGN_OFFSET: usize = 0x00;
-    const STANDALONE_MODE_OFFSET: usize = 0x04;
+const KNOB_ASSIGN_MASK: u32 = 0x0f;
+const OPT_IFACE_B_IS_SPDIF_FLAG: u32 = 0x10;
+const STANDALONE_CONVERTER_IS_AD_ONLY_FLAG: u32 = 0x02;
 
-    const KNOB_ASSIGN_MASK: u32 = 0x0f;
-    const OPT_IFACE_B_IS_SPDIF_FLAG: u32 = 0x10;
-    const STANDALONE_CONVERTER_IS_AD_ONLY_FLAG: u32 = 0x02;
+/// The trait for protocol implementation specific to ProFire series.
+pub trait PfireSpecificOperation {
+    const HAS_OPT_IFACE_B: bool;
+    const SUPPORT_STANDALONE_CONVERTER: bool;
+
+    const KNOB_COUNT: usize = 4;
 
     fn read_knob_assign(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        targets: &mut [bool;KNOB_COUNT],
+        targets: &mut [bool],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| {
-                let val = u32::from_be_bytes(data);
+                let val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
                 targets.iter_mut()
                     .enumerate()
                     .for_each(|(i, v)| *v = val & (1 << i) > 0)
@@ -160,15 +185,22 @@ pub trait MaudioPfireApplProtocol: ApplSectionProtocol {
     }
 
     fn write_knob_assign(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        targets: &[bool;KNOB_COUNT],
+        targets: &[bool],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)?;
-        let mut val = u32::from_be_bytes(data);
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )?;
+        let mut val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
 
         targets.iter()
             .enumerate()
@@ -180,20 +212,34 @@ pub trait MaudioPfireApplProtocol: ApplSectionProtocol {
             });
         data.copy_from_slice(&val.to_be_bytes());
 
-        self.write_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
     fn read_opt_iface_b_mode(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<OptIfaceMode, Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| {
                 let val = u32::from_be_bytes(data);
-                if val & Self::OPT_IFACE_B_IS_SPDIF_FLAG > 0 {
+                if val & OPT_IFACE_B_IS_SPDIF_FLAG > 0 {
                     OptIfaceMode::Spdif
                 } else {
                     OptIfaceMode::Adat
@@ -202,36 +248,57 @@ pub trait MaudioPfireApplProtocol: ApplSectionProtocol {
     }
 
     fn write_opt_iface_b_mode(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: OptIfaceMode,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)?;
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )?;
         let mut val = u32::from_be_bytes(data);
 
-        val &= !Self::OPT_IFACE_B_IS_SPDIF_FLAG;
+        val &= !OPT_IFACE_B_IS_SPDIF_FLAG;
         if mode == OptIfaceMode::Spdif {
-            val |= Self::OPT_IFACE_B_IS_SPDIF_FLAG;
+            val |= OPT_IFACE_B_IS_SPDIF_FLAG;
         }
         data.copy_from_slice(&val.to_be_bytes());
 
-        self.write_appl_data(node, sections, Self::KNOB_ASSIGN_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            KNOB_ASSIGN_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 
     fn read_standalone_converter_mode(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<StandaloneConverterMode, Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::STANDALONE_MODE_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            STANDALONE_MODE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map(|_| {
                 let val = u32::from_be_bytes(data);
-                if val & Self::STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
+                if val & STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
                     StandaloneConverterMode::AdOnly
                 } else {
                     StandaloneConverterMode::AdDa
@@ -240,24 +307,36 @@ pub trait MaudioPfireApplProtocol: ApplSectionProtocol {
     }
 
     fn write_standalone_converter_mode(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: StandaloneConverterMode,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;4];
-        self.read_appl_data(node, sections, Self::STANDALONE_MODE_OFFSET, &mut data, timeout_ms)?;
+        let mut data = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            STANDALONE_MODE_OFFSET,
+            &mut data,
+            timeout_ms
+        )?;
         let mut val = u32::from_be_bytes(data);
 
-        val &= !Self::STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
+        val &= !STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
         if mode == StandaloneConverterMode::AdOnly {
-            val |= Self::STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
+            val |= STANDALONE_CONVERTER_IS_AD_ONLY_FLAG;
         }
         data.copy_from_slice(&val.to_be_bytes());
 
-        self.write_appl_data(node, sections, Self::STANDALONE_MODE_OFFSET, &mut data, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            STANDALONE_MODE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
     }
 }
-
-impl<O: AsRef<FwReq>> MaudioPfireApplProtocol for O {}
