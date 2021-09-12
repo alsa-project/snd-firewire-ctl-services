@@ -88,14 +88,18 @@ impl From<Opcode> for u16 {
     }
 }
 
-pub trait CmdSectionProtocol: ProtocolExtension {
+/// The structure for protocol implementation of command section.
+#[derive(Default)]
+pub struct CmdSectionProtocol;
+
+impl CmdSectionProtocol {
     const OPCODE_OFFSET: usize = 0x00;
     const RETURN_OFFSET: usize = 0x04;
 
     const EXECUTE: u8 = 0x80;
 
-    fn initiate(
-        &self,
+    pub fn initiate(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
@@ -137,20 +141,36 @@ pub trait CmdSectionProtocol: ProtocolExtension {
             _ => 0,
         };
         data[0] = Self::EXECUTE;
-        ProtocolExtension::write(self, node, sections.cmd.offset + Self::OPCODE_OFFSET, &mut data,
-                                 timeout_ms)
+        ProtocolExtension::write(
+            req,
+            node,
+            sections.cmd.offset + Self::OPCODE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
 
         let mut count = 0;
         while count < 10 {
             std::thread::sleep(std::time::Duration::from_millis(50));
 
-            ProtocolExtension::read(self, node, sections.cmd.offset, &mut data, timeout_ms)
+            ProtocolExtension::read(
+                req,
+                node,
+                sections.cmd.offset,
+                &mut data,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
 
             if (data[0] & Self::EXECUTE) != Self::EXECUTE {
-                ProtocolExtension::read(self, node, sections.cmd.offset + Self::RETURN_OFFSET, &mut data,
-                                        timeout_ms)
+                ProtocolExtension::read(
+                    req,
+                    node,
+                    sections.cmd.offset + Self::RETURN_OFFSET,
+                    &mut data,
+                    timeout_ms
+                )
                     .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
                 return Ok(u32::from_be_bytes(data));
             }
@@ -160,5 +180,3 @@ pub trait CmdSectionProtocol: ProtocolExtension {
         Err(Error::new(ProtocolExtensionError::Cmd, "Operation timeout."))
     }
 }
-
-impl<O: AsRef<FwReq>> CmdSectionProtocol for O {}
