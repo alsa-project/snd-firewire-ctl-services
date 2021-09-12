@@ -5,75 +5,15 @@ use glib::Error;
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
+use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
-use dice_protocols::tcelectronic::{*, ch_strip::*};
+use dice_protocols::tcelectronic::{ch_strip::*, *};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
-
-fn create_ch_strip_src_type_labels() -> Vec<String> {
-    [
-        ChStripSrcType::FemaleVocal,
-        ChStripSrcType::MaleVocal,
-        ChStripSrcType::Guitar,
-        ChStripSrcType::Piano,
-        ChStripSrcType::Speak,
-        ChStripSrcType::Choir,
-        ChStripSrcType::Horns,
-        ChStripSrcType::Bass,
-        ChStripSrcType::Kick,
-        ChStripSrcType::Snare,
-        ChStripSrcType::MixRock,
-        ChStripSrcType::MixSoft,
-        ChStripSrcType::Percussion,
-        ChStripSrcType::Kit,
-        ChStripSrcType::MixAcoustic,
-        ChStripSrcType::MixPurist,
-        ChStripSrcType::House,
-        ChStripSrcType::Trance,
-        ChStripSrcType::Chill,
-        ChStripSrcType::HipHop,
-        ChStripSrcType::DrumAndBass,
-        ChStripSrcType::ElectroTechno,
-    ].iter()
-        .map(|src_type| {
-            match src_type {
-                ChStripSrcType::FemaleVocal => "Female-vocal",
-                ChStripSrcType::MaleVocal => "Male-vocal",
-                ChStripSrcType::Guitar => "Guitar",
-                ChStripSrcType::Piano => "Piano",
-                ChStripSrcType::Speak => "Speak",
-                ChStripSrcType::Choir => "Choir",
-                ChStripSrcType::Horns => "Horns",
-                ChStripSrcType::Bass => "Bass",
-                ChStripSrcType::Kick => "Kick",
-                ChStripSrcType::Snare => "Snare",
-                ChStripSrcType::MixRock => "Mix-rock",
-                ChStripSrcType::MixSoft => "Mix-soft",
-                ChStripSrcType::Percussion => "Percussion",
-                ChStripSrcType::Kit => "Kit",
-                ChStripSrcType::MixAcoustic => "Mix-acoustic",
-                ChStripSrcType::MixPurist => "Mix-purist",
-                ChStripSrcType::House => "House",
-                ChStripSrcType::Trance => "Trance",
-                ChStripSrcType::Chill => "Chill",
-                ChStripSrcType::HipHop => "Hip-hop",
-                ChStripSrcType::DrumAndBass => "Drum'n'bass",
-                ChStripSrcType::ElectroTechno => "Electro-techno",
-                ChStripSrcType::Reserved(_) => "reserved",
-            }.to_string()
-        })
-        .collect()
-}
-
-#[derive(Default, Debug)]
-pub struct ChStripCtl {
-    pub measured_elem_list: Vec<ElemId>,
-    pub notified_elem_list: Vec<ElemId>,
-}
 
 const SRC_TYPE_NAME: &str = "ch-strip-source-type";
 const DEESSER_BYPASS_NAME: &str = "deesser-bypass";
@@ -101,11 +41,61 @@ const LIMIT_METER_NAME: &str = "ch-strip-limit-meter";
 const OUTPUT_METER_NAME: &str = "ch-strip-output-meter";
 const GAIN_METER_NAME: &str = "ch-strip-gain-meter";
 
-impl ChStripCtl {
+fn src_type_to_str(t: &ChStripSrcType) -> &'static str {
+    match t {
+        ChStripSrcType::FemaleVocal => "Female-vocal",
+        ChStripSrcType::MaleVocal => "Male-vocal",
+        ChStripSrcType::Guitar => "Guitar",
+        ChStripSrcType::Piano => "Piano",
+        ChStripSrcType::Speak => "Speak",
+        ChStripSrcType::Choir => "Choir",
+        ChStripSrcType::Horns => "Horns",
+        ChStripSrcType::Bass => "Bass",
+        ChStripSrcType::Kick => "Kick",
+        ChStripSrcType::Snare => "Snare",
+        ChStripSrcType::MixRock => "Mix-rock",
+        ChStripSrcType::MixSoft => "Mix-soft",
+        ChStripSrcType::Percussion => "Percussion",
+        ChStripSrcType::Kit => "Kit",
+        ChStripSrcType::MixAcoustic => "Mix-acoustic",
+        ChStripSrcType::MixPurist => "Mix-purist",
+        ChStripSrcType::House => "House",
+        ChStripSrcType::Trance => "Trance",
+        ChStripSrcType::Chill => "Chill",
+        ChStripSrcType::HipHop => "Hip-hop",
+        ChStripSrcType::DrumAndBass => "Drum'n'bass",
+        ChStripSrcType::ElectroTechno => "Electro-techno",
+        ChStripSrcType::Reserved(_) => "reserved",
+    }
+}
+
+pub trait ChStripCtlOperation<S, T, U>
+where
+    S: TcKonnektSegmentData,
+    T: TcKonnektSegmentData,
+    TcKonnektSegment<S>: TcKonnektSegmentSpec + TcKonnektNotifiedSegmentSpec,
+    TcKonnektSegment<T>: TcKonnektSegmentSpec,
+    U: SegmentOperation<S> + SegmentOperation<T>,
+{
+    fn states_segment(&self) -> &TcKonnektSegment<S>;
+    fn states_segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+
+    fn meters_segment_mut(&mut self) -> &mut TcKonnektSegment<T>;
+
+    fn states(&self) -> &[ChStripState];
+    fn states_mut(&mut self) -> &mut [ChStripState];
+
+    fn meters(&self) -> &[ChStripMeter];
+
     const COMP_GAIN_MIN: i32 = 0;
     const COMP_GAIN_MAX: i32 = 36;
     const COMP_GAIN_STEP: i32 = 1;
-    const COMP_GAIN_TLV: DbInterval = DbInterval{min: -1800, max: 1800, linear: false, mute_avail: false};
+    const COMP_GAIN_TLV: DbInterval = DbInterval {
+        min: -1800,
+        max: 1800,
+        linear: false,
+        mute_avail: false,
+    };
 
     const COMP_CTL_MIN: i32 = 0;
     const COMP_CTL_MAX: i32 = 200;
@@ -114,12 +104,22 @@ impl ChStripCtl {
     const COMP_LEVEL_MIN: i32 = 0;
     const COMP_LEVEL_MAX: i32 = 48;
     const COMP_LEVEL_STEP: i32 = 1;
-    const COMP_LEVEL_TLV: DbInterval = DbInterval{min: -1800, max: 600, linear: false, mute_avail: false};
+    const COMP_LEVEL_TLV: DbInterval = DbInterval {
+        min: -1800,
+        max: 600,
+        linear: false,
+        mute_avail: false,
+    };
 
     const DEESSER_RATIO_MIN: i32 = 0;
     const DEESSER_RATIO_MAX: i32 = 10;
     const DEESSER_RATIO_STEP: i32 = 1;
-    const DEESSER_RATIO_TLV: DbInterval = DbInterval{min: 0, max: 100, linear: false, mute_avail: false};
+    const DEESSER_RATIO_TLV: DbInterval = DbInterval {
+        min: 0,
+        max: 100,
+        linear: false,
+        mute_avail: false,
+    };
 
     const EQ_BANDWIDTH_MIN: i32 = 0;
     const EQ_BANDWIDTH_MAX: i32 = 39;
@@ -128,7 +128,12 @@ impl ChStripCtl {
     const EQ_GAIN_MIN: i32 = 0;
     const EQ_GAIN_MAX: i32 = 240;
     const EQ_GAIN_STEP: i32 = 1;
-    const EQ_GAIN_TLV: DbInterval = DbInterval{min: -1200, max: 1200, linear: false, mute_avail: false};
+    const EQ_GAIN_TLV: DbInterval = DbInterval {
+        min: -1200,
+        max: 1200,
+        linear: false,
+        mute_avail: false,
+    };
 
     const EQ_FREQ_MIN: i32 = 0;
     const EQ_FREQ_MAX: i32 = 240;
@@ -137,463 +142,661 @@ impl ChStripCtl {
     const LIMITTER_THRESHOLD_MIN: i32 = 0;
     const LIMITTER_THRESHOLD_MAX: i32 = 72;
     const LIMITTER_THRESHOLD_STEP: i32 = 1;
-    const LIMITTER_THRESHOLD_TLV: DbInterval = DbInterval{min: -1200, max: 0, linear: false, mute_avail: false};
+    const LIMITTER_THRESHOLD_TLV: DbInterval = DbInterval {
+        min: -1200,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
 
     const LIMIT_METER_MIN: i32 = -12;
     const LIMIT_METER_MAX: i32 = 0;
     const LIMIT_METER_STEP: i32 = 1;
-    const LIMIT_METER_TLV: DbInterval = DbInterval{min: -1200, max: 0, linear: false, mute_avail: false};
+    const LIMIT_METER_TLV: DbInterval = DbInterval {
+        min: -1200,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
 
     const INOUT_METER_MIN: i32 = -72;
     const INOUT_METER_MAX: i32 = 0;
     const INOUT_METER_STEP: i32 = 1;
-    const INOUT_METER_TLV: DbInterval = DbInterval{min: -7200, max: 0, linear: false, mute_avail: false};
+    const INOUT_METER_TLV: DbInterval = DbInterval {
+        min: -7200,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
 
     const GAIN_METER_MIN: i32 = -24;
     const GAIN_METER_MAX: i32 = 18;
     const GAIN_METER_STEP: i32 = 1;
-    const GAIN_METER_TLV: DbInterval = DbInterval{min: -2400, max: 1800, linear: false, mute_avail: false};
+    const GAIN_METER_TLV: DbInterval = DbInterval {
+        min: -2400,
+        max: 1800,
+        linear: false,
+        mute_avail: false,
+    };
 
-    pub fn load<T, S, M>(
+    const SRC_TYPES: [ChStripSrcType; 22] = [
+        ChStripSrcType::FemaleVocal,
+        ChStripSrcType::MaleVocal,
+        ChStripSrcType::Guitar,
+        ChStripSrcType::Piano,
+        ChStripSrcType::Speak,
+        ChStripSrcType::Choir,
+        ChStripSrcType::Horns,
+        ChStripSrcType::Bass,
+        ChStripSrcType::Kick,
+        ChStripSrcType::Snare,
+        ChStripSrcType::MixRock,
+        ChStripSrcType::MixSoft,
+        ChStripSrcType::Percussion,
+        ChStripSrcType::Kit,
+        ChStripSrcType::MixAcoustic,
+        ChStripSrcType::MixPurist,
+        ChStripSrcType::House,
+        ChStripSrcType::Trance,
+        ChStripSrcType::Chill,
+        ChStripSrcType::HipHop,
+        ChStripSrcType::DrumAndBass,
+        ChStripSrcType::ElectroTechno,
+    ];
+
+    fn load(
         &mut self,
+        card_cntr: &mut CardCntr,
         unit: &mut SndDice,
-        proto: &mut T,
-        state_segment: &mut TcKonnektSegment<S>,
-        meter_segment: &mut TcKonnektSegment<M>,
+        req: &mut FwReq,
         timeout_ms: u32,
-        card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<S> + TcKonnektSegmentProtocol<M>,
-              S: TcKonnektSegmentData + AsRef<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-              M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
-              TcKonnektSegment<M>: TcKonnektSegmentSpec,
-    {
+    ) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
         let mut node = unit.get_node();
-        proto.read_segment(&mut node, state_segment, timeout_ms)?;
-        proto.read_segment(&mut node, meter_segment, timeout_ms)?;
+        U::read_segment(req, &mut node, self.states_segment_mut(), timeout_ms)?;
+        U::read_segment(req, &mut node, self.meters_segment_mut(), timeout_ms)?;
 
-        let states = state_segment.data.as_ref();
+        let channels = self.states().len();
+        let mut notified_elem_id_list = Vec::new();
 
         // Overall controls.
-        let labels = create_ch_strip_src_type_labels();
-        self.state_add_enum_elem(card_cntr, &states, SRC_TYPE_NAME, 1, &labels, true)?;
-        self.state_add_bool_elem(card_cntr, &states, DEESSER_BYPASS_NAME, 1, true)?;
-        self.state_add_bool_elem(card_cntr, &states, EQ_BYPASS_NAME, 1, true)?;
-        self.state_add_bool_elem(card_cntr, &states, LIMITTER_BYPASS_NAME, 1, true)?;
-        self.state_add_bool_elem(card_cntr, &states, BYPASS_NAME, 1, true)?;
+        let labels: Vec<&str> = Self::SRC_TYPES.iter().map(|t| src_type_to_str(t)).collect();
+        state_add_enum_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            SRC_TYPE_NAME,
+            1,
+            &labels,
+            true,
+        )?;
+        state_add_bool_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            DEESSER_BYPASS_NAME,
+            1,
+            true,
+        )?;
+        state_add_bool_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            EQ_BYPASS_NAME,
+            1,
+            true,
+        )?;
+        state_add_bool_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            LIMITTER_BYPASS_NAME,
+            1,
+            true,
+        )?;
+        state_add_bool_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            BYPASS_NAME,
+            1,
+            true,
+        )?;
 
         // Controls for compressor part.
-        self.state_add_int_elem(card_cntr, &states, COMP_INPUT_GAIN_NAME, 1,
-                                Self::COMP_GAIN_MIN, Self::COMP_GAIN_MAX, Self::COMP_GAIN_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::COMP_GAIN_TLV)), true)?;
-        self.state_add_int_elem(card_cntr, &states, COMP_MAKE_UP_GAIN_NAME, 1,
-                                Self::COMP_GAIN_MIN, Self::COMP_GAIN_MAX, Self::COMP_GAIN_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::COMP_GAIN_TLV)), true)?;
-        self.state_add_bool_elem(card_cntr, &states, COMP_FULL_BAND_ENABLE_NAME, 1, true)?;
-        self.state_add_int_elem(card_cntr, &states, COMP_CTL_NAME, 3,
-                                Self::COMP_CTL_MIN, Self::COMP_CTL_MAX, Self::COMP_CTL_STEP,
-                                None, true)?;
-        self.state_add_int_elem(card_cntr, &states, COMP_LEVEL_NAME, 3,
-                                Self::COMP_LEVEL_MIN, Self::COMP_LEVEL_MAX, Self::COMP_LEVEL_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::COMP_LEVEL_TLV)), true)?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            COMP_INPUT_GAIN_NAME,
+            1,
+            Self::COMP_GAIN_MIN,
+            Self::COMP_GAIN_MAX,
+            Self::COMP_GAIN_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::COMP_GAIN_TLV)),
+            true,
+        )?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            COMP_MAKE_UP_GAIN_NAME,
+            1,
+            Self::COMP_GAIN_MIN,
+            Self::COMP_GAIN_MAX,
+            Self::COMP_GAIN_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::COMP_GAIN_TLV)),
+            true,
+        )?;
+        state_add_bool_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            COMP_FULL_BAND_ENABLE_NAME,
+            1,
+            true,
+        )?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            COMP_CTL_NAME,
+            3,
+            Self::COMP_CTL_MIN,
+            Self::COMP_CTL_MAX,
+            Self::COMP_CTL_STEP,
+            None,
+            true,
+        )?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            COMP_LEVEL_NAME,
+            3,
+            Self::COMP_LEVEL_MIN,
+            Self::COMP_LEVEL_MAX,
+            Self::COMP_LEVEL_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::COMP_LEVEL_TLV)),
+            true,
+        )?;
 
         // Controls for deesser part.
-        self.state_add_int_elem(card_cntr, &states, DEESSER_RATIO_NAME, 1,
-                                Self::DEESSER_RATIO_MIN, Self::DEESSER_RATIO_MAX, Self::DEESSER_RATIO_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::DEESSER_RATIO_TLV)), true)?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            DEESSER_RATIO_NAME,
+            1,
+            Self::DEESSER_RATIO_MIN,
+            Self::DEESSER_RATIO_MAX,
+            Self::DEESSER_RATIO_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::DEESSER_RATIO_TLV)),
+            true,
+        )?;
 
         // Controls for equalizer part.
-        self.state_add_bool_elem(card_cntr, &states, EQ_ENABLE_NAME, 4, true)?;
-        self.state_add_int_elem(card_cntr, &states, EQ_BANDWIDTH_NAME, 4,
-                                Self::EQ_BANDWIDTH_MIN, Self::EQ_BANDWIDTH_MAX, Self::EQ_BANDWIDTH_STEP,
-                                None, true)?;
-        self.state_add_int_elem(card_cntr, &states, EQ_GAIN_NAME, 4,
-                                Self::EQ_GAIN_MIN, Self::EQ_GAIN_MAX, Self::EQ_GAIN_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::EQ_GAIN_TLV)), true)?;
-        self.state_add_int_elem(card_cntr, &states, EQ_FREQ_NAME, 4,
-                                Self::EQ_FREQ_MIN, Self::EQ_FREQ_MAX, Self::EQ_FREQ_STEP,
-                                None, true)?;
+        state_add_bool_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            EQ_ENABLE_NAME,
+            4,
+            true,
+        )?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            EQ_BANDWIDTH_NAME,
+            4,
+            Self::EQ_BANDWIDTH_MIN,
+            Self::EQ_BANDWIDTH_MAX,
+            Self::EQ_BANDWIDTH_STEP,
+            None,
+            true,
+        )?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            EQ_GAIN_NAME,
+            4,
+            Self::EQ_GAIN_MIN,
+            Self::EQ_GAIN_MAX,
+            Self::EQ_GAIN_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::EQ_GAIN_TLV)),
+            true,
+        )?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            EQ_FREQ_NAME,
+            4,
+            Self::EQ_FREQ_MIN,
+            Self::EQ_FREQ_MAX,
+            Self::EQ_FREQ_STEP,
+            None,
+            true,
+        )?;
 
         // Controls for limitter part.
-        self.state_add_int_elem(card_cntr, &states, LIMITTER_THRESHOLD_NAME, 1,
-                        Self::LIMITTER_THRESHOLD_MIN, Self::LIMITTER_THRESHOLD_MAX, Self::LIMITTER_THRESHOLD_STEP,
-                        Some(&Into::<Vec<u32>>::into(Self::LIMITTER_THRESHOLD_TLV)), true)?;
+        state_add_int_elem(
+            card_cntr,
+            &mut notified_elem_id_list,
+            channels,
+            LIMITTER_THRESHOLD_NAME,
+            1,
+            Self::LIMITTER_THRESHOLD_MIN,
+            Self::LIMITTER_THRESHOLD_MAX,
+            Self::LIMITTER_THRESHOLD_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::LIMITTER_THRESHOLD_TLV)),
+            true,
+        )?;
 
         // Controls for meter segment.
-        let meters = meter_segment.data.as_ref();
-        self.meter_add_int_elem(card_cntr, &meters, INPUT_METER_NAME, 1,
-                                Self::INOUT_METER_MIN, Self::INOUT_METER_MAX, Self::INOUT_METER_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::INOUT_METER_TLV)), false)?;
+        let channels = self.meters().len();
+        let mut measured_elem_id_list = Vec::new();
+        meter_add_int_elem(
+            card_cntr,
+            &mut measured_elem_id_list,
+            channels,
+            INPUT_METER_NAME,
+            1,
+            Self::INOUT_METER_MIN,
+            Self::INOUT_METER_MAX,
+            Self::INOUT_METER_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::INOUT_METER_TLV)),
+            false,
+        )?;
 
-        self.meter_add_int_elem(card_cntr, &meters, LIMIT_METER_NAME, 1,
-                                Self::LIMIT_METER_MIN, Self::LIMIT_METER_MAX, Self::LIMIT_METER_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::LIMIT_METER_TLV)), false)?;
+        meter_add_int_elem(
+            card_cntr,
+            &mut measured_elem_id_list,
+            channels,
+            LIMIT_METER_NAME,
+            1,
+            Self::LIMIT_METER_MIN,
+            Self::LIMIT_METER_MAX,
+            Self::LIMIT_METER_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::LIMIT_METER_TLV)),
+            false,
+        )?;
 
-        self.meter_add_int_elem(card_cntr, &meters, OUTPUT_METER_NAME, 1,
-                                Self::INOUT_METER_MIN, Self::INOUT_METER_MAX, Self::INOUT_METER_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::INOUT_METER_TLV)), false)?;
+        meter_add_int_elem(
+            card_cntr,
+            &mut measured_elem_id_list,
+            channels,
+            OUTPUT_METER_NAME,
+            1,
+            Self::INOUT_METER_MIN,
+            Self::INOUT_METER_MAX,
+            Self::INOUT_METER_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::INOUT_METER_TLV)),
+            false,
+        )?;
 
-        self.meter_add_int_elem(card_cntr, &meters, GAIN_METER_NAME, 1,
-                                Self::GAIN_METER_MIN, Self::GAIN_METER_MAX, Self::GAIN_METER_STEP,
-                                Some(&Into::<Vec<u32>>::into(Self::GAIN_METER_TLV)), false)?;
+        meter_add_int_elem(
+            card_cntr,
+            &mut measured_elem_id_list,
+            channels,
+            GAIN_METER_NAME,
+            1,
+            Self::GAIN_METER_MIN,
+            Self::GAIN_METER_MAX,
+            Self::GAIN_METER_STEP,
+            Some(&Into::<Vec<u32>>::into(Self::GAIN_METER_TLV)),
+            false,
+        )?;
 
-        Ok(())
+        Ok((notified_elem_id_list, measured_elem_id_list))
     }
 
-    fn state_add_int_elem(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        states: &[ChStripState],
-        name: &str,
-        count: usize,
-        min: i32,
-        max: i32,
-        step: i32,
-        tlv: Option<&[u32]>,
-        unlock: bool
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr.add_int_elems(&elem_id, count, min, max, step, states.len(), tlv, unlock)
-            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
-    }
-
-    fn state_add_enum_elem<T: AsRef<str>>(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        states: &[ChStripState],
-        name: &str,
-        count: usize,
-        labels: &[T],
-        locked: bool
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr.add_enum_elems(&elem_id, count, states.len(), labels, None, locked)
-            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
-    }
-
-    fn state_add_bool_elem(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        states: &[ChStripState],
-        name: &str,
-        count: usize,
-        unlock: bool
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr.add_bool_elems(&elem_id, count, states.len(), unlock)
-            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
-    }
-
-    fn meter_add_int_elem(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        meters: &[ChStripMeter],
-        name: &str,
-        count: usize,
-        min: i32,
-        max: i32,
-        step: i32,
-        tlv: Option<&[u32]>,
-        unlock: bool
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr.add_int_elems(&elem_id, count, min, max, step, meters.len(), tlv, unlock)
-            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
-    }
-
-    pub fn read<S, M>(
-        &self,
-        state_segment: &TcKonnektSegment<S>,
-        meter_segment: &TcKonnektSegment<M>,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where S: TcKonnektSegmentData + AsRef<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-              M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
-              TcKonnektSegment<M>: TcKonnektSegmentSpec,
-    {
-        if self.read_notified_elem(state_segment, elem_id, elem_value)? {
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        if self.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
-        } else if self.read_measured_elem(meter_segment, elem_id, elem_value)? {
+        } else if self.read_measured_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    fn state_read_elem<S, T, F>(
-        &self,
-        segment: &TcKonnektSegment<S>,
-        elem_value: &ElemValue,
-        cb: F
-    ) -> Result<bool, Error>
-        where S: TcKonnektSegmentData + AsRef<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-              F: Fn(&ChStripState) -> T,
-              T: Default + Copy + Eq,
-              ElemValue: ElemValueAccessor<T>,
-    {
-        let states = segment.data.as_ref();
-        ElemValueAccessor::<T>::set_vals(elem_value, states.len(), |idx| {
-            Ok(cb(&states[idx]))
-        })
-        .map(|_| true)
-    }
-
-    fn meter_read_elem<M, T, F>(
-        &self,
-        segment: &TcKonnektSegment<M>,
-        elem_value: &ElemValue,
-        cb: F
-    ) -> Result<bool, Error>
-        where M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
-              TcKonnektSegment<M>: TcKonnektSegmentSpec,
-              F: Fn(&ChStripMeter) -> T,
-              T: Default + Copy + Eq,
-              ElemValue: ElemValueAccessor<T>,
-    {
-        let meters = segment.data.as_ref();
-        ElemValueAccessor::<T>::set_vals(elem_value, meters.len(), |idx| {
-            Ok(cb(&meters[idx]))
-        })
-        .map(|_| true)
-    }
-
-    pub fn write<T, S>(
+    fn write(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
-        segment: &mut TcKonnektSegment<S>,
+        req: &mut FwReq,
         elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-        timeout_ms: u32
-    ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<S>,
-              S: TcKonnektSegmentData + AsMut<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    {
-        match elem_id.get_name().as_str() {
-            SRC_TYPE_NAME => {
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: u32| state.src_type = ChStripSrcType::from(val))
-            }
-            DEESSER_BYPASS_NAME => {
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: bool| state.deesser.bypass = val)
-            }
-            EQ_BYPASS_NAME => {
-                self.state_write_elem(unit, proto,  segment,old, new, timeout_ms,
-                                      |state, val: bool| state.eq_bypass = val)
-            }
-            LIMITTER_BYPASS_NAME => {
-                self.state_write_elem(unit, proto,  segment,old, new, timeout_ms,
-                                      |state, val: bool| state.limitter_bypass = val)
-            }
-            BYPASS_NAME => {
-                self.state_write_elem(unit, proto,  segment,old, new, timeout_ms,
-                                      |state, val: bool| state.bypass = val)
-            }
-            COMP_INPUT_GAIN_NAME => {
-                self.state_write_elem(unit, proto,  segment,old, new, timeout_ms,
-                                      |state, val: i32| state.comp.input_gain = val as u32)
-            }
-            COMP_MAKE_UP_GAIN_NAME => {
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.comp.make_up_gain = val as u32)
-            }
-            COMP_FULL_BAND_ENABLE_NAME => {
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: bool| state.comp.full_band_enabled = val)
-            }
-            COMP_CTL_NAME => {
-                let idx = elem_id.get_index() as usize;
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.comp.ctl[idx] = val as u32)
-            }
-            COMP_LEVEL_NAME => {
-                let idx = elem_id.get_index() as usize;
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.comp.level[idx] = val as u32)
-            }
-            DEESSER_RATIO_NAME => {
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.deesser.ratio = val as u32)
-            }
-            EQ_ENABLE_NAME => {
-                let idx = elem_id.get_index() as usize;
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: bool| state.eq[idx].enabled = val)
-            }
-            EQ_BANDWIDTH_NAME => {
-                let idx = elem_id.get_index() as usize;
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.eq[idx].bandwidth = val as u32)
-            }
-            EQ_GAIN_NAME => {
-                let idx = elem_id.get_index() as usize;
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.eq[idx].gain = val as u32)
-            }
-            EQ_FREQ_NAME => {
-                let idx = elem_id.get_index() as usize;
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.eq[idx].freq = val as u32)
-            }
-            LIMITTER_THRESHOLD_NAME => {
-                self.state_write_elem(unit, proto, segment, old, new, timeout_ms,
-                                      |state, val: i32| state.limitter.threshold = val as u32)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn state_write_elem<T, S, U, F>(
-        &mut self,
-        unit: &mut SndDice,
-        proto: &mut T,
-        segment: &mut TcKonnektSegment<S>,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
-        cb: F
-    ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<S>,
-              S: TcKonnektSegmentData + AsMut<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-              F: Fn(&mut ChStripState, U) -> (),
-              U: Default + Copy + Eq,
-              ElemValue: ElemValueAccessor<U>,
-    {
-        let states = segment.data.as_mut();
-        ElemValueAccessor::<U>::get_vals(new, old, states.len(), |idx, val| {
-            cb(&mut states[idx], val);
-            Ok(())
-        })
-        .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
-        .map(|_| true)
-    }
-
-    pub fn read_notified_elem<S>(
-        &self,
-        segment: &TcKonnektSegment<S>,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where S: TcKonnektSegmentData + AsRef<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             SRC_TYPE_NAME => {
-                self.state_read_elem(segment, elem_value, |state| u32::from(state.src_type))
-                    .map(|_| true)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: u32| {
+                    state.src_type = Self::SRC_TYPES
+                        .iter()
+                        .nth(val as usize)
+                        .map(|&t| t)
+                        .unwrap_or_default()
+                })
             }
             DEESSER_BYPASS_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.deesser.bypass)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                    state.deesser.bypass = val
+                })
             }
             EQ_BYPASS_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.eq_bypass)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                    state.eq_bypass = val
+                })
             }
             LIMITTER_BYPASS_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.limitter_bypass)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                    state.limitter_bypass = val
+                })
             }
             BYPASS_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.bypass)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                    state.bypass = val
+                })
             }
             COMP_INPUT_GAIN_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.comp.input_gain as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.comp.input_gain = val as u32
+                })
             }
             COMP_MAKE_UP_GAIN_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.comp.make_up_gain as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.comp.make_up_gain = val as u32
+                })
             }
             COMP_FULL_BAND_ENABLE_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.comp.full_band_enabled)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                    state.comp.full_band_enabled = val
+                })
             }
             COMP_CTL_NAME => {
                 let idx = elem_id.get_index() as usize;
-                self.state_read_elem(segment, elem_value, |entry| entry.comp.ctl[idx] as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.comp.ctl[idx] = val as u32
+                })
             }
             COMP_LEVEL_NAME => {
                 let idx = elem_id.get_index() as usize;
-                self.state_read_elem(segment, elem_value, |entry| entry.comp.level[idx] as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.comp.level[idx] = val as u32
+                })
             }
             DEESSER_RATIO_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.deesser.ratio as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.deesser.ratio = val as u32
+                })
             }
             EQ_ENABLE_NAME => {
                 let idx = elem_id.get_index() as usize;
-                self.state_read_elem(segment, elem_value, |state| state.eq[idx].enabled)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
+                    state.eq[idx].enabled = val
+                })
             }
             EQ_BANDWIDTH_NAME => {
                 let idx = elem_id.get_index() as usize;
-                self.state_read_elem(segment, elem_value, |state| state.eq[idx].bandwidth as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.eq[idx].bandwidth = val as u32
+                })
             }
             EQ_GAIN_NAME => {
                 let idx = elem_id.get_index() as usize;
-                self.state_read_elem(segment, elem_value, |state| state.eq[idx].gain as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.eq[idx].gain = val as u32
+                })
             }
             EQ_FREQ_NAME => {
                 let idx = elem_id.get_index() as usize;
-                self.state_read_elem(segment, elem_value, |state| state.eq[idx].freq as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.eq[idx].freq = val as u32
+                })
             }
             LIMITTER_THRESHOLD_NAME => {
-                self.state_read_elem(segment, elem_value, |state| state.limitter.threshold as i32)
+                self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
+                    state.limitter.threshold = val as u32
+                })
             }
             _ => Ok(false),
         }
     }
 
-    pub fn measure_states<T, S, M>(
+    fn state_read_elem<V, F>(&self, elem_value: &ElemValue, cb: F) -> Result<bool, Error>
+    where
+        F: Fn(&ChStripState) -> V,
+        V: Default + Copy + Eq,
+        ElemValue: ElemValueAccessor<V>,
+    {
+        let states = self.states();
+        ElemValueAccessor::<V>::set_vals(elem_value, states.len(), |idx| Ok(cb(&states[idx])))
+            .map(|_| true)
+    }
+
+    fn meter_read_elem<V, F>(&self, elem_value: &ElemValue, cb: F) -> Result<bool, Error>
+    where
+        F: Fn(&ChStripMeter) -> V,
+        V: Default + Copy + Eq,
+        ElemValue: ElemValueAccessor<V>,
+    {
+        let meters = self.meters();
+        ElemValueAccessor::<V>::set_vals(elem_value, meters.len(), |idx| Ok(cb(&meters[idx])))
+            .map(|_| true)
+    }
+
+    fn state_write_elem<V, F>(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
-        state_segment: &TcKonnektSegment<S>,
-        meter_segment: &mut TcKonnektSegment<M>,
-        timeout_ms: u32
-    ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<S> + TcKonnektSegmentProtocol<M>,
-              S: TcKonnektSegmentData + AsRef<[ChStripState]>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-              M: TcKonnektSegmentData,
-              TcKonnektSegment<M>: TcKonnektSegmentSpec,
+        req: &mut FwReq,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+        cb: F,
+    ) -> Result<bool, Error>
+    where
+        F: Fn(&mut ChStripState, V) -> (),
+        V: Default + Copy + Eq,
+        ElemValue: ElemValueAccessor<V>,
     {
-        if state_segment.data.as_ref().iter().find(|s| s.bypass).is_none() {
-            proto.read_segment(&mut unit.get_node(), meter_segment, timeout_ms)
-        } else {
+        let states = self.states_mut();
+        ElemValueAccessor::<V>::get_vals(new, old, states.len(), |idx, val| {
+            cb(&mut states[idx], val);
             Ok(())
+        })?;
+        U::write_segment(
+            req,
+            &mut unit.get_node(),
+            &mut self.states_segment_mut(),
+            timeout_ms,
+        )
+        .map(|_| true)
+    }
+
+    fn read_notified_elem(
+        &self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            SRC_TYPE_NAME => self
+                .state_read_elem(elem_value, |state| {
+                    Self::SRC_TYPES
+                        .iter()
+                        .position(|t| state.src_type.eq(t))
+                        .unwrap() as u32
+                })
+                .map(|_| true),
+            DEESSER_BYPASS_NAME => self.state_read_elem(elem_value, |state| state.deesser.bypass),
+            EQ_BYPASS_NAME => self.state_read_elem(elem_value, |state| state.eq_bypass),
+            LIMITTER_BYPASS_NAME => self.state_read_elem(elem_value, |state| state.limitter_bypass),
+            BYPASS_NAME => self.state_read_elem(elem_value, |state| state.bypass),
+            COMP_INPUT_GAIN_NAME => {
+                self.state_read_elem(elem_value, |state| state.comp.input_gain as i32)
+            }
+            COMP_MAKE_UP_GAIN_NAME => {
+                self.state_read_elem(elem_value, |state| state.comp.make_up_gain as i32)
+            }
+            COMP_FULL_BAND_ENABLE_NAME => {
+                self.state_read_elem(elem_value, |state| state.comp.full_band_enabled)
+            }
+            COMP_CTL_NAME => {
+                let idx = elem_id.get_index() as usize;
+                self.state_read_elem(elem_value, |entry| entry.comp.ctl[idx] as i32)
+            }
+            COMP_LEVEL_NAME => {
+                let idx = elem_id.get_index() as usize;
+                self.state_read_elem(elem_value, |entry| entry.comp.level[idx] as i32)
+            }
+            DEESSER_RATIO_NAME => {
+                self.state_read_elem(elem_value, |state| state.deesser.ratio as i32)
+            }
+            EQ_ENABLE_NAME => {
+                let idx = elem_id.get_index() as usize;
+                self.state_read_elem(elem_value, |state| state.eq[idx].enabled)
+            }
+            EQ_BANDWIDTH_NAME => {
+                let idx = elem_id.get_index() as usize;
+                self.state_read_elem(elem_value, |state| state.eq[idx].bandwidth as i32)
+            }
+            EQ_GAIN_NAME => {
+                let idx = elem_id.get_index() as usize;
+                self.state_read_elem(elem_value, |state| state.eq[idx].gain as i32)
+            }
+            EQ_FREQ_NAME => {
+                let idx = elem_id.get_index() as usize;
+                self.state_read_elem(elem_value, |state| state.eq[idx].freq as i32)
+            }
+            LIMITTER_THRESHOLD_NAME => {
+                self.state_read_elem(elem_value, |state| state.limitter.threshold as i32)
+            }
+            _ => Ok(false),
         }
     }
 
-    pub fn read_measured_elem<M>(
+    fn read_measured_elem(
         &self,
-        segment: &TcKonnektSegment<M>,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
-              TcKonnektSegment<M>: TcKonnektSegmentSpec,
-    {
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            INPUT_METER_NAME => {
-                self.meter_read_elem(segment, elem_value, |meter| meter.input)
-            }
-            LIMIT_METER_NAME => {
-                self.meter_read_elem(segment, elem_value, |meter| meter.limit)
-            }
-            OUTPUT_METER_NAME => {
-                self.meter_read_elem(segment, elem_value, |meter| meter.output)
-            }
+            INPUT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.input),
+            LIMIT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.limit),
+            OUTPUT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.output),
             GAIN_METER_NAME => {
                 let idx = match elem_id.get_index() {
                     2 => 2,
                     1 => 1,
                     _ => 0,
                 };
-                self.meter_read_elem(segment, elem_value, |meter| meter.gains[idx])
+                self.meter_read_elem(elem_value, |meter| meter.gains[idx])
             }
             _ => Ok(false),
         }
     }
+
+    fn measure_states(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if self.states().iter().find(|s| s.bypass).is_none() {
+            U::read_segment(
+                req,
+                &mut unit.get_node(),
+                self.meters_segment_mut(),
+                timeout_ms,
+            )
+        } else {
+            Ok(())
+        }
+    }
+
+    fn parse_notification(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        msg: u32,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        if self.states_segment().has_segment_change(msg) {
+            U::read_segment(
+                req,
+                &mut unit.get_node(),
+                self.states_segment_mut(),
+                timeout_ms,
+            )
+        } else {
+            Ok(())
+        }
+    }
+}
+
+fn state_add_int_elem(
+    card_cntr: &mut CardCntr,
+    notified_elem_id_list: &mut Vec<ElemId>,
+    channels: usize,
+    name: &str,
+    count: usize,
+    min: i32,
+    max: i32,
+    step: i32,
+    tlv: Option<&[u32]>,
+    unlock: bool,
+) -> Result<(), Error> {
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+    card_cntr
+        .add_int_elems(&elem_id, count, min, max, step, channels, tlv, unlock)
+        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+}
+
+fn state_add_enum_elem<T: AsRef<str>>(
+    card_cntr: &mut CardCntr,
+    notified_elem_id_list: &mut Vec<ElemId>,
+    channels: usize,
+    name: &str,
+    count: usize,
+    labels: &[T],
+    locked: bool,
+) -> Result<(), Error> {
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+    card_cntr
+        .add_enum_elems(&elem_id, count, channels, labels, None, locked)
+        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+}
+
+fn state_add_bool_elem(
+    card_cntr: &mut CardCntr,
+    notified_elem_id_list: &mut Vec<ElemId>,
+    channels: usize,
+    name: &str,
+    count: usize,
+    unlock: bool,
+) -> Result<(), Error> {
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+    card_cntr
+        .add_bool_elems(&elem_id, count, channels, unlock)
+        .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+}
+
+fn meter_add_int_elem(
+    card_cntr: &mut CardCntr,
+    measured_elem_id_list: &mut Vec<ElemId>,
+    channels: usize,
+    name: &str,
+    count: usize,
+    min: i32,
+    max: i32,
+    step: i32,
+    tlv: Option<&[u32]>,
+    unlock: bool,
+) -> Result<(), Error> {
+    let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+    card_cntr
+        .add_int_elems(&elem_id, count, min, max, step, channels, tlv, unlock)
+        .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
 }

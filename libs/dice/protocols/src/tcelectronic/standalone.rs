@@ -8,7 +8,7 @@
 
 /// The enumeration to represent available rate for sampling clock in standalone mode.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum TcKonnektStandaloneClkRate{
+pub enum TcKonnektStandaloneClkRate {
     R44100,
     R48000,
     R88200,

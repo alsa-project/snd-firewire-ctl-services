@@ -8,31 +8,40 @@
 
 use crate::*;
 
-use crate::tcelectronic::{*, fw_led::*, standalone::*};
+use crate::tcelectronic::{fw_led::*, standalone::*, *};
 
 const DESKTOP_HW_STATE_NOTIFY_FLAG: u32 = 0x00010000;
 const DESKTOP_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;
 const DESKTOP_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00040000;
 const DESKTOP_PANEL_NOTIFY_FLAG: u32 = 0x00080000;
 
-/// The structure to represent segments in memory space of Desktop Konnekt 6.
-#[derive(Default, Debug)]
-pub struct DesktopSegments{
-    /// Segment for panel. 0x0008..0x0097 (36 quads).
-    pub hw_state: TcKonnektSegment<DesktopHwState>,
-    /// Segment for configuration. 0x0098..0x00b7 (8 quads).
-    pub config: TcKonnektSegment<DesktopConfig>,
-    /// Segment for state of mixer. 0x00b8..0x0367 (172 quads).
-    pub mixer: TcKonnektSegment<DesktopMixerState>,
-    /// Segment for panel. 0x2008..0x2047 (15 quads).
-    pub panel: TcKonnektSegment<DesktopPanel>,
-    /// Segment for meter. 0x20e4..0x213f (23 quads).
-    pub meter: TcKonnektSegment<DesktopMeter>,
-}
+/// The structure for protocol implementation of Desktop Konnekt 6.
+#[derive(Default)]
+pub struct Desktopk6Protocol;
+
+/// Segment for panel. 0x0008..0x0097 (36 quads).
+pub type Desktopk6HwStateSegment = TcKonnektSegment<DesktopHwState>;
+impl SegmentOperation<DesktopHwState> for Desktopk6Protocol {}
+
+/// Segment for configuration. 0x0098..0x00b7 (8 quads).
+pub type Desktopk6ConfigSegment = TcKonnektSegment<DesktopConfig>;
+impl SegmentOperation<DesktopConfig> for Desktopk6Protocol {}
+
+/// Segment for state of mixer. 0x00b8..0x0367 (172 quads).
+pub type Desktopk6MixerStateSegment = TcKonnektSegment<DesktopMixerState>;
+impl SegmentOperation<DesktopMixerState> for Desktopk6Protocol {}
+
+/// Segment for panel. 0x2008..0x2047 (15 quads).
+pub type Desktopk6PanelSegment = TcKonnektSegment<DesktopPanel>;
+impl SegmentOperation<DesktopPanel> for Desktopk6Protocol {}
+
+/// Segment for meter. 0x20e4..0x213f (23 quads).
+pub type Desktopk6MeterSegment = TcKonnektSegment<DesktopMeter>;
+impl SegmentOperation<DesktopMeter> for Desktopk6Protocol {}
 
 /// The enumeration to represent target of meter.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum MeterTarget{
+pub enum MeterTarget {
     Input,
     Pre,
     Post,
@@ -132,7 +141,8 @@ impl TcKonnektSegmentData for DesktopHwState {
         self.meter_target.build_quadlet(&mut raw[..4]);
         self.mixer_output_monaural.build_quadlet(&mut raw[4..8]);
         self.knob_assign_to_hp.build_quadlet(&mut raw[8..12]);
-        self.mixer_output_dim_enabled.build_quadlet(&mut raw[12..16]);
+        self.mixer_output_dim_enabled
+            .build_quadlet(&mut raw[12..16]);
         self.mixer_output_dim_volume.build_quadlet(&mut raw[16..20]);
         self.input_scene.build_quadlet(&mut raw[20..24]);
 
@@ -180,24 +190,12 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopHwState> {
 
 /// The structure to represent configuration.
 #[derive(Default, Debug)]
-pub struct DesktopConfig{
+pub struct DesktopConfig {
     pub standalone_rate: TcKonnektStandaloneClkRate,
 }
 
 impl DesktopConfig {
     const SIZE: usize = 32;
-}
-
-impl AsRef<TcKonnektStandaloneClkRate> for DesktopConfig {
-    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
-        &self.standalone_rate
-    }
-}
-
-impl AsMut<TcKonnektStandaloneClkRate> for DesktopConfig {
-    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.standalone_rate
-    }
 }
 
 impl TcKonnektSegmentData for DesktopConfig {
@@ -252,19 +250,19 @@ impl From<DesktopHpSrc> for u32 {
 
 /// The structure to represent state of mixer.
 #[derive(Default, Debug)]
-pub struct DesktopMixerState{
+pub struct DesktopMixerState {
     /// The input level for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
-    pub mic_inst_level: [i32;2],
+    pub mic_inst_level: [i32; 2],
     /// The LR balance for ch 0 and 1. -50..50.
-    pub mic_inst_pan: [i32;2],
+    pub mic_inst_pan: [i32; 2],
     /// The level to send for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
-    pub mic_inst_send: [i32;2],
+    pub mic_inst_send: [i32; 2],
     /// The input level for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
-    pub dual_inst_level: [i32;2],
+    pub dual_inst_level: [i32; 2],
     /// The LR balance for ch 0 and 1. -50..50.
-    pub dual_inst_pan: [i32;2],
+    pub dual_inst_pan: [i32; 2],
     /// The level to send for ch 0 and 1. -1000..0 (-94.0..0.0 dB)
-    pub dual_inst_send: [i32;2],
+    pub dual_inst_send: [i32; 2],
     /// The input level for both channels. -1000..0 (-94.0..0.0 dB)
     pub stereo_in_level: i32,
     /// The LR balance for both channels. -50..50.
@@ -335,7 +333,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopMixerState> {
 }
 
 #[derive(Default, Debug)]
-pub struct DesktopPanel{
+pub struct DesktopPanel {
     /// The count of panel button to push.
     pub panel_button_count: u32,
     /// The value of main knob. -1000..0
@@ -354,18 +352,6 @@ pub struct DesktopPanel{
 
 impl DesktopPanel {
     const SIZE: usize = 64;
-}
-
-impl AsRef<FireWireLedState> for DesktopPanel {
-    fn as_ref(&self) -> &FireWireLedState {
-        &self.firewire_led
-    }
-}
-
-impl AsMut<FireWireLedState> for DesktopPanel {
-    fn as_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.firewire_led
-    }
 }
 
 impl TcKonnektSegmentData for DesktopPanel {
@@ -400,10 +386,10 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopPanel> {
 }
 
 #[derive(Default, Debug)]
-pub struct DesktopMeter{
-    pub analog_inputs: [i32;2],
-    pub mixer_outputs: [i32;2],
-    pub stream_inputs: [i32;2],
+pub struct DesktopMeter {
+    pub analog_inputs: [i32; 2],
+    pub mixer_outputs: [i32; 2],
+    pub stream_inputs: [i32; 2],
 }
 
 impl DesktopMeter {
