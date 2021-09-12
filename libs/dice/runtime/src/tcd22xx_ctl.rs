@@ -738,14 +738,17 @@ impl StandaloneCtl {
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    req.read_standalone_clock_source(node, sections, timeout_ms)
-                        .and_then(|src| {
-                            self.srcs.iter()
-                                .position(|&s| s == src)
-                                .ok_or_else(|| {
-                                    let msg = format!("Unexpected value for source: {}", src);
-                                    Error::new(FileError::Nxio, &msg)
-                                })
+                    let src = StandaloneSectionProtocol::read_standalone_clock_source(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )?;
+                    self.srcs.iter()
+                        .position(|&s| s == src)
+                        .ok_or_else(|| {
+                            let msg = format!("Unexpected value for source: {}", src);
+                            Error::new(FileError::Nxio, &msg)
                         })
                         .map(|pos| pos as u32)
                 })
@@ -753,13 +756,23 @@ impl StandaloneCtl {
             }
             Self::SPDIF_HIGH_RATE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
-                    req.read_standalone_aes_high_rate(node, sections, timeout_ms)
+                    StandaloneSectionProtocol::read_standalone_aes_high_rate(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::ADAT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    req.read_standalone_adat_mode(node, sections, timeout_ms)
+                    StandaloneSectionProtocol::read_standalone_adat_mode(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )
                         .map(|mode| {
                             match mode {
                                 AdatParam::Normal => 0,
@@ -773,7 +786,12 @@ impl StandaloneCtl {
             }
             Self::WC_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    req.read_standalone_word_clock_param(node, sections, timeout_ms)
+                    StandaloneSectionProtocol::read_standalone_word_clock_param(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )
                         .map(|param| {
                             match param.mode {
                                 WordClockMode::Normal => 0,
@@ -787,30 +805,43 @@ impl StandaloneCtl {
             }
             Self::WC_RATE_NUMERATOR_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    req.read_standalone_word_clock_param(node, sections, timeout_ms)
+                    StandaloneSectionProtocol::read_standalone_word_clock_param(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )
                         .map(|param| param.rate.numerator as i32)
                 })
                 .map(|_| true)
             }
             Self::WC_RATE_DENOMINATOR_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
-                    req.read_standalone_word_clock_param(node, sections, timeout_ms)
+                    StandaloneSectionProtocol::read_standalone_word_clock_param(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )
                         .map(|param| param.rate.denominator as i32)
                 })
                 .map(|_| true)
             }
             Self::INTERNAL_CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    req.read_standalone_internal_rate(node, sections, timeout_ms)
-                        .and_then(|rate| {
-                            self.rates.iter()
-                                .position(|&r| r == rate)
-                                .ok_or_else(|| {
-                                    let msg = format!("Unexpected value for rate: {}", rate);
-                                    Error::new(FileError::Nxio, &msg)
-                                })
-                                .map(|pos| pos as u32)
+                    let rate = StandaloneSectionProtocol::read_standalone_internal_rate(
+                        req,
+                        node,
+                        sections,
+                        timeout_ms
+                    )?;
+                    self.rates.iter()
+                        .position(|&r| r == rate)
+                        .ok_or_else(|| {
+                            let msg = format!("Unexpected value for rate: {}", rate);
+                            Error::new(FileError::Nxio, &msg)
                         })
+                        .map(|pos| pos as u32)
                 })
                 .map(|_| true)
             }
@@ -830,23 +861,33 @@ impl StandaloneCtl {
         match elem_id.get_name().as_str() {
             Self::CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    self.srcs.iter()
+                    let &src = self.srcs.iter()
                         .nth(val as usize)
                         .ok_or_else(|| {
                             let msg = format!("Invalid value for index of source: {}", val);
                             Error::new(FileError::Inval, &msg)
-                        })
-                        .and_then(|&s| {
-                            req.write_standalone_clock_source(node, &sections, s, timeout_ms)
-                        })
+                        })?;
+                    StandaloneSectionProtocol::write_standalone_clock_source(
+                        req,
+                        node,
+                        &sections,
+                        src,
+                        timeout_ms
+                    )
                 })
-                .map(|_| true)
+                    .map(|_| true)
             }
             Self::SPDIF_HIGH_RATE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
-                    req.write_standalone_aes_high_rate(node, &sections, val, timeout_ms)
+                    StandaloneSectionProtocol::write_standalone_aes_high_rate(
+                        req,
+                        node,
+                        &sections,
+                        val,
+                        timeout_ms
+                    )
                 })
-                .map(|_| true)
+                    .map(|_| true)
             }
             Self::ADAT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
@@ -856,9 +897,15 @@ impl StandaloneCtl {
                         3 => AdatParam::Auto,
                         _ => AdatParam::Normal,
                     };
-                    req.write_standalone_adat_mode(node, &sections, mode, timeout_ms)
+                    StandaloneSectionProtocol::write_standalone_adat_mode(
+                        req,
+                        node,
+                        &sections,
+                        mode,
+                        timeout_ms
+                    )
                 })
-                .map(|_| true)
+                    .map(|_| true)
             }
             Self::WC_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
@@ -868,45 +915,76 @@ impl StandaloneCtl {
                         3 => WordClockMode::High,
                         _ => WordClockMode::Normal,
                     };
-                    req.read_standalone_word_clock_param(node, &sections, timeout_ms)
-                        .and_then(|mut param| {
-                            param.mode = mode;
-                            req.write_standalone_word_clock_param(node, &sections, param, timeout_ms)
-                        })
+                    let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
+                        req,
+                        node,
+                        &sections,
+                        timeout_ms
+                    )?;
+                    param.mode = mode;
+                    StandaloneSectionProtocol::write_standalone_word_clock_param(
+                        req,
+                        node,
+                        &sections,
+                        param,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::WC_RATE_NUMERATOR_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
-                    req.read_standalone_word_clock_param(node, &sections, timeout_ms)
-                        .and_then(|mut param| {
-                            param.rate.numerator = val as u16;
-                            req.write_standalone_word_clock_param(node, &sections, param, timeout_ms)
-                        })
+                    let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
+                        req,
+                        node,
+                        &sections,
+                        timeout_ms
+                    )?;
+                    param.rate.numerator = val as u16;
+                    StandaloneSectionProtocol::write_standalone_word_clock_param(
+                        req,
+                        node,
+                        &sections,
+                        param,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::WC_RATE_DENOMINATOR_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
-                    req.read_standalone_word_clock_param(node, &sections, timeout_ms)
-                        .and_then(|mut param| {
-                            param.rate.denominator = val as u16;
-                            req.write_standalone_word_clock_param(node, &sections, param, timeout_ms)
-                        })
+                    let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
+                        req,
+                        node,
+                        &sections,
+                        timeout_ms
+                    )?;
+                    param.rate.denominator = val as u16;
+                    StandaloneSectionProtocol::write_standalone_word_clock_param(
+                        req,
+                        node,
+                        &sections,
+                        param,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
             Self::INTERNAL_CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    self.rates.iter()
+                    let &rate = self.rates.iter()
                         .nth(val as usize)
                         .ok_or_else(|| {
                             let msg = format!("Invalid value for index of rate: {}", val);
                             Error::new(FileError::Inval, &msg)
-                        })
-                        .and_then(|&r| {
-                            req.write_standalone_internal_rate(node, &sections, r, timeout_ms)
-                        })
+                        })?;
+                    StandaloneSectionProtocol::write_standalone_internal_rate(
+                        req,
+                        node,
+                        &sections,
+                        rate,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }

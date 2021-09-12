@@ -164,17 +164,17 @@ fn print_current_stream_format_entries(req: &mut FwReq, node: &mut FwNode, secti
     })
 }
 
-fn print_standalone_config(proto: &FwReq, node: &mut FwNode, sections: &ExtensionSections) -> Result<(), Error> {
+fn print_standalone_config(req: &mut FwReq, node: &mut FwNode, sections: &ExtensionSections) -> Result<(), Error> {
     println!("Standalone configurations:");
-    let src = proto.read_standalone_clock_source(node, sections, TIMEOUT_MS)?;
+    let src = StandaloneSectionProtocol::read_standalone_clock_source(req, node, sections, TIMEOUT_MS)?;
     println!("  clock source: {}", src);
-    let mode = proto.read_standalone_aes_high_rate(node, sections, TIMEOUT_MS)?;
+    let mode = StandaloneSectionProtocol::read_standalone_aes_high_rate(req, node, sections, TIMEOUT_MS)?;
     println!("  AES high rate: {}", mode);
-    let mode = proto.read_standalone_adat_mode(node, sections, TIMEOUT_MS)?;
+    let mode = StandaloneSectionProtocol::read_standalone_adat_mode(req, node, sections, TIMEOUT_MS)?;
     println!("  ADAT mode: {}", mode);
-    let params = proto.read_standalone_word_clock_param(node, sections, TIMEOUT_MS)?;
+    let params = StandaloneSectionProtocol::read_standalone_word_clock_param(req, node, sections, TIMEOUT_MS)?;
     println!("  Word clock params: {}, {} / {}", params.mode, params.rate.numerator, params.rate.denominator);
-    let rate = proto.read_standalone_internal_rate(node, sections, TIMEOUT_MS)?;
+    let rate = StandaloneSectionProtocol::read_standalone_internal_rate(req, node, sections, TIMEOUT_MS)?;
     println!("  Internal rate: {}", rate);
     Ok(())
 }
@@ -217,22 +217,22 @@ fn main() {
             let d = dispatcher.clone();
             let th = thread::spawn(move || d.run());
 
-            let mut proto = FwReq::new();
-            let result = proto.read_extension_sections(&mut node, TIMEOUT_MS)
+            let mut req = FwReq::new();
+            let result = req.read_extension_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
                     let caps = CapsSectionProtocol::read_caps(
-                        &mut proto,
+                        &mut req,
                         &mut node,
                         &sections,
                         TIMEOUT_MS
                     )?;
                     print_caps(&caps);
-                    print_mixer(&mut proto, &mut node, &sections, &caps)?;
-                    print_peak(&mut proto, &mut node, &sections, &caps)?;
-                    print_current_router_entries(&mut proto, &mut node, &sections, &caps)?;
-                    print_current_stream_format_entries(&mut proto, &mut node, &sections, &caps)?;
-                    print_standalone_config(&proto, &mut node, &sections)?;
+                    print_mixer(&mut req, &mut node, &sections, &caps)?;
+                    print_peak(&mut req, &mut node, &sections, &caps)?;
+                    print_current_router_entries(&mut req, &mut node, &sections, &caps)?;
+                    print_current_stream_format_entries(&mut req, &mut node, &sections, &caps)?;
+                    print_standalone_config(&mut req, &mut node, &sections)?;
                     Ok(())
                 })
                 .map_err(|e| e.to_string());
