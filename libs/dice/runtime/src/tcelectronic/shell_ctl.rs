@@ -62,8 +62,12 @@ impl HwStateCtl {
         Ok(())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<[ShellAnalogJackState]> + AsRef<FireWireLedState>,
     {
         match elem_id.get_name().as_str() {
@@ -81,9 +85,15 @@ impl HwStateCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<FireWireLedState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -129,9 +139,12 @@ impl ShellMixerCtl {
     const PAN_MAX: i32 = 50;
     const PAN_STEP: i32 = 1;
 
-    pub fn load<S, M>(&mut self, state_segment: &TcKonnektSegment<S>, meter_segment: &TcKonnektSegment<M>,
-                      card_cntr: &mut CardCntr)
-        -> Result<(), Error>
+    pub fn load<S, M>(
+        &mut self,
+        state_segment: &TcKonnektSegment<S>,
+        meter_segment: &TcKonnektSegment<M>,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error>
         where S: TcKonnektSegmentData + AsRef<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<ShellMixerMeter>,
@@ -195,44 +208,60 @@ impl ShellMixerCtl {
         Ok(())
     }
 
-    fn state_add_elem_level(&mut self, card_cntr: &mut CardCntr, name: &str, value_count: usize)
-        -> Result<(), Error>
-    {
+    fn state_add_elem_level(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        name: &str,
+        value_count: usize
+    ) -> Result<(), Error> {
         let elem_id = alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                 value_count, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    fn state_add_elem_pan(&mut self, card_cntr: &mut CardCntr, name: &str, value_count: usize)
-        -> Result<(), Error>
-    {
+    fn state_add_elem_pan(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        name: &str,
+        value_count: usize
+    ) -> Result<(), Error> {
         let elem_id = alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::PAN_MIN, Self::PAN_MAX, Self::PAN_STEP,
                                 value_count, None, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    fn state_add_elem_bool(&mut self, card_cntr: &mut CardCntr, name: &str, value_count: usize)
-        -> Result<(), Error>
-    {
+    fn state_add_elem_bool(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        name: &str,
+        value_count: usize
+    ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_bool_elems(&elem_id, 1, value_count, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    fn meter_add_elem_level(&mut self, card_cntr: &mut CardCntr, name: &str, value_count: usize)
-        -> Result<(), Error>
-    {
+    fn meter_add_elem_level(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        name: &str,
+        value_count: usize
+    ) -> Result<(), Error> {
         let elem_id = alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                 value_count, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), false)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
     }
 
-    pub fn read<S, M>(&self, state_segment: &TcKonnektSegment<S>, meter_segment: &TcKonnektSegment<M>,
-                      elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S, M>(
+        &self,
+        state_segment: &TcKonnektSegment<S>,
+        meter_segment: &TcKonnektSegment<M>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<ShellMixerMeter>,
@@ -247,8 +276,11 @@ impl ShellMixerCtl {
         }
     }
 
-    fn state_read_phys_src<S, T, F>(segment: &TcKonnektSegment<S>, elem_value: &mut ElemValue, cb: F)
-        -> Result<bool, Error>
+    fn state_read_phys_src<S, T, F>(
+        segment: &TcKonnektSegment<S>,
+        elem_value: &mut ElemValue,
+        cb: F
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&MonitorSrcParam) -> Result<T, Error>,
@@ -277,8 +309,16 @@ impl ShellMixerCtl {
         .map(|_| true)
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    )
         -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
@@ -321,7 +361,7 @@ impl ShellMixerCtl {
                     }
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_PHYS_SRC_GAIN_NAME => {
@@ -348,7 +388,7 @@ impl ShellMixerCtl {
                     };
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
             Self::REVERB_PHYS_SRC_GAIN_NAME => {
@@ -379,8 +419,14 @@ impl ShellMixerCtl {
         }
     }
 
-    fn state_write<T, S, U, F>(unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                            elem_value: &ElemValue, timeout_ms: u32, cb: F)
+    fn state_write<T, S, U, F>(
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+        cb: F
+    )
         -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
@@ -392,13 +438,19 @@ impl ShellMixerCtl {
         ElemValueAccessor::<U>::get_val(elem_value, |val| {
             cb(segment.data.as_mut(), val)
         })
-        .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+        .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
         .map(|_| true)
     }
 
-    fn state_write_phys_src<T, S, U, F>(unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                                        new: &ElemValue, old: &ElemValue, timeout_ms: u32, cb: F)
-        -> Result<bool, Error>
+    fn state_write_phys_src<T, S, U, F>(
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        new: &ElemValue,
+        old: &ElemValue,
+        timeout_ms: u32,
+        cb: F
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -424,13 +476,16 @@ impl ShellMixerCtl {
             };
             cb(param, val)
         })
-        .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+        .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
         .map(|_| true)
     }
 
-    pub fn read_notified_elem<S>(&self, segment: &TcKonnektSegment<S>, elem_id: &ElemId,
-                                 elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read_notified_elem<S>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -498,9 +553,12 @@ impl ShellMixerCtl {
         }
     }
 
-    pub fn read_measured_elem<S>(&self, segment: &TcKonnektSegment<S>, elem_id: &ElemId,
-                                 elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read_measured_elem<S>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellMixerMeter>,
     {
         match elem_id.get_name().as_str() {
@@ -554,8 +612,12 @@ impl ShellReverbReturnCtl {
         Ok(())
     }
 
-    pub fn read<S>(&self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellReverbReturn>,
     {
         match elem_id.get_name().as_str() {
@@ -569,9 +631,15 @@ impl ShellReverbReturnCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<ShellReverbReturn>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -580,21 +648,21 @@ impl ShellReverbReturnCtl {
             Self::USE_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segment.data.as_mut().plugin_mode = val;
-                    proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                    proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::GAIN_NAME => {
                 ElemValueAccessor::<i32>::get_val(elem_value, |val| {
                     segment.data.as_mut().return_gain = val;
-                    proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                    proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::MUTE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segment.data.as_mut().return_mute = val;
-                    proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                    proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                 })
                 .map(|_| true)
             }
@@ -602,9 +670,12 @@ impl ShellReverbReturnCtl {
         }
     }
 
-    pub fn read_notified_elem<S>(&self, segment: &TcKonnektSegment<S>, elem_id: &ElemId,
-                                 elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read_notified_elem<S>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellReverbReturn>,
     {
         match elem_id.get_name().as_str() {
@@ -639,8 +710,11 @@ pub struct ShellStandaloneCtl(TcKonnektStandaloneCtl);
 impl ShellStandaloneCtl {
     const SRC_NAME: &'static str = "standalone-clock-source";
 
-    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
+    pub fn load<S>(
+        &mut self,
+        _: &TcKonnektSegment<S>,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error>
         where S: TcKonnektSegmentData + ShellStandaloneClkSpec,
     {
         let labels: Vec<String> = S::STANDALONE_CLOCK_SOURCES.iter()
@@ -654,8 +728,12 @@ impl ShellStandaloneCtl {
         Ok(())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + ShellStandaloneClkSpec +
                  AsRef<TcKonnektStandaloneClkRate>,
     {
@@ -674,9 +752,15 @@ impl ShellStandaloneCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<ShellStandaloneClkSrc> + ShellStandaloneClkSpec +
                  AsMut<TcKonnektStandaloneClkRate>,
@@ -693,7 +777,7 @@ impl ShellStandaloneCtl {
                         })
                         .map(|&s| *segment.data.as_mut() = s)
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
             _ => self.0.write(unit, proto, segment, elem_id, elem_value, timeout_ms),
@@ -728,8 +812,11 @@ impl MixerStreamSrcPairCtl {
         ShellMixerStreamSrcPair::Stream1213,
     ];
 
-    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
+    pub fn load<S>(
+        &mut self,
+        _: &TcKonnektSegment<S>,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error>
         where S: TcKonnektSegmentData + ShellMixerStreamSrcPairSpec,
     {
         let labels: Vec<String> = Self::MIXER_STREAM_SRC_PAIRS.iter()
@@ -742,8 +829,12 @@ impl MixerStreamSrcPairCtl {
         Ok(())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellMixerStreamSrcPair> + ShellMixerStreamSrcPairSpec,
     {
         match elem_id.get_name().as_str() {
@@ -761,9 +852,15 @@ impl MixerStreamSrcPairCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<ShellMixerStreamSrcPair> + ShellMixerStreamSrcPairSpec,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -780,7 +877,7 @@ impl MixerStreamSrcPairCtl {
                         })
                         .and_then(|&s| {
                             *segment.data.as_mut() = s;
-                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                            proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -821,8 +918,12 @@ impl ShellCoaxIfaceCtl {
             .map(|_| ())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where for<'b> S: TcKonnektSegmentData + AsRef<ShellCoaxOutPairSrc>,
     {
         match elem_id.get_name().as_str() {
@@ -839,9 +940,15 @@ impl ShellCoaxIfaceCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellCoaxOutPairSrc>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -857,7 +964,7 @@ impl ShellCoaxIfaceCtl {
                         })
                         .and_then(|&s| {
                             segment.data.as_mut().0 = s;
-                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                            proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -921,8 +1028,12 @@ impl ShellOptIfaceCtl {
         Ok(())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where for<'b> S: TcKonnektSegmentData + AsRef<ShellOptIfaceConfig>,
     {
         match elem_id.get_name().as_str() {
@@ -960,9 +1071,15 @@ impl ShellOptIfaceCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellOptIfaceConfig>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -979,7 +1096,7 @@ impl ShellOptIfaceCtl {
                         .and_then(|&f| {
                             let mut state = segment.data.as_mut();
                             state.input_format = f;
-                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                            proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -995,7 +1112,7 @@ impl ShellOptIfaceCtl {
                         .and_then(|&f| {
                             let mut state = segment.data.as_mut();
                             state.output_format = f;
-                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                            proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -1011,7 +1128,7 @@ impl ShellOptIfaceCtl {
                         .and_then(|&s| {
                             let mut state = segment.data.as_mut();
                             state.output_source.0 = s;
-                            proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                            proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -1049,8 +1166,11 @@ impl ShellKnobCtl {
     ];
     const TARGET_COUNT: u32 = 4;
 
-    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
+    pub fn load<S>(
+        &mut self,
+        _: &TcKonnektSegment<S>,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error>
         where S: TcKonnektSegmentData + ShellKnobTargetSpec,
     {
         let labels = if S::HAS_SPDIF {
@@ -1065,8 +1185,12 @@ impl ShellKnobCtl {
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellKnobTarget>,
     {
         match elem_id.get_name().as_str() {
@@ -1086,9 +1210,15 @@ impl ShellKnobCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellKnobTarget>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -1101,7 +1231,7 @@ impl ShellKnobCtl {
                         Err(Error::new(FileError::Io, &msg))
                     } else {
                         segment.data.as_mut().0 = val;
-                        proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                     }
                 })
                 .map(|_| true)
@@ -1143,8 +1273,11 @@ impl ShellKnob2Ctl {
         "Midi-send",
     ];
 
-    pub fn load<S>(&mut self, _: &TcKonnektSegment<S>, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
+    pub fn load<S>(
+        &mut self,
+        _: &TcKonnektSegment<S>,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error>
         where S: TcKonnektSegmentData + ShellKnob2TargetSpec,
     {
         let labels = if S::KNOB2_TARGET_COUNT == 9 {
@@ -1161,8 +1294,12 @@ impl ShellKnob2Ctl {
             .map(|_| ())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<ShellKnob2Target> + ShellKnob2TargetSpec,
     {
         match elem_id.get_name().as_str() {
@@ -1182,9 +1319,15 @@ impl ShellKnob2Ctl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellKnob2Target> + ShellKnob2TargetSpec,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -1197,7 +1340,7 @@ impl ShellKnob2Ctl {
                         Err(Error::new(FileError::Io, &msg))
                     } else {
                         segment.data.as_mut().0 = val;
-                        proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                     }
                 })
                 .map(|_| true)

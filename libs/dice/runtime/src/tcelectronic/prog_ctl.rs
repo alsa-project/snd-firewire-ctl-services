@@ -29,8 +29,12 @@ impl TcKonnektProgramCtl {
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<TcKonnektLoadedProgram>,
     {
         match elem_id.get_name().as_str() {
@@ -50,9 +54,15 @@ impl TcKonnektProgramCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               for<'b> S: TcKonnektSegmentData + AsMut<TcKonnektLoadedProgram>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -65,7 +75,7 @@ impl TcKonnektProgramCtl {
                         Err(Error::new(FileError::Io, &msg))
                     } else {
                         segment.data.as_mut().0 = val;
-                        proto.write_segment(&unit.get_node(), segment, timeout_ms)
+                        proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                     }
                 })
                 .map(|_| true)

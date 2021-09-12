@@ -46,8 +46,12 @@ impl FwLedCtl {
         Ok(())
     }
 
-    pub fn read<S>(&mut self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S>(
+        &mut self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<FireWireLedState>,
     {
         match elem_id.get_name().as_str() {
@@ -64,9 +68,15 @@ impl FwLedCtl {
         }
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<FireWireLedState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -77,12 +87,12 @@ impl FwLedCtl {
                     Self::STATES.iter()
                         .nth(val as usize)
                         .ok_or_else(||{
-                            let msg = format!("Invalid value for index of FireWire LED: {}", val);
+                            let msg = format!("Invalid index of FireWire LED: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&s| *segment.data.as_mut() = s)
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
             _ => Ok(false),

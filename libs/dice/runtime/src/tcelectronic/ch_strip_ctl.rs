@@ -154,18 +154,24 @@ impl ChStripCtl {
     const GAIN_METER_STEP: i32 = 1;
     const GAIN_METER_TLV: DbInterval = DbInterval{min: -2400, max: 1800, linear: false, mute_avail: false};
 
-    pub fn load<T, S, M>(&mut self, unit: &SndDice, proto: &T, state_segment: &mut TcKonnektSegment<S>,
-                         meter_segment: &mut TcKonnektSegment<M>, timeout_ms: u32, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
+    pub fn load<T, S, M>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        state_segment: &mut TcKonnektSegment<S>,
+        meter_segment: &mut TcKonnektSegment<M>,
+        timeout_ms: u32,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error>
         where T: TcKonnektSegmentProtocol<FwNode, S> + TcKonnektSegmentProtocol<FwNode, M>,
               S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
               TcKonnektSegment<M>: TcKonnektSegmentSpec,
     {
-        let node = unit.get_node();
-        proto.read_segment(&node, state_segment, timeout_ms)?;
-        proto.read_segment(&node, meter_segment, timeout_ms)?;
+        let mut node = unit.get_node();
+        proto.read_segment(&mut node, state_segment, timeout_ms)?;
+        proto.read_segment(&mut node, meter_segment, timeout_ms)?;
 
         let states = state_segment.data.as_ref();
 
@@ -235,45 +241,74 @@ impl ChStripCtl {
         Ok(())
     }
 
-    fn state_add_int_elem(&mut self, card_cntr: &mut CardCntr, states: &[ChStripState], name: &str,
-                          count: usize, min: i32, max: i32, step: i32, tlv: Option<&[u32]>, unlock: bool)
-        -> Result<(), Error>
-    {
+    fn state_add_int_elem(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        states: &[ChStripState],
+        name: &str,
+        count: usize,
+        min: i32,
+        max: i32,
+        step: i32,
+        tlv: Option<&[u32]>,
+        unlock: bool
+    ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_int_elems(&elem_id, count, min, max, step, states.len(), tlv, unlock)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    fn state_add_enum_elem<T: AsRef<str>>(&mut self, card_cntr: &mut CardCntr, states: &[ChStripState],
-                                          name: &str, count: usize, labels: &[T], locked: bool)
-        -> Result<(), Error>
-    {
+    fn state_add_enum_elem<T: AsRef<str>>(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        states: &[ChStripState],
+        name: &str,
+        count: usize,
+        labels: &[T],
+        locked: bool
+    ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_enum_elems(&elem_id, count, states.len(), labels, None, locked)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    fn state_add_bool_elem(&mut self, card_cntr: &mut CardCntr, states: &[ChStripState], name: &str,
-                           count: usize, unlock: bool)
-        -> Result<(), Error>
-    {
+    fn state_add_bool_elem(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        states: &[ChStripState],
+        name: &str,
+        count: usize,
+        unlock: bool
+    ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_bool_elems(&elem_id, count, states.len(), unlock)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
 
-    fn meter_add_int_elem(&mut self, card_cntr: &mut CardCntr, meters: &[ChStripMeter], name: &str,
-                          count: usize, min: i32, max: i32, step: i32, tlv: Option<&[u32]>, unlock: bool)
-        -> Result<(), Error>
-    {
+    fn meter_add_int_elem(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        meters: &[ChStripMeter],
+        name: &str,
+        count: usize,
+        min: i32,
+        max: i32,
+        step: i32,
+        tlv: Option<&[u32]>,
+        unlock: bool
+    ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_int_elems(&elem_id, count, min, max, step, meters.len(), tlv, unlock)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
     }
 
-    pub fn read<S, M>(&self, state_segment: &TcKonnektSegment<S>, meter_segment: &TcKonnektSegment<M>,
-                      elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read<S, M>(
+        &self,
+        state_segment: &TcKonnektSegment<S>,
+        meter_segment: &TcKonnektSegment<M>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
@@ -288,8 +323,12 @@ impl ChStripCtl {
         }
     }
 
-    fn state_read_elem<S, T, F>(&self, segment: &TcKonnektSegment<S>, elem_value: &ElemValue, cb: F)
-        -> Result<bool, Error>
+    fn state_read_elem<S, T, F>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_value: &ElemValue,
+        cb: F
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&ChStripState) -> T,
@@ -303,8 +342,12 @@ impl ChStripCtl {
         .map(|_| true)
     }
 
-    fn meter_read_elem<M, T, F>(&self, segment: &TcKonnektSegment<M>, elem_value: &ElemValue, cb: F)
-        -> Result<bool, Error>
+    fn meter_read_elem<M, T, F>(
+        &self,
+        segment: &TcKonnektSegment<M>,
+        elem_value: &ElemValue,
+        cb: F
+    ) -> Result<bool, Error>
         where M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
               TcKonnektSegment<M>: TcKonnektSegmentSpec,
               F: Fn(&ChStripMeter) -> T,
@@ -318,9 +361,16 @@ impl ChStripCtl {
         .map(|_| true)
     }
 
-    pub fn write<T, S>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                       elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<T, S>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -400,9 +450,16 @@ impl ChStripCtl {
         }
     }
 
-    fn state_write_elem<T, S, U, F>(&mut self, unit: &SndDice, proto: &T, segment: &mut TcKonnektSegment<S>,
-                                    old: &ElemValue, new: &ElemValue, timeout_ms: u32, cb: F)
-        -> Result<bool, Error>
+    fn state_write_elem<T, S, U, F>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        segment: &mut TcKonnektSegment<S>,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+        cb: F
+    ) -> Result<bool, Error>
         where T: TcKonnektSegmentProtocol<FwNode, S>,
               S: TcKonnektSegmentData + AsMut<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -415,12 +472,16 @@ impl ChStripCtl {
             cb(&mut states[idx], val);
             Ok(())
         })
-        .and_then(|_| proto.write_segment(&unit.get_node(), segment, timeout_ms))
+        .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
         .map(|_| true)
     }
 
-    pub fn read_notified_elem<S>(&self, segment: &TcKonnektSegment<S>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read_notified_elem<S>(
+        &self,
+        segment: &TcKonnektSegment<S>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -484,9 +545,14 @@ impl ChStripCtl {
         }
     }
 
-    pub fn measure_states<T, S, M>(&mut self, unit: &SndDice, proto: &T, state_segment: &TcKonnektSegment<S>,
-                                   meter_segment: &mut TcKonnektSegment<M>, timeout_ms: u32)
-        -> Result<(), Error>
+    pub fn measure_states<T, S, M>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        state_segment: &TcKonnektSegment<S>,
+        meter_segment: &mut TcKonnektSegment<M>,
+        timeout_ms: u32
+    ) -> Result<(), Error>
         where T: TcKonnektSegmentProtocol<FwNode, S> + TcKonnektSegmentProtocol<FwNode, M>,
               S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
@@ -494,14 +560,18 @@ impl ChStripCtl {
               TcKonnektSegment<M>: TcKonnektSegmentSpec,
     {
         if state_segment.data.as_ref().iter().find(|s| s.bypass).is_none() {
-            proto.read_segment(&unit.get_node(), meter_segment, timeout_ms)
+            proto.read_segment(&mut unit.get_node(), meter_segment, timeout_ms)
         } else {
             Ok(())
         }
     }
 
-    pub fn read_measured_elem<M>(&self, segment: &TcKonnektSegment<M>, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
+    pub fn read_measured_elem<M>(
+        &self,
+        segment: &TcKonnektSegment<M>,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error>
         where M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
               TcKonnektSegment<M>: TcKonnektSegmentSpec,
     {
