@@ -47,14 +47,18 @@ impl From<MixerSrc> for usize {
     }
 }
 
-pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
+pub trait IonixMixerProtocol: IonixProtocol {
     const MIXER_BUS_SRC_OFFSET: usize = 0x0000;
     const MIXER_MAIN_SRC_OFFSET: usize = 0x02d0;
     const MIXER_REVERB_SRC_OFFSET: usize = 0x0360;
 
-    fn read_mixer_bus_src_gain(&self, node: &T, dst: usize, src: MixerSrc, timeout_ms: u32)
-        -> Result<u32, Error>
-    {
+    fn read_mixer_bus_src_gain(
+        &self,
+        node: &mut FwNode,
+        dst: usize,
+        src: MixerSrc,
+        timeout_ms: u32
+    ) -> Result<u32, Error> {
         assert!(dst < MIXER_BUS_CHANNEL_COUNT);
 
         let mut raw = [0;4];
@@ -63,9 +67,14 @@ pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
             .map(|_| u32::from_be_bytes(raw))
     }
 
-    fn write_mixer_bus_src_gain(&self, node: &T, dst: usize, src: MixerSrc, gain: u32, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_bus_src_gain(
+        &self,
+        node: &mut FwNode,
+        dst: usize,
+        src: MixerSrc,
+        gain: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert!(dst < MIXER_BUS_CHANNEL_COUNT);
 
         let mut raw = [0;4];
@@ -74,9 +83,13 @@ pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
         IonixProtocol::write(self, node, Self::MIXER_BUS_SRC_OFFSET + offset, &mut raw, timeout_ms)
     }
 
-    fn read_mixer_main_src_gain(&self, node: &T, dst: usize, src: MixerSrc, timeout_ms: u32)
-        -> Result<u32, Error>
-    {
+    fn read_mixer_main_src_gain(
+        &self,
+        node: &mut FwNode,
+        dst: usize,
+        src: MixerSrc,
+        timeout_ms: u32
+    ) -> Result<u32, Error> {
         assert!(dst < MIXER_MAIN_CHANNEL_COUNT);
 
         let mut raw = [0;4];
@@ -85,9 +98,14 @@ pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
             .map(|_| u32::from_be_bytes(raw))
     }
 
-    fn write_mixer_main_src_gain(&self, node: &T, dst: usize, src: MixerSrc, gain: u32, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_main_src_gain(
+        &self,
+        node: &mut FwNode,
+        dst: usize,
+        src: MixerSrc,
+        gain: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert!(dst < MIXER_MAIN_CHANNEL_COUNT);
 
         let mut raw = [0;4];
@@ -96,9 +114,13 @@ pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
         IonixProtocol::write(self, node, Self::MIXER_MAIN_SRC_OFFSET + offset, &mut raw, timeout_ms)
     }
 
-    fn read_mixer_reverb_src_gain(&self, node: &T, dst: usize, src: MixerSrc, timeout_ms: u32)
-        -> Result<u32, Error>
-    {
+    fn read_mixer_reverb_src_gain(
+        &self,
+        node: &mut FwNode,
+        dst: usize,
+        src: MixerSrc,
+        timeout_ms: u32
+    ) -> Result<u32, Error> {
         assert!(dst < MIXER_REVERB_CHANNEL_COUNT);
 
         let mut raw = [0;4];
@@ -107,9 +129,14 @@ pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
             .map(|_| u32::from_be_bytes(raw))
     }
 
-    fn write_mixer_reverb_src_gain(&self, node: &T, dst: usize, src: MixerSrc, gain: u32, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer_reverb_src_gain(
+        &self,
+        node: &mut FwNode,
+        dst: usize,
+        src: MixerSrc,
+        gain: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         assert!(dst < MIXER_REVERB_CHANNEL_COUNT);
 
         let mut raw = [0;4];
@@ -119,7 +146,6 @@ pub trait IonixMixerProtocol<T: AsRef<FwNode>> : IonixProtocol<T> {
     }
 }
 
-impl<O, T> IonixMixerProtocol<T> for O
-    where O: IonixProtocol<T>,
-          T: AsRef<FwNode>,
+impl<O> IonixMixerProtocol for O
+    where O: IonixProtocol,
 {}

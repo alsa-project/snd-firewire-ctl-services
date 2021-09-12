@@ -190,12 +190,13 @@ impl From<&[u8]> for ExtensionCaps {
     }
 }
 
-pub trait CapsSectionProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
-    fn read_caps(&self, node: &T, sections: &ExtensionSections, timeout_ms: u32)
-        -> Result<ExtensionCaps, Error>
-    {
+pub trait CapsSectionProtocol: ProtocolExtension {
+    fn read_caps(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        timeout_ms: u32
+    ) -> Result<ExtensionCaps, Error> {
         let mut data = [0;ExtensionCaps::SIZE];
         ProtocolExtension::read(self, node, sections.caps.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::Caps, &e.to_string()))
@@ -203,7 +204,7 @@ pub trait CapsSectionProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> CapsSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> CapsSectionProtocol for O {}
 
 #[cfg(test)]
 mod test {

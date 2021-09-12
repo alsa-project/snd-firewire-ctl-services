@@ -3,7 +3,7 @@
 
 use glib::{Error, FileError};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
@@ -76,7 +76,7 @@ impl TcKonnektStandaloneCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               for<'b> S: TcKonnektSegmentData + AsMut<TcKonnektStandaloneClkRate>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec
     {

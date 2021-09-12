@@ -16,18 +16,36 @@ use hinawa::FwNode;
 use super::{*, tcat::*};
 
 /// The trait to represent protocol defined by Alesis for iO FireWire series.
-pub trait AlesisIoProtocol<T: AsRef<FwNode>> : GeneralProtocol<T> {
+pub trait AlesisIoProtocol: GeneralProtocol {
     const BASE_OFFSET: usize = 0x00200000;
 
-    fn read_block(&self, node: &T, offset: usize, frame: &mut [u8], timeout_ms: u32) -> Result<(), Error> {
+    fn read_block(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        frame: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.read(node, Self::BASE_OFFSET + offset, frame, timeout_ms)
     }
 
-    fn write_block(&self, node: &T, offset: usize, frame: &mut [u8], timeout_ms: u32) -> Result<(), Error> {
+    fn write_block(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        frame: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.write(node, Self::BASE_OFFSET + offset, frame, timeout_ms)
     }
 
-    fn read_flags(&self, node: &T, offset: usize, flags: &mut [bool], timeout_ms: u32) -> Result<(), Error> {
+    fn read_flags(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        flags: &mut [bool],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut raw = [0;4];
         self.read_block(node, offset, &mut raw, timeout_ms)
             .map(|_| {
@@ -41,7 +59,13 @@ pub trait AlesisIoProtocol<T: AsRef<FwNode>> : GeneralProtocol<T> {
             })
     }
 
-    fn write_flags(&self, node: &T, offset: usize, flags: &[bool], timeout_ms: u32) -> Result<(), Error> {
+    fn write_flags(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        flags: &[bool],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let val = flags.iter()
             .enumerate()
             .filter(|(_, &flag)| flag)
@@ -52,7 +76,4 @@ pub trait AlesisIoProtocol<T: AsRef<FwNode>> : GeneralProtocol<T> {
     }
 }
 
-impl<O, T> AlesisIoProtocol<T> for O
-    where T: AsRef<FwNode>,
-          O: GeneralProtocol<T>,
-{}
+impl<O: GeneralProtocol> AlesisIoProtocol for O {}

@@ -7,15 +7,17 @@
 //! in protocol extension defined by TCAT for ASICs of DICE.
 use super::{*, caps_section::*};
 
-pub trait MixerSectionProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
+pub trait MixerSectionProtocol: ProtocolExtension {
     const SATURATION_OFFSET: usize = 0x00;
     const COEFF_OFFSET: usize = 0x04;
 
-    fn read_saturation(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps, timeout_ms: u32)
-        -> Result<Vec<bool>, Error>
-    {
+    fn read_saturation(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        timeout_ms: u32
+    ) -> Result<Vec<bool>, Error> {
         if !caps.mixer.is_exposed {
             Err(Error::new(ProtocolExtensionError::Mixer, "Mixer is not available"))?
         }
@@ -32,10 +34,15 @@ pub trait MixerSectionProtocol<T> : ProtocolExtension<T>
             })
     }
 
-    fn read_coef(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                 dst: usize, src: usize, timeout_ms: u32)
-        -> Result<u32, Error>
-    {
+    fn read_coef(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        dst: usize,
+        src: usize,
+        timeout_ms: u32
+    ) -> Result<u32, Error> {
         if !caps.mixer.is_exposed {
             Err(Error::new(ProtocolExtensionError::Mixer, "Mixer is not available"))?
         }
@@ -48,10 +55,16 @@ pub trait MixerSectionProtocol<T> : ProtocolExtension<T>
             .map(|_|  u32::from_be_bytes(data))
     }
 
-    fn write_coef(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                  dst: usize, src: usize, val: u32, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_coef(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        dst: usize,
+        src: usize,
+        val: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         if caps.mixer.is_readonly {
             Err(Error::new(ProtocolExtensionError::Mixer, "Mixer is immutable"))?
         }
@@ -65,4 +78,4 @@ pub trait MixerSectionProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> MixerSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> MixerSectionProtocol for O {}

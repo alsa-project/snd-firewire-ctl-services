@@ -214,13 +214,17 @@ impl ErrorDomain for GeneralProtocolError {
 }
 
 /// The trait for general protocol.
-pub trait GeneralProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
+pub trait GeneralProtocol: AsRef<FwReq> {
     const BASE_ADDR: u64 = 0xffffe0000000;
     const MAX_FRAME_SIZE: usize = 512;
 
-    fn read(&self, node: &T, offset: usize, mut frames: &mut [u8], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn read(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        mut frames: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut addr = Self::BASE_ADDR + offset as u64;
 
         while frames.len() > 0 {
@@ -231,7 +235,7 @@ pub trait GeneralProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
                 FwTcode::ReadBlockRequest
             };
 
-            self.as_ref().transaction_sync(node.as_ref(), tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+            self.as_ref().transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
 
             addr += len as u64;
             frames = &mut frames[len..];
@@ -240,10 +244,13 @@ pub trait GeneralProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
         Ok(())
     }
 
-    fn write(&self, node: &T, offset: usize, mut frames: &mut [u8], timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        let n = node.as_ref();
+    fn write(
+        &self,
+        node: &mut FwNode,
+        offset: usize,
+        mut frames: &mut [u8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut addr = Self::BASE_ADDR + (offset as u64);
 
         while frames.len() > 0 {
@@ -254,7 +261,7 @@ pub trait GeneralProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
                 FwTcode::WriteBlockRequest
             };
 
-            self.as_ref().transaction_sync(n, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
+            self.as_ref().transaction_sync(node, tcode, addr, len, &mut frames[0..len], timeout_ms)?;
 
             addr += len as u64;
             frames = &mut frames[len..];
@@ -263,14 +270,18 @@ pub trait GeneralProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
         Ok(())
     }
 
-    fn read_general_sections(&self, node: &T, timeout_ms: u32) -> Result<GeneralSections, Error> {
+    fn read_general_sections(
+        &self,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<GeneralSections, Error> {
         let mut data = [0;GeneralSections::SIZE];
         self.read(node, 0, &mut data, timeout_ms)
             .map(|_| GeneralSections::from(&data[..]))
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> GeneralProtocol<T> for O {}
+impl<O: AsRef<FwReq>> GeneralProtocol for O {}
 
 /// The structure to represent parameter of stream format for IEC 60958.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]

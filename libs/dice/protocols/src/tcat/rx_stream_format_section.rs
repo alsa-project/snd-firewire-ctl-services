@@ -87,14 +87,15 @@ impl From<&RxStreamEntry> for Vec<u8> {
     }
 }
 
-pub trait RxStreamFormatSectionProtocol<T> : GeneralProtocol<T>
-    where T: AsRef<FwNode>,
-{
+pub trait RxStreamFormatSectionProtocol: GeneralProtocol {
     const SIZE_OFFSET: usize = 0x04;
 
-    fn read_rx_stream_format_entries(&self, node: &T, sections: &GeneralSections, timeout_ms: u32)
-        -> Result<Vec<RxStreamEntry>, Error>
-    {
+    fn read_rx_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &GeneralSections,
+        timeout_ms: u32
+    ) -> Result<Vec<RxStreamEntry>, Error> {
         let mut data = [0;8];
         self.read(node, sections.rx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
@@ -119,10 +120,13 @@ pub trait RxStreamFormatSectionProtocol<T> : GeneralProtocol<T>
         Ok(entries)
     }
 
-    fn write_rx_stream_format_entries(&self, node: &T, sections: &GeneralSections, entries: &[RxStreamEntry],
-                                      timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_rx_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &GeneralSections,
+        entries: &[RxStreamEntry],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut data = [0;8];
         self.read(node, sections.rx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
@@ -157,4 +161,4 @@ pub trait RxStreamFormatSectionProtocol<T> : GeneralProtocol<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> RxStreamFormatSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> RxStreamFormatSectionProtocol for O {}

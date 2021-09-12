@@ -52,10 +52,13 @@ impl ExtSyncBlock {
     }
 }
 
-pub trait ExtSyncSectionProtocol<T> : GeneralProtocol<T>
-    where T: AsRef<FwNode>,
-{
-    fn read_ext_sync_block(&self, node: &T, sections: &GeneralSections, timeout_ms: u32) -> Result<ExtSyncBlock, Error> {
+pub trait ExtSyncSectionProtocol: GeneralProtocol {
+    fn read_ext_sync_block(
+        &self,
+        node: &mut FwNode,
+        sections: &GeneralSections,
+        timeout_ms: u32
+    ) -> Result<ExtSyncBlock, Error> {
         if sections.ext_sync.size < ExtSyncBlock::SIZE {
             let msg = format!("Ext sync section has {} less size than {} expected",
                               sections.ext_sync.size, ExtSyncBlock::SIZE);
@@ -68,4 +71,4 @@ pub trait ExtSyncSectionProtocol<T> : GeneralProtocol<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> ExtSyncSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> ExtSyncSectionProtocol for O {}

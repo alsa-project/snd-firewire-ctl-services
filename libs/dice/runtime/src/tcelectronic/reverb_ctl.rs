@@ -4,7 +4,7 @@ use glib::Error;
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -127,7 +127,7 @@ impl ReverbCtl {
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S> + TcKonnektSegmentProtocol<FwNode, M>,
+        where T: TcKonnektSegmentProtocol<S> + TcKonnektSegmentProtocol<M>,
               S: TcKonnektSegmentData + AsRef<ReverbState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<ReverbMeter>,
@@ -300,7 +300,7 @@ impl ReverbCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<ReverbState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -382,7 +382,7 @@ impl ReverbCtl {
         timeout_ms: u32,
         cb: F
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<ReverbState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&mut ReverbState, U) -> (),
@@ -467,7 +467,7 @@ impl ReverbCtl {
         meter_segment: &mut TcKonnektSegment<M>,
         timeout_ms: u32
     ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<FwNode, M>,
+        where T: TcKonnektSegmentProtocol<M>,
               S: TcKonnektSegmentData + AsRef<ReverbState> + AsMut<ReverbState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<ReverbMeter> + AsMut<ReverbMeter>,

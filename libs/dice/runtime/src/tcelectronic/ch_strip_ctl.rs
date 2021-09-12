@@ -5,7 +5,7 @@ use glib::Error;
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -163,7 +163,7 @@ impl ChStripCtl {
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S> + TcKonnektSegmentProtocol<FwNode, M>,
+        where T: TcKonnektSegmentProtocol<S> + TcKonnektSegmentProtocol<M>,
               S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData + AsRef<[ChStripMeter]>,
@@ -371,7 +371,7 @@ impl ChStripCtl {
         new: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -460,7 +460,7 @@ impl ChStripCtl {
         timeout_ms: u32,
         cb: F
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&mut ChStripState, U) -> (),
@@ -553,7 +553,7 @@ impl ChStripCtl {
         meter_segment: &mut TcKonnektSegment<M>,
         timeout_ms: u32
     ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S> + TcKonnektSegmentProtocol<FwNode, M>,
+        where T: TcKonnektSegmentProtocol<S> + TcKonnektSegmentProtocol<M>,
               S: TcKonnektSegmentData + AsRef<[ChStripState]>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               M: TcKonnektSegmentData,

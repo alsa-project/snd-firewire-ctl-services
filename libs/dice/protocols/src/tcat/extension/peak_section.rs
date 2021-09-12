@@ -7,13 +7,14 @@
 //! in protocol extension defined by TCAT for ASICs of DICE.
 use super::{*, caps_section::*, router_entry::*};
 
-pub trait PeakSectionProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
-    fn read_peak_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                         timeout_ms: u32)
-        -> Result<Vec<RouterEntry>, Error>
-    {
+pub trait PeakSectionProtocol: ProtocolExtension {
+    fn read_peak_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        timeout_ms: u32
+    ) -> Result<Vec<RouterEntry>, Error> {
         if !caps.general.peak_avail {
             Err(Error::new(ProtocolExtensionError::Peak, "Peak is not available"))?
         }
@@ -25,4 +26,4 @@ pub trait PeakSectionProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> PeakSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> PeakSectionProtocol for O {}

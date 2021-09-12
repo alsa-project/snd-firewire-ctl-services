@@ -159,13 +159,15 @@ impl RouterEntry {
     }
 }
 
-pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
-    fn read_router_entries(&self, node: &T, caps: &ExtensionCaps, offset: usize,
-                           entry_count: usize, timeout_ms: u32)
-        -> Result<Vec<RouterEntry>, Error>
-    {
+pub trait RouterEntryProtocol: ProtocolExtension {
+    fn read_router_entries(
+        &self,
+        node: &mut FwNode,
+        caps: &ExtensionCaps,
+        offset: usize,
+        entry_count: usize,
+        timeout_ms: u32
+    ) -> Result<Vec<RouterEntry>, Error> {
         if entry_count > caps.router.maximum_entry_count as usize {
             let msg = format!("Invalid entries to read: {} but greater than {}",
                               entry_count, caps.router.maximum_entry_count);
@@ -186,10 +188,14 @@ pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
             })
     }
 
-    fn write_router_entries(&self, node: &T, caps: &ExtensionCaps, offset: usize,
-                            entries: &[RouterEntry], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_router_entries(
+        &self,
+        node: &mut FwNode,
+        caps: &ExtensionCaps,
+        offset: usize,
+        entries: &[RouterEntry],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         if entries.len() > caps.router.maximum_entry_count as usize {
             let msg = format!("Invalid number of entries to read: {} but greater than {}",
                               entries.len(), caps.router.maximum_entry_count * 4);
@@ -211,7 +217,7 @@ pub trait RouterEntryProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> RouterEntryProtocol<T> for O {}
+impl<O: AsRef<FwReq>> RouterEntryProtocol for O {}
 
 #[cfg(test)]
 mod test {

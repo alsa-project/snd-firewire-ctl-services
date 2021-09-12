@@ -88,14 +88,15 @@ impl From<&TxStreamFormatEntry> for Vec<u8>
     }
 }
 
-pub trait TxStreamFormatSectionProtocol<T> : GeneralProtocol<T>
-    where T: AsRef<FwNode>,
-{
+pub trait TxStreamFormatSectionProtocol: GeneralProtocol {
     const SIZE_OFFSET: usize = 0x04;
 
-    fn read_tx_stream_format_entries(&self, node: &T, sections: &GeneralSections, timeout_ms: u32)
-        -> Result<Vec<TxStreamFormatEntry>, Error>
-    {
+    fn read_tx_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &GeneralSections,
+        timeout_ms: u32
+    ) -> Result<Vec<TxStreamFormatEntry>, Error> {
         let mut data = [0;8];
         self.read(node, sections.tx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
@@ -120,10 +121,13 @@ pub trait TxStreamFormatSectionProtocol<T> : GeneralProtocol<T>
         .map(|_| entries)
     }
 
-    fn write_tx_stream_format_entries(&self, node: &T, sections: &GeneralSections,
-                        entries: &[TxStreamFormatEntry], timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_tx_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &GeneralSections,
+        entries: &[TxStreamFormatEntry],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut data = [0;8];
         self.read(node, sections.tx_stream_format.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(GeneralProtocolError::TxStreamFormat, &e.to_string()))?;
@@ -156,4 +160,4 @@ pub trait TxStreamFormatSectionProtocol<T> : GeneralProtocol<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> TxStreamFormatSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> TxStreamFormatSectionProtocol for O {}

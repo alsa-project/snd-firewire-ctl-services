@@ -4,7 +4,7 @@ use glib::Error;
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use dice_protocols::tcelectronic::{*, midi_send::*};
 
@@ -92,7 +92,7 @@ impl MidiSendCtl {
         timeout_ms: u32
     )
         -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<TcKonnektMidiSender>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -156,7 +156,7 @@ impl MidiSendCtl {
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<TcKonnektMidiSender>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&mut TcKonnektMidiSender)

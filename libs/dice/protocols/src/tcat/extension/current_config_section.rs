@@ -10,9 +10,7 @@ use super::{*, cmd_section::*, caps_section::*};
 use super::router_entry::*;
 use super::stream_format_entry::*;
 
-pub trait CurrentConfigSectionProtocol<T> : ProtocolExtension<T>
-    where T: AsRef<FwNode>,
-{
+pub trait CurrentConfigSectionProtocol: ProtocolExtension {
     const LOW_ROUTER_CONFIG_OFFSET: usize = 0x0000;
     const LOW_STREAM_CONFIG_OFFSET: usize = 0x1000;
     const MID_ROUTER_CONFIG_OFFSET: usize = 0x2000;
@@ -20,10 +18,14 @@ pub trait CurrentConfigSectionProtocol<T> : ProtocolExtension<T>
     const HIGH_ROUTER_CONFIG_OFFSET: usize = 0x4000;
     const HIGH_STREAM_CONFIG_OFFSET: usize = 0x5000;
 
-    fn read_current_router_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                                   mode: RateMode, timeout_ms: u32)
-        -> Result<Vec<RouterEntry>, Error>
-    {
+    fn read_current_router_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        mode: RateMode,
+        timeout_ms: u32
+    ) -> Result<Vec<RouterEntry>, Error> {
         let offset = match mode {
             RateMode::Low => Self::LOW_ROUTER_CONFIG_OFFSET,
             RateMode::Middle => Self::MID_ROUTER_CONFIG_OFFSET,
@@ -42,10 +44,14 @@ pub trait CurrentConfigSectionProtocol<T> : ProtocolExtension<T>
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))
     }
 
-    fn read_current_stream_format_entries(&self, node: &T, sections: &ExtensionSections, caps: &ExtensionCaps,
-                                          mode: RateMode, timeout_ms: u32)
-        -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error>
-    {
+    fn read_current_stream_format_entries(
+        &self,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        caps: &ExtensionCaps,
+        mode: RateMode,
+        timeout_ms: u32
+    ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
         let offset = match mode {
             RateMode::Low => Self::LOW_STREAM_CONFIG_OFFSET,
             RateMode::Middle => Self::MID_STREAM_CONFIG_OFFSET,
@@ -57,4 +63,4 @@ pub trait CurrentConfigSectionProtocol<T> : ProtocolExtension<T>
     }
 }
 
-impl<O: AsRef<FwReq>, T: AsRef<FwNode>> CurrentConfigSectionProtocol<T> for O {}
+impl<O: AsRef<FwReq>> CurrentConfigSectionProtocol for O {}

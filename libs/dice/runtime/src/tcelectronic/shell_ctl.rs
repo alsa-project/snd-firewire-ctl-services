@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
-use hinawa::{FwNode, SndDice, SndUnitExt};
+use hinawa::{SndDice, SndUnitExt};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -94,7 +94,7 @@ impl HwStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<FireWireLedState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -320,7 +320,7 @@ impl ShellMixerCtl {
         timeout_ms: u32
     )
         -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -428,7 +428,7 @@ impl ShellMixerCtl {
         cb: F
     )
         -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&mut ShellMixerState, U) -> Result<(), Error>,
@@ -451,7 +451,7 @@ impl ShellMixerCtl {
         timeout_ms: u32,
         cb: F
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsRef<ShellMixerState> + AsMut<ShellMixerState>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
               F: Fn(&mut MonitorSrcParam, U) -> Result<(), Error>,
@@ -640,7 +640,7 @@ impl ShellReverbReturnCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<ShellReverbReturn>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -761,7 +761,7 @@ impl ShellStandaloneCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<ShellStandaloneClkSrc> + ShellStandaloneClkSpec +
                  AsMut<TcKonnektStandaloneClkRate>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec
@@ -861,7 +861,7 @@ impl MixerStreamSrcPairCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               S: TcKonnektSegmentData + AsMut<ShellMixerStreamSrcPair> + ShellMixerStreamSrcPairSpec,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -949,7 +949,7 @@ impl ShellCoaxIfaceCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellCoaxOutPairSrc>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -1080,7 +1080,7 @@ impl ShellOptIfaceCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellOptIfaceConfig>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -1219,7 +1219,7 @@ impl ShellKnobCtl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellKnobTarget>,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
@@ -1328,7 +1328,7 @@ impl ShellKnob2Ctl {
         elem_value: &ElemValue,
         timeout_ms: u32
     ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<FwNode, S>,
+        where T: TcKonnektSegmentProtocol<S>,
               for<'b> S: TcKonnektSegmentData + AsMut<ShellKnob2Target> + ShellKnob2TargetSpec,
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
