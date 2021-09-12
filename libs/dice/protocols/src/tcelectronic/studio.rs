@@ -6,38 +6,62 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Studio Konnekt 48.
 
-use super::{*, ch_strip::*, reverb::*, fw_led::*, standalone::*, midi_send::*, prog::*};
+use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 use crate::*;
 
-/// The structure to represent segments in memory space of Studio Konnekt 48.
-#[derive(Default, Debug)]
-pub struct StudioSegments{
-    /// Segment for output level. 0x0000..0x0013 (4 quads).
-    pub out_level: TcKonnektSegment<StudioLineOutLevel>,
-    /// Segment for remote controller. 0x0014..0x0043 (12 quads).
-    pub remote: TcKonnektSegment<StudioRemote>,
-    /// Segment for configuration. 0x0044..0x00a7 (25 quads).
-    pub config: TcKonnektSegment<StudioConfig>,
-    /// Segment for state of mixer. 0x00a8..0x03db (205 quads).
-    pub mixer_state: TcKonnektSegment<StudioMixerState>,
-    /// Segment for physical output. 0x03dc..0x0593 (110 quads).
-    pub phys_out: TcKonnektSegment<StudioPhysOut>,
-    /// Segment for state of reverb effect. 0x0594..0x05d7. (17 quads)
-    pub reverb_state: TcKonnektSegment<StudioReverbState>,
-    /// Segment for states of channel strip effect. 0x05d8..0x081f (146 quads).
-    pub ch_strip_state: TcKonnektSegment<StudioChStripStates>,
-    // NOTE: Segment for tuner. 0x0820..0x083f (8 quads).
-    /// Segment for state of hardware. 0x2008..0x204b (17 quads).
-    pub hw_state: TcKonnektSegment<StudioHwState>,
-    // NOTE: Segment for meter of remote controller. 0x204c..0x205b (4 quads).
-    /// Segment for meter of mixer. 0x20b8..0x2137 (32 quads).
-    pub mixer_meter: TcKonnektSegment<StudioMixerMeter>,
-    // NOTE: Segment for inidentified meter. 0x2138..0x2163 (11 quads).
-    /// Segment for meter of reverb effect. 0x2164..0x217b (6 quads).
-    pub reverb_meter: TcKonnektSegment<StudioReverbMeter>,
-    /// Segment for meters of channel strip effect. 0x217c..0x21b7 (30 quads).
-    pub ch_strip_meter: TcKonnektSegment<StudioChStripMeters>,
-}
+/// The structure for protocol implementation of Studio Konnekt 48.
+#[derive(Default)]
+pub struct Studiok48Protocol;
+
+/// Segment for output level. 0x0000..0x0013 (4 quads).
+pub type Studiok48LineOutLevelSegment = TcKonnektSegment<StudioLineOutLevel>;
+impl SegmentOperation<StudioLineOutLevel> for Studiok48Protocol {}
+
+/// Segment for remote controller. 0x0014..0x0043 (12 quads).
+pub type Studiok48RemoteSegment = TcKonnektSegment<StudioRemote>;
+impl SegmentOperation<StudioRemote> for Studiok48Protocol {}
+
+/// Segment for configuration. 0x0044..0x00a7 (25 quads).
+pub type Studiok48ConfigSegment = TcKonnektSegment<StudioConfig>;
+impl SegmentOperation<StudioConfig> for Studiok48Protocol {}
+
+/// Segment for state of mixer. 0x00a8..0x03db (205 quads).
+pub type Studiok48MixerStateSegment = TcKonnektSegment<StudioMixerState>;
+impl SegmentOperation<StudioMixerState> for Studiok48Protocol {}
+
+/// Segment for physical output. 0x03dc..0x0593 (110 quads).
+pub type Studiok48PhysOutSegment = TcKonnektSegment<StudioPhysOut>;
+impl SegmentOperation<StudioPhysOut> for Studiok48Protocol {}
+
+/// Segment for state of reverb effect. 0x0594..0x05d7. (17 quads)
+pub type Studiok48ReverbStateSegment = TcKonnektSegment<StudioReverbState>;
+impl SegmentOperation<StudioReverbState> for Studiok48Protocol {}
+
+/// Segment for states of channel strip effect. 0x05dc..0x081f (145 quads).
+pub type Studiok48ChStripStatesSegment = TcKonnektSegment<StudioChStripStates>;
+impl SegmentOperation<StudioChStripStates> for Studiok48Protocol {}
+
+// NOTE: Segment for tuner. 0x0820..0x083f (8 quads).
+
+/// Segment for state of hardware. 0x2008..0x204b (17 quads).
+pub type Studiok48HwStateSegment = TcKonnektSegment<StudioHwState>;
+impl SegmentOperation<StudioHwState> for Studiok48Protocol {}
+
+// NOTE: Segment for meter of remote controller. 0x204c..0x205b (4 quads).
+
+/// Segment for meter of mixer. 0x20b8..0x2137 (32 quads).
+pub type Studiok48MixerMeterSegment = TcKonnektSegment<StudioMixerMeter>;
+impl SegmentOperation<StudioMixerMeter> for Studiok48Protocol {}
+
+// NOTE: Segment for inidentified meter. 0x2138..0x2163 (11 quads).
+
+/// Segment for meter of reverb effect. 0x2164..0x217b (6 quads).
+pub type Studiok48ReverbMeterSegment = TcKonnektSegment<StudioReverbMeter>;
+impl SegmentOperation<StudioReverbMeter> for Studiok48Protocol {}
+
+/// Segment for meters of channel strip effect. 0x217c..0x21b7 (30 quads).
+pub type Studiok48ChStripMetersSegment = TcKonnektSegment<StudioChStripMeters>;
+impl SegmentOperation<StudioChStripMeters> for Studiok48Protocol {}
 
 const STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG: u32 = 0x00010000;
 const STUDIO_REMOTE_NOTIFY_FLAG: u32 = 0x00020000;
@@ -54,7 +78,7 @@ const STUDIO_HW_STATE_NOTIFY_FLAG: u32 = 0x04000000;
 
 /// The enumeration to represent line output level.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum NominalSignalLevel{
+pub enum NominalSignalLevel {
     /// +4dBu.
     Professional,
     /// -10dBV.
@@ -88,7 +112,7 @@ impl From<NominalSignalLevel> for u32 {
 
 /// The structure to represent a set of line output levels.
 #[derive(Default, Debug)]
-pub struct StudioLineOutLevel{
+pub struct StudioLineOutLevel {
     pub line_45: NominalSignalLevel,
     pub line_67: NominalSignalLevel,
     pub line_89: NominalSignalLevel,
@@ -198,9 +222,9 @@ pub const STUDIO_REMOTE_USER_ASSIGN_COUNT: usize = 6;
 
 /// The structure to represent state of remote controller.
 #[derive(Default, Debug)]
-pub struct StudioRemote{
+pub struct StudioRemote {
     pub prog: TcKonnektLoadedProgram,
-    pub user_assigns: [SrcEntry;STUDIO_REMOTE_USER_ASSIGN_COUNT],
+    pub user_assigns: [SrcEntry; STUDIO_REMOTE_USER_ASSIGN_COUNT],
     pub effect_button_mode: RemoteEffectButtonMode,
     pub fallback_to_master_enable: bool,
     pub fallback_to_master_duration: u32,
@@ -211,25 +235,15 @@ impl StudioRemote {
     const SIZE: usize = 48;
 }
 
-impl AsRef<TcKonnektLoadedProgram> for StudioRemote {
-    fn as_ref(&self) -> &TcKonnektLoadedProgram {
-        &self.prog
-    }
-}
-
-impl AsMut<TcKonnektLoadedProgram> for StudioRemote {
-    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
-        &mut self.prog
-    }
-}
-
 impl TcKonnektSegmentData for StudioRemote {
     fn build(&self, raw: &mut [u8]) {
         self.prog.build(&mut raw[..4]);
         self.user_assigns.build_quadlet_block(&mut raw[4..28]);
         self.effect_button_mode.build_quadlet(&mut raw[28..32]);
-        self.fallback_to_master_enable.build_quadlet(&mut raw[32..36]);
-        self.fallback_to_master_duration.build_quadlet(&mut raw[36..40]);
+        self.fallback_to_master_enable
+            .build_quadlet(&mut raw[32..36]);
+        self.fallback_to_master_duration
+            .build_quadlet(&mut raw[36..40]);
         self.knob_push_mode.build_quadlet(&mut raw[40..44]);
     }
 
@@ -326,7 +340,7 @@ impl From<StudioStandaloneClkSrc> for u32 {
 
 /// The structure to represent configuration.
 #[derive(Default, Debug)]
-pub struct StudioConfig{
+pub struct StudioConfig {
     pub opt_iface_mode: OptIfaceMode,
     pub standalone_src: StudioStandaloneClkSrc,
     pub standalone_rate: TcKonnektStandaloneClkRate,
@@ -336,30 +350,6 @@ pub struct StudioConfig{
 
 impl StudioConfig {
     const SIZE: usize = 100;
-}
-
-impl AsRef<TcKonnektStandaloneClkRate> for StudioConfig {
-    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
-        &self.standalone_rate
-    }
-}
-
-impl AsMut<TcKonnektStandaloneClkRate> for StudioConfig {
-    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.standalone_rate
-    }
-}
-
-impl AsRef<TcKonnektMidiSender> for StudioConfig {
-    fn as_ref(&self) -> &TcKonnektMidiSender{
-        &self.midi_send
-    }
-}
-
-impl AsMut<TcKonnektMidiSender> for StudioConfig {
-    fn as_mut(&mut self) -> &mut TcKonnektMidiSender{
-        &mut self.midi_send
-    }
 }
 
 impl TcKonnektSegmentData for StudioConfig {
@@ -395,17 +385,17 @@ pub enum SrcEntry {
     /// For unused.
     Unused,
     /// For analog 0..11.
-    Analog(usize),  // 0x01..0x0c
+    Analog(usize), // 0x01..0x0c
     /// For S/PDIF 0..1
-    Spdif(usize),   // 0x0d..0x0e
+    Spdif(usize), // 0x0d..0x0e
     /// For ADAT 0..7.
-    Adat(usize),    // 0x0f..0x16
+    Adat(usize), // 0x0f..0x16
     /// For stream A 0..11, 14,15.
     StreamA(usize), // 0x37..0x46
     /// For stream B 0..8.
     StreamB(usize), // 0x47..0x58
     /// For mixer output (main/aux0/aux1/reverb)
-    Mixer(usize),   // 0x55..0x5c
+    Mixer(usize), // 0x55..0x5c
 }
 
 impl SrcEntry {
@@ -461,10 +451,10 @@ impl From<SrcEntry> for u32 {
 
 /// The structure to represent state of output pair.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct OutPair{
+pub struct OutPair {
     pub dim_enabled: bool,
     pub vol: i32,
-    pub dim_vol: i32
+    pub dim_vol: i32,
 }
 
 impl OutPair {
@@ -523,7 +513,7 @@ impl From<MonitorSrcPairMode> for u32 {
 
 /// The structure to represent parameters of source of monitor.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct MonitorSrcParam{
+pub struct MonitorSrcParam {
     pub src: SrcEntry,
     pub gain_to_main: i32,
     pub pan_to_main: i32,
@@ -560,7 +550,7 @@ impl MonitorSrcParam {
 
 /// The structure to represent source of monitor.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct MonitorSrcPair{
+pub struct MonitorSrcPair {
     pub mode: MonitorSrcPairMode,
     pub stereo_link: bool,
     pub left: MonitorSrcParam,
@@ -594,16 +584,16 @@ pub const STUDIO_MIXER_SRC_PAIR_COUNT: usize = 12;
 
 /// The structure to represent state of mixer.
 #[derive(Default, Debug)]
-pub struct StudioMixerState{
-    pub src_pairs: [MonitorSrcPair;STUDIO_MIXER_SRC_PAIR_COUNT],
-    pub mutes: [bool;STUDIO_MIXER_SRC_PAIR_COUNT],
-    pub reverb_return_mute: [bool;3],
-    pub reverb_return_gain: [i32;3],
-    pub ch_strip_as_plugin: [bool;2],
-    pub ch_strip_src: [SrcEntry;4],
+pub struct StudioMixerState {
+    pub src_pairs: [MonitorSrcPair; STUDIO_MIXER_SRC_PAIR_COUNT],
+    pub mutes: [bool; STUDIO_MIXER_SRC_PAIR_COUNT],
+    pub reverb_return_mute: [bool; 3],
+    pub reverb_return_gain: [i32; 3],
+    pub ch_strip_as_plugin: [bool; 2],
+    pub ch_strip_src: [SrcEntry; 4],
     pub ch_strip_23_at_mid_rate: bool,
-    pub mixer_out: [OutPair;3],
-    pub post_fader: [bool;3],
+    pub mixer_out: [OutPair; 3],
+    pub post_fader: [bool; 3],
     pub enabled: bool,
 }
 
@@ -613,14 +603,13 @@ impl StudioMixerState {
 
 impl TcKonnektSegmentData for StudioMixerState {
     fn build(&self, raw: &mut [u8]) {
-        self.src_pairs.iter()
-            .enumerate()
-            .for_each(|(i, p)| {
-                let pos = i * MonitorSrcPair::SIZE;
-                p.build(&mut raw[pos..(pos + MonitorSrcPair::SIZE)]);
-            });
+        self.src_pairs.iter().enumerate().for_each(|(i, p)| {
+            let pos = i * MonitorSrcPair::SIZE;
+            p.build(&mut raw[pos..(pos + MonitorSrcPair::SIZE)]);
+        });
         let mut val = 0u32;
-        self.mutes.iter()
+        self.mutes
+            .iter()
             .enumerate()
             .filter(|(_, &m)| m)
             .for_each(|(i, _)| {
@@ -633,9 +622,11 @@ impl TcKonnektSegmentData for StudioMixerState {
         self.reverb_return_gain[1].build_quadlet(&mut raw[724..728]);
         self.reverb_return_mute[2].build_quadlet(&mut raw[728..732]);
         self.reverb_return_gain[2].build_quadlet(&mut raw[732..736]);
-        self.ch_strip_as_plugin.build_quadlet_block(&mut raw[736..744]);
+        self.ch_strip_as_plugin
+            .build_quadlet_block(&mut raw[736..744]);
         self.ch_strip_src.build_quadlet_block(&mut raw[744..760]);
-        self.ch_strip_23_at_mid_rate.build_quadlet(&mut raw[760..764]);
+        self.ch_strip_23_at_mid_rate
+            .build_quadlet(&mut raw[760..764]);
         self.mixer_out[0].build(&mut raw[764..776]);
         self.mixer_out[1].build(&mut raw[776..788]);
         self.mixer_out[2].build(&mut raw[788..800]);
@@ -644,19 +635,15 @@ impl TcKonnektSegmentData for StudioMixerState {
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        self.src_pairs.iter_mut()
-            .enumerate()
-            .for_each(|(i, p)| {
-                let pos = i * MonitorSrcPair::SIZE;
-                p.parse(&raw[pos..(pos + MonitorSrcPair::SIZE)]);
-            });
+        self.src_pairs.iter_mut().enumerate().for_each(|(i, p)| {
+            let pos = i * MonitorSrcPair::SIZE;
+            p.parse(&raw[pos..(pos + MonitorSrcPair::SIZE)]);
+        });
         let mut val = 0u32;
         val.parse_quadlet(&raw[672..676]);
-        self.mutes.iter_mut()
-            .enumerate()
-            .for_each(|(i, m)| {
-                *m = (val & 1 << i) > 0;
-            });
+        self.mutes.iter_mut().enumerate().for_each(|(i, m)| {
+            *m = (val & 1 << i) > 0;
+        });
         self.reverb_return_mute[0].parse_quadlet(&raw[712..716]);
         self.reverb_return_gain[0].parse_quadlet(&raw[716..720]);
         self.reverb_return_mute[1].parse_quadlet(&raw[720..724]);
@@ -685,7 +672,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioMixerState> {
 
 /// The structure to represent parameter of each channel for source of physical output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct PhysOutSrcParam{
+pub struct PhysOutSrcParam {
     pub src: SrcEntry,
     pub vol: i32,
     pub delay: i32,
@@ -710,10 +697,10 @@ impl PhysOutSrcParam {
         self.delay.parse_quadlet(&raw[8..12]);
     }
 }
- 
+
 /// The structure to represent source of physical output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct PhysOutPairSrc{
+pub struct PhysOutPairSrc {
     pub stereo_link: bool,
     pub left: PhysOutSrcParam,
     pub right: PhysOutSrcParam,
@@ -741,7 +728,7 @@ impl PhysOutPairSrc {
 
 /// The enumeration to represent the highest frequency to cross over into LFE channel.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum CrossOverFreq{
+pub enum CrossOverFreq {
     F50,
     F80,
     F95,
@@ -787,7 +774,7 @@ impl From<CrossOverFreq> for u32 {
 
 /// The enumeration to represent the frequency above cross over frequency into main channel.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum HighPassFreq{
+pub enum HighPassFreq {
     Off,
     Above12,
     Above24,
@@ -861,8 +848,8 @@ pub const STUDIO_MAX_SURROUND_CHANNELS: usize = 8;
 
 /// The group to aggregate several outputs for surround channels.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct OutGroup{
-    pub assigned_phys_outs: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
+pub struct OutGroup {
+    pub assigned_phys_outs: [bool; STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     pub bass_management: bool,
     pub sub_channel: Option<usize>,
     pub main_cross_over_freq: CrossOverFreq,
@@ -880,7 +867,8 @@ impl OutGroup {
         // freeze. The corruption can be recovered to recall the other program state (P1/P2/P3) by
         // the controller at standalone mode, then connect and factory reset by software.
         let mut val = 0u32;
-        self.assigned_phys_outs.iter()
+        self.assigned_phys_outs
+            .iter()
             .enumerate()
             .filter(|(_, &a)| a)
             .take(STUDIO_MAX_SURROUND_CHANNELS)
@@ -889,7 +877,7 @@ impl OutGroup {
             });
         val.build_quadlet(&mut raw[..4]);
         self.bass_management.build_quadlet(&mut raw[4..8]);
-        val = match self.sub_channel{
+        val = match self.sub_channel {
             Some(pos) => 1 << pos,
             None => 0,
         };
@@ -904,17 +892,17 @@ impl OutGroup {
     fn parse(&mut self, raw: &[u8]) {
         let mut val = 0u32;
         val.parse_quadlet(&raw[..4]);
-        self.assigned_phys_outs.iter_mut()
+        self.assigned_phys_outs
+            .iter_mut()
             .enumerate()
             .for_each(|(i, a)| {
                 *a = val & (1 << i) > 0;
             });
         self.bass_management.parse_quadlet(&raw[4..8]);
         val.parse_quadlet(&raw[12..16]);
-        self.sub_channel =
-            (0..self.assigned_phys_outs.len())
-                .position(|i| val & (1 << i) > 0)
-                .map(|pos| pos as usize);
+        self.sub_channel = (0..self.assigned_phys_outs.len())
+            .position(|i| val & (1 << i) > 0)
+            .map(|pos| pos as usize);
         self.main_cross_over_freq.parse_quadlet(&raw[16..20]);
         self.main_level_to_sub.parse_quadlet(&raw[20..24]);
         self.sub_level_to_sub.parse_quadlet(&raw[24..28]);
@@ -931,7 +919,7 @@ pub const STUDIO_OUTPUT_GROUP_COUNT: usize = 3;
 
 /// The structure to represent data of physical out segment.
 #[derive(Default, Debug)]
-pub struct StudioPhysOut{
+pub struct StudioPhysOut {
     /// The configuration for master output
     pub master_out: OutPair,
     /// The selected output group.
@@ -943,13 +931,13 @@ pub struct StudioPhysOut{
     /// - line out 5/6, 7/8, 9/10, 11/12,
     /// - S/PDIF out 1/2,
     /// - ADAT out 1/2, 3/4, 5/6, 7/8,
-    pub out_pair_srcs: [PhysOutPairSrc;STUDIO_PHYS_OUT_PAIR_COUNT],
+    pub out_pair_srcs: [PhysOutPairSrc; STUDIO_PHYS_OUT_PAIR_COUNT],
     /// The state of assignment to output group.
-    pub out_assign_to_grp: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
+    pub out_assign_to_grp: [bool; STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     /// Whether to mute any source to the physical output.
-    pub out_mutes: [bool;STUDIO_PHYS_OUT_PAIR_COUNT * 2],
+    pub out_mutes: [bool; STUDIO_PHYS_OUT_PAIR_COUNT * 2],
     /// The settings of each group for surround channels.
-    pub out_grps: [OutGroup;STUDIO_OUTPUT_GROUP_COUNT],
+    pub out_grps: [OutGroup; STUDIO_OUTPUT_GROUP_COUNT],
 }
 
 impl StudioPhysOut {
@@ -959,15 +947,14 @@ impl StudioPhysOut {
 impl TcKonnektSegmentData for StudioPhysOut {
     fn build(&self, raw: &mut [u8]) {
         self.master_out.build(&mut raw[..12]);
-        self.out_pair_srcs.iter()
-            .enumerate()
-            .for_each(|(i, p)| {
-                let pos = 16 + i * PhysOutPairSrc::SIZE;
-                p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
-            });
+        self.out_pair_srcs.iter().enumerate().for_each(|(i, p)| {
+            let pos = 16 + i * PhysOutPairSrc::SIZE;
+            p.build(&mut raw[pos..(pos + PhysOutPairSrc::SIZE)]);
+        });
         (self.selected_out_grp as u32).build_quadlet(&mut raw[12..16]);
         let mut val = 0u32;
-        self.out_assign_to_grp.iter()
+        self.out_assign_to_grp
+            .iter()
             .enumerate()
             .filter(|(_, &m)| m)
             .for_each(|(i, _)| {
@@ -975,24 +962,24 @@ impl TcKonnektSegmentData for StudioPhysOut {
             });
         val.build_quadlet(&mut raw[324..328]);
         let mut val = 0u32;
-        self.out_mutes.iter()
+        self.out_mutes
+            .iter()
             .enumerate()
             .filter(|(_, &d)| d)
             .for_each(|(i, _)| {
                 val |= 1 << i;
             });
         val.build_quadlet(&mut raw[328..332]);
-        self.out_grps.iter()
-            .enumerate()
-            .for_each(|(i, s)| {
-                let pos = 332 + OutGroup::SIZE * i;
-                s.build(&mut raw[pos..(pos + OutGroup::SIZE)]);
-            });
+        self.out_grps.iter().enumerate().for_each(|(i, s)| {
+            let pos = 332 + OutGroup::SIZE * i;
+            s.build(&mut raw[pos..(pos + OutGroup::SIZE)]);
+        });
     }
 
     fn parse(&mut self, raw: &[u8]) {
         self.master_out.parse(&raw[..12]);
-        self.out_pair_srcs.iter_mut()
+        self.out_pair_srcs
+            .iter_mut()
             .enumerate()
             .for_each(|(i, p)| {
                 let pos = 16 + i * PhysOutPairSrc::SIZE;
@@ -1002,24 +989,21 @@ impl TcKonnektSegmentData for StudioPhysOut {
         val.parse_quadlet(&raw[12..16]);
         self.selected_out_grp = val as usize;
         val.parse_quadlet(&raw[324..328]);
-        self.out_assign_to_grp.iter_mut()
+        self.out_assign_to_grp
+            .iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
                 *m = val & (1 << i) > 0;
             });
         let mut val = 0u32;
         val.parse_quadlet(&raw[328..332]);
-        self.out_mutes.iter_mut()
-            .enumerate()
-            .for_each(|(i, d)| {
-                *d = val & (1 << i) > 0;
-            });
-        self.out_grps.iter_mut()
-            .enumerate()
-            .for_each(|(i, s)| {
-                let pos = 332 + OutGroup::SIZE * i;
-                s.parse(&raw[pos..(pos + OutGroup::SIZE)]);
-            });
+        self.out_mutes.iter_mut().enumerate().for_each(|(i, d)| {
+            *d = val & (1 << i) > 0;
+        });
+        self.out_grps.iter_mut().enumerate().for_each(|(i, s)| {
+            let pos = 332 + OutGroup::SIZE * i;
+            s.parse(&raw[pos..(pos + OutGroup::SIZE)]);
+        });
     }
 }
 
@@ -1035,19 +1019,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioPhysOut> {
 const STUDIO_CH_STRIP_COUNT: usize = 4;
 
 #[derive(Default, Debug)]
-pub struct StudioReverbState(ReverbState);
-
-impl AsRef<ReverbState> for StudioReverbState {
-    fn as_ref(&self) -> &ReverbState {
-        &self.0
-    }
-}
-
-impl AsMut<ReverbState> for StudioReverbState {
-    fn as_mut(&mut self) -> &mut ReverbState {
-        &mut self.0
-    }
-}
+pub struct StudioReverbState(pub ReverbState);
 
 impl TcKonnektSegmentData for StudioReverbState {
     fn build(&self, raw: &mut [u8]) {
@@ -1069,19 +1041,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioReverbState> {
 }
 
 #[derive(Default, Debug)]
-pub struct StudioChStripStates([ChStripState;STUDIO_CH_STRIP_COUNT]);
-
-impl AsRef<[ChStripState]> for StudioChStripStates {
-    fn as_ref(&self) -> &[ChStripState] {
-        &self.0
-    }
-}
-
-impl AsMut<[ChStripState]> for StudioChStripStates {
-    fn as_mut(&mut self) -> &mut [ChStripState] {
-        &mut self.0
-    }
-}
+pub struct StudioChStripStates(pub [ChStripState; STUDIO_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentData for StudioChStripStates {
     fn build(&self, raw: &mut [u8]) {
@@ -1094,7 +1054,7 @@ impl TcKonnektSegmentData for StudioChStripStates {
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<StudioChStripStates> {
-    const OFFSET: usize = 0x05d8;
+    const OFFSET: usize = 0x05dc;
     const SIZE: usize = ChStripState::SIZE * STUDIO_CH_STRIP_COUNT + 8;
 }
 
@@ -1144,27 +1104,15 @@ pub const STUDIO_ANALOG_JACK_STATE_COUNT: usize = 12;
 
 #[derive(Default, Debug)]
 /// The structure to represent hardware state.
-pub struct StudioHwState{
-    pub analog_jack_states: [StudioAnalogJackState;STUDIO_ANALOG_JACK_STATE_COUNT],
-    pub hp_state: [bool;2],
+pub struct StudioHwState {
+    pub analog_jack_states: [StudioAnalogJackState; STUDIO_ANALOG_JACK_STATE_COUNT],
+    pub hp_state: [bool; 2],
     pub firewire_led: FireWireLedState,
     pub valid_master_level: bool,
 }
 
 impl StudioHwState {
     const SIZE: usize = 68;
-}
-
-impl AsRef<FireWireLedState> for StudioHwState {
-    fn as_ref(&self) -> &FireWireLedState {
-        &self.firewire_led
-    }
-}
-
-impl AsMut<FireWireLedState> for StudioHwState {
-    fn as_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.firewire_led
-    }
 }
 
 impl TcKonnektSegmentData for StudioHwState {
@@ -1194,10 +1142,10 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioHwState> {
 
 /// The structure to represent meter for input/output of mixer.
 #[derive(Default, Debug)]
-pub struct StudioMixerMeter{
-    pub src_inputs: [i32;24],
-    pub mixer_outputs: [i32;2],
-    pub aux_outputs: [i32;4],
+pub struct StudioMixerMeter {
+    pub src_inputs: [i32; 24],
+    pub mixer_outputs: [i32; 2],
+    pub aux_outputs: [i32; 4],
 }
 
 impl StudioMixerMeter {
@@ -1224,19 +1172,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<StudioMixerMeter> {
 }
 
 #[derive(Default, Debug)]
-pub struct StudioReverbMeter(ReverbMeter);
-
-impl AsRef<ReverbMeter> for StudioReverbMeter {
-    fn as_ref(&self) -> &ReverbMeter {
-        &self.0
-    }
-}
-
-impl AsMut<ReverbMeter> for StudioReverbMeter {
-    fn as_mut(&mut self) -> &mut ReverbMeter {
-        &mut self.0
-    }
-}
+pub struct StudioReverbMeter(pub ReverbMeter);
 
 impl TcKonnektSegmentData for StudioReverbMeter {
     fn build(&self, raw: &mut [u8]) {
@@ -1254,19 +1190,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<StudioReverbMeter> {
 }
 
 #[derive(Default, Debug)]
-pub struct StudioChStripMeters([ChStripMeter;STUDIO_CH_STRIP_COUNT]);
-
-impl AsRef<[ChStripMeter]> for StudioChStripMeters {
-    fn as_ref(&self) -> &[ChStripMeter] {
-        &self.0
-    }
-}
-
-impl AsMut<[ChStripMeter]> for StudioChStripMeters {
-    fn as_mut(&mut self) -> &mut [ChStripMeter] {
-        &mut self.0
-    }
-}
+pub struct StudioChStripMeters(pub [ChStripMeter; STUDIO_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentData for StudioChStripMeters {
     fn build(&self, raw: &mut [u8]) {

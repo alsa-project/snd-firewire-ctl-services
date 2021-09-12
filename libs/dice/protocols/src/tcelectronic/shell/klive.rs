@@ -7,39 +7,57 @@
 //! defined by TC Electronic for Konnekt Live.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*, midi_send::*, prog::*};
+use crate::tcelectronic::{ch_strip::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 
-/// The structure to represent segments in memory space of Konnekt Live.
-#[derive(Default, Debug)]
-pub struct KliveSegments{
-    /// Segment for knob. 0x0000..0x0027 (36 quads).
-    pub knob: TcKonnektSegment<KliveKnob>,
-    /// Segment for configuration. 0x0028..0x00ab (33 quads).
-    pub config: TcKonnektSegment<KliveConfig>,
-    /// Segment for state of mixer. 0x00ac..0x0217 (91 quads).
-    pub mixer_state: TcKonnektSegment<KliveMixerState>,
-    /// Segment for state of reverb effect. 0x0218..0x025b. (17 quads)
-    pub reverb_state: TcKonnektSegment<KliveReverbState>,
-    /// Segment for states of channel strip effect. 0x025c..0x037f (73 quads).
-    pub ch_strip_state: TcKonnektSegment<KliveChStripStates>,
-    // NOTE: Segment for tuner. 0x0384..0x039c (8 quads).
-    /// Segment for mixer meter. 0x1068..0x10c3 (23 quads).
-    pub mixer_meter: TcKonnektSegment<KliveMixerMeter>,
-    /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
-    pub hw_state: TcKonnektSegment<KliveHwState>,
-    /// Segment for meter of reverb effect. 0x10c4..0x010db (6 quads).
-    pub reverb_meter: TcKonnektSegment<KliveReverbMeter>,
-    /// Segment for meters of channel strip effect. 0x10dc..0x1117 (15 quads).
-    pub ch_strip_meter: TcKonnektSegment<KliveChStripMeters>,
-}
+/// The structure for protocol implementation of Konnekt Live.
+#[derive(Default)]
+pub struct KliveProtocol;
+
+/// Segment for knob. 0x0000..0x0027 (36 quads).
+pub type KliveKnobSegment = TcKonnektSegment<KliveKnob>;
+impl SegmentOperation<KliveKnob> for KliveProtocol {}
+
+/// Segment for configuration. 0x0028..0x00ab (33 quads).
+pub type KliveConfigSegment = TcKonnektSegment<KliveConfig>;
+impl SegmentOperation<KliveConfig> for KliveProtocol {}
+
+/// Segment for state of mixer. 0x00ac..0x0217 (91 quads).
+pub type KliveMixerStateSegment = TcKonnektSegment<KliveMixerState>;
+impl SegmentOperation<KliveMixerState> for KliveProtocol {}
+
+/// Segment for state of reverb effect. 0x0218..0x025b. (17 quads)
+pub type KliveReverbStateSegment = TcKonnektSegment<KliveReverbState>;
+impl SegmentOperation<KliveReverbState> for KliveProtocol {}
+
+/// Segment for states of channel strip effect. 0x0260..0x037f (72 quads).
+pub type KliveChStripStatesSegment = TcKonnektSegment<KliveChStripStates>;
+impl SegmentOperation<KliveChStripStates> for KliveProtocol {}
+
+// NOTE: Segment for tuner. 0x0384..0x039c (8 quads).
+
+/// Segment for mixer meter. 0x1068..0x10c3 (23 quads).
+pub type KliveMixerMeterSegment = TcKonnektSegment<KliveMixerMeter>;
+impl SegmentOperation<KliveMixerMeter> for KliveProtocol {}
+
+/// Segment for state of hardware. 0x1008..0x1023 (7 quads).
+pub type KliveHwStateSegment = TcKonnektSegment<KliveHwState>;
+impl SegmentOperation<KliveHwState> for KliveProtocol {}
+
+/// Segment for meter of reverb effect. 0x10c4..0x010db (6 quads).
+pub type KliveReverbMeterSegment = TcKonnektSegment<KliveReverbMeter>;
+impl SegmentOperation<KliveReverbMeter> for KliveProtocol {}
+
+/// Segment for meters of channel strip effect. 0x10dc..0x1117 (15 quads).
+pub type KliveChStripMetersSegment = TcKonnektSegment<KliveChStripMeters>;
+impl SegmentOperation<KliveChStripMeters> for KliveProtocol {}
 
 /// The structure to represent state of knob.
 #[derive(Default, Debug)]
-pub struct KliveKnob{
+pub struct KliveKnob {
     pub target: ShellKnobTarget,
     pub knob2_target: ShellKnob2Target,
     pub prog: TcKonnektLoadedProgram,
-    pub out_impedance: [OutputImpedance;2],
+    pub out_impedance: [OutputImpedance; 2],
 }
 
 impl TcKonnektSegmentData for KliveKnob {
@@ -58,49 +76,13 @@ impl TcKonnektSegmentData for KliveKnob {
     }
 }
 
-impl AsRef<ShellKnobTarget> for KliveKnob {
-    fn as_ref(&self) -> &ShellKnobTarget {
-        &self.target
-    }
-}
-
-impl AsMut<ShellKnobTarget> for KliveKnob {
-    fn as_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.target
-    }
-}
-
 impl ShellKnobTargetSpec for KliveKnob {
     const HAS_SPDIF: bool = false;
     const HAS_EFFECTS: bool = false;
 }
 
-impl AsRef<ShellKnob2Target> for KliveKnob {
-    fn as_ref(&self) -> &ShellKnob2Target {
-        &self.knob2_target
-    }
-}
-
-impl AsMut<ShellKnob2Target> for KliveKnob {
-    fn as_mut(&mut self) -> &mut ShellKnob2Target {
-        &mut self.knob2_target
-    }
-}
-
 impl ShellKnob2TargetSpec for KliveKnob {
     const KNOB2_TARGET_COUNT: usize = 9;
-}
-
-impl AsRef<TcKonnektLoadedProgram> for KliveKnob {
-    fn as_ref(&self) -> &TcKonnektLoadedProgram {
-        &self.prog
-    }
-}
-
-impl AsMut<TcKonnektLoadedProgram> for KliveKnob {
-    fn as_mut(&mut self) -> &mut TcKonnektLoadedProgram {
-        &mut self.prog
-    }
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<KliveKnob> {
@@ -114,7 +96,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveKnob> {
 
 /// The structure to represent configuration.
 #[derive(Default, Debug)]
-pub struct KliveConfig{
+pub struct KliveConfig {
     pub opt: ShellOptIfaceConfig,
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub out_01_src: ShellPhysOutSrc,
@@ -125,56 +107,8 @@ pub struct KliveConfig{
     pub midi_sender: TcKonnektMidiSender,
 }
 
-impl AsRef<ShellOptIfaceConfig> for KliveConfig {
-    fn as_ref(&self) -> &ShellOptIfaceConfig {
-        &self.opt
-    }
-}
-
-impl AsMut<ShellOptIfaceConfig> for KliveConfig {
-    fn as_mut(&mut self) -> &mut ShellOptIfaceConfig {
-        &mut self.opt
-    }
-}
-
-impl AsRef<ShellCoaxOutPairSrc> for KliveConfig {
-    fn as_ref(&self) -> &ShellCoaxOutPairSrc {
-        &self.coax_out_src
-    }
-}
-
-impl AsMut<ShellCoaxOutPairSrc> for KliveConfig {
-    fn as_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
-        &mut self.coax_out_src
-    }
-}
-
-impl AsRef<ShellMixerStreamSrcPair> for KliveConfig {
-    fn as_ref(&self) -> &ShellMixerStreamSrcPair {
-        &self.mixer_stream_src_pair
-    }
-}
-
-impl AsMut<ShellMixerStreamSrcPair> for KliveConfig {
-    fn as_mut(&mut self) -> &mut ShellMixerStreamSrcPair {
-        &mut self.mixer_stream_src_pair
-    }
-}
-
 impl ShellMixerStreamSrcPairSpec for KliveConfig {
     const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize = 6;
-}
-
-impl AsRef<ShellStandaloneClkSrc> for KliveConfig {
-    fn as_ref(&self) -> &ShellStandaloneClkSrc {
-        &self.standalone_src
-    }
-}
-
-impl AsMut<ShellStandaloneClkSrc> for KliveConfig {
-    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.standalone_src
-    }
 }
 
 impl ShellStandaloneClkSpec for KliveConfig {
@@ -183,30 +117,6 @@ impl ShellStandaloneClkSpec for KliveConfig {
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,
     ];
-}
-
-impl AsRef<TcKonnektStandaloneClkRate> for KliveConfig {
-    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
-        &self.standalone_rate
-    }
-}
-
-impl AsMut<TcKonnektStandaloneClkRate> for KliveConfig {
-    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.standalone_rate
-    }
-}
-
-impl AsRef<TcKonnektMidiSender> for KliveConfig {
-    fn as_ref(&self) -> &TcKonnektMidiSender {
-        &self.midi_sender
-    }
-}
-
-impl AsMut<TcKonnektMidiSender> for KliveConfig {
-    fn as_mut(&mut self) -> &mut TcKonnektMidiSender {
-        &mut self.midi_sender
-    }
 }
 
 impl TcKonnektSegmentData for KliveConfig {
@@ -330,7 +240,7 @@ impl From<ChStripMode> for u32 {
 
 /// The structureto represent state of mixer.
 #[derive(Debug)]
-pub struct KliveMixerState{
+pub struct KliveMixerState {
     /// The common structure for state of mixer.
     pub mixer: ShellMixerState,
     /// The parameter of return from reverb effect.
@@ -350,7 +260,7 @@ pub struct KliveMixerState{
 
 impl Default for KliveMixerState {
     fn default() -> Self {
-        KliveMixerState{
+        KliveMixerState {
             mixer: Self::create_mixer_state(),
             reverb_return: Default::default(),
             use_ch_strip_as_plugin: Default::default(),
@@ -362,32 +272,8 @@ impl Default for KliveMixerState {
     }
 }
 
-impl AsRef<ShellMixerState> for KliveMixerState {
-    fn as_ref(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-}
-
-impl AsMut<ShellMixerState> for KliveMixerState {
-    fn as_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
-}
-
-impl AsRef<ShellReverbReturn> for KliveMixerState {
-    fn as_ref(&self) -> &ShellReverbReturn {
-        &self.reverb_return
-    }
-}
-
-impl AsMut<ShellReverbReturn> for KliveMixerState {
-    fn as_mut(&mut self) -> &mut ShellReverbReturn {
-        &mut self.reverb_return
-    }
-}
-
-impl ShellMixerConvert for KliveMixerState {
-    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT] = [
+impl ShellMixerStateConvert for KliveMixerState {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
         None,
@@ -399,22 +285,32 @@ impl ShellMixerConvert for KliveMixerState {
         Some(ShellMixerMonitorSrcType::Adat),
         Some(ShellMixerMonitorSrcType::Adat),
     ];
+
+    fn state(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+
+    fn state_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
 }
 
 impl TcKonnektSegmentData for KliveMixerState {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerConvert::build(self, raw);
+        ShellMixerStateConvert::build(self, raw);
 
         self.reverb_return.build(&mut raw[316..328]);
-        self.use_ch_strip_as_plugin.build_quadlet(&mut raw[328..332]);
+        self.use_ch_strip_as_plugin
+            .build_quadlet(&mut raw[328..332]);
         self.ch_strip_src.build_quadlet(&mut raw[332..336]);
         self.ch_strip_mode.build_quadlet(&mut raw[336..340]);
-        self.use_reverb_at_mid_rate.build_quadlet(&mut raw[340..344]);
+        self.use_reverb_at_mid_rate
+            .build_quadlet(&mut raw[340..344]);
         self.enabled.build_quadlet(&mut raw[344..348]);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerConvert::parse(self, raw);
+        ShellMixerStateConvert::parse(self, raw);
 
         self.reverb_return.parse(&raw[316..328]);
         self.use_ch_strip_as_plugin.parse_quadlet(&raw[328..332]);
@@ -435,19 +331,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveMixerState> {
 }
 
 #[derive(Default, Debug)]
-pub struct KliveReverbState(ReverbState);
-
-impl AsRef<ReverbState> for KliveReverbState {
-    fn as_ref(&self) -> &ReverbState {
-        &self.0
-    }
-}
-
-impl AsMut<ReverbState> for KliveReverbState {
-    fn as_mut(&mut self) -> &mut ReverbState {
-        &mut self.0
-    }
-}
+pub struct KliveReverbState(pub ReverbState);
 
 impl TcKonnektSegmentData for KliveReverbState {
     fn build(&self, raw: &mut [u8]) {
@@ -469,19 +353,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveReverbState> {
 }
 
 #[derive(Default, Debug)]
-pub struct KliveChStripStates([ChStripState;SHELL_CH_STRIP_COUNT]);
-
-impl AsRef<[ChStripState]> for KliveChStripStates {
-    fn as_ref(&self) -> &[ChStripState] {
-        &self.0
-    }
-}
-
-impl AsMut<[ChStripState]> for KliveChStripStates {
-    fn as_mut(&mut self) -> &mut [ChStripState] {
-        &mut self.0
-    }
-}
+pub struct KliveChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentData for KliveChStripStates {
     fn build(&self, raw: &mut [u8]) {
@@ -494,7 +366,7 @@ impl TcKonnektSegmentData for KliveChStripStates {
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<KliveChStripStates> {
-    const OFFSET: usize = 0x025c;
+    const OFFSET: usize = 0x0260;
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 }
 
@@ -503,31 +375,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveChStripStates> {
 }
 
 #[derive(Default, Debug)]
-pub struct KliveHwState(ShellHwState);
-
-impl AsRef<[ShellAnalogJackState]> for KliveHwState {
-    fn as_ref(&self) -> &[ShellAnalogJackState] {
-        &self.0.analog_jack_states
-    }
-}
-
-impl AsMut<[ShellAnalogJackState]> for KliveHwState {
-    fn as_mut(&mut self) -> &mut [ShellAnalogJackState] {
-        &mut self.0.analog_jack_states
-    }
-}
-
-impl AsRef<FireWireLedState> for KliveHwState {
-    fn as_ref(&self) -> &FireWireLedState {
-        &self.0.firewire_led
-    }
-}
-
-impl AsMut<FireWireLedState> for KliveHwState {
-    fn as_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.0.firewire_led
-    }
-}
+pub struct KliveHwState(pub ShellHwState);
 
 impl TcKonnektSegmentData for KliveHwState {
     fn build(&self, raw: &mut [u8]) {
@@ -552,19 +400,7 @@ const KLIVE_METER_ANALOG_INPUT_COUNT: usize = 4;
 const KLIVE_METER_DIGITAL_INPUT_COUNT: usize = 8;
 
 #[derive(Debug)]
-pub struct KliveMixerMeter(ShellMixerMeter);
-
-impl AsRef<ShellMixerMeter> for KliveMixerMeter {
-    fn as_ref(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-}
-
-impl AsMut<ShellMixerMeter> for KliveMixerMeter {
-    fn as_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
-}
+pub struct KliveMixerMeter(pub ShellMixerMeter);
 
 impl Default for KliveMixerMeter {
     fn default() -> Self {
@@ -575,6 +411,14 @@ impl Default for KliveMixerMeter {
 impl ShellMixerMeterConvert for KliveMixerMeter {
     const ANALOG_INPUT_COUNT: usize = KLIVE_METER_ANALOG_INPUT_COUNT;
     const DIGITAL_INPUT_COUNT: usize = KLIVE_METER_DIGITAL_INPUT_COUNT;
+
+    fn meter(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+
+    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
 }
 
 impl TcKonnektSegmentData for KliveMixerMeter {
@@ -593,19 +437,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<KliveMixerMeter> {
 }
 
 #[derive(Default, Debug)]
-pub struct KliveReverbMeter(ReverbMeter);
-
-impl AsRef<ReverbMeter> for KliveReverbMeter {
-    fn as_ref(&self) -> &ReverbMeter {
-        &self.0
-    }
-}
-
-impl AsMut<ReverbMeter> for KliveReverbMeter {
-    fn as_mut(&mut self) -> &mut ReverbMeter {
-        &mut self.0
-    }
-}
+pub struct KliveReverbMeter(pub ReverbMeter);
 
 impl TcKonnektSegmentData for KliveReverbMeter {
     fn build(&self, raw: &mut [u8]) {
@@ -623,19 +455,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<KliveReverbMeter> {
 }
 
 #[derive(Default, Debug)]
-pub struct KliveChStripMeters([ChStripMeter;SHELL_CH_STRIP_COUNT]);
-
-impl AsRef<[ChStripMeter]> for KliveChStripMeters {
-    fn as_ref(&self) -> &[ChStripMeter] {
-        &self.0
-    }
-}
-
-impl AsMut<[ChStripMeter]> for KliveChStripMeters {
-    fn as_mut(&mut self) -> &mut [ChStripMeter] {
-        &mut self.0
-    }
-}
+pub struct KliveChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentData for KliveChStripMeters {
     fn build(&self, raw: &mut [u8]) {

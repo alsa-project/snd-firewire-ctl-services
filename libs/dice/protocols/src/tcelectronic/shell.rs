@@ -6,13 +6,13 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Konnekt 24d, Konnekt 8, Konnekt Live, and Impact Twin.
 
-pub mod k8;
-pub mod k24d;
-pub mod klive;
 pub mod itwin;
+pub mod k24d;
+pub mod k8;
+pub mod klive;
 
-use super::*;
 use super::fw_led::*;
+use super::*;
 
 use crate::*;
 
@@ -68,7 +68,9 @@ impl From<ShellAnalogJackState> for u32 {
         match state {
             ShellAnalogJackState::FrontSelected => ShellAnalogJackState::FRONT_SELECTED,
             ShellAnalogJackState::FrontInserted => ShellAnalogJackState::FRONT_INSERTED,
-            ShellAnalogJackState::FrontInsertedAttenuated => ShellAnalogJackState::FRONT_INSERTED_ATTENUATED,
+            ShellAnalogJackState::FrontInsertedAttenuated => {
+                ShellAnalogJackState::FRONT_INSERTED_ATTENUATED
+            }
             ShellAnalogJackState::RearSelected => ShellAnalogJackState::REAR_SELECTED,
             ShellAnalogJackState::RearInserted => ShellAnalogJackState::REAR_INSERTED,
         }
@@ -80,8 +82,8 @@ pub const SHELL_ANALOG_JACK_STATE_COUNT: usize = 2;
 
 /// The structure to represent hardware state.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct ShellHwState{
-    pub analog_jack_states: [ShellAnalogJackState;SHELL_ANALOG_JACK_STATE_COUNT],
+pub struct ShellHwState {
+    pub analog_jack_states: [ShellAnalogJackState; SHELL_ANALOG_JACK_STATE_COUNT],
     pub firewire_led: FireWireLedState,
 }
 
@@ -105,7 +107,7 @@ impl ShellHwState {
 
 /// The structure to represent parameter of monitor source.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
-pub struct MonitorSrcParam{
+pub struct MonitorSrcParam {
     ///  ch 1 gain to mixer ch 1/2 (0xfffffc18..0x00000000, -90.0..0.00 dB)
     pub gain_to_mixer: i32,
     ///  ch 1 pan to mixer ch 1/2 (0xffffffce..0x00000032, -50.0..+50.0 dB)
@@ -118,7 +120,11 @@ impl MonitorSrcParam {
     const SIZE: usize = 12;
 
     pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error for the length of monitor source parameter.");
+        assert_eq!(
+            raw.len(),
+            Self::SIZE,
+            "Programming error for the length of monitor source parameter."
+        );
 
         self.gain_to_mixer.build_quadlet(&mut raw[..4]);
         self.pan_to_mixer.build_quadlet(&mut raw[4..8]);
@@ -126,7 +132,11 @@ impl MonitorSrcParam {
     }
 
     pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error for the length of monitor source parameter.");
+        assert_eq!(
+            raw.len(),
+            Self::SIZE,
+            "Programming error for the length of monitor source parameter."
+        );
 
         self.gain_to_mixer.parse_quadlet(&raw[..4]);
         self.pan_to_mixer.parse_quadlet(&raw[4..8]);
@@ -136,7 +146,7 @@ impl MonitorSrcParam {
 
 /// The structure to represent monitor source.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
-pub struct ShellMonitorSrcPair{
+pub struct ShellMonitorSrcPair {
     ///  ch 1/2 stereo link (0 or 1)
     pub stereo_link: bool,
     /// Left channel.
@@ -163,7 +173,7 @@ impl ShellMonitorSrcPair {
 
 /// The structure to represent mute state for monitor sources.
 #[derive(Debug)]
-pub struct ShellMonitorSrcMute{
+pub struct ShellMonitorSrcMute {
     pub stream: bool,
     pub analog: Vec<bool>,
     pub digital: Vec<bool>,
@@ -171,7 +181,7 @@ pub struct ShellMonitorSrcMute{
 
 /// The structure to represent state of mixer.
 #[derive(Debug)]
-pub struct ShellMixerState{
+pub struct ShellMixerState {
     pub stream: ShellMonitorSrcPair,
     pub analog: Vec<ShellMonitorSrcPair>,
     pub digital: Vec<ShellMonitorSrcPair>,
@@ -197,30 +207,37 @@ pub enum ShellMixerMonitorSrcType {
     Analog,
     Spdif,
     Adat,
-    AdatSpdif
+    AdatSpdif,
 }
 
-pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
-    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT];
+pub trait ShellMixerStateConvert {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT];
+
+    fn state(&self) -> &ShellMixerState;
+    fn state_mut(&mut self) -> &mut ShellMixerState;
 
     fn create_mixer_state() -> ShellMixerState {
-        let analog_input_pair_count = Self::MONITOR_SRC_MAP.iter()
+        let analog_input_pair_count = Self::MONITOR_SRC_MAP
+            .iter()
             .filter(|&&m| m == Some(ShellMixerMonitorSrcType::Analog))
             .count();
-        let digital_input_pair_count = Self::MONITOR_SRC_MAP.iter()
-            .filter(|&&m| m != Some(ShellMixerMonitorSrcType::Analog) &&
-                         m != Some(ShellMixerMonitorSrcType::Stream) &&
-                         m.is_some())
+        let digital_input_pair_count = Self::MONITOR_SRC_MAP
+            .iter()
+            .filter(|&&m| {
+                m != Some(ShellMixerMonitorSrcType::Analog)
+                    && m != Some(ShellMixerMonitorSrcType::Stream)
+                    && m.is_some()
+            })
             .count();
 
-        ShellMixerState{
+        ShellMixerState {
             stream: Default::default(),
-            analog: vec![Default::default();analog_input_pair_count],
-            digital: vec![Default::default();digital_input_pair_count],
-            mutes: ShellMonitorSrcMute{
+            analog: vec![Default::default(); analog_input_pair_count],
+            digital: vec![Default::default(); digital_input_pair_count],
+            mutes: ShellMonitorSrcMute {
                 stream: Default::default(),
-                analog: vec![Default::default();analog_input_pair_count * 2],
-                digital: vec![Default::default();digital_input_pair_count * 2],
+                analog: vec![Default::default(); analog_input_pair_count * 2],
+                digital: vec![Default::default(); digital_input_pair_count * 2],
             },
             output_volume: Default::default(),
             output_dim_enable: Default::default(),
@@ -229,12 +246,13 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
     }
 
     fn build(&self, raw: &mut [u8]) {
-        let state = self.as_ref();
+        let state = self.state();
 
         state.stream.build(&mut raw[..ShellMonitorSrcPair::SIZE]);
 
         // For analog inputs.
-        Self::MONITOR_SRC_MAP.iter()
+        Self::MONITOR_SRC_MAP
+            .iter()
             .enumerate()
             .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
             .zip(state.analog.iter())
@@ -244,12 +262,13 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
             });
 
         // For digital inputs.
-        Self::MONITOR_SRC_MAP.iter()
+        Self::MONITOR_SRC_MAP
+            .iter()
             .enumerate()
             .filter(|(_, &m)| {
-                m.is_some() &&
-                m != Some(ShellMixerMonitorSrcType::Analog) &&
-                m != Some(ShellMixerMonitorSrcType::Stream)
+                m.is_some()
+                    && m != Some(ShellMixerMonitorSrcType::Analog)
+                    && m != Some(ShellMixerMonitorSrcType::Stream)
             })
             .zip(state.digital.iter())
             .for_each(|((i, _), src)| {
@@ -267,7 +286,10 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
         if state.mutes.stream {
             mutes |= 0x00000001;
         }
-        state.mutes.analog.iter()
+        state
+            .mutes
+            .analog
+            .iter()
             .chain(state.mutes.digital.iter())
             .enumerate()
             .filter(|(_, &muted)| muted)
@@ -278,12 +300,13 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        let state = self.as_mut();
+        let state = self.state_mut();
 
         state.stream.parse(&raw[..ShellMonitorSrcPair::SIZE]);
 
         // For analog inputs.
-        Self::MONITOR_SRC_MAP.iter()
+        Self::MONITOR_SRC_MAP
+            .iter()
             .enumerate()
             .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
             .zip(state.analog.iter_mut())
@@ -293,7 +316,8 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
             });
 
         // For digital inputs.
-        Self::MONITOR_SRC_MAP.iter()
+        Self::MONITOR_SRC_MAP
+            .iter()
             .enumerate()
             .filter(|(_, &m)| m.is_some() && m != Some(ShellMixerMonitorSrcType::Analog))
             .zip(state.digital.iter_mut())
@@ -311,7 +335,10 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
         let mut mutes = 0u32;
         mutes.parse_quadlet(&raw[308..312]);
         state.mutes.stream = mutes & 0x00000001 > 0;
-        state.mutes.analog.iter_mut()
+        state
+            .mutes
+            .analog
+            .iter_mut()
             .chain(state.mutes.digital.iter_mut())
             .enumerate()
             .for_each(|(i, muted)| {
@@ -322,7 +349,7 @@ pub trait ShellMixerConvert : AsRef<ShellMixerState> + AsMut<ShellMixerState> {
 
 /// The structure to represent return configuration of reverb effect.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
-pub struct ShellReverbReturn{
+pub struct ShellReverbReturn {
     /// Whether to use reverb effect as plugin. When enabled, return of reverb effect is delivered
     /// by rx stream.
     pub plugin_mode: bool,
@@ -354,11 +381,11 @@ impl ShellReverbReturn {
 
 /// The structure to represent meter information. -1000..0 (-94.0..0 dB).
 #[derive(Default, Debug)]
-pub struct ShellMixerMeter{
-    pub stream_inputs: [i32;Self::STREAM_INPUT_COUNT],
+pub struct ShellMixerMeter {
+    pub stream_inputs: [i32; Self::STREAM_INPUT_COUNT],
     pub analog_inputs: Vec<i32>,
     pub digital_inputs: Vec<i32>,
-    pub main_outputs: [i32;Self::MAIN_OUTPUT_COUNT],
+    pub main_outputs: [i32; Self::MAIN_OUTPUT_COUNT],
 }
 
 impl ShellMixerMeter {
@@ -371,34 +398,37 @@ impl ShellMixerMeter {
     const MAX_DIGITAL_INPUT_COUNT: usize = 8;
 }
 
-pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMeter> {
+pub trait ShellMixerMeterConvert {
     const ANALOG_INPUT_COUNT: usize;
     const DIGITAL_INPUT_COUNT: usize;
 
+    fn meter(&self) -> &ShellMixerMeter;
+    fn meter_mut(&mut self) -> &mut ShellMixerMeter;
+
     fn create_meter_state() -> ShellMixerMeter {
-        ShellMixerMeter{
-            stream_inputs: [Default::default();ShellMixerMeter::STREAM_INPUT_COUNT],
-            analog_inputs: vec![Default::default();Self::ANALOG_INPUT_COUNT],
-            digital_inputs: vec![Default::default();Self::DIGITAL_INPUT_COUNT],
-            main_outputs: [Default::default();ShellMixerMeter::MAIN_OUTPUT_COUNT],
+        ShellMixerMeter {
+            stream_inputs: [Default::default(); ShellMixerMeter::STREAM_INPUT_COUNT],
+            analog_inputs: vec![Default::default(); Self::ANALOG_INPUT_COUNT],
+            digital_inputs: vec![Default::default(); Self::DIGITAL_INPUT_COUNT],
+            main_outputs: [Default::default(); ShellMixerMeter::MAIN_OUTPUT_COUNT],
         }
     }
 
     fn build(&self, raw: &mut [u8]) {
         assert_eq!(raw.len(), ShellMixerMeter::SIZE, "Programming error...");
 
-        let state = self.as_ref();
+        let state = self.meter();
 
         let mut offset = 0;
-        state.stream_inputs.iter()
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.build_quadlet(&mut raw[pos..(pos + 4)]);
-            });
+        state.stream_inputs.iter().enumerate().for_each(|(i, m)| {
+            let pos = offset + i * 4;
+            m.build_quadlet(&mut raw[pos..(pos + 4)]);
+        });
 
         offset += ShellMixerMeter::MAX_STREAM_INPUT_COUNT * 4;
-        state.analog_inputs.iter()
+        state
+            .analog_inputs
+            .iter()
             .take(Self::ANALOG_INPUT_COUNT)
             .take(ShellMixerMeter::MAX_ANALOG_INPUT_COUNT)
             .enumerate()
@@ -408,7 +438,9 @@ pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMete
             });
 
         offset += ShellMixerMeter::MAX_ANALOG_INPUT_COUNT * 4;
-        state.digital_inputs.iter()
+        state
+            .digital_inputs
+            .iter()
             .take(Self::DIGITAL_INPUT_COUNT)
             .take(ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT)
             .enumerate()
@@ -418,21 +450,21 @@ pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMete
             });
 
         offset += ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT * 4;
-        state.main_outputs.iter()
-            .enumerate()
-            .for_each(|(i, m)| {
-                let pos = offset + i * 4;
-                m.build_quadlet(&mut raw[pos..(pos + 4)]);
-            });
+        state.main_outputs.iter().enumerate().for_each(|(i, m)| {
+            let pos = offset + i * 4;
+            m.build_quadlet(&mut raw[pos..(pos + 4)]);
+        });
     }
 
     fn parse(&mut self, raw: &[u8]) {
         assert_eq!(raw.len(), ShellMixerMeter::SIZE, "Programming error...");
 
-        let state = self.as_mut();
+        let state = self.meter_mut();
 
         let mut offset = 0;
-        state.stream_inputs.iter_mut()
+        state
+            .stream_inputs
+            .iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
                 let pos = offset + i * 4;
@@ -440,7 +472,9 @@ pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMete
             });
 
         offset += ShellMixerMeter::MAX_STREAM_INPUT_COUNT * 4;
-        state.analog_inputs.iter_mut()
+        state
+            .analog_inputs
+            .iter_mut()
             .take(Self::ANALOG_INPUT_COUNT)
             .take(ShellMixerMeter::MAX_ANALOG_INPUT_COUNT)
             .enumerate()
@@ -450,7 +484,9 @@ pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMete
             });
 
         offset += ShellMixerMeter::MAX_ANALOG_INPUT_COUNT * 4;
-        state.digital_inputs.iter_mut()
+        state
+            .digital_inputs
+            .iter_mut()
             .take(Self::DIGITAL_INPUT_COUNT)
             .take(ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT)
             .enumerate()
@@ -460,7 +496,9 @@ pub trait ShellMixerMeterConvert : AsRef<ShellMixerMeter> + AsMut<ShellMixerMete
             });
 
         offset += ShellMixerMeter::MAX_DIGITAL_INPUT_COUNT * 4;
-        state.main_outputs.iter_mut()
+        state
+            .main_outputs
+            .iter_mut()
             .enumerate()
             .for_each(|(i, m)| {
                 let pos = offset + i * 4;
@@ -577,7 +615,7 @@ pub struct ShellOptOutputSrc(pub ShellPhysOutSrc);
 
 /// The structure to represent configuration for optical interface.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ShellOptIfaceConfig{
+pub struct ShellOptIfaceConfig {
     pub input_format: ShellOptInputIfaceFormat,
     pub output_format: ShellOptOutputIfaceFormat,
     pub output_source: ShellOptOutputSrc,
@@ -609,7 +647,7 @@ pub struct ShellCoaxOutPairSrc(pub ShellPhysOutSrc);
 
 /// The enumeration to represent available source for sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ShellStandaloneClkSrc{
+pub enum ShellStandaloneClkSrc {
     Optical,
     Coaxial,
     Internal,
@@ -641,7 +679,7 @@ impl From<u32> for ShellStandaloneClkSrc {
     }
 }
 
-pub trait ShellStandaloneClkSpec : TcKonnektSegmentData + AsRef<ShellStandaloneClkSrc> + AsMut<ShellStandaloneClkSrc> {
+pub trait ShellStandaloneClkSpec: TcKonnektSegmentData {
     const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc];
 }
 

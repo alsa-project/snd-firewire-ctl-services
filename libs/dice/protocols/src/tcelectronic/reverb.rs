@@ -97,7 +97,7 @@ impl From<ReverbAlgorithm> for u32 {
 
 /// The structure to represent state of reverb effect.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ReverbState{
+pub struct ReverbState {
     /// The level of input. -24..0 (-24.0..0.0 dB).
     pub input_level: i32,
     pub bypass: bool,
@@ -134,7 +134,11 @@ impl ReverbState {
     pub const SIZE: usize = 68;
 
     pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error for the length of raw data");
+        assert_eq!(
+            raw.len(),
+            Self::SIZE,
+            "Programming error for the length of raw data"
+        );
 
         self.input_level.build_quadlet(&mut raw[..4]);
         self.bypass.build_quadlet(&mut raw[4..8]);
@@ -155,7 +159,11 @@ impl ReverbState {
     }
 
     pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error for the length of raw data");
+        assert_eq!(
+            raw.len(),
+            Self::SIZE,
+            "Programming error for the length of raw data"
+        );
 
         self.input_level.parse_quadlet(&raw[..4]);
         self.bypass.parse_quadlet(&raw[4..8]);
@@ -178,11 +186,11 @@ impl ReverbState {
 
 /// The structure to represent meter of reverb effect.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ReverbMeter{
+pub struct ReverbMeter {
     /// The meter of left and right outputs. -1000..500 (-24.0..12.0 dB)
-    pub outputs: [i32;2],
+    pub outputs: [i32; 2],
     /// The meter of left and right inputs. -1000..0 (-24.0..0.0 dB)
-    pub inputs: [i32;2],
+    pub inputs: [i32; 2],
 }
 
 impl ReverbMeter {
@@ -191,14 +199,22 @@ impl ReverbMeter {
 
 impl ReverbMeter {
     pub fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error for the length of raw data");
+        assert_eq!(
+            raw.len(),
+            Self::SIZE,
+            "Programming error for the length of raw data"
+        );
 
         self.outputs.build_quadlet_block(&mut raw[..8]);
         self.inputs.build_quadlet_block(&mut raw[8..16]);
     }
 
     pub fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len(), Self::SIZE, "Programming error for the length of raw data");
+        assert_eq!(
+            raw.len(),
+            Self::SIZE,
+            "Programming error for the length of raw data"
+        );
 
         self.outputs.parse_quadlet_block(&raw[..8]);
         self.inputs.parse_quadlet_block(&raw[8..16]);

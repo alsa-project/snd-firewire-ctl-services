@@ -3,97 +3,94 @@
 
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
-
+use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
 
-use dice_protocols::tcelectronic::*;
+use alsactl::{ElemId, ElemIfaceType, ElemValue};
+
 use dice_protocols::tcelectronic::fw_led::*;
+use dice_protocols::tcelectronic::*;
 
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
-pub fn firewire_led_state_to_string(state: &FireWireLedState) -> String {
+const STATE_NAME: &str = "FireWire-LED-state";
+
+pub fn firewire_led_state_to_str(state: &FireWireLedState) -> &'static str {
     match state {
         FireWireLedState::Off => "Off",
         FireWireLedState::On => "On",
         FireWireLedState::BlinkFast => "Blink-fast",
         FireWireLedState::BlinkSlow => "Blink-slow",
-    }.to_string()
+    }
 }
 
-#[derive(Default, Debug)]
-pub struct FwLedCtl(pub Vec<ElemId>);
+pub trait FirewireLedCtlOperation<S, T>
+where
+    S: TcKonnektSegmentData,
+    TcKonnektSegment<S>: TcKonnektSegmentSpec,
+    T: SegmentOperation<S>,
+{
+    fn segment_mut(&mut self) -> &mut TcKonnektSegment<S>;
+    fn firewire_led(&self) -> &FireWireLedState;
+    fn firewire_led_mut(&mut self) -> &mut FireWireLedState;
 
-const STATE_NAME: &str = "FireWire-LED-state";
-
-impl FwLedCtl {
-    const STATES: [FireWireLedState;4] = [
+    const STATES: [FireWireLedState; 4] = [
         FireWireLedState::Off,
         FireWireLedState::On,
         FireWireLedState::BlinkFast,
         FireWireLedState::BlinkSlow,
     ];
 
-    pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels = Self::STATES.iter()
-            .map(|s| firewire_led_state_to_string(s))
+    fn load_firewire_led(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        let labels = Self::STATES
+            .iter()
+            .map(|s| firewire_led_state_to_str(s))
             .collect::<Vec<_>>();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-            .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
-
-        Ok(())
     }
 
-    pub fn read<S>(
+    fn read_firewire_led(
         &mut self,
-        segment: &TcKonnektSegment<S>,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where S: TcKonnektSegmentData + AsRef<FireWireLedState>,
-    {
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            STATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pos = Self::STATES.iter()
-                        .position(|s| s.eq(segment.data.as_ref()))
-                        .expect("Programming error");
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-            }
+            STATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                let pos = Self::STATES
+                    .iter()
+                    .position(|s| self.firewire_led().eq(s))
+                    .unwrap();
+                Ok(pos as u32)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
 
-    pub fn write<T, S>(
+    fn write_firewire_led(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
-        segment: &mut TcKonnektSegment<S>,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
-        timeout_ms: u32
-    ) -> Result<bool, Error>
-        where T: TcKonnektSegmentProtocol<S>,
-              S: TcKonnektSegmentData + AsMut<FireWireLedState>,
-              TcKonnektSegment<S>: TcKonnektSegmentSpec,
-    {
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             STATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    Self::STATES.iter()
+                    Self::STATES
+                        .iter()
                         .nth(val as usize)
-                        .ok_or_else(||{
+                        .ok_or_else(|| {
                             let msg = format!("Invalid index of FireWire LED: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })
-                        .map(|&s| *segment.data.as_mut() = s)
-                })
-                .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
-                .map(|_| true)
+                        .map(|&s| *self.firewire_led_mut() = s)
+                })?;
+                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

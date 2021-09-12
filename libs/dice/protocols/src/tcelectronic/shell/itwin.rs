@@ -7,49 +7,55 @@
 //! defined by TC Electronic for Impact Twin.
 
 use super::*;
-use crate::tcelectronic::{*, ch_strip::*, reverb::*, standalone::*};
+use crate::tcelectronic::{ch_strip::*, reverb::*, standalone::*, *};
 
-/// The structure to represent segments in memory space of Impact Twin.
-#[derive(Default, Debug)]
-pub struct ItwinSegments{
-    /// Segment for knob. 0x0000..0x0027 (36 quads).
-    pub knob: TcKonnektSegment<ItwinKnob>,
-    /// Segment for configuration. 0x0028..0x00cf (168 quads).
-    pub config: TcKonnektSegment<ItwinConfig>,
-    /// Segment for state of mixer. 0x00d0..0x0243 (93 quads).
-    pub mixer_state: TcKonnektSegment<ItwinMixerState>,
-    /// Segment for state of reverb effect. 0x0244..0x0287. (17 quads)
-    pub reverb_state: TcKonnektSegment<ItwinReverbState>,
-    /// Segment for states of channel strip effect. 0x0288..0x03ab (73 quads).
-    pub ch_strip_state: TcKonnektSegment<ItwinChStripStates>,
-    // NOTE: Segment for tuner. 0x03ac..0x03c8 (8 quads).
-    /// Segment for mixer meter. 0x106c..0x10c7 (23 quads).
-    pub mixer_meter: TcKonnektSegment<ItwinMixerMeter>,
-    /// Segment for state of hardware. 0x1008..0x1023 (7 quads).
-    pub hw_state: TcKonnektSegment<ItwinHwState>,
-    /// Segment for meter of reverb effect. 0x10c8..0x010df (6 quads).
-    pub reverb_meter: TcKonnektSegment<ItwinReverbMeter>,
-    /// Segment for meters of channel strip effect. 0x10e0..0x111b (15 quads).
-    pub ch_strip_meter: TcKonnektSegment<ItwinChStripMeters>,
-}
+/// The structure for protocol implementation of Impact Twin.
+#[derive(Default)]
+pub struct ItwinProtocol;
+
+/// Segment for knob. 0x0000..0x0027 (36 quads).
+pub type ItwinKnobSegment = TcKonnektSegment<ItwinKnob>;
+impl SegmentOperation<ItwinKnob> for ItwinProtocol {}
+
+/// Segment for configuration. 0x0028..0x00cf (168 quads).
+pub type ItwinConfigSegment = TcKonnektSegment<ItwinConfig>;
+impl SegmentOperation<ItwinConfig> for ItwinProtocol {}
+
+/// Segment for state of mixer. 0x00d0..0x0243 (93 quads).
+pub type ItwinMixerStateSegment = TcKonnektSegment<ItwinMixerState>;
+impl SegmentOperation<ItwinMixerState> for ItwinProtocol {}
+
+/// Segment for state of reverb effect. 0x0244..0x0287. (17 quads)
+pub type ItwinReverbStateSegment = TcKonnektSegment<ItwinReverbState>;
+impl SegmentOperation<ItwinReverbState> for ItwinProtocol {}
+
+/// Segment for states of channel strip effect. 0x028c..0x03ab (72 quads).
+pub type ItwinChStripStatesSegment = TcKonnektSegment<ItwinChStripStates>;
+impl SegmentOperation<ItwinChStripStates> for ItwinProtocol {}
+
+// NOTE: Segment for tuner. 0x03ac..0x03c8 (8 quads).
+
+/// Segment for mixer meter. 0x106c..0x10c7 (23 quads).
+pub type ItwinMixerMeterSegment = TcKonnektSegment<ItwinMixerMeter>;
+impl SegmentOperation<ItwinMixerMeter> for ItwinProtocol {}
+
+/// Segment for state of hardware. 0x1008..0x1023 (7 quads).
+pub type ItwinHwStateSegment = TcKonnektSegment<ItwinHwState>;
+impl SegmentOperation<ItwinHwState> for ItwinProtocol {}
+
+/// Segment for meter of reverb effect. 0x10c8..0x010df (6 quads).
+pub type ItwinReverbMeterSegment = TcKonnektSegment<ItwinReverbMeter>;
+impl SegmentOperation<ItwinReverbMeter> for ItwinProtocol {}
+
+/// Segment for meters of channel strip effect. 0x10e0..0x111b (15 quads).
+pub type ItwinChStripMetersSegment = TcKonnektSegment<ItwinChStripMeters>;
+impl SegmentOperation<ItwinChStripMeters> for ItwinProtocol {}
 
 /// The structure to represent state of knob.
 #[derive(Default, Debug)]
-pub struct ItwinKnob{
+pub struct ItwinKnob {
     pub target: ShellKnobTarget,
     pub clock_recovery: bool,
-}
-
-impl AsRef<ShellKnobTarget> for ItwinKnob {
-    fn as_ref(&self) -> &ShellKnobTarget {
-        &self.target
-    }
-}
-
-impl AsMut<ShellKnobTarget> for ItwinKnob {
-    fn as_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.target
-    }
 }
 
 impl TcKonnektSegmentData for ItwinKnob {
@@ -155,39 +161,15 @@ impl From<u32> for ItwinOutputPairSrc {
 }
 
 #[derive(Default, Debug)]
-pub struct ItwinConfig{
+pub struct ItwinConfig {
     pub mixer_stream_src_pair: ShellMixerStreamSrcPair,
     pub standalone_src: ShellStandaloneClkSrc,
     pub standalone_rate: TcKonnektStandaloneClkRate,
-    pub output_pair_src: [ItwinOutputPairSrc;ITWIN_PHYS_OUT_PAIR_COUNT],
-}
-
-impl AsRef<ShellMixerStreamSrcPair> for ItwinConfig {
-    fn as_ref(&self) -> &ShellMixerStreamSrcPair {
-        &self.mixer_stream_src_pair
-    }
-}
-
-impl AsMut<ShellMixerStreamSrcPair> for ItwinConfig {
-    fn as_mut(&mut self) -> &mut ShellMixerStreamSrcPair {
-        &mut self.mixer_stream_src_pair
-    }
+    pub output_pair_src: [ItwinOutputPairSrc; ITWIN_PHYS_OUT_PAIR_COUNT],
 }
 
 impl ShellMixerStreamSrcPairSpec for ItwinConfig {
     const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize = 7;
-}
-
-impl AsRef<ShellStandaloneClkSrc> for ItwinConfig {
-    fn as_ref(&self) -> &ShellStandaloneClkSrc {
-        &self.standalone_src
-    }
-}
-
-impl AsMut<ShellStandaloneClkSrc> for ItwinConfig {
-    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.standalone_src
-    }
 }
 
 impl ShellStandaloneClkSpec for ItwinConfig {
@@ -196,18 +178,6 @@ impl ShellStandaloneClkSpec for ItwinConfig {
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,
     ];
-}
-
-impl AsRef<TcKonnektStandaloneClkRate> for ItwinConfig {
-    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
-        &self.standalone_rate
-    }
-}
-
-impl AsMut<TcKonnektStandaloneClkRate> for ItwinConfig {
-    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.standalone_rate
-    }
 }
 
 impl TcKonnektSegmentData for ItwinConfig {
@@ -236,28 +206,16 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinConfig> {
 }
 
 #[derive(Debug)]
-pub struct ItwinMixerState{
+pub struct ItwinMixerState {
     pub mixer: ShellMixerState,
     /// The balance between analog and stream inputs to mix. 0..1000.
     pub stream_mix_balance: u32,
     pub enabled: bool,
 }
 
-impl AsRef<ShellMixerState> for ItwinMixerState {
-    fn as_ref(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-}
-
-impl AsMut<ShellMixerState> for ItwinMixerState {
-    fn as_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
-}
-
 impl Default for ItwinMixerState {
     fn default() -> Self {
-        ItwinMixerState{
+        ItwinMixerState {
             mixer: Self::create_mixer_state(),
             enabled: Default::default(),
             stream_mix_balance: Default::default(),
@@ -265,8 +223,8 @@ impl Default for ItwinMixerState {
     }
 }
 
-impl ShellMixerConvert for ItwinMixerState {
-    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT] = [
+impl ShellMixerStateConvert for ItwinMixerState {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
         None,
@@ -278,18 +236,26 @@ impl ShellMixerConvert for ItwinMixerState {
         Some(ShellMixerMonitorSrcType::Adat),
         Some(ShellMixerMonitorSrcType::Adat),
     ];
+
+    fn state(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+
+    fn state_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
 }
 
 impl TcKonnektSegmentData for ItwinMixerState {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerConvert::build(self, raw);
+        ShellMixerStateConvert::build(self, raw);
 
         self.stream_mix_balance.build_quadlet(&mut raw[348..352]);
         self.enabled.build_quadlet(&mut raw[352..356]);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerConvert::parse(self, raw);
+        ShellMixerStateConvert::parse(self, raw);
 
         self.stream_mix_balance.parse_quadlet(&raw[348..352]);
         self.enabled.parse_quadlet(&raw[352..356]);
@@ -306,19 +272,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinMixerState> {
 }
 
 #[derive(Default, Debug)]
-pub struct ItwinReverbState(ReverbState);
-
-impl AsRef<ReverbState> for ItwinReverbState {
-    fn as_ref(&self) -> &ReverbState {
-        &self.0
-    }
-}
-
-impl AsMut<ReverbState> for ItwinReverbState {
-    fn as_mut(&mut self) -> &mut ReverbState {
-        &mut self.0
-    }
-}
+pub struct ItwinReverbState(pub ReverbState);
 
 impl TcKonnektSegmentData for ItwinReverbState {
     fn build(&self, raw: &mut [u8]) {
@@ -340,19 +294,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinReverbState> {
 }
 
 #[derive(Default, Debug)]
-pub struct ItwinChStripStates([ChStripState;SHELL_CH_STRIP_COUNT]);
-
-impl AsRef<[ChStripState]> for ItwinChStripStates {
-    fn as_ref(&self) -> &[ChStripState] {
-        &self.0
-    }
-}
-
-impl AsMut<[ChStripState]> for ItwinChStripStates {
-    fn as_mut(&mut self) -> &mut [ChStripState] {
-        &mut self.0
-    }
-}
+pub struct ItwinChStripStates(pub [ChStripState; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentData for ItwinChStripStates {
     fn build(&self, raw: &mut [u8]) {
@@ -365,7 +307,7 @@ impl TcKonnektSegmentData for ItwinChStripStates {
 }
 
 impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinChStripStates> {
-    const OFFSET: usize = 0x0288;
+    const OFFSET: usize = 0x028c;
     const SIZE: usize = ChStripState::SIZE * SHELL_CH_STRIP_COUNT + 4;
 }
 
@@ -414,33 +356,9 @@ impl From<ListeningMode> for u32 {
 }
 
 #[derive(Default, Debug)]
-pub struct ItwinHwState{
+pub struct ItwinHwState {
     pub hw_state: ShellHwState,
     pub listening_mode: ListeningMode,
-}
-
-impl AsRef<[ShellAnalogJackState]> for ItwinHwState {
-    fn as_ref(&self) -> &[ShellAnalogJackState] {
-        &self.hw_state.analog_jack_states
-    }
-}
-
-impl AsMut<[ShellAnalogJackState]> for ItwinHwState {
-    fn as_mut(&mut self) -> &mut [ShellAnalogJackState] {
-        &mut self.hw_state.analog_jack_states
-    }
-}
-
-impl AsRef<FireWireLedState> for ItwinHwState {
-    fn as_ref(&self) -> &FireWireLedState {
-        &self.hw_state.firewire_led
-    }
-}
-
-impl AsMut<FireWireLedState> for ItwinHwState {
-    fn as_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.hw_state.firewire_led
-    }
 }
 
 impl TcKonnektSegmentData for ItwinHwState {
@@ -465,19 +383,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinHwState> {
 }
 
 #[derive(Debug)]
-pub struct ItwinMixerMeter(ShellMixerMeter);
-
-impl AsRef<ShellMixerMeter> for ItwinMixerMeter {
-    fn as_ref(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-}
-
-impl AsMut<ShellMixerMeter> for ItwinMixerMeter {
-    fn as_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
-}
+pub struct ItwinMixerMeter(pub ShellMixerMeter);
 
 impl Default for ItwinMixerMeter {
     fn default() -> Self {
@@ -488,6 +394,14 @@ impl Default for ItwinMixerMeter {
 impl ShellMixerMeterConvert for ItwinMixerMeter {
     const ANALOG_INPUT_COUNT: usize = 4;
     const DIGITAL_INPUT_COUNT: usize = 8;
+
+    fn meter(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+
+    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
 }
 
 impl TcKonnektSegmentData for ItwinMixerMeter {
@@ -506,19 +420,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinMixerMeter> {
 }
 
 #[derive(Default, Debug)]
-pub struct ItwinReverbMeter(ReverbMeter);
-
-impl AsRef<ReverbMeter> for ItwinReverbMeter {
-    fn as_ref(&self) -> &ReverbMeter {
-        &self.0
-    }
-}
-
-impl AsMut<ReverbMeter> for ItwinReverbMeter {
-    fn as_mut(&mut self) -> &mut ReverbMeter {
-        &mut self.0
-    }
-}
+pub struct ItwinReverbMeter(pub ReverbMeter);
 
 impl TcKonnektSegmentData for ItwinReverbMeter {
     fn build(&self, raw: &mut [u8]) {
@@ -536,19 +438,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<ItwinReverbMeter> {
 }
 
 #[derive(Default, Debug)]
-pub struct ItwinChStripMeters([ChStripMeter;SHELL_CH_STRIP_COUNT]);
-
-impl AsRef<[ChStripMeter]> for ItwinChStripMeters {
-    fn as_ref(&self) -> &[ChStripMeter] {
-        &self.0
-    }
-}
-
-impl AsMut<[ChStripMeter]> for ItwinChStripMeters {
-    fn as_mut(&mut self) -> &mut [ChStripMeter] {
-        &mut self.0
-    }
-}
+pub struct ItwinChStripMeters(pub [ChStripMeter; SHELL_CH_STRIP_COUNT]);
 
 impl TcKonnektSegmentData for ItwinChStripMeters {
     fn build(&self, raw: &mut [u8]) {

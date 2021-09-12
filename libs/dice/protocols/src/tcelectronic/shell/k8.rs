@@ -7,57 +7,42 @@
 //! defined by TC Electronic for Konnekt 8.
 
 use super::*;
-use crate::tcelectronic::{*, standalone::*};
+use crate::tcelectronic::{standalone::*, *};
 
-/// The structure to represent segments in memory space of Konnekt 8.
-#[derive(Default, Debug)]
-pub struct K8Segments{
-    /// Segment for knob. 0x0000..0x0027 (36 quads).
-    pub knob: TcKonnektSegment<K8Knob>,
-    /// Segment for configuration. 0x0028..0x0073 (19 quads).
-    pub config: TcKonnektSegment<K8Config>,
-    /// Segment for state of mixer. 0x0074..0x01cf (87 quads).
-    pub mixer_state: TcKonnektSegment<K8MixerState>,
-    /// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
-    pub mixer_meter: TcKonnektSegment<K8MixerMeter>,
-    /// Segment tor state of hardware. 0x100c..0x1027 (7 quads).
-    pub hw_state: TcKonnektSegment<K8HwState>,
-}
+/// The structure for protocol implementation of Konnekt 8.
+#[derive(Default)]
+pub struct K8Protocol;
+
+/// Segment for knob. 0x0000..0x0027 (36 quads).
+pub type K8KnobSegment = TcKonnektSegment<K8Knob>;
+impl SegmentOperation<K8Knob> for K8Protocol {}
+
+/// Segment for configuration. 0x0028..0x0073 (19 quads).
+pub type K8ConfigSegment = TcKonnektSegment<K8Config>;
+impl SegmentOperation<K8Config> for K8Protocol {}
+
+/// Segment for state of mixer. 0x0074..0x01cf (87 quads).
+pub type K8MixerStateSegment = TcKonnektSegment<K8MixerState>;
+impl SegmentOperation<K8MixerState> for K8Protocol {}
+
+/// Segment for mixer meter. 0x105c..0x10b7 (23 quads).
+pub type K8MixerMeterSegment = TcKonnektSegment<K8MixerMeter>;
+impl SegmentOperation<K8MixerMeter> for K8Protocol {}
+
+/// Segment tor state of hardware. 0x100c..0x1027 (7 quads).
+pub type K8HwStateSegment = TcKonnektSegment<K8HwState>;
+impl SegmentOperation<K8HwState> for K8Protocol {}
 
 /// The structure to represent state of knob.
 #[derive(Default, Debug)]
-pub struct K8Knob{
+pub struct K8Knob {
     pub target: ShellKnobTarget,
     pub knob2_target: ShellKnob2Target,
-}
-
-impl AsRef<ShellKnobTarget> for K8Knob {
-    fn as_ref(&self) -> &ShellKnobTarget {
-        &self.target
-    }
-}
-
-impl AsMut<ShellKnobTarget> for K8Knob {
-    fn as_mut(&mut self) -> &mut ShellKnobTarget {
-        &mut self.target
-    }
 }
 
 impl ShellKnobTargetSpec for K8Knob {
     const HAS_SPDIF: bool = true;
     const HAS_EFFECTS: bool = false;
-}
-
-impl AsRef<ShellKnob2Target> for K8Knob {
-    fn as_ref(&self) -> &ShellKnob2Target {
-        &self.knob2_target
-    }
-}
-
-impl AsMut<ShellKnob2Target> for K8Knob {
-    fn as_mut(&mut self) -> &mut ShellKnob2Target {
-        &mut self.knob2_target
-    }
 }
 
 impl ShellKnob2TargetSpec for K8Knob {
@@ -87,34 +72,10 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Knob> {
 
 /// The structure to represent configuration.
 #[derive(Default, Debug)]
-pub struct K8Config{
+pub struct K8Config {
     pub coax_out_src: ShellCoaxOutPairSrc,
     pub standalone_src: ShellStandaloneClkSrc,
     pub standalone_rate: TcKonnektStandaloneClkRate,
-}
-
-impl AsRef<ShellCoaxOutPairSrc> for K8Config {
-    fn as_ref(&self) -> &ShellCoaxOutPairSrc {
-        &self.coax_out_src
-    }
-}
-
-impl AsMut<ShellCoaxOutPairSrc> for K8Config {
-    fn as_mut(&mut self) -> &mut ShellCoaxOutPairSrc {
-        &mut self.coax_out_src
-    }
-}
-
-impl AsRef<ShellStandaloneClkSrc> for K8Config {
-    fn as_ref(&self) -> &ShellStandaloneClkSrc {
-        &self.standalone_src
-    }
-}
-
-impl AsMut<ShellStandaloneClkSrc> for K8Config {
-    fn as_mut(&mut self) -> &mut ShellStandaloneClkSrc {
-        &mut self.standalone_src
-    }
 }
 
 impl ShellStandaloneClkSpec for K8Config {
@@ -122,18 +83,6 @@ impl ShellStandaloneClkSpec for K8Config {
         ShellStandaloneClkSrc::Coaxial,
         ShellStandaloneClkSrc::Internal,
     ];
-}
-
-impl AsRef<TcKonnektStandaloneClkRate> for K8Config {
-    fn as_ref(&self) -> &TcKonnektStandaloneClkRate {
-        &self.standalone_rate
-    }
-}
-
-impl AsMut<TcKonnektStandaloneClkRate> for K8Config {
-    fn as_mut(&mut self) -> &mut TcKonnektStandaloneClkRate {
-        &mut self.standalone_rate
-    }
 }
 
 impl TcKonnektSegmentData for K8Config {
@@ -161,36 +110,24 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Config> {
 
 /// The structureto represent state of mixer.
 #[derive(Debug)]
-pub struct K8MixerState{
+pub struct K8MixerState {
     /// The common structure for state of mixer.
     pub mixer: ShellMixerState,
     /// Whether to use mixer function.
     pub enabled: bool,
 }
 
-impl AsRef<ShellMixerState> for K8MixerState {
-    fn as_ref(&self) -> &ShellMixerState {
-        &self.mixer
-    }
-}
-
-impl AsMut<ShellMixerState> for K8MixerState {
-    fn as_mut(&mut self) -> &mut ShellMixerState {
-        &mut self.mixer
-    }
-}
-
 impl Default for K8MixerState {
     fn default() -> Self {
-        K8MixerState{
+        K8MixerState {
             mixer: Self::create_mixer_state(),
             enabled: Default::default(),
         }
     }
 }
 
-impl ShellMixerConvert for K8MixerState {
-    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>;SHELL_MIXER_MONITOR_SRC_COUNT] = [
+impl ShellMixerStateConvert for K8MixerState {
+    const MONITOR_SRC_MAP: [Option<ShellMixerMonitorSrcType>; SHELL_MIXER_MONITOR_SRC_COUNT] = [
         Some(ShellMixerMonitorSrcType::Stream),
         None,
         None,
@@ -202,17 +139,25 @@ impl ShellMixerConvert for K8MixerState {
         None,
         Some(ShellMixerMonitorSrcType::Spdif),
     ];
+
+    fn state(&self) -> &ShellMixerState {
+        &self.mixer
+    }
+
+    fn state_mut(&mut self) -> &mut ShellMixerState {
+        &mut self.mixer
+    }
 }
 
 impl TcKonnektSegmentData for K8MixerState {
     fn build(&self, raw: &mut [u8]) {
-        ShellMixerConvert::build(self, raw);
+        ShellMixerStateConvert::build(self, raw);
 
         self.enabled.build_quadlet(&mut raw[340..344]);
     }
 
     fn parse(&mut self, raw: &[u8]) {
-        ShellMixerConvert::parse(self, raw);
+        ShellMixerStateConvert::parse(self, raw);
 
         self.enabled.parse_quadlet(&raw[340..344]);
     }
@@ -228,33 +173,9 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8MixerState> {
 }
 
 #[derive(Default, Debug)]
-pub struct K8HwState{
+pub struct K8HwState {
     pub hw_state: ShellHwState,
     pub aux_input_enabled: bool,
-}
-
-impl AsRef<[ShellAnalogJackState]> for K8HwState {
-    fn as_ref(&self) -> &[ShellAnalogJackState] {
-        &self.hw_state.analog_jack_states
-    }
-}
-
-impl AsMut<[ShellAnalogJackState]> for K8HwState {
-    fn as_mut(&mut self) -> &mut [ShellAnalogJackState] {
-        &mut self.hw_state.analog_jack_states
-    }
-}
-
-impl AsRef<FireWireLedState> for K8HwState {
-    fn as_ref(&self) -> &FireWireLedState {
-        &self.hw_state.firewire_led
-    }
-}
-
-impl AsMut<FireWireLedState> for K8HwState {
-    fn as_mut(&mut self) -> &mut FireWireLedState {
-        &mut self.hw_state.firewire_led
-    }
 }
 
 impl TcKonnektSegmentData for K8HwState {
@@ -282,19 +203,7 @@ const K8_METER_ANALOG_INPUT_COUNT: usize = 2;
 const K8_METER_DIGITAL_INPUT_COUNT: usize = 2;
 
 #[derive(Debug)]
-pub struct K8MixerMeter(ShellMixerMeter);
-
-impl AsRef<ShellMixerMeter> for K8MixerMeter {
-    fn as_ref(&self) -> &ShellMixerMeter {
-        &self.0
-    }
-}
-
-impl AsMut<ShellMixerMeter> for K8MixerMeter {
-    fn as_mut(&mut self) -> &mut ShellMixerMeter {
-        &mut self.0
-    }
-}
+pub struct K8MixerMeter(pub ShellMixerMeter);
 
 impl Default for K8MixerMeter {
     fn default() -> Self {
@@ -305,6 +214,14 @@ impl Default for K8MixerMeter {
 impl ShellMixerMeterConvert for K8MixerMeter {
     const ANALOG_INPUT_COUNT: usize = K8_METER_ANALOG_INPUT_COUNT;
     const DIGITAL_INPUT_COUNT: usize = K8_METER_DIGITAL_INPUT_COUNT;
+
+    fn meter(&self) -> &ShellMixerMeter {
+        &self.0
+    }
+
+    fn meter_mut(&mut self) -> &mut ShellMixerMeter {
+        &mut self.0
+    }
 }
 
 impl TcKonnektSegmentData for K8MixerMeter {
