@@ -790,13 +790,13 @@ impl MixerStreamSrcPairCtl {
     }
 }
 
-pub fn phys_out_src_to_string(src: &ShellPhysOutSrc) -> String {
+pub fn phys_out_src_to_str(src: &ShellPhysOutSrc) -> &'static str {
     match src {
         ShellPhysOutSrc::Stream => "Stream-input",
         ShellPhysOutSrc::Analog01 => "Analog-input-1/2",
         ShellPhysOutSrc::MixerOut01 => "Mixer-output-1/2",
         ShellPhysOutSrc::MixerSend01 => "Mixer-send/1/2",
-    }.to_string()
+    }
 }
 
 pub const PHYS_OUT_SRCS: [ShellPhysOutSrc;4] = [
@@ -813,8 +813,8 @@ impl ShellCoaxIfaceCtl {
     const OUT_SRC_NAME: &'static str = "coaxial-output-source";
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = PHYS_OUT_SRCS.iter()
-            .map(|s| phys_out_src_to_string(s))
+        let labels: Vec<&str> = PHYS_OUT_SRCS.iter()
+            .map(|s| phys_out_src_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -914,9 +914,7 @@ impl ShellOptIfaceCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_FMT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = PHYS_OUT_SRCS.iter()
-            .map(|s| phys_out_src_to_string(s))
-            .collect();
+        let labels: Vec<&str> = PHYS_OUT_SRCS.iter().map(|s| phys_out_src_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 

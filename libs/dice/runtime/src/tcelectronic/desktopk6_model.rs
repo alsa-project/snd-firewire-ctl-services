@@ -20,7 +20,7 @@ use super::{fw_led_ctl::*, standalone_ctl::*};
 
 #[derive(Default)]
 pub struct Desktopk6Model{
-    proto: Desktopk6Proto,
+    req: FwReq,
     sections: GeneralSections,
     segments: DesktopSegments,
     ctl: CommonCtl,
@@ -35,18 +35,18 @@ const TIMEOUT_MS: u32 = 20;
 
 impl CtlModel<SndDice> for Desktopk6Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let node = unit.get_node();
+        let mut node = unit.get_node();
 
-        self.sections = self.proto.read_general_sections(&node, TIMEOUT_MS)?;
-        let caps = self.proto.read_clock_caps(&node, &self.sections, TIMEOUT_MS)?;
-        let src_labels = self.proto.read_clock_source_labels(&node, &self.sections, TIMEOUT_MS)?;
+        self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
+        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.proto.read_segment(&node, &mut self.segments.meter, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.panel, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.mixer, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.config, TIMEOUT_MS)?;
-        self.proto.read_segment(&node, &mut self.segments.hw_state, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.meter, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.panel, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.mixer, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.config, TIMEOUT_MS)?;
+        self.req.read_segment(&mut node, &mut self.segments.hw_state, TIMEOUT_MS)?;
 
         self.meter_ctl.load(&self.segments, card_cntr)?;
         self.panel_ctl.load(card_cntr)?;
@@ -60,7 +60,7 @@ impl CtlModel<SndDice> for Desktopk6Model {
     fn read(&mut self, unit: &mut SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.read(unit, &self.proto, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.ctl.read(unit, &mut self.req, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.meter_ctl.read(&self.segments, elem_id, elem_value)? {
             Ok(true)
@@ -80,17 +80,17 @@ impl CtlModel<SndDice> for Desktopk6Model {
     fn write(&mut self, unit: &mut SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.ctl.write(unit, &self.proto, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+        if self.ctl.write(unit, &mut self.req, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.panel_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
+        } else if self.panel_ctl.write(unit, &mut self.req, &mut self.segments, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, &self.proto, &mut self.segments, elem_id, old, new,
+        } else if self.mixer_ctl.write(unit, &mut self.req, &mut self.segments, elem_id, old, new,
                                        TIMEOUT_MS)? {
             Ok(true)
-        } else if self.standalone_ctl.write(unit, &self.proto, &mut self.segments.config, elem_id, new,
+        } else if self.standalone_ctl.write(unit, &mut self.req, &mut self.segments.config, elem_id, new,
                                             TIMEOUT_MS)? {
             Ok(true)
-        } else if self.hw_state_ctl.write(unit, &self.proto, &mut self.segments, elem_id, new,
+        } else if self.hw_state_ctl.write(unit, &mut self.req, &mut self.segments, elem_id, new,
                                           TIMEOUT_MS)? {
             Ok(true)
         } else {
@@ -107,10 +107,10 @@ impl NotifyModel<SndDice, u32> for Desktopk6Model {
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(unit, &self.proto, &self.sections, *msg, TIMEOUT_MS)?;
+        self.ctl.parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
 
-        self.proto.parse_notification(&unit.get_node(), &mut self.segments.panel, TIMEOUT_MS, msg)?;
-        self.proto.parse_notification(&unit.get_node(), &mut self.segments.hw_state, TIMEOUT_MS, msg)?;
+        self.req.parse_notification(&mut unit.get_node(), &mut self.segments.panel, TIMEOUT_MS, msg)?;
+        self.req.parse_notification(&mut unit.get_node(), &mut self.segments.hw_state, TIMEOUT_MS, msg)?;
 
         Ok(())
     }
@@ -130,16 +130,16 @@ impl NotifyModel<SndDice, u32> for Desktopk6Model {
     }
 }
 
-impl MeasureModel<hinawa::SndDice> for Desktopk6Model {
+impl MeasureModel<SndDice> for Desktopk6Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
 
     fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &self.proto, &self.sections, TIMEOUT_MS)?;
+        self.ctl.measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
 
-        self.proto.read_segment(&unit.get_node(), &mut self.segments.meter, TIMEOUT_MS)?;
+        self.req.read_segment(&mut unit.get_node(), &mut self.segments.meter, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -157,16 +157,6 @@ impl MeasureModel<hinawa::SndDice> for Desktopk6Model {
     }
 }
 
-
-#[derive(Default, Debug)]
-struct Desktopk6Proto(FwReq);
-
-impl AsRef<FwReq> for Desktopk6Proto {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
-
 #[derive(Default, Debug)]
 pub struct MeterCtl(Vec<ElemId>);
 
@@ -180,7 +170,11 @@ impl MeterCtl {
     const METER_STEP: i32 = 1;
     const METER_TLV: DbInterval = DbInterval{min: -9400, max: 0, linear: false, mute_avail: false};
 
-    fn load(&mut self, segments: &DesktopSegments, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(
+        &mut self,
+        segments: &DesktopSegments,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error> {
         let labels = (0..segments.meter.data.analog_inputs.len())
             .map(|i| format!("Analog-input-{}", i))
             .collect::<Vec<_>>();
@@ -199,18 +193,24 @@ impl MeterCtl {
         Ok(())
     }
 
-    fn add_meter_elem<T: AsRef<str>>(&mut self, card_cntr: &mut CardCntr, name: &str, labels: &[T])
-        -> Result<(), Error>
-    {
-        let elem_id = alsactl::ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+    fn add_meter_elem<T: AsRef<str>>(
+        &mut self,
+        card_cntr:&mut CardCntr,
+        name: &str,
+        labels: &[T]
+    ) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::METER_MIN, Self::METER_MAX, Self::METER_STEP,
                                 labels.len(), Some(&Into::<Vec<u32>>::into(Self::METER_TLV)), false)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))
     }
 
-    fn read(&self, segments: &DesktopSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &self,
+        segments: &DesktopSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::ANALOG_IN_NAME => {
                 elem_value.set_int(&segments.meter.data.analog_inputs);
@@ -286,9 +286,12 @@ impl PanelCtl {
         Ok(())
     }
 
-    fn read(&mut self, segments: &DesktopSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        segments: &DesktopSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::PANEL_BUTTON_COUNT_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
@@ -330,28 +333,33 @@ impl PanelCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, proto: &Desktopk6Proto, segments: &mut DesktopSegments,
-             elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        segments: &mut DesktopSegments,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::REVERB_LED_STATE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.panel.data.reverb_led_on = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.panel, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.panel, timeout_ms)
                 })
                 .map(|_| true)
             }
-            _ => self.fw_led_ctl.write(unit, proto, &mut segments.panel, elem_id, elem_value, timeout_ms),
+            _ => self.fw_led_ctl.write(unit, req, &mut segments.panel, elem_id, elem_value, timeout_ms),
         }
     }
 }
 
-fn hp_src_to_string(src: DesktopHpSrc) -> String {
+fn hp_src_to_str(src: &DesktopHpSrc) -> &'static str {
     match src {
         DesktopHpSrc::Stream23 => "Stream-3/4",
         DesktopHpSrc::Mixer01 => "Mixer-out-1/2",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -414,18 +422,19 @@ impl MixerCtl {
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         1, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
 
-        let labels: Vec<String> = Self::HP_SRCS.iter()
-            .map(|&s| hp_src_to_string(s))
-            .collect();
+        let labels: Vec<&str> = Self::HP_SRCS.iter().map(|s| hp_src_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
     }
 
-    fn read(&mut self, segments: &DesktopSegments, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        segments: &DesktopSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
@@ -494,17 +503,23 @@ impl MixerCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, proto: &Desktopk6Proto, segments: &mut DesktopSegments,
-             elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        segments: &mut DesktopSegments,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.mic_inst_level[idx] = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_MIC_INST_SRC_BALANCE_NAME => {
@@ -512,7 +527,7 @@ impl MixerCtl {
                     segments.mixer.data.mic_inst_pan[idx] = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_MIC_INST_SRC_SEND_NAME => {
@@ -520,7 +535,7 @@ impl MixerCtl {
                     segments.mixer.data.mic_inst_send[idx] = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_DUAL_INST_SRC_LEVEL_NAME => {
@@ -528,7 +543,7 @@ impl MixerCtl {
                     segments.mixer.data.dual_inst_level[idx] = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_DUAL_INST_SRC_BALANCE_NAME => {
@@ -536,7 +551,7 @@ impl MixerCtl {
                     segments.mixer.data.dual_inst_pan[idx] = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_DUAL_INST_SRC_SEND_NAME => {
@@ -544,7 +559,7 @@ impl MixerCtl {
                     segments.mixer.data.dual_inst_send[idx] = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_STEREO_IN_SRC_LEVEL_NAME => {
@@ -552,7 +567,7 @@ impl MixerCtl {
                     segments.mixer.data.stereo_in_level = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_STEREO_IN_SRC_BALANCE_NAME => {
@@ -560,7 +575,7 @@ impl MixerCtl {
                     segments.mixer.data.stereo_in_pan = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::MIXER_STEREO_IN_SRC_SEND_NAME => {
@@ -568,7 +583,7 @@ impl MixerCtl {
                     segments.mixer.data.stereo_in_send = val;
                     Ok(())
                 })
-                .and_then(|_| proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms))
+                .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
             Self::HP_SRC_NAME => {
@@ -581,7 +596,7 @@ impl MixerCtl {
                         })
                         .and_then(|&s| {
                             segments.mixer.data.hp_src = s;
-                            proto.write_segment(&unit.get_node(), &mut segments.mixer, timeout_ms)
+                            req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -591,20 +606,20 @@ impl MixerCtl {
     }
 }
 
-fn meter_target_to_string(target: &MeterTarget) -> String {
+fn meter_target_to_str(target: &MeterTarget) -> &'static str {
     match target {
         MeterTarget::Input => "Input",
         MeterTarget::Pre => "Pre",
         MeterTarget::Post => "Post",
-    }.to_string()
+    }
 }
 
-fn input_scene_to_string(scene: &InputScene) -> String {
+fn input_scene_to_str(scene: &InputScene) -> &'static str {
     match scene {
         InputScene::MicInst => "Mic-inst",
         InputScene::DualInst => "Dual-inst",
         InputScene::StereoIn => "Stereo-in",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -640,11 +655,9 @@ impl HwStateCtl {
     const DIM_LEVEL_STEP: i32 = 1;
     const DIM_LEVEL_TLV: DbInterval = DbInterval{min: -9400, max: -600, linear: false, mute_avail: false};
 
-    fn load(&mut self, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
-        let labels: Vec<String> = Self::METER_TARGETS.iter()
-            .map(|l| meter_target_to_string(l))
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::METER_TARGETS.iter()
+            .map(|l| meter_target_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::METER_TARGET_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
@@ -665,9 +678,7 @@ impl HwStateCtl {
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::DIM_LEVEL_MIN, Self::DIM_LEVEL_MAX, Self::DIM_LEVEL_STEP,
                                         1, Some(&Into::<Vec<u32>>::into(Self::DIM_LEVEL_TLV)), true)?;
 
-        let labels: Vec<String> = Self::INPUT_SCENES.iter()
-            .map(|l| input_scene_to_string(l))
-            .collect();
+        let labels: Vec<&str> = Self::INPUT_SCENES.iter().map(|l| input_scene_to_str(l)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SCENE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
@@ -690,9 +701,12 @@ impl HwStateCtl {
         Ok(())
     }
 
-    fn read(&mut self, segments: &DesktopSegments, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn read(
+        &mut self,
+        segments: &DesktopSegments,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::METER_TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
@@ -770,10 +784,15 @@ impl HwStateCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndDice, proto: &Desktopk6Proto, segments: &mut DesktopSegments,
-             elem_id: &ElemId, elem_value: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        segments: &mut DesktopSegments,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::METER_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -785,7 +804,7 @@ impl HwStateCtl {
                         })
                         .and_then(|&target| {
                             segments.hw_state.data.meter_target = target;
-                            proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                            req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -793,28 +812,28 @@ impl HwStateCtl {
             Self::MIXER_OUT_MONAURAL_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mixer_output_monaural = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::KNOB_ASSIGN_TO_HP_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.knob_assign_to_hp = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::MIXER_OUTPUT_DIM_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mixer_output_dim_enabled = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::MIXER_OUTPUT_DIM_LEVEL_NAME=> {
                 ElemValueAccessor::<i32>::get_val(elem_value, |val| {
                     segments.hw_state.data.mixer_output_dim_volume = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
@@ -828,7 +847,7 @@ impl HwStateCtl {
                         })
                         .and_then(|&scene| {
                             segments.hw_state.data.input_scene = scene;
-                            proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                            req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                         })
                 })
                 .map(|_| true)
@@ -836,35 +855,35 @@ impl HwStateCtl {
             Self::REVERB_TO_MAIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.reverb_to_master = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::REVERB_TO_HP_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.reverb_to_hp = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::KNOB_BACKLIGHT_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.master_knob_backlight = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::MIC_0_PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mic_0_phantom = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
             Self::MIC_0_BOOST_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mic_0_boost = val;
-                    proto.write_segment(&unit.get_node(), &mut segments.hw_state, timeout_ms)
+                    req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
