@@ -18,17 +18,19 @@ use dice_protocols::tcat::extension::peak_section::*;
 use dice_protocols::tcat::extension::{current_config_section::*, standalone_section::*};
 use dice_protocols::tcat::tcd22xx_spec::*;
 
+use std::marker::PhantomData;
+
 #[derive(Default, Debug)]
-pub struct Tcd22xxCtl<S: Tcd22xxSpec> {
-    pub state: S,
+pub struct Tcd22xxCtl<T: Tcd22xxSpec> {
+    pub state: T,
     caps: ExtensionCaps,
-    meter_ctl: MeterCtl,
-    router_ctl: RouterCtl,
-    mixer_ctl: MixerCtl,
+    meter_ctl: MeterCtl<T>,
+    router_ctl: RouterCtl<T>,
+    mixer_ctl: MixerCtl<T>,
     standalone_ctl: StandaloneCtl,
 }
 
-impl<S: Tcd22xxSpec> Tcd22xxCtl<S> {
+impl<T: Tcd22xxSpec> Tcd22xxCtl<T> {
     pub fn load(
         &mut self,
         unit: &mut SndDice,
@@ -141,6 +143,7 @@ impl<S: Tcd22xxSpec> Tcd22xxCtl<S> {
 
     pub fn get_notified_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.router_ctl.notified_elem_list);
+        elem_id_list.extend_from_slice(&self.mixer_ctl.notified_elem_list);
     }
 
     pub fn parse_notification(
@@ -174,7 +177,7 @@ impl<S: Tcd22xxSpec> Tcd22xxCtl<S> {
 }
 
 #[derive(Default, Debug)]
-pub struct MeterCtl {
+struct MeterCtl<T: Tcd22xxSpec> {
     // Maximum number block at low rate mode.
     real_blk_dsts: Vec<DstBlk>,
     stream_blk_dsts: Vec<DstBlk>,
@@ -187,19 +190,20 @@ pub struct MeterCtl {
     out_sat: Vec<bool>,
 
     measured_elem_list: Vec<ElemId>,
+    _phantom: PhantomData<T>,
 }
 
-impl MeterCtl {
-    const OUT_METER_NAME: &'static str = "output-source-meter";
-    const STREAM_TX_METER_NAME: &'static str = "stream-source-meter";
-    const MIXER_INPUT_METER_NAME: &'static str = "mixer-source-meter";
-    const INPUT_SATURATION_NAME: &'static str = "mixer-out-saturation";
+const OUT_METER_NAME: &str = "output-source-meter";
+const STREAM_TX_METER_NAME: &str = "stream-source-meter";
+const MIXER_INPUT_METER_NAME: &str = "mixer-source-meter";
+const INPUT_SATURATION_NAME: &str = "mixer-out-saturation";
 
+impl<T: Tcd22xxSpec> MeterCtl<T> {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x00000fffi32; // Upper 12 bits of each sample.
     const COEF_STEP: i32 = 1;
 
-    pub fn load<T: Tcd22xxSpec>(
+    pub fn load(
         &mut self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -211,7 +215,7 @@ impl MeterCtl {
     ) -> Result<(), Error> {
         let (_, real_blk_dsts) = state.compute_avail_real_blk_pair(RateMode::Low);
         self.real_blk_dsts = real_blk_dsts;
-        let mut elem_id_list = Self::add_an_elem_for_meter(card_cntr, Self::OUT_METER_NAME, &self.real_blk_dsts)?;
+        let mut elem_id_list = Self::add_an_elem_for_meter(card_cntr, OUT_METER_NAME, &self.real_blk_dsts)?;
         self.measured_elem_list.append(&mut elem_id_list);
         self.real_meter = vec![0;self.real_blk_dsts.len()];
 
@@ -226,34 +230,41 @@ impl MeterCtl {
             )?;
         let (_, stream_blk_dsts) = state.compute_avail_stream_blk_pair(&tx_entries, &rx_entries);
         self.stream_blk_dsts = stream_blk_dsts;
-        let mut elem_id_list = Self::add_an_elem_for_meter(card_cntr, Self::STREAM_TX_METER_NAME,
-                                                           &self.stream_blk_dsts)?;
-        self.measured_elem_list.append(&mut elem_id_list);
-        self.stream_meter = vec![0;self.stream_blk_dsts.len()];
+        Self::add_an_elem_for_meter(card_cntr, STREAM_TX_METER_NAME, &self.stream_blk_dsts)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+        self.stream_meter = vec![0; self.stream_blk_dsts.len()];
 
         let (_, mixer_blk_dsts) = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
         self.mixer_blk_dsts = mixer_blk_dsts;
-        let mut elem_id_list = Self::add_an_elem_for_meter(card_cntr, Self::MIXER_INPUT_METER_NAME,
-                                                           &self.mixer_blk_dsts)?;
-        self.measured_elem_list.append(&mut elem_id_list);
-        self.mixer_meter = vec![0;self.mixer_blk_dsts.len()];
+        Self::add_an_elem_for_meter(card_cntr, MIXER_INPUT_METER_NAME, &self.mixer_blk_dsts)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
+        self.mixer_meter = vec![0; self.mixer_blk_dsts.len()];
 
         self.out_sat = vec![false;self.mixer_blk_dsts.len()];
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::INPUT_SATURATION_NAME, 0);
-        let mut elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, self.mixer_blk_dsts.len(), false)?;
-        self.measured_elem_list.append(&mut elem_id_list);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_SATURATION_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, self.mixer_blk_dsts.len(), false)
+            .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn add_an_elem_for_meter(card_cntr: &mut CardCntr, label: &str, targets: &Vec<DstBlk>)
-        -> Result<Vec<ElemId>, Error>
-    {
+    fn add_an_elem_for_meter(
+        card_cntr: &mut CardCntr,
+        label: &str,
+        targets: &Vec<DstBlk>
+    ) -> Result<Vec<ElemId>, Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, label, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
-                                                   Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-                                                   targets.len(), None, false)?;
-        Ok(elem_id_list)
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                Self::COEF_MIN,
+                Self::COEF_MAX,
+                Self::COEF_STEP,
+                targets.len(),
+                None,
+                false
+            )
     }
 
     pub fn measure_states(
@@ -263,8 +274,7 @@ impl MeterCtl {
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32
-    ) -> Result<(), Error>
-    {
+    ) -> Result<(), Error> {
         let entries = PeakSectionProtocol::read_peak_entries(
             req,
             node,
@@ -289,19 +299,19 @@ impl MeterCtl {
 
     pub fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUT_METER_NAME => {
+            OUT_METER_NAME => {
                 elem_value.set_int(&self.real_meter);
                 Ok(true)
             }
-            Self::STREAM_TX_METER_NAME => {
+            STREAM_TX_METER_NAME => {
                 elem_value.set_int(&self.stream_meter);
                 Ok(true)
             }
-            Self::MIXER_INPUT_METER_NAME => {
+            MIXER_INPUT_METER_NAME => {
                 elem_value.set_int(&self.mixer_meter);
                 Ok(true)
             }
-            Self::INPUT_SATURATION_NAME => {
+            INPUT_SATURATION_NAME => {
                 elem_value.set_bool(&self.out_sat);
                 Ok(true)
             }
@@ -311,22 +321,23 @@ impl MeterCtl {
 }
 
 #[derive(Default, Debug)]
-pub struct RouterCtl {
+struct RouterCtl<T: Tcd22xxSpec> {
     // Maximum number block in low rate mode.
     real_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     stream_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
     mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    pub notified_elem_list: Vec<ElemId>,
+    notified_elem_list: Vec<ElemId>,
+    _phantom: PhantomData<T>,
 }
 
-impl RouterCtl {
-    const OUT_SRC_NAME: &'static str = "output-source";
-    const CAP_SRC_NAME: &'static str = "stream-source";
-    const MIXER_SRC_NAME: &'static str = "mixer-source";
+const ROUTER_OUT_SRC_NAME: &str = "output-source";
+const ROUTER_CAP_SRC_NAME: &str = "stream-source";
+const ROUTER_MIXER_SRC_NAME: &str = "mixer-source";
 
+impl<T: Tcd22xxSpec> RouterCtl<T> {
     const NONE_SRC_LABEL: &'static str = "None";
 
-    pub fn load<T: Tcd22xxSpec>(
+    pub fn load(
         &mut self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -381,42 +392,58 @@ impl RouterCtl {
 
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
-        let mut elem_id_list = Self::add_an_elem_for_src(card_cntr, Self::OUT_SRC_NAME, &self.real_blk_pair.1,
-                                    &[&self.real_blk_pair.0, &self.stream_blk_pair.0, &self.mixer_blk_pair.0],
-                                    state)?;
-        self.notified_elem_list.append(&mut elem_id_list);
+        Self::add_an_elem_for_src(
+            card_cntr,
+            ROUTER_OUT_SRC_NAME,
+            &self.real_blk_pair.1,
+            &[&self.real_blk_pair.0,
+            &self.stream_blk_pair.0,
+            &self.mixer_blk_pair.0],
+            state
+        )
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let mut elem_id_list = Self::add_an_elem_for_src(card_cntr, Self::CAP_SRC_NAME, &self.stream_blk_pair.1,
-                                                         &[&self.real_blk_pair.0, &self.mixer_blk_pair.0],
-                                                         state)?;
-        self.notified_elem_list.append(&mut elem_id_list);
+        Self::add_an_elem_for_src(
+            card_cntr,
+            ROUTER_CAP_SRC_NAME,
+            &self.stream_blk_pair.1,
+            &[&self.real_blk_pair.0,
+            &self.mixer_blk_pair.0],
+            state
+        )
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let mut elem_id_list = Self::add_an_elem_for_src(card_cntr, Self::MIXER_SRC_NAME, &self.mixer_blk_pair.1,
-                                                         &[&self.real_blk_pair.0, &self.stream_blk_pair.0],
-                                                         state)?;
-        self.notified_elem_list.append(&mut elem_id_list);
+        Self::add_an_elem_for_src(
+            card_cntr,
+            ROUTER_MIXER_SRC_NAME,
+            &self.mixer_blk_pair.1,
+            &[&self.real_blk_pair.0,
+            &self.stream_blk_pair.0],
+            state
+        )
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    pub fn read<T: Tcd22xxSpec>(
+    pub fn read(
         &self,
         state: &T,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUT_SRC_NAME => {
+            ROUTER_OUT_SRC_NAME => {
                 Self::read_elem_src(state, elem_value, &self.real_blk_pair.1,
                                     &[&self.real_blk_pair.0, &self.stream_blk_pair.0, &self.mixer_blk_pair.0]);
                 Ok(true)
             }
-            Self::CAP_SRC_NAME => {
+            ROUTER_CAP_SRC_NAME => {
                 Self::read_elem_src(state, elem_value, &self.stream_blk_pair.1,
                                     &[&self.real_blk_pair.0, &self.mixer_blk_pair.0]);
                 Ok(true)
             }
-            Self::MIXER_SRC_NAME => {
+            ROUTER_MIXER_SRC_NAME => {
                 Self::read_elem_src(state, elem_value, &self.mixer_blk_pair.1,
                                     &[&self.real_blk_pair.0, &self.stream_blk_pair.0]);
                 Ok(true)
@@ -425,7 +452,7 @@ impl RouterCtl {
         }
     }
 
-    pub fn write<T: Tcd22xxSpec>(
+    pub fn write(
         &self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -438,27 +465,60 @@ impl RouterCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUT_SRC_NAME => {
-                Self::write_elem_src(node, req, sections, caps, state, old, new, &self.real_blk_pair.1,
-                                     &[&self.real_blk_pair.0, &self.stream_blk_pair.0, &self.mixer_blk_pair.0],
-                                     timeout_ms)
-                .map(|_| true)
+            ROUTER_OUT_SRC_NAME => {
+                Self::write_elem_src(
+                    node,
+                    req,
+                    sections,
+                    caps,
+                    state,
+                    old,
+                    new,
+                    &self.real_blk_pair.1,
+                    &[&self.real_blk_pair.0,
+                    &self.stream_blk_pair.0,
+                    &self.mixer_blk_pair.0],
+                    timeout_ms
+                )
+                    .map(|_| true)
             }
-            Self::CAP_SRC_NAME => {
-                Self::write_elem_src(node, req, sections, caps, state, old, new, &self.stream_blk_pair.1,
-                                     &[&self.real_blk_pair.0, &self.mixer_blk_pair.0], timeout_ms)
-                .map(|_| true)
+            ROUTER_CAP_SRC_NAME => {
+                Self::write_elem_src(
+                    node,
+                    req,
+                    sections,
+                    caps,
+                    state,
+                    old,
+                    new,
+                    &self.stream_blk_pair.1,
+                    &[&self.real_blk_pair.0,
+                    &self.mixer_blk_pair.0],
+                    timeout_ms
+                )
+                    .map(|_| true)
             }
-            Self::MIXER_SRC_NAME => {
-                Self::write_elem_src(node, req, sections, caps, state, old, new, &self.mixer_blk_pair.1,
-                                     &[&self.real_blk_pair.0, &self.stream_blk_pair.0], timeout_ms)
-                .map(|_| true)
+            ROUTER_MIXER_SRC_NAME => {
+                Self::write_elem_src(
+                    node,
+                    req,
+                    sections,
+                    caps,
+                    state,
+                    old,
+                    new,
+                    &self.mixer_blk_pair.1,
+                    &[&self.real_blk_pair.0,
+                    &self.stream_blk_pair.0],
+                    timeout_ms
+                )
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 
-    fn add_an_elem_for_src<T: Tcd22xxSpec>(
+    fn add_an_elem_for_src(
         card_cntr: &mut CardCntr,
         label: &str,
         dsts: &[DstBlk],
@@ -473,11 +533,10 @@ impl RouterCtl {
         sources.insert(0, Self::NONE_SRC_LABEL.to_string());
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, label, 0);
-        let elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, targets.len(), &sources, None, true)?;
-        Ok(elem_id_list)
+        card_cntr.add_enum_elems(&elem_id, 1, targets.len(), &sources, None, true)
     }
 
-    fn read_elem_src<T: Tcd22xxSpec>(
+    fn read_elem_src(
         state: &T,
         elem_value: &ElemValue,
         dsts: &[DstBlk],
@@ -499,7 +558,7 @@ impl RouterCtl {
         });
     }
 
-    fn write_elem_src<T: Tcd22xxSpec>(
+    fn write_elem_src(
         node: &mut FwNode,
         req: &mut FwReq,
         sections: &ExtensionSections,
@@ -542,21 +601,22 @@ impl RouterCtl {
 }
 
 #[derive(Default, Debug)]
-pub struct MixerCtl {
+struct MixerCtl<T: Tcd22xxSpec> {
     // Maximum number block in low rate mode.
     mixer_blk_pair: (Vec<SrcBlk>, Vec<DstBlk>),
-    pub notified_elem_list: Vec<ElemId>,
+    notified_elem_list: Vec<ElemId>,
+    _phantom: PhantomData<T>,
 }
 
-impl MixerCtl {
-    const SRC_GAIN_NAME: &'static str = "mixer-source-gain";
+const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
 
+impl<T: Tcd22xxSpec> MixerCtl<T> {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x0000ffffi32; // 2:14 Fixed-point.
     const COEF_STEP: i32 = 1;
     const COEF_TLV: DbInterval = DbInterval{min: -6000, max: 400, linear: false, mute_avail: false};
 
-    pub fn load<T: Tcd22xxSpec>(
+    pub fn load(
         &mut self,
         caps: &ExtensionCaps,
         state: &T,
@@ -564,24 +624,30 @@ impl MixerCtl {
     ) -> Result<(), Error> {
         self.mixer_blk_pair = state.compute_avail_mixer_blk_pair(caps, RateMode::Low);
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SRC_GAIN_NAME, 0);
-        let mut elem_id_list = card_cntr.add_int_elems(&elem_id, self.mixer_blk_pair.0.len(),
-                                            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-                                            self.mixer_blk_pair.1.len(),
-                                            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
-        self.notified_elem_list.append(&mut elem_id_list);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            self.mixer_blk_pair.0.len(),
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            self.mixer_blk_pair.1.len(),
+            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
+            true
+        )
+            .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    pub fn read<T: Tcd22xxSpec>(
+    pub fn read(
         &self,
         state: &T,
         elem_id: &ElemId,
         elem_value: &ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::SRC_GAIN_NAME => {
+            MIXER_SRC_GAIN_NAME => {
                 let dst_ch = elem_id.get_index() as usize;
                 let res = state.state().mixer_cache.iter()
                     .nth(dst_ch)
@@ -596,7 +662,7 @@ impl MixerCtl {
         }
     }
 
-    pub fn write<T: Tcd22xxSpec>(
+    pub fn write(
         &mut self,
         node: &mut FwNode,
         req: &mut FwReq,
@@ -609,7 +675,7 @@ impl MixerCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::SRC_GAIN_NAME => {
+            MIXER_SRC_GAIN_NAME => {
                 let dst_ch = elem_id.get_index() as usize;
                 let mut cache = state.state_mut().mixer_cache.clone();
                 let res = match cache.iter_mut().nth(dst_ch) {
@@ -631,31 +697,30 @@ impl MixerCtl {
 }
 
 #[derive(Default, Debug)]
-pub struct StandaloneCtl {
+struct StandaloneCtl {
     rates: Vec<ClockRate>,
     srcs: Vec<ClockSource>,
 }
 
+const STANDALONE_CLK_SRC_NAME: &str = "standalone-clock-source";
+const STANDALONE_SPDIF_HIGH_RATE_NAME: &str = "standalone-spdif-high-rate";
+const STANDALONE_ADAT_MODE_NAME: &str = "standalone-adat-mode";
+const STANDALONE_WC_MODE_NAME: &str = "standalone-word-clock-mode";
+const STANDALONE_WC_RATE_NUMERATOR_NAME: &str = "standalone-word-clock-rate-numerator";
+const STANDALONE_WC_RATE_DENOMINATOR_NAME: &str = "standalone-word-clock-rate-denominator";
+const STANDALONE_INTERNAL_CLK_RATE_NAME: &str = "standalone-internal-clock-rate";
+
 impl StandaloneCtl {
-    const CLK_SRC_NAME: &'static str = "standalone-clock-source";
-    const SPDIF_HIGH_RATE_NAME: &'static str = "standalone-spdif-high-rate";
-    const ADAT_MODE_NAME: &'static str = "standalone-adat-mode";
-    const WC_MODE_NAME: &'static str = "standalone-word-clock-mode";
-    const WC_RATE_NUMERATOR_NAME: &'static str = "standalone-word-clock-rate-numerator";
-    const WC_RATE_DENOMINATOR_NAME: &'static str = "standalone-word-clock-rate-denominator";
-    const INTERNAL_CLK_RATE_NAME: &'static str = "standalone-internal-clock-rate";
+    const ADAT_MODE_LABELS: [&'static str; 4] = ["Normal", "S/MUX2", "S/MUX4", "Auto"];
 
-    const ADAT_MODE_LABELS: [&'static str;4] = ["Normal", "S/MUX2", "S/MUX4", "Auto"];
-
-    const WC_MODE_LABELS: [&'static str;4] = ["Normal", "Low", "Middle", "High"];
+    const WC_MODE_LABELS: [&'static str; 4] = ["Normal", "Low", "Middle", "High"];
 
     pub fn load(
         &mut self,
         caps: &ClockCaps,
         src_labels: &ClockSourceLabels,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-    {
+    ) -> Result<(), Error> {
         self.rates = caps.get_rate_entries();
         self.srcs = caps.get_src_entries(src_labels);
 
@@ -663,7 +728,7 @@ impl StandaloneCtl {
             .map(|s| s.get_label(&src_labels, false).unwrap())
             .collect::<Vec<_>>();
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         if self.srcs.iter()
@@ -672,27 +737,27 @@ impl StandaloneCtl {
                 *s == ClockSource::Aes3 || *s == ClockSource::Aes4
             }).is_some() {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
-                                                       0, 0, Self::SPDIF_HIGH_RATE_NAME, 0);
+                                                       0, 0, STANDALONE_SPDIF_HIGH_RATE_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
         if self.srcs.iter().find(|&s| *s == ClockSource::Adat).is_some() {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
-                                                       0, 0, Self::ADAT_MODE_NAME, 0);
+                                                       0, 0, STANDALONE_ADAT_MODE_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::ADAT_MODE_LABELS, None, true)?;
         }
 
         if self.srcs.iter().find(|&s| *s == ClockSource::WordClock).is_some() {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
-                                                           0, 0, Self::WC_MODE_NAME, 0);
+                                                           0, 0, STANDALONE_WC_MODE_NAME, 0);
                 let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &Self::WC_MODE_LABELS, None, true)?;
 
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
-                                                           0, 0, Self::WC_RATE_NUMERATOR_NAME, 0);
+                                                           0, 0, STANDALONE_WC_RATE_NUMERATOR_NAME, 0);
                 let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 4095, 1, 1, None, true)?;
 
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
-                                                           0, 0, Self::WC_RATE_DENOMINATOR_NAME, 0);
+                                                           0, 0, STANDALONE_WC_RATE_DENOMINATOR_NAME, 0);
                 let _ = card_cntr.add_int_elems(&elem_id, 1, 1, std::u16::MAX as i32, 1, 1, None, true)?;
         }
 
@@ -701,7 +766,7 @@ impl StandaloneCtl {
             .collect::<Vec<_>>();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card,
-                                                   0, 0, Self::INTERNAL_CLK_RATE_NAME, 0);
+                                                   0, 0, STANDALONE_INTERNAL_CLK_RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -717,7 +782,7 @@ impl StandaloneCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::CLK_SRC_NAME => {
+            STANDALONE_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let src = StandaloneSectionProtocol::read_standalone_clock_source(
                         req,
@@ -735,7 +800,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_HIGH_RATE_NAME => {
+            STANDALONE_SPDIF_HIGH_RATE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     StandaloneSectionProtocol::read_standalone_aes_high_rate(
                         req,
@@ -746,7 +811,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::ADAT_MODE_NAME => {
+            STANDALONE_ADAT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     StandaloneSectionProtocol::read_standalone_adat_mode(
                         req,
@@ -765,7 +830,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::WC_MODE_NAME => {
+            STANDALONE_WC_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     StandaloneSectionProtocol::read_standalone_word_clock_param(
                         req,
@@ -784,7 +849,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::WC_RATE_NUMERATOR_NAME => {
+            STANDALONE_WC_RATE_NUMERATOR_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     StandaloneSectionProtocol::read_standalone_word_clock_param(
                         req,
@@ -796,7 +861,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::WC_RATE_DENOMINATOR_NAME => {
+            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     StandaloneSectionProtocol::read_standalone_word_clock_param(
                         req,
@@ -808,7 +873,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::INTERNAL_CLK_RATE_NAME => {
+            STANDALONE_INTERNAL_CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let rate = StandaloneSectionProtocol::read_standalone_internal_rate(
                         req,
@@ -840,7 +905,7 @@ impl StandaloneCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::CLK_SRC_NAME => {
+            STANDALONE_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let &src = self.srcs.iter()
                         .nth(val as usize)
@@ -858,7 +923,7 @@ impl StandaloneCtl {
                 })
                     .map(|_| true)
             }
-            Self::SPDIF_HIGH_RATE_NAME => {
+            STANDALONE_SPDIF_HIGH_RATE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     StandaloneSectionProtocol::write_standalone_aes_high_rate(
                         req,
@@ -870,7 +935,7 @@ impl StandaloneCtl {
                 })
                     .map(|_| true)
             }
-            Self::ADAT_MODE_NAME => {
+            STANDALONE_ADAT_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let mode = match val {
                         1 => AdatParam::SMUX2,
@@ -888,7 +953,7 @@ impl StandaloneCtl {
                 })
                     .map(|_| true)
             }
-            Self::WC_MODE_NAME => {
+            STANDALONE_WC_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let mode = match val {
                         1 => WordClockMode::Low,
@@ -913,7 +978,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::WC_RATE_NUMERATOR_NAME => {
+            STANDALONE_WC_RATE_NUMERATOR_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
                         req,
@@ -932,7 +997,7 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::WC_RATE_DENOMINATOR_NAME => {
+            STANDALONE_WC_RATE_DENOMINATOR_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     let mut param = StandaloneSectionProtocol::read_standalone_word_clock_param(
                         req,
@@ -951,12 +1016,12 @@ impl StandaloneCtl {
                 })
                 .map(|_| true)
             }
-            Self::INTERNAL_CLK_RATE_NAME => {
+            STANDALONE_INTERNAL_CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let &rate = self.rates.iter()
                         .nth(val as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of rate: {}", val);
+                            let msg = format!("Invalid index of rate: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                     StandaloneSectionProtocol::write_standalone_internal_rate(
