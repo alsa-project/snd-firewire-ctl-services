@@ -270,7 +270,7 @@ impl CommonCtl {
         msg: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        if msg.has_clock_accepted() {
+        if GeneralProtocol::has_clock_accepted(msg) {
             let config = GlobalSectionProtocol::read_clock_config(
                 req,
                 &mut unit.get_node(),
@@ -280,7 +280,7 @@ impl CommonCtl {
             self.cache_clock_config(&config)?;
         }
 
-        if msg.has_ext_status_changed() {
+        if GeneralProtocol::has_ext_status_changed(msg) {
             self.ext_src_states = GlobalSectionProtocol::read_clock_source_states(
                 req,
                 &mut unit.get_node(),

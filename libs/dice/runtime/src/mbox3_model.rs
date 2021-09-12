@@ -864,7 +864,7 @@ impl ButtonCtl {
     ) -> Result<(), Error> {
         let mut changed = false;
 
-        if msg.has_spkr_button_pushed() {
+        if Mbox3Protocol::has_spkr_button_pushed(msg) {
             let state = match self.0.spkr {
                 SpkrLedState::Off => SpkrLedState::Green,
                 SpkrLedState::GreenBlink => SpkrLedState::Green,
@@ -878,7 +878,7 @@ impl ButtonCtl {
             changed = true;
         }
 
-        if msg.has_spkr_button_held() {
+        if Mbox3Protocol::has_spkr_button_held(msg) {
             let state = match self.0.spkr {
                 SpkrLedState::Off => SpkrLedState::Off,
                 SpkrLedState::GreenBlink => SpkrLedState::Green,
@@ -892,7 +892,7 @@ impl ButtonCtl {
             changed = true;
         }
 
-        if msg.has_mono_button_pushed() {
+        if Mbox3Protocol::has_mono_button_pushed(msg) {
             let state = match self.0.mono {
                 MonoLedState::Off => MonoLedState::On,
                 MonoLedState::On => MonoLedState::Off,
@@ -901,7 +901,7 @@ impl ButtonCtl {
             changed = true;
         }
 
-        if msg.has_mute_button_pushed() {
+        if Mbox3Protocol::has_mute_button_pushed(msg) {
             let state = match self.0.mute {
                 MuteLedState::Off => MuteLedState::On,
                 MuteLedState::Blink => MuteLedState::On,
@@ -911,7 +911,7 @@ impl ButtonCtl {
             changed = true;
         }
 
-        if msg.has_mute_button_held() {
+        if Mbox3Protocol::has_mute_button_held(msg) {
             let state = match self.0.mute {
                 MuteLedState::Off => MuteLedState::Off,
                 MuteLedState::Blink => MuteLedState::On,

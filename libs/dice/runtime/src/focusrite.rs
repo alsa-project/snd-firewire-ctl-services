@@ -237,14 +237,14 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
         msg: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        if msg.has_dim_mute_change() {
+        if T::has_dim_mute_change(msg) {
             let mut node = unit.get_node();
             let state = self.state_mut();
             T::read_out_group_mute(req, &mut node, sections, state, timeout_ms)?;
             T::read_out_group_dim(req, &mut node, sections, state, timeout_ms)?;
         }
 
-        if msg.has_vol_change() {
+        if T::has_vol_change(msg) {
             let state = self.state_mut();
             T::read_out_group_knob_value(
                 req,

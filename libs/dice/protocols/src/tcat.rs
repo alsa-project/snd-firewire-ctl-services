@@ -108,8 +108,6 @@ use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
 
 mod utils;
 
-use std::ops::BitAnd;
-
 /// The structure to represent section in control and status register (CSR) of node.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Section {
@@ -288,33 +286,30 @@ pub struct Iec60958Param {
     pub enable: bool,
 }
 
-/// The trait and its implementation to parse notification defined by TCAT.
-pub trait TcatNotification : BitAnd<u32, Output = u32> + Sized {
+impl GeneralProtocol {
     const NOTIFY_RX_CFG_CHG: u32 = 0x00000001;
     const NOTIFY_TX_CFG_CHG: u32 = 0x00000002;
     const NOTIFY_LOCK_CHG: u32 = 0x00000010;
     const NOTIFY_CLOCK_ACCEPTED: u32 = 0x00000020;
     const NOTIFY_EXT_STATUS: u32 = 0x00000040;
 
-    fn has_rx_config_changed(self) -> bool {
-        self.bitand(Self::NOTIFY_RX_CFG_CHG) > 0
+    pub fn has_rx_config_changed(msg: u32) -> bool {
+        msg & msg & Self::NOTIFY_RX_CFG_CHG > 0
     }
 
-    fn has_tx_config_changed(self) -> bool {
-        self.bitand(Self::NOTIFY_TX_CFG_CHG) > 0
+    pub fn has_tx_config_changed(msg: u32) -> bool {
+        msg & Self::NOTIFY_TX_CFG_CHG > 0
     }
 
-    fn has_lock_changed(self) -> bool {
-        self.bitand(Self::NOTIFY_LOCK_CHG) > 0
+    pub fn has_lock_changed(msg: u32) -> bool {
+        msg & Self::NOTIFY_LOCK_CHG > 0
     }
 
-    fn has_clock_accepted(self) -> bool {
-        self.bitand(Self::NOTIFY_CLOCK_ACCEPTED) > 0
+    pub fn has_clock_accepted(msg: u32) -> bool {
+        msg & Self::NOTIFY_CLOCK_ACCEPTED > 0
     }
 
-    fn has_ext_status_changed(self) -> bool {
-        self.bitand(Self::NOTIFY_EXT_STATUS) > 0
+    pub fn has_ext_status_changed(msg: u32) -> bool {
+        msg & Self::NOTIFY_EXT_STATUS > 0
     }
 }
-
-impl<O: BitAnd<u32, Output = u32> + Sized> TcatNotification for O {}
