@@ -64,7 +64,12 @@ impl<S> Tcd22xxCtl<S>
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut node = unit.get_node();
-        let config = req.read_clock_config(&mut node, &sections, timeout_ms)?;
+        let config = GlobalSectionProtocol::read_clock_config(
+            req,
+            &mut node,
+            &sections,
+            timeout_ms
+        )?;
         let rate_mode = RateMode::from(config.rate);
 
         self.state.cache(&mut node, req, extension_sections, &self.caps, rate_mode, timeout_ms)
