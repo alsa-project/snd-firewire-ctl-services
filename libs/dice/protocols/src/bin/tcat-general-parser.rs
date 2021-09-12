@@ -103,8 +103,13 @@ fn print_tx_stream_formats(req: &mut FwReq, node: &mut FwNode, sections: &Genera
     Ok(())
 }
 
-fn print_rx_stream_formats(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
-    let entries = proto.read_rx_stream_format_entries(node, sections, TIMEOUT_MS)?;
+fn print_rx_stream_formats(req: &mut FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
+    let entries = RxStreamFormatSectionProtocol::read_entries(
+        req,
+        node,
+        sections,
+        TIMEOUT_MS
+    )?;
     println!("Rx stream format entries:");
     entries.iter().enumerate().for_each(|(i, entry)| {
         println!("  Stream {}:", i);
@@ -184,7 +189,7 @@ fn main() {
                     print_sections(&sections);
                     print_global_section(&proto, &mut node, &sections)?;
                     print_tx_stream_formats(&mut proto, &mut node, &sections)?;
-                    print_rx_stream_formats(&proto, &mut node, &sections)?;
+                    print_rx_stream_formats(&mut proto, &mut node, &sections)?;
                     print_ext_sync(&mut proto, &mut node, &sections);
                     Ok(())
                 })
