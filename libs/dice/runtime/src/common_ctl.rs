@@ -32,9 +32,12 @@ const LOCKED_CLK_SRC_NAME: &str = "locked-clock-source";
 const SLIPPED_CLK_SRC_NAME: &str = "slipped-clock-source";
 
 impl CommonCtl {
-    pub fn load(&mut self, card_cntr: &mut CardCntr, caps: &ClockCaps, src_labels: &ClockSourceLabels)
-        -> Result<(), Error>
-    {
+    pub fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        caps: &ClockCaps,
+        src_labels: &ClockSourceLabels
+    ) -> Result<(), Error> {
         self.rates = caps.get_rate_entries();
         self.srcs = caps.get_src_entries(src_labels);
 
@@ -90,25 +93,30 @@ impl CommonCtl {
             .map(|pos| self.curr_src_idx = pos as u32)
     }
 
-    pub fn read<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T, sections: &GeneralSections,
-                                 elem_id: &ElemId, elem_value: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    pub fn read<T: AsRef<FwReq>>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        sections: &GeneralSections,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                let config = proto.read_clock_config(&unit.get_node(), sections, timeout_ms)?;
+                let config = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)?;
                 self.cache_clock_config(&config)?;
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
                 .map(|_| true)
             }
             CLK_SRC_NAME => {
-                let config = proto.read_clock_config(&unit.get_node(), sections, timeout_ms)?;
+                let config = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)?;
                 self.cache_clock_config(&config)?;
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
                 .map(|_| true)
             }
             NICKNAME => {
-                proto.read_nickname(&unit.get_node(), sections, timeout_ms)
+                proto.read_nickname(&mut unit.get_node(), sections, timeout_ms)
                     .map(|name| {
                         let mut vals = vec![0;NICKNAME_MAX_SIZE];
                         let raw = name.as_bytes();
@@ -121,9 +129,12 @@ impl CommonCtl {
         }
     }
 
-    fn update_clock_config(&mut self, config: &mut ClockConfig, rate: Option<u32>, src: Option<u32>)
-        -> Result<(), Error>
-    {
+    fn update_clock_config(
+        &mut self,
+        config: &mut ClockConfig,
+        rate: Option<u32>,
+        src: Option<u32>
+    ) -> Result<(), Error> {
         if let Some(pos) = rate {
             self.rates.iter()
                 .nth(pos as usize)
@@ -147,18 +158,24 @@ impl CommonCtl {
         Ok(())
     }
 
-    pub fn write<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T, sections: &GeneralSections,
-                                  elem_id: &ElemId, _: &ElemValue, new: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    pub fn write<T: AsRef<FwReq>>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        sections: &GeneralSections,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.read_clock_config(&unit.get_node(), sections, timeout_ms)
+                    let res = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)
                         .and_then(|mut config| {
                             self.update_clock_config(&mut config, Some(val as u32), None)?;
-                            proto.write_clock_config(&unit.get_node(), sections, config,
+                            proto.write_clock_config(&mut unit.get_node(), sections, config,
                                                      timeout_ms)?;
                             self.curr_rate_idx = val;
                             Ok(())
@@ -171,10 +188,10 @@ impl CommonCtl {
             CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.read_clock_config(&unit.get_node(), sections, timeout_ms)
+                    let res = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)
                         .and_then(|mut config| {
                             self.update_clock_config(&mut config, None, Some(val as u32))?;
-                            proto.write_clock_config(&unit.get_node(), sections, config,
+                            proto.write_clock_config(&mut unit.get_node(), sections, config,
                                                      timeout_ms)?;
                             self.curr_src_idx = val;
                             Ok(())
@@ -196,7 +213,7 @@ impl CommonCtl {
                         text.find('\0')
                             .ok_or(Error::new(FileError::Inval, "Unterminated string found"))
                             .and_then(|pos| {
-                                proto.write_nickname(&unit.get_node(), sections, &text[..pos], timeout_ms)
+                                proto.write_nickname(&mut unit.get_node(), sections, &text[..pos], timeout_ms)
                             })
                     })
                     .map(|_| true)
@@ -205,25 +222,31 @@ impl CommonCtl {
         }
     }
 
-    pub fn parse_notification<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T,
-                                               sections: &GeneralSections, msg: u32, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    pub fn parse_notification<T: AsRef<FwReq>>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        sections: &GeneralSections,
+        msg: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         if msg.has_clock_accepted() {
-            let config = proto.read_clock_config(&unit.get_node(), sections, timeout_ms)?;
+            let config = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)?;
             self.cache_clock_config(&config)?;
         }
 
         if msg.has_ext_status_changed() {
-            self.ext_src_states = proto.read_clock_source_states(&unit.get_node(), sections, timeout_ms)?;
+            self.ext_src_states = proto.read_clock_source_states(&mut unit.get_node(), sections, timeout_ms)?;
         }
 
         Ok(())
     }
 
-    pub fn read_notified_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    pub fn read_notified_elem(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
@@ -243,15 +266,22 @@ impl CommonCtl {
         }
     }
 
-    pub fn measure_states<T: AsRef<FwReq>>(&mut self, unit: &SndDice, proto: &T,
-                                           sections: &GeneralSections, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        proto.read_clock_source_states(&unit.get_node(), sections, timeout_ms)
+    pub fn measure_states<T: AsRef<FwReq>>(
+        &mut self,
+        unit: &mut SndDice,
+        proto: &mut T,
+        sections: &GeneralSections,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        proto.read_clock_source_states(&mut unit.get_node(), sections, timeout_ms)
             .map(|states| self.ext_src_states = states)
     }
 
-    pub fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    pub fn measure_elem(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             SLIPPED_CLK_SRC_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.ext_srcs.len(), |idx| {
