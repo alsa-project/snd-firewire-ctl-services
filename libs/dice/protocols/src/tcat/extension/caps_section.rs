@@ -190,21 +190,23 @@ impl From<&[u8]> for ExtensionCaps {
     }
 }
 
-pub trait CapsSectionProtocol: ProtocolExtension {
-    fn read_caps(
-        &self,
+/// The structure for protocol implementation of capabilities section.
+#[derive(Default)]
+pub struct CapsSectionProtocol;
+
+impl CapsSectionProtocol {
+    pub fn read_caps(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<ExtensionCaps, Error> {
-        let mut data = [0;ExtensionCaps::SIZE];
-        ProtocolExtension::read(self, node, sections.caps.offset, &mut data, timeout_ms)
+        let mut data = [0; ExtensionCaps::SIZE];
+        ProtocolExtension::read(req, node, sections.caps.offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::Caps, &e.to_string()))
             .map(|_| ExtensionCaps::from(&data[..]))
     }
 }
-
-impl<O: AsRef<FwReq>> CapsSectionProtocol for O {}
 
 #[cfg(test)]
 mod test {

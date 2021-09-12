@@ -45,7 +45,7 @@ impl<S> Tcd22xxCtl<S>
     ) -> Result<(), Error> {
         let mut node = unit.get_node();
 
-        self.caps = req.read_caps(&mut node, sections, timeout_ms)?;
+        self.caps = CapsSectionProtocol::read_caps(req, &mut node, sections, timeout_ms)?;
 
         self.meter_ctl.load(&mut node, req, sections, &self.caps, &self.state, timeout_ms, card_cntr)?;
         self.router_ctl.load(&mut node, req, sections, &self.caps, &self.state, caps, timeout_ms, card_cntr)?;

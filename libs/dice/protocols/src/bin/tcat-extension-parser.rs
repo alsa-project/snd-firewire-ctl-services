@@ -207,7 +207,12 @@ fn main() {
             let result = proto.read_extension_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
-                    let caps = proto.read_caps(&mut node, &sections, TIMEOUT_MS)?;
+                    let caps = CapsSectionProtocol::read_caps(
+                        &mut proto,
+                        &mut node,
+                        &sections,
+                        TIMEOUT_MS
+                    )?;
                     print_caps(&caps);
                     print_mixer(&proto, &mut node, &sections, &caps)?;
                     print_peak(&mut proto, &mut node, &sections, &caps)?;
