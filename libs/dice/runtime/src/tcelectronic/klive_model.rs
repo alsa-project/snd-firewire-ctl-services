@@ -291,16 +291,16 @@ fn ch_strip_mode_to_str(mode: &ChStripMode) -> &'static str {
 #[derive(Default, Debug)]
 struct KliveSpecificCtl;
 
-impl KliveSpecificCtl {
-    const OUTPUT_IMPEDANCE_NAME: &'static str = "output-impedance";
-    const OUT_01_SRC_NAME: &'static str = "output-1/2-source";
-    const OUT_23_SRC_NAME: &'static str = "output-3/4-source";
-    const USE_CH_STRIP_AS_PLUGIN_NAME: &'static str = "use-channel-strip-as-plugin";
-    const CH_STRIP_SRC_NAME: &'static str = "channel-strip-source";
-    const CH_STRIP_MODE_NAME: &'static str = "channel-strip-mode";
-    const USE_REVERB_AT_MID_RATE: &'static str = "use-reverb-at-mid-rate";
-    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
+const OUTPUT_IMPEDANCE_NAME: &str = "output-impedance";
+const OUT_01_SRC_NAME: &str = "output-1/2-source";
+const OUT_23_SRC_NAME: &str = "output-3/4-source";
+const USE_CH_STRIP_AS_PLUGIN_NAME: &str = "use-channel-strip-as-plugin";
+const CH_STRIP_SRC_NAME: &str = "channel-strip-source";
+const CH_STRIP_MODE_NAME: &str = "channel-strip-mode";
+const USE_REVERB_AT_MID_RATE: &str = "use-reverb-at-mid-rate";
+const MIXER_ENABLE_NAME: &str = "mixer-enable";
 
+impl KliveSpecificCtl {
     const OUTPUT_IMPEDANCES: [OutputImpedance;2] = [
         OutputImpedance::Unbalance,
         OutputImpedance::Balance,
@@ -323,35 +323,35 @@ impl KliveSpecificCtl {
         let labels: Vec<&str> = Self::OUTPUT_IMPEDANCES.iter()
             .map(|i| impedance_to_str(i))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUTPUT_IMPEDANCE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUTPUT_IMPEDANCE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 2, &labels, None, true)?;
 
         let labels: Vec<&str> = PHYS_OUT_SRCS.iter().map(|s| phys_out_src_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_01_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_01_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_23_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_23_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_CH_STRIP_AS_PLUGIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_CH_STRIP_AS_PLUGIN_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<&str> = Self::CH_STRIP_SRCS.iter()
             .map(|s| ch_strip_src_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::CH_STRIP_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CH_STRIP_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<&str> = Self::CH_STRIP_MODES.iter()
             .map(|s| ch_strip_mode_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::CH_STRIP_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CH_STRIP_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_REVERB_AT_MID_RATE, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_REVERB_AT_MID_RATE, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
@@ -364,7 +364,7 @@ impl KliveSpecificCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUTPUT_IMPEDANCE_NAME => {
+            OUTPUT_IMPEDANCE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
                     let pos = Self::OUTPUT_IMPEDANCES.iter()
                         .position(|&i| i == segments.knob.data.out_impedance[idx])
@@ -373,7 +373,7 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_01_SRC_NAME => {
+            OUT_01_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = PHYS_OUT_SRCS.iter()
                         .position(|&s| s == segments.config.data.out_01_src)
@@ -382,7 +382,7 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_23_SRC_NAME => {
+            OUT_23_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = PHYS_OUT_SRCS.iter()
                         .position(|&s| s == segments.config.data.out_23_src)
@@ -391,13 +391,13 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
+            USE_CH_STRIP_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.use_ch_strip_as_plugin)
                 })
                 .map(|_| true)
             }
-            Self::CH_STRIP_SRC_NAME => {
+            CH_STRIP_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::CH_STRIP_SRCS.iter()
                         .position(|&s| s == segments.mixer_state.data.ch_strip_src)
@@ -406,7 +406,7 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::CH_STRIP_MODE_NAME => {
+            CH_STRIP_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::CH_STRIP_MODES.iter()
                         .position(|&s| s == segments.mixer_state.data.ch_strip_mode)
@@ -415,13 +415,13 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::USE_REVERB_AT_MID_RATE => {
+            USE_REVERB_AT_MID_RATE => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.use_reverb_at_mid_rate)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.enabled)
                 })
@@ -442,7 +442,7 @@ impl KliveSpecificCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUTPUT_IMPEDANCE_NAME => {
+            OUTPUT_IMPEDANCE_NAME => {
                 let mut count = 0;
                 ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
                     Self::OUTPUT_IMPEDANCES.iter()
@@ -461,7 +461,7 @@ impl KliveSpecificCtl {
                         .map(|_| true)
                 })
             }
-            Self::OUT_01_SRC_NAME => {
+            OUT_01_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     PHYS_OUT_SRCS.iter()
                         .nth(val as usize)
@@ -476,7 +476,7 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_23_SRC_NAME => {
+            OUT_23_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     PHYS_OUT_SRCS.iter()
                         .nth(val as usize)
@@ -491,14 +491,14 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
+            USE_CH_STRIP_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.use_ch_strip_as_plugin = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::CH_STRIP_SRC_NAME => {
+            CH_STRIP_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     Self::CH_STRIP_SRCS.iter()
                         .nth(val as usize)
@@ -513,7 +513,7 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::CH_STRIP_MODE_NAME => {
+            CH_STRIP_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     Self::CH_STRIP_MODES.iter()
                         .nth(val as usize)
@@ -528,14 +528,14 @@ impl KliveSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::USE_REVERB_AT_MID_RATE => {
+            USE_REVERB_AT_MID_RATE => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.use_reverb_at_mid_rate = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.enabled = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)

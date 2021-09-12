@@ -160,11 +160,11 @@ impl MeasureModel<SndDice> for Desktopk6Model {
 #[derive(Default, Debug)]
 pub struct MeterCtl(Vec<ElemId>);
 
-impl MeterCtl {
-    const ANALOG_IN_NAME: &'static str = "analog-input-meters";
-    const MIXER_OUT_NAME: &'static str = "mixer-output-meters";
-    const STREAM_IN_NAME: &'static str = "stream-input-meters";
+const ANALOG_IN_NAME: &str = "analog-input-meters";
+const MIXER_OUT_NAME: &str = "mixer-output-meters";
+const STREAM_IN_NAME: &str = "stream-input-meters";
 
+impl MeterCtl {
     const METER_MIN: i32 = -1000;
     const METER_MAX: i32 = 0;
     const METER_STEP: i32 = 1;
@@ -178,17 +178,17 @@ impl MeterCtl {
         let labels = (0..segments.meter.data.analog_inputs.len())
             .map(|i| format!("Analog-input-{}", i))
             .collect::<Vec<_>>();
-        self.add_meter_elem(card_cntr, Self::ANALOG_IN_NAME, &labels)?;
+        self.add_meter_elem(card_cntr, ANALOG_IN_NAME, &labels)?;
 
         let labels = (0..segments.meter.data.mixer_outputs.len())
             .map(|i| format!("Mixer-output-{}", i))
             .collect::<Vec<_>>();
-        self.add_meter_elem(card_cntr, Self::MIXER_OUT_NAME, &labels)?;
+        self.add_meter_elem(card_cntr, MIXER_OUT_NAME, &labels)?;
 
         let labels = (0..segments.meter.data.stream_inputs.len())
             .map(|i| format!("Stream-input-{}", i))
             .collect::<Vec<_>>();
-        self.add_meter_elem(card_cntr, Self::STREAM_IN_NAME, &labels)?;
+        self.add_meter_elem(card_cntr, STREAM_IN_NAME, &labels)?;
 
         Ok(())
     }
@@ -212,15 +212,15 @@ impl MeterCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::ANALOG_IN_NAME => {
+            ANALOG_IN_NAME => {
                 elem_value.set_int(&segments.meter.data.analog_inputs);
                 Ok(true)
             }
-            Self::MIXER_OUT_NAME => {
+            MIXER_OUT_NAME => {
                 elem_value.set_int(&segments.meter.data.mixer_outputs);
                 Ok(true)
             }
-            Self::STREAM_IN_NAME => {
+            STREAM_IN_NAME => {
                 elem_value.set_int(&segments.meter.data.stream_inputs);
                 Ok(true)
             }
@@ -235,14 +235,14 @@ struct PanelCtl{
     fw_led_ctl: FwLedCtl,
 }
 
-impl PanelCtl {
-    const PANEL_BUTTON_COUNT_NAME: &'static str = "panel-button-count";
-    const MIXER_OUT_VOL: &'static str = "mixer-output-volume";
-    const PHONE_KNOB_VALUE_NAME: &'static str = "phone-knob-value";
-    const MIX_KNOB_VALUE_NAME: &'static str = "mix-knob-value";
-    const REVERB_LED_STATE_NAME: &'static str = "reverb-led-state";
-    const REVERB_KNOB_VALUE_NAME: &'static str = "reverb-knob-value";
+const PANEL_BUTTON_COUNT_NAME: &str = "panel-button-count";
+const MIXER_OUT_VOL: &str = "mixer-output-volume";
+const PHONE_KNOB_VALUE_NAME: &str = "phone-knob-value";
+const MIX_KNOB_VALUE_NAME: &str = "mix-knob-value";
+const REVERB_LED_STATE_NAME: &str = "reverb-led-state";
+const REVERB_KNOB_VALUE_NAME: &str = "reverb-knob-value";
 
+impl PanelCtl {
     const KNOB_MIN: i32 = -1000;
     const KNOB_MAX: i32 = 0;
     const KNOB_STEP: i32 = 1;
@@ -252,30 +252,30 @@ impl PanelCtl {
     const MIX_STEP: i32 = 1;
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PANEL_BUTTON_COUNT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PANEL_BUTTON_COUNT_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, 0, i32::MAX, 1, 1, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_OUT_VOL, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUT_VOL, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::KNOB_MIN, Self::KNOB_MAX, Self::KNOB_STEP,
                                 1, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PHONE_KNOB_VALUE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PHONE_KNOB_VALUE_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::KNOB_MIN, Self::KNOB_MAX, Self::KNOB_STEP,
                                 1, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MIX_KNOB_VALUE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIX_KNOB_VALUE_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::MIX_MIN, Self::MIX_MAX, Self::MIX_STEP,
                                 1, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::REVERB_LED_STATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, REVERB_LED_STATE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::REVERB_KNOB_VALUE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, REVERB_KNOB_VALUE_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::KNOB_MIN, Self::KNOB_MAX, Self::KNOB_STEP,
                                 1, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
@@ -293,37 +293,37 @@ impl PanelCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PANEL_BUTTON_COUNT_NAME => {
+            PANEL_BUTTON_COUNT_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.panel.data.panel_button_count as i32)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUT_VOL => {
+            MIXER_OUT_VOL => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.panel.data.main_knob_value)
                 })
                 .map(|_| true)
             }
-            Self::PHONE_KNOB_VALUE_NAME => {
+            PHONE_KNOB_VALUE_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.panel.data.phone_knob_value)
                 })
                 .map(|_| true)
             }
-            Self::MIX_KNOB_VALUE_NAME => {
+            MIX_KNOB_VALUE_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.panel.data.mix_knob_value as i32)
                 })
                 .map(|_| true)
             }
-            Self::REVERB_LED_STATE_NAME => {
+            REVERB_LED_STATE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.panel.data.reverb_led_on)
                 })
                 .map(|_| true)
             }
-            Self::REVERB_KNOB_VALUE_NAME => {
+            REVERB_KNOB_VALUE_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.panel.data.reverb_knob_value)
                 })
@@ -343,7 +343,7 @@ impl PanelCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::REVERB_LED_STATE_NAME => {
+            REVERB_LED_STATE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.panel.data.reverb_led_on = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.panel, timeout_ms)
@@ -365,21 +365,21 @@ fn hp_src_to_str(src: &DesktopHpSrc) -> &'static str {
 #[derive(Default, Debug)]
 struct MixerCtl;
 
+const MIXER_MIC_INST_SRC_LEVEL_NAME: &str = "mixer-mic-inst-source-level";
+const MIXER_MIC_INST_SRC_BALANCE_NAME: &str = "mixer-mic-inst-source-pan";
+const MIXER_MIC_INST_SRC_SEND_NAME: &str = "mixer-mic-inst-source-send";
+
+const MIXER_DUAL_INST_SRC_LEVEL_NAME: &str = "mixer-dual-inst-source-level";
+const MIXER_DUAL_INST_SRC_BALANCE_NAME: &str = "mixer-dual-inst-source-pan";
+const MIXER_DUAL_INST_SRC_SEND_NAME: &str = "mixer-dual-inst-source-send";
+
+const MIXER_STEREO_IN_SRC_LEVEL_NAME: &str = "mixer-stereo-input-source-level";
+const MIXER_STEREO_IN_SRC_BALANCE_NAME: &str = "mixer-stereo-input-source-pan";
+const MIXER_STEREO_IN_SRC_SEND_NAME: &str = "mixer-stereo-input-source-send";
+
+const HP_SRC_NAME: &str = "headphone-source";
+
 impl MixerCtl {
-    const MIXER_MIC_INST_SRC_LEVEL_NAME: &'static str = "mixer-mic-inst-source-level";
-    const MIXER_MIC_INST_SRC_BALANCE_NAME: &'static str = "mixer-mic-inst-source-pan";
-    const MIXER_MIC_INST_SRC_SEND_NAME: &'static str = "mixer-mic-inst-source-send";
-
-    const MIXER_DUAL_INST_SRC_LEVEL_NAME: &'static str = "mixer-dual-inst-source-level";
-    const MIXER_DUAL_INST_SRC_BALANCE_NAME: &'static str = "mixer-dual-inst-source-pan";
-    const MIXER_DUAL_INST_SRC_SEND_NAME: &'static str = "mixer-dual-inst-source-send";
-
-    const MIXER_STEREO_IN_SRC_LEVEL_NAME: &'static str = "mixer-stereo-input-source-level";
-    const MIXER_STEREO_IN_SRC_BALANCE_NAME: &'static str = "mixer-stereo-input-source-pan";
-    const MIXER_STEREO_IN_SRC_SEND_NAME: &'static str = "mixer-stereo-input-source-send";
-
-    const HP_SRC_NAME: &'static str = "headphone-source";
-
     const LEVEL_MIN: i32 = -1000;
     const LEVEL_MAX: i32 = 0;
     const LEVEL_STEP: i32 = 1;
@@ -392,38 +392,38 @@ impl MixerCtl {
     const HP_SRCS: [DesktopHpSrc;2] = [DesktopHpSrc::Stream23, DesktopHpSrc::Mixer01];
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_MIC_INST_SRC_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_INST_SRC_LEVEL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_MIC_INST_SRC_BALANCE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_INST_SRC_BALANCE_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
                                         2, None, true)?;
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_MIC_INST_SRC_SEND_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_INST_SRC_SEND_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_DUAL_INST_SRC_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_DUAL_INST_SRC_LEVEL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_DUAL_INST_SRC_BALANCE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_DUAL_INST_SRC_BALANCE_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
                                         2, None, true)?;
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_DUAL_INST_SRC_SEND_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_DUAL_INST_SRC_SEND_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         2, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STEREO_IN_SRC_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STEREO_IN_SRC_LEVEL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         1, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STEREO_IN_SRC_BALANCE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STEREO_IN_SRC_BALANCE_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
                                         1, None, true)?;
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STEREO_IN_SRC_SEND_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STEREO_IN_SRC_SEND_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                         1, Some(&Into::<Vec<u32>>::into(Self::LEVEL_TLV)), true)?;
 
         let labels: Vec<&str> = Self::HP_SRCS.iter().map(|s| hp_src_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::HP_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, HP_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -436,61 +436,61 @@ impl MixerCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIXER_MIC_INST_SRC_LEVEL_NAME => {
+            MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(segments.mixer.data.mic_inst_level[idx])
                 })
                 .map(|_| true)
             }
-            Self::MIXER_MIC_INST_SRC_BALANCE_NAME => {
+            MIXER_MIC_INST_SRC_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(segments.mixer.data.mic_inst_pan[idx])
                 })
                 .map(|_| true)
             }
-            Self::MIXER_MIC_INST_SRC_SEND_NAME => {
+            MIXER_MIC_INST_SRC_SEND_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(segments.mixer.data.mic_inst_send[idx])
                 })
                 .map(|_| true)
             }
-            Self::MIXER_DUAL_INST_SRC_LEVEL_NAME => {
+            MIXER_DUAL_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(segments.mixer.data.dual_inst_level[idx])
                 })
                 .map(|_| true)
             }
-            Self::MIXER_DUAL_INST_SRC_BALANCE_NAME => {
+            MIXER_DUAL_INST_SRC_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(segments.mixer.data.dual_inst_pan[idx])
                 })
                 .map(|_| true)
             }
-            Self::MIXER_DUAL_INST_SRC_SEND_NAME => {
+            MIXER_DUAL_INST_SRC_SEND_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(segments.mixer.data.dual_inst_send[idx])
                 })
                 .map(|_| true)
             }
-            Self::MIXER_STEREO_IN_SRC_LEVEL_NAME => {
+            MIXER_STEREO_IN_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.mixer.data.stereo_in_level)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_STEREO_IN_SRC_BALANCE_NAME => {
+            MIXER_STEREO_IN_SRC_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.mixer.data.stereo_in_pan)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_STEREO_IN_SRC_SEND_NAME => {
+            MIXER_STEREO_IN_SRC_SEND_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.mixer.data.stereo_in_send)
                 })
                 .map(|_| true)
             }
-            Self::HP_SRC_NAME => {
+            HP_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::HP_SRCS.iter()
                         .position(|&s| s == segments.mixer.data.hp_src)
@@ -514,7 +514,7 @@ impl MixerCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIXER_MIC_INST_SRC_LEVEL_NAME => {
+            MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.mic_inst_level[idx] = val;
                     Ok(())
@@ -522,7 +522,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_MIC_INST_SRC_BALANCE_NAME => {
+            MIXER_MIC_INST_SRC_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.mic_inst_pan[idx] = val;
                     Ok(())
@@ -530,7 +530,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_MIC_INST_SRC_SEND_NAME => {
+            MIXER_MIC_INST_SRC_SEND_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.mic_inst_send[idx] = val;
                     Ok(())
@@ -538,7 +538,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_DUAL_INST_SRC_LEVEL_NAME => {
+            MIXER_DUAL_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.dual_inst_level[idx] = val;
                     Ok(())
@@ -546,7 +546,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_DUAL_INST_SRC_BALANCE_NAME => {
+            MIXER_DUAL_INST_SRC_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.dual_inst_pan[idx] = val;
                     Ok(())
@@ -554,7 +554,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_DUAL_INST_SRC_SEND_NAME => {
+            MIXER_DUAL_INST_SRC_SEND_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     segments.mixer.data.dual_inst_send[idx] = val;
                     Ok(())
@@ -562,7 +562,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_STEREO_IN_SRC_LEVEL_NAME => {
+            MIXER_STEREO_IN_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     segments.mixer.data.stereo_in_level = val;
                     Ok(())
@@ -570,7 +570,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_STEREO_IN_SRC_BALANCE_NAME => {
+            MIXER_STEREO_IN_SRC_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     segments.mixer.data.stereo_in_pan = val;
                     Ok(())
@@ -578,7 +578,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_STEREO_IN_SRC_SEND_NAME => {
+            MIXER_STEREO_IN_SRC_SEND_NAME => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     segments.mixer.data.stereo_in_send = val;
                     Ok(())
@@ -586,7 +586,7 @@ impl MixerCtl {
                 .and_then(|_| req.write_segment(&mut unit.get_node(), &mut segments.mixer, timeout_ms))
                 .map(|_| true)
             }
-            Self::HP_SRC_NAME => {
+            HP_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     Self::HP_SRCS.iter()
                         .nth(val as usize)
@@ -625,19 +625,19 @@ fn input_scene_to_str(scene: &InputScene) -> &'static str {
 #[derive(Default, Debug)]
 struct HwStateCtl(Vec<ElemId>);
 
-impl HwStateCtl {
-    const METER_TARGET_NAME: &'static str = "meter-target";
-    const MIXER_OUT_MONAURAL_NAME: &'static str = "mixer-out-monaural";
-    const KNOB_ASSIGN_TO_HP_NAME: &'static str = "knob-assign-to-headphone";
-    const MIXER_OUTPUT_DIM_ENABLE_NAME: &'static str = "mixer-output-dim-enable";
-    const MIXER_OUTPUT_DIM_LEVEL_NAME: &'static str = "mixer-output-dim-level";
-    const SCENE_NAME: &'static str = "scene-select";
-    const REVERB_TO_MAIN_NAME: &'static str = "reverb-to-main";
-    const REVERB_TO_HP_NAME: &'static str = "reverb-to-hp";
-    const KNOB_BACKLIGHT_NAME: &'static str = "knob-backlight";
-    const MIC_0_PHANTOM_NAME: &'static str = "mic-1-phantom";
-    const MIC_0_BOOST_NAME: &'static str = "mic-1-boost";
+const METER_TARGET_NAME: &str = "meter-target";
+const MIXER_OUT_MONAURAL_NAME: &str = "mixer-out-monaural";
+const KNOB_ASSIGN_TO_HP_NAME: &str = "knob-assign-to-headphone";
+const MIXER_OUTPUT_DIM_ENABLE_NAME: &str = "mixer-output-dim-enable";
+const MIXER_OUTPUT_DIM_LEVEL_NAME: &str = "mixer-output-dim-level";
+const SCENE_NAME: &str = "scene-select";
+const REVERB_TO_MAIN_NAME: &str = "reverb-to-main";
+const REVERB_TO_HP_NAME: &str = "reverb-to-hp";
+const KNOB_BACKLIGHT_NAME: &str = "knob-backlight";
+const MIC_0_PHANTOM_NAME: &str = "mic-1-phantom";
+const MIC_0_BOOST_NAME: &str = "mic-1-boost";
 
+impl HwStateCtl {
     const METER_TARGETS: [MeterTarget;3] = [
         MeterTarget::Input,
         MeterTarget::Pre,
@@ -659,43 +659,43 @@ impl HwStateCtl {
         let labels: Vec<&str> = Self::METER_TARGETS.iter()
             .map(|l| meter_target_to_str(l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::METER_TARGET_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, METER_TARGET_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MIXER_OUT_MONAURAL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIXER_OUT_MONAURAL_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::KNOB_ASSIGN_TO_HP_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB_ASSIGN_TO_HP_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_OUTPUT_DIM_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DIM_ENABLE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_OUTPUT_DIM_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DIM_LEVEL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::DIM_LEVEL_MIN, Self::DIM_LEVEL_MAX, Self::DIM_LEVEL_STEP,
                                         1, Some(&Into::<Vec<u32>>::into(Self::DIM_LEVEL_TLV)), true)?;
 
         let labels: Vec<&str> = Self::INPUT_SCENES.iter().map(|l| input_scene_to_str(l)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SCENE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SCENE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::REVERB_TO_MAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, REVERB_TO_MAIN_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::REVERB_TO_HP_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, REVERB_TO_HP_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::KNOB_BACKLIGHT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB_BACKLIGHT_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MIC_0_PHANTOM_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIC_0_PHANTOM_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MIC_0_BOOST_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIC_0_BOOST_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
@@ -708,7 +708,7 @@ impl HwStateCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::METER_TARGET_NAME => {
+            METER_TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::METER_TARGETS.iter()
                         .position(|&t| t == segments.hw_state.data.meter_target)
@@ -717,31 +717,31 @@ impl HwStateCtl {
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUT_MONAURAL_NAME => {
+            MIXER_OUT_MONAURAL_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.mixer_output_monaural)
                 })
                 .map(|_| true)
             }
-            Self::KNOB_ASSIGN_TO_HP_NAME => {
+            KNOB_ASSIGN_TO_HP_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.knob_assign_to_hp)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUTPUT_DIM_ENABLE_NAME => {
+            MIXER_OUTPUT_DIM_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.mixer_output_dim_enabled)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUTPUT_DIM_LEVEL_NAME => {
+            MIXER_OUTPUT_DIM_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.mixer_output_dim_volume)
                 })
                 .map(|_| true)
             }
-            Self::SCENE_NAME => {
+            SCENE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::INPUT_SCENES.iter()
                         .position(|&s| s == segments.hw_state.data.input_scene)
@@ -750,31 +750,31 @@ impl HwStateCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_TO_MAIN_NAME => {
+            REVERB_TO_MAIN_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.reverb_to_master)
                 })
                 .map(|_| true)
             }
-            Self::REVERB_TO_HP_NAME => {
+            REVERB_TO_HP_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.reverb_to_hp)
                 })
                 .map(|_| true)
             }
-            Self::KNOB_BACKLIGHT_NAME => {
+            KNOB_BACKLIGHT_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.master_knob_backlight)
                 })
                 .map(|_| true)
             }
-            Self::MIC_0_PHANTOM_NAME => {
+            MIC_0_PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.mic_0_phantom)
                 })
                 .map(|_| true)
             }
-            Self::MIC_0_BOOST_NAME => {
+            MIC_0_BOOST_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.mic_0_boost)
                 })
@@ -794,7 +794,7 @@ impl HwStateCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::METER_TARGET_NAME => {
+            METER_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::METER_TARGETS.iter()
                         .nth(val as usize)
@@ -809,35 +809,35 @@ impl HwStateCtl {
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUT_MONAURAL_NAME => {
+            MIXER_OUT_MONAURAL_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mixer_output_monaural = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::KNOB_ASSIGN_TO_HP_NAME => {
+            KNOB_ASSIGN_TO_HP_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.knob_assign_to_hp = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUTPUT_DIM_ENABLE_NAME => {
+            MIXER_OUTPUT_DIM_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mixer_output_dim_enabled = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_OUTPUT_DIM_LEVEL_NAME=> {
+            MIXER_OUTPUT_DIM_LEVEL_NAME=> {
                 ElemValueAccessor::<i32>::get_val(elem_value, |val| {
                     segments.hw_state.data.mixer_output_dim_volume = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::SCENE_NAME => {
+            SCENE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::INPUT_SCENES.iter()
                         .nth(val as usize)
@@ -852,35 +852,35 @@ impl HwStateCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_TO_MAIN_NAME => {
+            REVERB_TO_MAIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.reverb_to_master = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::REVERB_TO_HP_NAME => {
+            REVERB_TO_HP_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.reverb_to_hp = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::KNOB_BACKLIGHT_NAME => {
+            KNOB_BACKLIGHT_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.master_knob_backlight = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MIC_0_PHANTOM_NAME => {
+            MIC_0_PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mic_0_phantom = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MIC_0_BOOST_NAME => {
+            MIC_0_BOOST_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.hw_state.data.mic_0_boost = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.hw_state, timeout_ms)

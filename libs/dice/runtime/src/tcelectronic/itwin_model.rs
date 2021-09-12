@@ -245,12 +245,12 @@ fn listening_mode_to_str(mode: &ListeningMode) -> &'static str {
 #[derive(Default, Debug)]
 struct ItwinSpecificCtl(Vec<ElemId>);
 
-impl ItwinSpecificCtl {
-    const CLK_RECOVERY_NAME: &'static str = "clock-recovery";
-    const OUT_SRC_NAME: &'static str = "output-source";
-    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
-    const LISTENING_MODE_NAME: &'static str = "listening-mode";
+const CLK_RECOVERY_NAME: &str = "clock-recovery";
+const OUT_SRC_NAME: &str = "output-source";
+const MIXER_ENABLE_NAME: &str = "mixer-enable";
+const LISTENING_MODE_NAME: &str = "listening-mode";
 
+impl ItwinSpecificCtl {
     const OUT_SRCS: [ItwinOutputPairSrc;16] = [
         ItwinOutputPairSrc::MixerOut01,
         ItwinOutputPairSrc::Analog01,
@@ -277,22 +277,22 @@ impl ItwinSpecificCtl {
     ];
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::CLK_RECOVERY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RECOVERY_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::OUT_SRCS.iter()
             .map(|s| itwin_phys_out_src_to_string(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, ITWIN_PHYS_OUT_PAIR_COUNT, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<&str> = Self::LISTENING_MODES.iter()
             .map(|m| listening_mode_to_str(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::LISTENING_MODE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, LISTENING_MODE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
@@ -306,13 +306,13 @@ impl ItwinSpecificCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::CLK_RECOVERY_NAME => {
+            CLK_RECOVERY_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.knob.data.clock_recovery)
                 })
                 .map(|_| true)
             }
-            Self::OUT_SRC_NAME => {
+            OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, ITWIN_PHYS_OUT_PAIR_COUNT, |idx| {
                     let pos = Self::OUT_SRCS.iter()
                         .position(|&s| s == segments.config.data.output_pair_src[idx])
@@ -321,7 +321,7 @@ impl ItwinSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.enabled)
                 })
@@ -342,14 +342,14 @@ impl ItwinSpecificCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::CLK_RECOVERY_NAME => {
+            CLK_RECOVERY_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.knob.data.clock_recovery = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.knob, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::OUT_SRC_NAME => {
+            OUT_SRC_NAME => {
                 let mut count = 0;
                 ElemValueAccessor::<u32>::get_vals(new, old, ITWIN_PHYS_OUT_PAIR_COUNT, |idx, val| {
                     Self::OUT_SRCS.iter()
@@ -371,14 +371,14 @@ impl ItwinSpecificCtl {
                     Ok(true)
                 })
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     segments.mixer_state.data.enabled = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::LISTENING_MODE_NAME => {
+            LISTENING_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     Self::LISTENING_MODES.iter()
                         .nth(val as usize)
@@ -404,7 +404,7 @@ impl ItwinSpecificCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::LISTENING_MODE_NAME => {
+            LISTENING_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::LISTENING_MODES.iter()
                         .position(|&m| m == segments.hw_state.data.listening_mode)

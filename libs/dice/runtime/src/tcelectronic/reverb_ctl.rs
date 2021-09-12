@@ -58,26 +58,26 @@ pub struct ReverbCtl {
     pub measured_elem_list: Vec<ElemId>,
 }
 
-impl ReverbCtl {
-    const REVERB_INPUT_LEVEL_NAME: &'static str = "reverb-input-level";
-    const REVERB_BYPASS_NAME: &'static str = "reverb-bypass";
-    const REVERB_KILL_WET: &'static str = "reverb-kill-wet";
-    const REVERB_KILL_DRY: &'static str = "reverb-kill-dry";
-    const REVERB_OUTPUT_LEVEL_NAME: &'static str = "reverb-output-level";
-    const REVERB_TIME_DECAY_NAME: &'static str = "reverb-time-decay";
-    const REVERB_TIME_PRE_DECAY_NAME: &'static str = "reverb-time-pre-decay";
-    const REVERB_COLOR_LOW_NAME: &'static str = "reverb-color-low";
-    const REVERB_COLOR_HIGH_NAME: &'static str = "reverb-color-high";
-    const REVERB_COLOR_HIGH_FACTOR_NAME: &'static str = "reverb-color-high-factor";
-    const REVERB_MOD_RATE_NAME: &'static str = "reverb-mod-rate";
-    const REVERB_MOD_DEPTH_NAME: &'static str = "reverb-mod-depth";
-    const REVERB_LEVEL_EARLY_NAME: &'static str = "reverb-level-early";
-    const REVERB_LEVEL_REVERB_NAME: &'static str = "reverb-level-reverb";
-    const REVERB_LEVEL_DRY_NAME: &'static str = "reverb-level-dry";
-    const REVERB_ALGORITHM_NAME: &'static str = "reverb-algorithm";
-    const REVERB_OUTPUT_METER_NAME: &'static str = "reverb-output-meter";
-    const REVERB_INPUT_METER_NAME: &'static str = "reverb-input-meter";
+const REVERB_INPUT_LEVEL_NAME: &str = "reverb-input-level";
+const REVERB_BYPASS_NAME: &str = "reverb-bypass";
+const REVERB_KILL_WET: &str = "reverb-kill-wet";
+const REVERB_KILL_DRY: &str = "reverb-kill-dry";
+const REVERB_OUTPUT_LEVEL_NAME: &str = "reverb-output-level";
+const REVERB_TIME_DECAY_NAME: &str = "reverb-time-decay";
+const REVERB_TIME_PRE_DECAY_NAME: &str = "reverb-time-pre-decay";
+const REVERB_COLOR_LOW_NAME: &str = "reverb-color-low";
+const REVERB_COLOR_HIGH_NAME: &str = "reverb-color-high";
+const REVERB_COLOR_HIGH_FACTOR_NAME: &str = "reverb-color-high-factor";
+const REVERB_MOD_RATE_NAME: &str = "reverb-mod-rate";
+const REVERB_MOD_DEPTH_NAME: &str = "reverb-mod-depth";
+const REVERB_LEVEL_EARLY_NAME: &str = "reverb-level-early";
+const REVERB_LEVEL_REVERB_NAME: &str = "reverb-level-reverb";
+const REVERB_LEVEL_DRY_NAME: &str = "reverb-level-dry";
+const REVERB_ALGORITHM_NAME: &str = "reverb-algorithm";
+const REVERB_OUTPUT_METER_NAME: &str = "reverb-output-meter";
+const REVERB_INPUT_METER_NAME: &str = "reverb-input-meter";
 
+impl ReverbCtl {
     const INPUT_LEVEL_MIN: i32 = -240;
     const INPUT_LEVEL_MAX: i32 = 0;
     const INPUT_LEVEL_STEP: i32 = 1;
@@ -137,59 +137,59 @@ impl ReverbCtl {
         proto.read_segment(&mut node, state_segment, timeout_ms)?;
         proto.read_segment(&mut node, meter_segment, timeout_ms)?;
 
-        self.state_add_int_elem(card_cntr, Self::REVERB_INPUT_LEVEL_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_INPUT_LEVEL_NAME,
                                 Self::INPUT_LEVEL_MIN, Self::INPUT_LEVEL_MAX, Self::INPUT_LEVEL_STEP,
                                 1, Some(&Into::<Vec<u32>>::into(Self::INPUT_LEVEL_TLV)), true)?;
 
-        self.state_add_bool_elem(card_cntr, Self::REVERB_BYPASS_NAME, 1, true)?;
-        self.state_add_bool_elem(card_cntr, Self::REVERB_KILL_WET, 1, true)?;
-        self.state_add_bool_elem(card_cntr, Self::REVERB_KILL_DRY, 1, true)?;
+        self.state_add_bool_elem(card_cntr, REVERB_BYPASS_NAME, 1, true)?;
+        self.state_add_bool_elem(card_cntr, REVERB_KILL_WET, 1, true)?;
+        self.state_add_bool_elem(card_cntr, REVERB_KILL_DRY, 1, true)?;
 
-        self.state_add_int_elem(card_cntr, Self::REVERB_OUTPUT_LEVEL_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_OUTPUT_LEVEL_NAME,
                                 Self::OUTPUT_LEVEL_MIN, Self::OUTPUT_LEVEL_MAX, Self::OUTPUT_LEVEL_STEP,
                                 1, Some(&Into::<Vec<u32>>::into(Self::OUTPUT_LEVEL_TLV)), true)?;
 
-        self.state_add_int_elem(card_cntr, Self::REVERB_TIME_DECAY_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_TIME_DECAY_NAME,
                                 Self::DECAY_MIN, Self::DECAY_MAX, Self::DECAY_STEP, 1, None, true)?;
-        self.state_add_int_elem(card_cntr, Self::REVERB_TIME_PRE_DECAY_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_TIME_PRE_DECAY_NAME,
                                 Self::PRE_DECAY_MIN, Self::PRE_DECAY_MAX, Self::PRE_DECAY_STEP,
                                 1, None, true)?;
 
-        self.state_add_int_elem(card_cntr, Self::REVERB_COLOR_LOW_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_COLOR_LOW_NAME,
                                 Self::COLOR_MIN, Self::COLOR_MAX, Self::COLOR_STEP,
                                 1, None, true)?;
-        self.state_add_int_elem(card_cntr, Self::REVERB_COLOR_HIGH_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_COLOR_HIGH_NAME,
                                 Self::COLOR_MIN, Self::COLOR_MAX, Self::COLOR_STEP,
                                 1, None, true)?;
-        self.state_add_int_elem(card_cntr, Self::REVERB_COLOR_HIGH_FACTOR_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_COLOR_HIGH_FACTOR_NAME,
                                 Self::FACTOR_MIN, Self::FACTOR_MAX, Self::FACTOR_STEP,
                                 1, None, true)?;
 
-        self.state_add_int_elem(card_cntr, Self::REVERB_MOD_RATE_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_MOD_RATE_NAME,
                                 Self::FACTOR_MIN, Self::FACTOR_MAX, Self::FACTOR_STEP,
                                 1, None, true)?;
-        self.state_add_int_elem(card_cntr, Self::REVERB_MOD_DEPTH_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_MOD_DEPTH_NAME,
                                 Self::FACTOR_MIN, Self::FACTOR_MAX, Self::FACTOR_STEP,
                                 1, None, true)?;
 
-        self.state_add_int_elem(card_cntr, Self::REVERB_LEVEL_EARLY_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_LEVEL_EARLY_NAME,
                                 Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                 1, None, true)?;
-        self.state_add_int_elem(card_cntr, Self::REVERB_LEVEL_REVERB_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_LEVEL_REVERB_NAME,
                                 Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                                 1, None, true)?;
-        self.state_add_int_elem(card_cntr, Self::REVERB_LEVEL_DRY_NAME,
+        self.state_add_int_elem(card_cntr, REVERB_LEVEL_DRY_NAME,
                           Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP,
                           1, None, true)?;
 
         let labels = create_reverb_algorithm_labels();
-        self.state_add_enum_elem(card_cntr, Self::REVERB_ALGORITHM_NAME, 1, &labels, true)?;
+        self.state_add_enum_elem(card_cntr, REVERB_ALGORITHM_NAME, 1, &labels, true)?;
 
-        self.meter_add_int_elem(card_cntr, Self::REVERB_OUTPUT_METER_NAME,
+        self.meter_add_int_elem(card_cntr, REVERB_OUTPUT_METER_NAME,
                                 Self::METER_OUTPUT_MIN, Self::METER_OUTPUT_MAX, Self::METER_OUTPUT_STEP,
                                 2, Some(&Into::<Vec<u32>>::into(Self::METER_OUTPUT_TLV)), false)?;
 
-        self.meter_add_int_elem(card_cntr, Self::REVERB_INPUT_METER_NAME,
+        self.meter_add_int_elem(card_cntr, REVERB_INPUT_METER_NAME,
                                 Self::METER_INPUT_MIN, Self::METER_INPUT_MAX, Self::METER_INPUT_STEP,
                                 2, Some(&Into::<Vec<u32>>::into(Self::METER_INPUT_TLV)), true)?;
 
@@ -305,67 +305,67 @@ impl ReverbCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::REVERB_INPUT_LEVEL_NAME => {
+            REVERB_INPUT_LEVEL_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.input_level = val)
             }
-            Self::REVERB_BYPASS_NAME => {
+            REVERB_BYPASS_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                            |state, val| state.bypass = val)
             }
-            Self::REVERB_KILL_WET => {
+            REVERB_KILL_WET => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                            |state, val| state.kill_wet = val)
             }
-            Self::REVERB_KILL_DRY => {
+            REVERB_KILL_DRY => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                            |state, val| state.kill_dry = val)
             }
-            Self::REVERB_OUTPUT_LEVEL_NAME => {
+            REVERB_OUTPUT_LEVEL_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.output_level = val)
             }
-            Self::REVERB_TIME_DECAY_NAME => {
+            REVERB_TIME_DECAY_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.time_decay = val)
             }
-            Self::REVERB_TIME_PRE_DECAY_NAME => {
+            REVERB_TIME_PRE_DECAY_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.time_pre_decay = val)
             }
-            Self::REVERB_COLOR_LOW_NAME => {
+            REVERB_COLOR_LOW_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.color_low = val)
             }
-            Self::REVERB_COLOR_HIGH_NAME => {
+            REVERB_COLOR_HIGH_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.color_high = val)
             }
-            Self::REVERB_COLOR_HIGH_FACTOR_NAME => {
+            REVERB_COLOR_HIGH_FACTOR_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.color_high_factor = val)
             }
-            Self::REVERB_MOD_RATE_NAME => {
+            REVERB_MOD_RATE_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.mod_rate = val)
             }
-            Self::REVERB_MOD_DEPTH_NAME => {
+            REVERB_MOD_DEPTH_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.mod_depth = val)
             }
-            Self::REVERB_LEVEL_EARLY_NAME => {
+            REVERB_LEVEL_EARLY_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.level_early = val)
             }
-            Self::REVERB_LEVEL_REVERB_NAME => {
+            REVERB_LEVEL_REVERB_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.level_reverb = val)
             }
-            Self::REVERB_LEVEL_DRY_NAME => {
+            REVERB_LEVEL_DRY_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                           |state, val| state.level_dry = val)
             }
-            Self::REVERB_ALGORITHM_NAME => {
+            REVERB_ALGORITHM_NAME => {
                 self.state_write_elem(unit, proto, segment, elem_value, timeout_ms,
                                            |state, val: u32| state.algorithm = ReverbAlgorithm::from(val))
             }
@@ -407,52 +407,52 @@ impl ReverbCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::REVERB_INPUT_LEVEL_NAME => {
+            REVERB_INPUT_LEVEL_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.input_level)
             }
-            Self::REVERB_BYPASS_NAME => {
+            REVERB_BYPASS_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.bypass)
             }
-            Self::REVERB_KILL_WET => {
+            REVERB_KILL_WET => {
                 self.state_read_elem(segment, elem_value, |state| state.kill_wet)
             }
-            Self::REVERB_KILL_DRY => {
+            REVERB_KILL_DRY => {
                 self.state_read_elem(segment, elem_value, |state| state.kill_dry)
             }
-            Self::REVERB_OUTPUT_LEVEL_NAME => {
+            REVERB_OUTPUT_LEVEL_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.output_level)
             }
-            Self::REVERB_TIME_DECAY_NAME => {
+            REVERB_TIME_DECAY_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.time_decay)
             }
-            Self::REVERB_TIME_PRE_DECAY_NAME => {
+            REVERB_TIME_PRE_DECAY_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.time_pre_decay)
             }
-            Self::REVERB_COLOR_LOW_NAME => {
+            REVERB_COLOR_LOW_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.color_low)
             }
-            Self::REVERB_COLOR_HIGH_NAME => {
+            REVERB_COLOR_HIGH_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.color_high)
             }
-            Self::REVERB_COLOR_HIGH_FACTOR_NAME => {
+            REVERB_COLOR_HIGH_FACTOR_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.color_high_factor)
             }
-            Self::REVERB_MOD_RATE_NAME => {
+            REVERB_MOD_RATE_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.mod_rate)
             }
-            Self::REVERB_MOD_DEPTH_NAME => {
+            REVERB_MOD_DEPTH_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.mod_depth)
             }
-            Self::REVERB_LEVEL_EARLY_NAME => {
+            REVERB_LEVEL_EARLY_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.level_early)
             }
-            Self::REVERB_LEVEL_REVERB_NAME => {
+            REVERB_LEVEL_REVERB_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.level_reverb)
             }
-            Self::REVERB_LEVEL_DRY_NAME => {
+            REVERB_LEVEL_DRY_NAME => {
                 self.state_read_elem(segment, elem_value, |state| state.level_dry)
             }
-            Self::REVERB_ALGORITHM_NAME => {
+            REVERB_ALGORITHM_NAME => {
                 self.state_read_elem(segment, elem_value, |state| u32::from(state.algorithm))
             }
             _ => Ok(false),
@@ -489,12 +489,12 @@ impl ReverbCtl {
         where M: TcKonnektSegmentData + AsRef<ReverbMeter>,
     {
         match elem_id.get_name().as_str() {
-            Self::REVERB_OUTPUT_METER_NAME => {
+            REVERB_OUTPUT_METER_NAME => {
                 let meter = segment.data.as_ref();
                 elem_value.set_int(&meter.outputs);
                 Ok(true)
             }
-            Self::REVERB_INPUT_METER_NAME => {
+            REVERB_INPUT_METER_NAME => {
                 let meter = segment.data.as_ref();
                 elem_value.set_int(&meter.inputs);
                 Ok(true)

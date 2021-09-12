@@ -20,14 +20,14 @@ use core::elem_value_accessor::*;
 use super::fw_led_ctl::*;
 use super::standalone_ctl::*;
 
-fn analog_jack_state_to_string(state: &ShellAnalogJackState) -> String {
+fn analog_jack_state_to_str(state: &ShellAnalogJackState) -> &'static str {
     match state {
         ShellAnalogJackState::FrontSelected => "Front-selected",
         ShellAnalogJackState::FrontInserted => "Front-inserted",
         ShellAnalogJackState::FrontInsertedAttenuated => "Front-inserted-attenuated",
         ShellAnalogJackState::RearSelected => "Rear-selected",
         ShellAnalogJackState::RearInserted => "Rear-inserted",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
@@ -36,10 +36,10 @@ pub struct HwStateCtl {
     fw_led_ctl: FwLedCtl,
 }
 
-impl HwStateCtl {
-    // TODO: For Jack detection in ALSA applications.
-    const ANALOG_JACK_STATE_NAME: &'static str = "analog-jack-state";
+// TODO: For Jack detection in ALSA applications.
+const ANALOG_JACK_STATE_NAME: &str = "analog-jack-state";
 
+impl HwStateCtl {
     const ANALOG_JACK_STATE_LABELS: [ShellAnalogJackState;5] = [
         ShellAnalogJackState::FrontSelected,
         ShellAnalogJackState::FrontInserted,
@@ -50,9 +50,9 @@ impl HwStateCtl {
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels = Self::ANALOG_JACK_STATE_LABELS.iter()
-            .map(|s| analog_jack_state_to_string(s))
+            .map(|s| analog_jack_state_to_str(s))
             .collect::<Vec<_>>();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ANALOG_JACK_STATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_JACK_STATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, SHELL_ANALOG_JACK_STATE_COUNT, &labels, None, false)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))?;
 
@@ -71,7 +71,7 @@ impl HwStateCtl {
         where S: TcKonnektSegmentData + AsRef<[ShellAnalogJackState]> + AsRef<FireWireLedState>,
     {
         match elem_id.get_name().as_str() {
-            Self::ANALOG_JACK_STATE_NAME => {
+            ANALOG_JACK_STATE_NAME => {
                 let analog_jack_states = AsRef::<[ShellAnalogJackState]>::as_ref(&segment.data);
                 ElemValueAccessor::<u32>::set_vals(elem_value, analog_jack_states.len(), |idx| {
                     let pos = Self::ANALOG_JACK_STATE_LABELS.iter()
@@ -108,28 +108,28 @@ pub struct ShellMixerCtl{
     pub measured_elem_list: Vec<ElemId>,
 }
 
+const MIXER_STREAM_SRC_PAIR_GAIN_NAME: &str = "mixer-stream-source-gain";
+const MIXER_STREAM_SRC_PAIR_PAN_NAME: &str = "mixer-stream-source-pan";
+const MIXER_STREAM_SRC_PAIR_MUTE_NAME: &str = "mixer-stream-source-mute";
+const REVERB_STREAM_SRC_PAIR_GAIN_NAME: &str = "send-stream-source-gain";
+const MIXER_PHYS_SRC_STEREO_LINK_NAME: &str = "mixer-phys-source-link";
+
+const MIXER_PHYS_SRC_GAIN_NAME: &str = "mixer-phys-source-gain";
+const MIXER_PHYS_SRC_PAN_NAME: &str = "mixer-phys-source-pan";
+const MIXER_PHYS_SRC_MUTE_NAME: &str = "mixer-phys-source-mute";
+
+const REVERB_PHYS_SRC_GAIN_NAME: &str = "send-phys-source-gain";
+
+const MIXER_OUT_DIM_NAME: &str = "mixer-out-dim-enable";
+const MIXER_OUT_VOL_NAME: &str = "mixer-out-volume";
+const MIXER_OUT_DIM_VOL_NAME: &str = "mixer-out-dim-volume";
+
+const STREAM_IN_METER_NAME: &str = "stream-input-meters";
+const ANALOG_IN_METER_NAME: &str = "analog-input-meters";
+const DIGITAL_IN_METER_NAME: &str = "digital-input-meters";
+const MIXER_OUT_METER_NAME: &str = "mixer-output-meters";
+
 impl ShellMixerCtl {
-    const MIXER_STREAM_SRC_PAIR_GAIN_NAME: &'static str = "mixer-stream-source-gain";
-    const MIXER_STREAM_SRC_PAIR_PAN_NAME: &'static str = "mixer-stream-source-pan";
-    const MIXER_STREAM_SRC_PAIR_MUTE_NAME: &'static str = "mixer-stream-source-mute";
-    const REVERB_STREAM_SRC_PAIR_GAIN_NAME: &'static str = "send-stream-source-gain";
-    const MIXER_PHYS_SRC_STEREO_LINK_NAME: &'static str = "mixer-phys-source-link";
-
-    const MIXER_PHYS_SRC_GAIN_NAME: &'static str = "mixer-phys-source-gain";
-    const MIXER_PHYS_SRC_PAN_NAME: &'static str = "mixer-phys-source-pan";
-    const MIXER_PHYS_SRC_MUTE_NAME: &'static str = "mixer-phys-source-mute";
-
-    const REVERB_PHYS_SRC_GAIN_NAME: &'static str = "send-phys-source-gain";
-
-    const MIXER_OUT_DIM_NAME: &'static str = "mixer-out-dim-enable";
-    const MIXER_OUT_VOL_NAME: &'static str = "mixer-out-volume";
-    const MIXER_OUT_DIM_VOL_NAME: &'static str = "mixer-out-dim-volume";
-
-    const STREAM_IN_METER_NAME: &'static str = "stream-input-meters";
-    const ANALOG_IN_METER_NAME: &'static str = "analog-input-meters";
-    const DIGITAL_IN_METER_NAME: &'static str = "digital-input-meters";
-    const MIXER_OUT_METER_NAME: &'static str = "mixer-output-meters";
-
     const LEVEL_MIN: i32 = -1000;
     const LEVEL_MAX: i32 = 0;
     const LEVEL_STEP: i32 = 1;
@@ -151,10 +151,10 @@ impl ShellMixerCtl {
               TcKonnektSegment<M>: TcKonnektSegmentSpec,
     {
         // For stream source of mixer.
-        self.state_add_elem_level(card_cntr, Self::MIXER_STREAM_SRC_PAIR_GAIN_NAME, 1)?;
-        self.state_add_elem_pan(card_cntr, Self::MIXER_STREAM_SRC_PAIR_PAN_NAME, 1)?;
-        self.state_add_elem_bool(card_cntr, Self::MIXER_STREAM_SRC_PAIR_MUTE_NAME, 1)?;
-        self.state_add_elem_level(card_cntr, Self::REVERB_STREAM_SRC_PAIR_GAIN_NAME, 1)?;
+        self.state_add_elem_level(card_cntr, MIXER_STREAM_SRC_PAIR_GAIN_NAME, 1)?;
+        self.state_add_elem_pan(card_cntr, MIXER_STREAM_SRC_PAIR_PAN_NAME, 1)?;
+        self.state_add_elem_bool(card_cntr, MIXER_STREAM_SRC_PAIR_MUTE_NAME, 1)?;
+        self.state_add_elem_level(card_cntr, REVERB_STREAM_SRC_PAIR_GAIN_NAME, 1)?;
 
         // For physical sources of mixer.
         let state = state_segment.data.as_ref();
@@ -165,7 +165,7 @@ impl ShellMixerCtl {
                 .map(|i| format!("Digital-{}/{}", i + 1, i + 2))
             )
             .collect();
-        self.state_add_elem_bool(card_cntr, Self::MIXER_PHYS_SRC_STEREO_LINK_NAME, labels.len())?;
+        self.state_add_elem_bool(card_cntr, MIXER_PHYS_SRC_STEREO_LINK_NAME, labels.len())?;
 
         let labels: Vec<String> = (0..(state.analog.len() * 2))
             .map(|i| format!("Analog-{}", i + 1))
@@ -174,36 +174,36 @@ impl ShellMixerCtl {
                 .map(|i| format!("Digital-{}", i + 1))
             )
             .collect();
-        self.state_add_elem_level(card_cntr, Self::MIXER_PHYS_SRC_GAIN_NAME, labels.len())?;
-        self.state_add_elem_pan(card_cntr, Self::MIXER_PHYS_SRC_PAN_NAME, labels.len())?;
-        self.state_add_elem_bool(card_cntr, Self::MIXER_PHYS_SRC_MUTE_NAME, labels.len())?;
-        self.state_add_elem_level(card_cntr, Self::REVERB_PHYS_SRC_GAIN_NAME, labels.len())?;
+        self.state_add_elem_level(card_cntr, MIXER_PHYS_SRC_GAIN_NAME, labels.len())?;
+        self.state_add_elem_pan(card_cntr, MIXER_PHYS_SRC_PAN_NAME, labels.len())?;
+        self.state_add_elem_bool(card_cntr, MIXER_PHYS_SRC_MUTE_NAME, labels.len())?;
+        self.state_add_elem_level(card_cntr, REVERB_PHYS_SRC_GAIN_NAME, labels.len())?;
 
         // For output of mixer.
-        self.state_add_elem_bool(card_cntr, Self::MIXER_OUT_DIM_NAME, 1)?;
-        self.state_add_elem_level(card_cntr, Self::MIXER_OUT_VOL_NAME, 1)?;
-        self.state_add_elem_level(card_cntr, Self::MIXER_OUT_DIM_VOL_NAME, 1)?;
+        self.state_add_elem_bool(card_cntr, MIXER_OUT_DIM_NAME, 1)?;
+        self.state_add_elem_level(card_cntr, MIXER_OUT_VOL_NAME, 1)?;
+        self.state_add_elem_level(card_cntr, MIXER_OUT_DIM_VOL_NAME, 1)?;
 
         // For meter.
         let labels = (0..meter_segment.data.as_ref().stream_inputs.len())
             .map(|i| format!("Stream-input-{}", i))
             .collect::<Vec<_>>();
-        self.meter_add_elem_level(card_cntr, Self::STREAM_IN_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, STREAM_IN_METER_NAME, labels.len())?;
 
         let labels = (0..meter_segment.data.as_ref().analog_inputs.len())
             .map(|i| format!("Analog-input-{}", i))
             .collect::<Vec<_>>();
-        self.meter_add_elem_level(card_cntr, Self::ANALOG_IN_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, ANALOG_IN_METER_NAME, labels.len())?;
 
         let labels = (0..meter_segment.data.as_ref().digital_inputs.len())
             .map(|i| format!("Digital-input-{}", i))
             .collect::<Vec<_>>();
-        self.meter_add_elem_level(card_cntr, Self::DIGITAL_IN_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, DIGITAL_IN_METER_NAME, labels.len())?;
 
         let labels = (0..meter_segment.data.as_ref().main_outputs.len())
             .map(|i| format!("Mixer-output-{}", i))
             .collect::<Vec<_>>();
-        self.meter_add_elem_level(card_cntr, Self::MIXER_OUT_METER_NAME, labels.len())?;
+        self.meter_add_elem_level(card_cntr, MIXER_OUT_METER_NAME, labels.len())?;
 
         Ok(())
     }
@@ -325,31 +325,31 @@ impl ShellMixerCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
+            MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.stream.left.gain_to_mixer = val;
                     Ok(())
                 })
             }
-            Self::MIXER_STREAM_SRC_PAIR_PAN_NAME => {
+            MIXER_STREAM_SRC_PAIR_PAN_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.stream.left.pan_to_mixer = val;
                     Ok(())
                 })
             }
-            Self::MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
+            MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.mutes.stream = val;
                     Ok(())
                 })
             }
-            Self::REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
+            REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.stream.left.gain_to_send = val;
                     Ok(())
                 })
             }
-            Self::MIXER_PHYS_SRC_STEREO_LINK_NAME => {
+            MIXER_PHYS_SRC_STEREO_LINK_NAME => {
                 let analog_count = segment.data.as_ref().analog.len();
                 let digital_count = segment.data.as_ref().digital.len();
                 let count = analog_count + digital_count;
@@ -364,19 +364,19 @@ impl ShellMixerCtl {
                 .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
-            Self::MIXER_PHYS_SRC_GAIN_NAME => {
+            MIXER_PHYS_SRC_GAIN_NAME => {
                 Self::state_write_phys_src(unit, proto, segment, new, old, timeout_ms, |param, val| {
                     param.gain_to_mixer = val;
                     Ok(())
                 })
             }
-            Self::MIXER_PHYS_SRC_PAN_NAME => {
+            MIXER_PHYS_SRC_PAN_NAME => {
                 Self::state_write_phys_src(unit, proto, segment, new, old, timeout_ms, |param, val| {
                     param.pan_to_mixer = val;
                     Ok(())
                 })
             }
-            Self::MIXER_PHYS_SRC_MUTE_NAME => {
+            MIXER_PHYS_SRC_MUTE_NAME => {
                 let analog_count = segment.data.as_ref().mutes.analog.len();
                 let digital_count = segment.data.as_ref().mutes.digital.len();
                 let count = analog_count + digital_count;
@@ -391,25 +391,25 @@ impl ShellMixerCtl {
                 .and_then(|_| proto.write_segment(&mut unit.get_node(), segment, timeout_ms))
                 .map(|_| true)
             }
-            Self::REVERB_PHYS_SRC_GAIN_NAME => {
+            REVERB_PHYS_SRC_GAIN_NAME => {
                 Self::state_write_phys_src(unit, proto, segment, new, old, timeout_ms, |param, val| {
                     param.gain_to_send = val;
                     Ok(())
                 })
             }
-            Self::MIXER_OUT_DIM_NAME => {
+            MIXER_OUT_DIM_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.output_dim_enable = val;
                     Ok(())
                 })
             }
-            Self::MIXER_OUT_VOL_NAME => {
+            MIXER_OUT_VOL_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.output_volume = val;
                     Ok(())
                 })
             }
-            Self::MIXER_OUT_DIM_VOL_NAME => {
+            MIXER_OUT_DIM_VOL_NAME => {
                 Self::state_write(unit, proto, segment, new, timeout_ms, |state, val| {
                     state.output_dim_volume = val;
                     Ok(())
@@ -490,23 +490,23 @@ impl ShellMixerCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
+            MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
                 elem_value.set_int(&[segment.data.as_ref().stream.left.gain_to_mixer]);
                 Ok(true)
             }
-            Self::MIXER_STREAM_SRC_PAIR_PAN_NAME => {
+            MIXER_STREAM_SRC_PAIR_PAN_NAME => {
                 elem_value.set_int(&[segment.data.as_ref().stream.left.pan_to_mixer]);
                 Ok(true)
             }
-            Self::MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
+            MIXER_STREAM_SRC_PAIR_MUTE_NAME => {
                 elem_value.set_bool(&[segment.data.as_ref().mutes.stream]);
                 Ok(true)
             }
-            Self::REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
+            REVERB_STREAM_SRC_PAIR_GAIN_NAME => {
                 elem_value.set_int(&[segment.data.as_ref().stream.left.gain_to_send]);
                 Ok(true)
             }
-            Self::MIXER_PHYS_SRC_STEREO_LINK_NAME => {
+            MIXER_PHYS_SRC_STEREO_LINK_NAME => {
                 let state = segment.data.as_ref();
                 let mut vals = Vec::with_capacity(state.analog.len() + state.digital.len());
                 state.analog.iter()
@@ -515,37 +515,37 @@ impl ShellMixerCtl {
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
-            Self::MIXER_PHYS_SRC_GAIN_NAME => {
+            MIXER_PHYS_SRC_GAIN_NAME => {
                 Self::state_read_phys_src(segment, elem_value, |param| {
                     Ok(param.gain_to_mixer)
                 })
             }
-            Self::MIXER_PHYS_SRC_PAN_NAME => {
+            MIXER_PHYS_SRC_PAN_NAME => {
                 Self::state_read_phys_src(segment, elem_value, |param| {
                     Ok(param.pan_to_mixer)
                 })
             }
-            Self::MIXER_PHYS_SRC_MUTE_NAME => {
+            MIXER_PHYS_SRC_MUTE_NAME => {
                 let state = segment.data.as_ref();
                 let mut vals = state.mutes.analog.clone();
                 vals.extend_from_slice(&state.mutes.digital);
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
-            Self::REVERB_PHYS_SRC_GAIN_NAME => {
+            REVERB_PHYS_SRC_GAIN_NAME => {
                 Self::state_read_phys_src(segment, elem_value, |param| {
                     Ok(param.gain_to_send)
                 })
             }
-            Self::MIXER_OUT_DIM_NAME => {
+            MIXER_OUT_DIM_NAME => {
                 elem_value.set_bool(&[segment.data.as_ref().output_dim_enable]);
                 Ok(true)
             }
-            Self::MIXER_OUT_VOL_NAME => {
+            MIXER_OUT_VOL_NAME => {
                 elem_value.set_int(&[segment.data.as_ref().output_volume]);
                 Ok(true)
             }
-            Self::MIXER_OUT_DIM_VOL_NAME => {
+            MIXER_OUT_DIM_VOL_NAME => {
                 elem_value.set_int(&[segment.data.as_ref().output_dim_volume]);
                 Ok(true)
             }
@@ -562,19 +562,19 @@ impl ShellMixerCtl {
         where S: TcKonnektSegmentData + AsRef<ShellMixerMeter>,
     {
         match elem_id.get_name().as_str() {
-            Self::STREAM_IN_METER_NAME => {
+            STREAM_IN_METER_NAME => {
                 elem_value.set_int(&segment.data.as_ref().stream_inputs);
                 Ok(true)
             }
-            Self::ANALOG_IN_METER_NAME => {
+            ANALOG_IN_METER_NAME => {
                 elem_value.set_int(&segment.data.as_ref().analog_inputs);
                 Ok(true)
             }
-            Self::DIGITAL_IN_METER_NAME => {
+            DIGITAL_IN_METER_NAME => {
                 elem_value.set_int(&segment.data.as_ref().digital_inputs);
                 Ok(true)
             }
-            Self::MIXER_OUT_METER_NAME => {
+            MIXER_OUT_METER_NAME => {
                 elem_value.set_int(&segment.data.as_ref().main_outputs);
                 Ok(true)
             }
@@ -586,26 +586,26 @@ impl ShellMixerCtl {
 #[derive(Default, Debug)]
 pub struct ShellReverbReturnCtl(pub Vec<ElemId>);
 
-impl ShellReverbReturnCtl {
-    const USE_AS_PLUGIN_NAME: &'static str = "use-reverb-as-plugin";
-    const GAIN_NAME: &'static str = "reverb-return-gain";
-    const MUTE_NAME: &'static str = "reverb-return-mute";
+const USE_AS_PLUGIN_NAME: &str = "use-reverb-as-plugin";
+const GAIN_NAME: &str = "reverb-return-gain";
+const MUTE_NAME: &str = "reverb-return-mute";
 
+impl ShellReverbReturnCtl {
     const GAIN_MIN: i32 = -1000;
     const GAIN_MAX: i32 = 0;
     const GAIN_STEP: i32 = 1;
     const GAIN_TLV: DbInterval = DbInterval{min: -7200, max: 0, linear: false, mute_avail: false};
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_AS_PLUGIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_AS_PLUGIN_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, GAIN_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                 1, Some(&Vec::<u32>::from(Self::GAIN_TLV)), true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
@@ -621,7 +621,7 @@ impl ShellReverbReturnCtl {
         where S: TcKonnektSegmentData + AsRef<ShellReverbReturn>,
     {
         match elem_id.get_name().as_str() {
-            Self::USE_AS_PLUGIN_NAME => {
+            USE_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segment.data.as_ref().plugin_mode)
                 })
@@ -645,21 +645,21 @@ impl ShellReverbReturnCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::USE_AS_PLUGIN_NAME => {
+            USE_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segment.data.as_mut().plugin_mode = val;
                     proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::GAIN_NAME => {
+            GAIN_NAME => {
                 ElemValueAccessor::<i32>::get_val(elem_value, |val| {
                     segment.data.as_mut().return_gain = val;
                     proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MUTE_NAME => {
+            MUTE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segment.data.as_mut().return_mute = val;
                     proto.write_segment(&mut unit.get_node(), segment, timeout_ms)
@@ -679,13 +679,13 @@ impl ShellReverbReturnCtl {
         where S: TcKonnektSegmentData + AsRef<ShellReverbReturn>,
     {
         match elem_id.get_name().as_str() {
-            Self::GAIN_NAME => {
+            GAIN_NAME => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(segment.data.as_ref().return_gain)
                 })
                 .map(|_| true)
             }
-            Self::MUTE_NAME => {
+            MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segment.data.as_ref().return_mute)
                 })
@@ -696,20 +696,20 @@ impl ShellReverbReturnCtl {
     }
 }
 
-fn standalone_src_to_string(src: &ShellStandaloneClkSrc) -> String {
+fn standalone_src_to_str(src: &ShellStandaloneClkSrc) -> &'static str {
     match src {
         ShellStandaloneClkSrc::Optical => "Optical",
         ShellStandaloneClkSrc::Coaxial => "Coaxial",
         ShellStandaloneClkSrc::Internal => "Internal",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
 pub struct ShellStandaloneCtl(TcKonnektStandaloneCtl);
 
-impl ShellStandaloneCtl {
-    const SRC_NAME: &'static str = "standalone-clock-source";
+const SRC_NAME: &str = "standalone-clock-source";
 
+impl ShellStandaloneCtl {
     pub fn load<S>(
         &mut self,
         _: &TcKonnektSegment<S>,
@@ -717,10 +717,10 @@ impl ShellStandaloneCtl {
     ) -> Result<(), Error>
         where S: TcKonnektSegmentData + ShellStandaloneClkSpec,
     {
-        let labels: Vec<String> = S::STANDALONE_CLOCK_SOURCES.iter()
-            .map(|r| standalone_src_to_string(r))
+        let labels: Vec<&str> = S::STANDALONE_CLOCK_SOURCES.iter()
+            .map(|r| standalone_src_to_str(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         self.0.load(card_cntr)?;
@@ -738,7 +738,7 @@ impl ShellStandaloneCtl {
                  AsRef<TcKonnektStandaloneClkRate>,
     {
         match elem_id.get_name().as_str() {
-            Self::SRC_NAME => {
+            SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let src = segment.data.as_ref();
                     let pos = S::STANDALONE_CLOCK_SOURCES.iter()
@@ -767,7 +767,7 @@ impl ShellStandaloneCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec
     {
         match elem_id.get_name().as_str() {
-            Self::SRC_NAME => {
+            SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     S::STANDALONE_CLOCK_SOURCES.iter()
                         .nth(val as usize)
@@ -785,7 +785,7 @@ impl ShellStandaloneCtl {
     }
 }
 
-fn mixer_stream_src_pair_to_string(src: &ShellMixerStreamSrcPair) -> String {
+fn mixer_stream_src_pair_to_str(src: &ShellMixerStreamSrcPair) -> &'static str {
     match src {
         ShellMixerStreamSrcPair::Stream01 => "Stream-1/2",
         ShellMixerStreamSrcPair::Stream23 => "Stream-3/4",
@@ -794,14 +794,15 @@ fn mixer_stream_src_pair_to_string(src: &ShellMixerStreamSrcPair) -> String {
         ShellMixerStreamSrcPair::Stream89 => "Stream-9/10",
         ShellMixerStreamSrcPair::Stream1011 => "Stream-11/12",
         ShellMixerStreamSrcPair::Stream1213 => "Stream-13/14",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
 pub struct MixerStreamSrcPairCtl;
 
+const MIXER_STREAM_SRC_NAME: &str = "mixer-stream-soruce";
+
 impl MixerStreamSrcPairCtl {
-    const MIXER_STREAM_SRC_NAME: &'static str = "mixer-stream-soruce";
     const MIXER_STREAM_SRC_PAIRS: [ShellMixerStreamSrcPair;7] = [
         ShellMixerStreamSrcPair::Stream01,
         ShellMixerStreamSrcPair::Stream23,
@@ -819,11 +820,11 @@ impl MixerStreamSrcPairCtl {
     ) -> Result<(), Error>
         where S: TcKonnektSegmentData + ShellMixerStreamSrcPairSpec,
     {
-        let labels: Vec<String> = Self::MIXER_STREAM_SRC_PAIRS.iter()
+        let labels: Vec<&str> = Self::MIXER_STREAM_SRC_PAIRS.iter()
             .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
-            .map(|s| mixer_stream_src_pair_to_string(s))
+            .map(|s| mixer_stream_src_pair_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_STREAM_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STREAM_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -838,7 +839,7 @@ impl MixerStreamSrcPairCtl {
         where S: TcKonnektSegmentData + AsRef<ShellMixerStreamSrcPair> + ShellMixerStreamSrcPairSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::MIXER_STREAM_SRC_NAME => {
+            MIXER_STREAM_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::MIXER_STREAM_SRC_PAIRS.iter()
                         .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
@@ -866,7 +867,7 @@ impl MixerStreamSrcPairCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::MIXER_STREAM_SRC_NAME => {
+            MIXER_STREAM_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::MIXER_STREAM_SRC_PAIRS.iter()
                         .take(S::MAXIMUM_STREAM_SRC_PAIR_COUNT)
@@ -906,14 +907,14 @@ pub const PHYS_OUT_SRCS: [ShellPhysOutSrc;4] = [
 #[derive(Default, Debug)]
 pub struct ShellCoaxIfaceCtl;
 
-impl ShellCoaxIfaceCtl {
-    const OUT_SRC_NAME: &'static str = "coaxial-output-source";
+const COAX_OUT_SRC_NAME: &str = "coaxial-output-source";
 
+impl ShellCoaxIfaceCtl {
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = PHYS_OUT_SRCS.iter()
             .map(|s| phys_out_src_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, COAX_OUT_SRC_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())
     }
@@ -927,7 +928,7 @@ impl ShellCoaxIfaceCtl {
         where for<'b> S: TcKonnektSegmentData + AsRef<ShellCoaxOutPairSrc>,
     {
         match elem_id.get_name().as_str() {
-            Self::OUT_SRC_NAME => {
+            COAX_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = PHYS_OUT_SRCS.iter()
                         .position(|s| s.eq(&segment.data.as_ref().0))
@@ -954,7 +955,7 @@ impl ShellCoaxIfaceCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::OUT_SRC_NAME => {
+            COAX_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     PHYS_OUT_SRCS.iter()
                         .nth(val as usize)
@@ -974,29 +975,29 @@ impl ShellCoaxIfaceCtl {
     }
 }
 
-fn opt_in_fmt_to_string(fmt: &ShellOptInputIfaceFormat) -> String {
+fn opt_in_fmt_to_str(fmt: &ShellOptInputIfaceFormat) -> &'static str {
     match fmt {
         ShellOptInputIfaceFormat::Adat0to7 => "ADAT-1:8",
         ShellOptInputIfaceFormat::Adat0to5Spdif01 => "ADAT-1:6+S/PDIF-1/2",
         ShellOptInputIfaceFormat::Toslink01Spdif01 => "TOSLINK-1/2+S/PDIF-1/2",
-    }.to_string()
+    }
 }
 
-fn opt_out_fmt_to_string(fmt: &ShellOptOutputIfaceFormat) -> String {
+fn opt_out_fmt_to_str(fmt: &ShellOptOutputIfaceFormat) -> &'static str {
     match fmt {
         ShellOptOutputIfaceFormat::Adat => "ADAT",
         ShellOptOutputIfaceFormat::Spdif => "S/PDIF",
-    }.to_string()
+    }
 }
 
 #[derive(Default, Debug)]
 pub struct ShellOptIfaceCtl;
 
-impl ShellOptIfaceCtl {
-    const IN_FMT_NAME: &'static str = "optical-input-format";
-    const OUT_FMT_NAME: &'static str = "optical-output-format";
-    const OUT_SRC_NAME: &'static str = "optical-output-source";
+const OPT_IN_FMT_NAME: &str = "optical-input-format";
+const OPT_OUT_FMT_NAME: &str = "optical-output-format";
+const OPT_OUT_SRC_NAME: &str = "optical-output-source";
 
+impl ShellOptIfaceCtl {
     const IN_FMTS: [ShellOptInputIfaceFormat;3] = [
         ShellOptInputIfaceFormat::Adat0to7,
         ShellOptInputIfaceFormat::Adat0to5Spdif01,
@@ -1009,20 +1010,20 @@ impl ShellOptIfaceCtl {
     ];
 
     pub fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<String> = Self::IN_FMTS.iter()
-            .map(|s| opt_in_fmt_to_string(s))
+        let labels: Vec<&str> = Self::IN_FMTS.iter()
+            .map(|s| opt_in_fmt_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::IN_FMT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IN_FMT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<String> = Self::OUT_FMTS.iter()
-            .map(|s| opt_out_fmt_to_string(s))
+        let labels: Vec<&str> = Self::OUT_FMTS.iter()
+            .map(|s| opt_out_fmt_to_str(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_FMT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_FMT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<&str> = PHYS_OUT_SRCS.iter().map(|s| phys_out_src_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -1037,7 +1038,7 @@ impl ShellOptIfaceCtl {
         where for<'b> S: TcKonnektSegmentData + AsRef<ShellOptIfaceConfig>,
     {
         match elem_id.get_name().as_str() {
-            Self::IN_FMT_NAME => {
+            OPT_IN_FMT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let state = segment.data.as_ref();
                     let pos = Self::IN_FMTS.iter()
@@ -1047,7 +1048,7 @@ impl ShellOptIfaceCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_FMT_NAME => {
+            OPT_OUT_FMT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let state = segment.data.as_ref();
                     let pos = Self::OUT_FMTS.iter()
@@ -1057,7 +1058,7 @@ impl ShellOptIfaceCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_SRC_NAME => {
+            OPT_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let state = segment.data.as_ref();
                     let pos = PHYS_OUT_SRCS.iter()
@@ -1085,7 +1086,7 @@ impl ShellOptIfaceCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::IN_FMT_NAME => {
+            OPT_IN_FMT_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::IN_FMTS.iter()
                         .nth(val as usize)
@@ -1101,7 +1102,7 @@ impl ShellOptIfaceCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_FMT_NAME => {
+            OPT_OUT_FMT_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::OUT_FMTS.iter()
                         .nth(val as usize)
@@ -1117,7 +1118,7 @@ impl ShellOptIfaceCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUT_SRC_NAME => {
+            OPT_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     PHYS_OUT_SRCS.iter()
                         .nth(val as usize)
@@ -1143,22 +1144,22 @@ pub struct ShellKnobCtl{
     pub notified_elem_list: Vec<ElemId>,
 }
 
-impl ShellKnobCtl {
-    const TARGET_NAME: &'static str = "knob-target";
+const TARGET_NAME: &str = "knob-target";
 
-    const K8_TARGETS: [&'static str;4] = [
+impl ShellKnobCtl {
+    const K8_TARGETS: [&'static str; 4] = [
         "Analog-1",
         "Analog-2",
         "S/PDIF-1/2",
         "Configurable",
     ];
-    const K24D_KLIVE_TARGETS: [&'static str;4] = [
+    const K24D_KLIVE_TARGETS: [&'static str; 4] = [
         "Analog-1",
         "Analog-2",
         "Analog-3/4",
         "Configurable",
     ];
-    const ITWIN_TARGETS: [&'static str;4] = [
+    const ITWIN_TARGETS: [&'static str; 4] = [
         "Channel-strip-1",
         "Channel-strip-2",
         "Reverb-1/2",
@@ -1180,7 +1181,7 @@ impl ShellKnobCtl {
         } else {
             Self::K24D_KLIVE_TARGETS
         };
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::TARGET_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, TARGET_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.notified_elem_list.append(&mut elem_id_list))
     }
@@ -1194,7 +1195,7 @@ impl ShellKnobCtl {
         where S: TcKonnektSegmentData + AsRef<ShellKnobTarget>,
     {
         match elem_id.get_name().as_str() {
-            Self::TARGET_NAME => {
+            TARGET_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let state = segment.data.as_ref();
                     if state.0 >= Self::TARGET_COUNT {
@@ -1224,7 +1225,7 @@ impl ShellKnobCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::TARGET_NAME => {
+            TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     if val >= Self::TARGET_COUNT {
                         let msg = format!("Invalid value for index of program: {}", val);
@@ -1244,9 +1245,9 @@ impl ShellKnobCtl {
 #[derive(Default, Debug)]
 pub struct ShellKnob2Ctl;
 
-impl ShellKnob2Ctl {
-    const KNOB2_NAME: &'static str = "configurable-knob-target";
+const KNOB2_NAME: &str = "configurable-knob-target";
 
+impl ShellKnob2Ctl {
     const K8_LABELS: [&'static str;2] = [
         "Stream-input-1/2",
         "Mixer-1/2",
@@ -1289,7 +1290,7 @@ impl ShellKnob2Ctl {
         } else {
             unreachable!();
         };
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::KNOB2_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB2_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())
     }
@@ -1303,7 +1304,7 @@ impl ShellKnob2Ctl {
         where S: TcKonnektSegmentData + AsRef<ShellKnob2Target> + ShellKnob2TargetSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::KNOB2_NAME => {
+            KNOB2_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let state = segment.data.as_ref();
                     if state.0 >= S::KNOB2_TARGET_COUNT as u32 {
@@ -1333,7 +1334,7 @@ impl ShellKnob2Ctl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::KNOB2_NAME => {
+            KNOB2_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     if val >= S::KNOB2_TARGET_COUNT as u32 {
                         let msg = format!("Invalid value for index of program: {}", val);

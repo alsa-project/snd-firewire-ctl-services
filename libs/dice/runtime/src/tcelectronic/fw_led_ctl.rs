@@ -25,9 +25,9 @@ pub fn firewire_led_state_to_string(state: &FireWireLedState) -> String {
 #[derive(Default, Debug)]
 pub struct FwLedCtl(pub Vec<ElemId>);
 
-impl FwLedCtl {
-    const STATE_NAME: &'static str = "FireWire-LED-state";
+const STATE_NAME: &str = "FireWire-LED-state";
 
+impl FwLedCtl {
     const STATES: [FireWireLedState;4] = [
         FireWireLedState::Off,
         FireWireLedState::On,
@@ -39,7 +39,7 @@ impl FwLedCtl {
         let labels = Self::STATES.iter()
             .map(|s| firewire_led_state_to_string(s))
             .collect::<Vec<_>>();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
@@ -55,7 +55,7 @@ impl FwLedCtl {
         where S: TcKonnektSegmentData + AsRef<FireWireLedState>,
     {
         match elem_id.get_name().as_str() {
-            Self::STATE_NAME => {
+            STATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::STATES.iter()
                         .position(|s| s.eq(segment.data.as_ref()))
@@ -82,7 +82,7 @@ impl FwLedCtl {
               TcKonnektSegment<S>: TcKonnektSegmentSpec,
     {
         match elem_id.get_name().as_str() {
-            Self::STATE_NAME => {
+            STATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::STATES.iter()
                         .nth(val as usize)

@@ -246,24 +246,24 @@ impl MeasureModel<SndDice> for K24dModel {
 #[derive(Default, Debug)]
 struct K24dSpecificCtl(Vec<ElemId>);
 
-impl K24dSpecificCtl {
-    const OUT_23_SRC_NAME: &'static str = "output-3/4-source";
-    const USE_CH_STRIP_AS_PLUGIN_NAME: &'static str = "use-channel-strip-as-plugin";
-    const USE_REVERB_AT_MID_RATE: &'static str = "use-reverb-at-mid-rate";
-    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
+const OUT_23_SRC_NAME: &str = "output-3/4-source";
+const USE_CH_STRIP_AS_PLUGIN_NAME: &str = "use-channel-strip-as-plugin";
+const USE_REVERB_AT_MID_RATE: &str = "use-reverb-at-mid-rate";
+const MIXER_ENABLE_NAME: &str = "mixer-enable";
 
+impl K24dSpecificCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = PHYS_OUT_SRCS.iter().map(|s| phys_out_src_to_str(s)).collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUT_23_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUT_23_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_CH_STRIP_AS_PLUGIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_CH_STRIP_AS_PLUGIN_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::USE_REVERB_AT_MID_RATE, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, USE_REVERB_AT_MID_RATE, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
@@ -276,7 +276,7 @@ impl K24dSpecificCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUT_23_SRC_NAME => {
+            OUT_23_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = PHYS_OUT_SRCS.iter()
                         .position(|s| s.eq(&segments.config.data.out_23_src))
@@ -285,19 +285,19 @@ impl K24dSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
+            USE_CH_STRIP_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.use_ch_strip_as_plugin)
                 })
                 .map(|_| true)
             }
-            Self::USE_REVERB_AT_MID_RATE => {
+            USE_REVERB_AT_MID_RATE => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.use_reverb_at_mid_rate)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.enabled)
                 })
@@ -317,7 +317,7 @@ impl K24dSpecificCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::OUT_23_SRC_NAME => {
+            OUT_23_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     PHYS_OUT_SRCS.iter()
                         .nth(val as usize)
@@ -332,21 +332,21 @@ impl K24dSpecificCtl {
                 })
                 .map(|_| true)
             }
-            Self::USE_CH_STRIP_AS_PLUGIN_NAME => {
+            USE_CH_STRIP_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.use_ch_strip_as_plugin = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::USE_REVERB_AT_MID_RATE => {
+            USE_REVERB_AT_MID_RATE => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.use_reverb_at_mid_rate = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
                 })
                 .map(|_| true)
             }
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.enabled = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)

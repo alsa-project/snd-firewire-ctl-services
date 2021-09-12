@@ -184,16 +184,16 @@ impl MeasureModel<SndDice> for K8Model {
 #[derive(Default, Debug)]
 struct K8SpecificCtl(Vec<ElemId>);
 
-impl K8SpecificCtl {
-    const MIXER_ENABLE_NAME: &'static str = "mixer-enable";
-    const AUX_IN_ENABLED_NAME: &'static str = "aux-input-enable";
+const MIXER_ENABLE_NAME: &str = "mixer-enable";
+const AUX_IN_ENABLED_NAME: &str = "aux-input-enable";
 
+impl K8SpecificCtl {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIXER_ENABLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ENABLE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUX_IN_ENABLED_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_IN_ENABLED_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| self.0.append(&mut elem_id_list))?;
 
@@ -207,7 +207,7 @@ impl K8SpecificCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.mixer_state.data.enabled)
                 })
@@ -227,7 +227,7 @@ impl K8SpecificCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIXER_ENABLE_NAME => {
+            MIXER_ENABLE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     segments.mixer_state.data.enabled = val;
                     req.write_segment(&mut unit.get_node(), &mut segments.mixer_state, timeout_ms)
@@ -245,7 +245,7 @@ impl K8SpecificCtl {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::AUX_IN_ENABLED_NAME => {
+            AUX_IN_ENABLED_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(segments.hw_state.data.aux_input_enabled)
                 })
