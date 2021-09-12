@@ -52,10 +52,17 @@ impl AsMut<Tcd22xxState> for Mbox3State {
 }
 
 /// The enumeration to represent usecase of standalone mode.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StandaloneUseCase {
     Preamp,
     AdDa,
     Mixer,
+}
+
+impl Default for StandaloneUseCase {
+    fn default() -> Self {
+        Self::Preamp
+    }
 }
 
 impl StandaloneUseCase {
@@ -113,22 +120,22 @@ impl<O: AsRef<FwReq>, T: AsRef<FwNode>> AvidMbox3StandaloneProtocol<T> for O {}
 pub type MasterKnobAssigns = [bool;6];
 
 /// The enumeration to represent LED state of mute button.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MuteLedState {
     Off,
     Blink,
     On,
 }
 
-impl MuteLedState {
-    const LED_MASK: u32 = 0x00000003;
-    const LED_BLINK_MASK: u32 = 0x00000001;
-}
-
 impl Default for MuteLedState {
     fn default() -> Self {
         Self::Off
     }
+}
+
+impl MuteLedState {
+    const LED_MASK: u32 = 0x00000003;
+    const LED_BLINK_MASK: u32 = 0x00000001;
 }
 
 impl From<u32> for MuteLedState {
@@ -154,21 +161,21 @@ impl From<&MuteLedState> for u32 {
 }
 
 /// The enumeration to represent LED state of mono button.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MonoLedState {
     Off,
     On,
-}
-
-impl MonoLedState {
-    const LED_MASK: u32 = 0x0000000c;
-    const LED_SHIFT: usize = 2;
 }
 
 impl Default for MonoLedState {
     fn default() -> Self {
         Self::Off
     }
+}
+
+impl MonoLedState {
+    const LED_MASK: u32 = 0x0000000c;
+    const LED_SHIFT: usize = 2;
 }
 
 impl From<u32> for MonoLedState {
@@ -191,7 +198,7 @@ impl From<&MonoLedState> for u32 {
 }
 
 /// The enumeration to represent LED state of spkr button.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SpkrLedState {
     Off,
     Green,
@@ -275,8 +282,8 @@ impl From<&SpkrLedState> for u32 {
 }
 
 /// The structure to represent status of buttons.
-#[derive(Default, Debug)]
-pub struct ButtonLedState{
+#[derive(Default, Debug, Copy, Clone,  Eq, PartialEq)]
+pub struct ButtonLedState {
     pub mute: MuteLedState,
     pub mono: MonoLedState,
     pub spkr: SpkrLedState,
@@ -473,6 +480,7 @@ pub trait AvidMbox3HwProtocol<T> : ApplSectionProtocol<T>
 impl<O: AsRef<FwReq>, T: AsRef<FwNode>> AvidMbox3HwProtocol<T> for O {}
 
 /// The enumration to represent type of reverb DSP.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ReverbType {
     Room1,
     Room2,
@@ -482,6 +490,12 @@ pub enum ReverbType {
     Plate,
     Delay,
     Echo,
+}
+
+impl Default for ReverbType {
+    fn default() -> Self {
+        Self::Room1
+    }
 }
 
 impl ReverbType {
