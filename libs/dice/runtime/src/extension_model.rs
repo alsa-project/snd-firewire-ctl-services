@@ -32,8 +32,18 @@ impl CtlModel<SndDice> for ExtensionModel {
         let mut node = unit.get_node();
 
         self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
-        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
-        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
+        let caps = GlobalSectionProtocol::read_clock_caps(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
+        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections = ProtocolExtension::read_extension_sections(

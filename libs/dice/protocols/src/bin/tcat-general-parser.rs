@@ -25,39 +25,39 @@ fn print_sections(sections: &GeneralSections) {
              sections.ext_sync.offset, sections.ext_sync.size);
 }
 
-fn print_global_section(proto: &FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
-    let owner = proto.read_owner_addr(node, sections, TIMEOUT_MS)?;
+fn print_global_section(req: &mut FwReq, node: &mut FwNode, sections: &GeneralSections) -> Result<(), Error> {
+    let owner = GlobalSectionProtocol::read_owner_addr(req, node, sections, TIMEOUT_MS)?;
     println!("Owner:");
     println!("  node ID:        0x{:04x}", owner >> 48);
     println!("  offset:         0x{:012x}", owner & 0xffffffffu64);
 
-    let latest_notification = proto.read_latest_notification(node, sections, TIMEOUT_MS)?;
+    let latest_notification = GlobalSectionProtocol::read_latest_notification(req, node, sections, TIMEOUT_MS)?;
     println!("Last Notification:0x{:08x}", latest_notification);
 
-    let nickname = proto.read_nickname(node, sections, TIMEOUT_MS)?;
+    let nickname = GlobalSectionProtocol::read_nickname(req, node, sections, TIMEOUT_MS)?;
     println!("Nickname:         '{}'", nickname);
 
-    let config = proto.read_clock_config(node, sections, TIMEOUT_MS)?;
+    let config = GlobalSectionProtocol::read_clock_config(req, node, sections, TIMEOUT_MS)?;
     println!("Clock configureation:");
     println!("  rate:           {}", config.rate);
     println!("  src:            {}", config.src);
 
-    let enabled = proto.read_enabled(node, sections, TIMEOUT_MS)?;
+    let enabled = GlobalSectionProtocol::read_enabled(req, node, sections, TIMEOUT_MS)?;
     println!("Enabled:          {}", enabled);
 
-    let status = proto.read_clock_status(node, sections, TIMEOUT_MS)?;
+    let status = GlobalSectionProtocol::read_clock_status(req, node, sections, TIMEOUT_MS)?;
     println!("Status:");
     println!("  rate:           {}", status.rate);
     println!("  source is locked:  {}", status.src_is_locked);
 
-    let curr_rate = proto.read_current_rate(node, sections, TIMEOUT_MS)?;
+    let curr_rate = GlobalSectionProtocol::read_current_rate(req, node, sections, TIMEOUT_MS)?;
     println!("Sampling rate:    {}", curr_rate);
 
-    let version = proto.read_version(node, sections, TIMEOUT_MS)?;
+    let version = GlobalSectionProtocol::read_version(req, node, sections, TIMEOUT_MS)?;
     println!("Version:          0x{:08x}", version);
 
-    let labels = proto.read_clock_source_labels(node, sections, TIMEOUT_MS)?;
-    let caps = proto.read_clock_caps(node, sections, TIMEOUT_MS)?;
+    let labels = GlobalSectionProtocol::read_clock_source_labels(req, node, sections, TIMEOUT_MS)?;
+    let caps = GlobalSectionProtocol::read_clock_caps(req, node, sections, TIMEOUT_MS)?;
 
     let rates = caps.get_rate_entries().iter().map(|r| r.to_string()).collect::<Vec<_>>();
     let srcs = caps.get_src_entries(&labels).iter().map(|s| s.get_label(&labels, false).unwrap()).collect::<Vec<_>>();
@@ -66,7 +66,7 @@ fn print_global_section(proto: &FwReq, node: &mut FwNode, sections: &GeneralSect
     println!("  src:            {}", srcs.join(", "));
 
     let ext_srcs = ExtSourceStates::get_entries(&caps, &labels);
-    let states = proto.read_clock_source_states(node, sections, TIMEOUT_MS)?;
+    let states = GlobalSectionProtocol::read_clock_source_states(req, node, sections, TIMEOUT_MS)?;
     println!("Clock states:");
     let locked = ext_srcs.iter()
         .filter(|s| s.is_locked(&states))
@@ -187,7 +187,7 @@ fn main() {
             let result = proto.read_general_sections(&mut node, TIMEOUT_MS)
                 .and_then(|sections| {
                     print_sections(&sections);
-                    print_global_section(&proto, &mut node, &sections)?;
+                    print_global_section(&mut proto, &mut node, &sections)?;
                     print_tx_stream_formats(&mut proto, &mut node, &sections)?;
                     print_rx_stream_formats(&mut proto, &mut node, &sections)?;
                     print_ext_sync(&mut proto, &mut node, &sections);

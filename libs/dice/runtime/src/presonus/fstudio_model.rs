@@ -53,7 +53,12 @@ impl CtlModel<SndDice> for FStudioModel {
         let mut node = unit.get_node();
 
         self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
-        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
+        let caps = GlobalSectionProtocol::read_clock_caps(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
         let entries: Vec<_> = AVAIL_CLK_SRC_LABELS.iter().map(|l| l.to_string()).collect();
         let src_labels = ClockSourceLabels{entries};
         self.ctl.load(card_cntr, &caps, &src_labels)?;

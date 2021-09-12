@@ -52,7 +52,12 @@ impl CtlModel<SndDice> for Pfire2626Model {
 
         self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
         let caps = ClockCaps::new(&Pfire2626Protocol::AVAIL_CLK_RATES, Pfire2626Protocol::AVAIL_CLK_SRCS);
-        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections = ProtocolExtension::read_extension_sections(
@@ -186,7 +191,12 @@ impl CtlModel<SndDice> for Pfire610Model {
 
         self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
         let caps = ClockCaps::new(&Pfire610Protocol::AVAIL_CLK_RATES, Pfire610Protocol::AVAIL_CLK_SRCS);
-        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
+        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections = ProtocolExtension::read_extension_sections(

@@ -467,30 +467,38 @@ pub struct ClockSourceLabels{
 /// The maximum size of nickname in bytes.
 pub const NICKNAME_MAX_SIZE: usize = 64;
 
-/// The trait for global protocol.
-pub trait GlobalSectionProtocol: GeneralProtocol {
-    const OWNER_OFFSET: usize = 0x00;
-    const LATEST_NOTIFICATION_OFFSET: usize = 0x04;
-    const NICKNAME_OFFSET: usize = 0x0c;
-    const CLK_SELECT_OFFSET: usize = 0x4c;
-    const ENABLED_OFFSET: usize = 0x50;
-    const STATUS_OFFSET: usize = 0x54;
-    const CLK_SRC_STATES_OFFSET: usize = 0x58;
-    const CURRENT_RATE_OFFSET: usize = 0x5c;
-    const VERSION_OFFSET: usize = 0x60;
-    const CLK_CAPS_OFFSET: usize = 0x64;
-    const CLK_NAMES_OFFSET: usize = 0x68;
+/// The structure for protocol implementaion of global section.
+pub struct GlobalSectionProtocol;
 
+const OWNER_OFFSET: usize = 0x00;
+const LATEST_NOTIFICATION_OFFSET: usize = 0x04;
+const NICKNAME_OFFSET: usize = 0x0c;
+const CLK_SELECT_OFFSET: usize = 0x4c;
+const ENABLED_OFFSET: usize = 0x50;
+const STATUS_OFFSET: usize = 0x54;
+const CLK_SRC_STATES_OFFSET: usize = 0x58;
+const CURRENT_RATE_OFFSET: usize = 0x5c;
+const VERSION_OFFSET: usize = 0x60;
+const CLK_CAPS_OFFSET: usize = 0x64;
+const CLK_NAMES_OFFSET: usize = 0x68;
+
+impl GlobalSectionProtocol {
     const CLK_NAMES_MAX_SIZE: usize = 256;
 
-    fn read_owner_addr(
-        &self,
+    pub fn read_owner_addr(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<u64, Error> {
-        let mut data = [0;8];
-        self.read(node, sections.global.offset + Self::OWNER_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 8];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + OWNER_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| {
                 let mut quadlet = [0;4];
@@ -504,20 +512,26 @@ pub trait GlobalSectionProtocol: GeneralProtocol {
             })
     }
 
-    fn read_latest_notification(
-        &self,
+    pub fn read_latest_notification(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<u32, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::LATEST_NOTIFICATION_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + LATEST_NOTIFICATION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| u32::from_be_bytes(data))
     }
 
-    fn write_nickname<N>(
-        &self,
+    pub fn write_nickname<N>(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         name: N,
@@ -526,18 +540,30 @@ pub trait GlobalSectionProtocol: GeneralProtocol {
         where N: AsRef<str>
     {
         let mut data = build_label(name, NICKNAME_MAX_SIZE);
-        self.write(node, sections.global.offset + Self::NICKNAME_OFFSET, &mut data, timeout_ms)
+        GeneralProtocol::write(
+            req,
+            node,
+            sections.global.offset + NICKNAME_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
     }
 
-    fn read_nickname(
-        &self,
+    pub fn read_nickname(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<String, Error> {
-        let mut data = vec![0;NICKNAME_MAX_SIZE];
-        self.read(node, sections.global.offset + Self::NICKNAME_OFFSET, &mut data, timeout_ms)
+        let mut data = vec![0; NICKNAME_MAX_SIZE];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + NICKNAME_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .and_then(|_| {
                 parse_label(&data[..])
@@ -548,101 +574,149 @@ pub trait GlobalSectionProtocol: GeneralProtocol {
             })
     }
 
-    fn write_clock_config(
-        &self,
+    pub fn write_clock_config(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         config: ClockConfig,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut data = [0;4];
+        let mut data = [0; 4];
         let val = u32::from(config);
         data.copy_from_slice(&val.to_be_bytes());
-        self.write(node, sections.global.offset + Self::CLK_SELECT_OFFSET, &mut data, timeout_ms)
+        GeneralProtocol::write(
+           req,
+           node,
+           sections.global.offset + CLK_SELECT_OFFSET,
+           &mut data,
+           timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
     }
 
-    fn read_clock_config(
-        &self,
+    pub fn read_clock_config(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<ClockConfig, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::CLK_SELECT_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + CLK_SELECT_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| ClockConfig::from(u32::from_be_bytes(data)))
     }
 
-    fn read_enabled(
-        &self,
+    pub fn read_enabled(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<bool, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::ENABLED_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + ENABLED_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| u32::from_be_bytes(data) > 0)
     }
 
-    fn read_clock_status(
-        &self,
+    pub fn read_clock_status(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<ClockStatus, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::STATUS_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + STATUS_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| ClockStatus::from(u32::from_be_bytes(data)))
     }
 
-    fn read_clock_source_states(
-        &self,
+    pub fn read_clock_source_states(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<ExtSourceStates, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::CLK_SRC_STATES_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + CLK_SRC_STATES_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| ExtSourceStates::from(u32::from_be_bytes(data)))
     }
 
-    fn read_current_rate(
-        &self,
+    pub fn read_current_rate(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<u32, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::CURRENT_RATE_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + CURRENT_RATE_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| u32::from_be_bytes(data))
     }
 
-    fn read_version(
-        &self,
+    pub fn read_version(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<u32, Error> {
-        let mut data = [0;4];
-        self.read(node, sections.global.offset + Self::VERSION_OFFSET, &mut data, timeout_ms)
+        let mut data = [0; 4];
+        GeneralProtocol::read(
+            req,
+            node,
+            sections.global.offset + VERSION_OFFSET,
+            &mut data,
+            timeout_ms
+        )
             .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
             .map(|_| u32::from_be_bytes(data))
     }
 
-    fn read_clock_caps(
-        &self,
+    pub fn read_clock_caps(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<ClockCaps, Error> {
-        if sections.global.size > Self::CLK_CAPS_OFFSET {
-            let mut data = [0;4];
-            self.read(node, sections.global.offset + Self::CLK_CAPS_OFFSET, &mut data, timeout_ms)
+        if sections.global.size > CLK_CAPS_OFFSET {
+            let mut data = [0; 4];
+            GeneralProtocol::read(
+                req,
+                node,
+                sections.global.offset + CLK_CAPS_OFFSET,
+                &mut data,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
                 .map(|_| ClockCaps::from(u32::from_be_bytes(data)))
         } else {
@@ -651,15 +725,21 @@ pub trait GlobalSectionProtocol: GeneralProtocol {
         }
     }
 
-    fn read_clock_source_labels(
-        &self,
+    pub fn read_clock_source_labels(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<ClockSourceLabels, Error> {
         if sections.global.size > Self::CLK_NAMES_MAX_SIZE {
-            let mut data = vec![0;Self::CLK_NAMES_MAX_SIZE];
-            self.read(node, sections.global.offset + Self::CLK_NAMES_OFFSET, &mut data, timeout_ms)
+            let mut data = vec![0; Self::CLK_NAMES_MAX_SIZE];
+            GeneralProtocol::read(
+                req,
+                node,
+                sections.global.offset + CLK_NAMES_OFFSET,
+                &mut data,
+                timeout_ms
+            )
                 .map_err(|e| Error::new(GeneralProtocolError::Global, &e.to_string()))
                 .and_then(|_| {
                     parse_labels(&data[..])
@@ -676,5 +756,3 @@ pub trait GlobalSectionProtocol: GeneralProtocol {
         }
     }
 }
-
-impl<O: AsRef<FwReq>> GlobalSectionProtocol for O {}

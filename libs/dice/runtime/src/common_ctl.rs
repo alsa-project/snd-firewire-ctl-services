@@ -93,10 +93,10 @@ impl CommonCtl {
             .map(|pos| self.curr_src_idx = pos as u32)
     }
 
-    pub fn read<T: AsRef<FwReq>>(
+    pub fn read(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &GeneralSections,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -104,19 +104,34 @@ impl CommonCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                let config = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)?;
+                let config = GlobalSectionProtocol::read_clock_config(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    timeout_ms
+                )?;
                 self.cache_clock_config(&config)?;
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
                 .map(|_| true)
             }
             CLK_SRC_NAME => {
-                let config = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)?;
+                let config = GlobalSectionProtocol::read_clock_config(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    timeout_ms
+                )?;
                 self.cache_clock_config(&config)?;
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
                 .map(|_| true)
             }
             NICKNAME => {
-                proto.read_nickname(&mut unit.get_node(), sections, timeout_ms)
+                GlobalSectionProtocol::read_nickname(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    timeout_ms
+                )
                     .map(|name| {
                         let mut vals = vec![0;NICKNAME_MAX_SIZE];
                         let raw = name.as_bytes();
@@ -158,10 +173,10 @@ impl CommonCtl {
         Ok(())
     }
 
-    pub fn write<T: AsRef<FwReq>>(
+    pub fn write(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &GeneralSections,
         elem_id: &ElemId,
         _: &ElemValue,
@@ -172,11 +187,21 @@ impl CommonCtl {
             CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)
+                    let res = GlobalSectionProtocol::read_clock_config(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )
                         .and_then(|mut config| {
                             self.update_clock_config(&mut config, Some(val as u32), None)?;
-                            proto.write_clock_config(&mut unit.get_node(), sections, config,
-                                                     timeout_ms)?;
+                            GlobalSectionProtocol::write_clock_config(
+                                req,
+                                &mut unit.get_node(),
+                                sections,
+                                config,
+                                timeout_ms
+                            )?;
                             self.curr_rate_idx = val;
                             Ok(())
                         });
@@ -188,11 +213,21 @@ impl CommonCtl {
             CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.lock()?;
-                    let res = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)
+                    let res = GlobalSectionProtocol::read_clock_config(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )
                         .and_then(|mut config| {
                             self.update_clock_config(&mut config, None, Some(val as u32))?;
-                            proto.write_clock_config(&mut unit.get_node(), sections, config,
-                                                     timeout_ms)?;
+                            GlobalSectionProtocol::write_clock_config(
+                                req,
+                                &mut unit.get_node(),
+                                sections,
+                                config,
+                                timeout_ms
+                            )?;
                             self.curr_src_idx = val;
                             Ok(())
                         });
@@ -213,7 +248,12 @@ impl CommonCtl {
                         text.find('\0')
                             .ok_or(Error::new(FileError::Inval, "Unterminated string found"))
                             .and_then(|pos| {
-                                proto.write_nickname(&mut unit.get_node(), sections, &text[..pos], timeout_ms)
+                                GlobalSectionProtocol::write_nickname(
+                                    req,
+                                    &mut unit.get_node(),
+                                    sections,
+                                    &text[..pos],
+                                    timeout_ms)
                             })
                     })
                     .map(|_| true)
@@ -222,21 +262,31 @@ impl CommonCtl {
         }
     }
 
-    pub fn parse_notification<T: AsRef<FwReq>>(
+    pub fn parse_notification(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &GeneralSections,
         msg: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
         if msg.has_clock_accepted() {
-            let config = proto.read_clock_config(&mut unit.get_node(), sections, timeout_ms)?;
+            let config = GlobalSectionProtocol::read_clock_config(
+                req,
+                &mut unit.get_node(),
+                sections,
+                timeout_ms
+            )?;
             self.cache_clock_config(&config)?;
         }
 
         if msg.has_ext_status_changed() {
-            self.ext_src_states = proto.read_clock_source_states(&mut unit.get_node(), sections, timeout_ms)?;
+            self.ext_src_states = GlobalSectionProtocol::read_clock_source_states(
+                req,
+                &mut unit.get_node(),
+                sections,
+                timeout_ms
+            )?;
         }
 
         Ok(())
@@ -266,14 +316,19 @@ impl CommonCtl {
         }
     }
 
-    pub fn measure_states<T: AsRef<FwReq>>(
+    pub fn measure_states(
         &mut self,
         unit: &mut SndDice,
-        proto: &mut T,
+        req: &mut FwReq,
         sections: &GeneralSections,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        proto.read_clock_source_states(&mut unit.get_node(), sections, timeout_ms)
+        GlobalSectionProtocol::read_clock_source_states(
+            req,
+            &mut unit.get_node(),
+            sections,
+            timeout_ms
+        )
             .map(|states| self.ext_src_states = states)
     }
 

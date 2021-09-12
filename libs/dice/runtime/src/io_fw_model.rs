@@ -31,8 +31,18 @@ impl CtlModel<SndDice> for IoFwModel {
         let mut node = unit.get_node();
 
         self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
-        let caps = self.req.read_clock_caps(&mut node, &self.sections, TIMEOUT_MS)?;
-        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
+        let caps = GlobalSectionProtocol::read_clock_caps(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
+        let src_labels = GlobalSectionProtocol::read_clock_source_labels(
+            &mut self.req,
+            &mut node,
+            &self.sections,
+            TIMEOUT_MS
+        )?;
         self.common_ctl.load(card_cntr, &caps, &src_labels)?;
 
         IofwCtls::new(unit, &mut self.req, &self.sections, TIMEOUT_MS).and_then(|mut ctls| {
@@ -128,7 +138,12 @@ impl IofwCtls {
         timeout_ms: u32
     ) -> Result<Self, Error> {
         let mut node = unit.get_node();
-        let config = req.read_clock_config(&mut node, sections, timeout_ms)?;
+        let config = GlobalSectionProtocol::read_clock_config(
+            req,
+            &mut node,
+            sections,
+            timeout_ms
+        )?;
         match config.rate {
             ClockRate::R32000 |
             ClockRate::R44100 |
@@ -168,7 +183,12 @@ impl IofwCtls {
             ClockRate::R176400 |
             ClockRate::R192000 |
             ClockRate::AnyHigh => {
-                let nickname = req.read_nickname(&mut node, sections, timeout_ms)?;
+                let nickname = GlobalSectionProtocol::read_nickname(
+                    req,
+                    &mut node,
+                    sections,
+                    timeout_ms
+                )?;
                 match nickname.as_str() {
                     "iO 26" => {
                         Ok(Self::Io26(Default::default(), Default::default(), Default::default()))
