@@ -8,31 +8,44 @@
 
 use super::{*, caps_section::*, stream_format_entry::*};
 
-pub trait StreamFormatSectionProtocol: ProtocolExtension {
-    fn read_stream_format_entries(
-        &self,
+/// The structure for protocol implementation of stream format section.
+#[derive(Default)]
+pub struct StreamFormatSectionProtocol;
+
+impl StreamFormatSectionProtocol {
+    pub fn read_stream_format_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         timeout_ms: u32
     ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
-        StreamFormatEntryProtocol::read_stream_format_entries(&self, node, caps, sections.stream_format.offset,
-                                                              timeout_ms)
+        StreamFormatEntryProtocol::read_stream_format_entries(
+            req,
+            node,
+            caps,
+            sections.stream_format.offset,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
     }
 
-    fn write_stream_format_entries(
-        &self,
+    pub fn write_stream_format_entries(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         pair: &(Vec<FormatEntryData>, Vec<FormatEntryData>),
         timeout_ms: u32
     ) -> Result<(), Error> {
-        StreamFormatEntryProtocol::write_stream_format_entries(&self, node, caps, sections.stream_format.offset,
-                                                               pair, timeout_ms)
+        StreamFormatEntryProtocol::write_stream_format_entries(
+            req,
+            node,
+            caps,
+            sections.stream_format.offset,
+            pair,
+            timeout_ms
+        )
             .map_err(|e| Error::new(ProtocolExtensionError::StreamFormat, &e.to_string()))
     }
 }
-
-impl<O: AsRef<FwReq>> StreamFormatSectionProtocol for O {}
