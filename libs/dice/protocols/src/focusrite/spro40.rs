@@ -6,10 +6,19 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Saffire Pro 40.
 
+use hinawa::FwReq;
+
 use crate::tcat::extension::*;
 use crate::tcat::tcd22xx_spec::*;
 
 use super::*;
+
+const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
+const IO_FLAGS_OFFSET: usize = 0x005c;
+
+/// The structure for protocol implementation specific to Saffire Pro 40.
+#[derive(Default)]
+pub struct SPro40Protocol;
 
 /// The structure to represent state of TCD22xx on Saffire Pro 40.
 #[derive(Debug)]
@@ -104,55 +113,86 @@ pub enum OptOutIfaceMode {
     Spdif,
 }
 
-/// The trait to represent protocol specific to Saffire Pro 26.
-pub trait SPro40Protocol: ApplSectionProtocol {
-    const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
-    const IO_FLAGS_OFFSET: usize = 0x005c;
+impl Default for OptOutIfaceMode {
+    fn default() -> Self {
+        Self::Adat
+    }
+}
 
+/// The trait to represent protocol specific to Saffire Pro 26.
+impl SPro40Protocol {
     fn write_sw_notice(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         notice: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         notice.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, SW_NOTICE_OFFSET, &mut raw, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            SW_NOTICE_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
     }
 
-    fn read_analog_out_0_1_pad_offset(
-        &self,
+    pub fn read_analog_out_0_1_pad(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) ->Result<bool, Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::ANALOG_OUT_0_1_PAD_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            ANALOG_OUT_0_1_PAD_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| u32::from_be_bytes(raw) > 0)
     }
 
-    fn write_analog_out_0_1_pad_offset(
-        &self,
+    pub fn write_analog_out_0_1_pad(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         enable: bool,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         enable.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, Self::ANALOG_OUT_0_1_PAD_OFFSET, &mut raw, timeout_ms)?;
-        self.write_sw_notice(node, sections, OUT_PAD_SW_NOTICE, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            ANALOG_OUT_0_1_PAD_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, OUT_PAD_SW_NOTICE, timeout_ms)
     }
 
-    fn read_opt_out_iface_mode(
-        &self,
+    pub fn read_opt_out_iface_mode(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         timeout_ms: u32
     ) -> Result<OptOutIfaceMode, Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
                 let val = u32::from_be_bytes(raw);
                 if val & 0x00000001 > 0 {
@@ -163,15 +203,22 @@ pub trait SPro40Protocol: ApplSectionProtocol {
             })
     }
 
-    fn write_opt_out_iface_mode(
-        &self,
+    pub fn write_opt_out_iface_mode(
+        req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: OptOutIfaceMode,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut raw = [0;4];
-        self.read_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)?;
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
 
         let mut val = u32::from_be_bytes(raw);
         val &= !0x00000003;
@@ -180,9 +227,14 @@ pub trait SPro40Protocol: ApplSectionProtocol {
             val |= 0x00000001;
         }
         val.build_quadlet(&mut raw);
-        self.write_appl_data(node, sections, Self::IO_FLAGS_OFFSET, &mut raw, timeout_ms)?;
-        self.write_sw_notice(node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            IO_FLAGS_OFFSET,
+            &mut raw,
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
     }
 }
-
-impl<O: ApplSectionProtocol> SPro40Protocol for O {}
