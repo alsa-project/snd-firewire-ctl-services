@@ -12,44 +12,53 @@ use core::elem_value_accessor::*;
 
 use dice_protocols::tcat::{*, global_section::*};
 use dice_protocols::tcat::extension::*;
-use dice_protocols::tcat::tcd22xx_spec::*;
 use dice_protocols::maudio::*;
 
 use super::common_ctl::*;
 use super::tcd22xx_ctl::*;
 
+const TIMEOUT_MS: u32 = 20;
+
 #[derive(Default)]
-pub struct PfireModel<S>
-    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
-{
+pub struct Pfire2626Model {
     req: FwReq,
     sections: GeneralSections,
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
-    tcd22xx_ctl: Tcd22xxCtl<S>,
-    specific_ctl: SpecificCtl,
+    tcd22xx_ctl: Tcd22xxCtl<Pfire2626State>,
+    specific_ctl: Pfire2626SpecificCtl,
 }
 
-pub type Pfire2626Model = PfireModel<Pfire2626State>;
-pub type Pfire610Model = PfireModel<Pfire610State>;
+#[derive(Default)]
+struct Pfire2626SpecificCtl([bool; Pfire2626Protocol::KNOB_COUNT]);
 
-const TIMEOUT_MS: u32 = 20;
+impl AsRef<[bool]> for Pfire2626SpecificCtl {
+    fn as_ref(&self) -> &[bool] {
+        &self.0
+    }
+}
 
-impl<S> CtlModel<SndDice> for PfireModel<S>
-    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
-{
+impl AsMut<[bool]> for Pfire2626SpecificCtl {
+    fn as_mut(&mut self) -> &mut [bool] {
+        &mut self.0
+    }
+}
+
+impl SpecificCtlOperation<Pfire2626Protocol> for Pfire2626SpecificCtl {}
+
+impl CtlModel<SndDice> for Pfire2626Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut node = unit.get_node();
 
         self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
-        let caps = ClockCaps::new(&S::AVAIL_CLK_RATES, S::AVAIL_CLK_SRCS);
+        let caps = ClockCaps::new(&Pfire2626Protocol::AVAIL_CLK_RATES, Pfire2626Protocol::AVAIL_CLK_SRCS);
         let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections = self.req.read_extension_sections(&mut node, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(unit, &mut self.req, &self.extension_sections, &caps, &src_labels,
                           TIMEOUT_MS, card_cntr)?;
-        self.specific_ctl.load(&caps, &src_labels, card_cntr)?;
+        self.specific_ctl.load(card_cntr)?;
 
         self.tcd22xx_ctl.cache(unit, &mut self.req, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
 
@@ -89,9 +98,7 @@ impl<S> CtlModel<SndDice> for PfireModel<S>
     }
 }
 
-impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
-    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
-{
+impl NotifyModel<SndDice, u32> for Pfire2626Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
@@ -117,9 +124,7 @@ impl<S> NotifyModel<SndDice, u32> for PfireModel<S>
     }
 }
 
-impl<S> MeasureModel<SndDice> for PfireModel<S>
-    where S: AsRef<Tcd22xxState> + AsMut<Tcd22xxState> + Tcd22xxSpec + PfireClkSpec,
-{
+impl MeasureModel<SndDice> for Pfire2626Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
@@ -144,9 +149,134 @@ impl<S> MeasureModel<SndDice> for PfireModel<S>
     }
 }
 
-#[derive(Default, Debug)]
-struct SpecificCtl{
-    targets: [bool; KNOB_COUNT],
+#[derive(Default)]
+pub struct Pfire610Model {
+    req: FwReq,
+    sections: GeneralSections,
+    extension_sections: ExtensionSections,
+    ctl: CommonCtl,
+    tcd22xx_ctl: Tcd22xxCtl<Pfire610State>,
+    specific_ctl: Pfire610SpecificCtl,
+}
+
+#[derive(Default)]
+struct Pfire610SpecificCtl([bool; Pfire610Protocol::KNOB_COUNT]);
+
+impl AsRef<[bool]> for Pfire610SpecificCtl {
+    fn as_ref(&self) -> &[bool] {
+        &self.0
+    }
+}
+
+impl AsMut<[bool]> for Pfire610SpecificCtl {
+    fn as_mut(&mut self) -> &mut [bool] {
+        &mut self.0
+    }
+}
+
+impl SpecificCtlOperation<Pfire610Protocol> for Pfire610SpecificCtl {}
+
+impl CtlModel<SndDice> for Pfire610Model {
+    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let mut node = unit.get_node();
+
+        self.sections = self.req.read_general_sections(&mut node, TIMEOUT_MS)?;
+        let caps = ClockCaps::new(&Pfire610Protocol::AVAIL_CLK_RATES, Pfire610Protocol::AVAIL_CLK_SRCS);
+        let src_labels = self.req.read_clock_source_labels(&mut node, &self.sections, TIMEOUT_MS)?;
+        self.ctl.load(card_cntr, &caps, &src_labels)?;
+
+        self.extension_sections = self.req.read_extension_sections(&mut node, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.load(unit, &mut self.req, &self.extension_sections, &caps, &src_labels,
+                          TIMEOUT_MS, card_cntr)?;
+        self.specific_ctl.load(card_cntr)?;
+
+        self.tcd22xx_ctl.cache(unit, &mut self.req, &self.sections, &self.extension_sections, TIMEOUT_MS)?;
+
+        Ok(())
+    }
+
+    fn read(&mut self, unit: &mut SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.ctl.read(unit, &mut self.req, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.read(unit, &mut self.req, &self.extension_sections, elem_id,
+                                    elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.read(unit, &mut self.req, &self.extension_sections, elem_id,
+                                         elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(&mut self, unit: &mut SndDice, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.ctl.write(unit, &mut self.req, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.write(unit, &mut self.req, &self.extension_sections, elem_id,
+                                     old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.specific_ctl.write(unit, &mut self.req, &self.extension_sections, elem_id,
+                                          old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl NotifyModel<SndDice, u32> for Pfire610Model {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
+        self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
+    }
+
+    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.parse_notification(unit, &mut self.req, &self.sections,
+                                        &self.extension_sections, TIMEOUT_MS, *msg)?;
+        Ok(())
+    }
+
+    fn read_notified_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl MeasureModel<SndDice> for Pfire610Model {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
+        self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
+    }
+
+    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+        self.ctl.measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.measure_states(unit, &mut self.req, &self.extension_sections, TIMEOUT_MS)?;
+        Ok(())
+    }
+
+    fn measure_elem(&mut self, _: &SndDice, elem_id: &ElemId, elem_value: &mut ElemValue)
+        -> Result<bool, Error>
+    {
+        if self.ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.tcd22xx_ctl.measure_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 fn opt_iface_b_mode_to_str(mode: &OptIfaceMode) -> &'static str {
@@ -163,11 +293,11 @@ fn standalone_converter_mode_to_str(mode: &StandaloneConverterMode) -> &'static 
     }
 }
 
-impl SpecificCtl {
-    const MASTER_KNOB_NAME: &'static str = "master-knob-target";
-    const OPT_IFACE_B_MODE_NAME: &'static str = "optical-iface-b-mode";
-    const STANDALONE_CONVERTER_MODE_NAME: &'static str = "standalone-converter-mode";
+const MASTER_KNOB_NAME: &str = "master-knob-target";
+const OPT_IFACE_B_MODE_NAME: &str = "optical-iface-b-mode";
+const STANDALONE_CONVERTER_MODE_NAME: &str = "standalone-converter-mode";
 
+trait SpecificCtlOperation<T: PfireSpecificOperation>: AsRef<[bool]> + AsMut<[bool]> {
     // MEMO: Both models support 'Output{id: DstBlkId::Ins0, count: 8}'.
     const MASTER_KNOB_TARGET_LABELS: [&'static str; 4] = [
         "analog-out-1/2",
@@ -184,27 +314,30 @@ impl SpecificCtl {
         StandaloneConverterMode::AdOnly,
     ];
 
-    fn load(
-        &self,
-        caps: &ClockCaps,
-        src_labels: &ClockSourceLabels,
-        card_cntr: &mut CardCntr
-    ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MASTER_KNOB_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MASTER_KNOB_TARGET_LABELS.len(), true)?;
+    fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MASTER_KNOB_NAME, 0);
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::KNOB_COUNT, true)?;
 
         // NOTE: ClockSource::Tdif is used for second optical interface as 'ADAT_AUX'.
-        if ClockSource::Tdif.is_supported(caps, src_labels) {
+        if T::HAS_OPT_IFACE_B {
             let labels: Vec<&str> = Self::OPT_IFACE_B_MODES.iter()
                 .map(|m| opt_iface_b_mode_to_str(m))
                 .collect();
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_IFACE_B_MODE_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_IFACE_B_MODE_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        }
 
+        if T::SUPPORT_STANDALONE_CONVERTER {
             let labels: Vec<&str> = Self::STANDALONE_CONVERTER_MODES.iter()
                 .map(|m| standalone_converter_mode_to_str(m))
                 .collect();
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::STANDALONE_CONVERTER_MODE_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card,
+                0,
+                0,
+                STANDALONE_CONVERTER_MODE_NAME,
+                0
+            );
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
@@ -212,7 +345,7 @@ impl SpecificCtl {
     }
 
     fn read(
-        &self,
+        &mut self,
         unit: &mut SndDice,
         req: &mut FwReq,
         sections: &ExtensionSections,
@@ -221,23 +354,34 @@ impl SpecificCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MASTER_KNOB_NAME => {
-                let mut assigns = [false;KNOB_COUNT];
-                req.read_knob_assign(&mut unit.get_node(), sections, &mut assigns, timeout_ms)?;
-                elem_value.set_bool(&self.targets);
+            MASTER_KNOB_NAME => {
+                T::read_knob_assign(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &mut self.as_mut(),
+                    timeout_ms
+                )?;
+                elem_value.set_bool(&self.as_ref());
                 Ok(true)
             }
-            Self::OPT_IFACE_B_MODE_NAME => {
+            OPT_IFACE_B_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let mode = req.read_opt_iface_b_mode(&mut unit.get_node(), sections, timeout_ms)?;
+                    let mode = T::read_opt_iface_b_mode(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        timeout_ms
+                    )?;
                     let pos = Self::OPT_IFACE_B_MODES.iter().position(|m| mode.eq(m)).unwrap();
                     Ok(pos as u32)
                 })
                 .map(|_| true)
             }
-            Self::STANDALONE_CONVERTER_MODE_NAME => {
+            STANDALONE_CONVERTER_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let mode = req.read_standalone_converter_mode(
+                    let mode = T::read_standalone_converter_mode(
+                        req,
                         &mut unit.get_node(),
                         sections,
                         timeout_ms
@@ -265,27 +409,38 @@ impl SpecificCtl {
         timeout_ms: u32
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MASTER_KNOB_NAME => {
-                ElemValueAccessor::<bool>::get_vals(new, old, self.targets.len(), |idx, val| {
-                    self.targets[idx] = val;
+            MASTER_KNOB_NAME => {
+                ElemValueAccessor::<bool>::get_vals(new, old, T::KNOB_COUNT, |idx, val| {
+                    self.as_mut()[idx] = val;
                     Ok(())
                 })?;
-                let mut node = unit.get_node();
-                req.write_knob_assign(&mut node, sections, &self.targets, timeout_ms)?;
+                T::write_knob_assign(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &self.as_ref(),
+                    timeout_ms
+                )?;
                 Ok(true)
             }
-            Self::OPT_IFACE_B_MODE_NAME => {
+            OPT_IFACE_B_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let &mode = Self::OPT_IFACE_B_MODES.iter().nth(val as usize).ok_or_else(|| {
                         let msg = format!("Invalid value for index of optical interface mode: {}",
                                           val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                    req.write_opt_iface_b_mode(&mut unit.get_node(), sections, mode, timeout_ms)
+                    T::write_opt_iface_b_mode(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        mode,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
-            Self::STANDALONE_CONVERTER_MODE_NAME => {
+            STANDALONE_CONVERTER_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     let &mode = Self::STANDALONE_CONVERTER_MODES
                         .iter()
@@ -294,7 +449,13 @@ impl SpecificCtl {
                             let msg = format!("Invalid value for index of standalone converter mode: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    req.write_standalone_converter_mode(&mut unit.get_node(), sections, mode, timeout_ms)
+                    T::write_standalone_converter_mode(
+                        req,
+                        &mut unit.get_node(),
+                        sections,
+                        mode,
+                        timeout_ms
+                    )
                 })
                 .map(|_| true)
             }
