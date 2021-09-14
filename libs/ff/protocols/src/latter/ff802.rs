@@ -335,7 +335,7 @@ impl RmeFfLatterRegisterValueOperation for Ff802Status {
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterStatusProtocol<T, Ff802Status> for Ff802Protocol {}
+impl RmeFfLatterStatusOperation<Ff802Status> for Ff802Protocol {}
 
 const LINE_INPUT_COUNT: usize = 8;
 const MIC_INPUT_COUNT: usize = 4;
