@@ -21,7 +21,7 @@ use super::model::*;
 pub struct Ff400Model{
     req: Ff400Protocol,
     meter_ctl: MeterCtl,
-    out_ctl: FormerOutCtl<Ff400OutputVolumeState>,
+    out_ctl: OutputCtl,
     input_gain_ctl: InputGainCtl,
     mixer_ctl: FormerMixerCtl<Ff400MixerState>,
     status_ctl: StatusCtl,
@@ -112,6 +112,19 @@ impl FormerMeterCtlOperation<Ff400Protocol, Ff400MeterState> for MeterCtl {
         &mut self.0
     }
 
+}
+
+#[derive(Default, Debug)]
+struct OutputCtl(Ff400OutputVolumeState);
+
+impl FormerOutputCtlOperation<Ff400Protocol, Ff400OutputVolumeState> for OutputCtl {
+    fn state(&self) -> &Ff400OutputVolumeState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Ff400OutputVolumeState {
+        &mut self.0
+    }
 }
 
 #[derive(Default, Debug)]
