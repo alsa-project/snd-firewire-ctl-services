@@ -210,8 +210,7 @@ fn update_cfg<F>(unit: &SndUnit, proto: &Ff400Protocol, cfg: &mut Ff400Config, t
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    proto.write_cfg(&unit.get_node(), &cache, timeout_ms)
-        .map(|_| *cfg = cache)
+    Ff400Protocol::write_cfg(proto, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 #[derive(Default, Debug)]
@@ -390,7 +389,7 @@ impl<'a> CfgCtl {
         -> Result<(), Error>
     {
         self.0.init(&status);
-        proto.write_cfg(&unit.get_node(), &self.0, timeout_ms)?;
+        Ff400Protocol::write_cfg(proto, &mut unit.get_node(), &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
