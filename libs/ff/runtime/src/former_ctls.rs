@@ -253,14 +253,6 @@ impl< V> FormerMixerCtl<V>
     }
 }
 
-#[derive(Default, Debug)]
-pub struct FormerMeterCtl<V>
-    where V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
-{
-    state: V,
-    measured_elem_list: Vec<ElemId>,
-}
-
 const LEVEL_MIN: i32 = 0x00000000;
 const LEVEL_MAX: i32 = 0x7fffff00;
 const LEVEL_STEP: i32 = 0x100;
@@ -275,83 +267,88 @@ const ANALOG_OUTPUT_NAME: &str = "meter:analog-output";
 const SPDIF_OUTPUT_NAME: &str = "meter:spdif-output";
 const ADAT_OUTPUT_NAME: &str = "meter:adat-output";
 
-impl<V> FormerMeterCtl<V>
-    where V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
+pub trait FormerMeterCtlOperation<S, T>
+    where
+        S: RmeFfFormerMeterOperation<T>,
+        T: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
 {
-    pub fn load<U>(
+    fn meter(&self) -> &T;
+    fn meter_mut(&mut self) -> &mut T;
+
+    fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
+        req: &mut S,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where U: RmeFfFormerMeterOperation<V>,
-              V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
-    {
-        U::read_meter(req, &mut unit.get_node(), &mut self.state, timeout_ms)?;
+    ) -> Result<Vec<ElemId>, Error> {
+        S::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)?;
 
-        let s = self.state.as_ref();
+        let mut measured_elem_id_list = Vec::new();
+
         [
-            (ANALOG_INPUT_NAME, s.analog_inputs.len()),
-            (SPDIF_INPUT_NAME, s.spdif_inputs.len()),
-            (ADAT_INPUT_NAME, s.adat_inputs.len()),
-            (STREAM_INPUT_NAME, s.stream_inputs.len()),
-            (ANALOG_OUTPUT_NAME, s.analog_outputs.len()),
-            (SPDIF_OUTPUT_NAME, s.spdif_outputs.len()),
-            (ADAT_OUTPUT_NAME, s.adat_outputs.len()),
+            (ANALOG_INPUT_NAME, T::ANALOG_INPUT_COUNT),
+            (SPDIF_INPUT_NAME, T::SPDIF_INPUT_COUNT),
+            (ADAT_INPUT_NAME, T::ADAT_INPUT_COUNT),
+            (STREAM_INPUT_NAME, T::STREAM_INPUT_COUNT),
+            (ANALOG_OUTPUT_NAME, T::ANALOG_OUTPUT_COUNT),
+            (SPDIF_OUTPUT_NAME, T::SPDIF_OUTPUT_COUNT),
+            (ADAT_OUTPUT_NAME, T::ADAT_OUTPUT_COUNT),
         ].iter()
             .try_for_each(|&(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-                card_cntr.add_int_elems(&elem_id, 1, LEVEL_MIN, LEVEL_MAX, LEVEL_STEP, count,
-                                        Some(&Vec::<u32>::from(&LEVEL_TLV)), false)
-                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
+                card_cntr.add_int_elems(
+                    &elem_id,
+                    1,
+                    LEVEL_MIN,
+                    LEVEL_MAX,
+                    LEVEL_STEP,
+                    count,
+                    Some(&Vec::<u32>::from(&LEVEL_TLV)),
+                    false
+                )
+                    .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
             })
+                .map(|_| measured_elem_id_list)
     }
 
-    pub fn get_measured_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.measured_elem_list);
-    }
-
-    pub fn measure_states<U>(
+    fn measure_states(
         &mut self,
         unit: &SndUnit,
-        req: &mut U,
+        req: &mut S,
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where U: RmeFfFormerMeterOperation<V>,
-              V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
-    {
-        U::read_meter(req, &mut unit.get_node(), &mut self.state, timeout_ms)
+    ) -> Result<(), Error> {
+        S::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
     }
 
-    pub fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
+    fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ANALOG_INPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().analog_inputs);
+                elem_value.set_int(&self.meter().as_ref().analog_inputs);
                 Ok(true)
             }
             SPDIF_INPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().spdif_inputs);
+                elem_value.set_int(&self.meter().as_ref().spdif_inputs);
                 Ok(true)
             }
             ADAT_INPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().adat_inputs);
+                elem_value.set_int(&self.meter().as_ref().adat_inputs);
                 Ok(true)
             }
             STREAM_INPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().stream_inputs);
+                elem_value.set_int(&self.meter().as_ref().stream_inputs);
                 Ok(true)
             }
             ANALOG_OUTPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().analog_outputs);
+                elem_value.set_int(&self.meter().as_ref().analog_outputs);
                 Ok(true)
             }
             SPDIF_OUTPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().spdif_outputs);
+                elem_value.set_int(&self.meter().as_ref().spdif_outputs);
                 Ok(true)
             }
             ADAT_OUTPUT_NAME => {
-                elem_value.set_int(&self.state.as_ref().adat_outputs);
+                elem_value.set_int(&self.meter().as_ref().adat_outputs);
                 Ok(true)
             }
             _ => Ok(false),

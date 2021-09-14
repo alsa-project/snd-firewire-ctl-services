@@ -22,7 +22,7 @@ pub struct Ff800Model{
     status_ctl: StatusCtl,
     out_ctl: FormerOutCtl<Ff800OutputVolumeState>,
     mixer_ctl: FormerMixerCtl<Ff800MixerState>,
-    meter_ctl: FormerMeterCtl<Ff800MeterState>,
+    meter_ctl: MeterCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -33,7 +33,8 @@ impl CtlModel<SndUnit> for Ff800Model {
         self.cfg_ctl.load(unit, &mut self.req, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
         self.out_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
-        self.meter_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.meter_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
@@ -70,7 +71,7 @@ impl CtlModel<SndUnit> for Ff800Model {
 impl MeasureModel<SndUnit> for Ff800Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
-        self.meter_ctl.get_measured_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
@@ -92,6 +93,19 @@ impl MeasureModel<SndUnit> for Ff800Model {
     }
 }
 
+#[derive(Default, Debug)]
+struct MeterCtl(Ff800MeterState, Vec<ElemId>);
+
+impl FormerMeterCtlOperation<Ff800Protocol, Ff800MeterState> for MeterCtl {
+    fn meter(&self) -> &Ff800MeterState {
+        &self.0
+    }
+
+    fn meter_mut(&mut self) -> &mut Ff800MeterState {
+        &mut self.0
+    }
+
+}
 fn update_cfg<F>(
     unit: &mut SndUnit,
     req: &mut Ff800Protocol,

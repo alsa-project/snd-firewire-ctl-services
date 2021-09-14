@@ -20,7 +20,7 @@ use super::model::*;
 #[derive(Default, Debug)]
 pub struct Ff400Model{
     req: Ff400Protocol,
-    meter_ctl: FormerMeterCtl<Ff400MeterState>,
+    meter_ctl: MeterCtl,
     out_ctl: FormerOutCtl<Ff400OutputVolumeState>,
     input_gain_ctl: InputGainCtl,
     mixer_ctl: FormerMixerCtl<Ff400MixerState>,
@@ -32,7 +32,8 @@ const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for Ff400Model {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.meter_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.meter_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.out_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.mixer_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
         self.input_gain_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
@@ -76,7 +77,7 @@ impl CtlModel<SndUnit> for Ff400Model {
 
 impl MeasureModel<SndUnit> for Ff400Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        self.meter_ctl.get_measured_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
     }
 
@@ -97,6 +98,20 @@ impl MeasureModel<SndUnit> for Ff400Model {
             Ok(false)
         }
     }
+}
+
+#[derive(Default, Debug)]
+struct MeterCtl(Ff400MeterState, Vec<ElemId>);
+
+impl FormerMeterCtlOperation<Ff400Protocol, Ff400MeterState> for MeterCtl {
+    fn meter(&self) -> &Ff400MeterState {
+        &self.0
+    }
+
+    fn meter_mut(&mut self) -> &mut Ff400MeterState {
+        &mut self.0
+    }
+
 }
 
 #[derive(Default, Debug)]
