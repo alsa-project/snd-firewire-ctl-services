@@ -21,7 +21,7 @@ pub struct UcxModel{
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     meter_ctl: MeterCtl,
-    dsp_ctl: FfLatterDspCtl<FfUcxDspState>,
+    dsp_ctl: DspCtl,
 }
 
 const TIMEOUT_MS: u32 = 100;
@@ -95,6 +95,19 @@ impl FfLatterMeterCtlOperation<FfUcxProtocol, FfUcxMeterState> for MeterCtl {
     }
 
     fn meter_mut(&mut self) -> &mut FfUcxMeterState {
+        &mut self.0
+    }
+}
+
+#[derive(Default, Debug)]
+struct DspCtl(FfLatterDspState);
+
+impl FfLatterDspCtlOperation<FfUcxProtocol> for DspCtl {
+    fn state(&self) -> &FfLatterDspState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut FfLatterDspState {
         &mut self.0
     }
 }

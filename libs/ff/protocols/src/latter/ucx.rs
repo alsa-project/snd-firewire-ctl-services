@@ -351,23 +351,7 @@ impl Default for FfUcxMeterState {
 
 impl RmeFfLatterMeterOperation<FfUcxMeterState> for FfUcxProtocol {}
 
-/// The structure to represent state of DSP.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfUcxDspState(FfLatterDspState);
-
-impl AsRef<FfLatterDspState> for FfUcxDspState {
-    fn as_ref(&self) -> &FfLatterDspState {
-        &self.0
-    }
-}
-
-impl AsMut<FfLatterDspState> for FfUcxDspState {
-    fn as_mut(&mut self) -> &mut FfLatterDspState {
-        &mut self.0
-    }
-}
-
-impl RmeFfLatterDspSpec for FfUcxDspState {
+impl RmeFfLatterDspOperation for FfUcxProtocol {
     const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
     const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
     const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
@@ -379,11 +363,3 @@ impl RmeFfLatterDspSpec for FfUcxDspState {
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
-
-impl Default for FfUcxDspState {
-    fn default() -> Self {
-        Self(Self::create_dsp_state())
-    }
-}
-
-impl RmeFfLatterDspOperation<FfUcxDspState> for FfUcxProtocol {}
