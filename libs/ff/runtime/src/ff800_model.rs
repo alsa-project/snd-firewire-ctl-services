@@ -21,7 +21,7 @@ pub struct Ff800Model{
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     out_ctl: OutputCtl,
-    mixer_ctl: FormerMixerCtl<Ff800MixerState>,
+    mixer_ctl: MixerCtl,
     meter_ctl: MeterCtl,
 }
 
@@ -116,6 +116,19 @@ impl FormerOutputCtlOperation<Ff800Protocol, Ff800OutputVolumeState> for OutputC
     }
 
     fn state_mut(&mut self) -> &mut Ff800OutputVolumeState {
+        &mut self.0
+    }
+}
+
+#[derive(Default, Debug)]
+struct MixerCtl(Ff800MixerState);
+
+impl FormerMixerCtlOperation<Ff800Protocol, Ff800MixerState> for MixerCtl {
+    fn state(&self) -> &Ff800MixerState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Ff800MixerState {
         &mut self.0
     }
 }

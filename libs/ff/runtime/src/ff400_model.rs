@@ -23,7 +23,7 @@ pub struct Ff400Model{
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
     input_gain_ctl: InputGainCtl,
-    mixer_ctl: FormerMixerCtl<Ff400MixerState>,
+    mixer_ctl: MixerCtl,
     status_ctl: StatusCtl,
     cfg_ctl: CfgCtl,
 }
@@ -123,6 +123,19 @@ impl FormerOutputCtlOperation<Ff400Protocol, Ff400OutputVolumeState> for OutputC
     }
 
     fn state_mut(&mut self) -> &mut Ff400OutputVolumeState {
+        &mut self.0
+    }
+}
+
+#[derive(Default, Debug)]
+struct MixerCtl(Ff400MixerState);
+
+impl FormerMixerCtlOperation<Ff400Protocol, Ff400MixerState> for MixerCtl {
+    fn state(&self) -> &Ff400MixerState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Ff400MixerState {
         &mut self.0
     }
 }
