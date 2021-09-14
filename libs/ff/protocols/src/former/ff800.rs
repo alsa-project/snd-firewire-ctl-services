@@ -73,10 +73,7 @@ impl Default for Ff800MeterState {
     }
 }
 
-impl<T, O> RmeFfFormerMeterProtocol<T, Ff800MeterState> for O
-    where T: AsRef<FwNode>,
-          O: AsRef<FwReq>,
-{
+impl RmeFfFormerMeterOperation<Ff800MeterState> for Ff800Protocol {
     const METER_OFFSET: usize = METER_OFFSET;
 }
 

@@ -52,13 +52,17 @@ pub trait FormerMeterSpec {
 }
 
 /// The trait to represent meter protocol of Fireface 400.
-pub trait RmeFfFormerMeterProtocol<T, U> : AsRef<FwReq>
-    where T: AsRef<FwNode>,
-          U: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
+pub trait RmeFfFormerMeterOperation<U> : AsRef<FwReq>
+    where U: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
 {
     const METER_OFFSET: usize;
 
-    fn read_meter(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_meter(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let phys_input_count = U::ANALOG_INPUT_COUNT + U::SPDIF_INPUT_COUNT + U::ADAT_INPUT_COUNT;
         let phys_output_count = U::ANALOG_OUTPUT_COUNT + U::SPDIF_OUTPUT_COUNT + U::ADAT_OUTPUT_COUNT;
 
@@ -72,8 +76,14 @@ pub trait RmeFfFormerMeterProtocol<T, U> : AsRef<FwReq>
         let length = 8 * (phys_input_count + phys_output_count * 2) +
                      4 * (phys_input_count + U::STREAM_INPUT_COUNT + phys_output_count);
         let mut raw = vec![0;length];
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::ReadBlockRequest, Self::METER_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            Self::METER_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
                 let s = state.as_mut();
 
