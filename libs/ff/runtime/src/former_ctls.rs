@@ -29,14 +29,19 @@ const VOL_NAME: &str = "output-volume";
 impl< V> FormerOutCtl<V>
     where V: AsRef<[i32]> + AsMut<[i32]>,
 {
-    pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
+    pub fn load<U>(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut U,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error>
         where U: RmeFormerOutputOperation<V>,
               V: AsRef<[i32]> + AsMut<[i32]>,
     {
         self.state.as_mut().iter_mut()
             .for_each(|vol| *vol = VOL_ZERO);
-        U::init_output_vols(proto, &mut unit.get_node(), &self.state, timeout_ms)?;
+        U::init_output_vols(req, &mut unit.get_node(), &self.state, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
@@ -55,9 +60,14 @@ impl< V> FormerOutCtl<V>
         }
     }
 
-    pub fn write<U>(&mut self, unit: &SndUnit, proto: &U, elem_id: &ElemId, new: &alsactl::ElemValue,
-                    timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<U>(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut U,
+        elem_id: &ElemId,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where U: RmeFormerOutputOperation<V>,
               V: AsRef<[i32]> + AsMut<[i32]>,
     {
@@ -65,7 +75,7 @@ impl< V> FormerOutCtl<V>
             VOL_NAME => {
                 let mut vals = self.state.as_ref().to_vec();
                 new.get_int(&mut vals);
-                U::write_output_vols(proto, &mut unit.get_node(), &mut self.state, &vals, timeout_ms)
+                U::write_output_vols(req, &mut unit.get_node(), &mut self.state, &vals, timeout_ms)
                     .map(|_| true)
             },
             _ => Ok(false),
@@ -94,8 +104,13 @@ const STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 impl< V> FormerMixerCtl<V>
     where V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
 {
-    pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
+    pub fn load<U>(
+        &mut self,
+        unit: &SndUnit,
+        req: &mut U,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error>
         where U: RmeFormerMixerOperation<V>,
               V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
     {
@@ -115,7 +130,7 @@ impl< V> FormerMixerCtl<V>
 
         (0..self.state.as_ref().len())
             .try_for_each(|i| {
-                U::init_mixer_src_gains(proto, &mut unit.get_node(), &mut self.state, i, timeout_ms)
+                U::init_mixer_src_gains(req, &mut unit.get_node(), &mut self.state, i, timeout_ms)
             })?;
 
         let mixers = self.state.as_ref();
@@ -165,9 +180,14 @@ impl< V> FormerMixerCtl<V>
         }
     }
 
-    pub fn write<U>(&mut self, unit: &SndUnit, proto: &U, elem_id: &ElemId, new: &alsactl::ElemValue,
-                    timeout_ms: u32)
-        -> Result<bool, Error>
+    pub fn write<U>(
+        &mut self,
+        unit: &SndUnit,
+        req: &mut U,
+        elem_id: &ElemId,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error>
         where U: RmeFormerMixerOperation<V>,
               V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
     {
@@ -177,7 +197,7 @@ impl< V> FormerMixerCtl<V>
                 let mut gains = self.state.as_mut()[index].analog_gains.clone();
                 new.get_int(&mut gains);
                 U::write_mixer_analog_gains(
-                    proto,
+                    req,
                     &mut unit.get_node(),
                     &mut self.state,
                     index,
@@ -191,7 +211,7 @@ impl< V> FormerMixerCtl<V>
                 let mut gains = self.state.as_mut()[index].spdif_gains.clone();
                 new.get_int(&mut gains);
                 U::write_mixer_spdif_gains(
-                    proto,
+                    req,
                     &mut unit.get_node(),
                     &mut self.state,
                     index,
@@ -205,7 +225,7 @@ impl< V> FormerMixerCtl<V>
                 let mut gains = self.state.as_mut()[index].adat_gains.clone();
                 new.get_int(&mut gains);
                 U::write_mixer_adat_gains(
-                    proto,
+                    req,
                     &mut unit.get_node(),
                     &mut self.state,
                     index,
@@ -219,7 +239,7 @@ impl< V> FormerMixerCtl<V>
                 let mut gains = self.state.as_mut()[index].stream_gains.clone();
                 new.get_int(&mut gains);
                 U::write_mixer_stream_gains(
-                    proto,
+                    req,
                     &mut unit.get_node(),
                     &mut self.state,
                     index,
@@ -258,12 +278,17 @@ const ADAT_OUTPUT_NAME: &str = "meter:adat-output";
 impl<V> FormerMeterCtl<V>
     where V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
 {
-    pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
+    pub fn load<U>(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut U,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error>
         where U: RmeFfFormerMeterOperation<V>,
               V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
     {
-        U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)?;
+        U::read_meter(req, &mut unit.get_node(), &mut self.state, timeout_ms)?;
 
         let s = self.state.as_ref();
         [
@@ -287,17 +312,19 @@ impl<V> FormerMeterCtl<V>
         elem_id_list.extend_from_slice(&self.measured_elem_list);
     }
 
-    pub fn measure_states<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32)
-        -> Result<(), Error>
+    pub fn measure_states<U>(
+        &mut self,
+        unit: &SndUnit,
+        req: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error>
         where U: RmeFfFormerMeterOperation<V>,
               V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
     {
-        U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)
+        U::read_meter(req, &mut unit.get_node(), &mut self.state, timeout_ms)
     }
 
-    pub fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue)
-        -> Result<bool, Error>
-    {
+    pub fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ANALOG_INPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().analog_inputs);

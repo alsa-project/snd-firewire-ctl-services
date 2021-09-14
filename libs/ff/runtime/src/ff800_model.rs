@@ -17,7 +17,7 @@ use super::former_ctls::*;
 
 #[derive(Default, Debug)]
 pub struct Ff800Model{
-    proto: Ff800Protocol,
+    req: Ff800Protocol,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     out_ctl: FormerOutCtl<Ff800OutputVolumeState>,
@@ -29,11 +29,11 @@ const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for Ff800Model {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
-        self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
-        self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.mixer_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.meter_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
+        self.status_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
+        self.cfg_ctl.load(unit, &mut self.req, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
+        self.out_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.mixer_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.meter_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -55,11 +55,11 @@ impl CtlModel<SndUnit> for Ff800Model {
     fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        if self.cfg_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        } else if self.out_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        } else if self.mixer_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -74,8 +74,8 @@ impl MeasureModel<SndUnit> for Ff800Model {
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
-        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
-        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        self.status_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -92,13 +92,18 @@ impl MeasureModel<SndUnit> for Ff800Model {
     }
 }
 
-fn update_cfg<F>(unit: &SndUnit, proto: &Ff800Protocol, cfg: &mut Ff800Config, timeout_ms: u32, cb: F)
-    -> Result<(), Error>
+fn update_cfg<F>(
+    unit: &mut SndUnit,
+    req: &mut Ff800Protocol,
+    cfg: &mut Ff800Config,
+    timeout_ms: u32,
+    cb: F
+) -> Result<(), Error>
     where F: Fn(&mut Ff800Config) -> Result<(), Error>,
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    Ff800Protocol::write_cfg(proto, &mut unit.get_node(), &cache, timeout_ms)
+    Ff800Protocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms)
         .map(|_| *cfg = cache)
 }
 
@@ -155,10 +160,14 @@ impl StatusCtl {
         Some(ClkNominalRate::R192000),
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff800Protocol, timeout_ms: u32, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
-        Ff800Protocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff800Protocol,
+        timeout_ms: u32,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error> {
+        Ff800Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
@@ -187,10 +196,13 @@ impl StatusCtl {
         Ok(())
     }
 
-    fn measure_states(&mut self, unit: &SndUnit, proto: &Ff800Protocol, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        Ff800Protocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)
+    fn measure_states(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff800Protocol,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        Ff800Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -318,12 +330,16 @@ impl CfgCtl {
         OpticalOutputSignal::Spdif,
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff800Protocol, status: &Ff800Status, card_cntr: &mut CardCntr,
-            timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff800Protocol,
+        status: &Ff800Status,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.0.init(&status);
-        Ff800Protocol::write_cfg(proto, &mut unit.get_node(), &self.0, timeout_ms)?;
+        Ff800Protocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
@@ -395,7 +411,11 @@ impl CfgCtl {
         Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRIMARY_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
@@ -494,13 +514,18 @@ impl CfgCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, proto: &Ff800Protocol, elem_id: &ElemId,
-             old: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff800Protocol,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRIMARY_CLK_SRC_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         let src = Self::CLK_SRCS.iter()
                             .nth(val as usize)
@@ -515,7 +540,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             INPUT_JACK_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_vals(new, old, 3, |idx, val| {
                         let jack = Self::INPUT_JACKS.iter()
                             .nth(val as usize)
@@ -530,7 +555,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::INPUT_LINE_LEVELS.iter()
                             .nth(val as usize)
@@ -544,14 +569,14 @@ impl CfgCtl {
                 .map(|_| true)
             }
             INPUT_POWER_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     new.get_bool(&mut cfg.analog_in.phantom_powering);
                     Ok(())
                 })
                 .map(|_| true)
             }
             INPUT_INST_DRIVE_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.analog_in.inst.drive = val;
                         Ok(())
@@ -560,7 +585,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             INPUT_INST_LIMITTER_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.analog_in.inst.limitter = val;
                         Ok(())
@@ -569,7 +594,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             INPUT_INST_SPKR_EMU_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.analog_in.inst.speaker_emulation = val;
                         Ok(())
@@ -578,7 +603,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             OUTPUT_LINE_LEVEL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::OUTPUT_LINE_LEVELS.iter()
                             .nth(val as usize)
@@ -592,7 +617,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_INPUT_IFACE_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::SPDIF_IFACES.iter()
                             .nth(val as usize)
@@ -606,7 +631,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_INPUT_USE_PREEMBLE_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_in.use_preemble = val;
                         Ok(())
@@ -615,7 +640,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_OUTPUT_FMT_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::SPDIF_FMTS.iter()
                             .nth(val as usize)
@@ -629,7 +654,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_OUTPUT_EMPHASIS_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_out.emphasis = val;
                         Ok(())
@@ -638,7 +663,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_OUTPUT_NON_AUDIO_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_out.non_audio = val;
                         Ok(())
@@ -647,7 +672,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             OPT_OUTPUT_SIGNAL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::OPT_OUT_SIGNALS.iter()
                             .nth(val as usize)
@@ -661,7 +686,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.word_out_single = val;
                         Ok(())

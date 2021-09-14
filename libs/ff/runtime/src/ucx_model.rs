@@ -17,7 +17,7 @@ use super::latter_ctls::*;
 
 #[derive(Default, Debug)]
 pub struct UcxModel{
-    proto: FfUcxProtocol,
+    req: FfUcxProtocol,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     meter_ctl: FfLatterMeterCtl<FfUcxMeterState>,
@@ -28,10 +28,10 @@ const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for UcxModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.cfg_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
-        self.status_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
-        self.meter_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
-        self.dsp_ctl.load(unit, &self.proto, TIMEOUT_MS, card_cntr)?;
+        self.cfg_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
+        self.status_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
+        self.meter_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
+        self.dsp_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         Ok(())
     }
 
@@ -50,9 +50,9 @@ impl CtlModel<SndUnit> for UcxModel {
     fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.cfg_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        if self.cfg_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.dsp_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        } else if self.dsp_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -67,8 +67,8 @@ impl MeasureModel<SndUnit> for UcxModel {
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
-        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
-        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        self.status_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -94,13 +94,18 @@ fn clk_src_to_string(src: &FfUcxClkSrc) -> String {
     }.to_string()
 }
 
-fn update_cfg<F>(unit: &SndUnit, proto: &FfUcxProtocol, cfg: &mut FfUcxConfig, timeout_ms: u32, cb: F)
-    -> Result<(), Error>
+fn update_cfg<F>(
+    unit: &mut SndUnit,
+    req: &mut FfUcxProtocol,
+    cfg: &mut FfUcxConfig,
+    timeout_ms: u32,
+    cb: F
+) -> Result<(), Error>
     where F: Fn(&mut FfUcxConfig) -> Result<(), Error>,
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    FfUcxProtocol::write_cfg(proto, &mut unit.get_node(), &cache, timeout_ms)
+    FfUcxProtocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms)
         .map(|_| *cfg = cache)
 }
 
@@ -144,10 +149,14 @@ impl CfgCtl {
         SpdifFormat::Professional,
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
-        FfUcxProtocol::write_cfg(proto, &mut unit.get_node(), &self.0, timeout_ms)?;
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut FfUcxProtocol,
+        timeout_ms: u32,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error> {
+        FfUcxProtocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
@@ -179,7 +188,11 @@ impl CfgCtl {
         Ok(())
     }
 
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRIMARY_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
@@ -224,13 +237,17 @@ impl CfgCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, elem_id: &ElemId,
-             elem_value: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut FfUcxProtocol,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRIMARY_CLK_SRC_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         let src = Self::CLK_SRCS.iter()
                             .nth(val as usize)
@@ -245,7 +262,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             OPT_OUTPUT_SIGNAL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         Self::OPT_OUT_SIGNALS.iter()
                             .nth(val as usize)
@@ -261,14 +278,14 @@ impl CfgCtl {
             EFFECT_ON_INPUT_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     cfg.effect_on_inputs = vals[0];
                     Ok(())
                 })
                 .map(|_| true)
             }
             SPDIF_OUTPUT_FMT_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         Self::SPDIF_FMTS.iter()
                             .nth(val as usize)
@@ -282,7 +299,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                         cfg.word_out_single = val;
                         Ok(())
@@ -291,7 +308,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             WORD_CLOCK_IN_TERMINATE_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                         cfg.word_in_terminate = val;
                         Ok(())
@@ -336,10 +353,14 @@ impl StatusCtl {
         Some(ClkNominalRate::R192000),
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
-        FfUcxProtocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut FfUcxProtocol,
+        timeout_ms: u32,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error> {
+        FfUcxProtocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         [EXT_SRC_LOCK_NAME, EXT_SRC_SYNC_NAME].iter()
             .try_for_each(|name| {
@@ -372,10 +393,13 @@ impl StatusCtl {
         Ok(())
     }
 
-    fn measure_states(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        FfUcxProtocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)
+    fn measure_states(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut FfUcxProtocol,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        FfUcxProtocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {

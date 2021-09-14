@@ -19,7 +19,7 @@ use super::model::*;
 
 #[derive(Default, Debug)]
 pub struct Ff400Model{
-    proto: Ff400Protocol,
+    req: Ff400Protocol,
     meter_ctl: FormerMeterCtl<Ff400MeterState>,
     out_ctl: FormerOutCtl<Ff400OutputVolumeState>,
     input_gain_ctl: InputGainCtl,
@@ -32,12 +32,12 @@ const TIMEOUT_MS: u32 = 100;
 
 impl CtlModel<SndUnit> for Ff400Model {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.meter_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.out_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.mixer_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.input_gain_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.status_ctl.load(unit, &self.proto, card_cntr, TIMEOUT_MS)?;
-        self.cfg_ctl.load(unit, &self.proto, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
+        self.meter_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.out_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.mixer_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.input_gain_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.status_ctl.load(unit, &mut self.req, card_cntr, TIMEOUT_MS)?;
+        self.cfg_ctl.load(unit, &mut self.req, &self.status_ctl.status, card_cntr, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -60,13 +60,13 @@ impl CtlModel<SndUnit> for Ff400Model {
     fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
         -> Result<bool, Error>
     {
-        if self.out_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        if self.out_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.mixer_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        } else if self.mixer_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.input_gain_ctl.write(unit, &self.proto, elem_id, new, TIMEOUT_MS)? {
+        } else if self.input_gain_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.cfg_ctl.write(unit, &self.proto, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self.cfg_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
@@ -81,8 +81,8 @@ impl MeasureModel<SndUnit> for Ff400Model {
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
-        self.status_ctl.measure_states(unit, &self.proto, TIMEOUT_MS)?;
+        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+        self.status_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -118,10 +118,14 @@ impl InputGainCtl {
     const LINE_GAIN_STEP: i32 = 1;
     const LINE_GAIN_TLV: DbInterval = DbInterval{min: 0, max: 18000, linear: false, mute_avail: false};
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        Ff400Protocol::init_input_gains(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff400Protocol,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        Ff400Protocol::init_input_gains(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIC_GAIN_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::MIC_GAIN_MIN, Self::MIC_GAIN_MAX, Self::MIC_GAIN_STEP,
@@ -154,10 +158,14 @@ impl InputGainCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, proto: &Ff400Protocol, elem_id: &ElemId,
-             elem_value: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff400Protocol,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIC_GAIN_NAME => {
                 let mut vals = [0;2];
@@ -166,7 +174,7 @@ impl InputGainCtl {
                     .map(|&val| val as i8)
                     .collect();
                 Ff400Protocol::write_input_mic_gains(
-                    proto,
+                    req,
                     &mut unit.get_node(),
                     &mut self.status,
                     &gains,
@@ -181,7 +189,7 @@ impl InputGainCtl {
                     .map(|&val| val as i8)
                     .collect();
                 Ff400Protocol::write_input_line_gains(
-                    proto,
+                    req,
                     &mut unit.get_node(),
                     &mut self.status,
                     &gains,
@@ -204,13 +212,18 @@ fn clk_src_to_string(src: &Ff400ClkSrc) -> String {
     }.to_string()
 }
 
-fn update_cfg<F>(unit: &SndUnit, proto: &Ff400Protocol, cfg: &mut Ff400Config, timeout_ms: u32, cb: F)
-    -> Result<(), Error>
+fn update_cfg<F>(
+    unit: &mut SndUnit,
+    req: &mut Ff400Protocol,
+    cfg: &mut Ff400Config,
+    timeout_ms: u32,
+    cb: F
+) -> Result<(), Error>
     where F: Fn(&mut Ff400Config) -> Result<(), Error>,
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    Ff400Protocol::write_cfg(proto, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
+    Ff400Protocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 #[derive(Default, Debug)]
@@ -246,10 +259,14 @@ impl StatusCtl {
         Some(ClkNominalRate::R192000),
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        Ff400Protocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff400Protocol,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        Ff400Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
@@ -278,10 +295,13 @@ impl StatusCtl {
         Ok(())
     }
 
-    fn measure_states(&mut self, unit: &SndUnit, proto: &Ff400Protocol, timeout_ms: u32)
-        -> Result<(), Error>
-    {
-        Ff400Protocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)
+    fn measure_states(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff400Protocol,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        Ff400Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -384,12 +404,16 @@ impl CfgCtl {
         OpticalOutputSignal::Spdif,
     ];
 
-    fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, status: &Ff400Status, card_cntr: &mut CardCntr,
-            timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff400Protocol,
+        status: &Ff400Status,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.0.init(&status);
-        Ff400Protocol::write_cfg(proto, &mut unit.get_node(), &self.0, timeout_ms)?;
+        Ff400Protocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
@@ -577,10 +601,15 @@ impl CfgCtl {
         }
     }
 
-    fn write(&mut self, unit: &SndUnit, proto: &Ff400Protocol, elem_id: &ElemId,
-             _: &alsactl::ElemValue, new: &alsactl::ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut Ff400Protocol,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRIMARY_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
@@ -591,13 +620,13 @@ impl CfgCtl {
                             Error::new(FileError::Inval, &msg)
                         })
                         .and_then(|&src| {
-                            update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| Ok(cfg.clk.primary_src = src))
+                            update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| Ok(cfg.clk.primary_src = src))
                         })
                 })
                 .map(|_| true)
             }
             LINE_INPUT_LEVEL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::LINE_INPUT_LEVELS.iter()
                             .nth(val as usize)
@@ -611,25 +640,25 @@ impl CfgCtl {
                 .map(|_| true)
             }
             MIC_POWER_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     Ok(new.get_bool(&mut cfg.analog_in.phantom_powering))
                 })
                 .map(|_| true)
             }
             LINE_INST_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     Ok(new.get_bool(&mut cfg.analog_in.insts))
                 })
                 .map(|_| true)
             }
             LINE_PAD_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     Ok(new.get_bool(&mut cfg.analog_in.pad))
                 })
                 .map(|_| true)
             }
             LINE_OUTPUT_LEVEL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::LINE_OUTPUT_LEVELS.iter()
                             .nth(val as usize)
@@ -643,7 +672,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             HP_OUTPUT_LEVEL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::LINE_OUTPUT_LEVELS.iter()
                             .nth(val as usize)
@@ -657,7 +686,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_INPUT_IFACE_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::SPDIF_IFACES.iter()
                             .nth(val as usize)
@@ -671,7 +700,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_INPUT_USE_PREEMBLE_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_in.use_preemble = val;
                         Ok(())
@@ -680,7 +709,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_OUTPUT_FMT_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::SPDIF_FMTS.iter()
                             .nth(val as usize)
@@ -694,7 +723,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_OUTPUT_EMPHASIS_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_out.emphasis = val;
                         Ok(())
@@ -703,7 +732,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             SPDIF_OUTPUT_NON_AUDIO_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_out.non_audio = val;
                         Ok(())
@@ -712,7 +741,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             OPT_OUTPUT_SIGNAL_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::OPT_OUT_SIGNALS.iter()
                             .nth(val as usize)
@@ -726,7 +755,7 @@ impl CfgCtl {
                 .map(|_| true)
             }
             WORD_CLOCK_SINGLE_SPPED_NAME => {
-                update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
+                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.word_out_single = val;
                         Ok(())
