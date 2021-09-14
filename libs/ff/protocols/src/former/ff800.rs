@@ -9,13 +9,7 @@ use crate::*;
 
 /// The structure to represent unique protocol for Fireface 800.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct Ff800Protocol(FwReq);
-
-impl AsRef<FwReq> for Ff800Protocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct Ff800Protocol;
 
 const MIXER_OFFSET: usize       = 0x000080080000;
 const OUTPUT_OFFSET: usize      = 0x000080081f80;
@@ -98,7 +92,7 @@ impl AsMut<[i32]> for Ff800OutputVolumeState {
 
 impl RmeFormerOutputOperation<Ff800OutputVolumeState> for Ff800Protocol {
     fn write_output_vol(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         ch: usize,
         vol: i32,
@@ -106,7 +100,7 @@ impl RmeFormerOutputOperation<Ff800OutputVolumeState> for Ff800Protocol {
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         raw.copy_from_slice(&vol.to_le_bytes());
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
             (OUTPUT_OFFSET + ch * 4) as u64,
@@ -392,13 +386,13 @@ impl Ff800Status {
 
 impl Ff800Protocol {
     pub fn read_status(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         status: &mut Ff800Status,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut raw = [0; 8];
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
             STATUS_OFFSET as u64,
@@ -825,7 +819,7 @@ impl Ff800Config {
 
 impl Ff800Protocol {
     pub fn write_cfg(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         cfg: &Ff800Config,
         timeout_ms: u32
@@ -840,7 +834,7 @@ impl Ff800Protocol {
                 let pos = i * 4;
                 raw[pos..(pos + 4)].copy_from_slice(&quad.to_le_bytes())
             });
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
             CFG_OFFSET as u64,

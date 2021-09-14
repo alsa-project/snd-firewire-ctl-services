@@ -2,9 +2,10 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
+use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -19,7 +20,7 @@ use super::model::*;
 
 #[derive(Default, Debug)]
 pub struct Ff400Model{
-    req: Ff400Protocol,
+    req: FwReq,
     meter_ctl: MeterCtl,
     out_ctl: OutputCtl,
     input_gain_ctl: InputGainCtl,
@@ -162,7 +163,7 @@ impl InputGainCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff400Protocol,
+        req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<(), Error> {
@@ -202,7 +203,7 @@ impl InputGainCtl {
     fn write(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff400Protocol,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
@@ -255,7 +256,7 @@ fn clk_src_to_string(src: &Ff400ClkSrc) -> String {
 
 fn update_cfg<F>(
     unit: &mut SndUnit,
-    req: &mut Ff400Protocol,
+    req: &mut FwReq,
     cfg: &mut Ff400Config,
     timeout_ms: u32,
     cb: F
@@ -303,7 +304,7 @@ impl StatusCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff400Protocol,
+        req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<(), Error> {
@@ -339,7 +340,7 @@ impl StatusCtl {
     fn measure_states(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff400Protocol,
+        req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
         Ff400Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
@@ -448,7 +449,7 @@ impl CfgCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff400Protocol,
+        req: &mut FwReq,
         status: &Ff400Status,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
@@ -645,7 +646,7 @@ impl CfgCtl {
     fn write(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff400Protocol,
+        req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,

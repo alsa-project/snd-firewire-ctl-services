@@ -52,13 +52,13 @@ pub trait FormerMeterSpec {
 }
 
 /// The trait to represent meter protocol of Fireface 400.
-pub trait RmeFfFormerMeterOperation<U> : AsRef<FwReq>
+pub trait RmeFfFormerMeterOperation<U>
     where U: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
 {
     const METER_OFFSET: usize;
 
     fn read_meter(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         timeout_ms: u32
@@ -76,7 +76,7 @@ pub trait RmeFfFormerMeterOperation<U> : AsRef<FwReq>
         let length = 8 * (phys_input_count + phys_output_count * 2) +
                      4 * (phys_input_count + U::STREAM_INPUT_COUNT + phys_output_count);
         let mut raw = vec![0;length];
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
             Self::METER_OFFSET as u64,
@@ -115,25 +115,30 @@ pub trait RmeFfFormerMeterOperation<U> : AsRef<FwReq>
 ///
 /// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
 /// represent the range from negative infinite to 6.00 dB through -90.30 dB and 0.00 dB.
-pub trait RmeFormerOutputOperation<U> : AsRef<FwReq>
+pub trait RmeFormerOutputOperation<U>
     where U: AsRef<[i32]> + AsMut<[i32]>,
 {
     fn write_output_vol(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         ch: usize,
         vol: i32,
         timeout_ms: u32
     ) -> Result<(), Error>;
 
-    fn init_output_vols(&self, node: &mut FwNode, state: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn init_output_vols(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         state.as_ref().iter()
             .enumerate()
-            .try_for_each(|(i, vol)| self.write_output_vol(node, i, *vol, timeout_ms))
+            .try_for_each(|(i, vol)| Self::write_output_vol(req, node, i, *vol, timeout_ms))
     }
 
     fn write_output_vols(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         vols: &[i32],
@@ -144,7 +149,7 @@ pub trait RmeFormerOutputOperation<U> : AsRef<FwReq>
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {
-                self.write_output_vol(node, i, *n, timeout_ms)
+                Self::write_output_vol(req, node, i, *n, timeout_ms)
                     .map(|_| *o = *n)
             })
     }
@@ -187,14 +192,14 @@ pub trait RmeFormerMixerSpec : AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>
 }
 
 /// The trait to represent mixer protocol specific to former models of RME Fireface.
-pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
+pub trait RmeFormerMixerOperation<U>
     where U: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
 {
     const MIXER_OFFSET: usize;
     const AVAIL_COUNT: usize;
 
     fn write_mixer_src_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         mixer: usize,
         src_offset: usize,
@@ -210,7 +215,7 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
             });
 
         let offset = ((Self::AVAIL_COUNT * mixer * 2) + src_offset) * 4;
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
             (Self::MIXER_OFFSET + offset) as u64,
@@ -221,7 +226,7 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
     }
 
     fn init_mixer_src_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         mixer: usize,
@@ -236,12 +241,12 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
             (&m.stream_gains, Self::AVAIL_COUNT)
         ].iter()
             .try_for_each(|(gains, src_offset)| {
-                self.write_mixer_src_gains(node, mixer, *src_offset, gains, timeout_ms)
+                Self::write_mixer_src_gains(req, node, mixer, *src_offset, gains, timeout_ms)
             })
     }
 
     fn write_mixer_analog_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         mixer: usize,
@@ -250,12 +255,12 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
     ) -> Result<(), Error> {
         assert_eq!(state.as_ref()[mixer].analog_gains.len(), gains.len());
 
-        self.write_mixer_src_gains(node, mixer, 0, gains, timeout_ms)
+        Self::write_mixer_src_gains(req, node, mixer, 0, gains, timeout_ms)
             .map(|_| state.as_mut()[mixer].analog_gains.copy_from_slice(&gains))
     }
 
     fn write_mixer_spdif_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         mixer: usize,
@@ -264,12 +269,12 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
     ) -> Result<(), Error> {
         assert_eq!(state.as_ref()[mixer].spdif_gains.len(), gains.len());
 
-        self.write_mixer_src_gains(node, mixer, U::ANALOG_INPUT_COUNT, gains, timeout_ms)
+        Self::write_mixer_src_gains(req, node, mixer, U::ANALOG_INPUT_COUNT, gains, timeout_ms)
             .map(|_| state.as_mut()[mixer].spdif_gains.copy_from_slice(&gains))
     }
 
     fn write_mixer_adat_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         mixer: usize,
@@ -278,7 +283,8 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
     ) -> Result<(), Error> {
         assert_eq!(state.as_ref()[mixer].adat_gains.len(), gains.len());
 
-        self.write_mixer_src_gains(
+        Self::write_mixer_src_gains(
+            req,
             node,
             mixer,
             U::ANALOG_INPUT_COUNT + U::SPDIF_INPUT_COUNT,
@@ -289,7 +295,7 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
     }
 
     fn write_mixer_stream_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         state: &mut U,
         mixer: usize,
@@ -298,7 +304,7 @@ pub trait RmeFormerMixerOperation<U> : AsRef<FwReq>
     ) -> Result<(), Error> {
         assert_eq!(state.as_ref()[mixer].stream_gains.len(), gains.len());
 
-        self.write_mixer_src_gains(node, mixer, Self::AVAIL_COUNT, gains, timeout_ms)
+        Self::write_mixer_src_gains(req, node, mixer, Self::AVAIL_COUNT, gains, timeout_ms)
             .map(|_| state.as_mut()[mixer].stream_gains.copy_from_slice(&gains))
     }
 }
