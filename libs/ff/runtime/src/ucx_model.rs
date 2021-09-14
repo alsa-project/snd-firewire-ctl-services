@@ -20,7 +20,7 @@ pub struct UcxModel{
     req: FfUcxProtocol,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
-    meter_ctl: FfLatterMeterCtl<FfUcxMeterState>,
+    meter_ctl: MeterCtl,
     dsp_ctl: FfLatterDspCtl<FfUcxDspState>,
 }
 
@@ -30,7 +30,8 @@ impl CtlModel<SndUnit> for UcxModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.cfg_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.status_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
-        self.meter_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
+        self.meter_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.dsp_ctl.load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         Ok(())
     }
@@ -63,7 +64,7 @@ impl CtlModel<SndUnit> for UcxModel {
 impl MeasureModel<SndUnit> for UcxModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
-        self.meter_ctl.get_measured_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
@@ -82,6 +83,19 @@ impl MeasureModel<SndUnit> for UcxModel {
         } else {
             Ok(false)
         }
+    }
+}
+
+#[derive(Default, Debug)]
+struct MeterCtl(FfUcxMeterState, Vec<ElemId>);
+
+impl FfLatterMeterCtlOperation<FfUcxProtocol, FfUcxMeterState> for MeterCtl {
+    fn meter(&self) -> &FfUcxMeterState {
+        &self.0
+    }
+
+    fn meter_mut(&mut self) -> &mut FfUcxMeterState {
+        &mut self.0
     }
 }
 
