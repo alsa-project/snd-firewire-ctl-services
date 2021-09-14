@@ -21,19 +21,19 @@ pub struct FfLatterMeterCtl<V>
     measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a, V> FfLatterMeterCtl<V>
+const LINE_INPUT_METER: &str = "meter:line-input";
+const MIC_INPUT_METER: &str = "meter:mic-input";
+const SPDIF_INPUT_METER: &str = "meter:spdif-input";
+const ADAT_INPUT_METER: &str = "meter:adat-input";
+const STREAM_INPUT_METER: &str = "meter:stream-input";
+const LINE_OUTPUT_METER: &str = "meter:line-output";
+const HP_OUTPUT_METER: &str = "meter:hp-output";
+const SPDIF_OUTPUT_METER: &str = "meter:spdif-output";
+const ADAT_OUTPUT_METER: &str = "meter:adat-output";
+
+impl<V> FfLatterMeterCtl<V>
     where V: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
 {
-    const LINE_INPUT_METER: &'a str = "meter:line-input";
-    const MIC_INPUT_METER: &'a str = "meter:mic-input";
-    const SPDIF_INPUT_METER: &'a str = "meter:spdif-input";
-    const ADAT_INPUT_METER: &'a str = "meter:adat-input";
-    const STREAM_INPUT_METER: &'a str = "meter:stream-input";
-    const LINE_OUTPUT_METER: &'a str = "meter:line-output";
-    const HP_OUTPUT_METER: &'a str = "meter:hp-output";
-    const SPDIF_OUTPUT_METER: &'a str = "meter:spdif-output";
-    const ADAT_OUTPUT_METER: &'a str = "meter:adat-output";
-
     const LEVEL_MIN: i32 = 0x0;
     const LEVEL_MAX: i32 = 0x07fffff0;
     const LEVEL_STEP: i32 = 0x10;
@@ -46,15 +46,15 @@ impl<'a, V> FfLatterMeterCtl<V>
         U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)?;
 
         [
-            (Self::LINE_INPUT_METER, V::LINE_INPUT_COUNT),
-            (Self::MIC_INPUT_METER, V::MIC_INPUT_COUNT),
-            (Self::SPDIF_INPUT_METER, V::SPDIF_INPUT_COUNT),
-            (Self::ADAT_INPUT_METER, V::ADAT_INPUT_COUNT),
-            (Self::STREAM_INPUT_METER, V::STREAM_INPUT_COUNT),
-            (Self::LINE_OUTPUT_METER, V::LINE_OUTPUT_COUNT),
-            (Self::HP_OUTPUT_METER, V::HP_OUTPUT_COUNT),
-            (Self::SPDIF_OUTPUT_METER, V::SPDIF_OUTPUT_COUNT),
-            (Self::ADAT_OUTPUT_METER, V::ADAT_OUTPUT_COUNT),
+            (LINE_INPUT_METER, V::LINE_INPUT_COUNT),
+            (MIC_INPUT_METER, V::MIC_INPUT_COUNT),
+            (SPDIF_INPUT_METER, V::SPDIF_INPUT_COUNT),
+            (ADAT_INPUT_METER, V::ADAT_INPUT_COUNT),
+            (STREAM_INPUT_METER, V::STREAM_INPUT_COUNT),
+            (LINE_OUTPUT_METER, V::LINE_OUTPUT_COUNT),
+            (HP_OUTPUT_METER, V::HP_OUTPUT_COUNT),
+            (SPDIF_OUTPUT_METER, V::SPDIF_OUTPUT_COUNT),
+            (ADAT_OUTPUT_METER, V::ADAT_OUTPUT_COUNT),
         ].iter()
             .try_for_each(|(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
@@ -81,39 +81,39 @@ impl<'a, V> FfLatterMeterCtl<V>
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
-            Self::LINE_INPUT_METER => {
+            LINE_INPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().line_inputs);
                 Ok(true)
             }
-            Self::MIC_INPUT_METER => {
+            MIC_INPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().mic_inputs);
                 Ok(true)
             }
-            Self::SPDIF_INPUT_METER => {
+            SPDIF_INPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().spdif_inputs);
                 Ok(true)
             }
-            Self::ADAT_INPUT_METER => {
+            ADAT_INPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().adat_inputs);
                 Ok(true)
             }
-            Self::STREAM_INPUT_METER => {
+            STREAM_INPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().stream_inputs);
                 Ok(true)
             }
-            Self::LINE_OUTPUT_METER => {
+            LINE_OUTPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().line_outputs);
                 Ok(true)
             }
-            Self::HP_OUTPUT_METER => {
+            HP_OUTPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().hp_outputs);
                 Ok(true)
             }
-            Self::SPDIF_OUTPUT_METER => {
+            SPDIF_OUTPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().spdif_outputs);
                 Ok(true)
             }
-            Self::ADAT_OUTPUT_METER => {
+            ADAT_OUTPUT_METER => {
                 elem_value.set_int(&self.state.as_ref().adat_outputs);
                 Ok(true)
             }
@@ -135,7 +135,7 @@ pub struct FfLatterDspCtl<V>
     fx_ctl: FfLatterFxCtl,
 }
 
-impl<'a, V> FfLatterDspCtl<V>
+impl<V> FfLatterDspCtl<V>
     where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
 {
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32, card_cntr: &mut CardCntr)
@@ -205,14 +205,14 @@ impl<'a, V> FfLatterDspCtl<V>
 #[derive(Default, Debug)]
 struct FfLatterInputCtl;
 
-impl<'a> FfLatterInputCtl {
-    const STEREO_LINK_NAME: &'a str = "input:stereo-link";
-    const LINE_GAIN_NAME: &'a str = "input:line-gain";
-    const LINE_LEVEL_NAME: &'a str = "input:line-level";
-    const MIC_POWER_NAME: &'a str = "input:mic-power";
-    const MIC_INST_NAME: &'a str = "input:mic-instrument";
-    const INVERT_PHASE_NAME: &'a str = "input:invert-phase";
+const INPUT_STEREO_LINK_NAME: &str = "input:stereo-link";
+const INPUT_LINE_GAIN_NAME: &str = "input:line-gain";
+const INPUT_LINE_LEVEL_NAME: &str = "input:line-level";
+const INPUT_MIC_POWER_NAME: &str = "input:mic-power";
+const INPUT_MIC_INST_NAME: &str = "input:mic-instrument";
+const INPUT_INVERT_PHASE_NAME: &str = "input:invert-phase";
 
+impl FfLatterInputCtl {
     const GAIN_MIN: i32 = 0;
     const GAIN_MAX: i32 = 120;
     const GAIN_STEP: i32 = 1;
@@ -233,10 +233,10 @@ impl<'a> FfLatterInputCtl {
 
         let s = &state.as_ref().input;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STEREO_LINK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_STEREO_LINK_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, s.stereo_links.len(), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::LINE_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_LINE_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         s.line_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                                         true)?;
@@ -244,16 +244,16 @@ impl<'a> FfLatterInputCtl {
         let labels: Vec<String> = Self::LINE_LEVELS.iter()
             .map(|l| latter_line_in_nominal_level_to_string(l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, s.line_levels.len(), &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIC_POWER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_POWER_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, s.mic_powers.len(), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIC_INST_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_INST_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, s.mic_insts.len(), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::INVERT_PHASE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_PHASE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, s.invert_phases.len(), true)?;
 
         Ok(())
@@ -264,18 +264,18 @@ impl<'a> FfLatterInputCtl {
         where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::STEREO_LINK_NAME => {
+            INPUT_STEREO_LINK_NAME => {
                 elem_value.set_bool(&state.as_ref().input.stereo_links);
                 Ok(true)
             }
-            Self::LINE_GAIN_NAME => {
+            INPUT_LINE_GAIN_NAME => {
                 let vals: Vec<i32> = state.as_ref().input.line_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::LINE_LEVEL_NAME => {
+            INPUT_LINE_LEVEL_NAME => {
                 let vals: Vec<u32> = state.as_ref().input.line_levels.iter()
                     .map(|level| {
                         let pos = Self::LINE_LEVELS.iter()
@@ -287,15 +287,15 @@ impl<'a> FfLatterInputCtl {
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
-            Self::MIC_POWER_NAME => {
+            INPUT_MIC_POWER_NAME => {
                 elem_value.set_bool(&state.as_ref().input.mic_powers);
                 Ok(true)
             }
-            Self::MIC_INST_NAME => {
+            INPUT_MIC_INST_NAME => {
                 elem_value.set_bool(&state.as_ref().input.mic_insts);
                 Ok(true)
             }
-            Self::INVERT_PHASE_NAME => {
+            INPUT_INVERT_PHASE_NAME => {
                 elem_value.set_bool(&state.as_ref().input.invert_phases);
                 Ok(true)
             }
@@ -310,13 +310,13 @@ impl<'a> FfLatterInputCtl {
               V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::STEREO_LINK_NAME => {
+            INPUT_STEREO_LINK_NAME => {
                 let mut s = state.as_ref().input.clone();
                 elem_value.get_bool(&mut s.stereo_links);
                 U::write_input(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::LINE_GAIN_NAME => {
+            INPUT_LINE_GAIN_NAME => {
                 let mut s = state.as_ref().input.clone();
                 let mut vals = vec![0;s.line_gains.len()];
                 elem_value.get_int(&mut vals);
@@ -326,7 +326,7 @@ impl<'a> FfLatterInputCtl {
                 U::write_input(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::LINE_LEVEL_NAME => {
+            INPUT_LINE_LEVEL_NAME => {
                 let mut s = state.as_mut().input.clone();
                 let mut vals = vec![0;s.line_levels.len()];
                 elem_value.get_enum(&mut vals);
@@ -344,19 +344,19 @@ impl<'a> FfLatterInputCtl {
                 U::write_input(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::MIC_POWER_NAME => {
+            INPUT_MIC_POWER_NAME => {
                 let mut s = state.as_ref().input.clone();
                 elem_value.get_bool(&mut s.mic_powers);
                 U::write_input(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::MIC_INST_NAME => {
+            INPUT_MIC_INST_NAME => {
                 let mut s = state.as_ref().input.clone();
                 elem_value.get_bool(&mut s.mic_insts);
                 U::write_input(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::INVERT_PHASE_NAME => {
+            INPUT_INVERT_PHASE_NAME => {
                 let mut s = state.as_ref().input.clone();
                 elem_value.get_bool(&mut s.invert_phases);
                 U::write_input(proto, &mut unit.get_node(), state, s, timeout_ms)
@@ -370,13 +370,13 @@ impl<'a> FfLatterInputCtl {
 #[derive(Default, Debug)]
 struct FfLatterOutputCtl;
 
-impl<'a> FfLatterOutputCtl {
-    const VOL_NAME: &'a str = "output:volume";
-    const STEREO_BALANCE_NAME: &'a str = "output:stereo-balance";
-    const STEREO_LINK_NAME: &'a str = "output:stereo-link";
-    const INVERT_PHASE_NAME: &'a str = "output:invert-phase";
-    const LINE_LEVEL_NAME: &'a str = "output:line-level";
+const VOL_NAME: &str = "output:volume";
+const STEREO_BALANCE_NAME: &str = "output:stereo-balance";
+const STEREO_LINK_NAME: &str = "output:stereo-link";
+const INVERT_PHASE_NAME: &str = "output:invert-phase";
+const LINE_LEVEL_NAME: &str = "output:line-level";
 
+impl FfLatterOutputCtl {
     const VOL_MIN: i32 = -650;
     const VOL_MAX: i32 = 60;
     const VOL_STEP: i32 = 1;
@@ -404,25 +404,25 @@ impl<'a> FfLatterOutputCtl {
 
         let s = &state.as_ref().output;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
                                         s.vols.len(), Some(&Vec::<u32>::from(&Self::VOL_TLV)),
                                         true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STEREO_BALANCE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STEREO_BALANCE_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
                                         s.stereo_balance.len(), None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STEREO_LINK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STEREO_LINK_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, s.stereo_links.len(), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::INVERT_PHASE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INVERT_PHASE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, s.invert_phases.len(), true)?;
 
         let labels: Vec<String> = Self::LINE_LEVELS.iter()
             .map(|l| line_out_nominal_level_to_string(l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, s.line_levels.len(), &labels, None, true)?;
 
         Ok(())
@@ -433,29 +433,29 @@ impl<'a> FfLatterOutputCtl {
         where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::VOL_NAME => {
+            VOL_NAME => {
                 let vals: Vec<i32> = state.as_ref().output.vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::STEREO_BALANCE_NAME => {
+            STEREO_BALANCE_NAME => {
                 let vals: Vec<i32> = state.as_ref().output.stereo_balance.iter()
                     .map(|&balance| balance as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::STEREO_LINK_NAME => {
+            STEREO_LINK_NAME => {
                 elem_value.set_bool(&state.as_ref().output.stereo_links);
                 Ok(true)
             }
-            Self::INVERT_PHASE_NAME => {
+            INVERT_PHASE_NAME => {
                 elem_value.set_bool(&state.as_ref().output.invert_phases);
                 Ok(true)
             }
-            Self::LINE_LEVEL_NAME => {
+            LINE_LEVEL_NAME => {
                 let vals: Vec<u32> = state.as_ref().output.line_levels.iter()
                     .map(|level| {
                         let pos = Self::LINE_LEVELS.iter()
@@ -478,7 +478,7 @@ impl<'a> FfLatterOutputCtl {
               V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::VOL_NAME => {
+            VOL_NAME => {
                 let mut s = state.as_ref().output.clone();
                 let mut vals = vec![0;s.vols.len()];
                 elem_value.get_int(&mut vals);
@@ -488,7 +488,7 @@ impl<'a> FfLatterOutputCtl {
                 U::write_output(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::STEREO_BALANCE_NAME  => {
+            STEREO_BALANCE_NAME  => {
                 let mut s = state.as_ref().output.clone();
                 let mut vals = vec![0;s.stereo_balance.len()];
                 elem_value.get_int(&mut vals);
@@ -498,19 +498,19 @@ impl<'a> FfLatterOutputCtl {
                 U::write_output(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::STEREO_LINK_NAME => {
+            STEREO_LINK_NAME => {
                 let mut s = state.as_ref().output.clone();
                 elem_value.get_bool(&mut s.stereo_links);
                 U::write_output(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::INVERT_PHASE_NAME => {
+            INVERT_PHASE_NAME => {
                 let mut s = state.as_ref().output.clone();
                 elem_value.get_bool(&mut s.invert_phases);
                 U::write_output(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::LINE_LEVEL_NAME => {
+            LINE_LEVEL_NAME => {
                 let mut s = state.as_ref().output.clone();
                 let mut vals = vec![0;s.line_levels.len()];
                 elem_value.get_enum(&mut vals);
@@ -536,13 +536,13 @@ impl<'a> FfLatterOutputCtl {
 #[derive(Default, Debug)]
 struct FfLatterMixerCtl;
 
-impl<'a> FfLatterMixerCtl {
-    const LINE_SRC_GAIN_NAME: &'a str = "mixer:line-source-gain";
-    const MIC_SRC_GAIN_NAME: &'a str = "mixer:mic-source-gain";
-    const SPDIF_SRC_GAIN_NAME: &'a str = "mixer:spdif-source-gain";
-    const ADAT_SRC_GAIN_NAME: &'a str = "mixer:adat-source-gain";
-    const STREAM_SRC_GAIN_NAME: &'a str = "mixer:stream-source-gain";
+const MIXER_LINE_SRC_GAIN_NAME: &str = "mixer:line-source-gain";
+const MIXER_MIC_SRC_GAIN_NAME: &str = "mixer:mic-source-gain";
+const MIXER_SPDIF_SRC_GAIN_NAME: &str = "mixer:spdif-source-gain";
+const MIXER_ADAT_SRC_GAIN_NAME: &str = "mixer:adat-source-gain";
+const MIXER_STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 
+impl FfLatterMixerCtl {
     const GAIN_MIN: i32 = 0x0000 as i32;
     const GAIN_ZERO: i32 = 0x9000 as i32;
     const GAIN_MAX: i32 = 0xa000 as i32;
@@ -567,27 +567,27 @@ impl<'a> FfLatterMixerCtl {
 
         let s = &state.as_ref().mixer;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::LINE_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_LINE_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         s[0].line_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                                         true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MIC_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         s[0].mic_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                                         true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SPDIF_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SPDIF_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         s[0].spdif_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                                         true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ADAT_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ADAT_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         s[0].adat_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                                         true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STREAM_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
                                         s[0].stream_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
                                         true)?;
@@ -600,7 +600,7 @@ impl<'a> FfLatterMixerCtl {
         where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::LINE_SRC_GAIN_NAME => {
+            MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let vals: Vec<i32> = state.as_ref().mixer[index].line_gains.iter()
                     .map(|&gain| gain as i32)
@@ -608,7 +608,7 @@ impl<'a> FfLatterMixerCtl {
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::MIC_SRC_GAIN_NAME => {
+            MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let vals: Vec<i32> = state.as_ref().mixer[index].mic_gains.iter()
                     .map(|&gain| gain as i32)
@@ -616,7 +616,7 @@ impl<'a> FfLatterMixerCtl {
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::SPDIF_SRC_GAIN_NAME => {
+            MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let vals: Vec<i32> = state.as_ref().mixer[index].spdif_gains.iter()
                     .map(|&gain| gain as i32)
@@ -624,7 +624,7 @@ impl<'a> FfLatterMixerCtl {
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::ADAT_SRC_GAIN_NAME => {
+            MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let vals: Vec<i32> = state.as_ref().mixer[index].adat_gains.iter()
                     .map(|&gain| gain as i32)
@@ -632,7 +632,7 @@ impl<'a> FfLatterMixerCtl {
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::STREAM_SRC_GAIN_NAME => {
+            MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let vals: Vec<i32> = state.as_ref().mixer[index].stream_gains.iter()
                     .map(|&gain| gain as i32)
@@ -651,7 +651,7 @@ impl<'a> FfLatterMixerCtl {
               V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::LINE_SRC_GAIN_NAME => {
+            MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut s = state.as_ref().mixer[index].clone();
                 let mut vals = vec![0;s.line_gains.len()];
@@ -662,7 +662,7 @@ impl<'a> FfLatterMixerCtl {
                 U::write_mixer(proto, &mut unit.get_node(), state, index, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::MIC_SRC_GAIN_NAME => {
+            MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut s = state.as_ref().mixer[index].clone();
                 let mut vals = vec![0;s.mic_gains.len()];
@@ -673,7 +673,7 @@ impl<'a> FfLatterMixerCtl {
                 U::write_mixer(proto, &mut unit.get_node(), state, index, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::SPDIF_SRC_GAIN_NAME => {
+            MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut s = state.as_ref().mixer[index].clone();
                 let mut vals = vec![0;s.spdif_gains.len()];
@@ -684,7 +684,7 @@ impl<'a> FfLatterMixerCtl {
                 U::write_mixer(proto, &mut unit.get_node(), state, index, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::ADAT_SRC_GAIN_NAME => {
+            MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut s = state.as_ref().mixer[index].clone();
                 let mut vals = vec![0;s.adat_gains.len()];
@@ -695,7 +695,7 @@ impl<'a> FfLatterMixerCtl {
                 U::write_mixer(proto, &mut unit.get_node(), state, index, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::STREAM_SRC_GAIN_NAME => {
+            MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut s = state.as_ref().mixer[index].clone();
                 let mut vals = vec![0;s.stream_gains.len()];
@@ -728,39 +728,39 @@ fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
     }.to_string()
 }
 
-trait RmeFfLatterChStripCtl<'a, T>
+trait RmeFfLatterChStripCtl<T>
     where T: AsMut<FfLatterChStripState> + AsRef<FfLatterChStripState>,
 {
-    const HPF_ACTIVATE_NAME: &'a str;
-    const HPF_CUT_OFF_NAME: &'a str;
-    const HPF_ROLL_OFF_NAME: &'a str;
+    const HPF_ACTIVATE_NAME: &'static str;
+    const HPF_CUT_OFF_NAME: &'static str;
+    const HPF_ROLL_OFF_NAME: &'static str;
 
-    const EQ_ACTIVATE_NAME: &'a str;
-    const EQ_LOW_TYPE_NAME: &'a str;
-    const EQ_LOW_GAIN_NAME: &'a str;
-    const EQ_LOW_FREQ_NAME: &'a str;
-    const EQ_LOW_QUALITY_NAME: &'a str;
-    const EQ_MIDDLE_GAIN_NAME: &'a str;
-    const EQ_MIDDLE_FREQ_NAME: &'a str;
-    const EQ_MIDDLE_QUALITY_NAME: &'a str;
-    const EQ_HIGH_TYPE_NAME: &'a str;
-    const EQ_HIGH_GAIN_NAME: &'a str;
-    const EQ_HIGH_FREQ_NAME: &'a str;
-    const EQ_HIGH_QUALITY_NAME: &'a str;
+    const EQ_ACTIVATE_NAME: &'static str;
+    const EQ_LOW_TYPE_NAME: &'static str;
+    const EQ_LOW_GAIN_NAME: &'static str;
+    const EQ_LOW_FREQ_NAME: &'static str;
+    const EQ_LOW_QUALITY_NAME: &'static str;
+    const EQ_MIDDLE_GAIN_NAME: &'static str;
+    const EQ_MIDDLE_FREQ_NAME: &'static str;
+    const EQ_MIDDLE_QUALITY_NAME: &'static str;
+    const EQ_HIGH_TYPE_NAME: &'static str;
+    const EQ_HIGH_GAIN_NAME: &'static str;
+    const EQ_HIGH_FREQ_NAME: &'static str;
+    const EQ_HIGH_QUALITY_NAME: &'static str;
 
-    const DYN_ACTIVATE_NAME: &'a str;
-    const DYN_GAIN_NAME: &'a str;
-    const DYN_ATTACK_NAME: &'a str;
-    const DYN_RELEASE_NAME: &'a str;
-    const DYN_COMP_THRESHOLD_NAME: &'a str;
-    const DYN_COMP_RATIO_NAME: &'a str;
-    const DYN_EX_THRESHOLD_NAME: &'a str;
-    const DYN_EX_RATIO_NAME: &'a str;
+    const DYN_ACTIVATE_NAME: &'static str;
+    const DYN_GAIN_NAME: &'static str;
+    const DYN_ATTACK_NAME: &'static str;
+    const DYN_RELEASE_NAME: &'static str;
+    const DYN_COMP_THRESHOLD_NAME: &'static str;
+    const DYN_COMP_RATIO_NAME: &'static str;
+    const DYN_EX_THRESHOLD_NAME: &'static str;
+    const DYN_EX_RATIO_NAME: &'static str;
 
-    const AUTOLEVEL_ACTIVATE_NAME: &'a str;
-    const AUTOLEVEL_MAX_GAIN_NAME: &'a str;
-    const AUTOLEVEL_HEAD_ROOM_NAME: &'a str;
-    const AUTOLEVEL_RISE_TIME_NAME: &'a str;
+    const AUTOLEVEL_ACTIVATE_NAME: &'static str;
+    const AUTOLEVEL_MAX_GAIN_NAME: &'static str;
+    const AUTOLEVEL_HEAD_ROOM_NAME: &'static str;
+    const AUTOLEVEL_RISE_TIME_NAME: &'static str;
 
     const HPF_ROLL_OFF_LEVELS: [FfLatterHpfRollOffLevel;4] = [
         FfLatterHpfRollOffLevel::L6,
@@ -1358,73 +1358,73 @@ trait RmeFfLatterChStripCtl<'a, T>
 #[derive(Default, Debug)]
 struct FfLatterInputChStripCtl;
 
-impl<'a> RmeFfLatterChStripCtl<'a, FfLatterInputChStripState> for FfLatterInputChStripCtl {
-    const HPF_ACTIVATE_NAME: &'a str = "input:hpf-activate";
-    const HPF_CUT_OFF_NAME: &'a str = "input:hpf-cut-off";
-    const HPF_ROLL_OFF_NAME: &'a str = "input:hpf-roll-off";
+impl RmeFfLatterChStripCtl<FfLatterInputChStripState> for FfLatterInputChStripCtl {
+    const HPF_ACTIVATE_NAME: &'static str = "input:hpf-activate";
+    const HPF_CUT_OFF_NAME: &'static str = "input:hpf-cut-off";
+    const HPF_ROLL_OFF_NAME: &'static str = "input:hpf-roll-off";
 
-    const EQ_ACTIVATE_NAME: &'a str = "input:eq-activate";
-    const EQ_LOW_TYPE_NAME: &'a str = "input:eq-low-type";
-    const EQ_LOW_GAIN_NAME: &'a str = "input:eq-low-gain";
-    const EQ_LOW_FREQ_NAME: &'a str = "input:eq-low-freq";
-    const EQ_LOW_QUALITY_NAME: &'a str = "input:eq-low-quality";
-    const EQ_MIDDLE_GAIN_NAME: &'a str = "input:eq-middle-gain";
-    const EQ_MIDDLE_FREQ_NAME: &'a str = "input:eq-middle-freq";
-    const EQ_MIDDLE_QUALITY_NAME: &'a str = "input:eq-middle-quality";
-    const EQ_HIGH_TYPE_NAME: &'a str = "input:eq-high-type";
-    const EQ_HIGH_GAIN_NAME: &'a str = "input:eq-high-gain";
-    const EQ_HIGH_FREQ_NAME: &'a str = "input:eq-high-freq";
-    const EQ_HIGH_QUALITY_NAME: &'a str = "input:eq-high-quality";
+    const EQ_ACTIVATE_NAME: &'static str = "input:eq-activate";
+    const EQ_LOW_TYPE_NAME: &'static str = "input:eq-low-type";
+    const EQ_LOW_GAIN_NAME: &'static str = "input:eq-low-gain";
+    const EQ_LOW_FREQ_NAME: &'static str = "input:eq-low-freq";
+    const EQ_LOW_QUALITY_NAME: &'static str = "input:eq-low-quality";
+    const EQ_MIDDLE_GAIN_NAME: &'static str = "input:eq-middle-gain";
+    const EQ_MIDDLE_FREQ_NAME: &'static str = "input:eq-middle-freq";
+    const EQ_MIDDLE_QUALITY_NAME: &'static str = "input:eq-middle-quality";
+    const EQ_HIGH_TYPE_NAME: &'static str = "input:eq-high-type";
+    const EQ_HIGH_GAIN_NAME: &'static str = "input:eq-high-gain";
+    const EQ_HIGH_FREQ_NAME: &'static str = "input:eq-high-freq";
+    const EQ_HIGH_QUALITY_NAME: &'static str = "input:eq-high-quality";
 
-    const DYN_ACTIVATE_NAME: &'a str = "input:dyn-activate";
-    const DYN_GAIN_NAME: &'a str = "input:dyn-gain";
-    const DYN_ATTACK_NAME: &'a str = "input:dyn-attack";
-    const DYN_RELEASE_NAME: &'a str = "input:dyn-release";
-    const DYN_COMP_THRESHOLD_NAME: &'a str = "input:dyn-compressor-threshold";
-    const DYN_COMP_RATIO_NAME: &'a str = "input:dyn-compressor-ratio";
-    const DYN_EX_THRESHOLD_NAME: &'a str = "input:dyn-expander-threshold";
-    const DYN_EX_RATIO_NAME: &'a str =  "input:dyn-expander-ratio";
+    const DYN_ACTIVATE_NAME: &'static str = "input:dyn-activate";
+    const DYN_GAIN_NAME: &'static str = "input:dyn-gain";
+    const DYN_ATTACK_NAME: &'static str = "input:dyn-attack";
+    const DYN_RELEASE_NAME: &'static str = "input:dyn-release";
+    const DYN_COMP_THRESHOLD_NAME: &'static str = "input:dyn-compressor-threshold";
+    const DYN_COMP_RATIO_NAME: &'static str = "input:dyn-compressor-ratio";
+    const DYN_EX_THRESHOLD_NAME: &'static str = "input:dyn-expander-threshold";
+    const DYN_EX_RATIO_NAME: &'static str =  "input:dyn-expander-ratio";
 
-    const AUTOLEVEL_ACTIVATE_NAME: &'a str = "input:autolevel-activate";
-    const AUTOLEVEL_MAX_GAIN_NAME: &'a str = "input:autolevel-max-gain";
-    const AUTOLEVEL_HEAD_ROOM_NAME: &'a str = "input:autolevel-head-room";
-    const AUTOLEVEL_RISE_TIME_NAME: &'a str = "input:autolevel-rise-time";
+    const AUTOLEVEL_ACTIVATE_NAME: &'static str = "input:autolevel-activate";
+    const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "input:autolevel-max-gain";
+    const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "input:autolevel-head-room";
+    const AUTOLEVEL_RISE_TIME_NAME: &'static str = "input:autolevel-rise-time";
 }
 
 #[derive(Default, Debug)]
 struct FfLatterOutputChStripCtl;
 
-impl<'a> RmeFfLatterChStripCtl<'a, FfLatterOutputChStripState> for FfLatterOutputChStripCtl {
-    const HPF_ACTIVATE_NAME: &'a str = "output:hpf-activate";
-    const HPF_CUT_OFF_NAME: &'a str = "output:hpf-cut-off";
-    const HPF_ROLL_OFF_NAME: &'a str = "output:hpf-roll-off";
+impl RmeFfLatterChStripCtl<FfLatterOutputChStripState> for FfLatterOutputChStripCtl {
+    const HPF_ACTIVATE_NAME: &'static str = "output:hpf-activate";
+    const HPF_CUT_OFF_NAME: &'static str = "output:hpf-cut-off";
+    const HPF_ROLL_OFF_NAME: &'static str = "output:hpf-roll-off";
 
-    const EQ_ACTIVATE_NAME: &'a str = "output:eq-activate";
-    const EQ_LOW_TYPE_NAME: &'a str = "output:eq-low-type";
-    const EQ_LOW_GAIN_NAME: &'a str = "output:eq-low-gain";
-    const EQ_LOW_FREQ_NAME: &'a str = "output:eq-low-freq";
-    const EQ_LOW_QUALITY_NAME: &'a str = "output:eq-low-quality";
-    const EQ_MIDDLE_GAIN_NAME: &'a str = "output:eq-middle-gain";
-    const EQ_MIDDLE_FREQ_NAME: &'a str = "output:eq-middle-freq";
-    const EQ_MIDDLE_QUALITY_NAME: &'a str = "output:eq-middle-quality";
-    const EQ_HIGH_TYPE_NAME: &'a str = "output:eq-high-type";
-    const EQ_HIGH_GAIN_NAME: &'a str = "output:eq-high-gain";
-    const EQ_HIGH_FREQ_NAME: &'a str = "output:eq-high-freq";
-    const EQ_HIGH_QUALITY_NAME: &'a str = "output:eq-high-quality";
+    const EQ_ACTIVATE_NAME: &'static str = "output:eq-activate";
+    const EQ_LOW_TYPE_NAME: &'static str = "output:eq-low-type";
+    const EQ_LOW_GAIN_NAME: &'static str = "output:eq-low-gain";
+    const EQ_LOW_FREQ_NAME: &'static str = "output:eq-low-freq";
+    const EQ_LOW_QUALITY_NAME: &'static str = "output:eq-low-quality";
+    const EQ_MIDDLE_GAIN_NAME: &'static str = "output:eq-middle-gain";
+    const EQ_MIDDLE_FREQ_NAME: &'static str = "output:eq-middle-freq";
+    const EQ_MIDDLE_QUALITY_NAME: &'static str = "output:eq-middle-quality";
+    const EQ_HIGH_TYPE_NAME: &'static str = "output:eq-high-type";
+    const EQ_HIGH_GAIN_NAME: &'static str = "output:eq-high-gain";
+    const EQ_HIGH_FREQ_NAME: &'static str = "output:eq-high-freq";
+    const EQ_HIGH_QUALITY_NAME: &'static str = "output:eq-high-quality";
 
-    const DYN_ACTIVATE_NAME: &'a str = "output:dyn-activate";
-    const DYN_GAIN_NAME: &'a str = "output:dyn-gain";
-    const DYN_ATTACK_NAME: &'a str = "output:dyn-attack";
-    const DYN_RELEASE_NAME: &'a str = "output:dyn-release";
-    const DYN_COMP_THRESHOLD_NAME: &'a str = "output:dyn-compressor-threshold";
-    const DYN_COMP_RATIO_NAME: &'a str = "output:dyn-compressor-ratio";
-    const DYN_EX_THRESHOLD_NAME: &'a str = "output:dyn-expander-threshold";
-    const DYN_EX_RATIO_NAME: &'a str =  "output:dyn-expander-ratio";
+    const DYN_ACTIVATE_NAME: &'static str = "output:dyn-activate";
+    const DYN_GAIN_NAME: &'static str = "output:dyn-gain";
+    const DYN_ATTACK_NAME: &'static str = "output:dyn-attack";
+    const DYN_RELEASE_NAME: &'static str = "output:dyn-release";
+    const DYN_COMP_THRESHOLD_NAME: &'static str = "output:dyn-compressor-threshold";
+    const DYN_COMP_RATIO_NAME: &'static str = "output:dyn-compressor-ratio";
+    const DYN_EX_THRESHOLD_NAME: &'static str = "output:dyn-expander-threshold";
+    const DYN_EX_RATIO_NAME: &'static str =  "output:dyn-expander-ratio";
 
-    const AUTOLEVEL_ACTIVATE_NAME: &'a str = "output:autolevel-activate";
-    const AUTOLEVEL_MAX_GAIN_NAME: &'a str = "output:autolevel-max-gain";
-    const AUTOLEVEL_HEAD_ROOM_NAME: &'a str = "output:autolevel-head-room";
-    const AUTOLEVEL_RISE_TIME_NAME: &'a str = "output:autolevel-rise-time";
+    const AUTOLEVEL_ACTIVATE_NAME: &'static str = "output:autolevel-activate";
+    const AUTOLEVEL_MAX_GAIN_NAME: &'static str = "output:autolevel-max-gain";
+    const AUTOLEVEL_HEAD_ROOM_NAME: &'static str = "output:autolevel-head-room";
+    const AUTOLEVEL_RISE_TIME_NAME: &'static str = "output:autolevel-rise-time";
 }
 
 fn fx_reverb_type_to_string(reverb_type: &FfLatterFxReverbType) -> String {
@@ -1469,41 +1469,41 @@ fn fx_echo_lpf_freq_to_string(lpf_freq: &FfLatterFxEchoLpfFreq) -> String {
 #[derive(Default, Debug)]
 struct FfLatterFxCtl;
 
-impl<'a> FfLatterFxCtl {
-    const LINE_SRC_GAIN_NAME: &'a str = "fx:line-source-gain";
-    const MIC_SRC_GAIN_NAME: &'a str = "fx:mic-source-gain";
-    const SPDIF_SRC_GAIN_NAME: &'a str = "fx:spdif-source-gain";
-    const ADAT_SRC_GAIN_NAME: &'a str = "fx:adat-source-gain";
-    const STREAM_SRC_GAIN_NAME: &'a str = "fx:stream-source-gain";
+const LINE_SRC_GAIN_NAME: &str = "fx:line-source-gain";
+const MIC_SRC_GAIN_NAME: &str = "fx:mic-source-gain";
+const SPDIF_SRC_GAIN_NAME: &str = "fx:spdif-source-gain";
+const ADAT_SRC_GAIN_NAME: &str = "fx:adat-source-gain";
+const STREAM_SRC_GAIN_NAME: &str = "fx:stream-source-gain";
 
-    const LINE_OUT_VOL_NAME: &'a str = "fx:line-output-volume";
-    const HP_OUT_VOL_NAME: &'a str = "fx:hp-output-volume";
-    const SPDIF_OUT_VOL_NAME: &'a str = "fx:spdif-output-volume";
-    const ADAT_OUT_VOL_NAME: &'a str = "fx:adat-output-volume";
+const LINE_OUT_VOL_NAME: &str = "fx:line-output-volume";
+const HP_OUT_VOL_NAME: &str = "fx:hp-output-volume";
+const SPDIF_OUT_VOL_NAME: &str = "fx:spdif-output-volume";
+const ADAT_OUT_VOL_NAME: &str = "fx:adat-output-volume";
 
-    const REVERB_ACTIVATE_NAME: &'a str = "fx:reverb-activate";
-    const REVERB_TYPE_NAME: &'a str = "fx:reverb-type";
-    const REVERB_PRE_DELAY_NAME: &'a str = "fx:reverb-pre-delay";
-    const REVERB_PRE_HPF_FREQ_NAME: &'a str = "fx:reverb-pre-hpf-freq";
-    const REVERB_ROOM_SCALE_NAME: &'a str = "fx:reverb-room-scale";
-    const REVERB_ATTACK_NAME: &'a str = "fx:reverb-attack";
-    const REVERB_HOLD_NAME: &'a str = "fx:reverb-hold";
-    const REVERB_RELEASE_NAME: &'a str = "fx:reverb-release";
-    const REVERB_POST_LPF_FREQ_NAME: &'a str = "fx:reverb-post-lpf-freq";
-    const REVERB_TIME_NAME: &'a str = "fx:reverb-time";
-    const REVERB_DAMPING_NAME: &'a str = "fx:reverb-damping";
-    const REVERB_SMOOTH_NAME: &'a str = "fx:reverb-smooth";
-    const REVERB_VOL_NAME: &'a str = "fx:reverb-volume";
-    const REVERB_STEREO_WIDTH_NAME: &'a str = "fx:reverb-stereo-width";
+const REVERB_ACTIVATE_NAME: &str = "fx:reverb-activate";
+const REVERB_TYPE_NAME: &str = "fx:reverb-type";
+const REVERB_PRE_DELAY_NAME: &str = "fx:reverb-pre-delay";
+const REVERB_PRE_HPF_FREQ_NAME: &str = "fx:reverb-pre-hpf-freq";
+const REVERB_ROOM_SCALE_NAME: &str = "fx:reverb-room-scale";
+const REVERB_ATTACK_NAME: &str = "fx:reverb-attack";
+const REVERB_HOLD_NAME: &str = "fx:reverb-hold";
+const REVERB_RELEASE_NAME: &str = "fx:reverb-release";
+const REVERB_POST_LPF_FREQ_NAME: &str = "fx:reverb-post-lpf-freq";
+const REVERB_TIME_NAME: &str = "fx:reverb-time";
+const REVERB_DAMPING_NAME: &str = "fx:reverb-damping";
+const REVERB_SMOOTH_NAME: &str = "fx:reverb-smooth";
+const REVERB_VOL_NAME: &str = "fx:reverb-volume";
+const REVERB_STEREO_WIDTH_NAME: &str = "fx:reverb-stereo-width";
 
-    const ECHO_ACTIVATE_NAME: &'a str = "fx:echo-activate";
-    const ECHO_TYPE_NAME: &'a str = "fx:echo-type";
-    const ECHO_DELAY_NAME: &'a str = "fx:echo-delay";
-    const ECHO_FEEDBACK_NAME: &'a str = "fx:echo-feedback";
-    const ECHO_LPF_FREQ_NAME: &'a str = "fx:echo-lpf-freq";
-    const ECHO_VOL_NAME: &'a str = "fx:echo-volume";
-    const ECHO_STEREO_WIDTH_NAME: &'a str = "fx:echo-stereo-width";
+const ECHO_ACTIVATE_NAME: &str = "fx:echo-activate";
+const ECHO_TYPE_NAME: &str = "fx:echo-type";
+const ECHO_DELAY_NAME: &str = "fx:echo-delay";
+const ECHO_FEEDBACK_NAME: &str = "fx:echo-feedback";
+const ECHO_LPF_FREQ_NAME: &str = "fx:echo-lpf-freq";
+const ECHO_VOL_NAME: &str = "fx:echo-volume";
+const ECHO_STEREO_WIDTH_NAME: &str = "fx:echo-stereo-width";
 
+impl FfLatterFxCtl {
     const PHYS_LEVEL_MIN: i32 = -650;
     const PHYS_LEVEL_MAX: i32 = 0;
     const PHYS_LEVEL_STEP: i32 = 1;
@@ -1558,10 +1558,10 @@ impl<'a> FfLatterFxCtl {
         let s = state.as_ref();
 
         [
-            (Self::LINE_SRC_GAIN_NAME, &s.fx.line_input_gains),
-            (Self::MIC_SRC_GAIN_NAME, &s.fx.mic_input_gains),
-            (Self::SPDIF_SRC_GAIN_NAME, &s.fx.spdif_input_gains),
-            (Self::ADAT_SRC_GAIN_NAME, &s.fx.adat_input_gains),
+            (LINE_SRC_GAIN_NAME, &s.fx.line_input_gains),
+            (MIC_SRC_GAIN_NAME, &s.fx.mic_input_gains),
+            (SPDIF_SRC_GAIN_NAME, &s.fx.spdif_input_gains),
+            (ADAT_SRC_GAIN_NAME, &s.fx.adat_input_gains),
         ].iter()
             .try_for_each(|(name, gains)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
@@ -1571,17 +1571,17 @@ impl<'a> FfLatterFxCtl {
                     .map(|_| ())
             })?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1,
                                         Self::VIRT_LEVEL_MIN, Self::VIRT_LEVEL_MAX, Self::VIRT_LEVEL_STEP,
                                         s.fx.stream_input_gains.len(),
                                         Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)), true)?;
 
         [
-            (Self::LINE_OUT_VOL_NAME, &s.fx.line_output_vols),
-            (Self::HP_OUT_VOL_NAME, &s.fx.hp_output_vols),
-            (Self::SPDIF_OUT_VOL_NAME, &s.fx.spdif_output_vols),
-            (Self::ADAT_OUT_VOL_NAME, &s.fx.adat_output_vols),
+            (LINE_OUT_VOL_NAME, &s.fx.line_output_vols),
+            (HP_OUT_VOL_NAME, &s.fx.hp_output_vols),
+            (SPDIF_OUT_VOL_NAME, &s.fx.spdif_output_vols),
+            (ADAT_OUT_VOL_NAME, &s.fx.adat_output_vols),
         ].iter()
             .try_for_each(|(name, vols)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
@@ -1591,76 +1591,76 @@ impl<'a> FfLatterFxCtl {
                     .map(|_| ())
             })?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_ACTIVATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::REVERB_TYPES.iter()
             .map(|t| fx_reverb_type_to_string(t))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_TYPE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TYPE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_PRE_DELAY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_DELAY_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 999, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_PRE_HPF_FREQ_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_HPF_FREQ_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 500, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_ROOM_SCALE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ROOM_SCALE_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 50, 300, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_ATTACK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ATTACK_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 5, 400, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_HOLD_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_HOLD_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 5, 400, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_RELEASE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_RELEASE_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 5, 500, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_POST_LPF_FREQ_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_POST_LPF_FREQ_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 200, 20000, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_TIME_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TIME_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 49, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_DAMPING_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_DAMPING_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 2000, 20000, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_SMOOTH_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_SMOOTH_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, -650, 60, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_STEREO_WIDTH_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_STEREO_WIDTH_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_ACTIVATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::ECHO_TYPES.iter()
             .map(|t| fx_echo_type_to_string(t))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_TYPE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_TYPE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_DELAY_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_DELAY_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_FEEDBACK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_FEEDBACK_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
 
         let labels: Vec<String> = Self::ECHO_LPF_FREQS.iter()
             .map(|t| fx_echo_lpf_freq_to_string(t))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_LPF_FREQ_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_LPF_FREQ_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, -650, 0, 1, 1, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ECHO_STEREO_WIDTH_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_STEREO_WIDTH_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
 
         Ok(())
@@ -1671,159 +1671,159 @@ impl<'a> FfLatterFxCtl {
         where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::LINE_SRC_GAIN_NAME => {
+            LINE_SRC_GAIN_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.line_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::MIC_SRC_GAIN_NAME => {
+            MIC_SRC_GAIN_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.mic_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::SPDIF_SRC_GAIN_NAME => {
+            SPDIF_SRC_GAIN_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.spdif_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::ADAT_SRC_GAIN_NAME => {
+            ADAT_SRC_GAIN_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.adat_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::STREAM_SRC_GAIN_NAME => {
+            STREAM_SRC_GAIN_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.stream_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::LINE_OUT_VOL_NAME => {
+            LINE_OUT_VOL_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.line_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::HP_OUT_VOL_NAME => {
+            HP_OUT_VOL_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.hp_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::SPDIF_OUT_VOL_NAME => {
+            SPDIF_OUT_VOL_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.spdif_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::ADAT_OUT_VOL_NAME => {
+            ADAT_OUT_VOL_NAME => {
                 let vals: Vec<i32> = state.as_ref().fx.adat_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
-            Self::REVERB_ACTIVATE_NAME => {
+            REVERB_ACTIVATE_NAME => {
                 elem_value.set_bool(&[state.as_ref().fx.reverb.activate]);
                 Ok(true)
             }
-            Self::REVERB_TYPE_NAME => {
+            REVERB_TYPE_NAME => {
                 let val = Self::REVERB_TYPES.iter()
                     .position(|t| t.eq(&state.as_ref().fx.reverb.reverb_type))
                     .unwrap();
                 elem_value.set_enum(&[val as u32]);
                 Ok(true)
             }
-            Self::REVERB_PRE_DELAY_NAME => {
+            REVERB_PRE_DELAY_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.pre_delay as i32]);
                 Ok(true)
             }
-            Self::REVERB_PRE_HPF_FREQ_NAME => {
+            REVERB_PRE_HPF_FREQ_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.pre_hpf as i32]);
                 Ok(true)
             }
-            Self::REVERB_ROOM_SCALE_NAME => {
+            REVERB_ROOM_SCALE_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.room_scale as i32]);
                 Ok(true)
             }
-            Self::REVERB_ATTACK_NAME => {
+            REVERB_ATTACK_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.attack as i32]);
                 Ok(true)
             }
-            Self::REVERB_HOLD_NAME => {
+            REVERB_HOLD_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.hold as i32]);
                 Ok(true)
             }
-            Self::REVERB_RELEASE_NAME => {
+            REVERB_RELEASE_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.release as i32]);
                 Ok(true)
             }
-            Self::REVERB_POST_LPF_FREQ_NAME => {
+            REVERB_POST_LPF_FREQ_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.post_lpf as i32]);
                 Ok(true)
             }
-            Self::REVERB_TIME_NAME => {
+            REVERB_TIME_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.time as i32]);
                 Ok(true)
             }
-            Self::REVERB_DAMPING_NAME => {
+            REVERB_DAMPING_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.damping as i32]);
                 Ok(true)
             }
-            Self::REVERB_SMOOTH_NAME => {
+            REVERB_SMOOTH_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.smooth as i32]);
                 Ok(true)
             }
-            Self::REVERB_VOL_NAME => {
+            REVERB_VOL_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.volume as i32]);
                 Ok(true)
             }
-            Self::REVERB_STEREO_WIDTH_NAME => {
+            REVERB_STEREO_WIDTH_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.reverb.stereo_width as i32]);
                 Ok(true)
             }
-            Self::ECHO_ACTIVATE_NAME => {
+            ECHO_ACTIVATE_NAME => {
                 elem_value.set_bool(&[state.as_ref().fx.echo.activate]);
                 Ok(true)
             }
-            Self::ECHO_TYPE_NAME => {
+            ECHO_TYPE_NAME => {
                 let pos = Self::ECHO_TYPES.iter()
                     .position(|t| t.eq(&state.as_ref().fx.echo.echo_type))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::ECHO_DELAY_NAME => {
+            ECHO_DELAY_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.echo.delay as i32]);
                 Ok(true)
             }
-            Self::ECHO_FEEDBACK_NAME => {
+            ECHO_FEEDBACK_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.echo.feedback as i32]);
                 Ok(true)
             }
-            Self::ECHO_LPF_FREQ_NAME => {
+            ECHO_LPF_FREQ_NAME => {
                 let pos = Self::ECHO_LPF_FREQS.iter()
                     .position(|f| f.eq(&state.as_ref().fx.echo.lpf))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::ECHO_VOL_NAME => {
+            ECHO_VOL_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.echo.volume as i32]);
                 Ok(true)
             }
-            Self::ECHO_STEREO_WIDTH_NAME => {
+            ECHO_STEREO_WIDTH_NAME => {
                 elem_value.set_int(&[state.as_ref().fx.echo.stereo_width as i32]);
                 Ok(true)
             }
@@ -1838,7 +1838,7 @@ impl<'a> FfLatterFxCtl {
               V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
     {
         match elem_id.get_name().as_str() {
-            Self::LINE_SRC_GAIN_NAME => {
+            LINE_SRC_GAIN_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.line_input_gains.len()];
                 elem_value.get_int(&mut vals);
@@ -1848,7 +1848,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_input_gains(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::MIC_SRC_GAIN_NAME => {
+            MIC_SRC_GAIN_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.mic_input_gains.len()];
                 elem_value.get_int(&mut vals);
@@ -1858,7 +1858,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_input_gains(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::SPDIF_SRC_GAIN_NAME => {
+            SPDIF_SRC_GAIN_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.spdif_input_gains.len()];
                 elem_value.get_int(&mut vals);
@@ -1868,7 +1868,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_input_gains(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::ADAT_SRC_GAIN_NAME => {
+            ADAT_SRC_GAIN_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.adat_input_gains.len()];
                 elem_value.get_int(&mut vals);
@@ -1878,7 +1878,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_input_gains(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::STREAM_SRC_GAIN_NAME => {
+            STREAM_SRC_GAIN_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.stream_input_gains.len()];
                 elem_value.get_int(&mut vals);
@@ -1888,7 +1888,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_input_gains(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::LINE_OUT_VOL_NAME => {
+            LINE_OUT_VOL_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.line_output_vols.len()];
                 elem_value.get_int(&mut vals);
@@ -1898,7 +1898,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_output_volumes(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::HP_OUT_VOL_NAME => {
+            HP_OUT_VOL_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.hp_output_vols.len()];
                 elem_value.get_int(&mut vals);
@@ -1908,7 +1908,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_output_volumes(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::SPDIF_OUT_VOL_NAME => {
+            SPDIF_OUT_VOL_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.spdif_output_vols.len()];
                 elem_value.get_int(&mut vals);
@@ -1918,7 +1918,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_output_volumes(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::ADAT_OUT_VOL_NAME => {
+            ADAT_OUT_VOL_NAME => {
                 let mut s = state.as_ref().fx.clone();
                 let mut vals = vec![0;s.adat_output_vols.len()];
                 elem_value.get_int(&mut vals);
@@ -1928,7 +1928,7 @@ impl<'a> FfLatterFxCtl {
                 U::write_fx_output_volumes(proto, &mut unit.get_node(), state, s, timeout_ms)
                     .map(|_| true)
             }
-            Self::REVERB_ACTIVATE_NAME => {
+            REVERB_ACTIVATE_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -1937,7 +1937,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_TYPE_NAME => {
+            REVERB_TYPE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
                 let reverb_type = Self::REVERB_TYPES.iter()
@@ -1953,7 +1953,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_PRE_DELAY_NAME => {
+            REVERB_PRE_DELAY_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -1962,7 +1962,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_PRE_HPF_FREQ_NAME => {
+            REVERB_PRE_HPF_FREQ_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -1971,7 +1971,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_ROOM_SCALE_NAME => {
+            REVERB_ROOM_SCALE_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -1980,7 +1980,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_ATTACK_NAME => {
+            REVERB_ATTACK_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -1989,7 +1989,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_HOLD_NAME => {
+            REVERB_HOLD_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -1998,7 +1998,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_RELEASE_NAME => {
+            REVERB_RELEASE_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2007,7 +2007,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_POST_LPF_FREQ_NAME => {
+            REVERB_POST_LPF_FREQ_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2016,7 +2016,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_TIME_NAME => {
+            REVERB_TIME_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2025,7 +2025,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_DAMPING_NAME => {
+            REVERB_DAMPING_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2034,7 +2034,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_SMOOTH_NAME => {
+            REVERB_SMOOTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2043,7 +2043,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_VOL_NAME => {
+            REVERB_VOL_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2052,7 +2052,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::REVERB_STEREO_WIDTH_NAME => {
+            REVERB_STEREO_WIDTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_reverb(unit, proto, state, timeout_ms, |s| {
@@ -2061,7 +2061,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_ACTIVATE_NAME => {
+            ECHO_ACTIVATE_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
                 Self::update_echo(unit, proto, state, timeout_ms, |s| {
@@ -2070,7 +2070,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_TYPE_NAME => {
+            ECHO_TYPE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
                 let echo_type = Self::ECHO_TYPES.iter()
@@ -2086,7 +2086,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_DELAY_NAME => {
+            ECHO_DELAY_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_echo(unit, proto, state, timeout_ms, |s| {
@@ -2095,7 +2095,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_FEEDBACK_NAME => {
+            ECHO_FEEDBACK_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_echo(unit, proto, state, timeout_ms, |s| {
@@ -2104,7 +2104,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_LPF_FREQ_NAME => {
+            ECHO_LPF_FREQ_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
                 let lpf = Self::ECHO_LPF_FREQS.iter()
@@ -2120,7 +2120,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_VOL_NAME => {
+            ECHO_VOL_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_echo(unit, proto, state, timeout_ms, |s| {
@@ -2129,7 +2129,7 @@ impl<'a> FfLatterFxCtl {
                 })
                 .map(|_| true)
             }
-            Self::ECHO_STEREO_WIDTH_NAME => {
+            ECHO_STEREO_WIDTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 Self::update_echo(unit, proto, state, timeout_ms, |s| {

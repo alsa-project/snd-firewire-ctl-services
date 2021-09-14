@@ -127,13 +127,13 @@ struct StatusCtl{
     measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> StatusCtl {
-    const EXT_SRC_LOCK_NAME: &'a str = "external-source-lock";
-    const EXT_SRC_SYNC_NAME: &'a str = "external-source-sync";
-    const SPDIF_SRC_RATE_NAME: &'a str = "spdif-source-rate";
-    const EXT_SRC_RATE_NAME: &'a str = "external-source-rate";
-    const ACTIVE_CLK_SRC_NAME: &'a str = "active-clock-source";
+const EXT_SRC_LOCK_NAME: &str = "external-source-lock";
+const EXT_SRC_SYNC_NAME: &str = "external-source-sync";
+const SPDIF_SRC_RATE_NAME: &str = "spdif-source-rate";
+const EXT_SRC_RATE_NAME: &str = "external-source-rate";
+const ACTIVE_CLK_SRC_NAME: &str = "active-clock-source";
 
+impl StatusCtl {
     const EXT_SRCS: [Ff800ClkSrc;5] = [
         Ff800ClkSrc::Spdif,
         Ff800ClkSrc::AdatA,
@@ -163,10 +163,10 @@ impl<'a> StatusCtl {
         let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ACTIVE_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)?;
 
-        [Self::EXT_SRC_LOCK_NAME, Self::EXT_SRC_SYNC_NAME].iter()
+        [EXT_SRC_LOCK_NAME, EXT_SRC_SYNC_NAME].iter()
             .try_for_each(|name| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
                 card_cntr.add_bool_elems(&elem_id, 1, Self::EXT_SRCS.len(), false)
@@ -176,11 +176,11 @@ impl<'a> StatusCtl {
         let labels: Vec<String> = Self::EXT_SRC_RATES.iter()
             .map(|r| optional_clk_nominal_rate_to_string(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_SRC_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_SRC_RATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::EXT_SRC_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, EXT_SRC_RATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
 
@@ -195,7 +195,7 @@ impl<'a> StatusCtl {
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::EXT_SRC_LOCK_NAME => {
+            EXT_SRC_LOCK_NAME => {
                 let vals = [
                     self.status.lock.spdif,
                     self.status.lock.adat_a,
@@ -206,7 +206,7 @@ impl<'a> StatusCtl {
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
-            Self::EXT_SRC_SYNC_NAME => {
+            EXT_SRC_SYNC_NAME => {
                 let vals = [
                     self.status.sync.spdif,
                     self.status.sync.adat_a,
@@ -217,21 +217,21 @@ impl<'a> StatusCtl {
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
-            Self::SPDIF_SRC_RATE_NAME => {
+            SPDIF_SRC_RATE_NAME => {
                 let pos = Self::EXT_SRC_RATES.iter()
                     .position(|r| r.eq(&self.status.spdif_rate))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::EXT_SRC_RATE_NAME => {
+            EXT_SRC_RATE_NAME => {
                 let pos = Self::EXT_SRC_RATES.iter()
                     .position(|r| r.eq(&self.status.external_clk_rate))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::ACTIVE_CLK_SRC_NAME => {
+            ACTIVE_CLK_SRC_NAME => {
                 let pos = CfgCtl::CLK_SRCS.iter()
                     .position(|s| s.eq(&self.status.active_clk_src))
                     .unwrap();
@@ -246,23 +246,23 @@ impl<'a> StatusCtl {
 #[derive(Default, Debug)]
 struct CfgCtl(Ff800Config);
 
-impl<'a> CfgCtl {
-    const PRIMARY_CLK_SRC_NAME: &'a str = "primary-clock-source";
-    const INPUT_JACK_NAME: &'a str = "input-1/7/8-jack";
-    const INPUT_LINE_LEVEL_NAME: &'a str = "input-line-level";
-    const INPUT_POWER_NAME: &'a str = "input-7/8/9/10-powering";
-    const INPUT_INST_DRIVE_NAME: &'a str = "input-1-inst-drive";
-    const INPUT_INST_LIMITTER_NAME: &'a str = "input-1-inst-limitter";
-    const INPUT_INST_SPKR_EMU_NAME: &'a str = "input-1-inst-speaker-emu";
-    const OUTPUT_LINE_LEVEL_NAME: &'a str = "output-line-level";
-    const SPDIF_INPUT_IFACE_NAME: &'a str = "spdif-input-interface";
-    const SPDIF_INPUT_USE_PREEMBLE_NAME: &'a str = "spdif-input-use-preemble";
-    const SPDIF_OUTPUT_FMT_NAME: &'a str = "spdif-output-format";
-    const SPDIF_OUTPUT_EMPHASIS_NAME: &'a str = "spdif-output-emphasis";
-    const SPDIF_OUTPUT_NON_AUDIO_NAME: &'a str = "spdif-output-non-audio";
-    const OPT_OUTPUT_SIGNAL_NAME: &'a str = "optical-output-signal";
-    const WORD_CLOCK_SINGLE_SPPED_NAME: &'a str = "word-clock-single-speed";
+const PRIMARY_CLK_SRC_NAME: &str = "primary-clock-source";
+const INPUT_JACK_NAME: &str = "input-1/7/8-jack";
+const INPUT_LINE_LEVEL_NAME: &str = "input-line-level";
+const INPUT_POWER_NAME: &str = "input-7/8/9/10-powering";
+const INPUT_INST_DRIVE_NAME: &str = "input-1-inst-drive";
+const INPUT_INST_LIMITTER_NAME: &str = "input-1-inst-limitter";
+const INPUT_INST_SPKR_EMU_NAME: &str = "input-1-inst-speaker-emu";
+const OUTPUT_LINE_LEVEL_NAME: &str = "output-line-level";
+const SPDIF_INPUT_IFACE_NAME: &str = "spdif-input-interface";
+const SPDIF_INPUT_USE_PREEMBLE_NAME: &str = "spdif-input-use-preemble";
+const SPDIF_OUTPUT_FMT_NAME: &str = "spdif-output-format";
+const SPDIF_OUTPUT_EMPHASIS_NAME: &str = "spdif-output-emphasis";
+const SPDIF_OUTPUT_NON_AUDIO_NAME: &str = "spdif-output-non-audio";
+const OPT_OUTPUT_SIGNAL_NAME: &str = "optical-output-signal";
+const WORD_CLOCK_SINGLE_SPPED_NAME: &str = "word-clock-single-speed";
 
+impl CfgCtl {
     const CLK_SRCS: [Ff800ClkSrc;6] = [
         Ff800ClkSrc::Internal,
         Ff800ClkSrc::WordClock,
@@ -272,13 +272,13 @@ impl<'a> CfgCtl {
         Ff800ClkSrc::Tco,
     ];
 
-    const INPUT_INPUT_JACK_TARGETS: [&'a str;3] = [
+    const INPUT_INPUT_JACK_TARGETS: [&'static str; 3] = [
         "analog-1",
         "analog-7",
         "analog-8",
     ];
 
-    const INPUT_POWER_TARGETS: [&'a str;4] = [
+    const INPUT_POWER_TARGETS: [&'static str; 4] = [
         "analog-7",
         "analog-8",
         "analog-9",
@@ -328,68 +328,68 @@ impl<'a> CfgCtl {
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PRIMARY_CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PRIMARY_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<String> = Self::INPUT_JACKS.iter()
             .map(|l| line_in_jack_to_string(l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_JACK_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_JACK_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::INPUT_INPUT_JACK_TARGETS.len(), &labels,
                                          None, true)?;
 
         let labels: Vec<String> = Self::INPUT_LINE_LEVELS.iter()
             .map(|l| former_line_in_nominal_level_to_string(l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_LINE_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_POWER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_POWER_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_POWER_TARGETS.len(), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_INST_DRIVE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_INST_DRIVE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_INST_LIMITTER_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_INST_LIMITTER_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::INPUT_INST_SPKR_EMU_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_INST_SPKR_EMU_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::OUTPUT_LINE_LEVELS.iter()
             .map(|l| line_out_nominal_level_to_string(l))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OUTPUT_LINE_LEVEL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OUTPUT_LINE_LEVEL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<String> = Self::SPDIF_IFACES.iter()
             .map(|i| spdif_iface_to_string(i))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_INPUT_IFACE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_INPUT_IFACE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_INPUT_USE_PREEMBLE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_INPUT_USE_PREEMBLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::SPDIF_FMTS.iter()
             .map(|f| spdif_format_to_string(f))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_OUTPUT_FMT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_OUTPUT_FMT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_OUTPUT_EMPHASIS_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_OUTPUT_EMPHASIS_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_OUTPUT_NON_AUDIO_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_OUTPUT_NON_AUDIO_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::OPT_OUT_SIGNALS.iter()
             .map(|f| optical_output_signal_to_string(f))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_OUTPUT_SIGNAL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUTPUT_SIGNAL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::WORD_CLOCK_SINGLE_SPPED_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, WORD_CLOCK_SINGLE_SPPED_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
@@ -397,7 +397,7 @@ impl<'a> CfgCtl {
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PRIMARY_CLK_SRC_NAME => {
+            PRIMARY_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::CLK_SRCS.iter()
                         .position(|s| s.eq(&self.0.clk.primary_src))
@@ -406,7 +406,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_JACK_NAME => {
+            INPUT_JACK_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 3, |idx| {
                     let pos = Self::INPUT_JACKS.iter()
                         .position(|j| j.eq(&self.0.analog_in.jacks[idx]))
@@ -415,30 +415,30 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_LINE_LEVEL_NAME => {
+            INPUT_LINE_LEVEL_NAME => {
                 let pos = Self::INPUT_LINE_LEVELS.iter()
                     .position(|l| l.eq(&self.0.analog_in.line_level))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::INPUT_POWER_NAME => {
+            INPUT_POWER_NAME => {
                 elem_value.set_bool(&self.0.analog_in.phantom_powering);
                 Ok(true)
             }
-            Self::INPUT_INST_DRIVE_NAME => {
+            INPUT_INST_DRIVE_NAME => {
                 elem_value.set_bool(&[self.0.analog_in.inst.drive]);
                 Ok(true)
             }
-            Self::INPUT_INST_LIMITTER_NAME => {
+            INPUT_INST_LIMITTER_NAME => {
                 elem_value.set_bool(&[self.0.analog_in.inst.limitter]);
                 Ok(true)
             }
-            Self::INPUT_INST_SPKR_EMU_NAME => {
+            INPUT_INST_SPKR_EMU_NAME => {
                 elem_value.set_bool(&[self.0.analog_in.inst.speaker_emulation]);
                 Ok(true)
             }
-            Self::OUTPUT_LINE_LEVEL_NAME => {
+            OUTPUT_LINE_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::OUTPUT_LINE_LEVELS.iter()
                         .position(|l| l.eq(&self.0.line_out_level))
@@ -447,7 +447,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_INPUT_IFACE_NAME => {
+            SPDIF_INPUT_IFACE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::SPDIF_IFACES.iter()
                         .position(|i| i.eq(&self.0.spdif_in.iface))
@@ -456,11 +456,11 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_INPUT_USE_PREEMBLE_NAME => {
+            SPDIF_INPUT_USE_PREEMBLE_NAME => {
                 elem_value.set_bool(&[self.0.spdif_in.use_preemble]);
                 Ok(true)
             }
-            Self::SPDIF_OUTPUT_FMT_NAME => {
+            SPDIF_OUTPUT_FMT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::SPDIF_FMTS.iter()
                         .position(|f| f.eq(&self.0.spdif_out.format))
@@ -469,15 +469,15 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_OUTPUT_EMPHASIS_NAME => {
+            SPDIF_OUTPUT_EMPHASIS_NAME => {
                 elem_value.set_bool(&[self.0.spdif_out.emphasis]);
                 Ok(true)
             }
-            Self::SPDIF_OUTPUT_NON_AUDIO_NAME => {
+            SPDIF_OUTPUT_NON_AUDIO_NAME => {
                 elem_value.set_bool(&[self.0.spdif_out.non_audio]);
                 Ok(true)
             }
-            Self::OPT_OUTPUT_SIGNAL_NAME => {
+            OPT_OUTPUT_SIGNAL_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::OPT_OUT_SIGNALS.iter()
                         .position(|f| f.eq(&self.0.opt_out_signal))
@@ -486,7 +486,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::WORD_CLOCK_SINGLE_SPPED_NAME => {
+            WORD_CLOCK_SINGLE_SPPED_NAME => {
                 elem_value.set_bool(&[self.0.word_out_single]);
                 Ok(true)
             }
@@ -499,7 +499,7 @@ impl<'a> CfgCtl {
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
-            Self::PRIMARY_CLK_SRC_NAME => {
+            PRIMARY_CLK_SRC_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         let src = Self::CLK_SRCS.iter()
@@ -514,7 +514,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_JACK_NAME => {
+            INPUT_JACK_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_vals(new, old, 3, |idx, val| {
                         let jack = Self::INPUT_JACKS.iter()
@@ -529,7 +529,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_LINE_LEVEL_NAME => {
+            INPUT_LINE_LEVEL_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::INPUT_LINE_LEVELS.iter()
@@ -543,14 +543,14 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_POWER_NAME => {
+            INPUT_POWER_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     new.get_bool(&mut cfg.analog_in.phantom_powering);
                     Ok(())
                 })
                 .map(|_| true)
             }
-            Self::INPUT_INST_DRIVE_NAME => {
+            INPUT_INST_DRIVE_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.analog_in.inst.drive = val;
@@ -559,7 +559,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_INST_LIMITTER_NAME => {
+            INPUT_INST_LIMITTER_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.analog_in.inst.limitter = val;
@@ -568,7 +568,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::INPUT_INST_SPKR_EMU_NAME => {
+            INPUT_INST_SPKR_EMU_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.analog_in.inst.speaker_emulation = val;
@@ -577,7 +577,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::OUTPUT_LINE_LEVEL_NAME => {
+            OUTPUT_LINE_LEVEL_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::OUTPUT_LINE_LEVELS.iter()
@@ -591,7 +591,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_INPUT_IFACE_NAME => {
+            SPDIF_INPUT_IFACE_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::SPDIF_IFACES.iter()
@@ -605,7 +605,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_INPUT_USE_PREEMBLE_NAME => {
+            SPDIF_INPUT_USE_PREEMBLE_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_in.use_preemble = val;
@@ -614,7 +614,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_OUTPUT_FMT_NAME => {
+            SPDIF_OUTPUT_FMT_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::SPDIF_FMTS.iter()
@@ -628,7 +628,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_OUTPUT_EMPHASIS_NAME => {
+            SPDIF_OUTPUT_EMPHASIS_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_out.emphasis = val;
@@ -637,7 +637,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_OUTPUT_NON_AUDIO_NAME => {
+            SPDIF_OUTPUT_NON_AUDIO_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.spdif_out.non_audio = val;
@@ -646,7 +646,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::OPT_OUTPUT_SIGNAL_NAME => {
+            OPT_OUTPUT_SIGNAL_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::OPT_OUT_SIGNALS.iter()
@@ -660,7 +660,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::WORD_CLOCK_SINGLE_SPPED_NAME => {
+            WORD_CLOCK_SINGLE_SPPED_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         cfg.word_out_single = val;
