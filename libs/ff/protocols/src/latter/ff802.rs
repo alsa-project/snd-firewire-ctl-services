@@ -3,20 +3,12 @@
 
 //! Protocol defined by RME GmbH for Fireface 802.
 
-use hinawa::FwReq;
-
 use super::*;
 use crate::*;
 
 /// The structure to represent unique protocol for Fireface 802.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct Ff802Protocol(FwReq);
-
-impl AsRef<FwReq> for Ff802Protocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct Ff802Protocol;
 
 // For configuration register (0x'ffff'0000'0014).
 const CFG_CLK_SRC_MASK: u32                     = 0x00001c00;

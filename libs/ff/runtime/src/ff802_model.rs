@@ -2,9 +2,10 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
+use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
@@ -17,7 +18,7 @@ use super::latter_ctls::*;
 
 #[derive(Default, Debug)]
 pub struct Ff802Model{
-    req: Ff802Protocol,
+    req: FwReq,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     meter_ctl: MeterCtl,
@@ -131,7 +132,7 @@ fn ff802_spdif_iface_to_string(iface: &Ff802SpdifIface) -> String {
 
 fn update_cfg<F>(
     unit: &mut SndUnit,
-    req: &mut Ff802Protocol,
+    req: &mut FwReq,
     cfg: &mut Ff802Config,
     timeout_ms: u32,
     cb: F
@@ -193,7 +194,7 @@ impl CfgCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff802Protocol,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -289,7 +290,7 @@ impl CfgCtl {
     fn write(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff802Protocol,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
@@ -411,7 +412,7 @@ impl StatusCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff802Protocol,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -451,7 +452,7 @@ impl StatusCtl {
     fn measure_states(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff802Protocol,
+        req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
         Ff802Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)

@@ -3,20 +3,12 @@
 
 //! Protocol defined by RME GmbH for Fireface UCX.
 
-use hinawa::FwReq;
-
 use super::*;
 use crate::*;
 
 /// The structure to represent unique protocol for Fireface UCX.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FfUcxProtocol(FwReq);
-
-impl AsRef<FwReq> for FfUcxProtocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+pub struct FfUcxProtocol;
 
 // For configuration register (0x'ffff'0000'0014).
 const CFG_CLK_SRC_MASK: u32                         = 0x00000c00;
