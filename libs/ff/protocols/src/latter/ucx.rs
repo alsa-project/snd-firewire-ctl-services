@@ -132,7 +132,7 @@ impl RmeFfLatterRegisterValueOperation for FfUcxConfig{
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterConfigProtocol<T, FfUcxConfig> for FfUcxProtocol {}
+impl RmeFfLatterConfigOperation<FfUcxConfig> for FfUcxProtocol {}
 
 // For status register (0x'ffff'0000'001c).
 #[allow(dead_code)]

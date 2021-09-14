@@ -69,18 +69,23 @@ pub trait RmeFfLatterRegisterValueOperation {
 }
 
 /// The trait to represent configuration protocol.
-pub trait RmeFfLatterConfigProtocol<T, U> : AsRef<FwReq>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterRegisterValueOperation,
+pub trait RmeFfLatterConfigOperation<U> : AsRef<FwReq>
+    where U: RmeFfLatterRegisterValueOperation,
 {
-    fn write_cfg(&self, node: &T, cfg: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn write_cfg(&self, node: &mut FwNode, cfg: &U, timeout_ms: u32) -> Result<(), Error> {
         let mut quad = 0u32;
         cfg.build(&mut quad);
 
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         raw.copy_from_slice(&quad.to_le_bytes());
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteQuadletRequest, CFG_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::WriteQuadletRequest,
+            CFG_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
     }
 }
 
