@@ -823,25 +823,33 @@ impl Ff800Config {
     }
 }
 
-/// The trait to represent configuration protocol specific to RME Fireface 800.
-pub trait RmeFf800ConfigProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
-    fn write_cfg(&self, node: &T, cfg: &Ff800Config, timeout_ms: u32) -> Result<(), Error> {
+impl Ff800Protocol {
+    pub fn write_cfg(
+        &self,
+        node: &mut FwNode,
+        cfg: &Ff800Config,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mut quads = [0u32;3];
         cfg.build(&mut quads);
 
-        let mut raw = [0;12];
+        let mut raw = [0; 12];
         quads.iter()
             .enumerate()
             .for_each(|(i, quad)| {
                 let pos = i * 4;
                 raw[pos..(pos + 4)].copy_from_slice(&quad.to_le_bytes())
             });
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteBlockRequest, CFG_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            CFG_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
     }
 }
-
-impl<T: AsRef<FwNode>> RmeFf800ConfigProtocol<T> for Ff800Protocol {}
 
 #[cfg(test)]
 mod test {
