@@ -182,13 +182,24 @@ impl AsRef<[i32]> for Ff400OutputVolumeState {
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFormerOutputProtocol<T, Ff400OutputVolumeState> for Ff400Protocol {
-    fn write_output_vol(&self, node: &T, ch: usize, vol: i32, timeout_ms: u32) -> Result<(), Error> {
-        let mut raw = [0;4];
+impl RmeFormerOutputOperation<Ff400OutputVolumeState> for Ff400Protocol {
+    fn write_output_vol(
+        &self,
+        node: &mut FwNode,
+        ch: usize,
+        vol: i32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut raw = [0; 4];
         raw.copy_from_slice(&vol.to_le_bytes());
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteBlockRequest,
-                                       (OUTPUT_OFFSET + ch * 4) as u64, raw.len(), &mut raw,
-                                       timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            (OUTPUT_OFFSET + ch * 4) as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
             .and_then(|_| {
                 // The value for level is between 0x3f to 0x00 by step 1 to represent -57 dB
                 // (=mute) to +6 dB.
