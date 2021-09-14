@@ -107,14 +107,14 @@ fn update_cfg<F>(unit: &SndUnit, proto: &FfUcxProtocol, cfg: &mut FfUcxConfig, t
 #[derive(Default, Debug)]
 struct CfgCtl(FfUcxConfig);
 
-impl<'a> CfgCtl {
-    const PRIMARY_CLK_SRC_NAME: &'a str = "primary-clock-source";
-    const OPT_OUTPUT_SIGNAL_NAME: &'a str = "optical-output-signal";
-    const EFFECT_ON_INPUT_NAME: &'a str = "effect-on-input";
-    const SPDIF_OUTPUT_FMT_NAME: &'a str = "spdif-output-format";
-    const WORD_CLOCK_SINGLE_SPPED_NAME: &'a str = "word-clock-single-speed";
-    const WORD_CLOCK_IN_TERMINATE_NAME: &'a str = "word-clock-input-terminate";
+const PRIMARY_CLK_SRC_NAME: &str = "primary-clock-source";
+const OPT_OUTPUT_SIGNAL_NAME: &str = "optical-output-signal";
+const EFFECT_ON_INPUT_NAME: &str = "effect-on-input";
+const SPDIF_OUTPUT_FMT_NAME: &str = "spdif-output-format";
+const WORD_CLOCK_SINGLE_SPPED_NAME: &str = "word-clock-single-speed";
+const WORD_CLOCK_IN_TERMINATE_NAME: &str = "word-clock-input-terminate";
 
+impl CfgCtl {
     const CLK_SRCS: [FfUcxClkSrc;4] = [
         FfUcxClkSrc::Internal,
         FfUcxClkSrc::Coax,
@@ -152,28 +152,28 @@ impl<'a> CfgCtl {
         let labels: Vec<String> = Self::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::PRIMARY_CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PRIMARY_CLK_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<String> = Self::OPT_OUT_SIGNALS.iter()
             .map(|f| optical_output_signal_to_string(f))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::OPT_OUTPUT_SIGNAL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, OPT_OUTPUT_SIGNAL_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EFFECT_ON_INPUT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, EFFECT_ON_INPUT_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         let labels: Vec<String> = Self::SPDIF_FMTS.iter()
             .map(|f| spdif_format_to_string(f))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::SPDIF_OUTPUT_FMT_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SPDIF_OUTPUT_FMT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::WORD_CLOCK_SINGLE_SPPED_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, WORD_CLOCK_SINGLE_SPPED_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::WORD_CLOCK_IN_TERMINATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, WORD_CLOCK_IN_TERMINATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         Ok(())
@@ -181,7 +181,7 @@ impl<'a> CfgCtl {
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::PRIMARY_CLK_SRC_NAME => {
+            PRIMARY_CLK_SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::CLK_SRCS.iter()
                         .position(|s| s.eq(&self.0.clk_src))
@@ -190,7 +190,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::OPT_OUTPUT_SIGNAL_NAME => {
+            OPT_OUTPUT_SIGNAL_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::OPT_OUT_SIGNALS.iter()
                         .position(|f| f.eq(&self.0.opt_out_signal))
@@ -199,11 +199,11 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::EFFECT_ON_INPUT_NAME => {
+            EFFECT_ON_INPUT_NAME => {
                 elem_value.set_bool(&[self.0.effect_on_inputs]);
                 Ok(true)
             }
-            Self::SPDIF_OUTPUT_FMT_NAME => {
+            SPDIF_OUTPUT_FMT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::SPDIF_FMTS.iter()
                         .position(|f| f.eq(&self.0.spdif_out_format))
@@ -212,11 +212,11 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::WORD_CLOCK_SINGLE_SPPED_NAME => {
+            WORD_CLOCK_SINGLE_SPPED_NAME => {
                 elem_value.set_bool(&[self.0.word_out_single]);
                 Ok(true)
             }
-            Self::WORD_CLOCK_IN_TERMINATE_NAME => {
+            WORD_CLOCK_IN_TERMINATE_NAME => {
                 elem_value.set_bool(&[self.0.word_in_terminate]);
                 Ok(true)
             }
@@ -229,7 +229,7 @@ impl<'a> CfgCtl {
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
-            Self::PRIMARY_CLK_SRC_NAME => {
+            PRIMARY_CLK_SRC_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         let src = Self::CLK_SRCS.iter()
@@ -244,7 +244,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::OPT_OUTPUT_SIGNAL_NAME => {
+            OPT_OUTPUT_SIGNAL_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         Self::OPT_OUT_SIGNALS.iter()
@@ -258,7 +258,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::EFFECT_ON_INPUT_NAME => {
+            EFFECT_ON_INPUT_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
@@ -267,7 +267,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::SPDIF_OUTPUT_FMT_NAME => {
+            SPDIF_OUTPUT_FMT_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         Self::SPDIF_FMTS.iter()
@@ -281,7 +281,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::WORD_CLOCK_SINGLE_SPPED_NAME => {
+            WORD_CLOCK_SINGLE_SPPED_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                         cfg.word_out_single = val;
@@ -290,7 +290,7 @@ impl<'a> CfgCtl {
                 })
                 .map(|_| true)
             }
-            Self::WORD_CLOCK_IN_TERMINATE_NAME => {
+            WORD_CLOCK_IN_TERMINATE_NAME => {
                 update_cfg(unit, proto, &mut self.0, timeout_ms, |cfg| {
                     ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                         cfg.word_in_terminate = val;
@@ -310,13 +310,13 @@ struct StatusCtl{
     measured_elem_list: Vec<ElemId>,
 }
 
-impl<'a> StatusCtl {
-    const EXT_SRC_LOCK_NAME: &'a str = "external-source-lock";
-    const EXT_SRC_SYNC_NAME: &'a str = "external-source-sync";
-    const EXT_SRC_RATE_NAME: &'a str = "external-source-rate";
-    const ACTIVE_CLK_RATE_NAME: &'a str = "active-clock-rate";
-    const ACTIVE_CLK_SRC_NAME: &'a str = "active-clock-source";
+const EXT_SRC_LOCK_NAME: &str = "external-source-lock";
+const EXT_SRC_SYNC_NAME: &str = "external-source-sync";
+const EXT_SRC_RATE_NAME: &str = "external-source-rate";
+const ACTIVE_CLK_RATE_NAME: &str = "active-clock-rate";
+const ACTIVE_CLK_SRC_NAME: &str = "active-clock-source";
 
+impl StatusCtl {
     const EXT_CLK_SRCS: [FfUcxClkSrc;3] = [
         FfUcxClkSrc::Coax,
         FfUcxClkSrc::Opt,
@@ -341,7 +341,7 @@ impl<'a> StatusCtl {
     {
         FfUcxProtocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
-        [Self::EXT_SRC_LOCK_NAME, Self::EXT_SRC_SYNC_NAME].iter()
+        [EXT_SRC_LOCK_NAME, EXT_SRC_SYNC_NAME].iter()
             .try_for_each(|name| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
                 card_cntr.add_bool_elems(&elem_id, 1, Self::EXT_CLK_SRCS.len(), false)
@@ -351,21 +351,21 @@ impl<'a> StatusCtl {
         let labels: Vec<String> = Self::EXT_CLK_RATES.iter()
             .map(|r| optional_clk_nominal_rate_to_string(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::EXT_SRC_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, EXT_SRC_RATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, Self::EXT_CLK_SRCS.len(), &labels, None, false)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
             .map(|r| clk_src_to_string(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ACTIVE_CLK_SRC_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = CfgCtl::CLK_RATES.iter()
             .map(|r| clk_nominal_rate_to_string(r))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::ACTIVE_CLK_RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ACTIVE_CLK_RATE_NAME, 0);
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))?;
 
@@ -380,7 +380,7 @@ impl<'a> StatusCtl {
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::EXT_SRC_LOCK_NAME => {
+            EXT_SRC_LOCK_NAME => {
                 let vals = [
                     self.status.ext_lock.coax_iface,
                     self.status.ext_lock.opt_iface,
@@ -389,7 +389,7 @@ impl<'a> StatusCtl {
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
-            Self::EXT_SRC_SYNC_NAME => {
+            EXT_SRC_SYNC_NAME => {
                 let vals = [
                     self.status.ext_sync.coax_iface,
                     self.status.ext_sync.opt_iface,
@@ -398,7 +398,7 @@ impl<'a> StatusCtl {
                 elem_value.set_bool(&vals);
                 Ok(true)
             }
-            Self::EXT_SRC_RATE_NAME => {
+            EXT_SRC_RATE_NAME => {
                 let vals: Vec<u32> = [
                     self.status.ext_rate.coax_iface,
                     self.status.ext_rate.opt_iface,
@@ -414,7 +414,7 @@ impl<'a> StatusCtl {
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
-            Self::ACTIVE_CLK_SRC_NAME => {
+            ACTIVE_CLK_SRC_NAME => {
                 let pos = CfgCtl::CLK_SRCS.iter()
                     .position(|r| r.eq(&self.status.active_clk_src))
                     .map(|p| p as u32)
@@ -422,7 +422,7 @@ impl<'a> StatusCtl {
                 elem_value.set_enum(&[pos]);
                 Ok(true)
             }
-            Self::ACTIVE_CLK_RATE_NAME => {
+            ACTIVE_CLK_RATE_NAME => {
                 let pos = CfgCtl::CLK_RATES.iter()
                     .position(|r| r.eq(&self.status.active_clk_rate))
                     .map(|p| p as u32)

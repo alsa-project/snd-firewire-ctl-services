@@ -24,11 +24,11 @@ pub struct FormerOutCtl<V>
     state: V,
 }
 
-impl<'a, V> FormerOutCtl<V>
+const VOL_NAME: &str = "output-volume";
+
+impl< V> FormerOutCtl<V>
     where V: AsRef<[i32]> + AsMut<[i32]>,
 {
-    const VOL_NAME: &'a str = "output-volume";
-
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
         where U: RmeFormerOutputOperation<V>,
@@ -38,7 +38,7 @@ impl<'a, V> FormerOutCtl<V>
             .for_each(|vol| *vol = VOL_ZERO);
         U::init_output_vols(proto, &mut unit.get_node(), &self.state, timeout_ms)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
                                         self.state.as_ref().len(), Some(&Vec::<u32>::from(&VOL_TLV)), true)?;
 
@@ -47,7 +47,7 @@ impl<'a, V> FormerOutCtl<V>
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::VOL_NAME => {
+            VOL_NAME => {
                 elem_value.set_int(&mut self.state.as_ref());
                 Ok(true)
             },
@@ -62,7 +62,7 @@ impl<'a, V> FormerOutCtl<V>
               V: AsRef<[i32]> + AsMut<[i32]>,
     {
         match elem_id.get_name().as_str() {
-            Self::VOL_NAME => {
+            VOL_NAME => {
                 let mut vals = self.state.as_ref().to_vec();
                 new.get_int(&mut vals);
                 U::write_output_vols(proto, &mut unit.get_node(), &mut self.state, &vals, timeout_ms)
@@ -86,14 +86,14 @@ pub struct FormerMixerCtl<V>
     state: V,
 }
 
-impl<'a, V> FormerMixerCtl<V>
+const ANALOG_SRC_GAIN_NAME: &str = "mixer:analog-source-gain";
+const SPDIF_SRC_GAIN_NAME: &str = "mixer:spdif-source-gain";
+const ADAT_SRC_GAIN_NAME: &str = "mixer:adat-source-gain";
+const STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
+
+impl< V> FormerMixerCtl<V>
     where V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
 {
-    const ANALOG_SRC_GAIN_NAME: &'a str = "mixer:analog-source-gain";
-    const SPDIF_SRC_GAIN_NAME: &'a str = "mixer:spdif-source-gain";
-    const ADAT_SRC_GAIN_NAME: &'a str = "mixer:adat-source-gain";
-    const STREAM_SRC_GAIN_NAME: &'a str = "mixer:stream-source-gain";
-
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
         where U: RmeFormerMixerOperation<V>,
@@ -120,19 +120,19 @@ impl<'a, V> FormerMixerCtl<V>
 
         let mixers = self.state.as_ref();
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ANALOG_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
                                         mixers[0].analog_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SPDIF_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
                                         mixers[0].spdif_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::ADAT_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ADAT_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
                                         mixers[0].adat_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, mixers.len(), GAIN_MIN, GAIN_MAX, GAIN_STEP,
                                         mixers[0].stream_gains.len(), Some(&Vec::<u32>::from(&GAIN_TLV)), true)?;
 
@@ -141,22 +141,22 @@ impl<'a, V> FormerMixerCtl<V>
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::ANALOG_SRC_GAIN_NAME => {
+            ANALOG_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 elem_value.set_int(&self.state.as_ref()[index].analog_gains);
                 Ok(true)
             }
-            Self::SPDIF_SRC_GAIN_NAME => {
+            SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 elem_value.set_int(&self.state.as_ref()[index].spdif_gains);
                 Ok(true)
             }
-            Self::ADAT_SRC_GAIN_NAME => {
+            ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 elem_value.set_int(&self.state.as_ref()[index].adat_gains);
                 Ok(true)
             }
-            Self::STREAM_SRC_GAIN_NAME => {
+            STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 elem_value.set_int(&self.state.as_ref()[index].stream_gains);
                 Ok(true)
@@ -172,7 +172,7 @@ impl<'a, V> FormerMixerCtl<V>
               V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
     {
         match elem_id.get_name().as_str() {
-            Self::ANALOG_SRC_GAIN_NAME => {
+            ANALOG_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].analog_gains.clone();
                 new.get_int(&mut gains);
@@ -186,7 +186,7 @@ impl<'a, V> FormerMixerCtl<V>
                 )
                     .map(|_| true)
             }
-            Self::SPDIF_SRC_GAIN_NAME => {
+            SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].spdif_gains.clone();
                 new.get_int(&mut gains);
@@ -200,7 +200,7 @@ impl<'a, V> FormerMixerCtl<V>
                 )
                     .map(|_| true)
             }
-            Self::ADAT_SRC_GAIN_NAME => {
+            ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].adat_gains.clone();
                 new.get_int(&mut gains);
@@ -214,7 +214,7 @@ impl<'a, V> FormerMixerCtl<V>
                 )
                     .map(|_| true)
             }
-            Self::STREAM_SRC_GAIN_NAME => {
+            STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].stream_gains.clone();
                 new.get_int(&mut gains);
@@ -246,18 +246,18 @@ const LEVEL_MAX: i32 = 0x7fffff00;
 const LEVEL_STEP: i32 = 0x100;
 const LEVEL_TLV: DbInterval = DbInterval{min: -9003, max: 600, linear: false, mute_avail: false};
 
-impl<'a, V> FormerMeterCtl<V>
+const ANALOG_INPUT_NAME: &str = "meter:analog-input";
+const SPDIF_INPUT_NAME: &str = "meter:spdif-input";
+const ADAT_INPUT_NAME: &str = "meter:adat-input";
+const STREAM_INPUT_NAME: &str = "meter:stream-input";
+
+const ANALOG_OUTPUT_NAME: &str = "meter:analog-output";
+const SPDIF_OUTPUT_NAME: &str = "meter:spdif-output";
+const ADAT_OUTPUT_NAME: &str = "meter:adat-output";
+
+impl<V> FormerMeterCtl<V>
     where V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
 {
-    const ANALOG_INPUT_NAME: &'a str = "meter:analog-input";
-    const SPDIF_INPUT_NAME: &'a str = "meter:spdif-input";
-    const ADAT_INPUT_NAME: &'a str = "meter:adat-input";
-    const STREAM_INPUT_NAME: &'a str = "meter:stream-input";
-
-    const ANALOG_OUTPUT_NAME: &'a str = "meter:analog-output";
-    const SPDIF_OUTPUT_NAME: &'a str = "meter:spdif-output";
-    const ADAT_OUTPUT_NAME: &'a str = "meter:adat-output";
-
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
         where U: RmeFfFormerMeterOperation<V>,
@@ -267,13 +267,13 @@ impl<'a, V> FormerMeterCtl<V>
 
         let s = self.state.as_ref();
         [
-            (Self::ANALOG_INPUT_NAME, s.analog_inputs.len()),
-            (Self::SPDIF_INPUT_NAME, s.spdif_inputs.len()),
-            (Self::ADAT_INPUT_NAME, s.adat_inputs.len()),
-            (Self::STREAM_INPUT_NAME, s.stream_inputs.len()),
-            (Self::ANALOG_OUTPUT_NAME, s.analog_outputs.len()),
-            (Self::SPDIF_OUTPUT_NAME, s.spdif_outputs.len()),
-            (Self::ADAT_OUTPUT_NAME, s.adat_outputs.len()),
+            (ANALOG_INPUT_NAME, s.analog_inputs.len()),
+            (SPDIF_INPUT_NAME, s.spdif_inputs.len()),
+            (ADAT_INPUT_NAME, s.adat_inputs.len()),
+            (STREAM_INPUT_NAME, s.stream_inputs.len()),
+            (ANALOG_OUTPUT_NAME, s.analog_outputs.len()),
+            (SPDIF_OUTPUT_NAME, s.spdif_outputs.len()),
+            (ADAT_OUTPUT_NAME, s.adat_outputs.len()),
         ].iter()
             .try_for_each(|&(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
@@ -299,31 +299,31 @@ impl<'a, V> FormerMeterCtl<V>
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {
-            Self::ANALOG_INPUT_NAME => {
+            ANALOG_INPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().analog_inputs);
                 Ok(true)
             }
-            Self::SPDIF_INPUT_NAME => {
+            SPDIF_INPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().spdif_inputs);
                 Ok(true)
             }
-            Self::ADAT_INPUT_NAME => {
+            ADAT_INPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().adat_inputs);
                 Ok(true)
             }
-            Self::STREAM_INPUT_NAME => {
+            STREAM_INPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().stream_inputs);
                 Ok(true)
             }
-            Self::ANALOG_OUTPUT_NAME => {
+            ANALOG_OUTPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().analog_outputs);
                 Ok(true)
             }
-            Self::SPDIF_OUTPUT_NAME => {
+            SPDIF_OUTPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().spdif_outputs);
                 Ok(true)
             }
-            Self::ADAT_OUTPUT_NAME => {
+            ADAT_OUTPUT_NAME => {
                 elem_value.set_int(&self.state.as_ref().adat_outputs);
                 Ok(true)
             }
