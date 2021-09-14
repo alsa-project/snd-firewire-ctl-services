@@ -115,19 +115,30 @@ pub trait RmeFfFormerMeterOperation<U> : AsRef<FwReq>
 ///
 /// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
 /// represent the range from negative infinite to 6.00 dB through -90.30 dB and 0.00 dB.
-pub trait RmeFormerOutputProtocol<T, U> : AsRef<FwReq>
-    where T: AsRef<FwNode>,
-          U: AsRef<[i32]> + AsMut<[i32]>,
+pub trait RmeFormerOutputOperation<U> : AsRef<FwReq>
+    where U: AsRef<[i32]> + AsMut<[i32]>,
 {
-    fn write_output_vol(&self, node: &T, ch: usize, vol: i32, timeout_ms: u32) -> Result<(), Error>;
+    fn write_output_vol(
+        &self,
+        node: &mut FwNode,
+        ch: usize,
+        vol: i32,
+        timeout_ms: u32
+    ) -> Result<(), Error>;
 
-    fn init_output_vols(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn init_output_vols(&self, node: &mut FwNode, state: &U, timeout_ms: u32) -> Result<(), Error> {
         state.as_ref().iter()
             .enumerate()
             .try_for_each(|(i, vol)| self.write_output_vol(node, i, *vol, timeout_ms))
     }
 
-    fn write_output_vols(&self, node: &T, state: &mut U, vols: &[i32], timeout_ms: u32) -> Result<(), Error> {
+    fn write_output_vols(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        vols: &[i32],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         state.as_mut().iter_mut()
             .zip(vols.iter())
             .enumerate()

@@ -31,12 +31,12 @@ impl<'a, V> FormerOutCtl<V>
 
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
-        where U: RmeFormerOutputProtocol<FwNode, V>,
+        where U: RmeFormerOutputOperation<V>,
               V: AsRef<[i32]> + AsMut<[i32]>,
     {
         self.state.as_mut().iter_mut()
             .for_each(|vol| *vol = VOL_ZERO);
-        proto.init_output_vols(&unit.get_node(), &self.state, timeout_ms)?;
+        U::init_output_vols(proto, &mut unit.get_node(), &self.state, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
@@ -48,7 +48,7 @@ impl<'a, V> FormerOutCtl<V>
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::VOL_NAME => {
-                elem_value.set_int(&self.state.as_ref());
+                elem_value.set_int(&mut self.state.as_ref());
                 Ok(true)
             },
             _ => Ok(false),
@@ -58,14 +58,14 @@ impl<'a, V> FormerOutCtl<V>
     pub fn write<U>(&mut self, unit: &SndUnit, proto: &U, elem_id: &ElemId, new: &alsactl::ElemValue,
                     timeout_ms: u32)
         -> Result<bool, Error>
-        where U: RmeFormerOutputProtocol<FwNode, V>,
+        where U: RmeFormerOutputOperation<V>,
               V: AsRef<[i32]> + AsMut<[i32]>,
     {
         match elem_id.get_name().as_str() {
             Self::VOL_NAME => {
                 let mut vals = self.state.as_ref().to_vec();
                 new.get_int(&mut vals);
-                proto.write_output_vols(&unit.get_node(), &mut self.state, &vals, timeout_ms)
+                U::write_output_vols(proto, &mut unit.get_node(), &mut self.state, &vals, timeout_ms)
                     .map(|_| true)
             },
             _ => Ok(false),
