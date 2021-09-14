@@ -154,7 +154,7 @@ impl RmeFfLatterRegisterValueOperation for Ff802Config{
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterConfigProtocol<T, Ff802Config> for Ff802Protocol {}
+impl RmeFfLatterConfigOperation<Ff802Config> for Ff802Protocol {}
 
 // For status register (0x'ffff'0000'001c).
 #[allow(dead_code)]
