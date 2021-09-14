@@ -244,10 +244,7 @@ impl Default for Ff400MixerState {
     }
 }
 
-impl<T, U> RmeFormerMixerProtocol<T, U> for Ff400Protocol
-    where T: AsRef<FwNode>,
-          U: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
-{
+impl RmeFormerMixerOperation<Ff400MixerState> for Ff400Protocol {
     const MIXER_OFFSET: usize = MIXER_OFFSET as usize;
     const AVAIL_COUNT: usize = 18;
 }

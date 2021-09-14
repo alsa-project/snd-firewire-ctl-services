@@ -150,10 +150,7 @@ impl Default for Ff800MixerState {
     }
 }
 
-impl<T, U> RmeFormerMixerProtocol<T, U> for Ff800Protocol
-    where T: AsRef<FwNode>,
-          U: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
-{
+impl RmeFormerMixerOperation<Ff800MixerState> for Ff800Protocol {
     const MIXER_OFFSET: usize = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 32;
 }

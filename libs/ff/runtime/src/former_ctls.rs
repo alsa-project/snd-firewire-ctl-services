@@ -3,7 +3,7 @@
 use glib::Error;
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-use hinawa::{FwNode, SndUnit, SndUnitExt};
+use hinawa::{SndUnit, SndUnitExt};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -96,7 +96,7 @@ impl<'a, V> FormerMixerCtl<V>
 
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
-        where U: RmeFormerMixerProtocol<FwNode, V>,
+        where U: RmeFormerMixerOperation<V>,
               V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
     {
         self.state.as_mut().iter_mut()
@@ -115,7 +115,7 @@ impl<'a, V> FormerMixerCtl<V>
 
         (0..self.state.as_ref().len())
             .try_for_each(|i| {
-                proto.init_mixer_src_gains(&unit.get_node(), &mut self.state, i, timeout_ms)
+                U::init_mixer_src_gains(proto, &mut unit.get_node(), &mut self.state, i, timeout_ms)
             })?;
 
         let mixers = self.state.as_ref();
@@ -168,7 +168,7 @@ impl<'a, V> FormerMixerCtl<V>
     pub fn write<U>(&mut self, unit: &SndUnit, proto: &U, elem_id: &ElemId, new: &alsactl::ElemValue,
                     timeout_ms: u32)
         -> Result<bool, Error>
-        where U: RmeFormerMixerProtocol<FwNode, V>,
+        where U: RmeFormerMixerOperation<V>,
               V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
     {
         match elem_id.get_name().as_str() {
@@ -176,28 +176,56 @@ impl<'a, V> FormerMixerCtl<V>
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].analog_gains.clone();
                 new.get_int(&mut gains);
-                proto.write_mixer_analog_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                U::write_mixer_analog_gains(
+                    proto,
+                    &mut unit.get_node(),
+                    &mut self.state,
+                    index,
+                    &gains,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             Self::SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].spdif_gains.clone();
                 new.get_int(&mut gains);
-                proto.write_mixer_spdif_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                U::write_mixer_spdif_gains(
+                    proto,
+                    &mut unit.get_node(),
+                    &mut self.state,
+                    index,
+                    &gains,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             Self::ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].adat_gains.clone();
                 new.get_int(&mut gains);
-                proto.write_mixer_adat_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                U::write_mixer_adat_gains(
+                    proto,
+                    &mut unit.get_node(),
+                    &mut self.state,
+                    index,
+                    &gains,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             Self::STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let mut gains = self.state.as_mut()[index].stream_gains.clone();
                 new.get_int(&mut gains);
-                proto.write_mixer_stream_gains(&unit.get_node(), &mut self.state, index, &gains, timeout_ms)
+                U::write_mixer_stream_gains(
+                    proto,
+                    &mut unit.get_node(),
+                    &mut self.state,
+                    index,
+                    &gains,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             _ => Ok(false),
