@@ -348,23 +348,7 @@ const HP_OUTPUT_COUNT: usize = 4;
 const SPDIF_OUTPUT_COUNT: usize = 2;
 const ADAT_OUTPUT_COUNT: usize = 16;
 
-/// The structure to represent state of meter.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Ff802MeterState(FfLatterMeterState);
-
-impl AsRef<FfLatterMeterState> for Ff802MeterState {
-    fn as_ref(&self) -> &FfLatterMeterState {
-        &self.0
-    }
-}
-
-impl AsMut<FfLatterMeterState> for Ff802MeterState {
-    fn as_mut(&mut self) -> &mut FfLatterMeterState {
-        &mut self.0
-    }
-}
-
-impl RmeFfLatterMeterSpec for Ff802MeterState {
+impl RmeFfLatterMeterOperation for Ff802Protocol {
     const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
     const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
     const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
@@ -376,14 +360,6 @@ impl RmeFfLatterMeterSpec for Ff802MeterState {
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
-
-impl Default for Ff802MeterState {
-    fn default() -> Self {
-        Self(Self::create_meter_state())
-    }
-}
-
-impl RmeFfLatterMeterOperation<Ff802MeterState> for Ff802Protocol {}
 
 impl RmeFfLatterDspOperation for Ff802Protocol {
     const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;

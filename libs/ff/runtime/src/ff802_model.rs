@@ -87,14 +87,14 @@ impl MeasureModel<SndUnit> for Ff802Model {
 }
 
 #[derive(Default, Debug)]
-struct MeterCtl(Ff802MeterState, Vec<ElemId>);
+struct MeterCtl(FfLatterMeterState, Vec<ElemId>);
 
-impl FfLatterMeterCtlOperation<Ff802Protocol, Ff802MeterState> for MeterCtl {
-    fn meter(&self) -> &Ff802MeterState {
+impl FfLatterMeterCtlOperation<Ff802Protocol> for MeterCtl {
+    fn meter(&self) -> &FfLatterMeterState{
         &self.0
     }
 
-    fn meter_mut(&mut self) -> &mut Ff802MeterState {
+    fn meter_mut(&mut self) -> &mut FfLatterMeterState {
         &mut self.0
     }
 }
