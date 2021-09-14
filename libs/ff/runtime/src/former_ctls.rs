@@ -232,10 +232,10 @@ impl<'a, V> FormerMeterCtl<V>
 
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
-        where U: RmeFfFormerMeterProtocol<FwNode, V>,
+        where U: RmeFfFormerMeterOperation<V>,
               V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
     {
-        proto.read_meter(&unit.get_node(), &mut self.state, timeout_ms)?;
+        U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)?;
 
         let s = self.state.as_ref();
         [
@@ -261,10 +261,10 @@ impl<'a, V> FormerMeterCtl<V>
 
     pub fn measure_states<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32)
         -> Result<(), Error>
-        where U: RmeFfFormerMeterProtocol<FwNode, V>,
+        where U: RmeFfFormerMeterOperation<V>,
               V: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
     {
-        proto.read_meter(&unit.get_node(), &mut self.state, timeout_ms)
+        U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)
     }
 
     pub fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue)
