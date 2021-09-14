@@ -339,7 +339,7 @@ impl<'a> StatusCtl {
     fn load(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
     {
-        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)?;
+        FfUcxProtocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         [Self::EXT_SRC_LOCK_NAME, Self::EXT_SRC_SYNC_NAME].iter()
             .try_for_each(|name| {
@@ -375,7 +375,7 @@ impl<'a> StatusCtl {
     fn measure_states(&mut self, unit: &SndUnit, proto: &FfUcxProtocol, timeout_ms: u32)
         -> Result<(), Error>
     {
-        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)
+        FfUcxProtocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {

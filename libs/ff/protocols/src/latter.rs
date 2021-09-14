@@ -150,14 +150,24 @@ fn optional_val_to_clk_rate(clk_rate: &mut Option<ClkNominalRate>, quad: &u32, s
 }
 
 /// The trait to represent status protocol.
-pub trait RmeFfLatterStatusProtocol<T, U> : AsRef<FwReq>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterRegisterValueOperation,
+pub trait RmeFfLatterStatusOperation<U> : AsRef<FwReq>
+    where U: RmeFfLatterRegisterValueOperation,
 {
-    fn read_status(&self, node: &T, status: &mut U, timeout_ms: u32) -> Result<(), Error> {
-        let mut raw = [0;4];
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::ReadQuadletRequest, DSP_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+    fn read_status(
+        &self,
+        node: &mut FwNode,
+        status: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut raw = [0; 4];
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::ReadQuadletRequest,
+            DSP_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
                 let quad = u32::from_le_bytes(raw);
                 status.parse(&quad)
