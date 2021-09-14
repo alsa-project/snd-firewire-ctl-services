@@ -250,7 +250,7 @@ impl<'a> StatusCtl {
     fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
     {
-        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)?;
+        Ff400Protocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS.iter()
             .map(|s| clk_src_to_string(s))
@@ -282,7 +282,7 @@ impl<'a> StatusCtl {
     fn measure_states(&mut self, unit: &SndUnit, proto: &Ff400Protocol, timeout_ms: u32)
         -> Result<(), Error>
     {
-        proto.read_status(&unit.get_node(), &mut self.status, timeout_ms)
+        Ff400Protocol::read_status(proto, &mut unit.get_node(), &mut self.status, timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
