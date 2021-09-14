@@ -929,22 +929,30 @@ impl Ff400Config {
     }
 }
 
-/// The trait to represent configuration protocol specific to RME Fireface 800.
-pub trait RmeFf400ConfigProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
-    fn write_cfg(&self, node: &T, cfg: &Ff400Config, timeout_ms: u32) -> Result<(), Error> {
-        let mut quads = [0u32;3];
+impl Ff400Protocol {
+    pub fn write_cfg(
+        &self,
+        node: &mut FwNode,
+        cfg: &Ff400Config,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut quads = [0u32; 3];
         cfg.build(&mut quads);
 
-        let mut raw = [0;12];
+        let mut raw = [0; 12];
         quads.iter()
             .enumerate()
             .for_each(|(i, quad)| {
                 let pos = i * 4;
                 raw[pos..(pos + 4)].copy_from_slice(&quad.to_le_bytes())
             });
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteBlockRequest, CFG_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            CFG_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
     }
 }
-
-impl<T: AsRef<FwNode>> RmeFf400ConfigProtocol<T> for Ff400Protocol {}
