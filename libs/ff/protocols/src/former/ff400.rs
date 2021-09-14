@@ -10,14 +10,8 @@ use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
 use super::*;
 
 /// The structure to represent unique protocol for Fireface 400.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct Ff400Protocol(FwReq);
-
-impl AsRef<FwReq> for Ff400Protocol {
-    fn as_ref(&self) -> &FwReq {
-        &self.0
-    }
-}
+#[derive(Default)]
+pub struct Ff400Protocol;
 
 const MIXER_OFFSET: usize       = 0x000080080000;
 const OUTPUT_OFFSET: usize      = 0x000080080f80;
@@ -82,7 +76,7 @@ impl RmeFfFormerMeterOperation<Ff400MeterState> for Ff400Protocol {
 
 impl Ff400Protocol {
     pub fn write_amp_cmd(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         ch: u8,
         level: i8,
@@ -91,7 +85,7 @@ impl Ff400Protocol {
         let cmd = ((ch as u32) << 16) | ((level as u32) & 0xff);
         let mut raw = [0; 4];
         raw.copy_from_slice(&cmd.to_le_bytes());
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::WriteQuadletRequest,
             AMP_OFFSET as u64,
@@ -115,44 +109,44 @@ pub struct Ff400InputGainStatus{
 
 impl Ff400Protocol {
     pub fn write_input_mic_gain(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         ch: usize,
         gain: i8,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        self.write_amp_cmd(node, AMP_MIC_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
+        Self::write_amp_cmd(req, node, AMP_MIC_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
     }
 
     pub fn write_input_line_gain(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         ch: usize,
         gain: i8,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        self.write_amp_cmd(node, AMP_LINE_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
+        Self::write_amp_cmd(req, node, AMP_LINE_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
     }
 
     pub fn init_input_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         status: &Ff400InputGainStatus,
         timeout_ms: u32
     ) -> Result<(), Error> {
         status.mic.iter()
             .enumerate()
-            .try_for_each(|(i, gain)| self.write_input_mic_gain(node, i, *gain, timeout_ms))?;
+            .try_for_each(|(i, gain)| Self::write_input_mic_gain(req, node, i, *gain, timeout_ms))?;
 
         status.line.iter()
             .enumerate()
-            .try_for_each(|(i, gain)| self.write_input_line_gain(node, i, *gain, timeout_ms))?;
+            .try_for_each(|(i, gain)| Self::write_input_line_gain(req, node, i, *gain, timeout_ms))?;
 
         Ok(())
     }
 
     pub fn write_input_mic_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         status: &mut Ff400InputGainStatus,
         gains: &[i8],
@@ -163,13 +157,13 @@ impl Ff400Protocol {
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {
-                self.write_input_mic_gain(node, i, *n, timeout_ms)
+                Self::write_input_mic_gain(req, node, i, *n, timeout_ms)
                     .map(|_| *o = *n)
             })
     }
 
     pub fn write_input_line_gains(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         status: &mut Ff400InputGainStatus,
         gains: &[i8],
@@ -180,7 +174,7 @@ impl Ff400Protocol {
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {
-                self.write_input_line_gain(node, i, *n, timeout_ms)
+                Self::write_input_line_gain(req, node, i, *n, timeout_ms)
                     .map(|_| *o = *n)
             })
     }
@@ -207,7 +201,7 @@ impl AsRef<[i32]> for Ff400OutputVolumeState {
 
 impl RmeFormerOutputOperation<Ff400OutputVolumeState> for Ff400Protocol {
     fn write_output_vol(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         ch: usize,
         vol: i32,
@@ -215,7 +209,7 @@ impl RmeFormerOutputOperation<Ff400OutputVolumeState> for Ff400Protocol {
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         raw.copy_from_slice(&vol.to_le_bytes());
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
             (OUTPUT_OFFSET + ch * 4) as u64,
@@ -228,7 +222,7 @@ impl RmeFormerOutputOperation<Ff400OutputVolumeState> for Ff400Protocol {
                 // (=mute) to +6 dB.
                 let level = (0x3f * (vol as i64) / (0x00010000 as i64)) as i8;
                 let amp_offset = AMP_OUT_CH_OFFSET + ch as u8;
-                self.write_amp_cmd(node, amp_offset, level, timeout_ms)
+                Self::write_amp_cmd(req, node, amp_offset, level, timeout_ms)
             })
     }
 }
@@ -492,13 +486,13 @@ impl Ff400Status {
 
 impl Ff400Protocol {
     pub fn read_status(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         status: &mut Ff400Status,
         timeout_ms: u32
     ) -> Result<(), Error> {
         let mut raw = [0; 8];
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
             STATUS_OFFSET as u64,
@@ -931,7 +925,7 @@ impl Ff400Config {
 
 impl Ff400Protocol {
     pub fn write_cfg(
-        &self,
+        req: &mut FwReq,
         node: &mut FwNode,
         cfg: &Ff400Config,
         timeout_ms: u32
@@ -946,7 +940,7 @@ impl Ff400Protocol {
                 let pos = i * 4;
                 raw[pos..(pos + 4)].copy_from_slice(&quad.to_le_bytes())
             });
-        self.as_ref().transaction_sync(
+        req.transaction_sync(
             node,
             FwTcode::WriteBlockRequest,
             CFG_OFFSET as u64,

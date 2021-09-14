@@ -2,9 +2,10 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
+use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
@@ -17,7 +18,7 @@ use super::former_ctls::*;
 
 #[derive(Default, Debug)]
 pub struct Ff800Model{
-    req: Ff800Protocol,
+    req: FwReq,
     cfg_ctl: CfgCtl,
     status_ctl: StatusCtl,
     out_ctl: OutputCtl,
@@ -135,7 +136,7 @@ impl FormerMixerCtlOperation<Ff800Protocol, Ff800MixerState> for MixerCtl {
 
 fn update_cfg<F>(
     unit: &mut SndUnit,
-    req: &mut Ff800Protocol,
+    req: &mut FwReq,
     cfg: &mut Ff800Config,
     timeout_ms: u32,
     cb: F
@@ -204,7 +205,7 @@ impl StatusCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff800Protocol,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -240,7 +241,7 @@ impl StatusCtl {
     fn measure_states(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff800Protocol,
+        req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
         Ff800Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
@@ -374,7 +375,7 @@ impl CfgCtl {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff800Protocol,
+        req: &mut FwReq,
         status: &Ff800Status,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
@@ -558,7 +559,7 @@ impl CfgCtl {
     fn write(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut Ff800Protocol,
+        req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,

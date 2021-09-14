@@ -2,8 +2,10 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::Error;
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
+use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -30,7 +32,7 @@ pub trait FormerOutputCtlOperation<U, V>
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
+        req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<(), Error> {
@@ -66,7 +68,7 @@ pub trait FormerOutputCtlOperation<U, V>
     fn write(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
+        req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
         timeout_ms: u32
@@ -105,7 +107,7 @@ where
     fn load(
         &mut self,
         unit: &SndUnit,
-        req: &mut U,
+        req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<(), Error> {
@@ -208,7 +210,7 @@ where
     fn write(
         &mut self,
         unit: &SndUnit,
-        req: &mut U,
+        req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
         timeout_ms: u32
@@ -300,7 +302,7 @@ pub trait FormerMeterCtlOperation<S, T>
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut S,
+        req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<Vec<ElemId>, Error> {
@@ -337,7 +339,7 @@ pub trait FormerMeterCtlOperation<S, T>
     fn measure_states(
         &mut self,
         unit: &SndUnit,
-        req: &mut S,
+        req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
         S::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
