@@ -121,7 +121,7 @@ impl<'a> InputGainCtl {
     fn load(&mut self, unit: &SndUnit, proto: &Ff400Protocol, card_cntr: &mut CardCntr, timeout_ms: u32)
         -> Result<(), Error>
     {
-        proto.init_input_gains(&unit.get_node(), &mut self.status, timeout_ms)?;
+        Ff400Protocol::init_input_gains(proto, &mut unit.get_node(), &mut self.status, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::MIC_GAIN_NAME, 0);
         card_cntr.add_int_elems(&elem_id, 1, Self::MIC_GAIN_MIN, Self::MIC_GAIN_MAX, Self::MIC_GAIN_STEP,
@@ -165,7 +165,13 @@ impl<'a> InputGainCtl {
                 let gains: Vec<i8> = vals.iter()
                     .map(|&val| val as i8)
                     .collect();
-                proto.write_input_mic_gains(&unit.get_node(), &mut self.status, &gains, timeout_ms)
+                Ff400Protocol::write_input_mic_gains(
+                    proto,
+                    &mut unit.get_node(),
+                    &mut self.status,
+                    &gains,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             Self::LINE_GAIN_NAME => {
@@ -174,7 +180,13 @@ impl<'a> InputGainCtl {
                 let gains: Vec<i8> = vals.iter()
                     .map(|&val| val as i8)
                     .collect();
-                proto.write_input_line_gains(&unit.get_node(), &mut self.status, &gains, timeout_ms)
+                Ff400Protocol::write_input_line_gains(
+                    proto,
+                    &mut unit.get_node(),
+                    &mut self.status,
+                    &gains,
+                    timeout_ms
+                )
                     .map(|_| true)
             }
             _ => Ok(false),

@@ -80,18 +80,27 @@ impl RmeFfFormerMeterOperation<Ff400MeterState> for Ff400Protocol {
     const METER_OFFSET: usize = METER_OFFSET;
 }
 
-/// The trait to represent amplifier protocol of Fireface 400.
-pub trait RmeFf400AmpProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
-    fn write_amp_cmd(&self, node: &T, ch: u8, level: i8, timeout_ms: u32) -> Result<(), Error> {
+impl Ff400Protocol {
+    pub fn write_amp_cmd(
+        &self,
+        node: &mut FwNode,
+        ch: u8,
+        level: i8,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let cmd = ((ch as u32) << 16) | ((level as u32) & 0xff);
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         raw.copy_from_slice(&cmd.to_le_bytes());
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteQuadletRequest,
-                                       AMP_OFFSET as u64, raw.len(), &mut raw, timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::WriteQuadletRequest,
+            AMP_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
     }
 }
-
-impl<T: AsRef<FwNode>> RmeFf400AmpProtocol<T> for Ff400Protocol {}
 
 /// The structure to represent status of input gains of Fireface 400.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
@@ -104,23 +113,33 @@ pub struct Ff400InputGainStatus{
     pub line: [i8;2],
 }
 
-/// The trait to represent amplifier protocol of Fireface 400.
-pub trait RmeFf400InputGainProtocol<T: AsRef<FwNode>> : RmeFf400AmpProtocol<T> {
-    fn write_input_mic_gain(&self, node: &T, ch: usize, gain: i8, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+impl Ff400Protocol {
+    pub fn write_input_mic_gain(
+        &self,
+        node: &mut FwNode,
+        ch: usize,
+        gain: i8,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.write_amp_cmd(node, AMP_MIC_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
     }
 
-    fn write_input_line_gain(&self, node: &T, ch: usize, gain: i8, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    pub fn write_input_line_gain(
+        &self,
+        node: &mut FwNode,
+        ch: usize,
+        gain: i8,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.write_amp_cmd(node, AMP_LINE_IN_CH_OFFSET + ch as u8, gain, timeout_ms)
     }
 
-    fn init_input_gains(&self, node: &T, status: &Ff400InputGainStatus, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    pub fn init_input_gains(
+        &self,
+        node: &mut FwNode,
+        status: &Ff400InputGainStatus,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         status.mic.iter()
             .enumerate()
             .try_for_each(|(i, gain)| self.write_input_mic_gain(node, i, *gain, timeout_ms))?;
@@ -132,10 +151,13 @@ pub trait RmeFf400InputGainProtocol<T: AsRef<FwNode>> : RmeFf400AmpProtocol<T> {
         Ok(())
     }
 
-    fn write_input_mic_gains(&self, node: &T, status: &mut Ff400InputGainStatus, gains: &[i8],
-                             timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    pub fn write_input_mic_gains(
+        &self,
+        node: &mut FwNode,
+        status: &mut Ff400InputGainStatus,
+        gains: &[i8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         status.mic.iter_mut()
             .zip(gains.iter())
             .enumerate()
@@ -146,10 +168,13 @@ pub trait RmeFf400InputGainProtocol<T: AsRef<FwNode>> : RmeFf400AmpProtocol<T> {
             })
     }
 
-    fn write_input_line_gains(&self, node: &T, status: &mut Ff400InputGainStatus, gains: &[i8],
-                             timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    pub fn write_input_line_gains(
+        &self,
+        node: &mut FwNode,
+        status: &mut Ff400InputGainStatus,
+        gains: &[i8],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         status.line.iter_mut()
             .zip(gains.iter())
             .enumerate()
@@ -160,8 +185,6 @@ pub trait RmeFf400InputGainProtocol<T: AsRef<FwNode>> : RmeFf400AmpProtocol<T> {
             })
     }
 }
-
-impl<T: AsRef<FwNode>, O: RmeFf400AmpProtocol<T>> RmeFf400InputGainProtocol<T> for O {}
 
 /// The structure to represent volume of outputs for Fireface 400.
 ///
