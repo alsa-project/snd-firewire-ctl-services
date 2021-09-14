@@ -390,15 +390,25 @@ impl Ff800Status {
     }
 }
 
-/// The trait to represent status protocol specific to RME Fireface 800.
-pub trait RmeFf800StatusProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
-    fn read_status(&self, node: &T, status: &mut Ff800Status, timeout_ms: u32) -> Result<(), Error> {
-        let mut raw = [0;8];
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::ReadBlockRequest, STATUS_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+impl Ff800Protocol {
+    pub fn read_status(
+        &self,
+        node: &mut FwNode,
+        status: &mut Ff800Status,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut raw = [0; 8];
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::ReadBlockRequest,
+            STATUS_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
             .map(|_| {
-                let mut quadlet = [0;4];
-                let mut quads = [0u32;2];
+                let mut quadlet = [0; 4];
+                let mut quads = [0u32; 2];
                 quads.iter_mut()
                     .enumerate()
                     .for_each(|(i, quad)| {
@@ -410,8 +420,6 @@ pub trait RmeFf800StatusProtocol<T: AsRef<FwNode>> : AsRef<FwReq> {
             })
     }
 }
-
-impl<T: AsRef<FwNode>> RmeFf800StatusProtocol<T> for Ff800Protocol {}
 
 // NOTE: for first quadlet of configuration quadlets.
 const Q0_LINE_OUT_LEVEL_MASK: u32 =             0x00001c00;
