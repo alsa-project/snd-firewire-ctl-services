@@ -420,4 +420,4 @@ impl Default for Ff802DspState {
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterDspProtocol<T, Ff802DspState> for Ff802Protocol {}
+impl RmeFfLatterDspOperation<Ff802DspState> for Ff802Protocol {}

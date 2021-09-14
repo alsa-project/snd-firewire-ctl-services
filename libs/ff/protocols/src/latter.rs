@@ -479,21 +479,37 @@ fn create_virt_port_cmd(mixer_step: u16, mixer: u16, ch: u16, coef: u16) -> u32 
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
 /// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
 /// bit in its most significant bit against the rest of bits.
-pub trait RmeFfLatterDspProtocol<T, U> : AsRef<FwReq>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+pub trait RmeFfLatterDspOperation<U> : AsRef<FwReq>
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
 {
-    fn write_dsp_cmd(&self, node: &T, mut cmd: u32, timeout_ms: u32) -> Result<(), Error> {
+    fn write_dsp_cmd(
+        &self,
+        node: &mut FwNode,
+        mut cmd: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         // Add odd parity.
         if (0..32).fold(0x01, |count, shift| count ^ (cmd >> shift) & 0x1) > 0 {
             cmd |= ODD_PARITY_FLAG;
         }
         let mut raw = cmd.to_le_bytes();
-        self.as_ref().transaction_sync(node.as_ref(), FwTcode::WriteQuadletRequest, DSP_OFFSET as u64,
-                                       raw.len(), &mut raw, timeout_ms)
+        self.as_ref().transaction_sync(
+            node,
+            FwTcode::WriteQuadletRequest,
+            DSP_OFFSET as u64,
+            raw.len(),
+            &mut raw,
+            timeout_ms
+        )
     }
 
-    fn write_dsp_cmds(&self, node: &T, curr: &[u32], cmds: &[u32], timeout_ms: u32) -> Result<(), Error> {
+    fn write_dsp_cmds(
+        &self,
+        node: &mut FwNode,
+        curr: &[u32],
+        cmds: &[u32],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         cmds.iter()
             .zip(curr.iter())
             .filter(|(n, o)| !n.eq(o))
@@ -664,19 +680,28 @@ fn input_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterInputState) -> Vec
 }
 
 /// The trait to represent input protocol.
-pub trait RmeFfLatterInputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
-    where T: AsRef<FwNode>,
+pub trait RmeFfLatterInputOperation<U>: RmeFfLatterDspOperation<U>
+    where
           U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
 {
-    fn init_input(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn init_input(
+        &self,
+        node: &mut FwNode,
+        state: &U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let cmds = input_state_to_cmds::<U>(&state.as_ref().input);
         cmds.iter()
             .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
     }
 
-    fn write_input(&self, node: &T, state: &mut U, input: FfLatterInputState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_input(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        input: FfLatterInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = input_state_to_cmds::<U>(&state.as_ref().input);
         let new = input_state_to_cmds::<U>(&input);
 
@@ -685,10 +710,9 @@ pub trait RmeFfLatterInputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
     }
 }
 
-impl<T, U, O> RmeFfLatterInputProtocol<T, U> for O
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspProtocol<T, U>,
+impl<U, O> RmeFfLatterInputOperation<U> for O
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspOperation<U>,
 {}
 
 impl From<LineOutNominalLevel> for i16 {
@@ -765,21 +789,29 @@ fn output_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterOutputState) -> V
 }
 
 /// The trait to represent output protocol.
-pub trait RmeFfLatterOutputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+pub trait RmeFfLatterOutputOperation<U>: RmeFfLatterDspOperation<U>
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
 {
     const CH_OFFSET: u8 = U::PHYS_INPUT_COUNT as u8;
 
-    fn init_output(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn init_output(
+        &self,
+        node: &mut FwNode,
+        state: &U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let cmds = output_state_to_cmds::<U>(&state.as_ref().output);
         cmds.iter()
             .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
     }
 
-    fn write_output(&self, node: &T, state: &mut U, output: FfLatterOutputState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_output(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        output: FfLatterOutputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = output_state_to_cmds::<U>(&state.as_ref().output);
         let new = output_state_to_cmds::<U>(&output);
 
@@ -788,10 +820,9 @@ pub trait RmeFfLatterOutputProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
     }
 }
 
-impl<T, U, O> RmeFfLatterOutputProtocol<T, U> for O
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspProtocol<T, U>,
+impl<U, O> RmeFfLatterOutputOperation<U> for O
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspOperation<U>,
 {}
 
 /// The structure to represent state of mixer.
@@ -833,11 +864,15 @@ fn mixer_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterMixerState, index:
 }
 
 /// The trait to represent mixer protocol.
-pub trait RmeFfLatterMixerProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+pub trait RmeFfLatterMixerOperation<U> : RmeFfLatterDspOperation<U>
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
 {
-    fn init_mixers(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn init_mixers(
+        &self,
+        node: &mut FwNode,
+        state: &U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let mixers = &state.as_ref().mixer;
 
         mixers.iter()
@@ -850,9 +885,14 @@ pub trait RmeFfLatterMixerProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
             })
     }
 
-    fn write_mixer(&self, node: &T, state: &mut U, index: usize, mixer: FfLatterMixerState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_mixer(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        index: usize,
+        mixer: FfLatterMixerState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = mixer_state_to_cmds::<U>(&state.as_ref().mixer[index], index as u16);
         let new = mixer_state_to_cmds::<U>(&mixer, index as u16);
 
@@ -861,10 +901,9 @@ pub trait RmeFfLatterMixerProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
     }
 }
 
-impl<T, U, O> RmeFfLatterMixerProtocol<T, U> for O
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspProtocol<T, U>,
+impl<U, O> RmeFfLatterMixerOperation<U> for O
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspOperation<U>,
 {}
 
 /// The enum to represent level of roll off in high pass filter.
@@ -1099,14 +1138,18 @@ pub struct FfLatterChStripState{
 }
 
 /// The trait to represent channel strip protocol.
-pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+pub trait RmeFfLatterChStripOperation<U, V> : RmeFfLatterDspOperation<U>
+    where U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
           V: AsMut<FfLatterChStripState> + AsRef<FfLatterChStripState>,
 {
     const CH_OFFSET: u8;
 
-    fn init_ch_strip(&self, node: &T, state: &V, timeout_ms: u32) -> Result<(), Error> {
+    fn init_ch_strip(
+        &self,
+        node: &mut FwNode,
+        state: &V,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let s = state.as_ref();
 
         let mut cmds = Vec::new();
@@ -1119,9 +1162,13 @@ pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
             .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
     }
 
-    fn write_ch_strip_hpf(&self, node: &T, state: &mut V, hpf: FfLatterHpfState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_ch_strip_hpf(
+        &self,
+        node: &mut FwNode,
+        state: &mut V,
+        hpf: FfLatterHpfState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = hpf_state_to_cmds(&state.as_ref().hpf, Self::CH_OFFSET);
         let new = hpf_state_to_cmds(&hpf, Self::CH_OFFSET);
 
@@ -1129,7 +1176,13 @@ pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
             .map(|_| state.as_mut().hpf = hpf)
     }
 
-    fn write_ch_strip_eq(&self, node: &T, state: &mut V, eq: FfLatterEqState, timeout_ms: u32)
+    fn write_ch_strip_eq(
+        &self,
+        node: &mut FwNode,
+        state: &mut V,
+        eq: FfLatterEqState,
+        timeout_ms: u32
+    )
         -> Result<(), Error>
     {
         let old = eq_state_to_cmds(&state.as_ref().eq, Self::CH_OFFSET);
@@ -1139,10 +1192,13 @@ pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
             .map(|_| state.as_mut().eq = eq)
     }
 
-    fn write_ch_strip_dynamics(&self, node: &T, state: &mut V, dynamics: FfLatterDynState,
-                               timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_ch_strip_dynamics(
+        &self,
+        node: &mut FwNode,
+        state: &mut V,
+        dynamics: FfLatterDynState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = dyn_state_to_cmds(&state.as_ref().dynamics, Self::CH_OFFSET);
         let new = dyn_state_to_cmds(&dynamics, Self::CH_OFFSET);
 
@@ -1150,10 +1206,13 @@ pub trait RmeFfLatterChStripProtocol<T, U, V> : RmeFfLatterDspProtocol<T, U>
             .map(|_| state.as_mut().dynamics = dynamics)
     }
 
-    fn write_ch_strip_autolevel(&self, node: &T, state: &mut V, autolevel: FfLatterAutolevelState,
-                                timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_ch_strip_autolevel(
+        &self,
+        node: &mut FwNode,
+        state: &mut V,
+        autolevel: FfLatterAutolevelState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = autolevel_state_to_cmds(&state.as_ref().autolevel, Self::CH_OFFSET);
         let new = autolevel_state_to_cmds(&autolevel, Self::CH_OFFSET);
 
@@ -1178,10 +1237,9 @@ impl AsRef<FfLatterChStripState> for FfLatterInputChStripState {
     }
 }
 
-impl<T, U, O> RmeFfLatterChStripProtocol<T, U, FfLatterInputChStripState> for O
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-          O: RmeFfLatterDspProtocol<T, U>,
+impl<U, O> RmeFfLatterChStripOperation<U, FfLatterInputChStripState> for O
+    where U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+          O: RmeFfLatterDspOperation<U>,
 {
     const CH_OFFSET: u8 = 0x00;
 }
@@ -1202,10 +1260,9 @@ impl AsRef<FfLatterChStripState> for FfLatterOutputChStripState {
     }
 }
 
-impl<T, U, O> RmeFfLatterChStripProtocol<T, U, FfLatterOutputChStripState> for O
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-          O: RmeFfLatterDspProtocol<T, U>,
+impl<U, O> RmeFfLatterChStripOperation<U, FfLatterOutputChStripState> for O
+    where U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
+          O: RmeFfLatterDspOperation<U>,
 {
     const CH_OFFSET: u8 =
         (U::LINE_INPUT_COUNT + U::MIC_INPUT_COUNT + U::SPDIF_INPUT_COUNT + U::ADAT_INPUT_COUNT) as u8;
@@ -1483,11 +1540,15 @@ fn fx_output_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterFxState) -> Ve
 }
 
 /// The trait to represent mixer protocol.
-pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+pub trait RmeFfLatterFxOperation<U>: RmeFfLatterDspOperation<U>
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
 {
-    fn init_fx(&self, node: &T, state: &U, timeout_ms: u32) -> Result<(), Error> {
+    fn init_fx(
+        &self,
+        node: &mut FwNode,
+        state: &U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let s = state.as_ref();
 
         let mut cmds = Vec::new();
@@ -1500,9 +1561,13 @@ pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
             .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
     }
 
-    fn write_fx_input_gains(&self, node: &T, state: &mut U, fx: FfLatterFxState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_fx_input_gains(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        fx: FfLatterFxState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = fx_input_state_to_cmds::<U>(&state.as_ref().fx);
         let new = fx_input_state_to_cmds::<U>(&fx);
 
@@ -1510,9 +1575,13 @@ pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
             .map(|_| state.as_mut().fx = fx)
     }
 
-    fn write_fx_output_volumes(&self, node: &T, state: &mut U, fx: FfLatterFxState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_fx_output_volumes(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        fx: FfLatterFxState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = fx_output_state_to_cmds::<U>(&state.as_ref().fx);
         let new = fx_output_state_to_cmds::<U>(&fx);
 
@@ -1520,9 +1589,13 @@ pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
             .map(|_| state.as_mut().fx = fx)
     }
 
-    fn write_fx_reverb(&self, node: &T, state: &mut U, reverb: &FfLatterFxReverbState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_fx_reverb(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        reverb: &FfLatterFxReverbState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = reverb_state_to_cmds(&state.as_ref().fx.reverb);
         let new = reverb_state_to_cmds(reverb);
 
@@ -1530,9 +1603,13 @@ pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
             .map(|_| state.as_mut().fx.reverb = *reverb)
     }
 
-    fn write_fx_echo(&self, node: &T, state: &mut U, echo: &FfLatterFxEchoState, timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    fn write_fx_echo(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        echo: &FfLatterFxEchoState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         let old = echo_state_to_cmds(&state.as_ref().fx.echo);
         let new = echo_state_to_cmds(echo);
 
@@ -1541,8 +1618,7 @@ pub trait RmeFfLatterFxProtocol<T, U> : RmeFfLatterDspProtocol<T, U>
     }
 }
 
-impl<T, U, O> RmeFfLatterFxProtocol<T, U> for O
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspProtocol<T, U>,
+impl<U, O> RmeFfLatterFxOperation<U> for O
+    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+          O: RmeFfLatterDspOperation<U>,
 {}
