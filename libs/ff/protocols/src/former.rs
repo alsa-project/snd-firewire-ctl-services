@@ -27,8 +27,10 @@ pub struct FormerMeterState{
     pub adat_outputs: Vec<i32>,
 }
 
-/// The trait to represent specification of hardware meter.
-pub trait FormerMeterSpec {
+/// The trait to represent meter protocol of Fireface 400.
+pub trait RmeFfFormerMeterOperation {
+    const METER_OFFSET: usize;
+
     const ANALOG_INPUT_COUNT: usize;
     const SPDIF_INPUT_COUNT: usize;
     const ADAT_INPUT_COUNT: usize;
@@ -38,34 +40,33 @@ pub trait FormerMeterSpec {
     const SPDIF_OUTPUT_COUNT: usize;
     const ADAT_OUTPUT_COUNT: usize;
 
+    const PHYS_INPUT_COUNT: usize =
+        Self::ANALOG_INPUT_COUNT + Self::SPDIF_INPUT_COUNT + Self::ADAT_INPUT_COUNT;
+    const PHYS_OUTPUT_COUNT: usize =
+        Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
+
+    const LEVEL_MIN: i32 = 0x00000000;
+    const LEVEL_MAX: i32 = 0x7fffff00;
+    const LEVEL_STEP: i32 = 0x100;
+
     fn create_meter_state() -> FormerMeterState {
         FormerMeterState{
-            analog_inputs: vec![0;Self::ANALOG_INPUT_COUNT],
-            spdif_inputs: vec![0;Self::SPDIF_INPUT_COUNT],
-            adat_inputs: vec![0;Self::ADAT_INPUT_COUNT],
-            stream_inputs: vec![0;Self::STREAM_INPUT_COUNT],
-            analog_outputs: vec![0;Self::ANALOG_OUTPUT_COUNT],
-            spdif_outputs: vec![0;Self::SPDIF_OUTPUT_COUNT],
-            adat_outputs: vec![0;Self::ADAT_OUTPUT_COUNT],
+            analog_inputs: vec![0; Self::ANALOG_INPUT_COUNT],
+            spdif_inputs: vec![0; Self::SPDIF_INPUT_COUNT],
+            adat_inputs: vec![0; Self::ADAT_INPUT_COUNT],
+            stream_inputs: vec![0; Self::STREAM_INPUT_COUNT],
+            analog_outputs: vec![0; Self::ANALOG_OUTPUT_COUNT],
+            spdif_outputs: vec![0; Self::SPDIF_OUTPUT_COUNT],
+            adat_outputs: vec![0; Self::ADAT_OUTPUT_COUNT],
         }
     }
-}
-
-/// The trait to represent meter protocol of Fireface 400.
-pub trait RmeFfFormerMeterOperation<U>
-    where U: FormerMeterSpec + AsRef<FormerMeterState> + AsMut<FormerMeterState>,
-{
-    const METER_OFFSET: usize;
 
     fn read_meter(
         req: &mut FwReq,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FormerMeterState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let phys_input_count = U::ANALOG_INPUT_COUNT + U::SPDIF_INPUT_COUNT + U::ADAT_INPUT_COUNT;
-        let phys_output_count = U::ANALOG_OUTPUT_COUNT + U::SPDIF_OUTPUT_COUNT + U::ADAT_OUTPUT_COUNT;
-
         // NOTE:
         // Each of the first octuples is for level of corresponding source to mixer.
         // Each of the following octuples is for level of corresponding output from mixer (pre-fader).
@@ -73,9 +74,10 @@ pub trait RmeFfFormerMeterOperation<U>
         // Each of the following quadlets is for level of corresponding physical input.
         // Each of the following quadlets is for level of corresponding stream input.
         // Each of the following quadlets is for level of corresponding physical output.
-        let length = 8 * (phys_input_count + phys_output_count * 2) +
-                     4 * (phys_input_count + U::STREAM_INPUT_COUNT + phys_output_count);
-        let mut raw = vec![0;length];
+        let length =
+            8 * (Self::PHYS_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT * 2) +
+            4 * (Self::PHYS_INPUT_COUNT + Self::STREAM_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT);
+        let mut raw = vec![0; length];
         req.transaction_sync(
             node,
             FwTcode::ReadBlockRequest,
@@ -85,19 +87,17 @@ pub trait RmeFfFormerMeterOperation<U>
             timeout_ms
         )
             .map(|_| {
-                let s = state.as_mut();
-
                 // TODO: pick up overload.
-                let mut quadlet = [0;4];
-                let mut offset = 8 * (phys_input_count + phys_output_count * 2);
+                let mut quadlet = [0; 4];
+                let mut offset = 8 * (Self::PHYS_INPUT_COUNT + Self::PHYS_OUTPUT_COUNT * 2);
                 [
-                    &mut s.analog_inputs[..],
-                    &mut s.spdif_inputs[..],
-                    &mut s.adat_inputs[..],
-                    &mut s.stream_inputs[..],
-                    &mut s.analog_outputs[..],
-                    &mut s.spdif_outputs[..],
-                    &mut s.adat_outputs[..],
+                    &mut state.analog_inputs[..],
+                    &mut state.spdif_inputs[..],
+                    &mut state.adat_inputs[..],
+                    &mut state.stream_inputs[..],
+                    &mut state.analog_outputs[..],
+                    &mut state.spdif_outputs[..],
+                    &mut state.adat_outputs[..],
                 ].iter_mut()
                     .for_each(|meters| {
                         meters.iter_mut()

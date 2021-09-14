@@ -37,23 +37,9 @@ const AMP_MIC_IN_CH_OFFSET: u8 = 0;
 const AMP_LINE_IN_CH_OFFSET: u8 = 2;
 const AMP_OUT_CH_OFFSET: u8 = 4;
 
-/// The structure to represent state of hardware meter for Fireface 400.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Ff400MeterState(FormerMeterState);
+impl RmeFfFormerMeterOperation for Ff400Protocol {
+    const METER_OFFSET: usize = METER_OFFSET;
 
-impl AsRef<FormerMeterState> for Ff400MeterState {
-    fn as_ref(&self) -> &FormerMeterState {
-        &self.0
-    }
-}
-
-impl AsMut<FormerMeterState> for Ff400MeterState {
-    fn as_mut(&mut self) -> &mut FormerMeterState {
-        &mut self.0
-    }
-}
-
-impl FormerMeterSpec for Ff400MeterState {
     const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
     const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
     const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
@@ -62,16 +48,6 @@ impl FormerMeterSpec for Ff400MeterState {
     const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-}
-
-impl Default for Ff400MeterState {
-    fn default() -> Self {
-        Self(Self::create_meter_state())
-    }
-}
-
-impl RmeFfFormerMeterOperation<Ff400MeterState> for Ff400Protocol {
-    const METER_OFFSET: usize = METER_OFFSET;
 }
 
 impl Ff400Protocol {
