@@ -41,9 +41,9 @@ impl<'a, V> FfLatterMeterCtl<V>
 
     pub fn load<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32, card_cntr: &mut CardCntr)
         -> Result<(), Error>
-        where U: RmeFfLatterMeterProtocol<FwNode, V>,
+        where U: RmeFfLatterMeterOperation<V>,
     {
-        proto.read_meter(&unit.get_node(), &mut self.state, timeout_ms)?;
+        U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)?;
 
         [
             (Self::LINE_INPUT_METER, V::LINE_INPUT_COUNT),
@@ -72,9 +72,9 @@ impl<'a, V> FfLatterMeterCtl<V>
 
     pub fn measure_states<U>(&mut self, unit: &SndUnit, proto: &U, timeout_ms: u32)
         -> Result<(), Error>
-        where U: RmeFfLatterMeterProtocol<FwNode, V>,
+        where U: RmeFfLatterMeterOperation<V>,
     {
-        proto.read_meter(&unit.get_node(), &mut self.state, timeout_ms)
+        U::read_meter(proto, &mut unit.get_node(), &mut self.state, timeout_ms)
     }
 
     pub fn read_measured_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)

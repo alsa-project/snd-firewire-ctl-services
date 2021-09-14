@@ -383,7 +383,7 @@ impl Default for Ff802MeterState {
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterMeterProtocol<T, Ff802MeterState> for Ff802Protocol {}
+impl RmeFfLatterMeterOperation<Ff802MeterState> for Ff802Protocol {}
 
 /// The structure to represent state of DSP.
 #[derive(Debug, Clone, Eq, PartialEq)]

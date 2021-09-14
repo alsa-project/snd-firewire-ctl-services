@@ -349,7 +349,7 @@ impl Default for FfUcxMeterState {
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterMeterProtocol<T, FfUcxMeterState> for FfUcxProtocol {}
+impl RmeFfLatterMeterOperation<FfUcxMeterState> for FfUcxProtocol {}
 
 /// The structure to represent state of DSP.
 #[derive(Debug, Clone, Eq, PartialEq)]

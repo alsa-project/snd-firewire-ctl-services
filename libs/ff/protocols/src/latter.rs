@@ -291,15 +291,25 @@ pub trait RmeFfLatterMeterSpec {
 }
 
 /// The trait to represent meter protocol.
-pub trait RmeFfLatterMeterProtocol<T, U> : AsRef<FwReq>
-    where T: AsRef<FwNode>,
-          U: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
+pub trait RmeFfLatterMeterOperation<U> : AsRef<FwReq>
+    where U: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
 {
-    fn read_meter(&self, node: &T, state: &mut U, timeout_ms: u32) -> Result<(), Error> {
+    fn read_meter(
+        &self,
+        node: &mut FwNode,
+        state: &mut U,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         (0..5).try_for_each(|_| {
             let mut raw = vec![0;392];
-            self.as_ref().transaction_sync(node.as_ref(), FwTcode::ReadBlockRequest, METER_OFFSET as u64,
-                                           raw.len(), &mut raw, timeout_ms)
+            self.as_ref().transaction_sync(
+                node,
+                FwTcode::ReadBlockRequest,
+                METER_OFFSET as u64,
+                raw.len(),
+                &mut raw,
+                timeout_ms
+            )
                 .map(|_| parse_meter::<U>(state.as_mut(), &raw))
         })
     }
