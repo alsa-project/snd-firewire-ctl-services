@@ -17,65 +17,65 @@ const VOL_MAX: i32 = 0x00010000;
 const VOL_STEP: i32 = 1;
 const VOL_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
 
-#[derive(Default, Debug)]
-pub struct FormerOutCtl<V>
-    where V: AsRef<[i32]> + AsMut<[i32]>,
-{
-    state: V,
-}
-
 const VOL_NAME: &str = "output-volume";
 
-impl< V> FormerOutCtl<V>
-    where V: AsRef<[i32]> + AsMut<[i32]>,
+pub trait FormerOutputCtlOperation<U, V>
+    where
+        U: RmeFormerOutputOperation<V>,
+        V: AsRef<[i32]> + AsMut<[i32]>,
 {
-    pub fn load<U>(
+    fn state(&self) -> &V;
+    fn state_mut(&mut self) -> &mut V;
+
+    fn load(
         &mut self,
         unit: &mut SndUnit,
         req: &mut U,
         card_cntr: &mut CardCntr,
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where U: RmeFormerOutputOperation<V>,
-              V: AsRef<[i32]> + AsMut<[i32]>,
-    {
-        self.state.as_mut().iter_mut()
+    ) -> Result<(), Error> {
+        self.state_mut().as_mut().iter_mut()
             .for_each(|vol| *vol = VOL_ZERO);
-        U::init_output_vols(req, &mut unit.get_node(), &self.state, timeout_ms)?;
+        U::init_output_vols(req, &mut unit.get_node(), &self.state(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, VOL_MIN, VOL_MAX, VOL_STEP,
-                                        self.state.as_ref().len(), Some(&Vec::<u32>::from(&VOL_TLV)), true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            VOL_MIN,
+            VOL_MAX,
+            VOL_STEP,
+            self.state().as_ref().len(),
+            Some(&Vec::<u32>::from(&VOL_TLV)),
+            true
+        )?;
 
         Ok(())
     }
 
-    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                elem_value.set_int(&mut self.state.as_ref());
+                elem_value.set_int(&mut self.state().as_ref());
                 Ok(true)
             },
             _ => Ok(false),
         }
     }
 
-    pub fn write<U>(
+    fn write(
         &mut self,
         unit: &mut SndUnit,
         req: &mut U,
         elem_id: &ElemId,
         new: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFormerOutputOperation<V>,
-              V: AsRef<[i32]> + AsMut<[i32]>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                let mut vals = self.state.as_ref().to_vec();
+                let mut vals = self.state().as_ref().to_vec();
                 new.get_int(&mut vals);
-                U::write_output_vols(req, &mut unit.get_node(), &mut self.state, &vals, timeout_ms)
+                U::write_output_vols(req, &mut unit.get_node(), self.state_mut(), &vals, timeout_ms)
                     .map(|_| true)
             },
             _ => Ok(false),
