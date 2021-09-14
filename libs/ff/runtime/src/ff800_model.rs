@@ -95,14 +95,14 @@ impl MeasureModel<SndUnit> for Ff800Model {
 }
 
 #[derive(Default, Debug)]
-struct MeterCtl(Ff800MeterState, Vec<ElemId>);
+struct MeterCtl(FormerMeterState, Vec<ElemId>);
 
-impl FormerMeterCtlOperation<Ff800Protocol, Ff800MeterState> for MeterCtl {
-    fn meter(&self) -> &Ff800MeterState {
+impl FormerMeterCtlOperation<Ff800Protocol> for MeterCtl {
+    fn meter(&self) -> &FormerMeterState{
         &self.0
     }
 
-    fn meter_mut(&mut self) -> &mut Ff800MeterState {
+    fn meter_mut(&mut self) -> &mut FormerMeterState {
         &mut self.0
     }
 
