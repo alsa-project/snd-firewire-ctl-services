@@ -87,14 +87,14 @@ impl MeasureModel<SndUnit> for UcxModel {
 }
 
 #[derive(Default, Debug)]
-struct MeterCtl(FfUcxMeterState, Vec<ElemId>);
+struct MeterCtl(FfLatterMeterState, Vec<ElemId>);
 
-impl FfLatterMeterCtlOperation<FfUcxProtocol, FfUcxMeterState> for MeterCtl {
-    fn meter(&self) -> &FfUcxMeterState {
+impl FfLatterMeterCtlOperation<FfUcxProtocol> for MeterCtl {
+    fn meter(&self) -> &FfLatterMeterState{
         &self.0
     }
 
-    fn meter_mut(&mut self) -> &mut FfUcxMeterState {
+    fn meter_mut(&mut self) -> &mut FfLatterMeterState {
         &mut self.0
     }
 }
