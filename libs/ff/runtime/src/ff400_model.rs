@@ -129,14 +129,14 @@ impl FormerOutputCtlOperation<Ff400Protocol> for OutputCtl {
 }
 
 #[derive(Default, Debug)]
-struct MixerCtl(Ff400MixerState);
+struct MixerCtl(FormerMixerState);
 
-impl FormerMixerCtlOperation<Ff400Protocol, Ff400MixerState> for MixerCtl {
-    fn state(&self) -> &Ff400MixerState {
+impl FormerMixerCtlOperation<Ff400Protocol> for MixerCtl {
+    fn state(&self) -> &FormerMixerState {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Ff400MixerState {
+    fn state_mut(&mut self) -> &mut FormerMixerState {
         &mut self.0
     }
 }

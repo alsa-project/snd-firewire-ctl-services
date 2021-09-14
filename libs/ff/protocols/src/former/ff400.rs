@@ -189,23 +189,7 @@ impl RmeFormerOutputOperation for Ff400Protocol {
 }
 
 
-/// The structure to represent state of mixer for RME Fireface 400.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Ff400MixerState(pub Vec<FormerMixerSrc>);
-
-impl AsRef<[FormerMixerSrc]> for Ff400MixerState {
-    fn as_ref(&self) -> &[FormerMixerSrc] {
-        &self.0
-    }
-}
-
-impl AsMut<[FormerMixerSrc]> for Ff400MixerState {
-    fn as_mut(&mut self) -> &mut [FormerMixerSrc] {
-        &mut self.0
-    }
-}
-
-impl RmeFormerMixerSpec for Ff400MixerState {
+impl RmeFormerMixerOperation for Ff400Protocol {
     const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
     const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
     const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
@@ -214,15 +198,7 @@ impl RmeFormerMixerSpec for Ff400MixerState {
     const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-}
 
-impl Default for Ff400MixerState {
-    fn default() -> Self {
-        Self(Self::create_mixer_state())
-    }
-}
-
-impl RmeFormerMixerOperation<Ff400MixerState> for Ff400Protocol {
     const MIXER_OFFSET: usize = MIXER_OFFSET as usize;
     const AVAIL_COUNT: usize = 18;
 }
