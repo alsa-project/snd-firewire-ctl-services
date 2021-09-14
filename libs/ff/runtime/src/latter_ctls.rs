@@ -2,8 +2,10 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
+use hinawa::FwReq;
 use hinawa::{SndUnit, SndUnitExt};
+
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
@@ -33,7 +35,7 @@ pub trait FfLatterMeterCtlOperation<T: RmeFfLatterMeterOperation> {
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<Vec<ElemId>, Error> {
@@ -74,7 +76,7 @@ pub trait FfLatterMeterCtlOperation<T: RmeFfLatterMeterOperation> {
     fn measure_states(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32
     ) -> Result<(), Error> {
         T::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
@@ -157,7 +159,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>: FfLatterDspCt
     fn load_input(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -244,7 +246,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>: FfLatterDspCt
     fn write_input(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
@@ -331,7 +333,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>: FfLatterDsp
     fn load_output(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -425,7 +427,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>: FfLatterDsp
     fn write_output(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
@@ -504,7 +506,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>: FfLatterDspCt
     fn load_mixer(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -634,7 +636,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>: FfLatterDspCt
     fn write_mixer(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
         timeout_ms: u32
@@ -774,7 +776,7 @@ pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
     fn load_ch_strip(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -1252,7 +1254,7 @@ pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
     fn write_ch_strip(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
@@ -1549,7 +1551,7 @@ pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
     fn update_hpf<F>(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
@@ -1563,7 +1565,7 @@ pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
     fn update_eq<F>(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
@@ -1577,7 +1579,7 @@ pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
     fn update_dynamics<F>(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
@@ -1591,7 +1593,7 @@ pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
     fn update_autolevel<F>(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
@@ -1790,7 +1792,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     fn load_fx(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -2238,7 +2240,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     fn write_fx(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
@@ -2551,7 +2553,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     fn update_reverb<F>(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
@@ -2565,7 +2567,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     fn update_echo<F>(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
@@ -2601,7 +2603,7 @@ where
     fn load(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
     ) -> Result<(), Error> {
@@ -2637,7 +2639,7 @@ where
     fn write(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut T,
+        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
