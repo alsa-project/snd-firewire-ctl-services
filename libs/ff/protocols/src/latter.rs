@@ -351,6 +351,40 @@ fn create_virt_port_cmd(mixer_step: u16, mixer: u16, ch: u16, coef: u16) -> u32 
     VIRT_PORT_CMD_FLAG | (((mixer_step * mixer + ch) as u32) << 16) | (coef as u32)
 }
 
+fn write_dsp_cmd(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    mut cmd: u32,
+    timeout_ms: u32
+) -> Result<(), Error> {
+    // Add odd parity.
+    if (0..32).fold(0x01, |count, shift| count ^ (cmd >> shift) & 0x1) > 0 {
+        cmd |= ODD_PARITY_FLAG;
+    }
+    let mut raw = cmd.to_le_bytes();
+    req.transaction_sync(
+        node,
+        FwTcode::WriteQuadletRequest,
+        DSP_OFFSET as u64,
+        raw.len(),
+        &mut raw,
+        timeout_ms
+    )
+}
+
+fn write_dsp_cmds(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    curr: &[u32],
+    cmds: &[u32],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    cmds.iter()
+        .zip(curr.iter())
+        .filter(|(n, o)| !n.eq(o))
+        .try_for_each(|(&cmd, _)| write_dsp_cmd(req, node, cmd, timeout_ms))
+}
+
 /// The trait to represent DSP protocol.
 ///
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
@@ -490,40 +524,6 @@ pub trait RmeFfLatterDspOperation {
             }
         }
     }
-
-    fn write_dsp_cmd(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        mut cmd: u32,
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        // Add odd parity.
-        if (0..32).fold(0x01, |count, shift| count ^ (cmd >> shift) & 0x1) > 0 {
-            cmd |= ODD_PARITY_FLAG;
-        }
-        let mut raw = cmd.to_le_bytes();
-        req.transaction_sync(
-            node,
-            FwTcode::WriteQuadletRequest,
-            DSP_OFFSET as u64,
-            raw.len(),
-            &mut raw,
-            timeout_ms
-        )
-    }
-
-    fn write_dsp_cmds(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        curr: &[u32],
-        cmds: &[u32],
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        cmds.iter()
-            .zip(curr.iter())
-            .filter(|(n, o)| !n.eq(o))
-            .try_for_each(|(&cmd, _)| Self::write_dsp_cmd(req, node, cmd, timeout_ms))
-    }
 }
 
 const INPUT_TO_FX_CMD: u8               = 0x01;
@@ -646,7 +646,7 @@ pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
         timeout_ms: u32
     ) -> Result<(), Error> {
         let cmds = Self::input_state_to_cmds(&state.input);
-        cmds.iter().try_for_each(|&cmd| Self::write_dsp_cmd(req, node, cmd, timeout_ms))
+        cmds.iter().try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
 
     fn write_input(
@@ -659,7 +659,7 @@ pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
         let old = Self::input_state_to_cmds(&state.input);
         let new = Self::input_state_to_cmds(&input);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.input = input)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms).map(|_| state.input = input)
     }
 
     fn input_state_to_cmds(state: &FfLatterInputState) -> Vec<u32> {
@@ -766,7 +766,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
     ) -> Result<(), Error> {
         let cmds = Self::output_state_to_cmds(&state.output);
         cmds.iter()
-            .try_for_each(|&cmd| Self::write_dsp_cmd(req, node, cmd, timeout_ms))
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
 
     fn write_output(
@@ -779,7 +779,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
         let old = Self::output_state_to_cmds(&state.output);
         let new = Self::output_state_to_cmds(&output);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| state.output = output)
     }
 
@@ -867,7 +867,7 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
                 let ch = i as u16;
                 let cmds = Self::mixer_state_to_cmds(&mixer, ch);
                 cmds.iter()
-                    .try_for_each(|&cmd| Self::write_dsp_cmd(req, node, cmd, timeout_ms))
+                    .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
             })
     }
 
@@ -882,7 +882,7 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
         let old = Self::mixer_state_to_cmds(&state.mixer[index], index as u16);
         let new = Self::mixer_state_to_cmds(&mixer, index as u16);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| state.mixer[index] = mixer)
     }
 
@@ -1215,7 +1215,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
         cmds.append(&mut dyn_state_to_cmds(&Self::ch_strip(state).dynamics, Self::CH_OFFSET));
         cmds.append(&mut autolevel_state_to_cmds(&Self::ch_strip(state).autolevel, Self::CH_OFFSET));
 
-        cmds.iter().try_for_each(|&cmd| Self::write_dsp_cmd(req, node, cmd, timeout_ms))
+        cmds.iter().try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
 
     fn write_ch_strip_hpf(
@@ -1228,7 +1228,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
         let old = hpf_state_to_cmds(&Self::ch_strip(state).hpf, Self::CH_OFFSET);
         let new = hpf_state_to_cmds(&hpf, Self::CH_OFFSET);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| Self::ch_strip_mut(state).hpf = hpf)
     }
 
@@ -1242,7 +1242,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
         let old = eq_state_to_cmds(&Self::ch_strip(state).eq, Self::CH_OFFSET);
         let new = eq_state_to_cmds(&eq, Self::CH_OFFSET);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| Self::ch_strip_mut(state).eq = eq)
     }
 
@@ -1256,7 +1256,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
         let old = dyn_state_to_cmds(&Self::ch_strip(state).dynamics, Self::CH_OFFSET);
         let new = dyn_state_to_cmds(&dynamics, Self::CH_OFFSET);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| Self::ch_strip_mut(state).dynamics = dynamics)
     }
 
@@ -1270,7 +1270,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
         let old = autolevel_state_to_cmds(&Self::ch_strip(state).autolevel, Self::CH_OFFSET);
         let new = autolevel_state_to_cmds(&autolevel, Self::CH_OFFSET);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| Self::ch_strip_mut(state).autolevel = autolevel)
     }
 }
@@ -1609,7 +1609,7 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         cmds.append(&mut echo_state_to_cmds(&state.fx.echo));
 
         cmds.iter()
-            .try_for_each(|&cmd| Self::write_dsp_cmd(req, node, cmd, timeout_ms))
+            .try_for_each(|&cmd| write_dsp_cmd(req, node, cmd, timeout_ms))
     }
 
     fn write_fx_input_gains(
@@ -1622,7 +1622,7 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         let old = Self::fx_input_state_to_cmds(&state.fx);
         let new = Self::fx_input_state_to_cmds(&fx);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| state.fx = fx)
     }
 
@@ -1636,7 +1636,7 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         let old = Self::fx_output_state_to_cmds(&state.fx);
         let new = Self::fx_output_state_to_cmds(&fx);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| state.fx = fx)
     }
 
@@ -1650,7 +1650,7 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         let old = reverb_state_to_cmds(&state.fx.reverb);
         let new = reverb_state_to_cmds(reverb);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| state.fx.reverb = *reverb)
     }
 
@@ -1664,7 +1664,7 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         let old = echo_state_to_cmds(&state.fx.echo);
         let new = echo_state_to_cmds(echo);
 
-        Self::write_dsp_cmds(req, node, &old, &new, timeout_ms)
+        write_dsp_cmds(req, node, &old, &new, timeout_ms)
             .map(|_| state.fx.echo = *echo)
     }
 
