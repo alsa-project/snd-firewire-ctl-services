@@ -173,14 +173,16 @@ pub trait RmeFormerMixerSpec : AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>
     const SPDIF_OUTPUT_COUNT: usize;
     const ADAT_OUTPUT_COUNT: usize;
 
+    const DST_COUNT: usize =
+        Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
+
     fn create_mixer_state() -> Vec<FormerMixerSrc> {
-        let dst_count = Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
         vec![FormerMixerSrc{
-            analog_gains: vec![0;Self::ANALOG_INPUT_COUNT],
-            spdif_gains: vec![0;Self::SPDIF_INPUT_COUNT],
-            adat_gains: vec![0;Self::ADAT_INPUT_COUNT],
-            stream_gains: vec![0;Self::STREAM_INPUT_COUNT],
-        };dst_count]
+            analog_gains: vec![0; Self::ANALOG_INPUT_COUNT],
+            spdif_gains: vec![0; Self::SPDIF_INPUT_COUNT],
+            adat_gains: vec![0; Self::ADAT_INPUT_COUNT],
+            stream_gains: vec![0; Self::STREAM_INPUT_COUNT],
+        }; Self::DST_COUNT]
     }
 }
 
