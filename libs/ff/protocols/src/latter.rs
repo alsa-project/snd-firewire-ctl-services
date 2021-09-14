@@ -316,8 +316,8 @@ pub trait RmeFfLatterMeterOperation<U> : AsRef<FwReq>
 }
 
 /// The structure to represent state of send effects (reverb and echo).
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterDspState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterDspState {
     pub input: FfLatterInputState,
     pub output: FfLatterOutputState,
     pub mixer: Vec<FfLatterMixerState>,
@@ -326,8 +326,23 @@ pub struct FfLatterDspState{
     pub fx: FfLatterFxState,
 }
 
-/// The trait to represent specification of input and output of DSP.
-pub trait RmeFfLatterDspSpec {
+const VIRT_PORT_CMD_FLAG: u32 = 0x40000000;
+const ODD_PARITY_FLAG: u32 = 0x80000000;
+
+fn create_phys_port_cmd(ch: u8, cmd: u8, coef: i16) -> u32 {
+    ((ch as u32) << 24) | ((cmd as u32) << 16) | (u16::from_le_bytes(coef.to_le_bytes()) as u32)
+}
+
+fn create_virt_port_cmd(mixer_step: u16, mixer: u16, ch: u16, coef: u16) -> u32 {
+    VIRT_PORT_CMD_FLAG | (((mixer_step * mixer + ch) as u32) << 16) | (coef as u32)
+}
+
+/// The trait to represent DSP protocol.
+///
+/// DSP is configurable by quadlet write request with command aligned to little endian, which
+/// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
+/// bit in its most significant bit against the rest of bits.
+pub trait RmeFfLatterDspOperation: AsRef<FwReq> {
     const LINE_INPUT_COUNT: usize;
     const MIC_INPUT_COUNT: usize;
     const SPDIF_INPUT_COUNT: usize;
@@ -349,139 +364,119 @@ pub trait RmeFfLatterDspSpec {
     const MIXER_STEP: u16 = Self::STREAM_OFFSET * 2;
 
     fn create_dsp_state() -> FfLatterDspState {
-        FfLatterDspState{
-            input: FfLatterInputState{
-                stereo_links: vec![Default::default();Self::PHYS_INPUT_COUNT / 2],
-                invert_phases: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                line_gains: vec![Default::default();Self::LINE_INPUT_COUNT],
-                line_levels: vec![Default::default();Self::LINE_INPUT_COUNT],
-                mic_powers: vec![Default::default();Self::MIC_INPUT_COUNT],
-                mic_insts: vec![Default::default();Self::MIC_INPUT_COUNT],
+        FfLatterDspState {
+            input: FfLatterInputState {
+                stereo_links: vec![Default::default(); Self::PHYS_INPUT_COUNT / 2],
+                invert_phases: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
+                line_levels: vec![Default::default(); Self::LINE_INPUT_COUNT],
+                mic_powers: vec![Default::default(); Self::MIC_INPUT_COUNT],
+                mic_insts: vec![Default::default(); Self::MIC_INPUT_COUNT],
             },
-            output: FfLatterOutputState{
-                vols: vec![Default::default();Self::OUTPUT_COUNT],
-                stereo_balance: vec![Default::default();Self::OUTPUT_COUNT / 2],
-                stereo_links: vec![Default::default();Self::OUTPUT_COUNT / 2],
-                invert_phases: vec![Default::default();Self::OUTPUT_COUNT],
-                line_levels: vec![Default::default();Self::LINE_OUTPUT_COUNT],
+            output: FfLatterOutputState {
+                vols: vec![Default::default(); Self::OUTPUT_COUNT],
+                stereo_balance: vec![Default::default(); Self::OUTPUT_COUNT / 2],
+                stereo_links: vec![Default::default(); Self::OUTPUT_COUNT / 2],
+                invert_phases: vec![Default::default(); Self::OUTPUT_COUNT],
+                line_levels: vec![Default::default(); Self::LINE_OUTPUT_COUNT],
             },
-            mixer: vec![FfLatterMixerState{
-                line_gains: vec![Default::default();Self::LINE_INPUT_COUNT],
-                mic_gains: vec![Default::default();Self::MIC_INPUT_COUNT],
-                spdif_gains: vec![Default::default();Self::SPDIF_INPUT_COUNT],
-                adat_gains: vec![Default::default();Self::ADAT_INPUT_COUNT],
-                stream_gains: vec![Default::default();Self::STREAM_INPUT_COUNT],
-            };Self::OUTPUT_COUNT],
-            input_ch_strip: FfLatterInputChStripState(FfLatterChStripState{
-                hpf: FfLatterHpfState{
-                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    cut_offs: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    roll_offs: vec![Default::default();Self::PHYS_INPUT_COUNT],
+            mixer: vec![FfLatterMixerState {
+                line_gains: vec![Default::default(); Self::LINE_INPUT_COUNT],
+                mic_gains: vec![Default::default(); Self::MIC_INPUT_COUNT],
+                spdif_gains: vec![Default::default(); Self::SPDIF_INPUT_COUNT],
+                adat_gains: vec![Default::default(); Self::ADAT_INPUT_COUNT],
+                stream_gains: vec![Default::default(); Self::STREAM_INPUT_COUNT],
+            }; Self::OUTPUT_COUNT],
+            input_ch_strip: FfLatterInputChStripState(FfLatterChStripState {
+                hpf: FfLatterHpfState {
+                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    cut_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    roll_offs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                 },
                 eq: FfLatterEqState{
-                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    low_types: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    low_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    low_freqs: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    low_qualities: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    middle_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    middle_freqs: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    middle_qualities: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    high_types: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    high_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    high_freqs: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    high_qualities: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    low_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    low_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    low_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    low_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    middle_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    middle_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    middle_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    high_types: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    high_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    high_freqs: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    high_qualities: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                 },
-                dynamics: FfLatterDynState{
-                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    attacks: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    releases: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    compressor_thresholds: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    compressor_ratios: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    expander_thresholds: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    expander_ratios: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                dynamics: FfLatterDynState {
+                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    attacks: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    releases: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    compressor_thresholds: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    compressor_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    expander_thresholds: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    expander_ratios: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                 },
-                autolevel: FfLatterAutolevelState{
-                    activates: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    max_gains: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    headrooms: vec![Default::default();Self::PHYS_INPUT_COUNT],
-                    rise_times: vec![Default::default();Self::PHYS_INPUT_COUNT],
+                autolevel: FfLatterAutolevelState {
+                    activates: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    max_gains: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    headrooms: vec![Default::default(); Self::PHYS_INPUT_COUNT],
+                    rise_times: vec![Default::default(); Self::PHYS_INPUT_COUNT],
                 },
             }),
             output_ch_strip: FfLatterOutputChStripState(FfLatterChStripState{
-                hpf: FfLatterHpfState{
-                    activates: vec![Default::default();Self::OUTPUT_COUNT],
-                    cut_offs: vec![Default::default();Self::OUTPUT_COUNT],
-                    roll_offs: vec![Default::default();Self::OUTPUT_COUNT],
+                hpf: FfLatterHpfState {
+                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
+                    cut_offs: vec![Default::default(); Self::OUTPUT_COUNT],
+                    roll_offs: vec![Default::default(); Self::OUTPUT_COUNT],
                 },
-                eq: FfLatterEqState{
-                    activates: vec![Default::default();Self::OUTPUT_COUNT],
-                    low_types: vec![Default::default();Self::OUTPUT_COUNT],
-                    low_gains: vec![Default::default();Self::OUTPUT_COUNT],
-                    low_freqs: vec![Default::default();Self::OUTPUT_COUNT],
-                    low_qualities: vec![Default::default();Self::OUTPUT_COUNT],
-                    middle_gains: vec![Default::default();Self::OUTPUT_COUNT],
-                    middle_freqs: vec![Default::default();Self::OUTPUT_COUNT],
-                    middle_qualities: vec![Default::default();Self::OUTPUT_COUNT],
-                    high_types: vec![Default::default();Self::OUTPUT_COUNT],
-                    high_gains: vec![Default::default();Self::OUTPUT_COUNT],
-                    high_freqs: vec![Default::default();Self::OUTPUT_COUNT],
-                    high_qualities: vec![Default::default();Self::OUTPUT_COUNT],
+                eq: FfLatterEqState {
+                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
+                    low_types: vec![Default::default(); Self::OUTPUT_COUNT],
+                    low_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+                    low_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
+                    low_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
+                    middle_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+                    middle_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
+                    middle_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
+                    high_types: vec![Default::default(); Self::OUTPUT_COUNT],
+                    high_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+                    high_freqs: vec![Default::default(); Self::OUTPUT_COUNT],
+                    high_qualities: vec![Default::default(); Self::OUTPUT_COUNT],
                 },
-                dynamics: FfLatterDynState{
-                    activates: vec![Default::default();Self::OUTPUT_COUNT],
-                    gains: vec![Default::default();Self::OUTPUT_COUNT],
-                    attacks: vec![Default::default();Self::OUTPUT_COUNT],
-                    releases: vec![Default::default();Self::OUTPUT_COUNT],
-                    compressor_thresholds: vec![Default::default();Self::OUTPUT_COUNT],
-                    compressor_ratios: vec![Default::default();Self::OUTPUT_COUNT],
-                    expander_thresholds: vec![Default::default();Self::OUTPUT_COUNT],
-                    expander_ratios: vec![Default::default();Self::OUTPUT_COUNT],
+                dynamics: FfLatterDynState {
+                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
+                    gains: vec![Default::default(); Self::OUTPUT_COUNT],
+                    attacks: vec![Default::default(); Self::OUTPUT_COUNT],
+                    releases: vec![Default::default(); Self::OUTPUT_COUNT],
+                    compressor_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
+                    compressor_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
+                    expander_thresholds: vec![Default::default(); Self::OUTPUT_COUNT],
+                    expander_ratios: vec![Default::default(); Self::OUTPUT_COUNT],
                 },
-                autolevel: FfLatterAutolevelState{
-                    activates: vec![Default::default();Self::OUTPUT_COUNT],
-                    max_gains: vec![Default::default();Self::OUTPUT_COUNT],
-                    headrooms: vec![Default::default();Self::OUTPUT_COUNT],
-                    rise_times: vec![Default::default();Self::OUTPUT_COUNT],
+                autolevel: FfLatterAutolevelState {
+                    activates: vec![Default::default(); Self::OUTPUT_COUNT],
+                    max_gains: vec![Default::default(); Self::OUTPUT_COUNT],
+                    headrooms: vec![Default::default(); Self::OUTPUT_COUNT],
+                    rise_times: vec![Default::default(); Self::OUTPUT_COUNT],
                 },
             }),
-            fx: FfLatterFxState{
-                line_input_gains: vec![0;Self::LINE_INPUT_COUNT],
-                mic_input_gains: vec![0;Self::MIC_INPUT_COUNT],
-                spdif_input_gains: vec![0;Self::SPDIF_INPUT_COUNT],
-                adat_input_gains: vec![0;Self::ADAT_INPUT_COUNT],
-                stream_input_gains: vec![0;Self::STREAM_INPUT_COUNT],
-                line_output_vols: vec![0;Self::LINE_OUTPUT_COUNT],
-                hp_output_vols: vec![0;Self::HP_OUTPUT_COUNT],
-                spdif_output_vols: vec![0;Self::SPDIF_OUTPUT_COUNT],
-                adat_output_vols: vec![0;Self::ADAT_OUTPUT_COUNT],
+            fx: FfLatterFxState {
+                line_input_gains: vec![0; Self::LINE_INPUT_COUNT],
+                mic_input_gains: vec![0; Self::MIC_INPUT_COUNT],
+                spdif_input_gains: vec![0; Self::SPDIF_INPUT_COUNT],
+                adat_input_gains: vec![0; Self::ADAT_INPUT_COUNT],
+                stream_input_gains: vec![0; Self::STREAM_INPUT_COUNT],
+                line_output_vols: vec![0; Self::LINE_OUTPUT_COUNT],
+                hp_output_vols: vec![0; Self::HP_OUTPUT_COUNT],
+                spdif_output_vols: vec![0; Self::SPDIF_OUTPUT_COUNT],
+                adat_output_vols: vec![0; Self::ADAT_OUTPUT_COUNT],
                 reverb: Default::default(),
                 echo: Default::default(),
             }
         }
     }
-}
 
-const VIRT_PORT_CMD_FLAG: u32 = 0x40000000;
-const ODD_PARITY_FLAG: u32 = 0x80000000;
-
-fn create_phys_port_cmd(ch: u8, cmd: u8, coef: i16) -> u32 {
-    ((ch as u32) << 24) | ((cmd as u32) << 16) | (u16::from_le_bytes(coef.to_le_bytes()) as u32)
-}
-
-fn create_virt_port_cmd(mixer_step: u16, mixer: u16, ch: u16, coef: u16) -> u32 {
-    VIRT_PORT_CMD_FLAG | (((mixer_step * mixer + ch) as u32) << 16) | (coef as u32)
-}
-
-/// The trait to represent DSP protocol.
-///
-/// DSP is configurable by quadlet write request with command aligned to little endian, which
-/// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
-/// bit in its most significant bit against the rest of bits.
-pub trait RmeFfLatterDspOperation<U> : AsRef<FwReq>
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-{
     fn write_dsp_cmd(
         &self,
         node: &mut FwNode,
@@ -513,7 +508,7 @@ pub trait RmeFfLatterDspOperation<U> : AsRef<FwReq>
         cmds.iter()
             .zip(curr.iter())
             .filter(|(n, o)| !n.eq(o))
-            .try_for_each(|(&cmd, _)| self.write_dsp_cmd(node, cmd, timeout_ms))
+            .try_for_each(|(&cmd, _)| Self::write_dsp_cmd(self, node, cmd, timeout_ms))
     }
 }
 
@@ -607,8 +602,8 @@ impl From<LatterInNominalLevel> for i16 {
 }
 
 /// The structure to represent state of inputs.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterInputState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterInputState {
     /// Whether to link each pair of left and right ports.
     pub stereo_links: Vec<bool>,
     /// Whether to inverse the phase of analog, spdif, and adat inputs.
@@ -624,96 +619,92 @@ pub struct FfLatterInputState{
 
 }
 
-fn input_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterInputState) -> Vec<u32> {
-    assert_eq!(state.stereo_links.len(), T::PHYS_INPUT_COUNT / 2);
-    assert_eq!(state.invert_phases.len(), T::PHYS_INPUT_COUNT);
-    assert_eq!(state.line_gains.len(), T::LINE_INPUT_COUNT);
-    assert_eq!(state.line_levels.len(), T::LINE_INPUT_COUNT);
-    assert_eq!(state.mic_powers.len(), T::MIC_INPUT_COUNT);
-    assert_eq!(state.mic_insts.len(), T::MIC_INPUT_COUNT);
-
-    let mut cmds = Vec::new();
-
-    state.stereo_links.iter()
-        .enumerate()
-        .for_each(|(i, &link)| {
-            let ch = (i * 2) as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_STEREO_LINK_CMD, link as i16));
-        });
-
-    state.invert_phases.iter()
-        .enumerate()
-        .for_each(|(i, &invert_phase)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_INVERT_PHASE_CMD, invert_phase as i16));
-        });
-
-    state.line_gains.iter()
-        .enumerate()
-        .for_each(|(i, &gain)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
-        });
-
-    state.line_levels.iter()
-        .enumerate()
-        .for_each(|(i, &level)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
-        });
-
-    state.mic_powers.iter()
-        .enumerate()
-        .for_each(|(i, &power)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, power as i16));
-        });
-
-    state.mic_insts.iter()
-        .enumerate()
-        .for_each(|(i, &inst)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch as u8, INPUT_MIC_INST_CMD, inst as i16));
-        });
-
-    cmds
-}
-
 /// The trait to represent input protocol.
-pub trait RmeFfLatterInputOperation<U>: RmeFfLatterDspOperation<U>
-    where
-          U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-{
+pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
+    const PHYS_INPUT_GAIN_MIN: i32 = 0;
+    const PHYS_INPUT_GAIN_MAX: i32 = 120;
+    const PHYS_INPUT_GAIN_STEP: i32 = 1;
+
     fn init_input(
         &self,
         node: &mut FwNode,
-        state: &U,
+        state: &FfLatterDspState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let cmds = input_state_to_cmds::<U>(&state.as_ref().input);
-        cmds.iter()
-            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+        let cmds = Self::input_state_to_cmds(&state.input);
+        cmds.iter().try_for_each(|&cmd| Self::write_dsp_cmd(self, node, cmd, timeout_ms))
     }
 
     fn write_input(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         input: FfLatterInputState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = input_state_to_cmds::<U>(&state.as_ref().input);
-        let new = input_state_to_cmds::<U>(&input);
+        let old = Self::input_state_to_cmds(&state.input);
+        let new = Self::input_state_to_cmds(&input);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().input = input)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms).map(|_| state.input = input)
+    }
+
+    fn input_state_to_cmds(state: &FfLatterInputState) -> Vec<u32> {
+        assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
+        assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
+        assert_eq!(state.line_gains.len(), Self::LINE_INPUT_COUNT);
+        assert_eq!(state.line_levels.len(), Self::LINE_INPUT_COUNT);
+        assert_eq!(state.mic_powers.len(), Self::MIC_INPUT_COUNT);
+        assert_eq!(state.mic_insts.len(), Self::MIC_INPUT_COUNT);
+
+        let mut cmds = Vec::new();
+
+        state.stereo_links.iter()
+            .enumerate()
+            .for_each(|(i, &link)| {
+                let ch = (i * 2) as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_STEREO_LINK_CMD, link as i16));
+            });
+
+        state.invert_phases.iter()
+            .enumerate()
+            .for_each(|(i, &invert_phase)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_INVERT_PHASE_CMD, invert_phase as i16));
+            });
+
+        state.line_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_LINE_GAIN_CMD, gain as i16));
+            });
+
+        state.line_levels.iter()
+            .enumerate()
+            .for_each(|(i, &level)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_LINE_LEVEL_CMD, level as i16));
+            });
+
+        state.mic_powers.iter()
+            .enumerate()
+            .for_each(|(i, &power)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_MIC_POWER_CMD, power as i16));
+            });
+
+        state.mic_insts.iter()
+            .enumerate()
+            .for_each(|(i, &inst)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch as u8, INPUT_MIC_INST_CMD, inst as i16));
+            });
+
+        cmds
     }
 }
 
-impl<U, O> RmeFfLatterInputOperation<U> for O
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspOperation<U>,
-{}
+impl<O: RmeFfLatterDspOperation> RmeFfLatterInputOperation for O {}
 
 impl From<LineOutNominalLevel> for i16 {
     fn from(level: LineOutNominalLevel) -> Self {
@@ -726,8 +717,8 @@ impl From<LineOutNominalLevel> for i16 {
 }
 
 /// The structure to represent state of inputs.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterOutputState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterOutputState {
     /// The level of volume. Each value is between -650 (0xfd76) and 60 (0x003c) to represent
     /// -65.00 dB and 6.00 dB.
     pub vols: Vec<i16>,
@@ -741,96 +732,99 @@ pub struct FfLatterOutputState{
     pub line_levels: Vec<LineOutNominalLevel>,
 }
 
-fn output_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterOutputState) -> Vec<u32> {
-    assert_eq!(state.vols.len(), T::PHYS_INPUT_COUNT);
-    assert_eq!(state.stereo_balance.len(), T::PHYS_INPUT_COUNT / 2);
-    assert_eq!(state.stereo_links.len(), T::PHYS_INPUT_COUNT / 2);
-    assert_eq!(state.invert_phases.len(), T::PHYS_INPUT_COUNT);
-    assert_eq!(state.line_levels.len(), T::LINE_OUTPUT_COUNT);
-
-    let mut cmds = Vec::new();
-
-    state.vols.iter()
-        .enumerate()
-        .for_each(|(i, &vol)| {
-            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_VOL_CMD, vol));
-        });
-
-    state.stereo_balance.iter()
-        .enumerate()
-        .for_each(|(i, &balance)| {
-            let ch = (T::PHYS_INPUT_COUNT + i * 2) as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
-        });
-
-    state.stereo_links.iter()
-        .enumerate()
-        .for_each(|(i, &link)| {
-            let ch = (T::PHYS_INPUT_COUNT + i * 2) as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_LINK_CMD, link as i16));
-        });
-
-    state.invert_phases.iter()
-        .enumerate()
-        .for_each(|(i, &invert_phase)| {
-            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_INVERT_PHASE_CMD, invert_phase as i16));
-        });
-
-    state.line_levels.iter()
-        .enumerate()
-        .for_each(|(i, &line_level)| {
-            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_LINE_LEVEL_CMD, line_level as i16));
-        });
-
-    cmds
-}
-
 /// The trait to represent output protocol.
-pub trait RmeFfLatterOutputOperation<U>: RmeFfLatterDspOperation<U>
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-{
-    const CH_OFFSET: u8 = U::PHYS_INPUT_COUNT as u8;
+pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
+    const PHYS_OUTPUT_VOL_MIN: i32 = -650;
+    const PHYS_OUTPUT_VOL_MAX: i32 = 60;
+    const PHYS_OUTPUT_VOL_STEP: i32 = 1;
+
+    const PHYS_OUTPUT_BALANCE_MIN: i32 = -100;
+    const PHYS_OUTPUT_BALANCE_MAX: i32 = 100;
+    const PHYS_OUTPUT_BALANCE_STEP: i32 = 1;
+
+    const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
 
     fn init_output(
         &self,
         node: &mut FwNode,
-        state: &U,
+        state: &FfLatterDspState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let cmds = output_state_to_cmds::<U>(&state.as_ref().output);
+        let cmds = Self::output_state_to_cmds(&state.output);
         cmds.iter()
-            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+            .try_for_each(|&cmd| Self::write_dsp_cmd(self, node, cmd, timeout_ms))
     }
 
     fn write_output(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         output: FfLatterOutputState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = output_state_to_cmds::<U>(&state.as_ref().output);
-        let new = output_state_to_cmds::<U>(&output);
+        let old = Self::output_state_to_cmds(&state.output);
+        let new = Self::output_state_to_cmds(&output);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().output = output)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| state.output = output)
+    }
+
+    fn output_state_to_cmds(state: &FfLatterOutputState) -> Vec<u32> {
+        assert_eq!(state.vols.len(), Self::PHYS_INPUT_COUNT);
+        assert_eq!(state.stereo_balance.len(), Self::PHYS_INPUT_COUNT / 2);
+        assert_eq!(state.stereo_links.len(), Self::PHYS_INPUT_COUNT / 2);
+        assert_eq!(state.invert_phases.len(), Self::PHYS_INPUT_COUNT);
+        assert_eq!(state.line_levels.len(), Self::LINE_OUTPUT_COUNT);
+
+        let mut cmds = Vec::new();
+
+        state.vols.iter()
+            .enumerate()
+            .for_each(|(i, &vol)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_VOL_CMD, vol));
+            });
+
+        state.stereo_balance.iter()
+            .enumerate()
+            .for_each(|(i, &balance)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i * 2) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_BALANCE_CMD, balance));
+            });
+
+        state.stereo_links.iter()
+            .enumerate()
+            .for_each(|(i, &link)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i * 2) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_STEREO_LINK_CMD, link as i16));
+            });
+
+        state.invert_phases.iter()
+            .enumerate()
+            .for_each(|(i, &invert_phase)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_INVERT_PHASE_CMD, invert_phase as i16));
+            });
+
+        state.line_levels.iter()
+            .enumerate()
+            .for_each(|(i, &line_level)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_LINE_LEVEL_CMD, line_level as i16));
+            });
+
+        cmds
     }
 }
 
-impl<U, O> RmeFfLatterOutputOperation<U> for O
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspOperation<U>,
-{}
+impl<O: RmeFfLatterDspOperation> RmeFfLatterOutputOperation for O {}
 
 /// The structure to represent state of mixer.
 ///
 /// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
 /// through 0.00 dB.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterMixerState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterMixerState {
     pub line_gains: Vec<u16>,
     pub mic_gains: Vec<u16>,
     pub spdif_gains: Vec<u16>,
@@ -838,73 +832,71 @@ pub struct FfLatterMixerState{
     pub stream_gains: Vec<u16>,
 }
 
-fn mixer_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterMixerState, index: u16)
-    -> Vec<u32>
-{
-    let mut cmds = Vec::new();
-
-    state.line_gains.iter()
-        .chain(state.mic_gains.iter())
-        .chain(state.spdif_gains.iter())
-        .chain(state.adat_gains.iter())
-        .enumerate()
-        .for_each(|(i, &gain)| {
-            let ch = i as u16;
-            cmds.push(create_virt_port_cmd(T::MIXER_STEP, index, ch, gain));
-        });
-
-    state.stream_gains.iter()
-        .enumerate()
-        .for_each(|(i, &gain)| {
-            let ch = (T::STREAM_OFFSET as u16) + i as u16;
-            cmds.push(create_virt_port_cmd(T::MIXER_STEP, index, ch, gain));
-        });
-
-    cmds
-}
-
 /// The trait to represent mixer protocol.
-pub trait RmeFfLatterMixerOperation<U> : RmeFfLatterDspOperation<U>
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-{
+pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
+    const MIXER_INPUT_GAIN_MIN: i32 = 0x0000;
+    const MIXER_INPUT_GAIN_ZERO: i32 = 0x9000;
+    const MIXER_INPUT_GAIN_MAX: i32 = 0xa000;
+    const MIXER_INPUT_GAIN_STEP: i32 = 1;
+
     fn init_mixers(
         &self,
         node: &mut FwNode,
-        state: &U,
+        state: &FfLatterDspState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mixers = &state.as_ref().mixer;
+        let mixers = &state.mixer;
 
         mixers.iter()
             .enumerate()
             .try_for_each(|(i, mixer)| {
                 let ch = i as u16;
-                let cmds = mixer_state_to_cmds::<U>(&mixer, ch);
+                let cmds = Self::mixer_state_to_cmds(&mixer, ch);
                 cmds.iter()
-                    .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+                    .try_for_each(|&cmd| Self::write_dsp_cmd(self, node, cmd, timeout_ms))
             })
     }
 
     fn write_mixer(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         index: usize,
         mixer: FfLatterMixerState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = mixer_state_to_cmds::<U>(&state.as_ref().mixer[index], index as u16);
-        let new = mixer_state_to_cmds::<U>(&mixer, index as u16);
+        let old = Self::mixer_state_to_cmds(&state.mixer[index], index as u16);
+        let new = Self::mixer_state_to_cmds(&mixer, index as u16);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().mixer[index] = mixer)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| state.mixer[index] = mixer)
+    }
+
+    fn mixer_state_to_cmds(state: &FfLatterMixerState, index: u16) -> Vec<u32> {
+        let mut cmds = Vec::new();
+
+        state.line_gains.iter()
+            .chain(state.mic_gains.iter())
+            .chain(state.spdif_gains.iter())
+            .chain(state.adat_gains.iter())
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = i as u16;
+                cmds.push(create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain));
+            });
+
+        state.stream_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = (Self::STREAM_OFFSET as u16) + i as u16;
+                cmds.push(create_virt_port_cmd(Self::MIXER_STEP, index, ch, gain));
+            });
+
+        cmds
     }
 }
 
-impl<U, O> RmeFfLatterMixerOperation<U> for O
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspOperation<U>,
-{}
+impl<O: RmeFfLatterDspOperation> RmeFfLatterMixerOperation for O {}
 
 /// The enum to represent level of roll off in high pass filter.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -933,8 +925,8 @@ impl From<FfLatterHpfRollOffLevel> for i16 {
 }
 
 /// The structure to represent state of high pass filter in channel strip effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterHpfState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterHpfState {
     /// Whether to activate high pass filter.
     pub activates: Vec<bool>,
     /// The frequency to cut between 20 and 500 Hz.
@@ -985,8 +977,8 @@ impl From<FfLatterChStripEqType> for i16 {
 }
 
 /// The structure to represent state of equalizer in channel strip effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterEqState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterEqState {
     /// Whether to activate equalizer.
     pub activates: Vec<bool>,
     /// The type of equalizer at low bandwidth.
@@ -1049,8 +1041,8 @@ fn eq_state_to_cmds(state: &FfLatterEqState, ch_offset: u8) -> Vec<u32> {
 }
 
 /// The structure to represent state of dynamics in channel strip effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterDynState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterDynState {
     /// Whether to activate dynamics.
     pub activates: Vec<bool>,
     /// The gain of dynamics between -300 and 300, displayed by 1/10.
@@ -1097,8 +1089,8 @@ fn dyn_state_to_cmds(state: &FfLatterDynState, ch_offset: u8) -> Vec<u32> {
 }
 
 /// The structure to represent state of autolevel in channel strip effects.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterAutolevelState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterAutolevelState {
     /// Whether to activate auto level.
     pub activates: Vec<bool>,
     /// The maximum level of amplification between 0 and 180, displayed by 1/10 for dB.
@@ -1129,8 +1121,8 @@ fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec
 }
 
 /// The structure to represent state of channel strip effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterChStripState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterChStripState {
     pub hpf: FfLatterHpfState,
     pub eq: FfLatterEqState,
     pub dynamics: FfLatterDynState,
@@ -1138,134 +1130,169 @@ pub struct FfLatterChStripState{
 }
 
 /// The trait to represent channel strip protocol.
-pub trait RmeFfLatterChStripOperation<U, V> : RmeFfLatterDspOperation<U>
-    where U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-          V: AsMut<FfLatterChStripState> + AsRef<FfLatterChStripState>,
-{
+pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
+    const CH_COUNT: usize;
     const CH_OFFSET: u8;
+
+    const HPF_CUT_OFF_MIN: i32 = 20;
+    const HPF_CUT_OFF_MAX: i32 = 500;
+    const HPF_CUT_OFF_STEP: i32 = 1;
+
+    const EQ_GAIN_MIN: i32 = -20;
+    const EQ_GAIN_MAX: i32 = 20;
+    const EQ_GAIN_STEP: i32 = 1;
+
+    const EQ_FREQ_MIN: i32 = 20;
+    const EQ_FREQ_MAX: i32 = 20000;
+    const EQ_FREQ_STEP: i32 = 1;
+
+    const EQ_QUALITY_MIN: i32 = 7;
+    const EQ_QUALITY_MAX: i32 = 50;
+    const EQ_QUALITY_STEP: i32 = 1;
+
+    const DYN_GAIN_MIN: i32 = -300;
+    const DYN_GAIN_MAX: i32 = 300;
+    const DYN_GAIN_STEP: i32 = 1;
+
+    const DYN_ATTACK_MIN: i32 = 0;
+    const DYN_ATTACK_MAX: i32 = 200;
+    const DYN_ATTACK_STEP: i32 = 1;
+
+    const DYN_RELEASE_MIN: i32 = 100;
+    const DYN_RELEASE_MAX: i32 = 999;
+    const DYN_RELEASE_STEP: i32 = 1;
+
+    const DYN_COMP_THRESHOLD_MIN: i32 = -600;
+    const DYN_COMP_THRESHOLD_MAX: i32 = 0;
+    const DYN_COMP_THRESHOLD_STEP: i32 = 1;
+
+    const DYN_RATIO_MIN: i32 = 10;
+    const DYN_RATIO_MAX: i32 = 100;
+    const DYN_RATIO_STEP: i32 = 1;
+
+    const DYN_EX_THRESHOLD_MIN: i32 = -999;
+    const DYN_EX_THRESHOLD_MAX: i32 = -200;
+    const DYN_EX_THRESHOLD_STEP: i32 = 1;
+
+    const AUTOLEVEL_MAX_GAIN_MIN: i32 = 0;
+    const AUTOLEVEL_MAX_GAIN_MAX: i32 = 180;
+    const AUTOLEVEL_MAX_GAIN_STEP: i32 = 1;
+
+    const AUTOLEVEL_HEAD_ROOM_MIN: i32 = 30;
+    const AUTOLEVEL_HEAD_ROOM_MAX: i32 = 120;
+    const AUTOLEVEL_HEAD_ROOM_STEP: i32 = 1;
+
+    const AUTOLEVEL_RISE_TIME_MIN: i32 = 1;
+    const AUTOLEVEL_RISE_TIME_MAX: i32 = 99;
+    const AUTOLEVEL_RISE_TIME_STEP: i32 = 1;
+
+    fn ch_strip(state: &FfLatterDspState) -> &FfLatterChStripState;
+    fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState;
 
     fn init_ch_strip(
         &self,
         node: &mut FwNode,
-        state: &V,
+        state: &FfLatterDspState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let s = state.as_ref();
-
         let mut cmds = Vec::new();
-        cmds.append(&mut hpf_state_to_cmds(&s.hpf, Self::CH_OFFSET));
-        cmds.append(&mut eq_state_to_cmds(&s.eq, Self::CH_OFFSET));
-        cmds.append(&mut dyn_state_to_cmds(&s.dynamics, Self::CH_OFFSET));
-        cmds.append(&mut autolevel_state_to_cmds(&s.autolevel, Self::CH_OFFSET));
+        cmds.append(&mut hpf_state_to_cmds(&Self::ch_strip(state).hpf, Self::CH_OFFSET));
+        cmds.append(&mut eq_state_to_cmds(&Self::ch_strip(state).eq, Self::CH_OFFSET));
+        cmds.append(&mut dyn_state_to_cmds(&Self::ch_strip(state).dynamics, Self::CH_OFFSET));
+        cmds.append(&mut autolevel_state_to_cmds(&Self::ch_strip(state).autolevel, Self::CH_OFFSET));
 
-        cmds.iter()
-            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+        cmds.iter().try_for_each(|&cmd| Self::write_dsp_cmd(self, node, cmd, timeout_ms))
     }
 
     fn write_ch_strip_hpf(
         &self,
         node: &mut FwNode,
-        state: &mut V,
+        state: &mut FfLatterDspState,
         hpf: FfLatterHpfState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = hpf_state_to_cmds(&state.as_ref().hpf, Self::CH_OFFSET);
+        let old = hpf_state_to_cmds(&Self::ch_strip(state).hpf, Self::CH_OFFSET);
         let new = hpf_state_to_cmds(&hpf, Self::CH_OFFSET);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().hpf = hpf)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| Self::ch_strip_mut(state).hpf = hpf)
     }
 
     fn write_ch_strip_eq(
         &self,
         node: &mut FwNode,
-        state: &mut V,
+        state: &mut FfLatterDspState,
         eq: FfLatterEqState,
         timeout_ms: u32
-    )
-        -> Result<(), Error>
-    {
-        let old = eq_state_to_cmds(&state.as_ref().eq, Self::CH_OFFSET);
+    ) -> Result<(), Error> {
+        let old = eq_state_to_cmds(&Self::ch_strip(state).eq, Self::CH_OFFSET);
         let new = eq_state_to_cmds(&eq, Self::CH_OFFSET);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().eq = eq)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| Self::ch_strip_mut(state).eq = eq)
     }
 
     fn write_ch_strip_dynamics(
         &self,
         node: &mut FwNode,
-        state: &mut V,
+        state: &mut FfLatterDspState,
         dynamics: FfLatterDynState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = dyn_state_to_cmds(&state.as_ref().dynamics, Self::CH_OFFSET);
+        let old = dyn_state_to_cmds(&Self::ch_strip(state).dynamics, Self::CH_OFFSET);
         let new = dyn_state_to_cmds(&dynamics, Self::CH_OFFSET);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().dynamics = dynamics)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| Self::ch_strip_mut(state).dynamics = dynamics)
     }
 
     fn write_ch_strip_autolevel(
         &self,
         node: &mut FwNode,
-        state: &mut V,
+        state: &mut FfLatterDspState,
         autolevel: FfLatterAutolevelState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = autolevel_state_to_cmds(&state.as_ref().autolevel, Self::CH_OFFSET);
+        let old = autolevel_state_to_cmds(&Self::ch_strip(state).autolevel, Self::CH_OFFSET);
         let new = autolevel_state_to_cmds(&autolevel, Self::CH_OFFSET);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().autolevel = autolevel)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| Self::ch_strip_mut(state).autolevel = autolevel)
     }
 }
 
 /// The structure to represent state of input channel strip effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterInputChStripState(pub FfLatterChStripState);
 
-impl AsMut<FfLatterChStripState> for FfLatterInputChStripState {
-    fn as_mut(&mut self) -> &mut FfLatterChStripState {
-        &mut self.0
-    }
-}
-
-impl AsRef<FfLatterChStripState> for FfLatterInputChStripState {
-    fn as_ref(&self) -> &FfLatterChStripState {
-        &self.0
-    }
-}
-
-impl<U, O> RmeFfLatterChStripOperation<U, FfLatterInputChStripState> for O
-    where U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-          O: RmeFfLatterDspOperation<U>,
-{
+impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterInputChStripState> for O {
+    const CH_COUNT: usize = Self::PHYS_INPUT_COUNT;
     const CH_OFFSET: u8 = 0x00;
+
+    fn ch_strip(state: &FfLatterDspState) -> &FfLatterChStripState {
+        &state.input_ch_strip.0
+    }
+
+    fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState {
+        &mut state.input_ch_strip.0
+    }
 }
 
 /// The structure to represent state of output channel strip effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
 
-impl AsMut<FfLatterChStripState> for FfLatterOutputChStripState {
-    fn as_mut(&mut self) -> &mut FfLatterChStripState {
-        &mut self.0
-    }
-}
+impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterOutputChStripState> for O {
+    const CH_COUNT: usize = Self::OUTPUT_COUNT;
+    const CH_OFFSET: u8 = Self::PHYS_INPUT_COUNT as u8;
 
-impl AsRef<FfLatterChStripState> for FfLatterOutputChStripState {
-    fn as_ref(&self) -> &FfLatterChStripState {
-        &self.0
+    fn ch_strip(state: &FfLatterDspState) -> &FfLatterChStripState {
+        &state.output_ch_strip.0
     }
-}
 
-impl<U, O> RmeFfLatterChStripOperation<U, FfLatterOutputChStripState> for O
-    where U: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-          O: RmeFfLatterDspOperation<U>,
-{
-    const CH_OFFSET: u8 =
-        (U::LINE_INPUT_COUNT + U::MIC_INPUT_COUNT + U::SPDIF_INPUT_COUNT + U::ADAT_INPUT_COUNT) as u8;
+    fn ch_strip_mut(state: &mut FfLatterDspState) -> &mut FfLatterChStripState {
+        &mut state.output_ch_strip.0
+    }
 }
 
 /// The enumeration to represent type of reverb effect.
@@ -1372,7 +1399,7 @@ impl From<FfLatterFxEchoLpfFreq> for i16 {
 
 /// The structure to represent state of reverb in send effect.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfLatterFxReverbState{
+pub struct FfLatterFxReverbState {
     /// Whether to activate reverb effect.
     pub activate: bool,
     /// The type of reverb effect.
@@ -1428,7 +1455,7 @@ fn reverb_state_to_cmds(state: &FfLatterFxReverbState) -> Vec<u32> {
 
 /// The structure to represent state of echo in send effect.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfLatterFxEchoState{
+pub struct FfLatterFxEchoState {
     /// Whether to activate echo effect.
     pub activate: bool,
     /// The type of echo effect.
@@ -1460,8 +1487,8 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
 }
 
 /// The structure to represent state of send effects (reverb and echo).
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct FfLatterFxState{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FfLatterFxState {
     /// The gain of line inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
     pub line_input_gains: Vec<i16>,
     /// The gain of mic inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
@@ -1489,136 +1516,203 @@ pub struct FfLatterFxState{
 const FX_MIXER_0: u16 = 0x1e;
 const FX_MIXER_1: u16 = 0x1f;
 
-fn fx_input_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterFxState) -> Vec<u32> {
-    assert_eq!(state.line_input_gains.len(), T::LINE_INPUT_COUNT);
-    assert_eq!(state.mic_input_gains.len(), T::MIC_INPUT_COUNT);
-    assert_eq!(state.spdif_input_gains.len(), T::SPDIF_INPUT_COUNT);
-    assert_eq!(state.adat_input_gains.len(), T::ADAT_INPUT_COUNT);
-    assert_eq!(state.stream_input_gains.len(), T::STREAM_INPUT_COUNT);
-
-    let mut cmds = Vec::new();
-
-    state.line_input_gains.iter()
-        .chain(state.mic_input_gains.iter())
-        .chain(state.spdif_input_gains.iter())
-        .chain(state.adat_input_gains.iter())
-        .enumerate()
-        .for_each(|(i, &gain)| {
-            let ch = i as u8;
-            cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
-        });
-
-    state.stream_input_gains.iter()
-        .enumerate()
-        .for_each(|(i, &gain)| {
-            cmds.push(create_virt_port_cmd(T::MIXER_STEP, FX_MIXER_0, T::STREAM_OFFSET + i as u16, gain));
-            cmds.push(create_virt_port_cmd(T::MIXER_STEP, FX_MIXER_1, T::STREAM_OFFSET + i as u16, gain));
-        });
-
-    cmds
-}
-
-fn fx_output_state_to_cmds<T: RmeFfLatterDspSpec>(state: &FfLatterFxState) -> Vec<u32> {
-    assert_eq!(state.line_output_vols.len(), T::LINE_OUTPUT_COUNT);
-    assert_eq!(state.hp_output_vols.len(), T::HP_OUTPUT_COUNT);
-    assert_eq!(state.spdif_output_vols.len(), T::SPDIF_OUTPUT_COUNT);
-    assert_eq!(state.adat_output_vols.len(), T::ADAT_OUTPUT_COUNT);
-
-    let mut cmds = Vec::new();
-
-    state.line_output_vols.iter()
-        .chain(state.hp_output_vols.iter())
-        .chain(state.spdif_output_vols.iter())
-        .chain(state.adat_output_vols.iter())
-        .enumerate()
-        .for_each(|(i, &gain)| {
-            let ch = (T::PHYS_INPUT_COUNT + i) as u8;
-            cmds.push(create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain));
-        });
-
-    cmds
-}
-
 /// The trait to represent mixer protocol.
-pub trait RmeFfLatterFxOperation<U>: RmeFfLatterDspOperation<U>
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-{
+pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
+    const FX_PHYS_LEVEL_MIN: i32 = -650;
+    const FX_PHYS_LEVEL_MAX: i32 = 0;
+    const FX_PHYS_LEVEL_STEP: i32 = 1;
+
+    const FX_VIRT_LEVEL_MIN: i32 = 0;
+    const FX_VIRT_LEVEL_MAX: i32 = 35676;
+    const FX_VIRT_LEVEL_STEP: i32 = 1;
+
+    const REVERB_PRE_DELAY_MIN: i32 = 0;
+    const REVERB_PRE_DELAY_MAX: i32 = 999;
+    const REVERB_PRE_DELAY_STEP: i32 = 1;
+
+    const REVERB_ATTACK_MIN: i32 = 5;
+    const REVERB_ATTACK_MAX: i32 = 400;
+    const REVERB_ATTACK_STEP: i32 = 1;
+
+    const REVERB_HOLD_MIN: i32 = 5;
+    const REVERB_HOLD_MAX: i32 = 400;
+    const REVERB_HOLD_STEP: i32 = 1;
+
+    const REVERB_RELEASE_MIN: i32 = 5;
+    const REVERB_RELEASE_MAX: i32 = 500;
+    const REVERB_RELEASE_STEP: i32 = 1;
+
+    const REVERB_POST_LPF_FREQ_MIN: i32 = 200;
+    const REVERB_POST_LPF_FREQ_MAX: i32 = 20000;
+    const REVERB_POST_LPF_FREQ_STEP: i32 = 1;
+
+    const REVERB_TIME_MIN: i32 = 1;
+    const REVERB_TIME_MAX: i32 = 49;
+    const REVERB_TIME_STEP: i32 = 1;
+
+    const REVERB_DAMPING_MIN: i32 = 2000;
+    const REVERB_DAMPING_MAX: i32 = 20000;
+    const REVERB_DAMPING_STEP: i32 = 1;
+
+    const REVERB_SMOOTH_MIN: i32 = 0;
+    const REVERB_SMOOTH_MAX: i32 = 100;
+    const REVERB_SMOOTH_STEP: i32 = 1;
+
+    const REVERB_VOL_MIN: i32 = -650;
+    const REVERB_VOL_MAX: i32 = 60;
+    const REVERB_VOL_STEP: i32 = 1;
+
+    const REVERB_STEREO_WIDTH_MIN: i32 = 0;
+    const REVERB_STEREO_WIDTH_MAX: i32 = 100;
+    const REVERB_STEREO_WIDTH_STEP: i32 = 1;
+
+    const ECHO_DELAY_MIN: i32 = 0;
+    const ECHO_DELAY_MAX: i32 = 100;
+    const ECHO_DELAY_STEP: i32 = 1;
+
+    const ECHO_FEEDBACK_MIN: i32 = 0;
+    const ECHO_FEEDBACK_MAX: i32 = 100;
+    const ECHO_FEEDBACK_STEP: i32 = 1;
+
+    const ECHO_VOL_MIN: i32 = -650;
+    const ECHO_VOL_MAX: i32 = 0;
+    const ECHO_VOL_STEP: i32 = 1;
+
+    const ECHO_STEREO_WIDTH_MIN: i32 = 0;
+    const ECHO_STEREO_WIDTH_MAX: i32 = 100;
+    const ECHO_STEREO_WIDTH_STEP: i32 = 1;
+
     fn init_fx(
         &self,
         node: &mut FwNode,
-        state: &U,
+        state: &FfLatterDspState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let s = state.as_ref();
-
         let mut cmds = Vec::new();
-        cmds.append(&mut fx_input_state_to_cmds::<U>(&s.fx));
-        cmds.append(&mut fx_output_state_to_cmds::<U>(&s.fx));
-        cmds.append(&mut reverb_state_to_cmds(&s.fx.reverb));
-        cmds.append(&mut echo_state_to_cmds(&s.fx.echo));
+        cmds.append(&mut Self::fx_input_state_to_cmds(&state.fx));
+        cmds.append(&mut Self::fx_output_state_to_cmds(&state.fx));
+        cmds.append(&mut reverb_state_to_cmds(&state.fx.reverb));
+        cmds.append(&mut echo_state_to_cmds(&state.fx.echo));
 
         cmds.iter()
-            .try_for_each(|&cmd| self.write_dsp_cmd(node, cmd, timeout_ms))
+            .try_for_each(|&cmd| Self::write_dsp_cmd(self, node, cmd, timeout_ms))
     }
 
     fn write_fx_input_gains(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         fx: FfLatterFxState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = fx_input_state_to_cmds::<U>(&state.as_ref().fx);
-        let new = fx_input_state_to_cmds::<U>(&fx);
+        let old = Self::fx_input_state_to_cmds(&state.fx);
+        let new = Self::fx_input_state_to_cmds(&fx);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().fx = fx)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| state.fx = fx)
     }
 
     fn write_fx_output_volumes(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         fx: FfLatterFxState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = fx_output_state_to_cmds::<U>(&state.as_ref().fx);
-        let new = fx_output_state_to_cmds::<U>(&fx);
+        let old = Self::fx_output_state_to_cmds(&state.fx);
+        let new = Self::fx_output_state_to_cmds(&fx);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().fx = fx)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| state.fx = fx)
     }
 
     fn write_fx_reverb(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         reverb: &FfLatterFxReverbState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = reverb_state_to_cmds(&state.as_ref().fx.reverb);
+        let old = reverb_state_to_cmds(&state.fx.reverb);
         let new = reverb_state_to_cmds(reverb);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().fx.reverb = *reverb)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| state.fx.reverb = *reverb)
     }
 
     fn write_fx_echo(
         &self,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FfLatterDspState,
         echo: &FfLatterFxEchoState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let old = echo_state_to_cmds(&state.as_ref().fx.echo);
+        let old = echo_state_to_cmds(&state.fx.echo);
         let new = echo_state_to_cmds(echo);
 
-        self.write_dsp_cmds(node, &old, &new, timeout_ms)
-            .map(|_| state.as_mut().fx.echo = *echo)
+        Self::write_dsp_cmds(self, node, &old, &new, timeout_ms)
+            .map(|_| state.fx.echo = *echo)
+    }
+
+    fn fx_input_state_to_cmds(state: &FfLatterFxState) -> Vec<u32> {
+        assert_eq!(state.line_input_gains.len(), Self::LINE_INPUT_COUNT);
+        assert_eq!(state.mic_input_gains.len(), Self::MIC_INPUT_COUNT);
+        assert_eq!(state.spdif_input_gains.len(), Self::SPDIF_INPUT_COUNT);
+        assert_eq!(state.adat_input_gains.len(), Self::ADAT_INPUT_COUNT);
+        assert_eq!(state.stream_input_gains.len(), Self::STREAM_INPUT_COUNT);
+
+        let mut cmds = Vec::new();
+
+        state.line_input_gains.iter()
+            .chain(state.mic_input_gains.iter())
+            .chain(state.spdif_input_gains.iter())
+            .chain(state.adat_input_gains.iter())
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = i as u8;
+                cmds.push(create_phys_port_cmd(ch, INPUT_TO_FX_CMD, gain));
+            });
+
+        state.stream_input_gains.iter()
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                cmds.push(create_virt_port_cmd(
+                        Self::MIXER_STEP,
+                        FX_MIXER_0,
+                        Self::STREAM_OFFSET + i as u16,
+                        gain
+                    ));
+                cmds.push(create_virt_port_cmd(
+                        Self::MIXER_STEP,
+                        FX_MIXER_1,
+                        Self::STREAM_OFFSET + i as u16,
+                        gain
+                    ));
+            });
+
+        cmds
+    }
+
+    fn fx_output_state_to_cmds(state: &FfLatterFxState) -> Vec<u32> {
+        assert_eq!(state.line_output_vols.len(), Self::LINE_OUTPUT_COUNT);
+        assert_eq!(state.hp_output_vols.len(), Self::HP_OUTPUT_COUNT);
+        assert_eq!(state.spdif_output_vols.len(), Self::SPDIF_OUTPUT_COUNT);
+        assert_eq!(state.adat_output_vols.len(), Self::ADAT_OUTPUT_COUNT);
+
+        let mut cmds = Vec::new();
+
+        state.line_output_vols.iter()
+            .chain(state.hp_output_vols.iter())
+            .chain(state.spdif_output_vols.iter())
+            .chain(state.adat_output_vols.iter())
+            .enumerate()
+            .for_each(|(i, &gain)| {
+                let ch = (Self::PHYS_INPUT_COUNT + i) as u8;
+                cmds.push(create_phys_port_cmd(ch, OUTPUT_FROM_FX_CMD, gain));
+            });
+
+        cmds
     }
 }
 
-impl<U, O> RmeFfLatterFxOperation<U> for O
-    where U: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-          O: RmeFfLatterDspOperation<U>,
-{}
+impl<O: RmeFfLatterDspOperation> RmeFfLatterFxOperation for O {}

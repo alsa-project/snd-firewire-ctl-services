@@ -132,98 +132,17 @@ pub trait FfLatterMeterCtlOperation<U, V>
     }
 }
 
-#[derive(Default, Debug)]
-pub struct FfLatterDspCtl<V>
-    where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
+pub trait FfLatterDspCtlOperation<T>
+where
+    T: RmeFfLatterDspOperation + RmeFfLatterInputOperation +
+       RmeFfLatterOutputOperation + RmeFfLatterMixerOperation +
+       RmeFfLatterChStripOperation<FfLatterInputChStripState> +
+       RmeFfLatterChStripOperation<FfLatterOutputChStripState> +
+       RmeFfLatterFxOperation,
 {
-    state: V,
-    input_ctl: FfLatterInputCtl,
-    output_ctl: FfLatterOutputCtl,
-    mixer_ctl: FfLatterMixerCtl,
-    input_ch_strip_ctl: FfLatterInputChStripCtl,
-    output_ch_strip_ctl: FfLatterOutputChStripCtl,
-    fx_ctl: FfLatterFxCtl,
+    fn state(&self) -> &FfLatterDspState;
+    fn state_mut(&mut self) -> &mut FfLatterDspState;
 }
-
-impl<V> FfLatterDspCtl<V>
-    where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-{
-    pub fn load<U>(
-        &mut self,
-        unit: &mut SndUnit,
-        req: &mut U,
-        timeout_ms: u32,
-        card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterDspOperation<V> + RmeFfLatterInputOperation<V> +
-                 RmeFfLatterOutputOperation<V> + RmeFfLatterMixerOperation<V> +
-                 RmeFfLatterChStripOperation<V, FfLatterInputChStripState> +
-                 RmeFfLatterChStripOperation<V, FfLatterOutputChStripState> +
-                 RmeFfLatterFxOperation<V>,
-    {
-        self.input_ctl.load(unit, req, &mut self.state, timeout_ms, card_cntr)?;
-        self.output_ctl.load(unit, req, &mut self.state, timeout_ms, card_cntr)?;
-        self.mixer_ctl.load(unit, req, &mut self.state, timeout_ms, card_cntr)?;
-        self.input_ch_strip_ctl.load(unit, req, &mut self.state.as_mut().input_ch_strip, timeout_ms, card_cntr)?;
-        self.output_ch_strip_ctl.load(unit, req, &mut self.state.as_mut().output_ch_strip, timeout_ms, card_cntr)?;
-        self.fx_ctl.load(unit, req, &mut self.state, timeout_ms, card_cntr)?;
-        Ok(())
-    }
-
-    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        if self.input_ctl.read(&self.state, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ctl.read(&self.state, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.mixer_ctl.read(&self.state, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.input_ch_strip_ctl.read(&self.state.as_ref().input_ch_strip, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.output_ch_strip_ctl.read(&self.state.as_ref().output_ch_strip, elem_id, elem_value)? {
-            Ok(true)
-        } else if self.fx_ctl.read(&self.state, elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    pub fn write<U>(
-        &mut self,
-        unit: &mut SndUnit,
-        req: &mut U,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFfLatterDspOperation<V> + RmeFfLatterInputOperation<V> +
-                 RmeFfLatterOutputOperation<V> + RmeFfLatterMixerOperation<V> +
-                 RmeFfLatterChStripOperation<V, FfLatterInputChStripState> +
-                 RmeFfLatterChStripOperation<V, FfLatterOutputChStripState> +
-                 RmeFfLatterFxOperation<V>,
-    {
-        if self.input_ctl.write(unit, req, &mut self.state, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.output_ctl.write(unit, req, &mut self.state, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.mixer_ctl.write(unit, req, &mut self.state, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.input_ch_strip_ctl.write(unit, req, &mut self.state.as_mut().input_ch_strip,
-                                                elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.output_ch_strip_ctl.write(unit, req, &mut self.state.as_mut().output_ch_strip,
-                                                 elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else if self.fx_ctl.write(unit, req, &mut self.state, elem_id, elem_value, timeout_ms)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-#[derive(Default, Debug)]
-struct FfLatterInputCtl;
 
 const INPUT_STEREO_LINK_NAME: &str = "input:stereo-link";
 const INPUT_LINE_GAIN_NAME: &str = "input:line-gain";
@@ -232,10 +151,7 @@ const INPUT_MIC_POWER_NAME: &str = "input:mic-power";
 const INPUT_MIC_INST_NAME: &str = "input:mic-instrument";
 const INPUT_INVERT_PHASE_NAME: &str = "input:invert-phase";
 
-impl FfLatterInputCtl {
-    const GAIN_MIN: i32 = 0;
-    const GAIN_MAX: i32 = 120;
-    const GAIN_STEP: i32 = 1;
+pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>: FfLatterDspCtlOperation<T> {
     const GAIN_TLV: DbInterval = DbInterval{min: 0, max: 1200, linear: false, mute_avail: false};
 
     const LINE_LEVELS: [LatterInNominalLevel;2] = [
@@ -243,69 +159,67 @@ impl FfLatterInputCtl {
         LatterInNominalLevel::Professional,
     ];
 
-    fn load<U, V>(
+    fn load_input(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterInputOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
-        U::init_input(req, &mut unit.get_node(), state, timeout_ms)?;
-
-        let s = &state.as_ref().input;
+    ) -> Result<(), Error> {
+        T::init_input(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_STEREO_LINK_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.stereo_links.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::PHYS_INPUT_COUNT / 2, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_LINE_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        s.line_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::PHYS_INPUT_GAIN_MIN,
+            T::PHYS_INPUT_GAIN_MAX,
+            T::PHYS_INPUT_GAIN_STEP,
+            T::PHYS_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true
+        )?;
 
         let labels: Vec<String> = Self::LINE_LEVELS.iter()
             .map(|l| latter_line_in_nominal_level_to_string(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_LINE_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, s.line_levels.len(), &labels, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_POWER_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.mic_powers.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::LINE_INPUT_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MIC_INST_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.mic_insts.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_PHASE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.invert_phases.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::MIC_INPUT_COUNT, true)?;
 
         Ok(())
     }
 
-    fn read<V>(
+    fn read_input(
         &mut self,
-        state: &V,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_STEREO_LINK_NAME => {
-                elem_value.set_bool(&state.as_ref().input.stereo_links);
+                elem_value.set_bool(&self.state().input.stereo_links);
                 Ok(true)
             }
             INPUT_LINE_GAIN_NAME => {
-                let vals: Vec<i32> = state.as_ref().input.line_gains.iter()
+                let vals: Vec<i32> = self.state().input.line_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                let vals: Vec<u32> = state.as_ref().input.line_levels.iter()
+                let vals: Vec<u32> = self.state().input.line_levels.iter()
                     .map(|level| {
                         let pos = Self::LINE_LEVELS.iter()
                             .position(|l| l.eq(level))
@@ -317,53 +231,49 @@ impl FfLatterInputCtl {
                 Ok(true)
             }
             INPUT_MIC_POWER_NAME => {
-                elem_value.set_bool(&state.as_ref().input.mic_powers);
+                elem_value.set_bool(&self.state().input.mic_powers);
                 Ok(true)
             }
             INPUT_MIC_INST_NAME => {
-                elem_value.set_bool(&state.as_ref().input.mic_insts);
+                elem_value.set_bool(&self.state().input.mic_insts);
                 Ok(true)
             }
             INPUT_INVERT_PHASE_NAME => {
-                elem_value.set_bool(&state.as_ref().input.invert_phases);
+                elem_value.set_bool(&self.state().input.invert_phases);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write<U, V>(
+    fn write_input(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFfLatterInputOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_STEREO_LINK_NAME => {
-                let mut s = state.as_ref().input.clone();
-                elem_value.get_bool(&mut s.stereo_links);
-                U::write_input(req, &mut unit.get_node(), state, s, timeout_ms)
+                let mut state = self.state().input.clone();
+                elem_value.get_bool(&mut state.stereo_links);
+                T::write_input(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             INPUT_LINE_GAIN_NAME => {
-                let mut s = state.as_ref().input.clone();
-                let mut vals = vec![0;s.line_gains.len()];
+                let mut state = self.state().input.clone();
+                let mut vals = vec![0; state.line_gains.len()];
                 elem_value.get_int(&mut vals);
-                s.line_gains.iter_mut()
+                state.line_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_input(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_input(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
-                let mut s = state.as_mut().input.clone();
-                let mut vals = vec![0;s.line_levels.len()];
+                let mut state = self.state().input.clone();
+                let mut vals = vec![0; state.line_levels.len()];
                 elem_value.get_enum(&mut vals);
                 vals.iter()
                     .enumerate()
@@ -371,30 +281,30 @@ impl FfLatterInputCtl {
                         Self::LINE_LEVELS.iter()
                             .nth(pos as usize)
                             .ok_or_else(|| {
-                                let msg = format!("Invalid value for index of input nominal level: {}", pos);
+                                let msg = format!("Invalid index of input nominal level: {}", pos);
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&l| s.line_levels[i] = l)
+                            .map(|&l| state.line_levels[i] = l)
                     })?;
-                U::write_input(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_input(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
-                let mut s = state.as_ref().input.clone();
-                elem_value.get_bool(&mut s.mic_powers);
-                U::write_input(req, &mut unit.get_node(), state, s, timeout_ms)
+                let mut state = self.state().input.clone();
+                elem_value.get_bool(&mut state.mic_powers);
+                T::write_input(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             INPUT_MIC_INST_NAME => {
-                let mut s = state.as_ref().input.clone();
-                elem_value.get_bool(&mut s.mic_insts);
-                U::write_input(req, &mut unit.get_node(), state, s, timeout_ms)
+                let mut state = self.state().input.clone();
+                elem_value.get_bool(&mut state.mic_insts);
+                T::write_input(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             INPUT_INVERT_PHASE_NAME => {
-                let mut s = state.as_ref().input.clone();
-                elem_value.get_bool(&mut s.invert_phases);
-                U::write_input(req, &mut unit.get_node(), state, s, timeout_ms)
+                let mut state = self.state().input.clone();
+                elem_value.get_bool(&mut state.invert_phases);
+                T::write_input(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -402,8 +312,11 @@ impl FfLatterInputCtl {
     }
 }
 
-#[derive(Default, Debug)]
-struct FfLatterOutputCtl;
+impl<O, T> FfLatterInputCtlOperation<T> for O
+    where
+        O: FfLatterDspCtlOperation<T>,
+        T: RmeFfLatterInputOperation,
+{}
 
 const VOL_NAME: &str = "output:volume";
 const STEREO_BALANCE_NAME: &str = "output:stereo-balance";
@@ -411,15 +324,8 @@ const STEREO_LINK_NAME: &str = "output:stereo-link";
 const INVERT_PHASE_NAME: &str = "output:invert-phase";
 const LINE_LEVEL_NAME: &str = "output:line-level";
 
-impl FfLatterOutputCtl {
-    const VOL_MIN: i32 = -650;
-    const VOL_MAX: i32 = 60;
-    const VOL_STEP: i32 = 1;
+pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>: FfLatterDspCtlOperation<T> {
     const VOL_TLV: DbInterval = DbInterval{min: -6500, max: 600, linear: false, mute_avail: false};
-
-    const BALANCE_MIN: i32 = -100;
-    const BALANCE_MAX: i32 = 100;
-    const BALANCE_STEP: i32 = 1;
 
     const LINE_LEVELS: [LineOutNominalLevel;3] = [
         LineOutNominalLevel::Consumer,
@@ -427,80 +333,86 @@ impl FfLatterOutputCtl {
         LineOutNominalLevel::High,
     ];
 
-    fn load<U, V>(
+    fn load_output(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterOutputOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
-        state.as_mut().output.vols.iter_mut()
-            .for_each(|vol| *vol = Self::VOL_MAX as i16);
-        U::init_output(req, &mut unit.get_node(), state, timeout_ms)?;
-
-        let s = &state.as_ref().output;
+    ) -> Result<(), Error> {
+        self.state_mut().output.vols.iter_mut()
+            .for_each(|vol| *vol = T::PHYS_OUTPUT_VOL_MAX as i16);
+        T::init_output(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::VOL_MIN, Self::VOL_MAX, Self::VOL_STEP,
-                                        s.vols.len(), Some(&Vec::<u32>::from(&Self::VOL_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::PHYS_OUTPUT_VOL_MIN,
+            T::PHYS_OUTPUT_VOL_MAX,
+            T::PHYS_OUTPUT_VOL_STEP,
+            T::OUTPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STEREO_BALANCE_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, Self::BALANCE_MIN, Self::BALANCE_MAX, Self::BALANCE_STEP,
-                                        s.stereo_balance.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::PHYS_OUTPUT_BALANCE_MIN,
+            T::PHYS_OUTPUT_BALANCE_MAX,
+            T::PHYS_OUTPUT_BALANCE_STEP,
+            T::OUTPUT_COUNT / 2,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STEREO_LINK_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.stereo_links.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::OUTPUT_COUNT / 2, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INVERT_PHASE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, s.invert_phases.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::OUTPUT_COUNT, true)?;
 
         let labels: Vec<String> = Self::LINE_LEVELS.iter()
             .map(|l| line_out_nominal_level_to_string(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, s.line_levels.len(), &labels, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::LINE_OUTPUT_COUNT, &labels, None, true)?;
 
         Ok(())
     }
 
-    fn read<V>(
+    fn read_output(
         &mut self,
-        state: &V,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                let vals: Vec<i32> = state.as_ref().output.vols.iter()
+                let vals: Vec<i32> = self.state().output.vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             STEREO_BALANCE_NAME => {
-                let vals: Vec<i32> = state.as_ref().output.stereo_balance.iter()
+                let vals: Vec<i32> = self.state().output.stereo_balance.iter()
                     .map(|&balance| balance as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             STEREO_LINK_NAME => {
-                elem_value.set_bool(&state.as_ref().output.stereo_links);
+                elem_value.set_bool(&self.state().output.stereo_links);
                 Ok(true)
             }
             INVERT_PHASE_NAME => {
-                elem_value.set_bool(&state.as_ref().output.invert_phases);
+                elem_value.set_bool(&self.state().output.invert_phases);
                 Ok(true)
             }
             LINE_LEVEL_NAME => {
-                let vals: Vec<u32> = state.as_ref().output.line_levels.iter()
+                let vals: Vec<u32> = self.state().output.line_levels.iter()
                     .map(|level| {
                         let pos = Self::LINE_LEVELS.iter()
                             .position(|l| l.eq(level))
@@ -515,54 +427,50 @@ impl FfLatterOutputCtl {
         }
     }
 
-    fn write<U, V>(
+    fn write_output(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFfLatterOutputOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                let mut s = state.as_ref().output.clone();
-                let mut vals = vec![0;s.vols.len()];
+                let mut state = self.state().output.clone();
+                let mut vals = vec![0; state.vols.len()];
                 elem_value.get_int(&mut vals);
-                s.vols.iter_mut()
+                state.vols.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_output(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_output(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             STEREO_BALANCE_NAME  => {
-                let mut s = state.as_ref().output.clone();
-                let mut vals = vec![0;s.stereo_balance.len()];
+                let mut state = self.state().output.clone();
+                let mut vals = vec![0; state.stereo_balance.len()];
                 elem_value.get_int(&mut vals);
-                s.stereo_balance.iter_mut()
+                state.stereo_balance.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_output(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_output(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             STEREO_LINK_NAME => {
-                let mut s = state.as_ref().output.clone();
-                elem_value.get_bool(&mut s.stereo_links);
-                U::write_output(req, &mut unit.get_node(), state, s, timeout_ms)
+                let mut state = self.state().output.clone();
+                elem_value.get_bool(&mut state.stereo_links);
+                T::write_output(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             INVERT_PHASE_NAME => {
-                let mut s = state.as_ref().output.clone();
-                elem_value.get_bool(&mut s.invert_phases);
-                U::write_output(req, &mut unit.get_node(), state, s, timeout_ms)
+                let mut state = self.state().output.clone();
+                elem_value.get_bool(&mut state.invert_phases);
+                T::write_output(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             LINE_LEVEL_NAME => {
-                let mut s = state.as_ref().output.clone();
-                let mut vals = vec![0;s.line_levels.len()];
+                let mut state = self.state().output.clone();
+                let mut vals = vec![0;state.line_levels.len()];
                 elem_value.get_enum(&mut vals);
                 vals.iter()
                     .enumerate()
@@ -570,12 +478,12 @@ impl FfLatterOutputCtl {
                         Self::LINE_LEVELS.iter()
                             .nth(pos as usize)
                             .ok_or_else(|| {
-                                let msg = format!("Invalid value for index of output nominal level: {}", pos);
+                                let msg = format!("Invalid for index of output nominal level: {}", pos);
                                 Error::new(FileError::Inval, &msg)
                             })
-                            .map(|&l| s.line_levels[i] = l) 
+                            .map(|&l| state.line_levels[i] = l) 
                     })?;
-                U::write_output(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_output(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -583,8 +491,11 @@ impl FfLatterOutputCtl {
     }
 }
 
-#[derive(Default, Debug)]
-struct FfLatterMixerCtl;
+impl<O, T> FfLatterOutputCtlOperation<T> for O
+    where
+        O: FfLatterDspCtlOperation<T>,
+        T: RmeFfLatterOutputOperation,
+{}
 
 const MIXER_LINE_SRC_GAIN_NAME: &str = "mixer:line-source-gain";
 const MIXER_MIC_SRC_GAIN_NAME: &str = "mixer:mic-source-gain";
@@ -592,76 +503,98 @@ const MIXER_SPDIF_SRC_GAIN_NAME: &str = "mixer:spdif-source-gain";
 const MIXER_ADAT_SRC_GAIN_NAME: &str = "mixer:adat-source-gain";
 const MIXER_STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 
-impl FfLatterMixerCtl {
-    const GAIN_MIN: i32 = 0x0000 as i32;
-    const GAIN_ZERO: i32 = 0x9000 as i32;
-    const GAIN_MAX: i32 = 0xa000 as i32;
-    const GAIN_STEP: i32 = 1;
+pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>: FfLatterDspCtlOperation<T> {
     const GAIN_TLV: DbInterval = DbInterval{min: -6500, max: 600, linear: false, mute_avail: false};
 
-    fn load<U, V>(
+    fn load_mixer(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterMixerOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
-        state.as_mut().mixer.iter_mut()
+    ) -> Result<(), Error> {
+        self.state_mut().mixer.iter_mut()
             .enumerate()
             .for_each(|(i, mixer)| {
                 mixer.stream_gains.iter_mut()
                     .nth(i)
-                    .map(|gain| *gain = Self::GAIN_ZERO as u16);
+                    .map(|gain| *gain = T::MIXER_INPUT_GAIN_ZERO as u16);
             });
 
-        U::init_mixers(req, &mut unit.get_node(), state, timeout_ms)?;
-
-        let s = &state.as_ref().mixer;
+        T::init_mixers(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_LINE_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        s[0].line_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            T::OUTPUT_COUNT,
+            T::MIXER_INPUT_GAIN_MIN,
+            T::MIXER_INPUT_GAIN_MAX,
+            T::MIXER_INPUT_GAIN_STEP,
+            T::LINE_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        s[0].mic_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            T::OUTPUT_COUNT,
+            T::MIXER_INPUT_GAIN_MIN,
+            T::MIXER_INPUT_GAIN_MAX,
+            T::MIXER_INPUT_GAIN_STEP,
+            T::MIC_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SPDIF_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        s[0].spdif_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            T::OUTPUT_COUNT,
+            T::MIXER_INPUT_GAIN_MIN,
+            T::MIXER_INPUT_GAIN_MAX,
+            T::MIXER_INPUT_GAIN_STEP,
+            T::SPDIF_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_ADAT_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        s[0].adat_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            T::OUTPUT_COUNT,
+            T::MIXER_INPUT_GAIN_MIN,
+            T::MIXER_INPUT_GAIN_MAX,
+            T::MIXER_INPUT_GAIN_STEP,
+            T::ADAT_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_STREAM_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, s.len(), Self::GAIN_MIN, Self::GAIN_MAX, Self::GAIN_STEP,
-                                        s[0].stream_gains.len(), Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                                        true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            T::OUTPUT_COUNT,
+            T::MIXER_INPUT_GAIN_MIN,
+            T::MIXER_INPUT_GAIN_MAX,
+            T::MIXER_INPUT_GAIN_STEP,
+            T::STREAM_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true
+        )?;
 
         Ok(())
     }
 
-    fn read<V>(
+    fn read_mixer(
         &mut self,
-        state: &V,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let vals: Vec<i32> = state.as_ref().mixer[index].line_gains.iter()
+                let vals: Vec<i32> = self.state().mixer[index].line_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -669,7 +602,7 @@ impl FfLatterMixerCtl {
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let vals: Vec<i32> = state.as_ref().mixer[index].mic_gains.iter()
+                let vals: Vec<i32> = self.state().mixer[index].mic_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -677,7 +610,7 @@ impl FfLatterMixerCtl {
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let vals: Vec<i32> = state.as_ref().mixer[index].spdif_gains.iter()
+                let vals: Vec<i32> = self.state().mixer[index].spdif_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -685,7 +618,7 @@ impl FfLatterMixerCtl {
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let vals: Vec<i32> = state.as_ref().mixer[index].adat_gains.iter()
+                let vals: Vec<i32> = self.state().mixer[index].adat_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -693,7 +626,7 @@ impl FfLatterMixerCtl {
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let vals: Vec<i32> = state.as_ref().mixer[index].stream_gains.iter()
+                let vals: Vec<i32> = self.state().mixer[index].stream_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -703,78 +636,80 @@ impl FfLatterMixerCtl {
         }
     }
 
-    fn write<U, V>(
+    fn write_mixer(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         elem_id: &ElemId,
         new: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFfLatterMixerOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut s = state.as_ref().mixer[index].clone();
-                let mut vals = vec![0;s.line_gains.len()];
+                let mut state = self.state().mixer[index].clone();
+                let mut vals = vec![0; state.line_gains.len()];
                 new.get_int(&mut vals);
-                s.line_gains.iter_mut()
+                state.line_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                U::write_mixer(req, &mut unit.get_node(), state, index, s, timeout_ms)
+                T::write_mixer(req, &mut unit.get_node(), self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut s = state.as_ref().mixer[index].clone();
-                let mut vals = vec![0;s.mic_gains.len()];
+                let mut state = self.state().mixer[index].clone();
+                let mut vals = vec![0; state.mic_gains.len()];
                 new.get_int(&mut vals);
-                s.mic_gains.iter_mut()
+                state.mic_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                U::write_mixer(req, &mut unit.get_node(), state, index, s, timeout_ms)
+                T::write_mixer(req, &mut unit.get_node(), self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut s = state.as_ref().mixer[index].clone();
-                let mut vals = vec![0;s.spdif_gains.len()];
+                let mut state = self.state().mixer[index].clone();
+                let mut vals = vec![0; state.spdif_gains.len()];
                 new.get_int(&mut vals);
-                s.spdif_gains.iter_mut()
+                state.spdif_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                U::write_mixer(req, &mut unit.get_node(), state, index, s, timeout_ms)
+                T::write_mixer(req, &mut unit.get_node(), self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut s = state.as_ref().mixer[index].clone();
-                let mut vals = vec![0;s.adat_gains.len()];
+                let mut state = self.state().mixer[index].clone();
+                let mut vals = vec![0; state.adat_gains.len()];
                 new.get_int(&mut vals);
-                s.adat_gains.iter_mut()
+                state.adat_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                U::write_mixer(req, &mut unit.get_node(), state, index, s, timeout_ms)
+                T::write_mixer(req, &mut unit.get_node(), self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut s = state.as_ref().mixer[index].clone();
-                let mut vals = vec![0;s.stream_gains.len()];
+                let mut state = self.state().mixer[index].clone();
+                let mut vals = vec![0; state.stream_gains.len()];
                 new.get_int(&mut vals);
-                s.stream_gains.iter_mut()
+                state.stream_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                U::write_mixer(req, &mut unit.get_node(), state, index, s, timeout_ms)
+                T::write_mixer(req, &mut unit.get_node(), self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
         }
     }
 }
+
+impl<O, T> FfLatterMixerCtlOperation<T> for O
+    where
+        O: FfLatterDspCtlOperation<T>,
+        T: RmeFfLatterMixerOperation,
+{}
 
 fn hpf_roll_off_level_to_string(level: &FfLatterHpfRollOffLevel) -> String {
     match level {
@@ -793,8 +728,9 @@ fn eq_type_to_string(eq_type: &FfLatterChStripEqType) -> String {
     }.to_string()
 }
 
-trait RmeFfLatterChStripCtl<T>
-    where T: AsMut<FfLatterChStripState> + AsRef<FfLatterChStripState>,
+pub trait FfLatterChStripCtlOperation<T, U>: FfLatterDspCtlOperation<T>
+    where
+        T: RmeFfLatterChStripOperation<U>,
 {
     const HPF_ACTIVATE_NAME: &'static str;
     const HPF_CUT_OFF_NAME: &'static str;
@@ -827,163 +763,337 @@ trait RmeFfLatterChStripCtl<T>
     const AUTOLEVEL_HEAD_ROOM_NAME: &'static str;
     const AUTOLEVEL_RISE_TIME_NAME: &'static str;
 
-    const HPF_ROLL_OFF_LEVELS: [FfLatterHpfRollOffLevel;4] = [
+    const HPF_ROLL_OFF_LEVELS: [FfLatterHpfRollOffLevel; 4] = [
         FfLatterHpfRollOffLevel::L6,
         FfLatterHpfRollOffLevel::L12,
         FfLatterHpfRollOffLevel::L18,
         FfLatterHpfRollOffLevel::L24,
     ];
 
-    const EQ_TYPES: [FfLatterChStripEqType;3] = [
+    const EQ_TYPES: [FfLatterChStripEqType; 3] = [
         FfLatterChStripEqType::Peak,
         FfLatterChStripEqType::Shelf,
         FfLatterChStripEqType::LowPass,
     ];
 
-    fn load<U, V>(
+    fn load_ch_strip(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut T,
+        req: &mut T,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterChStripOperation<V, T>,
-              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-    {
-        U::init_ch_strip(req, &mut unit.get_node(), state, timeout_ms)?;
+    ) -> Result<(), Error> {
+        T::init_ch_strip(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().hpf.activates.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_CUT_OFF_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 500, 1, state.as_ref().hpf.cut_offs.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::HPF_CUT_OFF_MIN,
+            T::HPF_CUT_OFF_MAX,
+            T::HPF_CUT_OFF_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let labels: Vec<String> = Self::HPF_ROLL_OFF_LEVELS.iter()
             .map(|l| hpf_roll_off_level_to_string(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ROLL_OFF_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, state.as_ref().hpf.roll_offs.len(), &labels,
-                                         None, true)?;
+        let _ = card_cntr.add_enum_elems(
+            &elem_id,
+            1,
+            T::CH_COUNT,
+            &labels,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().eq.activates.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
         let labels: Vec<String> = Self::EQ_TYPES.iter()
             .map(|t| eq_type_to_string(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_TYPE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, state.as_ref().eq.low_types.len(), &labels,
-                                         None, true)?;
+        let _ = card_cntr.add_enum_elems(
+            &elem_id,
+            1,
+            T::CH_COUNT,
+            &labels,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_TYPE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, state.as_ref().eq.high_types.len(), &labels,
-                                         None, true)?;
+        let _ = card_cntr.add_enum_elems(
+            &elem_id,
+            1,
+            T::CH_COUNT,
+            &labels,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -20, 20, 1, state.as_ref().eq.low_gains.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_GAIN_MIN,
+            T::EQ_GAIN_MAX,
+            T::EQ_GAIN_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -20, 20, 1, state.as_ref().eq.middle_gains.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_GAIN_MIN,
+            T::EQ_GAIN_MAX,
+            T::EQ_GAIN_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -20, 20, 1, state.as_ref().eq.high_gains.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_GAIN_MIN,
+            T::EQ_GAIN_MAX,
+            T::EQ_GAIN_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 20000, 1, state.as_ref().eq.low_freqs.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_FREQ_MIN,
+            T::EQ_FREQ_MAX,
+            T::EQ_FREQ_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 20000, 1, state.as_ref().eq.middle_freqs.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_FREQ_MIN,
+            T::EQ_FREQ_MAX,
+            T::EQ_FREQ_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 20000, 1, state.as_ref().eq.high_freqs.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_FREQ_MIN,
+            T::EQ_FREQ_MAX,
+            T::EQ_FREQ_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_LOW_QUALITY_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 7, 50, 1, state.as_ref().eq.low_qualities.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_QUALITY_MIN,
+            T::EQ_QUALITY_MAX,
+            T::EQ_QUALITY_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_MIDDLE_QUALITY_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 7, 50, 1, state.as_ref().eq.middle_qualities.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_QUALITY_MIN,
+            T::EQ_QUALITY_MAX,
+            T::EQ_QUALITY_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::EQ_HIGH_QUALITY_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 7, 50, 1, state.as_ref().eq.high_qualities.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::EQ_QUALITY_MIN,
+            T::EQ_QUALITY_MAX,
+            T::EQ_QUALITY_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().dynamics.activates.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -300, 300, 1,
-                                        state.as_ref().dynamics.gains.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_GAIN_MIN,
+            T::DYN_GAIN_MAX,
+            T::DYN_GAIN_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_ATTACK_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 200, 1,
-                                        state.as_ref().dynamics.attacks.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_ATTACK_MIN,
+            T::DYN_ATTACK_MAX,
+            T::DYN_ATTACK_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_RELEASE_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 100, 999, 1,
-                                        state.as_ref().dynamics.releases.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_RELEASE_MIN,
+            T::DYN_RELEASE_MAX,
+            T::DYN_RELEASE_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_THRESHOLD_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -600, 0, 1,
-                                        state.as_ref().dynamics.compressor_thresholds.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_COMP_THRESHOLD_MIN,
+            T::DYN_COMP_THRESHOLD_MAX,
+            T::DYN_COMP_THRESHOLD_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_COMP_RATIO_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 10, 100, 1,
-                                        state.as_ref().dynamics.compressor_ratios.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_RATIO_MIN,
+            T::DYN_RATIO_MAX,
+            T::DYN_RATIO_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_THRESHOLD_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -990, -200, 1,
-                                        state.as_ref().dynamics.expander_thresholds.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_EX_THRESHOLD_MIN,
+            T::DYN_EX_THRESHOLD_MAX,
+            T::DYN_EX_THRESHOLD_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::DYN_EX_RATIO_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 10, 100, 1,
-                                        state.as_ref().dynamics.expander_ratios.len(), None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::DYN_RATIO_MIN,
+            T::DYN_RATIO_MAX,
+            T::DYN_RATIO_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_ACTIVATE_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, state.as_ref().autolevel.activates.len(), true)?;
+        let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_MAX_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 180, 1, state.as_ref().autolevel.max_gains.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::AUTOLEVEL_MAX_GAIN_MIN,
+            T::AUTOLEVEL_MAX_GAIN_MAX,
+            T::AUTOLEVEL_MAX_GAIN_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_HEAD_ROOM_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 30, 120, 1, state.as_ref().autolevel.headrooms.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::AUTOLEVEL_HEAD_ROOM_MIN,
+            T::AUTOLEVEL_HEAD_ROOM_MAX,
+            T::AUTOLEVEL_HEAD_ROOM_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::AUTOLEVEL_RISE_TIME_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 99, 1, state.as_ref().autolevel.rise_times.len(),
-                                        None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::AUTOLEVEL_RISE_TIME_MIN,
+            T::AUTOLEVEL_RISE_TIME_MAX,
+            T::AUTOLEVEL_RISE_TIME_STEP,
+            T::CH_COUNT,
+            None,
+            true
+        )?;
+
         Ok(())
     }
 
-    fn read(
+    fn read_ch_strip(
         &mut self,
-        state: &T,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         let n = elem_id.get_name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-           elem_value.set_bool(&state.as_ref().hpf.activates);
+           elem_value.set_bool(&T::ch_strip(self.state()).hpf.activates);
            Ok(true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let vals: Vec<i32> = state.as_ref().hpf.cut_offs.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).hpf.cut_offs.iter()
                 .map(|&cut_off| cut_off as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let vals: Vec<u32> = state.as_ref().hpf.roll_offs.iter()
+            let vals: Vec<u32> = T::ch_strip(self.state()).hpf.roll_offs.iter()
                 .map(|roll_off| {
                     let pos = Self::HPF_ROLL_OFF_LEVELS.iter()
                         .position(|l| l.eq(roll_off))
@@ -994,10 +1104,10 @@ trait RmeFfLatterChStripCtl<T>
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            elem_value.set_bool(&state.as_ref().eq.activates);
+            elem_value.set_bool(&T::ch_strip(self.state()).eq.activates);
             Ok(true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let vals: Vec<u32> = state.as_ref().eq.low_types.iter()
+            let vals: Vec<u32> = T::ch_strip(self.state()).eq.low_types.iter()
                 .map(|eq_type| {
                     let pos = Self::EQ_TYPES.iter()
                         .position(|t| t.eq(eq_type))
@@ -1008,7 +1118,7 @@ trait RmeFfLatterChStripCtl<T>
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let vals: Vec<u32> = state.as_ref().eq.high_types.iter()
+            let vals: Vec<u32> = T::ch_strip(self.state()).eq.high_types.iter()
                 .map(|eq_type| {
                     let pos = Self::EQ_TYPES.iter()
                         .position(|t| t.eq(eq_type))
@@ -1019,160 +1129,160 @@ trait RmeFfLatterChStripCtl<T>
             elem_value.set_enum(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.low_gains.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.low_gains.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.middle_gains.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.middle_gains.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.high_gains.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.high_gains.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.low_freqs.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.low_freqs.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.middle_freqs.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.middle_freqs.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.high_freqs.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.high_freqs.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.low_qualities.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.low_qualities.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.middle_qualities.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.middle_qualities.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let vals: Vec<i32> = state.as_ref().eq.high_qualities.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).eq.high_qualities.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            elem_value.set_bool(&state.as_ref().dynamics.activates);
+            elem_value.set_bool(&T::ch_strip(self.state()).dynamics.activates);
             Ok(true)
         } else if n == Self::DYN_GAIN_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.gains.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.gains.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.attacks.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.attacks.iter()
                 .map(|&attack| attack as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.releases.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.releases.iter()
                 .map(|&release| release as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.compressor_thresholds.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.compressor_thresholds.iter()
                 .map(|&th| th as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.compressor_ratios.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.compressor_ratios.iter()
                 .map(|&ratio| ratio as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.expander_thresholds.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.expander_thresholds.iter()
                 .map(|&th| th as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::DYN_EX_RATIO_NAME {
-            let vals: Vec<i32> = state.as_ref().dynamics.expander_ratios.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).dynamics.expander_ratios.iter()
                 .map(|&ratio| ratio as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let vals = state.as_ref().autolevel.activates.clone();
+            let vals = T::ch_strip(self.state()).autolevel.activates.clone();
             elem_value.set_bool(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let vals: Vec<i32> = state.as_ref().autolevel.max_gains.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).autolevel.max_gains.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let vals: Vec<i32> = state.as_ref().autolevel.headrooms.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).autolevel.headrooms.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let vals: Vec<i32> = state.as_ref().autolevel.rise_times.iter()
+            let vals: Vec<i32> = T::ch_strip(self.state()).autolevel.rise_times.iter()
                 .map(|&gain| gain as i32)
                 .collect();
             elem_value.set_int(&vals);
             Ok(true)
         } else {
-            Ok(false)
+        Ok(false)
         }
     }
 
-    fn write<U, V>(
+    fn write_ch_strip(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut T,
+        req: &mut T,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFfLatterChStripOperation<V, T>,
-              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         let n = elem_id.get_name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-            let mut vals = state.as_ref().hpf.activates.clone();
+            let mut vals = T::ch_strip(self.state()).hpf.activates.clone();
             elem_value.get_bool(&mut vals);
-            Self::update_hpf(unit, req, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&vals)))
+            self.update_hpf(unit, req, timeout_ms, |state| {
+                Ok(state.activates.copy_from_slice(&vals))
+            })
                 .map(|_| true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let mut vals = vec![0;state.as_ref().hpf.cut_offs.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).hpf.cut_offs.len()];
             elem_value.get_int(&mut vals);
             let cut_offs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_hpf(unit, req, state, timeout_ms, |s| Ok(s.cut_offs.copy_from_slice(&cut_offs)))
+            self.update_hpf(unit, req, timeout_ms, |state| {
+                Ok(state.cut_offs.copy_from_slice(&cut_offs))
+            })
                 .map(|_| true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let mut vals = vec![0;state.as_ref().hpf.roll_offs.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).hpf.roll_offs.len()];
             elem_value.get_enum(&mut vals);
             let mut roll_offs = Vec::new();
             vals.iter()
@@ -1180,20 +1290,24 @@ trait RmeFfLatterChStripCtl<T>
                     Self::HPF_ROLL_OFF_LEVELS.iter()
                         .nth(pos as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of roll off levels: {}", pos);
+                            let msg = format!("Invalid index of roll off levels: {}", pos);
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&l| roll_offs.push(l))
                 })?;
-            Self::update_hpf(unit, req, state, timeout_ms, |s| Ok(s.roll_offs.copy_from_slice(&roll_offs)))
+            self.update_hpf(unit, req, timeout_ms, |state| {
+                Ok(state.roll_offs.copy_from_slice(&roll_offs))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            let mut activates = state.as_ref().eq.activates.clone();
+            let mut activates = T::ch_strip(self.state()).eq.activates.clone();
             elem_value.get_bool(&mut activates);
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&activates)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.activates.copy_from_slice(&activates))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let mut vals = vec![0;state.as_ref().eq.low_types.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.low_types.len()];
             elem_value.get_enum(&mut vals);
             let mut eq_types = Vec::new();
             vals.iter()
@@ -1201,15 +1315,17 @@ trait RmeFfLatterChStripCtl<T>
                     Self::EQ_TYPES.iter()
                         .nth(pos as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of equalizer types: {}", pos);
+                            let msg = format!("Invalid index of equalizer types: {}", pos);
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&t| eq_types.push(t))
                 })?;
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.low_types.copy_from_slice(&eq_types)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.low_types.copy_from_slice(&eq_types))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let mut vals = vec![0;state.as_ref().eq.high_types.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.high_types.len()];
             elem_value.get_enum(&mut vals);
             let mut eq_types = Vec::new();
             vals.iter()
@@ -1217,249 +1333,286 @@ trait RmeFfLatterChStripCtl<T>
                     Self::EQ_TYPES.iter()
                         .nth(pos as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid value for index of equalizer types: {}", pos);
+                            let msg = format!("Invalid index of equalizer types: {}", pos);
                             Error::new(FileError::Inval, &msg)
                         })
                         .map(|&t| eq_types.push(t))
                 })?;
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.high_types.copy_from_slice(&eq_types)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.high_types.copy_from_slice(&eq_types))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let mut vals = vec![0;state.as_ref().eq.low_gains.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.low_gains.len()];
             elem_value.get_int(&mut vals);
             let gains: Vec<i16> = vals.iter()
                 .map(|&val| val as i16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.low_gains.copy_from_slice(&gains)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.low_gains.copy_from_slice(&gains))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let mut vals = vec![0;state.as_ref().eq.middle_gains.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.middle_gains.len()];
             elem_value.get_int(&mut vals);
             let gains: Vec<i16> = vals.iter()
                 .map(|&val| val as i16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.middle_gains.copy_from_slice(&gains)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.middle_gains.copy_from_slice(&gains))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let mut vals = vec![0;state.as_ref().eq.high_gains.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.high_gains.len()];
             elem_value.get_int(&mut vals);
             let gains: Vec<i16> = vals.iter()
                 .map(|&val| val as i16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.high_gains.copy_from_slice(&gains)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.high_gains.copy_from_slice(&gains))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let mut vals = vec![0;state.as_ref().eq.low_freqs.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.low_freqs.len()];
             elem_value.get_int(&mut vals);
             let freqs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.low_freqs.copy_from_slice(&freqs)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.low_freqs.copy_from_slice(&freqs))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let mut vals = vec![0;state.as_ref().eq.middle_freqs.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.middle_freqs.len()];
             elem_value.get_int(&mut vals);
             let freqs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.middle_freqs.copy_from_slice(&freqs)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.middle_freqs.copy_from_slice(&freqs))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let mut vals = vec![0;state.as_ref().eq.high_freqs.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.high_freqs.len()];
             elem_value.get_int(&mut vals);
             let freqs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.high_freqs.copy_from_slice(&freqs)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.high_freqs.copy_from_slice(&freqs))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let mut vals = vec![0;state.as_ref().eq.low_qualities.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.low_qualities.len()];
             elem_value.get_int(&mut vals);
             let freqs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.low_qualities.copy_from_slice(&freqs)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.low_qualities.copy_from_slice(&freqs))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let mut vals = vec![0;state.as_ref().eq.middle_qualities.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.middle_qualities.len()];
             elem_value.get_int(&mut vals);
             let freqs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.middle_qualities.copy_from_slice(&freqs)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.middle_qualities.copy_from_slice(&freqs))
+            })
                 .map(|_| true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let mut vals = vec![0;state.as_ref().eq.high_qualities.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).eq.high_qualities.len()];
             elem_value.get_int(&mut vals);
             let freqs: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_eq(unit, req, state, timeout_ms, |s| Ok(s.high_qualities.copy_from_slice(&freqs)))
+            self.update_eq(unit, req, timeout_ms, |state| {
+                Ok(state.high_qualities.copy_from_slice(&freqs))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            let mut activates = state.as_ref().dynamics.activates.clone();
+            let mut activates = T::ch_strip(self.state()).dynamics.activates.clone();
             elem_value.get_bool(&mut activates);
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&activates)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.activates.copy_from_slice(&activates))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_GAIN_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.gains.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.gains.len()];
             elem_value.get_int(&mut vals);
             let gains: Vec<i16> = vals.iter()
                 .map(|&val| val as i16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.gains.copy_from_slice(&gains)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.gains.copy_from_slice(&gains))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.attacks.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.attacks.len()];
             elem_value.get_int(&mut vals);
             let attacks: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.attacks.copy_from_slice(&attacks)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.attacks.copy_from_slice(&attacks))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.releases.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.releases.len()];
             elem_value.get_int(&mut vals);
             let release: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.releases.copy_from_slice(&release)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.releases.copy_from_slice(&release))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.compressor_thresholds.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.compressor_thresholds.len()];
             elem_value.get_int(&mut vals);
             let ths: Vec<i16> = vals.iter()
                 .map(|&val| val as i16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.compressor_thresholds.copy_from_slice(&ths)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.compressor_thresholds.copy_from_slice(&ths))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.compressor_ratios.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.compressor_ratios.len()];
             elem_value.get_int(&mut vals);
             let ratios: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.compressor_ratios.copy_from_slice(&ratios)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.compressor_ratios.copy_from_slice(&ratios))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.expander_thresholds.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.expander_thresholds.len()];
             elem_value.get_int(&mut vals);
             let ths: Vec<i16> = vals.iter()
                 .map(|&val| val as i16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.expander_thresholds.copy_from_slice(&ths)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.expander_thresholds.copy_from_slice(&ths))
+            })
                 .map(|_| true)
         } else if n == Self::DYN_EX_RATIO_NAME {
-            let mut vals = vec![0;state.as_ref().dynamics.compressor_ratios.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).dynamics.compressor_ratios.len()];
             elem_value.get_int(&mut vals);
             let ratios: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_dynamics(unit, req, state, timeout_ms, |s| Ok(s.expander_ratios.copy_from_slice(&ratios)))
+            self.update_dynamics(unit, req, timeout_ms, |state| {
+                Ok(state.expander_ratios.copy_from_slice(&ratios))
+            })
                 .map(|_| true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
-            let mut activates = state.as_ref().autolevel.activates.clone();
+            let mut activates = T::ch_strip(self.state()).autolevel.activates.clone();
             elem_value.get_bool(&mut activates);
-            Self::update_autolevel(unit, req, state, timeout_ms, |s| Ok(s.activates.copy_from_slice(&activates)))
+            self.update_autolevel(unit, req, timeout_ms, |state| {
+                Ok(state.activates.copy_from_slice(&activates))
+            })
                 .map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let mut vals = vec![0;state.as_ref().autolevel.max_gains.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).autolevel.max_gains.len()];
             elem_value.get_int(&mut vals);
             let gains: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_autolevel(unit, req, state, timeout_ms, |s| Ok(s.max_gains.copy_from_slice(&gains)))
+            self.update_autolevel(unit, req, timeout_ms, |state| {
+                Ok(state.max_gains.copy_from_slice(&gains))
+            })
                 .map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let mut vals = vec![0;state.as_ref().autolevel.headrooms.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).autolevel.headrooms.len()];
             elem_value.get_int(&mut vals);
             let rooms: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_autolevel(unit, req, state, timeout_ms, |s| Ok(s.headrooms.copy_from_slice(&rooms)))
+            self.update_autolevel(unit, req, timeout_ms, |state| {
+                Ok(state.headrooms.copy_from_slice(&rooms))
+            })
                 .map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
-            let mut vals = vec![0;state.as_ref().autolevel.rise_times.len()];
+            let mut vals = vec![0; T::ch_strip(self.state()).autolevel.rise_times.len()];
             elem_value.get_int(&mut vals);
             let times: Vec<u16> = vals.iter()
                 .map(|&val| val as u16)
                 .collect();
-            Self::update_autolevel(unit, req, state, timeout_ms, |s| Ok(s.rise_times.copy_from_slice(&times)))
+            self.update_autolevel(unit, req, timeout_ms, |state| {
+                Ok(state.rise_times.copy_from_slice(&times))
+            })
                 .map(|_| true)
         } else {
-            Ok(false)
+        Ok(false)
         }
     }
 
-    fn update_hpf<U, V, F>(
+    fn update_hpf<F>(
+        &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut T,
+        req: &mut T,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where U: RmeFfLatterChStripOperation<V, T>,
-              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-              F: Fn(&mut FfLatterHpfState) -> Result<(), Error>,
+        where F: Fn(&mut FfLatterHpfState) -> Result<(), Error>,
     {
-        let mut s = state.as_ref().hpf.clone();
-        cb(&mut s)?;
-        U::write_ch_strip_hpf(req, &mut unit.get_node(), state, s, timeout_ms)
+        let mut state = T::ch_strip(self.state()).hpf.clone();
+        cb(&mut state)?;
+        T::write_ch_strip_hpf(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
     }
 
-    fn update_eq<U, V, F>(
+    fn update_eq<F>(
+        &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut T,
+        req: &mut T,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where U: RmeFfLatterChStripOperation<V, T>,
-              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-              F: Fn(&mut FfLatterEqState) -> Result<(), Error>,
+        where F: Fn(&mut FfLatterEqState) -> Result<(), Error>,
     {
-        let mut s = state.as_ref().eq.clone();
-        cb(&mut s)?;
-        U::write_ch_strip_eq(req, &mut unit.get_node(), state, s, timeout_ms)
+        let mut state =  T::ch_strip(self.state()).eq.clone();
+        cb(&mut state)?;
+        T::write_ch_strip_eq(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
     }
 
-    fn update_dynamics<U, V, F>(
+    fn update_dynamics<F>(
+        &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut T,
+        req: &mut T,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where U: RmeFfLatterChStripOperation<V, T>,
-              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-              F: Fn(&mut FfLatterDynState) -> Result<(), Error>,
+        where F: Fn(&mut FfLatterDynState) -> Result<(), Error>,
     {
-        let mut s = state.as_ref().dynamics.clone();
-        cb(&mut s)?;
-        U::write_ch_strip_dynamics(req, &mut unit.get_node(), state, s, timeout_ms)
+        let mut state =  T::ch_strip(self.state()).dynamics.clone();
+        cb(&mut state)?;
+        T::write_ch_strip_dynamics(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
     }
 
-    fn update_autolevel<U, V, F>(
+    fn update_autolevel<F>(
+        &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut T,
+        req: &mut T,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where U: RmeFfLatterChStripOperation<V, T>,
-              V: RmeFfLatterDspSpec + AsMut<FfLatterDspState> + AsRef<FfLatterDspState>,
-              F: Fn(&mut FfLatterAutolevelState) -> Result<(), Error>,
+        where F: Fn(&mut FfLatterAutolevelState) -> Result<(), Error>,
     {
-        let mut s = state.as_ref().autolevel.clone();
-        cb(&mut s)?;
-        U::write_ch_strip_autolevel(req, &mut unit.get_node(), state, s, timeout_ms)
+        let mut state =  T::ch_strip(self.state()).autolevel.clone();
+        cb(&mut state)?;
+        T::write_ch_strip_autolevel(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
     }
 }
 
-#[derive(Default, Debug)]
-struct FfLatterInputChStripCtl;
-
-impl RmeFfLatterChStripCtl<FfLatterInputChStripState> for FfLatterInputChStripCtl {
+impl<O, T> FfLatterChStripCtlOperation<T, FfLatterInputChStripState> for O
+    where
+        O: FfLatterDspCtlOperation<T>,
+        T: RmeFfLatterChStripOperation<FfLatterInputChStripState>,
+{
     const HPF_ACTIVATE_NAME: &'static str = "input:hpf-activate";
     const HPF_CUT_OFF_NAME: &'static str = "input:hpf-cut-off";
     const HPF_ROLL_OFF_NAME: &'static str = "input:hpf-roll-off";
@@ -1492,10 +1645,11 @@ impl RmeFfLatterChStripCtl<FfLatterInputChStripState> for FfLatterInputChStripCt
     const AUTOLEVEL_RISE_TIME_NAME: &'static str = "input:autolevel-rise-time";
 }
 
-#[derive(Default, Debug)]
-struct FfLatterOutputChStripCtl;
-
-impl RmeFfLatterChStripCtl<FfLatterOutputChStripState> for FfLatterOutputChStripCtl {
+impl<O, T> FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> for O
+    where
+        O: FfLatterDspCtlOperation<T>,
+        T: RmeFfLatterChStripOperation<FfLatterOutputChStripState>,
+{
     const HPF_ACTIVATE_NAME: &'static str = "output:hpf-activate";
     const HPF_CUT_OFF_NAME: &'static str = "output:hpf-cut-off";
     const HPF_ROLL_OFF_NAME: &'static str = "output:hpf-roll-off";
@@ -1567,9 +1721,6 @@ fn fx_echo_lpf_freq_to_string(lpf_freq: &FfLatterFxEchoLpfFreq) -> String {
     }.to_string()
 }
 
-#[derive(Default, Debug)]
-struct FfLatterFxCtl;
-
 const LINE_SRC_GAIN_NAME: &str = "fx:line-source-gain";
 const MIC_SRC_GAIN_NAME: &str = "fx:mic-source-gain";
 const SPDIF_SRC_GAIN_NAME: &str = "fx:spdif-source-gain";
@@ -1604,15 +1755,8 @@ const ECHO_LPF_FREQ_NAME: &str = "fx:echo-lpf-freq";
 const ECHO_VOL_NAME: &str = "fx:echo-volume";
 const ECHO_STEREO_WIDTH_NAME: &str = "fx:echo-stereo-width";
 
-impl FfLatterFxCtl {
-    const PHYS_LEVEL_MIN: i32 = -650;
-    const PHYS_LEVEL_MAX: i32 = 0;
-    const PHYS_LEVEL_STEP: i32 = 1;
+pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOperation<T> {
     const PHYS_LEVEL_TLV: DbInterval = DbInterval{min: -6500, max: 000, linear: false, mute_avail: false};
-
-    const VIRT_LEVEL_MIN: i32 = 0;
-    const VIRT_LEVEL_MAX: i32 = 35676;
-    const VIRT_LEVEL_STEP: i32 = 1;
     const VIRT_LEVEL_TLV: DbInterval = DbInterval{min: -6500, max: 000, linear: false, mute_avail: false};
 
     const REVERB_TYPES: [FfLatterFxReverbType;15] = [
@@ -1648,52 +1792,66 @@ impl FfLatterFxCtl {
         FfLatterFxEchoLpfFreq::H16000,
     ];
 
-    fn load<U, V>(
+    fn load_fx(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterFxOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
-        U::init_fx(req, &mut unit.get_node(), state, timeout_ms)?;
-
-        let s = state.as_ref();
+    ) -> Result<(), Error> {
+        T::init_fx(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
 
         [
-            (LINE_SRC_GAIN_NAME, &s.fx.line_input_gains),
-            (MIC_SRC_GAIN_NAME, &s.fx.mic_input_gains),
-            (SPDIF_SRC_GAIN_NAME, &s.fx.spdif_input_gains),
-            (ADAT_SRC_GAIN_NAME, &s.fx.adat_input_gains),
+            (LINE_SRC_GAIN_NAME, T::LINE_INPUT_COUNT),
+            (MIC_SRC_GAIN_NAME, T::MIC_INPUT_COUNT),
+            (SPDIF_SRC_GAIN_NAME, T::SPDIF_INPUT_COUNT),
+            (ADAT_SRC_GAIN_NAME, T::ADAT_INPUT_COUNT),
         ].iter()
-            .try_for_each(|(name, gains)| {
+            .try_for_each(|&(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-                card_cntr.add_int_elems(&elem_id, 1,
-                                        Self::PHYS_LEVEL_MIN, Self::PHYS_LEVEL_MAX, Self::PHYS_LEVEL_STEP,
-                                        gains.len(), Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)), true)
+                card_cntr.add_int_elems(
+                    &elem_id,
+                    1,
+                    T::FX_PHYS_LEVEL_MIN,
+                    T::FX_PHYS_LEVEL_MAX,
+                    T::FX_PHYS_LEVEL_STEP,
+                    count,
+                    Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
+                    true
+                )
                     .map(|_| ())
             })?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1,
-                                        Self::VIRT_LEVEL_MIN, Self::VIRT_LEVEL_MAX, Self::VIRT_LEVEL_STEP,
-                                        s.fx.stream_input_gains.len(),
-                                        Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)), true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::FX_VIRT_LEVEL_MIN,
+            T::FX_VIRT_LEVEL_MAX,
+            T::FX_VIRT_LEVEL_STEP,
+            T::STREAM_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::VIRT_LEVEL_TLV)),
+            true
+        )?;
 
         [
-            (LINE_OUT_VOL_NAME, &s.fx.line_output_vols),
-            (HP_OUT_VOL_NAME, &s.fx.hp_output_vols),
-            (SPDIF_OUT_VOL_NAME, &s.fx.spdif_output_vols),
-            (ADAT_OUT_VOL_NAME, &s.fx.adat_output_vols),
+            (LINE_OUT_VOL_NAME, T::LINE_OUTPUT_COUNT),
+            (HP_OUT_VOL_NAME, T::HP_OUTPUT_COUNT),
+            (SPDIF_OUT_VOL_NAME, T::SPDIF_OUTPUT_COUNT),
+            (ADAT_OUT_VOL_NAME, T::ADAT_OUTPUT_COUNT),
         ].iter()
-            .try_for_each(|(name, vols)| {
+            .try_for_each(|&(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-                card_cntr.add_int_elems(&elem_id, 1,
-                                        Self::PHYS_LEVEL_MIN, Self::PHYS_LEVEL_MAX, Self::PHYS_LEVEL_STEP,
-                                        vols.len(), Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)), true)
+                card_cntr.add_int_elems(
+                    &elem_id,
+                    1,
+                    T::FX_PHYS_LEVEL_MIN,
+                    T::FX_PHYS_LEVEL_MAX,
+                    T::FX_PHYS_LEVEL_STEP,
+                    count,
+                    Some(&Vec::<u32>::from(&Self::PHYS_LEVEL_TLV)),
+                    true
+                )
                     .map(|_| ())
             })?;
 
@@ -1707,40 +1865,148 @@ impl FfLatterFxCtl {
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_DELAY_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 999, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_PRE_DELAY_MIN,
+            T::REVERB_PRE_DELAY_MAX,
+            T::REVERB_PRE_DELAY_STEP,
+            1,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_PRE_HPF_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 20, 500, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            20,
+            500,
+            1,
+            1,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ROOM_SCALE_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 50, 300, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            50,
+            300,
+            1,
+            1,
+            None,
+            true
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_ATTACK_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 5, 400, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_ATTACK_MIN,
+            T::REVERB_ATTACK_MAX,
+            T::REVERB_ATTACK_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_HOLD_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 5, 400, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_HOLD_MIN,
+            T::REVERB_HOLD_MAX,
+            T::REVERB_HOLD_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_RELEASE_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 5, 500, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_RELEASE_MIN,
+            T::REVERB_RELEASE_MAX,
+            T::REVERB_RELEASE_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_POST_LPF_FREQ_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 200, 20000, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_POST_LPF_FREQ_MIN,
+            T::REVERB_POST_LPF_FREQ_MAX,
+            T::REVERB_POST_LPF_FREQ_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_TIME_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 1, 49, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_TIME_MIN,
+            T::REVERB_TIME_MAX,
+            T::REVERB_TIME_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_DAMPING_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 2000, 20000, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_DAMPING_MIN,
+            T::REVERB_DAMPING_MAX,
+            T::REVERB_DAMPING_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_SMOOTH_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_SMOOTH_MIN,
+            T::REVERB_SMOOTH_MAX,
+            T::REVERB_SMOOTH_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -650, 60, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_VOL_MIN,
+            T::REVERB_VOL_MAX,
+            T::REVERB_VOL_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, REVERB_STEREO_WIDTH_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::REVERB_STEREO_WIDTH_MIN,
+            T::REVERB_STEREO_WIDTH_MAX,
+            T::REVERB_STEREO_WIDTH_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -1752,10 +2018,28 @@ impl FfLatterFxCtl {
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_DELAY_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::ECHO_DELAY_MIN,
+            T::ECHO_DELAY_MAX,
+            T::ECHO_DELAY_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_FEEDBACK_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::ECHO_FEEDBACK_MIN,
+            T::ECHO_FEEDBACK_MAX,
+            T::ECHO_FEEDBACK_STEP,
+            1,
+            None,
+            true,
+        );
 
         let labels: Vec<String> = Self::ECHO_LPF_FREQS.iter()
             .map(|t| fx_echo_lpf_freq_to_string(t))
@@ -1764,291 +2048,302 @@ impl FfLatterFxCtl {
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, -650, 0, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::ECHO_VOL_MIN,
+            T::ECHO_VOL_MAX,
+            T::ECHO_VOL_STEP,
+            1,
+            None,
+            true,
+        );
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ECHO_STEREO_WIDTH_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1, 0, 100, 1, 1, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::ECHO_STEREO_WIDTH_MIN,
+            T::ECHO_STEREO_WIDTH_MAX,
+            T::ECHO_STEREO_WIDTH_STEP,
+            1,
+            None,
+            true,
+        );
 
         Ok(())
     }
 
-    fn read<V>(
+    fn read_fx(
         &mut self,
-        state: &V,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
-    ) -> Result<bool, Error>
-        where V: RmeFfLatterDspSpec + AsRef<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             LINE_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.line_input_gains.iter()
+                let vals: Vec<i32> = self.state().fx.line_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             MIC_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.mic_input_gains.iter()
+                let vals: Vec<i32> = self.state().fx.mic_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             SPDIF_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.spdif_input_gains.iter()
+                let vals: Vec<i32> = self.state().fx.spdif_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             ADAT_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.adat_input_gains.iter()
+                let vals: Vec<i32> = self.state().fx.adat_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.stream_input_gains.iter()
+                let vals: Vec<i32> = self.state().fx.stream_input_gains.iter()
                     .map(|&gain| gain as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             LINE_OUT_VOL_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.line_output_vols.iter()
+                let vals: Vec<i32> = self.state().fx.line_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             HP_OUT_VOL_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.hp_output_vols.iter()
+                let vals: Vec<i32> = self.state().fx.hp_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             SPDIF_OUT_VOL_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.spdif_output_vols.iter()
+                let vals: Vec<i32> = self.state().fx.spdif_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             ADAT_OUT_VOL_NAME => {
-                let vals: Vec<i32> = state.as_ref().fx.adat_output_vols.iter()
+                let vals: Vec<i32> = self.state().fx.adat_output_vols.iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             REVERB_ACTIVATE_NAME => {
-                elem_value.set_bool(&[state.as_ref().fx.reverb.activate]);
+                elem_value.set_bool(&[self.state().fx.reverb.activate]);
                 Ok(true)
             }
             REVERB_TYPE_NAME => {
                 let val = Self::REVERB_TYPES.iter()
-                    .position(|t| t.eq(&state.as_ref().fx.reverb.reverb_type))
+                    .position(|t| t.eq(&self.state().fx.reverb.reverb_type))
                     .unwrap();
                 elem_value.set_enum(&[val as u32]);
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.pre_delay as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.pre_delay as i32]);
                 Ok(true)
             }
             REVERB_PRE_HPF_FREQ_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.pre_hpf as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.pre_hpf as i32]);
                 Ok(true)
             }
             REVERB_ROOM_SCALE_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.room_scale as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.room_scale as i32]);
                 Ok(true)
             }
             REVERB_ATTACK_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.attack as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.attack as i32]);
                 Ok(true)
             }
             REVERB_HOLD_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.hold as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.hold as i32]);
                 Ok(true)
             }
             REVERB_RELEASE_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.release as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.release as i32]);
                 Ok(true)
             }
             REVERB_POST_LPF_FREQ_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.post_lpf as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.post_lpf as i32]);
                 Ok(true)
             }
             REVERB_TIME_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.time as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.time as i32]);
                 Ok(true)
             }
             REVERB_DAMPING_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.damping as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.damping as i32]);
                 Ok(true)
             }
             REVERB_SMOOTH_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.smooth as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.smooth as i32]);
                 Ok(true)
             }
             REVERB_VOL_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.volume as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.volume as i32]);
                 Ok(true)
             }
             REVERB_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.reverb.stereo_width as i32]);
+                elem_value.set_int(&[self.state().fx.reverb.stereo_width as i32]);
                 Ok(true)
             }
             ECHO_ACTIVATE_NAME => {
-                elem_value.set_bool(&[state.as_ref().fx.echo.activate]);
+                elem_value.set_bool(&[self.state().fx.echo.activate]);
                 Ok(true)
             }
             ECHO_TYPE_NAME => {
                 let pos = Self::ECHO_TYPES.iter()
-                    .position(|t| t.eq(&state.as_ref().fx.echo.echo_type))
+                    .position(|t| t.eq(&self.state().fx.echo.echo_type))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_DELAY_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.echo.delay as i32]);
+                elem_value.set_int(&[self.state().fx.echo.delay as i32]);
                 Ok(true)
             }
             ECHO_FEEDBACK_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.echo.feedback as i32]);
+                elem_value.set_int(&[self.state().fx.echo.feedback as i32]);
                 Ok(true)
             }
             ECHO_LPF_FREQ_NAME => {
                 let pos = Self::ECHO_LPF_FREQS.iter()
-                    .position(|f| f.eq(&state.as_ref().fx.echo.lpf))
+                    .position(|f| f.eq(&self.state().fx.echo.lpf))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ECHO_VOL_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.echo.volume as i32]);
+                elem_value.set_int(&[self.state().fx.echo.volume as i32]);
                 Ok(true)
             }
             ECHO_STEREO_WIDTH_NAME => {
-                elem_value.set_int(&[state.as_ref().fx.echo.stereo_width as i32]);
+                elem_value.set_int(&[self.state().fx.echo.stereo_width as i32]);
                 Ok(true)
             }
             _ => Ok(false),
         }
     }
 
-    fn write<U, V>(
+    fn write_fx(
         &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32
-    ) -> Result<bool, Error>
-        where U: RmeFfLatterFxOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             LINE_SRC_GAIN_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.line_input_gains.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.line_input_gains.len()];
                 elem_value.get_int(&mut vals);
-                s.line_input_gains.iter_mut()
+                state.line_input_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_input_gains(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_input_gains(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             MIC_SRC_GAIN_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.mic_input_gains.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.mic_input_gains.len()];
                 elem_value.get_int(&mut vals);
-                s.mic_input_gains.iter_mut()
+                state.mic_input_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_input_gains(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_input_gains(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.spdif_input_gains.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.spdif_input_gains.len()];
                 elem_value.get_int(&mut vals);
-                s.spdif_input_gains.iter_mut()
+                state.spdif_input_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_input_gains(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_input_gains(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.adat_input_gains.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.adat_input_gains.len()];
                 elem_value.get_int(&mut vals);
-                s.adat_input_gains.iter_mut()
+                state.adat_input_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_input_gains(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_input_gains(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.stream_input_gains.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.stream_input_gains.len()];
                 elem_value.get_int(&mut vals);
-                s.stream_input_gains.iter_mut()
+                state.stream_input_gains.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                U::write_fx_input_gains(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_input_gains(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             LINE_OUT_VOL_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.line_output_vols.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.line_output_vols.len()];
                 elem_value.get_int(&mut vals);
-                s.line_output_vols.iter_mut()
+                state.line_output_vols.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_output_volumes(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_output_volumes(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             HP_OUT_VOL_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.hp_output_vols.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.hp_output_vols.len()];
                 elem_value.get_int(&mut vals);
-                s.hp_output_vols.iter_mut()
+                state.hp_output_vols.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_output_volumes(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_output_volumes(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             SPDIF_OUT_VOL_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.spdif_output_vols.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.spdif_output_vols.len()];
                 elem_value.get_int(&mut vals);
-                s.spdif_output_vols.iter_mut()
+                state.spdif_output_vols.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_output_volumes(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_output_volumes(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             ADAT_OUT_VOL_NAME => {
-                let mut s = state.as_ref().fx.clone();
-                let mut vals = vec![0;s.adat_output_vols.len()];
+                let mut state = self.state().fx.clone();
+                let mut vals = vec![0; state.adat_output_vols.len()];
                 elem_value.get_int(&mut vals);
-                s.adat_output_vols.iter_mut()
+                state.adat_output_vols.iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                U::write_fx_output_volumes(req, &mut unit.get_node(), state, s, timeout_ms)
+                T::write_fx_output_volumes(req, &mut unit.get_node(), self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             REVERB_ACTIVATE_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.activate = vals[0];
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.activate = vals[0];
                     Ok(())
                 })
                 .map(|_| true)
@@ -2059,12 +2354,12 @@ impl FfLatterFxCtl {
                 let reverb_type = Self::REVERB_TYPES.iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of type of reverb effect: {}", vals[0]);
+                        let msg = format!("Invalid index of type of reverb effect: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| t)?;
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.reverb_type = reverb_type;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.reverb_type = reverb_type;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2072,8 +2367,8 @@ impl FfLatterFxCtl {
             REVERB_PRE_DELAY_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.pre_delay = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.pre_delay = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2081,8 +2376,8 @@ impl FfLatterFxCtl {
             REVERB_PRE_HPF_FREQ_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.pre_hpf = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.pre_hpf = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2090,8 +2385,8 @@ impl FfLatterFxCtl {
             REVERB_ROOM_SCALE_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.room_scale = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.room_scale = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2099,8 +2394,8 @@ impl FfLatterFxCtl {
             REVERB_ATTACK_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.attack = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.attack = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2108,8 +2403,8 @@ impl FfLatterFxCtl {
             REVERB_HOLD_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.hold = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.hold = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2117,8 +2412,8 @@ impl FfLatterFxCtl {
             REVERB_RELEASE_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.release = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.release = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2126,8 +2421,8 @@ impl FfLatterFxCtl {
             REVERB_POST_LPF_FREQ_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.post_lpf = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.post_lpf = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2135,8 +2430,8 @@ impl FfLatterFxCtl {
             REVERB_TIME_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.time = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.time = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2144,8 +2439,8 @@ impl FfLatterFxCtl {
             REVERB_DAMPING_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.damping = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.damping = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2153,8 +2448,8 @@ impl FfLatterFxCtl {
             REVERB_SMOOTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.smooth = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.smooth = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2162,8 +2457,8 @@ impl FfLatterFxCtl {
             REVERB_VOL_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.volume = vals[0] as i16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.volume = vals[0] as i16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2171,8 +2466,8 @@ impl FfLatterFxCtl {
             REVERB_STEREO_WIDTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_reverb(unit, req, state, timeout_ms, |s| {
-                    s.stereo_width = vals[0] as u16;
+                self.update_reverb(unit, req, timeout_ms, |state| {
+                    state.stereo_width = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2180,8 +2475,8 @@ impl FfLatterFxCtl {
             ECHO_ACTIVATE_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.activate = vals[0];
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.activate = vals[0];
                     Ok(())
                 })
                 .map(|_| true)
@@ -2192,12 +2487,12 @@ impl FfLatterFxCtl {
                 let echo_type = Self::ECHO_TYPES.iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of type of echo effect: {}", vals[0]);
+                        let msg = format!("Invalid index of type of echo effect: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| t)?;
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.echo_type = echo_type;
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.echo_type = echo_type;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2205,8 +2500,8 @@ impl FfLatterFxCtl {
             ECHO_DELAY_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.delay = vals[0] as u16;
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.delay = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2214,8 +2509,8 @@ impl FfLatterFxCtl {
             ECHO_FEEDBACK_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.feedback = vals[0] as u16;
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.feedback = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2226,12 +2521,12 @@ impl FfLatterFxCtl {
                 let lpf = Self::ECHO_LPF_FREQS.iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of type of echo HPF frequency: {}", vals[0]);
+                        let msg = format!("Invalid index of type of echo HPF frequency: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })
                     .map(|&t| t)?;
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.lpf = lpf;
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.lpf = lpf;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2239,8 +2534,8 @@ impl FfLatterFxCtl {
             ECHO_VOL_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.volume = vals[0] as i16;
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.volume = vals[0] as i16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2248,8 +2543,8 @@ impl FfLatterFxCtl {
             ECHO_STEREO_WIDTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
-                Self::update_echo(unit, req, state, timeout_ms, |s| {
-                    s.stereo_width = vals[0] as u16;
+                self.update_echo(unit, req, timeout_ms, |state| {
+                    state.stereo_width = vals[0] as u16;
                     Ok(())
                 })
                 .map(|_| true)
@@ -2258,35 +2553,128 @@ impl FfLatterFxCtl {
         }
     }
 
-    fn update_reverb<U, V, F>(
+    fn update_reverb<F>(
+        &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where U: RmeFfLatterFxOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-              F: Fn(&mut FfLatterFxReverbState) -> Result<(), Error>,
+        where F: Fn(&mut FfLatterFxReverbState) -> Result<(), Error>,
     {
-        let mut s = state.as_ref().fx.reverb.clone();
-        cb(&mut s)?;
-        U::write_fx_reverb(req, &mut unit.get_node(), state, &s, timeout_ms)
+        let mut state = self.state().fx.reverb.clone();
+        cb(&mut state)?;
+        T::write_fx_reverb(req, &mut unit.get_node(), self.state_mut(), &state, timeout_ms)
     }
 
-    fn update_echo<U, V, F>(
+    fn update_echo<F>(
+        &mut self,
         unit: &mut SndUnit,
-        req: &mut U,
-        state: &mut V,
+        req: &mut T,
         timeout_ms: u32,
         cb: F
     ) -> Result<(), Error>
-        where U: RmeFfLatterFxOperation<V>,
-              V: RmeFfLatterDspSpec + AsRef<FfLatterDspState> + AsMut<FfLatterDspState>,
-              F: Fn(&mut FfLatterFxEchoState) -> Result<(), Error>,
+        where F: Fn(&mut FfLatterFxEchoState) -> Result<(), Error>,
     {
-        let mut s = state.as_ref().fx.echo.clone();
-        cb(&mut s)?;
-        U::write_fx_echo(req, &mut unit.get_node(), state, &s, timeout_ms)
+        let mut state = self.state().fx.echo.clone();
+        cb(&mut state)?;
+        T::write_fx_echo(req, &mut unit.get_node(), self.state_mut(), &state, timeout_ms)
     }
 }
+
+impl<O, T> FfLatterFxCtlOperation<T> for O
+    where
+        O: FfLatterDspCtlOperation<T>,
+        T: RmeFfLatterMixerOperation,
+{}
+
+pub trait FfLatterDspOperationExt<T>:
+FfLatterDspCtlOperation<T> +
+FfLatterInputCtlOperation<T> +
+FfLatterOutputCtlOperation<T> +
+FfLatterMixerCtlOperation<T> +
+FfLatterChStripCtlOperation<T, FfLatterInputChStripState> +
+FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> +
+FfLatterFxCtlOperation<T>
+where
+    T: RmeFfLatterDspOperation + RmeFfLatterInputOperation +
+       RmeFfLatterOutputOperation + RmeFfLatterMixerOperation +
+       RmeFfLatterChStripOperation<FfLatterInputChStripState> +
+       RmeFfLatterChStripOperation<FfLatterOutputChStripState> +
+       RmeFfLatterFxOperation,
+{
+    fn load(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut T,
+        timeout_ms: u32,
+        card_cntr: &mut CardCntr
+    ) -> Result<(), Error> {
+        *self.state_mut() = T::create_dsp_state();
+
+        self.load_input(unit, req, timeout_ms, card_cntr)?;
+        self.load_output(unit, req, timeout_ms, card_cntr)?;
+        self.load_mixer(unit, req, timeout_ms, card_cntr)?;
+        FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::load_ch_strip(self, unit, req, timeout_ms, card_cntr)?;
+        FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::load_ch_strip(self, unit, req, timeout_ms, card_cntr)?;
+        self.load_fx(unit, req, timeout_ms, card_cntr)?;
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        if self.read_input(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.read_output(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.read_mixer(elem_id, elem_value)? {
+            Ok(true)
+        } else if FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::read_ch_strip(self, elem_id, elem_value)? {
+            Ok(true)
+        } else if FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::read_ch_strip(self, elem_id, elem_value)? {
+            Ok(true)
+        } else if self.read_fx(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+          Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        req: &mut T,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
+        if self.write_input(unit, req, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.write_output(unit, req, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.write_mixer(unit, req, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if FfLatterChStripCtlOperation::<T, FfLatterInputChStripState>::write_ch_strip(self, unit, req, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if FfLatterChStripCtlOperation::<T, FfLatterOutputChStripState>::write_ch_strip(self, unit, req, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else if self.write_fx(unit, req, elem_id, elem_value, timeout_ms)? {
+            Ok(true)
+        } else {
+          Ok(false)
+        }
+    }
+}
+
+impl<O, T> FfLatterDspOperationExt<T> for O
+where
+    O: FfLatterDspCtlOperation<T> + FfLatterInputCtlOperation<T> +
+       FfLatterOutputCtlOperation<T> + FfLatterMixerCtlOperation<T> +
+       FfLatterChStripCtlOperation<T, FfLatterInputChStripState> +
+       FfLatterChStripCtlOperation<T, FfLatterOutputChStripState> +
+       FfLatterFxCtlOperation<T>,
+    T: RmeFfLatterDspOperation + RmeFfLatterInputOperation +
+       RmeFfLatterOutputOperation + RmeFfLatterMixerOperation +
+       RmeFfLatterChStripOperation<FfLatterInputChStripState> +
+       RmeFfLatterChStripOperation<FfLatterOutputChStripState> +
+       RmeFfLatterFxOperation,
+{}

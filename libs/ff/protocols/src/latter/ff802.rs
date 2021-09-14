@@ -385,23 +385,7 @@ impl Default for Ff802MeterState {
 
 impl RmeFfLatterMeterOperation<Ff802MeterState> for Ff802Protocol {}
 
-/// The structure to represent state of DSP.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Ff802DspState(FfLatterDspState);
-
-impl AsRef<FfLatterDspState> for Ff802DspState {
-    fn as_ref(&self) -> &FfLatterDspState {
-        &self.0
-    }
-}
-
-impl AsMut<FfLatterDspState> for Ff802DspState {
-    fn as_mut(&mut self) -> &mut FfLatterDspState {
-        &mut self.0
-    }
-}
-
-impl RmeFfLatterDspSpec for Ff802DspState {
+impl RmeFfLatterDspOperation for Ff802Protocol {
     const LINE_INPUT_COUNT: usize = LINE_INPUT_COUNT;
     const MIC_INPUT_COUNT: usize = MIC_INPUT_COUNT;
     const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
@@ -413,11 +397,3 @@ impl RmeFfLatterDspSpec for Ff802DspState {
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
-
-impl Default for Ff802DspState {
-    fn default() -> Self {
-        Self(Self::create_dsp_state())
-    }
-}
-
-impl RmeFfLatterDspOperation<Ff802DspState> for Ff802Protocol {}
