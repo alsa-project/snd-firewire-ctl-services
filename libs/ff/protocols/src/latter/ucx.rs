@@ -386,4 +386,4 @@ impl Default for FfUcxDspState {
     }
 }
 
-impl<T: AsRef<FwNode>> RmeFfLatterDspProtocol<T, FfUcxDspState> for FfUcxProtocol {}
+impl RmeFfLatterDspOperation<FfUcxDspState> for FfUcxProtocol {}
