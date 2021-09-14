@@ -13,14 +13,6 @@ use ff_protocols::{*, latter::*};
 
 use super::model::*;
 
-#[derive(Default, Debug)]
-pub struct FfLatterMeterCtl<V>
-    where V: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
-{
-    state: V,
-    measured_elem_list: Vec<ElemId>,
-}
-
 const LINE_INPUT_METER: &str = "meter:line-input";
 const MIC_INPUT_METER: &str = "meter:mic-input";
 const SPDIF_INPUT_METER: &str = "meter:spdif-input";
@@ -31,24 +23,30 @@ const HP_OUTPUT_METER: &str = "meter:hp-output";
 const SPDIF_OUTPUT_METER: &str = "meter:spdif-output";
 const ADAT_OUTPUT_METER: &str = "meter:adat-output";
 
-impl<V> FfLatterMeterCtl<V>
-    where V: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
+pub trait FfLatterMeterCtlOperation<U, V>
+    where
+        U: RmeFfLatterMeterOperation<V>,
+        V: RmeFfLatterMeterSpec + AsRef<FfLatterMeterState> + AsMut<FfLatterMeterState>,
 {
+    fn meter(&self) -> &V;
+    fn meter_mut(&mut self) -> &mut V;
+
     const LEVEL_MIN: i32 = 0x0;
     const LEVEL_MAX: i32 = 0x07fffff0;
     const LEVEL_STEP: i32 = 0x10;
     const LEVEL_TLV: DbInterval = DbInterval{min: -9003, max: 600, linear: false, mute_avail: false};
 
-    pub fn load<U>(
+
+    fn load(
         &mut self,
         unit: &mut SndUnit,
         req: &mut U,
         timeout_ms: u32,
         card_cntr: &mut CardCntr
-    ) -> Result<(), Error>
-        where U: RmeFfLatterMeterOperation<V>,
-    {
-        U::read_meter(req, &mut unit.get_node(), &mut self.state, timeout_ms)?;
+    ) -> Result<Vec<ElemId>, Error> {
+        U::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)?;
+
+        let mut measured_elem_id_list = Vec::new();
 
         [
             (LINE_INPUT_METER, V::LINE_INPUT_COUNT),
@@ -61,71 +59,72 @@ impl<V> FfLatterMeterCtl<V>
             (SPDIF_OUTPUT_METER, V::SPDIF_OUTPUT_COUNT),
             (ADAT_OUTPUT_METER, V::ADAT_OUTPUT_COUNT),
         ].iter()
-            .try_for_each(|(name, count)| {
+            .try_for_each(|&(name, count)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, name, 0);
-                card_cntr.add_int_elems(&elem_id, 1, Self::LEVEL_MIN, Self::LEVEL_MAX, Self::LEVEL_STEP, *count,
-                                        Some(&Vec::<u32>::from(&Self::LEVEL_TLV)), false)
-                    .map(|mut elem_id_list| self.measured_elem_list.append(&mut elem_id_list))
-            })?;
-
-        Ok(())
+                card_cntr.add_int_elems(
+                    &elem_id,
+                    1,
+                    Self::LEVEL_MIN,
+                    Self::LEVEL_MAX,
+                    Self::LEVEL_STEP,
+                    count,
+                    Some(&Vec::<u32>::from(&Self::LEVEL_TLV)),
+                    false
+                )
+                    .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+            })
+                .map(|_| measured_elem_id_list)
     }
 
-    pub fn get_measured_elem_list(&self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.measured_elem_list);
-    }
-
-    pub fn measure_states<U>(
+    fn measure_states(
         &mut self,
         unit: &mut SndUnit,
         req: &mut U,
         timeout_ms: u32
-    ) -> Result<(), Error>
-        where U: RmeFfLatterMeterOperation<V>,
-    {
-        U::read_meter(req, &mut unit.get_node(), &mut self.state, timeout_ms)
+    ) -> Result<(), Error> {
+        U::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
     }
 
-    pub fn read_measured_elem(
+    fn read_measured_elem(
         &mut self,
         elem_id: &ElemId,
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             LINE_INPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().line_inputs);
+                elem_value.set_int(&self.meter().as_ref().line_inputs);
                 Ok(true)
             }
             MIC_INPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().mic_inputs);
+                elem_value.set_int(&self.meter().as_ref().mic_inputs);
                 Ok(true)
             }
             SPDIF_INPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().spdif_inputs);
+                elem_value.set_int(&self.meter().as_ref().spdif_inputs);
                 Ok(true)
             }
             ADAT_INPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().adat_inputs);
+                elem_value.set_int(&self.meter().as_ref().adat_inputs);
                 Ok(true)
             }
             STREAM_INPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().stream_inputs);
+                elem_value.set_int(&self.meter().as_ref().stream_inputs);
                 Ok(true)
             }
             LINE_OUTPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().line_outputs);
+                elem_value.set_int(&self.meter().as_ref().line_outputs);
                 Ok(true)
             }
             HP_OUTPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().hp_outputs);
+                elem_value.set_int(&self.meter().as_ref().hp_outputs);
                 Ok(true)
             }
             SPDIF_OUTPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().spdif_outputs);
+                elem_value.set_int(&self.meter().as_ref().spdif_outputs);
                 Ok(true)
             }
             ADAT_OUTPUT_METER => {
-                elem_value.set_int(&self.state.as_ref().adat_outputs);
+                elem_value.set_int(&self.meter().as_ref().adat_outputs);
                 Ok(true)
             }
             _ => Ok(false),
