@@ -111,13 +111,31 @@ pub trait RmeFfFormerMeterOperation {
     }
 }
 
-/// The trait to represent output protocol specific to former models of RME Fireface.
+/// The structure for state of output volumes.
 ///
 /// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
 /// represent the range from negative infinite to 6.00 dB through -90.30 dB and 0.00 dB.
-pub trait RmeFormerOutputOperation<U>
-    where U: AsRef<[i32]> + AsMut<[i32]>,
-{
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct FormerOutputVolumeState(pub Vec<i32>);
+
+/// The trait to represent output protocol specific to former models of RME Fireface.
+pub trait RmeFormerOutputOperation {
+    const ANALOG_OUTPUT_COUNT: usize;
+    const SPDIF_OUTPUT_COUNT: usize;
+    const ADAT_OUTPUT_COUNT: usize;
+
+    const PHYS_OUTPUT_COUNT: usize =
+        Self::ANALOG_OUTPUT_COUNT + Self::SPDIF_OUTPUT_COUNT + Self::ADAT_OUTPUT_COUNT;
+
+    const VOL_MIN: i32 = 0x00000000;
+    const VOL_ZERO: i32 = 0x00008000;
+    const VOL_MAX: i32 = 0x00010000;
+    const VOL_STEP: i32 = 1;
+
+    fn create_output_volume_state() -> FormerOutputVolumeState {
+        FormerOutputVolumeState(vec![0; Self::PHYS_OUTPUT_COUNT])
+    }
+
     fn write_output_vol(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -129,10 +147,10 @@ pub trait RmeFormerOutputOperation<U>
     fn init_output_vols(
         req: &mut FwReq,
         node: &mut FwNode,
-        state: &U,
+        state: &FormerOutputVolumeState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        state.as_ref().iter()
+        state.0.iter()
             .enumerate()
             .try_for_each(|(i, vol)| Self::write_output_vol(req, node, i, *vol, timeout_ms))
     }
@@ -140,11 +158,11 @@ pub trait RmeFormerOutputOperation<U>
     fn write_output_vols(
         req: &mut FwReq,
         node: &mut FwNode,
-        state: &mut U,
+        state: &mut FormerOutputVolumeState,
         vols: &[i32],
         timeout_ms: u32
     ) -> Result<(), Error> {
-        state.as_mut().iter_mut()
+        state.0.iter_mut()
             .zip(vols.iter())
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))

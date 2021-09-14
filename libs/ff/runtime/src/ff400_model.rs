@@ -116,14 +116,14 @@ impl FormerMeterCtlOperation<Ff400Protocol> for MeterCtl {
 }
 
 #[derive(Default, Debug)]
-struct OutputCtl(Ff400OutputVolumeState);
+struct OutputCtl(FormerOutputVolumeState);
 
-impl FormerOutputCtlOperation<Ff400Protocol, Ff400OutputVolumeState> for OutputCtl {
-    fn state(&self) -> &Ff400OutputVolumeState {
+impl FormerOutputCtlOperation<Ff400Protocol> for OutputCtl {
+    fn state(&self) -> &FormerOutputVolumeState {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Ff400OutputVolumeState {
+    fn state_mut(&mut self) -> &mut FormerOutputVolumeState {
         &mut self.0
     }
 }

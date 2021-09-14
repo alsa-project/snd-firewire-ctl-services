@@ -13,21 +13,13 @@ use core::card_cntr::*;
 
 use ff_protocols::former::*;
 
-const VOL_MIN: i32 = 0x00000000;
-const VOL_ZERO: i32 = 0x00008000;
-const VOL_MAX: i32 = 0x00010000;
-const VOL_STEP: i32 = 1;
-const VOL_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
-
 const VOL_NAME: &str = "output-volume";
 
-pub trait FormerOutputCtlOperation<U, V>
-    where
-        U: RmeFormerOutputOperation<V>,
-        V: AsRef<[i32]> + AsMut<[i32]>,
-{
-    fn state(&self) -> &V;
-    fn state_mut(&mut self) -> &mut V;
+pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
+    fn state(&self) -> &FormerOutputVolumeState;
+    fn state_mut(&mut self) -> &mut FormerOutputVolumeState;
+
+    const VOL_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
 
     fn load(
         &mut self,
@@ -36,19 +28,20 @@ pub trait FormerOutputCtlOperation<U, V>
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        self.state_mut().as_mut().iter_mut()
-            .for_each(|vol| *vol = VOL_ZERO);
-        U::init_output_vols(req, &mut unit.get_node(), &self.state(), timeout_ms)?;
+        let mut state = T::create_output_volume_state();
+        state.0.iter_mut().for_each(|vol| *vol = T::VOL_ZERO);
+        T::init_output_vols(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        *self.state_mut() = state;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
             1,
-            VOL_MIN,
-            VOL_MAX,
-            VOL_STEP,
-            self.state().as_ref().len(),
-            Some(&Vec::<u32>::from(&VOL_TLV)),
+            T::VOL_MIN,
+            T::VOL_MAX,
+            T::VOL_STEP,
+            self.state().0.len(),
+            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
             true
         )?;
 
@@ -58,7 +51,7 @@ pub trait FormerOutputCtlOperation<U, V>
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                elem_value.set_int(&mut self.state().as_ref());
+                elem_value.set_int(&self.state().0);
                 Ok(true)
             },
             _ => Ok(false),
@@ -75,9 +68,9 @@ pub trait FormerOutputCtlOperation<U, V>
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                let mut vals = self.state().as_ref().to_vec();
+                let mut vals = self.state().0.to_vec();
                 new.get_int(&mut vals);
-                U::write_output_vols(req, &mut unit.get_node(), self.state_mut(), &vals, timeout_ms)
+                T::write_output_vols(req, &mut unit.get_node(), self.state_mut(), &vals, timeout_ms)
                     .map(|_| true)
             },
             _ => Ok(false),

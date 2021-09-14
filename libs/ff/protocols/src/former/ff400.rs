@@ -156,26 +156,11 @@ impl Ff400Protocol {
     }
 }
 
-/// The structure to represent volume of outputs for Fireface 400.
-///
-/// The value is between 0x00000000, 0x00010000 through 0x00000001 and 0x00008000 by step 1 to
-/// represent the range from negative infinite to + 6dB through -90.30 dB and 0 dB.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct Ff400OutputVolumeState([i32;ANALOG_OUTPUT_COUNT + SPDIF_OUTPUT_COUNT + ADAT_OUTPUT_COUNT]);
+impl RmeFormerOutputOperation for Ff400Protocol {
+    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
+    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
+    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 
-impl AsMut<[i32]> for Ff400OutputVolumeState {
-    fn as_mut(&mut self) -> &mut [i32] {
-        &mut self.0
-    }
-}
-
-impl AsRef<[i32]> for Ff400OutputVolumeState {
-    fn as_ref(&self) -> &[i32] {
-        &self.0
-    }
-}
-
-impl RmeFormerOutputOperation<Ff400OutputVolumeState> for Ff400Protocol {
     fn write_output_vol(
         req: &mut FwReq,
         node: &mut FwNode,

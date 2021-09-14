@@ -47,26 +47,11 @@ impl RmeFfFormerMeterOperation for Ff800Protocol {
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 }
 
-/// The structure to represent volume of outputs for Fireface 800.
-///
-/// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
-/// represent the range from negative infinite to 6.00 dB through -90.30 dB and 0.00 dB.
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Ff800OutputVolumeState([i32;ANALOG_OUTPUT_COUNT + SPDIF_OUTPUT_COUNT + ADAT_OUTPUT_COUNT]);
+impl RmeFormerOutputOperation for Ff800Protocol {
+    const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
+    const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
+    const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
 
-impl AsRef<[i32]> for Ff800OutputVolumeState {
-    fn as_ref(&self) -> &[i32] {
-        &self.0
-    }
-}
-
-impl AsMut<[i32]> for Ff800OutputVolumeState {
-    fn as_mut(&mut self) -> &mut [i32] {
-        &mut self.0
-    }
-}
-
-impl RmeFormerOutputOperation<Ff800OutputVolumeState> for Ff800Protocol {
     fn write_output_vol(
         req: &mut FwReq,
         node: &mut FwNode,

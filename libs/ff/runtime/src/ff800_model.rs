@@ -109,14 +109,14 @@ impl FormerMeterCtlOperation<Ff800Protocol> for MeterCtl {
 }
 
 #[derive(Default, Debug)]
-struct OutputCtl(Ff800OutputVolumeState);
+struct OutputCtl(FormerOutputVolumeState);
 
-impl FormerOutputCtlOperation<Ff800Protocol, Ff800OutputVolumeState> for OutputCtl {
-    fn state(&self) -> &Ff800OutputVolumeState {
+impl FormerOutputCtlOperation<Ff800Protocol> for OutputCtl {
+    fn state(&self) -> &FormerOutputVolumeState {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Ff800OutputVolumeState {
+    fn state_mut(&mut self) -> &mut FormerOutputVolumeState {
         &mut self.0
     }
 }
