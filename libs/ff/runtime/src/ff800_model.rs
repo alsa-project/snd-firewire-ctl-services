@@ -122,14 +122,14 @@ impl FormerOutputCtlOperation<Ff800Protocol> for OutputCtl {
 }
 
 #[derive(Default, Debug)]
-struct MixerCtl(Ff800MixerState);
+struct MixerCtl(FormerMixerState);
 
-impl FormerMixerCtlOperation<Ff800Protocol, Ff800MixerState> for MixerCtl {
-    fn state(&self) -> &Ff800MixerState {
+impl FormerMixerCtlOperation<Ff800Protocol> for MixerCtl {
+    fn state(&self) -> &FormerMixerState {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Ff800MixerState {
+    fn state_mut(&mut self) -> &mut FormerMixerState {
         &mut self.0
     }
 }

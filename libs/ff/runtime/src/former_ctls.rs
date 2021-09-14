@@ -78,24 +78,16 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
     }
 }
 
-const GAIN_MIN: i32 = 0x00000000;
-const GAIN_ZERO: i32 = 0x00008000;
-const GAIN_MAX: i32 = 0x00010000;
-const GAIN_STEP: i32 = 1;
-const GAIN_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
-
 const ANALOG_SRC_GAIN_NAME: &str = "mixer:analog-source-gain";
 const SPDIF_SRC_GAIN_NAME: &str = "mixer:spdif-source-gain";
 const ADAT_SRC_GAIN_NAME: &str = "mixer:adat-source-gain";
 const STREAM_SRC_GAIN_NAME: &str = "mixer:stream-source-gain";
 
-pub trait FormerMixerCtlOperation<U, V>
-where
-    U: RmeFormerMixerOperation<V>,
-    V: RmeFormerMixerSpec + AsRef<[FormerMixerSrc]> + AsMut<[FormerMixerSrc]>,
-{
-    fn state(&self) -> &V;
-    fn state_mut(&mut self) -> &mut V;
+pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
+    fn state(&self) -> &FormerMixerState;
+    fn state_mut(&mut self) -> &mut FormerMixerState;
+
+    const GAIN_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
 
     fn load(
         &mut self,
@@ -104,70 +96,73 @@ where
         card_cntr: &mut CardCntr,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        self.state_mut().as_mut().iter_mut()
+        let mut state = T::create_mixer_state();
+
+        state.0.iter_mut()
             .enumerate()
             .for_each(|(i, mixer)| {
                 mixer.analog_gains.iter_mut()
-                    .for_each(|gain| *gain = GAIN_MIN);
+                    .for_each(|gain| *gain = T::GAIN_MIN);
                 mixer.spdif_gains.iter_mut()
-                    .for_each(|gain| *gain = GAIN_MIN);
+                    .for_each(|gain| *gain = T::GAIN_MIN);
                 mixer.adat_gains.iter_mut()
-                    .for_each(|gain| *gain = GAIN_MIN);
+                    .for_each(|gain| *gain = T::GAIN_MIN);
                 mixer.stream_gains.iter_mut()
                     .nth(i)
-                    .map(|gain| *gain = GAIN_ZERO);
+                    .map(|gain| *gain = T::GAIN_ZERO);
             });
 
-        (0..self.state().as_ref().len())
+        (0..T::DST_COUNT)
             .try_for_each(|i| {
-                U::init_mixer_src_gains(req, &mut unit.get_node(), self.state_mut(), i, timeout_ms)
+                T::init_mixer_src_gains(req, &mut unit.get_node(), &mut state, i, timeout_ms)
             })?;
+        *self.state_mut() = state;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            V::DST_COUNT,
-            GAIN_MIN,
-            GAIN_MAX,
-            GAIN_STEP,
-            V::ANALOG_INPUT_COUNT,
-            Some(&Vec::<u32>::from(&GAIN_TLV)),
+            T::DST_COUNT,
+            T::GAIN_MIN,
+            T::GAIN_MAX,
+            T::GAIN_STEP,
+            T::ANALOG_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
             true
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            V::DST_COUNT,
-            GAIN_MIN,
-            GAIN_MAX,
-            GAIN_STEP,
-            V::SPDIF_INPUT_COUNT,
-            Some(&Vec::<u32>::from(&GAIN_TLV)),
+            T::DST_COUNT,
+            T::GAIN_MIN,
+            T::GAIN_MAX,
+            T::GAIN_STEP,
+            T::SPDIF_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
             true
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ADAT_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            V::DST_COUNT,
-            GAIN_MIN,
-            GAIN_MAX,
-            GAIN_STEP,
-            V::ADAT_INPUT_COUNT,
-            Some(&Vec::<u32>::from(&GAIN_TLV)),
+            T::DST_COUNT,
+            T::GAIN_MIN,
+            T::GAIN_MAX,
+            T::GAIN_STEP,
+            T::ADAT_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
             true
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
-            V::DST_COUNT,
-            GAIN_MIN,
-            GAIN_MAX,
-            GAIN_STEP,
-            V::STREAM_INPUT_COUNT,
-            Some(&Vec::<u32>::from(&GAIN_TLV)),
+            T::DST_COUNT,
+            T::GAIN_MIN,
+            T::GAIN_MAX,
+            T::GAIN_STEP,
+            T::STREAM_INPUT_COUNT,
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
             true
         )?;
 
@@ -178,22 +173,22 @@ where
         match elem_id.get_name().as_str() {
             ANALOG_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().as_ref()[index].analog_gains);
+                elem_value.set_int(&self.state().0[index].analog_gains);
                 Ok(true)
             }
             SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().as_ref()[index].spdif_gains);
+                elem_value.set_int(&self.state().0[index].spdif_gains);
                 Ok(true)
             }
             ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().as_ref()[index].adat_gains);
+                elem_value.set_int(&self.state().0[index].adat_gains);
                 Ok(true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().as_ref()[index].stream_gains);
+                elem_value.set_int(&self.state().0[index].stream_gains);
                 Ok(true)
             }
             _ => Ok(false),
@@ -211,9 +206,9 @@ where
         match elem_id.get_name().as_str() {
             ANALOG_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().as_mut()[index].analog_gains.clone();
+                let mut gains = self.state_mut().0[index].analog_gains.clone();
                 new.get_int(&mut gains);
-                U::write_mixer_analog_gains(
+                T::write_mixer_analog_gains(
                     req,
                     &mut unit.get_node(),
                     self.state_mut(),
@@ -225,9 +220,9 @@ where
             }
             SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().as_mut()[index].spdif_gains.clone();
+                let mut gains = self.state_mut().0[index].spdif_gains.clone();
                 new.get_int(&mut gains);
-                U::write_mixer_spdif_gains(
+                T::write_mixer_spdif_gains(
                     req,
                     &mut unit.get_node(),
                     self.state_mut(),
@@ -239,9 +234,9 @@ where
             }
             ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().as_mut()[index].adat_gains.clone();
+                let mut gains = self.state_mut().0[index].adat_gains.clone();
                 new.get_int(&mut gains);
-                U::write_mixer_adat_gains(
+                T::write_mixer_adat_gains(
                     req,
                     &mut unit.get_node(),
                     self.state_mut(),
@@ -253,9 +248,9 @@ where
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().as_mut()[index].stream_gains.clone();
+                let mut gains = self.state_mut().0[index].stream_gains.clone();
                 new.get_int(&mut gains);
-                U::write_mixer_stream_gains(
+                T::write_mixer_stream_gains(
                     req,
                     &mut unit.get_node(),
                     self.state_mut(),

@@ -72,23 +72,7 @@ impl RmeFormerOutputOperation for Ff800Protocol {
     }
 }
 
-/// The structure to represent state of mixer for RME Fireface 800.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Ff800MixerState(pub Vec<FormerMixerSrc>);
-
-impl AsRef<[FormerMixerSrc]> for Ff800MixerState {
-    fn as_ref(&self) -> &[FormerMixerSrc] {
-        &self.0
-    }
-}
-
-impl AsMut<[FormerMixerSrc]> for Ff800MixerState {
-    fn as_mut(&mut self) -> &mut [FormerMixerSrc] {
-        &mut self.0
-    }
-}
-
-impl RmeFormerMixerSpec for Ff800MixerState {
+impl RmeFormerMixerOperation for Ff800Protocol {
     const ANALOG_INPUT_COUNT: usize = ANALOG_INPUT_COUNT;
     const SPDIF_INPUT_COUNT: usize = SPDIF_INPUT_COUNT;
     const ADAT_INPUT_COUNT: usize = ADAT_INPUT_COUNT;
@@ -97,15 +81,7 @@ impl RmeFormerMixerSpec for Ff800MixerState {
     const ANALOG_OUTPUT_COUNT: usize = ANALOG_OUTPUT_COUNT;
     const SPDIF_OUTPUT_COUNT: usize = SPDIF_OUTPUT_COUNT;
     const ADAT_OUTPUT_COUNT: usize = ADAT_OUTPUT_COUNT;
-}
 
-impl Default for Ff800MixerState {
-    fn default() -> Self {
-        Self(Self::create_mixer_state())
-    }
-}
-
-impl RmeFormerMixerOperation<Ff800MixerState> for Ff800Protocol {
     const MIXER_OFFSET: usize = MIXER_OFFSET;
     const AVAIL_COUNT: usize = 32;
 }
