@@ -71,19 +71,15 @@ impl IsochOpticalCtlOperation<Fw1804Protocol> for OpticalCtl {
 #[derive(Default)]
 struct RackCtl(IsochRackState);
 
-impl AsRef<IsochRackState> for RackCtl {
-    fn as_ref(&self) -> &IsochRackState {
+impl IsochRackCtlOperation<Fw1804Protocol> for RackCtl {
+    fn state(&self) -> &IsochRackState {
         &self.0
     }
-}
 
-impl AsMut<IsochRackState> for RackCtl {
-    fn as_mut(&mut self) -> &mut IsochRackState {
+    fn state_mut(&mut self) -> &mut IsochRackState {
         &mut self.0
     }
 }
-
-impl IsochRackCtl<Fw1804Protocol> for RackCtl {}
 
 impl MeasureModel<SndTscm> for Fw1804Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
