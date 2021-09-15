@@ -11,7 +11,7 @@ use efw_protocols::ClkSrc;
 use efw_protocols::hw_info::*;
 use efw_protocols::hw_ctl::*;
 
-fn clk_src_to_string(src: &ClkSrc) -> String {
+fn clk_src_to_str(src: &ClkSrc) -> &'static str {
     match src {
         ClkSrc::Internal => "Internal",
         ClkSrc::WordClock => "WordClock",
@@ -20,7 +20,7 @@ fn clk_src_to_string(src: &ClkSrc) -> String {
         ClkSrc::Adat2 => "ADAT2",
         ClkSrc::Continuous => "Continuous",
         ClkSrc::Reserved(_) => "Reserved",
-    }.to_string()
+    }
 }
 
 #[derive(Default)]
@@ -41,17 +41,13 @@ impl ClkCtl {
         self.srcs.extend_from_slice(&hwinfo.clk_srcs);
         self.rates.extend_from_slice(&hwinfo.clk_rates);
 
-        let labels = self.srcs.iter()
-            .map(|src| clk_src_to_string(src))
-            .collect::<Vec<String>>();
+        let labels: Vec<&str> = self.srcs.iter().map(|src| clk_src_to_str(src)).collect();
 
         let elem_id =
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels = hwinfo.clk_rates.iter()
-            .map(|rate| rate.to_string())
-            .collect::<Vec<String>>();
+        let labels: Vec<String> = hwinfo.clk_rates.iter().map(|rate| rate.to_string()).collect();
 
         let elem_id =
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, RATE_NAME, 0);

@@ -8,7 +8,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 use efw_protocols::hw_info::*;
 use efw_protocols::port_conf::*;
 
-fn phys_group_type_to_string(phys_group_type: &PhysGroupType) -> String {
+fn phys_group_type_to_str(phys_group_type: &PhysGroupType) -> &'static str {
     match phys_group_type {
         PhysGroupType::Analog       => "Analog",
         PhysGroupType::Spdif        => "S/PDIF",
@@ -21,17 +21,17 @@ fn phys_group_type_to_string(phys_group_type: &PhysGroupType) -> String {
         PhysGroupType::PiezoGuitar  => "PiezoGuitar",
         PhysGroupType::GuitarString => "GuitarString",
         PhysGroupType::Unknown(_)   => "Unknown",
-    }.to_string()
+    }
 }
 
-fn digital_mode_to_string(mode: &DigitalMode) -> String {
+fn digital_mode_to_str(mode: &DigitalMode) -> &'static str {
     match mode {
         DigitalMode::SpdifCoax  => "S/PDIF-Coaxial",
         DigitalMode::AesebuXlr  => "AES/EBU-XLR",
         DigitalMode::SpdifOpt   => "S/PDIF-Optical",
         DigitalMode::AdatOpt    => "ADAT-Optical",
         DigitalMode::Unknown(_) => "Unknown",
-    }.to_string()
+    }
 }
 
 #[derive(Default)]
@@ -64,9 +64,9 @@ impl PortCtl {
         phys_pairs: usize,
         stream_pairs: usize,
     ) -> Result<(), Error> {
-        let labels = (0..stream_pairs)
+        let labels: Vec<String> = (0..stream_pairs)
             .map(|pair| format!("Stream-{}/{}", pair * 2 + 1, pair * 2 + 2))
-            .collect::<Vec<String>>();
+            .collect();
 
         let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, phys_pairs, &labels, None, true)?;
@@ -84,7 +84,7 @@ impl PortCtl {
                     (0..(entry.group_count / 2))
                         .map(move |i| {
                             format!("{}-{}/{}",
-                                    phys_group_type_to_string(&entry.group_type), i * 2 + 1, i * 2 + 2)
+                                    phys_group_type_to_str(&entry.group_type), i * 2 + 1, i * 2 + 2)
                         })
                 })
                 .flatten()
@@ -101,9 +101,9 @@ impl PortCtl {
             }
         });
         if self.dig_modes.len() > 1 {
-            let labels = self.dig_modes.iter()
-                .map(|mode| digital_mode_to_string(mode))
-                .collect::<Vec<String>>();
+            let labels: Vec<&str> = self.dig_modes.iter()
+                .map(|mode| digital_mode_to_str(mode))
+                .collect();
 
             let elem_id = alsactl::ElemId::new_by_name(
                 alsactl::ElemIfaceType::Mixer, 0, 0, DIG_MODE_NAME, 0);
