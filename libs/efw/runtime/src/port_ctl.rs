@@ -42,13 +42,13 @@ pub struct PortCtl {
     tx_pairs: usize,
 }
 
-impl PortCtl {
-    const MIRROR_OUTPUT_NAME: &'static str = "mirror-output";
-    const DIG_MODE_NAME: &'static str = "digital-mode";
-    const PHANTOM_NAME: &'static str = "phantom-powering";
-    const RX_MAP_NAME: &'static str = "stream-playback-routing";
-    const TX_MAP_NAME: &'static str = "stream-capture-routing";
+const MIRROR_OUTPUT_NAME: &str = "mirror-output";
+const DIG_MODE_NAME: &str = "digital-mode";
+const PHANTOM_NAME: &str = "phantom-powering";
+const RX_MAP_NAME: &str = "stream-playback-routing";
+const TX_MAP_NAME: &str = "stream-capture-routing";
 
+impl PortCtl {
     const DIG_MODES: [(HwCap, DigitalMode);4] = [
         (HwCap::SpdifCoax, DigitalMode::SpdifCoax),
         (HwCap::AesebuXlr, DigitalMode::AesebuXlr),
@@ -100,7 +100,7 @@ impl PortCtl {
                 .collect::<Vec<String>>();
 
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, Self::MIRROR_OUTPUT_NAME, 0);
+                alsactl::ElemIfaceType::Mixer, 0, 0, MIRROR_OUTPUT_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
@@ -115,13 +115,13 @@ impl PortCtl {
                 .collect::<Vec<String>>();
 
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, Self::DIG_MODE_NAME, 0);
+                alsactl::ElemIfaceType::Mixer, 0, 0, DIG_MODE_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
         if hwinfo.caps.iter().position(|cap| *cap == HwCap::PhantomPowering).is_some() {
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, Self::PHANTOM_NAME, 0);
+                alsactl::ElemIfaceType::Mixer, 0, 0, PHANTOM_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -131,7 +131,7 @@ impl PortCtl {
                 / 2;
             self.rx_pairs = hwinfo.rx_channels[0] / 2;
 
-            self.add_mapping_ctl(card_cntr, Self::RX_MAP_NAME, self.phys_out_pairs, self.rx_pairs)?;
+            self.add_mapping_ctl(card_cntr, RX_MAP_NAME, self.phys_out_pairs, self.rx_pairs)?;
         }
 
         if hwinfo.caps.iter().position(|cap| *cap == HwCap::InputMapping).is_some() {
@@ -141,7 +141,7 @@ impl PortCtl {
 
             self.add_mapping_ctl(
                 card_cntr,
-                Self::TX_MAP_NAME,
+                TX_MAP_NAME,
                 self.phys_in_pairs,
                 self.tx_pairs,
             )?;
@@ -158,14 +158,14 @@ impl PortCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIRROR_OUTPUT_NAME => {
+            MIRROR_OUTPUT_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pair = unit.get_output_mirror(timeout_ms)?;
                     Ok(pair as u32)
                 })?;
                 Ok(true)
             }
-            Self::DIG_MODE_NAME => {
+            DIG_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let mode = unit.get_digital_mode(timeout_ms)?;
                     if let Some(pos) = self.dig_modes.iter().position(|&m| m == mode) {
@@ -176,20 +176,20 @@ impl PortCtl {
                 })?;
                 Ok(true)
             }
-            Self::PHANTOM_NAME => {
+            PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     unit.get_phantom_powering(timeout_ms)
                 })?;
                 Ok(true)
             }
-            Self::RX_MAP_NAME => {
+            RX_MAP_NAME => {
                 let (rx_entries, _) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::set_vals(elem_value, rx_entries.len(), |idx| {
                     Ok(rx_entries[idx] as u32)
                 })?;
                 Ok(true)
             }
-            Self::TX_MAP_NAME => {
+            TX_MAP_NAME => {
                 let (_, tx_entries) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::set_vals(elem_value, tx_entries.len(), |idx| {
                     Ok(tx_entries[idx] as u32)
@@ -209,13 +209,13 @@ impl PortCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MIRROR_OUTPUT_NAME => {
+            MIRROR_OUTPUT_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.set_output_mirror(val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }
-            Self::DIG_MODE_NAME => {
+            DIG_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if self.dig_modes.len() > val as usize {
                         unit.set_digital_mode(self.dig_modes[val as usize], timeout_ms)
@@ -226,13 +226,13 @@ impl PortCtl {
                 })?;
                 Ok(true)
             }
-            Self::PHANTOM_NAME => {
+            PHANTOM_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     unit.set_phantom_powering(val, timeout_ms)
                 })?;
                 Ok(true)
             }
-            Self::RX_MAP_NAME => {
+            RX_MAP_NAME => {
                 let (mut rx_entries, _) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::get_vals(new, old, rx_entries.len(), |idx, val| {
                     rx_entries[idx] = val as usize;
@@ -241,7 +241,7 @@ impl PortCtl {
                 unit.set_stream_map(Some(rx_entries), None, timeout_ms)?;
                 Ok(true)
             }
-            Self::TX_MAP_NAME => {
+            TX_MAP_NAME => {
                 let (_, mut tx_entries) = unit.get_stream_map(timeout_ms)?;
                 ElemValueAccessor::<u32>::get_vals(new, old, tx_entries.len(), |idx, val| {
                     tx_entries[idx] = val as usize;

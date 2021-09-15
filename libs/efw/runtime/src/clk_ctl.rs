@@ -28,10 +28,10 @@ pub struct ClkCtl {
     rates: Vec<u32>,
 }
 
-impl ClkCtl {
-    const SRC_NAME: &'static str = "clock-source";
-    const RATE_NAME: &'static str = "clock-rate";
+const SRC_NAME: &str = "clock-source";
+const RATE_NAME: &str = "clock-rate";
 
+impl ClkCtl {
     pub fn new() -> Self {
         ClkCtl {
             srcs: Vec::new(),
@@ -52,7 +52,7 @@ impl ClkCtl {
             .collect::<Vec<String>>();
 
         let elem_id =
-            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::SRC_NAME, 0);
+            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels = hwinfo.clk_rates.iter()
@@ -60,7 +60,7 @@ impl ClkCtl {
             .collect::<Vec<String>>();
 
         let elem_id =
-            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, Self::RATE_NAME, 0);
+            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -74,7 +74,7 @@ impl ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::SRC_NAME => {
+            SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let (src, _) = unit.get_clock(timeout_ms)?;
                     if let Some(pos) = self.srcs.iter().position(|s| *s == src) {
@@ -86,7 +86,7 @@ impl ClkCtl {
                 })?;
                 Ok(true)
             }
-            Self::RATE_NAME => {
+            RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let (_, rate) = unit.get_clock(timeout_ms)?;
                     if let Some(pos) = self.rates.iter().position(|r| *r == rate) {
@@ -111,7 +111,7 @@ impl ClkCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::SRC_NAME => {
+            SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if let Some(&src) = self.srcs.iter().nth(val as usize) {
                         unit.lock()?;
@@ -125,7 +125,7 @@ impl ClkCtl {
                 })?;
                 Ok(true)
             }
-            Self::RATE_NAME => {
+            RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if let Some(&rate) = self.rates.iter().nth(val as usize) {
                         unit.lock()?;
