@@ -44,6 +44,8 @@ where
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
+        let _ = self.model.enable_notification(&mut self.node, false);
+        let _ = self.model.register_notification_address(&mut self.node, 0);
         let _ = self.model.finalize_surface(&mut self.node);
         self.resp.release();
 
@@ -102,6 +104,11 @@ where
         self.seq_cntr.open_port()?;
 
         self.model.initialize_sequencer(&mut self.node)?;
+
+        let mut addr = self.resp.get_property_offset();
+        addr |= (self.node.get_property_local_node_id() as u64) << 48;
+        self.model.register_notification_address(&mut self.node, addr)?;
+        self.model.enable_notification(&mut self.node, true)?;
 
         Ok(())
     }
@@ -190,19 +197,7 @@ where
     fn register_address_space(&mut self) -> Result<(), Error> {
         // Reserve local address to receive async messages from the
         // unit within private space.
-        let mut addr = 0x0000ffffe0000000 as u64;
-        while addr < 0x0000fffff0000000 {
-            if let Err(_) = self.resp.reserve(&self.node, addr, 0x80) {
-                addr += 0x80;
-                continue;
-            }
-
-            break;
-        }
-        if !self.resp.get_property_is_reserved() {
-            let label = "Fail to reserve address space";
-            return Err(Error::new(FileError::Nospc, label));
-        }
+        self.resp.reserve_within_region(&self.node, 0xffffe0000000, 0xfffff0000000, 0x80)?;
 
         let tx = self.tx.clone();
         let state_cntr = self.state_cntr.clone();
@@ -223,9 +218,6 @@ where
                 }
             }
         });
-        // Register the address to the unit.
-        addr |= (self.node.get_property_local_node_id() as u64) << 48;
-        self.model.register_notification_address(&mut self.node, addr)?;
 
         Ok(())
     }
@@ -237,4 +229,6 @@ pub trait AsynchCtlOperation {
         node: &mut FwNode,
         addr: u64,
     ) -> Result<(), Error>;
+
+    fn enable_notification(&mut self, node: &mut FwNode, enable: bool) -> Result<(), Error>;
 }
