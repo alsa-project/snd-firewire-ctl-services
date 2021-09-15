@@ -14,9 +14,9 @@ pub struct InputCtl {
     cache: Option<Vec::<NominalSignalLevel>>,
 }
 
-impl InputCtl {
-    const IN_NOMINAL_NAME: &'static str = "input-nominal";
+const IN_NOMINAL_NAME: &str = "input-nominal";
 
+impl InputCtl {
     const IN_NOMINAL_LABELS: [&'static str;2] = ["+4dBu", "-10dBV"];
     const IN_NOMINAL_LEVELS: [NominalSignalLevel;2] = [
         NominalSignalLevel::Professional,
@@ -35,7 +35,7 @@ impl InputCtl {
 
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::NominalInput).is_some() {
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, Self::IN_NOMINAL_NAME, 0);
+                alsactl::ElemIfaceType::Mixer, 0, 0, IN_NOMINAL_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1,
                 self.phys_inputs, &Self::IN_NOMINAL_LABELS, None, true)?;
         }
@@ -63,7 +63,7 @@ impl InputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::IN_NOMINAL_NAME => {
+            IN_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_inputs, |idx| {
                     if let Some(cache) = &self.cache {
                         // For models with FPGA.
@@ -93,7 +93,7 @@ impl InputCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::IN_NOMINAL_NAME => {
+            IN_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, self.phys_inputs, |idx, val| {
                     if let Some(&level) = Self::IN_NOMINAL_LEVELS.iter().nth(val as usize) {
                         unit.set_nominal(idx, level, timeout_ms)?;

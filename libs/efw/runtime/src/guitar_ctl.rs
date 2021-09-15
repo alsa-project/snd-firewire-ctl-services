@@ -10,11 +10,11 @@ use efw_protocols::robot_guitar::*;
 
 pub struct GuitarCtl {}
 
-impl GuitarCtl {
-    const MANUAL_CHARGE_NAME: &'static str = "guitar-manual-chage";
-    const AUTO_CHARGE_NAME: &'static str = "guitar-auto-chage";
-    const SUSPEND_TO_CHARGE: &'static str = "guitar-suspend-to-charge";
+const MANUAL_CHARGE_NAME: &str = "guitar-manual-chage";
+const AUTO_CHARGE_NAME: &str = "guitar-auto-chage";
+const SUSPEND_TO_CHARGE: &str = "guitar-suspend-to-charge";
 
+impl GuitarCtl {
     const MIN_SEC: i32 = 0;
     const MAX_SEC: i32 = 60 * 60;   // = One hour.
     const STEP_SEC: i32 = 1;
@@ -30,15 +30,15 @@ impl GuitarCtl {
 
         if has_guitar_charge {
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Card, 0, 0, Self::MANUAL_CHARGE_NAME, 0);
+                alsactl::ElemIfaceType::Card, 0, 0, MANUAL_CHARGE_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Card, 0, 0, Self::AUTO_CHARGE_NAME, 0);
+                alsactl::ElemIfaceType::Card, 0, 0, AUTO_CHARGE_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
             let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Card, 0, 0, Self::SUSPEND_TO_CHARGE, 0);
+                alsactl::ElemIfaceType::Card, 0, 0, SUSPEND_TO_CHARGE, 0);
             let _ = card_cntr.add_int_elems(&elem_id, 1,
                 Self::MIN_SEC, Self::MAX_SEC, Self::STEP_SEC, 1, None, true)?;
         }
@@ -54,21 +54,21 @@ impl GuitarCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MANUAL_CHARGE_NAME => {
+            MANUAL_CHARGE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     unit.get_charge_state(timeout_ms)
                         .map(|s| s.manual_charge)
                 })?;
                 Ok(true)
             }
-            Self::AUTO_CHARGE_NAME => {
+            AUTO_CHARGE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     unit.get_charge_state(timeout_ms)
                         .map(|s| s.auto_charge)
                 })?;
                 Ok(true)
             }
-            Self::SUSPEND_TO_CHARGE => {
+            SUSPEND_TO_CHARGE => {
                 ElemValueAccessor::<i32>::set_val(elem_value, || {
                     unit.get_charge_state(timeout_ms)
                         .map(|s| s.suspend_to_charge as i32)
@@ -88,7 +88,7 @@ impl GuitarCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::MANUAL_CHARGE_NAME => {
+            MANUAL_CHARGE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     let mut state = unit.get_charge_state(timeout_ms)?;
                     state.manual_charge = val;
@@ -96,7 +96,7 @@ impl GuitarCtl {
                 })?;
                 Ok(true)
             }
-            Self::AUTO_CHARGE_NAME => {
+            AUTO_CHARGE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     let mut state = unit.get_charge_state(timeout_ms)?;
                     state.auto_charge = val;
@@ -104,7 +104,7 @@ impl GuitarCtl {
                 })?;
                 Ok(true)
             }
-            Self::SUSPEND_TO_CHARGE => {
+            SUSPEND_TO_CHARGE => {
                 ElemValueAccessor::<i32>::get_val(new, |val| {
                     let mut state = unit.get_charge_state(timeout_ms)?;
                     state.suspend_to_charge = val as u32;

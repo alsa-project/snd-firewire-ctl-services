@@ -12,10 +12,10 @@ use efw_protocols::hw_ctl::*;
 pub struct Iec60958Ctl {
 }
 
-impl Iec60958Ctl {
-    const DEFAULT: &'static str = "IEC958 Playback Default";
-    const MASK: &'static str = "IEC958 Playback Mask";
+const DEFAULT_NAME: &str = "IEC958 Playback Default";
+const MASK_NAME: &str = "IEC958 Playback Mask";
 
+impl Iec60958Ctl {
     const AES0_PROFESSIONAL: u8 = 0x1;
     const AES0_NONAUDIO: u8 = 0x2;
 
@@ -27,10 +27,10 @@ impl Iec60958Ctl {
         -> Result<(), Error>
     {
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::SpdifCoax).is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::DEFAULT, 0);
+            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, DEFAULT_NAME, 0);
             let _ = card_cntr.add_iec60958_elem(&elem_id, 1, true)?;
 
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, Self::MASK, 0);
+            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, MASK_NAME, 0);
             let _ = card_cntr.add_iec60958_elem(&elem_id, 1, false)?;
         }
 
@@ -45,7 +45,7 @@ impl Iec60958Ctl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::DEFAULT => {
+            DEFAULT_NAME => {
                 let mut val = [0;24];
                 let flags = unit.get_flags(timeout_ms)?;
                 if flags.iter().find(|&flag| *flag == HwCtlFlag::SpdifPro).is_some() {
@@ -57,7 +57,7 @@ impl Iec60958Ctl {
                 elem_value.set_iec60958_channel_status(&val);
                 Ok(true)
             }
-            Self::MASK => {
+            MASK_NAME => {
                 let mut val = [0;24];
                 val[0] = Self::AES0_PROFESSIONAL | Self::AES0_NONAUDIO;
                 elem_value.set_iec60958_channel_status(&val);
@@ -76,7 +76,7 @@ impl Iec60958Ctl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            Self::DEFAULT => {
+            DEFAULT_NAME => {
                 let mut vals = [0;24];
                 new.get_iec60958_channel_status(&mut vals);
 
