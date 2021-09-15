@@ -9,6 +9,7 @@ use efw_protocols::NominalSignalLevel;
 use efw_protocols::hw_info::*;
 use efw_protocols::phys_input::*;
 
+#[derive(Default)]
 pub struct InputCtl {
     phys_inputs: usize,
     cache: Option<Vec::<NominalSignalLevel>>,
@@ -22,10 +23,6 @@ impl InputCtl {
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
     ];
-
-    pub fn new() -> Self {
-        InputCtl { phys_inputs: 0, cache: None}
-    }
 
     pub fn load(&mut self, unit: &mut hinawa::SndEfw, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr,
                 timeout_ms: u32)

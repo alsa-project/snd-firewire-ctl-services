@@ -9,8 +9,8 @@ use alsactl::{ElemValueExt, ElemValueExtManual};
 use efw_protocols::hw_info::*;
 use efw_protocols::hw_ctl::*;
 
-pub struct Iec60958Ctl {
-}
+#[derive(Default)]
+pub struct Iec60958Ctl;
 
 const DEFAULT_NAME: &str = "IEC958 Playback Default";
 const MASK_NAME: &str = "IEC958 Playback Mask";
@@ -18,10 +18,6 @@ const MASK_NAME: &str = "IEC958 Playback Mask";
 impl Iec60958Ctl {
     const AES0_PROFESSIONAL: u8 = 0x1;
     const AES0_NONAUDIO: u8 = 0x2;
-
-    pub fn new() -> Self {
-        Iec60958Ctl{}
-    }
 
     pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>

@@ -23,6 +23,7 @@ fn clk_src_to_string(src: &ClkSrc) -> String {
     }.to_string()
 }
 
+#[derive(Default)]
 pub struct ClkCtl {
     srcs: Vec<ClkSrc>,
     rates: Vec<u32>,
@@ -32,13 +33,6 @@ const SRC_NAME: &str = "clock-source";
 const RATE_NAME: &str = "clock-rate";
 
 impl ClkCtl {
-    pub fn new() -> Self {
-        ClkCtl {
-            srcs: Vec::new(),
-            rates: Vec::new(),
-        }
-    }
-
     pub fn load(
         &mut self,
         hwinfo: &HwInfo,

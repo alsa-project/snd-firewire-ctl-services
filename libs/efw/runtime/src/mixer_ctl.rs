@@ -12,6 +12,7 @@ use efw_protocols::hw_ctl::*;
 use efw_protocols::playback::*;
 use efw_protocols::monitor::*;
 
+#[derive(Default)]
 pub struct MixerCtl {
     playbacks: usize,
     captures: usize,
@@ -39,14 +40,6 @@ impl MixerCtl {
     const PAN_MIN: i32 = 0;
     const PAN_MAX: i32 = 255;
     const PAN_STEP: i32 = 1;
-
-    pub fn new() -> Self {
-        MixerCtl {
-            playbacks: 0,
-            captures: 0,
-            has_fpga: false,
-        }
-    }
 
     pub fn load(
         &mut self,

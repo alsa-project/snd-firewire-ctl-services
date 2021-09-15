@@ -8,7 +8,8 @@ use core::elem_value_accessor::ElemValueAccessor;
 use efw_protocols::hw_info::*;
 use efw_protocols::robot_guitar::*;
 
-pub struct GuitarCtl {}
+#[derive(Default)]
+pub struct GuitarCtl;
 
 const MANUAL_CHARGE_NAME: &str = "guitar-manual-chage";
 const AUTO_CHARGE_NAME: &str = "guitar-auto-chage";
@@ -18,10 +19,6 @@ impl GuitarCtl {
     const MIN_SEC: i32 = 0;
     const MAX_SEC: i32 = 60 * 60;   // = One hour.
     const STEP_SEC: i32 = 1;
-
-    pub fn new() -> Self {
-        GuitarCtl{}
-    }
 
     pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>

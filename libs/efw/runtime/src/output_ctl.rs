@@ -11,6 +11,7 @@ use efw_protocols::NominalSignalLevel;
 use efw_protocols::hw_info::*;
 use efw_protocols::phys_output::*;
 
+#[derive(Default)]
 pub struct OutputCtl {
     phys_outputs: usize,
 }
@@ -31,10 +32,6 @@ impl OutputCtl {
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
     ];
-
-    pub fn new() -> Self {
-        OutputCtl { phys_outputs: 0 }
-    }
 
     pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>
