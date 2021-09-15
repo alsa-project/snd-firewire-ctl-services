@@ -29,7 +29,6 @@ impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
         node: &mut FwNode,
         _: &[(MachineItem, ItemValue)],
     ) -> Result<(), Error> {
-        Fe8Protocol::enable_notification(&mut self.req, node, true, TIMEOUT_MS)?;
         Fe8Protocol::operate_firewire_led(&mut self.req, node, true, TIMEOUT_MS)?;
         Ok(())
     }
@@ -67,5 +66,9 @@ impl AsynchCtlOperation for Fe8Model {
         addr: u64,
     ) -> Result<(), Error> {
         Fe8Protocol::register_notification_address(&mut self.req, node, addr, TIMEOUT_MS)
+    }
+
+    fn enable_notification(&mut self, node: &mut FwNode, enable: bool) -> Result<(), Error> {
+        Fe8Protocol::enable_notification(&mut self.req, node, enable, TIMEOUT_MS)
     }
 }
