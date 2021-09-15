@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2021 Takashi Sakamoto
 
 use std::sync::{mpsc, Arc, Mutex};
+use std::marker::PhantomData;
 
 use nix::sys::signal::Signal;
 
@@ -14,30 +15,34 @@ use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual, EventDataCtl, Eve
 
 use core::dispatcher::*;
 
-use tascam_protocols::asynch::*;
+use tascam_protocols::asynch::{fe8::*, *};
 
-use crate::{fe8_model::Fe8Model, seq_cntr::*, *};
+use crate::{fe8_model::*, seq_cntr::*, *};
 
-enum AsyncUnitEvent {
-    Shutdown,
-    Disconnected,
-    BusReset(u32),
-    Surface((u32, u32, u32)),
-    SeqAppl(EventDataCtl),
-}
+pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;
 
-pub struct AsynchRuntime {
+pub struct AsynchRuntime<S, T, U>
+where
+    S: AsynchCtlOperation + SequencerCtlOperation<FwNode, T, U> + Default,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
     node: FwNode,
-    model: Fe8Model,
+    model: S,
     resp: FwResp,
     seq_cntr: SeqCntr,
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<Dispatcher>,
     state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
+    _phantom0: PhantomData<T>,
+    _phantom1: PhantomData<U>,
 }
 
-impl Drop for AsynchRuntime {
+impl<S, T, U> Drop for AsynchRuntime<S, T, U>
+where
+    S: AsynchCtlOperation + SequencerCtlOperation<FwNode, T, U> + Default,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
     fn drop(&mut self) {
         let _ = self.model.finalize_surface(&mut self.node);
         self.resp.release();
@@ -55,34 +60,94 @@ impl Drop for AsynchRuntime {
     }
 }
 
-impl AsynchRuntime {
-    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
+enum AsyncUnitEvent {
+    Shutdown,
+    Disconnected,
+    BusReset(u32),
+    Surface((u32, u32, u32)),
+    SeqAppl(EventDataCtl),
+}
 
+const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
+
+impl<S, T, U> AsynchRuntime<S, T, U>
+where
+    S: AsynchCtlOperation + SequencerCtlOperation<FwNode, T, U> + Default,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
     pub fn new(node: FwNode, name: String) -> Result<Self, Error> {
-        let resp = FwResp::new();
-
         let seq_cntr = SeqCntr::new(&name)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        let dispatchers = Vec::new();
-
-        Ok(AsynchRuntime {
+        Ok(Self{
             node,
             model: Default::default(),
-            resp,
+            resp: Default::default(),
             seq_cntr,
             tx,
             rx,
-            dispatchers,
+            dispatchers: Default::default(),
             state_cntr: Arc::new(Mutex::new(Default::default())),
+            _phantom0: Default::default(),
+            _phantom1: Default::default(),
         })
+    }
+
+    pub fn listen(&mut self) -> Result<(), Error> {
+        self.launch_node_event_dispatcher()?;
+        self.register_address_space()?;
+
+        self.seq_cntr.open_port()?;
+
+        self.model.initialize_sequencer(&mut self.node)?;
+
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<(), Error> {
+        loop {
+            let ev = match self.rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => continue,
+            };
+
+            match ev {
+                AsyncUnitEvent::Shutdown | AsyncUnitEvent::Disconnected => break,
+                AsyncUnitEvent::BusReset(generation) => {
+                    println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                AsyncUnitEvent::Surface((index, before, after)) => {
+                    // Handle error of mutex lock as unrecoverable one.
+                    let image = self.state_cntr.lock().map_err(|_| {
+                        Error::new(FileError::Failed, "Unrecoverable error at mutex lock")
+                    }).map(|s| s.0.to_vec())?;
+                    let _ = self.model.dispatch_surface_event(
+                        &mut self.node,
+                        &mut self.seq_cntr,
+                        &image,
+                        index,
+                        before,
+                        after,
+                    );
+                }
+                AsyncUnitEvent::SeqAppl(data) => {
+                    let _ = self.model.dispatch_appl_event(
+                        &mut self.node,
+                        &mut self.seq_cntr,
+                        &data,
+                    );
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         // Use a dispatcher.
-        let name = Self::NODE_DISPATCHER_NAME.to_string();
+        let name = NODE_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -164,54 +229,12 @@ impl AsynchRuntime {
 
         Ok(())
     }
+}
 
-    pub fn listen(&mut self) -> Result<(), Error> {
-        self.launch_node_event_dispatcher()?;
-        self.register_address_space()?;
-
-        self.seq_cntr.open_port()?;
-
-        self.model.initialize_sequencer(&mut self.node)?;
-
-        Ok(())
-    }
-
-    pub fn run(&mut self) -> Result<(), Error> {
-        loop {
-            let ev = match self.rx.recv() {
-                Ok(ev) => ev,
-                Err(_) => continue,
-            };
-
-            match ev {
-                AsyncUnitEvent::Shutdown | AsyncUnitEvent::Disconnected => break,
-                AsyncUnitEvent::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
-                }
-                AsyncUnitEvent::Surface((index, before, after)) => {
-                    // Handle error of mutex lock as unrecoverable one.
-                    let image = self.state_cntr.lock().map_err(|_| {
-                        Error::new(FileError::Failed, "Unrecoverable error at mutex lock")
-                    }).map(|s| s.0.to_vec())?;
-                    let _ = self.model.dispatch_surface_event(
-                        &mut self.node,
-                        &mut self.seq_cntr,
-                        &image,
-                        index,
-                        before,
-                        after,
-                    );
-                }
-                AsyncUnitEvent::SeqAppl(data) => {
-                    let _ = self.model.dispatch_appl_event(
-                        &mut self.node,
-                        &mut self.seq_cntr,
-                        &data,
-                    );
-                }
-            }
-        }
-
-        Ok(())
-    }
+pub trait AsynchCtlOperation {
+    fn register_notification_address(
+        &mut self,
+        node: &mut FwNode,
+        addr: u64,
+    ) -> Result<(), Error>;
 }
