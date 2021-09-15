@@ -22,6 +22,7 @@ use std::convert::TryFrom;
 
 const TIMEOUT_MS: u32 = 100;
 
+#[derive(Default)]
 pub struct EfwModel {
     clk_ctl: clk_ctl::ClkCtl,
     mixer_ctl: mixer_ctl::MixerCtl,
@@ -71,17 +72,7 @@ impl EfwModel {
             (0x00075b, 0x00afb2) |
             // Gibson, Robot Interface Pack (RIP) for Dark Fire series.
             (0x00075b, 0x00afb9) => {
-                let model = EfwModel {
-                    clk_ctl: clk_ctl::ClkCtl::new(),
-                    mixer_ctl: mixer_ctl::MixerCtl::new(),
-                    output_ctl: output_ctl::OutputCtl::new(),
-                    input_ctl: input_ctl::InputCtl::new(),
-                    port_ctl: port_ctl::PortCtl::new(),
-                    meter_ctl: meter_ctl::MeterCtl::new(),
-                    guitar_ctl: guitar_ctl::GuitarCtl::new(),
-                    iec60958_ctl: iec60958_ctl::Iec60958Ctl::new(),
-                };
-                Ok(model)
+                Ok(Default::default())
             },
             _ => {
                 let label = "Not supported.";

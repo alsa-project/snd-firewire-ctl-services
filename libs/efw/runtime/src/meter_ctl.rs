@@ -8,6 +8,7 @@ use alsactl::{ElemId, ElemIfaceType, ElemValueExt, ElemValueExtManual};
 
 use efw_protocols::hw_info::*;
 
+#[derive(Default)]
 pub struct MeterCtl {
     pub measure_elems: Vec<alsactl::ElemId>,
     meters: Option<HwMeter>,
@@ -28,15 +29,6 @@ impl MeterCtl {
     const COEF_MIN: i32 = 0;
     const COEF_MAX: i32 = 0x007fffff;
     const COEF_STEP: i32 = 1;
-
-    pub fn new() -> Self {
-        MeterCtl {
-            measure_elems: Vec::new(),
-            meters: None,
-            midi_inputs: 0,
-            midi_outputs: 0,
-        }
-    }
 
     pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
         -> Result<(), Error>

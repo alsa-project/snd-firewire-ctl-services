@@ -34,6 +34,7 @@ fn digital_mode_to_string(mode: &DigitalMode) -> String {
     }.to_string()
 }
 
+#[derive(Default)]
 pub struct PortCtl {
     dig_modes: Vec<DigitalMode>,
     phys_in_pairs: usize,
@@ -55,16 +56,6 @@ impl PortCtl {
         (HwCap::SpdifOpt, DigitalMode::SpdifOpt),
         (HwCap::AdatOpt, DigitalMode::AdatOpt),
     ];
-
-    pub fn new() -> Self {
-        PortCtl {
-            dig_modes: Vec::new(),
-            phys_in_pairs: 0,
-            phys_out_pairs: 0,
-            tx_pairs: 0,
-            rx_pairs: 0,
-        }
-    }
 
     fn add_mapping_ctl(
         &self,
