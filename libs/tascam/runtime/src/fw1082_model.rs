@@ -54,19 +54,15 @@ impl IsochCommonCtlOperation<Fw1082Protocol> for CommonCtl {}
 #[derive(Default)]
 struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
 
-impl AsRef<IsochConsoleState> for ConsoleCtl {
-    fn as_ref(&self) -> &IsochConsoleState {
+impl IsochConsoleCtlOperation<Fw1082Protocol> for ConsoleCtl {
+    fn state(&self) -> &IsochConsoleState {
         &self.0
     }
-}
 
-impl AsMut<IsochConsoleState> for ConsoleCtl {
-    fn as_mut(&mut self) -> &mut IsochConsoleState {
+    fn state_mut(&mut self) -> &mut IsochConsoleState {
         &mut self.0
     }
 }
-
-impl IsochConsoleCtl<Fw1082Protocol> for ConsoleCtl {}
 
 impl AsRef<SequencerState<Fw1082SurfaceState>> for Fw1082Model {
     fn as_ref(&self) -> &SequencerState<Fw1082SurfaceState> {

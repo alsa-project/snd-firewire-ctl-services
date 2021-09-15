@@ -74,19 +74,15 @@ impl IsochOpticalCtlOperation<Fw1884Protocol> for OpticalCtl {
 #[derive(Default)]
 struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
 
-impl AsRef<IsochConsoleState> for ConsoleCtl {
-    fn as_ref(&self) -> &IsochConsoleState {
+impl IsochConsoleCtlOperation<Fw1884Protocol> for ConsoleCtl {
+    fn state(&self) -> &IsochConsoleState {
         &self.0
     }
-}
 
-impl AsMut<IsochConsoleState> for ConsoleCtl {
-    fn as_mut(&mut self) -> &mut IsochConsoleState {
+    fn state_mut(&mut self) -> &mut IsochConsoleState {
         &mut self.0
     }
 }
-
-impl IsochConsoleCtl<Fw1884Protocol> for ConsoleCtl {}
 
 #[derive(Default)]
 struct SpecificCtl;

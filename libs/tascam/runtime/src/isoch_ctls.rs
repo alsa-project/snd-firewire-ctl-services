@@ -625,9 +625,10 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
 const MASTER_FADER_ASSIGN_NAME: &str = "master-fader-assign";
 const HOST_MODE_NAME: &str = "host-mode";
 
-pub trait IsochConsoleCtl<T: IsochConsoleOperation>:
-    AsRef<IsochConsoleState> + AsMut<IsochConsoleState>
-{
+pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
+    fn state(&self) -> &IsochConsoleState;
+    fn state_mut(&mut self) -> &mut IsochConsoleState;
+
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -649,13 +650,13 @@ pub trait IsochConsoleCtl<T: IsochConsoleOperation>:
     }
 
     fn parse_states(&mut self, image: &[u32]) -> Result<(), Error> {
-        T::parse_console_state(self.as_mut(), image)
+        T::parse_console_state(self.state_mut(), image)
     }
 
     fn read_states(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             HOST_MODE_NAME => {
-                elem_value.set_bool(&[self.as_ref().host_mode]);
+                elem_value.set_bool(&[self.state().host_mode]);
                 Ok(true)
             }
             _ => Ok(false),
