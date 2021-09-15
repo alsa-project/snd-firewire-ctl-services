@@ -49,7 +49,7 @@ impl IsochMeterCtlOperation<Fw1082Protocol> for MeterCtl {
 #[derive(Default)]
 struct CommonCtl;
 
-impl IsochCommonCtl<Fw1082Protocol> for CommonCtl {}
+impl IsochCommonCtlOperation<Fw1082Protocol> for CommonCtl {}
 
 #[derive(Default)]
 struct ConsoleCtl(IsochConsoleState, Vec<ElemId>);
