@@ -15,19 +15,15 @@ pub struct Fe8Model{
 
 const TIMEOUT_MS: u32 = 50;
 
-impl AsRef<SequencerState<Fe8SurfaceState>> for Fe8Model {
-    fn as_ref(&self) -> &SequencerState<Fe8SurfaceState> {
+impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
+    fn state(&self) -> &SequencerState<Fe8SurfaceState> {
         &self.seq_state
     }
-}
 
-impl AsMut<SequencerState<Fe8SurfaceState>> for Fe8Model {
-    fn as_mut(&mut self) -> &mut SequencerState<Fe8SurfaceState> {
+    fn state_mut(&mut self) -> &mut SequencerState<Fe8SurfaceState> {
         &mut self.seq_state
     }
-}
 
-impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
     fn initialize_surface(
         &mut self,
         node: &mut FwNode,

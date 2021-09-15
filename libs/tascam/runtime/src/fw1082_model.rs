@@ -64,19 +64,15 @@ impl IsochConsoleCtlOperation<Fw1082Protocol> for ConsoleCtl {
     }
 }
 
-impl AsRef<SequencerState<Fw1082SurfaceState>> for Fw1082Model {
-    fn as_ref(&self) -> &SequencerState<Fw1082SurfaceState> {
+impl SequencerCtlOperation<SndTscm, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
+    fn state(&self) -> &SequencerState<Fw1082SurfaceState> {
         &self.seq_state
     }
-}
 
-impl AsMut<SequencerState<Fw1082SurfaceState>> for Fw1082Model {
-    fn as_mut(&mut self) -> &mut SequencerState<Fw1082SurfaceState> {
+    fn state_mut(&mut self) -> &mut SequencerState<Fw1082SurfaceState> {
         &mut self.seq_state
     }
-}
 
-impl SequencerCtlOperation<SndTscm, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
     fn initialize_surface(
         &mut self,
         unit: &mut SndTscm,
