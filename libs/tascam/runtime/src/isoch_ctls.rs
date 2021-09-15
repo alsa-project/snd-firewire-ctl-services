@@ -291,7 +291,7 @@ fn coaxial_output_source_to_str(src: &CoaxialOutputSource) -> &str {
     }
 }
 
-pub trait IsochCommonCtl<T: IsochCommonOperation> {
+pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
     const CLOCK_RATES: [ClkRate; 4] = [
         ClkRate::R44100,
         ClkRate::R48000,

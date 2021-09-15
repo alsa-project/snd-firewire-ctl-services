@@ -55,7 +55,7 @@ impl IsochMeterCtlOperation<Fw1804Protocol> for MeterCtl {
 #[derive(Default)]
 struct CommonCtl;
 
-impl IsochCommonCtl<Fw1804Protocol> for CommonCtl {}
+impl IsochCommonCtlOperation<Fw1804Protocol> for CommonCtl {}
 
 #[derive(Default)]
 struct OpticalCtl;
