@@ -21,6 +21,9 @@ const TIMEOUT_MS: u32 = 100;
 pub struct Dg00xCommonCtl(ClockRate, Vec<ElemId>);
 
 #[derive(Default)]
+pub struct Dg00xMeterCtl(Option<ClockRate>, Vec<ElemId>);
+
+#[derive(Default)]
 pub struct Digi002Model {
     req: FwReq,
     common_ctl: Digi002CommonCtl,
@@ -42,21 +45,17 @@ impl Dg00xCommonCtlOperation<Digi002Protocol> for Digi002CommonCtl {
 }
 
 #[derive(Default)]
-struct Digi002MeterCtl(Option<ClockRate>, Vec<ElemId>);
+pub struct Digi002MeterCtl(Dg00xMeterCtl);
 
-impl AsRef<Option<ClockRate>> for Digi002MeterCtl {
-    fn as_ref(&self) -> &Option<ClockRate> {
+impl Dg00xMeterCtlOperation<Digi002Protocol> for Digi002MeterCtl {
+    fn meter(&self) -> &Dg00xMeterCtl {
         &self.0
     }
-}
 
-impl AsMut<Option<ClockRate>> for Digi002MeterCtl {
-    fn as_mut(&mut self) -> &mut Option<ClockRate> {
+    fn meter_mut(&mut self) -> &mut Dg00xMeterCtl {
         &mut self.0
     }
 }
-
-impl Dg00xMeterCtl<Digi002Protocol> for Digi002MeterCtl {}
 
 #[derive(Default)]
 struct Digi002MonitorCtl(Dg00xMonitorState, Vec<ElemId>);
@@ -110,8 +109,7 @@ impl CtlModel<SndDg00x> for Digi002Model {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
         Ok(())
@@ -153,7 +151,7 @@ impl CtlModel<SndDg00x> for Digi002Model {
 
 impl MeasureModel<SndDg00x> for Digi002Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.meter_ctl.meter().1);
     }
 
     fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
@@ -196,21 +194,17 @@ impl Dg00xCommonCtlOperation<Digi003Protocol> for Digi003CommonCtl {
 }
 
 #[derive(Default)]
-struct Digi003MeterCtl(Option<ClockRate>, Vec<ElemId>);
+pub struct Digi003MeterCtl(Dg00xMeterCtl);
 
-impl AsRef<Option<ClockRate>> for Digi003MeterCtl {
-    fn as_ref(&self) -> &Option<ClockRate> {
+impl Dg00xMeterCtlOperation<Digi003Protocol> for Digi003MeterCtl {
+    fn meter(&self) -> &Dg00xMeterCtl {
         &self.0
     }
-}
 
-impl AsMut<Option<ClockRate>> for Digi003MeterCtl {
-    fn as_mut(&mut self) -> &mut Option<ClockRate> {
+    fn meter_mut(&mut self) -> &mut Dg00xMeterCtl {
         &mut self.0
     }
 }
-
-impl Dg00xMeterCtl<Digi003Protocol> for Digi003MeterCtl {}
 
 #[derive(Default)]
 struct Digi003MonitorCtl(Dg00xMonitorState, Vec<ElemId>);
@@ -264,8 +258,7 @@ impl CtlModel<SndDg00x> for Digi003Model {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
         Ok(())
@@ -307,7 +300,7 @@ impl CtlModel<SndDg00x> for Digi003Model {
 
 impl MeasureModel<SndDg00x> for Digi003Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.1);
+        elem_id_list.extend_from_slice(&self.meter_ctl.meter().1);
     }
 
     fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
@@ -557,9 +550,10 @@ fn optional_clock_rate_to_str(rate: &Option<ClockRate>) -> &'static str {
 
 const CLK_EXT_RATE_NAME: &str = "external-clock-rate";
 
-trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
-    AsRef<Option<ClockRate>> + AsMut<Option<ClockRate>>
-{
+pub trait Dg00xMeterCtlOperation<T: Dg00xCommonOperation> {
+    fn meter(&self) -> &Dg00xMeterCtl;
+    fn meter_mut(&mut self) -> &mut Dg00xMeterCtl;
+
     const OPTIONAL_CLOCK_RATES: [Option<ClockRate>; 5] = [
         None,
         Some(ClockRate::R44100),
@@ -574,7 +568,7 @@ trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
         unit: &mut SndDg00x,
         req: &mut FwReq,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
+    ) -> Result<(), Error> {
         let mut measured_elem_id_list = Vec::new();
 
         let labels: Vec<&str> = Self::OPTIONAL_CLOCK_RATES
@@ -586,9 +580,11 @@ trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
             .add_enum_elems(&elem_id, 1, 1, &labels, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
+        self.meter_mut().1 = measured_elem_id_list;
+
         self.measure_states(unit, req, timeout_ms)?;
 
-        Ok(measured_elem_id_list)
+        Ok(())
     }
 
     fn measure_states(
@@ -598,7 +594,7 @@ trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
         timeout_ms: u32,
     ) -> Result<(), Error> {
         T::read_external_clock_source_rate(req, &mut unit.get_node(), timeout_ms)
-            .map(|rate| *self.as_mut() = rate)
+            .map(|rate| self.meter_mut().0 = rate)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -606,7 +602,7 @@ trait Dg00xMeterCtl<T: Dg00xCommonOperation>:
             CLK_EXT_RATE_NAME => {
                 let pos = Self::OPTIONAL_CLOCK_RATES
                     .iter()
-                    .position(|r| r.eq(&self.as_ref()))
+                    .position(|r| self.meter().0.eq(r))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
