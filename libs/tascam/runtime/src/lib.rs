@@ -29,7 +29,7 @@ use tascam_protocols::{config_rom::*, *};
 use seq_cntr::*;
 
 use isoch_console_runtime::*;
-use isoch_rack_runtime::IsochRackRuntime;
+use isoch_rack_runtime::*;
 use asynch_runtime::AsynchRuntime;
 
 use std::convert::TryFrom;
@@ -37,7 +37,7 @@ use std::convert::TryFrom;
 pub enum TascamRuntime {
     Fw1884(Fw1884Runtime),
     Fw1082(Fw1082Runtime),
-    IsochRack(IsochRackRuntime),
+    Fw1804(Fw1804Runtime),
     Asynch(AsynchRuntime),
 }
 
@@ -73,8 +73,8 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                         Ok(Self::Fw1082(runtime))
                     }
                     (TASCAM_OUI, FW1804_SW_VERSION) => {
-                        let runtime = IsochRackRuntime::new(unit, unit_data.model_name, sysnum)?;
-                        Ok(Self::IsochRack(runtime))
+                        let runtime = Fw1804Runtime::new(unit, unit_data.model_name, sysnum)?;
+                        Ok(Self::Fw1804(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
                 }
@@ -111,7 +111,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
         match self {
             Self::Fw1884(runtime) => runtime.listen(),
             Self::Fw1082(runtime) => runtime.listen(),
-            Self::IsochRack(unit) => unit.listen(),
+            Self::Fw1804(runtime) => runtime.listen(),
             Self::Asynch(unit) => unit.listen(),
         }
     }
@@ -120,7 +120,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
         match self {
             Self::Fw1884(runtime) => runtime.run(),
             Self::Fw1082(runtime) => runtime.run(),
-            Self::IsochRack(unit) => unit.run(),
+            Self::Fw1804(runtime) => runtime.run(),
             Self::Asynch(unit) => unit.run(),
         }
     }
