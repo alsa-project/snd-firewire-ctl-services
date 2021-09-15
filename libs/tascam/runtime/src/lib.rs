@@ -28,14 +28,15 @@ use tascam_protocols::{config_rom::*, *};
 
 use seq_cntr::*;
 
-use isoch_console_runtime::IsochConsoleRuntime;
+use isoch_console_runtime::*;
 use isoch_rack_runtime::IsochRackRuntime;
 use asynch_runtime::AsynchRuntime;
 
 use std::convert::TryFrom;
 
 pub enum TascamRuntime {
-    IsochConsole(IsochConsoleRuntime),
+    Fw1884(Fw1884Runtime),
+    Fw1082(Fw1082Runtime),
     IsochRack(IsochRackRuntime),
     Asynch(AsynchRuntime),
 }
@@ -63,10 +64,13 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                     })?;
                 let unit_data = config_rom.get_unit_data()?;
                 match (unit_data.specifier_id, unit_data.version) {
-                    (TASCAM_OUI, FW1884_SW_VERSION) |
+                    (TASCAM_OUI, FW1884_SW_VERSION) => {
+                        let runtime = Fw1884Runtime::new(unit, unit_data.model_name, sysnum)?;
+                        Ok(Self::Fw1884(runtime))
+                    }
                     (TASCAM_OUI, FW1082_SW_VERSION) => {
-                        let runtime = IsochConsoleRuntime::new(unit, unit_data.model_name, sysnum)?;
-                        Ok(Self::IsochConsole(runtime))
+                        let runtime = Fw1082Runtime::new(unit, unit_data.model_name, sysnum)?;
+                        Ok(Self::Fw1082(runtime))
                     }
                     (TASCAM_OUI, FW1804_SW_VERSION) => {
                         let runtime = IsochRackRuntime::new(unit, unit_data.model_name, sysnum)?;
@@ -105,7 +109,8 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
     fn listen(&mut self) -> Result<(), Error> {
         match self {
-            Self::IsochConsole(unit) => unit.listen(),
+            Self::Fw1884(runtime) => runtime.listen(),
+            Self::Fw1082(runtime) => runtime.listen(),
             Self::IsochRack(unit) => unit.listen(),
             Self::Asynch(unit) => unit.listen(),
         }
@@ -113,7 +118,8 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
     fn run(&mut self) -> Result<(), Error> {
         match self {
-            Self::IsochConsole(unit) => unit.run(),
+            Self::Fw1884(runtime) => runtime.run(),
+            Self::Fw1082(runtime) => runtime.run(),
             Self::IsochRack(unit) => unit.run(),
             Self::Asynch(unit) => unit.run(),
         }
@@ -121,7 +127,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 }
 
 #[derive(Default)]
-struct SequencerState<U> {
+pub struct SequencerState<U> {
     map: Vec<MachineItem>,
     machine_state: MachineState,
     surface_state: U,
@@ -129,7 +135,7 @@ struct SequencerState<U> {
 
 const BOOL_TRUE: i32 = 0x7f;
 
-trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperation<U>, U> {
+pub trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperation<U>, U> {
     fn state(&self) -> &SequencerState<U>;
     fn state_mut(&mut self) -> &mut SequencerState<U>;
 
