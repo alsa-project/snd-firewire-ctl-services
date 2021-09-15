@@ -129,10 +129,10 @@ struct SequencerState<U> {
 
 const BOOL_TRUE: i32 = 0x7f;
 
-trait SequencerCtlOperation<S, T, U>: AsRef<SequencerState<U>> + AsMut<SequencerState<U>>
-where
-    T: MachineStateOperation + SurfaceImageOperation<U>,
-{
+trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperation<U>, U> {
+    fn state(&self) -> &SequencerState<U>;
+    fn state_mut(&mut self) -> &mut SequencerState<U>;
+
     fn initialize_surface(
         &mut self,
         node: &mut S,
@@ -148,9 +148,9 @@ where
 
     fn initialize_sequencer(&mut self, node: &mut S) -> Result<(), Error> {
         self.initialize_message_map();
-        T::initialize_surface_state(&mut self.as_mut().surface_state);
-        T::initialize_machine(&mut self.as_mut().machine_state);
-        let machine_values = T::get_machine_current_values(&self.as_ref().machine_state);
+        T::initialize_surface_state(&mut self.state_mut().surface_state);
+        T::initialize_machine(&mut self.state_mut().machine_state);
+        let machine_values = T::get_machine_current_values(&self.state().machine_state);
         self.initialize_surface(node, &machine_values)
     }
 
@@ -159,7 +159,7 @@ where
     }
 
     fn initialize_message_map(&mut self) {
-        let map = &mut self.as_mut().map;
+        let map = &mut self.state_mut().map;
         T::BOOL_ITEMS
             .iter()
             .chain(T::U16_ITEMS.iter())
@@ -191,7 +191,7 @@ where
         after: u32,
     ) -> Result<(), Error> {
         let inputs =
-            T::decode_surface_image(&self.as_ref().surface_state, image, index, before, after);
+            T::decode_surface_image(&self.state().surface_state, image, index, before, after);
         inputs.iter().try_for_each(|input| {
             let outputs = self.dispatch_machine_event(input);
             outputs.iter().try_for_each(|output| {
@@ -225,7 +225,7 @@ where
 
         let index = data.get_param();
         let &machine_item = self
-            .as_ref()
+            .state()
             .map
             .iter()
             .nth(index as usize)
@@ -259,7 +259,7 @@ where
         &mut self,
         input: &(MachineItem, ItemValue),
     ) -> Vec<(MachineItem, ItemValue)> {
-        T::change_machine_value(&mut self.as_mut().machine_state, input)
+        T::change_machine_value(&mut self.state_mut().machine_state, input)
     }
 
     fn feedback_to_appl(
@@ -268,7 +268,7 @@ where
         event: &(MachineItem, ItemValue),
     ) -> Result<(), Error> {
         let index = self
-            .as_ref()
+            .state()
             .map
             .iter()
             .position(|item| event.0.eq(item))

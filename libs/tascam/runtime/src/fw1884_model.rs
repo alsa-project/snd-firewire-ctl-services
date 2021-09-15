@@ -87,19 +87,15 @@ impl IsochConsoleCtlOperation<Fw1884Protocol> for ConsoleCtl {
 #[derive(Default)]
 struct SpecificCtl;
 
-impl AsRef<SequencerState<Fw1884SurfaceState>> for Fw1884Model {
-    fn as_ref(&self) -> &SequencerState<Fw1884SurfaceState> {
+impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
+    fn state(&self) -> &SequencerState<Fw1884SurfaceState> {
         &self.seq_state
     }
-}
 
-impl AsMut<SequencerState<Fw1884SurfaceState>> for Fw1884Model {
-    fn as_mut(&mut self) -> &mut SequencerState<Fw1884SurfaceState> {
+    fn state_mut(&mut self) -> &mut SequencerState<Fw1884SurfaceState> {
         &mut self.seq_state
     }
-}
 
-impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
     fn initialize_surface(
         &mut self,
         unit: &mut SndTscm,
