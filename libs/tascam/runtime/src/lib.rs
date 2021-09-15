@@ -30,7 +30,7 @@ use seq_cntr::*;
 
 use isoch_console_runtime::*;
 use isoch_rack_runtime::*;
-use asynch_runtime::AsynchRuntime;
+use asynch_runtime::*;
 
 use std::convert::TryFrom;
 
@@ -38,7 +38,7 @@ pub enum TascamRuntime {
     Fw1884(Fw1884Runtime),
     Fw1082(Fw1082Runtime),
     Fw1804(Fw1804Runtime),
-    Asynch(AsynchRuntime),
+    Fe8(Fe8Runtime),
 }
 
 const TASCAM_OUI: u32 = 0x00022e;
@@ -94,8 +94,8 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                 match (unit_data.specifier_id, unit_data.version) {
                     (TASCAM_OUI, FE8_SW_VERSION) => {
                         let name = unit_data.model_name.to_string();
-                        let runtime = AsynchRuntime::new(node, name)?;
-                        Ok(Self::Asynch(runtime))
+                        let runtime = Fe8Runtime::new(node, name)?;
+                        Ok(Self::Fe8(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
                 }
@@ -112,7 +112,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
             Self::Fw1884(runtime) => runtime.listen(),
             Self::Fw1082(runtime) => runtime.listen(),
             Self::Fw1804(runtime) => runtime.listen(),
-            Self::Asynch(unit) => unit.listen(),
+            Self::Fe8(runtime) => runtime.listen(),
         }
     }
 
@@ -121,7 +121,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
             Self::Fw1884(runtime) => runtime.run(),
             Self::Fw1082(runtime) => runtime.run(),
             Self::Fw1804(runtime) => runtime.run(),
-            Self::Asynch(unit) => unit.run(),
+            Self::Fe8(runtime) => runtime.run(),
         }
     }
 }

@@ -60,8 +60,8 @@ impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
     }
 }
 
-impl Fe8Model {
-    pub fn register_notification_address(
+impl AsynchCtlOperation for Fe8Model {
+    fn register_notification_address(
         &mut self,
         node: &mut FwNode,
         addr: u64,
