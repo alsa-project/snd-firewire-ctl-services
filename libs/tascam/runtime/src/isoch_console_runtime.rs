@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2021 Takashi Sakamoto
 use std::sync::mpsc;
 use std::time::Duration;
+use std::marker::PhantomData;
 
 use nix::sys::signal;
 
-use glib::{Error, FileError};
+use glib::Error;
 use glib::source;
 
 use hinawa::FwNodeExt;
@@ -18,7 +19,41 @@ use alsaseq::{EventCntrExt, EventCntrExtManual, EventDataCtl, EventType, UserCli
 use core::dispatcher::*;
 use core::card_cntr::*;
 
+use tascam_protocols::{isoch::{fw1082::*, fw1884::*}};
+
 use crate::{fw1082_model::*, fw1884_model::*, seq_cntr::*, *};
+
+pub type Fw1884Runtime = IsochConsoleRuntime<Fw1884Model, Fw1884Protocol, Fw1884SurfaceState>;
+pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082SurfaceState>;
+
+pub struct IsochConsoleRuntime<S, T, U>
+where
+    S:  CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
+    unit: SndTscm,
+    model: S,
+    card_cntr: CardCntr,
+    seq_cntr: SeqCntr,
+    rx: mpsc::Receiver<ConsoleUnitEvent>,
+    tx: mpsc::SyncSender<ConsoleUnitEvent>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
+    measure_elems: Vec<ElemId>,
+    _phantom0: PhantomData<T>,
+    _phantom1: PhantomData<U>,
+}
+
+impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
+where
+    S:  CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
+    fn drop(&mut self) {
+        let _ = self.model.finalize_sequencer(&mut self.unit);
+        self.dispatchers.clear();
+    }
+}
 
 enum ConsoleUnitEvent {
     Shutdown,
@@ -30,52 +65,19 @@ enum ConsoleUnitEvent {
     Surface((u32, u32, u32)),
 }
 
-enum ConsoleModel {
-    Fw1884(Fw1884Model),
-    Fw1082(Fw1082Model),
-}
+const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
+const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
+const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
 
-pub struct IsochConsoleRuntime {
-    unit: SndTscm,
-    model: ConsoleModel,
-    card_cntr: CardCntr,
-    seq_cntr: SeqCntr,
-    rx: mpsc::Receiver<ConsoleUnitEvent>,
-    tx: mpsc::SyncSender<ConsoleUnitEvent>,
-    dispatchers: Vec<Dispatcher>,
-    timer: Option<Dispatcher>,
-    measure_elems: Vec<ElemId>,
-}
+const TIMER_NAME: &str = "metering";
+const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-impl Drop for IsochConsoleRuntime {
-    fn drop(&mut self) {
-        let _ = match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.finalize_sequencer(&mut self.unit),
-            ConsoleModel::Fw1082(m) => m.finalize_sequencer(&mut self.unit),
-        };
-
-        self.dispatchers.clear();
-    }
-}
-
-impl IsochConsoleRuntime {
-    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
-    const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
-
-    const TIMER_NAME: &'static str = "metering";
-    const TIMER_INTERVAL: Duration = Duration::from_millis(50);
-
+impl<S, T, U> IsochConsoleRuntime<S, T, U>
+where
+    S:  CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+{
     pub fn new(unit: SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
-        let model = match name {
-            "FW-1884" => ConsoleModel::Fw1884(Default::default()),
-            "FW-1082" => ConsoleModel::Fw1082(Default::default()),
-            _ => {
-                let label = format!("Unsupported model name: {}", name);
-                return Err(Error::new(FileError::Nxio, &label));
-            }
-        };
-
         let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
@@ -84,23 +86,103 @@ impl IsochConsoleRuntime {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        let dispatchers = Vec::new();
-
-        Ok(IsochConsoleRuntime {
+        Ok(Self{
             unit,
-            model,
+            model: Default::default(),
             card_cntr,
             seq_cntr,
             tx,
             rx,
-            dispatchers,
-            timer: None,
-            measure_elems: Vec::new(),
+            dispatchers: Default::default(),
+            timer: Default::default(),
+            measure_elems: Default::default(),
+            _phantom0: Default::default(),
+            _phantom1: Default::default(),
         })
     }
 
+    pub fn listen(&mut self) -> Result<(), Error> {
+        self.launch_node_event_dispatcher()?;
+        self.launch_system_event_dispatcher()?;
+
+        self.seq_cntr.open_port()?;
+        self.model.initialize_sequencer(&mut self.unit)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
+        let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        self.model.get_measure_elem_list(&mut self.measure_elems);
+
+        Ok(())
+    }
+
+    pub fn run(&mut self) -> Result<(), Error> {
+        loop {
+            let ev = match self.rx.recv() {
+                Ok(ev) => ev,
+                Err(_) => continue,
+            };
+
+            match ev {
+                ConsoleUnitEvent::Shutdown => break,
+                ConsoleUnitEvent::Disconnected => break,
+                ConsoleUnitEvent::BusReset(generation) => {
+                    println!("IEEE 1394 bus is updated: {}", generation);
+                }
+                ConsoleUnitEvent::Elem((elem_id, events)) => {
+                    if elem_id.get_name() != TIMER_NAME {
+                        let _ = self.card_cntr.dispatch_elem_event(
+                            &mut self.unit,
+                            &elem_id,
+                            &events,
+                            &mut self.model
+                        );
+                    } else {
+                        let mut elem_value = ElemValue::new();
+                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                            let mut vals = [false];
+                            elem_value.get_bool(&mut vals);
+                            if vals[0] {
+                                let _ = self.start_interval_timer();
+                            } else {
+                                self.stop_interval_timer();
+                            }
+                        }
+                    }
+                }
+                ConsoleUnitEvent::Interval => {
+                    let _ = self.card_cntr.measure_elems(
+                        &mut self.unit,
+                        &self.measure_elems,
+                        &mut self.model
+                    );
+                }
+                ConsoleUnitEvent::SeqAppl(data) => {
+                    let _ = self.model.dispatch_appl_event(
+                        &mut self.unit,
+                        &mut self.seq_cntr,
+                        &data,
+                    );
+                }
+                ConsoleUnitEvent::Surface((index, before, after)) => {
+                    let image = self.unit.get_state().map(|s| s.to_vec())?;
+                    let _ = self.model.dispatch_surface_event(
+                        &mut self.unit,
+                        &mut self.seq_cntr,
+                        &image,
+                        index,
+                        before,
+                        after,
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::NODE_DISPATCHER_NAME.to_string();
+        let name = NODE_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -130,7 +212,7 @@ impl IsochConsoleRuntime {
     }
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
+        let name = SYSTEM_DISPATCHER_NAME.to_string();
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
@@ -169,36 +251,10 @@ impl IsochConsoleRuntime {
         Ok(())
     }
 
-    pub fn listen(&mut self) -> Result<(), Error> {
-        self.launch_node_event_dispatcher()?;
-        self.launch_system_event_dispatcher()?;
-
-        self.seq_cntr.open_port()?;
-        match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.initialize_sequencer(&mut self.unit),
-            ConsoleModel::Fw1082(m) => m.initialize_sequencer(&mut self.unit),
-        }?;
-
-        match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.load(&mut self.unit, &mut self.card_cntr)?,
-            ConsoleModel::Fw1082(m) => m.load(&mut self.unit, &mut self.card_cntr)?,
-        }
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
-        let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-
-        match &mut self.model {
-            ConsoleModel::Fw1884(m) => m.get_measure_elem_list(&mut self.measure_elems),
-            ConsoleModel::Fw1082(m) => m.get_measure_elem_list(&mut self.measure_elems),
-        }
-
-        Ok(())
-    }
-
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
-        dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
+        dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
             let _ = tx.send(ConsoleUnitEvent::Interval);
             source::Continue(true)
         });
@@ -213,91 +269,5 @@ impl IsochConsoleRuntime {
             drop(dispatcher);
             self.timer = None;
         }
-    }
-
-    pub fn run(&mut self) -> Result<(), Error> {
-        loop {
-            let ev = match self.rx.recv() {
-                Ok(ev) => ev,
-                Err(_) => continue,
-            };
-
-            match ev {
-                ConsoleUnitEvent::Shutdown => break,
-                ConsoleUnitEvent::Disconnected => break,
-                ConsoleUnitEvent::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
-                }
-                ConsoleUnitEvent::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != Self::TIMER_NAME {
-                        let _ = match &mut self.model {
-                            ConsoleModel::Fw1884(m) =>
-                                self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events, m),
-                            ConsoleModel::Fw1082(m) =>
-                                self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events, m),
-                        };
-                    } else {
-                        let mut elem_value = ElemValue::new();
-                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
-                            let mut vals = [false];
-                            elem_value.get_bool(&mut vals);
-                            if vals[0] {
-                                let _ = self.start_interval_timer();
-                            } else {
-                                self.stop_interval_timer();
-                            }
-                        }
-                    }
-                }
-                ConsoleUnitEvent::Interval => {
-                    match &mut self.model {
-                        ConsoleModel::Fw1884(m) =>{
-                            let _ = self.card_cntr.measure_elems(&mut self.unit, &self.measure_elems, m);
-                        }
-                        ConsoleModel::Fw1082(m) => {
-                            let _ = self.card_cntr.measure_elems(&mut self.unit, &self.measure_elems, m);
-                        }
-                    };
-                }
-                ConsoleUnitEvent::SeqAppl(data) => {
-                    let _ = match &mut self.model {
-                        ConsoleModel::Fw1884(m) => m.dispatch_appl_event(
-                            &mut self.unit,
-                            &mut self.seq_cntr,
-                            &data,
-                        ),
-                        ConsoleModel::Fw1082(m) => m.dispatch_appl_event(
-                            &mut self.unit,
-                            &mut self.seq_cntr,
-                            &data,
-                        ),
-                    };
-                }
-                ConsoleUnitEvent::Surface((index, before, after)) => {
-                    let image = self.unit.get_state().map(|s| s.to_vec())?;
-
-                    let _ = match &mut self.model {
-                        ConsoleModel::Fw1884(m) => m.dispatch_surface_event(
-                            &mut self.unit,
-                            &mut self.seq_cntr,
-                            &image,
-                            index,
-                            before,
-                            after,
-                        ),
-                        ConsoleModel::Fw1082(m) => m.dispatch_surface_event(
-                            &mut self.unit,
-                            &mut self.seq_cntr,
-                            &image,
-                            index,
-                            before,
-                            after,
-                        ),
-                    };
-                }
-            }
-        }
-
-        Ok(())
     }
 }
