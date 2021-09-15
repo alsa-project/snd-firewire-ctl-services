@@ -1,38 +1,41 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+use std::sync::mpsc;
+use std::time::Duration;
+
+use nix::sys::signal;
+
 use glib::Error;
 use glib::source;
 
-use nix::sys::signal;
-use std::sync::mpsc;
+use hinawa::FwNodeExt;
+use hinawa::{SndTscm, SndUnitExt};
 
-use hinawa::{FwNodeExt, SndUnitExt};
+use alsactl::{CardExt, CardExtManual};
+use alsactl::{ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 
-use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
+use core::dispatcher::*;
+use core::card_cntr::*;
 
-use core::dispatcher;
-use core::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
-
-use super::fw1804_model::Fw1804Model;
+use crate::fw1804_model::*;
 
 enum RackUnitEvent {
     Shutdown,
     Disconnected,
     BusReset(u32),
-    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    Elem((ElemId, ElemEventMask)),
     Timer,
 }
 
 pub struct IsochRackRuntime {
-    unit: hinawa::SndTscm,
+    unit: SndTscm,
     model: Fw1804Model,
-    card_cntr: card_cntr::CardCntr,
+    card_cntr: CardCntr,
     rx: mpsc::Receiver<RackUnitEvent>,
     tx: mpsc::SyncSender<RackUnitEvent>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    timer: Option<dispatcher::Dispatcher>,
-    measure_elems: Vec<alsactl::ElemId>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
+    measure_elems: Vec<ElemId>,
 }
 
 impl Drop for IsochRackRuntime {
@@ -56,12 +59,12 @@ impl IsochRackRuntime {
     const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
 
     const TIMER_NAME: &'static str = "meter";
-    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+    const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-    pub fn new(unit: hinawa::SndTscm, _: &str, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndTscm, _: &str, sysnum: u32) -> Result<Self, Error> {
         let model = Fw1804Model::default();
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
         // Use uni-directional channel for communication to child threads.
@@ -83,7 +86,7 @@ impl IsochRackRuntime {
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -108,7 +111,7 @@ impl IsochRackRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -135,8 +138,8 @@ impl IsochRackRuntime {
 
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer,
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer,
             0,
             0,
             Self::TIMER_NAME,
@@ -150,7 +153,7 @@ impl IsochRackRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(RackUnitEvent::Timer);
@@ -187,7 +190,7 @@ impl IsochRackRuntime {
                         let _ = self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events,
                                                                    &mut self.model);
                     } else {
-                        let mut elem_value = alsactl::ElemValue::new();
+                        let mut elem_value = ElemValue::new();
                         if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
