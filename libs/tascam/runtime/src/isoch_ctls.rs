@@ -705,9 +705,10 @@ const INPUT_GAIN_NAME: &str = "input-gain";
 const INPUT_BALANCE_NAME: &str = "input-balance";
 const INPUT_MUTE_NAME: &str = "input-mute";
 
-pub trait IsochRackCtl<T: IsochRackOperation>:
-    AsRef<IsochRackState> + AsMut<IsochRackState>
-{
+pub trait IsochRackCtlOperation<T: IsochRackOperation> {
+    fn state(&self) -> &IsochRackState;
+    fn state_mut(&mut self) -> &mut IsochRackState;
+
     const INPUT_LABELS: [&'static str; 18] = [
         "Analog-1", "Analog-2", "Analog-3", "Analog-4", "Analog-5", "Analog-6", "Analog-7",
         "Analog-8", "ADAT-1", "ADAT-2", "ADAT-3", "ADAT-4", "ADAT-5", "ADAT-6", "ADAT-7", "ADAT-8",
@@ -750,26 +751,26 @@ pub trait IsochRackCtl<T: IsochRackOperation>:
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CHANNEL_COUNT, true)?;
 
-        T::init_input_state(req, &mut unit.get_node(), self.as_mut(), timeout_ms)
+        T::init_input_state(req, &mut unit.get_node(), self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_GAIN_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
-                    Ok(T::get_input_gain(self.as_ref(), idx) as i32)
+                    Ok(T::get_input_gain(self.state(), idx) as i32)
                 })?;
                 Ok(true)
             }
             INPUT_BALANCE_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
-                    Ok(T::get_input_balance(self.as_ref(), idx) as i32)
+                    Ok(T::get_input_balance(self.state(), idx) as i32)
                 })?;
                 Ok(true)
             }
             INPUT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
-                    Ok(T::get_input_mute(self.as_ref(), idx))
+                    Ok(T::get_input_mute(self.state(), idx))
                 })?;
                 Ok(true)
             }
@@ -797,7 +798,7 @@ pub trait IsochRackCtl<T: IsochRackOperation>:
                         &mut unit.get_node(),
                         idx,
                         val as i16,
-                        self.as_mut(),
+                        self.state_mut(),
                         timeout_ms,
                     )
                 },
@@ -813,7 +814,7 @@ pub trait IsochRackCtl<T: IsochRackOperation>:
                         &mut unit.get_node(),
                         idx,
                         val as u8,
-                        self.as_mut(),
+                        self.state_mut(),
                         timeout_ms,
                     )
                 },
@@ -829,7 +830,7 @@ pub trait IsochRackCtl<T: IsochRackOperation>:
                         &mut unit.get_node(),
                         idx,
                         val,
-                        self.as_mut(),
+                        self.state_mut(),
                         timeout_ms,
                     )
                 },
