@@ -27,19 +27,15 @@ const TIMEOUT_MS: u32 = 50;
 #[derive(Default)]
 struct MeterCtl(IsochMeterState, Vec<ElemId>);
 
-impl AsRef<IsochMeterState> for MeterCtl {
-    fn as_ref(&self) -> &IsochMeterState {
+impl IsochMeterCtlOperation<Fw1082Protocol> for MeterCtl {
+    fn meter(&self) -> &IsochMeterState {
         &self.0
     }
-}
 
-impl AsMut<IsochMeterState> for MeterCtl {
-    fn as_mut(&mut self) -> &mut IsochMeterState {
+    fn meter_mut(&mut self) -> &mut IsochMeterState {
         &mut self.0
     }
-}
 
-impl IsochMeterCtl<Fw1082Protocol> for MeterCtl {
     const INPUT_LABELS: &'static [&'static str] = &[
         "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
         "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
