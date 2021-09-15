@@ -1,29 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+use std::sync::mpsc;
+use std::time::Duration;
+
+use nix::sys::signal;
+
 use glib::{Error, FileError};
 use glib::source;
 
-use nix::sys::signal;
-use std::sync::mpsc;
+use hinawa::FwNodeExt;
+use hinawa::{SndTscm, SndTscmExt, SndTscmExtManual, SndUnitExt};
 
-use hinawa::{FwNodeExt, SndUnitExt, SndTscmExt, SndTscmExtManual};
+use alsactl::{CardExt, CardExtManual};
+use alsactl::{ElemId, ElemIfaceType, ElemEventMask, ElemValue, ElemValueExtManual};
+use alsaseq::{EventCntrExt, EventCntrExtManual, EventDataCtl, EventType, UserClientExt};
 
-use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
-use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
+use core::dispatcher::*;
+use core::card_cntr::*;
 
-use core::dispatcher;
-use core::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
-
-use crate::{fw1082_model::*, fw1884_model::*, *};
+use crate::{fw1082_model::*, fw1884_model::*, seq_cntr::*, *};
 
 enum ConsoleUnitEvent {
     Shutdown,
     Disconnected,
     BusReset(u32),
-    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    Elem((ElemId, ElemEventMask)),
     Interval,
-    SeqAppl(alsaseq::EventDataCtl),
+    SeqAppl(EventDataCtl),
     Surface((u32, u32, u32)),
 }
 
@@ -33,15 +36,15 @@ enum ConsoleModel {
 }
 
 pub struct IsochConsoleRuntime {
-    unit: hinawa::SndTscm,
+    unit: SndTscm,
     model: ConsoleModel,
-    card_cntr: card_cntr::CardCntr,
-    seq_cntr: seq_cntr::SeqCntr,
+    card_cntr: CardCntr,
+    seq_cntr: SeqCntr,
     rx: mpsc::Receiver<ConsoleUnitEvent>,
     tx: mpsc::SyncSender<ConsoleUnitEvent>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    timer: Option<dispatcher::Dispatcher>,
-    measure_elems: Vec<alsactl::ElemId>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
+    measure_elems: Vec<ElemId>,
 }
 
 impl Drop for IsochConsoleRuntime {
@@ -61,9 +64,9 @@ impl IsochConsoleRuntime {
     const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
 
     const TIMER_NAME: &'static str = "metering";
-    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+    const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-    pub fn new(unit: hinawa::SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
         let model = match name {
             "FW-1884" => ConsoleModel::Fw1884(Default::default()),
             "FW-1082" => ConsoleModel::Fw1082(Default::default()),
@@ -73,10 +76,10 @@ impl IsochConsoleRuntime {
             }
         };
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
-        let seq_cntr = seq_cntr::SeqCntr::new(name)?;
+        let seq_cntr = SeqCntr::new(name)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
@@ -98,7 +101,7 @@ impl IsochConsoleRuntime {
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -128,7 +131,7 @@ impl IsochConsoleRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -152,7 +155,7 @@ impl IsochConsoleRuntime {
                 let _ = (0..ev_cntr.count_events())
                     .filter(|&i| {
                         // At present, controller event is handled.
-                        ev_cntr.get_event_type(i).unwrap_or(alsaseq::EventType::None) == alsaseq::EventType::Controller
+                        ev_cntr.get_event_type(i).unwrap_or(EventType::None) == EventType::Controller
                     }).for_each(|i| {
                         if let Ok(ctl_data) = ev_cntr.get_ctl_data(i) {
                             let data = ConsoleUnitEvent::SeqAppl(ctl_data);
@@ -181,13 +184,7 @@ impl IsochConsoleRuntime {
             ConsoleModel::Fw1082(m) => m.load(&mut self.unit, &mut self.card_cntr)?,
         }
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer,
-            0,
-            0,
-            Self::TIMER_NAME,
-            0,
-        );
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         match &mut self.model {
@@ -199,7 +196,7 @@ impl IsochConsoleRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(ConsoleUnitEvent::Interval);
@@ -240,7 +237,7 @@ impl IsochConsoleRuntime {
                                 self.card_cntr.dispatch_elem_event(&mut self.unit, &elem_id, &events, m),
                         };
                     } else {
-                        let mut elem_value = alsactl::ElemValue::new();
+                        let mut elem_value = ElemValue::new();
                         if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
