@@ -15,7 +15,28 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 
 use dg00x_protocols::*;
 
+use std::marker::PhantomData;
+
 const TIMEOUT_MS: u32 = 100;
+
+pub type Digi002Model = Dg00xModel<Digi002CommonCtl, Digi002MeterCtl, Digi002MonitorCtl, Digi002Protocol>;
+pub type Digi003Model = Dg00xModel<Digi003CommonCtl, Digi003MeterCtl, Digi003MonitorCtl, Digi003Protocol>;
+
+#[derive(Default)]
+pub struct Dg00xModel<S, T, U, V>
+where
+    S: Dg00xCommonCtlOperation<V>,
+    T: Dg00xMeterCtlOperation<V>,
+    U: Dg00xMonitorCtlOperation<V>,
+    V: Dg00xCommonOperation + Dg00xMonitorOperation,
+{
+    req: FwReq,
+    common_ctl: S,
+    meter_ctl: T,
+    monitor_ctl: U,
+    _phantom: PhantomData<V>,
+}
+
 
 #[derive(Default)]
 pub struct Dg00xCommonCtl(ClockRate, Vec<ElemId>);
@@ -26,12 +47,119 @@ pub struct Dg00xMeterCtl(Option<ClockRate>, Vec<ElemId>);
 #[derive(Default)]
 pub struct Dg00xMonitorCtl(Dg00xMonitorState, Vec<ElemId>);
 
-#[derive(Default)]
-pub struct Digi002Model {
-    req: FwReq,
-    common_ctl: Digi002CommonCtl,
-    meter_ctl: Digi002MeterCtl,
-    monitor_ctl: Digi002MonitorCtl,
+impl<S, T, U, V> CtlModel<SndDg00x> for Dg00xModel<S, T, U, V>
+where
+    S: Dg00xCommonCtlOperation<V>,
+    T: Dg00xMeterCtlOperation<V>,
+    U: Dg00xMonitorCtlOperation<V>,
+    V: Dg00xCommonOperation + Dg00xMonitorOperation,
+{
+    fn load(
+        &mut self,
+        unit: &mut SndDg00x,
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        Ok(())
+    }
+
+    fn read(
+        &mut self,
+        unit: &mut SndDg00x,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.common_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndDg00x,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self.common_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.monitor_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl<S, T, U, V> MeasureModel<SndDg00x> for Dg00xModel<S, T, U, V>
+where
+    S: Dg00xCommonCtlOperation<V>,
+    T: Dg00xMeterCtlOperation<V>,
+    U: Dg00xMonitorCtlOperation<V>,
+    V: Dg00xCommonOperation + Dg00xMonitorOperation,
+{
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.meter().1);
+    }
+
+    fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
+        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndDg00x,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl<S, T, U, V> NotifyModel<SndDg00x, bool> for Dg00xModel<S, T, U, V>
+where
+    S: Dg00xCommonCtlOperation<V>,
+    T: Dg00xMeterCtlOperation<V>,
+    U: Dg00xMonitorCtlOperation<V>,
+    V: Dg00xCommonOperation + Dg00xMonitorOperation,
+{
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.common_ctl.state().1);
+        elem_id_list.extend_from_slice(&self.monitor_ctl.state().1);
+    }
+
+    fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
+        self.common_ctl.handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
+        self.monitor_ctl.handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndDg00x,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.common_ctl.read_notified_elems(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 #[derive(Default)]
@@ -73,111 +201,6 @@ impl Dg00xMonitorCtlOperation<Digi002Protocol> for Digi002MonitorCtl {
     }
 }
 
-impl NotifyModel<SndDg00x, bool> for Digi002Model {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.state().1);
-        elem_id_list.extend_from_slice(&self.monitor_ctl.state().1);
-    }
-
-    fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
-        self.common_ctl.handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
-        self.monitor_ctl.handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
-        Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &SndDg00x,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read_notified_elems(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl CtlModel<SndDg00x> for Digi002Model {
-    fn load(
-        &mut self,
-        unit: &mut SndDg00x,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        Ok(())
-    }
-
-    fn read(
-        &mut self,
-        unit: &mut SndDg00x,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
-            Ok(true)
-        } else if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut SndDg00x,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
-            Ok(true)
-        } else if self.monitor_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl MeasureModel<SndDg00x> for Digi002Model {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.meter().1);
-    }
-
-    fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &SndDg00x,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct Digi003Model {
-    req: FwReq,
-    common_ctl: Digi003CommonCtl,
-    meter_ctl: Digi003MeterCtl,
-    monitor_ctl: Digi003MonitorCtl,
-}
-
 #[derive(Default)]
 pub struct Digi003CommonCtl(Dg00xCommonCtl);
 
@@ -214,103 +237,6 @@ impl Dg00xMonitorCtlOperation<Digi003Protocol> for Digi003MonitorCtl {
 
     fn state_mut(&mut self) -> &mut Dg00xMonitorCtl {
         &mut self.0
-    }
-}
-
-impl NotifyModel<SndDg00x, bool> for Digi003Model {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.state().1);
-        elem_id_list.extend_from_slice(&self.monitor_ctl.state().1);
-    }
-
-    fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
-        self.common_ctl.handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
-        self.monitor_ctl.handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
-        Ok(())
-    }
-
-    fn read_notified_elem(
-        &mut self,
-        _: &SndDg00x,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read_notified_elems(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl CtlModel<SndDg00x> for Digi003Model {
-    fn load(
-        &mut self,
-        unit: &mut SndDg00x,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        Ok(())
-    }
-
-    fn read(
-        &mut self,
-        unit: &mut SndDg00x,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
-            Ok(true)
-        } else if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else if self.monitor_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut SndDg00x,
-        elem_id: &ElemId,
-        old: &ElemValue,
-        new: &ElemValue,
-    ) -> Result<bool, Error> {
-        if self.common_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
-            Ok(true)
-        } else if self.monitor_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-}
-
-impl MeasureModel<SndDg00x> for Digi003Model {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.meter().1);
-    }
-
-    fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)
-    }
-
-    fn measure_elem(
-        &mut self,
-        _: &SndDg00x,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
-        if self.meter_ctl.read(elem_id, elem_value)? {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 }
 
