@@ -62,7 +62,7 @@ impl IsochCommonCtlOperation<Fw1884Protocol> for CommonCtl {}
 #[derive(Default)]
 struct OpticalCtl;
 
-impl IsochOpticalCtl<Fw1884Protocol> for OpticalCtl {
+impl IsochOpticalCtlOperation<Fw1884Protocol> for OpticalCtl {
     const OPTICAL_OUTPUT_SOURCES: &'static [OpticalOutputSource] = &[
         OpticalOutputSource::StreamInputPairs,
         OpticalOutputSource::AnalogOutputPairs,

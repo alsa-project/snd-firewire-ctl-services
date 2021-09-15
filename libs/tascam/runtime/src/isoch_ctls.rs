@@ -528,7 +528,7 @@ fn optical_output_source_to_str(src: &OpticalOutputSource) -> &'static str {
     }
 }
 
-pub trait IsochOpticalCtl<T: IsochOpticalOperation> {
+pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
     const SPDIF_INPUT_SOURCES: [SpdifCaptureSource; 2] =
         [SpdifCaptureSource::Coaxial, SpdifCaptureSource::Optical];
 
