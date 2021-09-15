@@ -18,6 +18,9 @@ use dg00x_protocols::*;
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
+pub struct Dg00xCommonCtl(ClockRate, Vec<ElemId>);
+
+#[derive(Default)]
 pub struct Digi002Model {
     req: FwReq,
     common_ctl: Digi002CommonCtl,
@@ -26,21 +29,17 @@ pub struct Digi002Model {
 }
 
 #[derive(Default)]
-struct Digi002CommonCtl(ClockRate, Vec<ElemId>);
+pub struct Digi002CommonCtl(Dg00xCommonCtl);
 
-impl AsRef<ClockRate> for Digi002CommonCtl {
-    fn as_ref(&self) -> &ClockRate {
+impl Dg00xCommonCtlOperation<Digi002Protocol> for Digi002CommonCtl {
+    fn state(&self) -> &Dg00xCommonCtl {
         &self.0
     }
-}
 
-impl AsMut<ClockRate> for Digi002CommonCtl {
-    fn as_mut(&mut self) -> &mut ClockRate {
+    fn state_mut(&mut self) -> &mut Dg00xCommonCtl {
         &mut self.0
     }
 }
-
-impl Dg00xCommonCtl<Digi002Protocol> for Digi002CommonCtl {}
 
 #[derive(Default)]
 struct Digi002MeterCtl(Option<ClockRate>, Vec<ElemId>);
@@ -78,7 +77,7 @@ impl Dg00xMonitorCtl<Digi002Protocol> for Digi002MonitorCtl {}
 
 impl NotifyModel<SndDg00x, bool> for Digi002Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.state().1);
         elem_id_list.extend_from_slice(&self.monitor_ctl.1);
     }
 
@@ -110,8 +109,7 @@ impl CtlModel<SndDg00x> for Digi002Model {
         unit: &mut SndDg00x,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.common_ctl.1.append(&mut elem_id_list))?;
+        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -185,21 +183,17 @@ pub struct Digi003Model {
 }
 
 #[derive(Default)]
-struct Digi003CommonCtl(ClockRate, Vec<ElemId>);
+pub struct Digi003CommonCtl(Dg00xCommonCtl);
 
-impl AsRef<ClockRate> for Digi003CommonCtl {
-    fn as_ref(&self) -> &ClockRate {
+impl Dg00xCommonCtlOperation<Digi003Protocol> for Digi003CommonCtl {
+    fn state(&self) -> &Dg00xCommonCtl {
         &self.0
     }
-}
 
-impl AsMut<ClockRate> for Digi003CommonCtl {
-    fn as_mut(&mut self) -> &mut ClockRate {
+    fn state_mut(&mut self) -> &mut Dg00xCommonCtl {
         &mut self.0
     }
 }
-
-impl Dg00xCommonCtl<Digi003Protocol> for Digi003CommonCtl {}
 
 #[derive(Default)]
 struct Digi003MeterCtl(Option<ClockRate>, Vec<ElemId>);
@@ -237,7 +231,7 @@ impl Dg00xMonitorCtl<Digi003Protocol> for Digi003MonitorCtl {}
 
 impl NotifyModel<SndDg00x, bool> for Digi003Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.common_ctl.1);
+        elem_id_list.extend_from_slice(&self.common_ctl.state().1);
         elem_id_list.extend_from_slice(&self.monitor_ctl.1);
     }
 
@@ -269,8 +263,7 @@ impl CtlModel<SndDg00x> for Digi003Model {
         unit: &mut SndDg00x,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.common_ctl.1.append(&mut elem_id_list))?;
+        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -364,7 +357,10 @@ const CLK_LOCAL_RATE_NAME: &str = "local-clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
 const OPT_IFACE_NAME: &str = "optical-interface";
 
-trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRate> {
+pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
+    fn state(&self) -> &Dg00xCommonCtl;
+    fn state_mut(&mut self) -> &mut Dg00xCommonCtl;
+
     const CLOCK_RATES: [ClockRate; 4] = [
         ClockRate::R44100,
         ClockRate::R48000,
@@ -381,7 +377,7 @@ trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRat
         unit: &mut SndDg00x,
         req: &mut FwReq,
         timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
+    ) -> Result<(), Error> {
         let mut notified_elem_id_list = Vec::new();
 
         let labels: Vec<&str> = T::SAMPLING_CLOCK_SOURCES
@@ -407,10 +403,12 @@ trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRat
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        T::read_media_clock_rate(req, &mut unit.get_node(), timeout_ms)
-            .map(|src| *self.as_mut() = src)?;
+        self.state_mut().1 = notified_elem_id_list;
 
-        Ok(notified_elem_id_list)
+        T::read_media_clock_rate(req, &mut unit.get_node(), timeout_ms)
+            .map(|src| self.state_mut().0 = src)?;
+
+        Ok(())
     }
 
     fn read(
@@ -488,7 +486,7 @@ trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRat
                             Error::new(FileError::Inval, &msg)
                         })?;
                     T::write_media_clock_rate(req, &mut unit.get_node(), rate, timeout_ms).map(|_| {
-                        *self.as_mut() = rate;
+                        self.state_mut().0 = rate;
                         true
                     })
                 }
@@ -524,7 +522,7 @@ trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRat
     ) -> Result<(), Error> {
         if locked {
             T::read_media_clock_rate(req, &mut unit.get_node(), timeout_ms)
-                .map(|src| *self.as_mut() = src)
+                .map(|rate| self.state_mut().0 = rate)
         } else {
             Ok(())
         }
@@ -539,7 +537,7 @@ trait Dg00xCommonCtl<T: Dg00xCommonOperation>: AsRef<ClockRate> + AsMut<ClockRat
             CLK_LOCAL_RATE_NAME => {
                 let pos = Self::CLOCK_RATES
                     .iter()
-                    .position(|r| r.eq(&self.as_ref()))
+                    .position(|r| self.state().0.eq(r))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
