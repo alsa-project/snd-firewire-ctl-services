@@ -1,37 +1,39 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+
+use std::sync::{mpsc, Arc, Mutex};
+
+use nix::sys::signal::Signal;
+
 use glib::{Error, FileError};
 use glib::source;
 
-use nix::sys::signal;
-use std::sync::{mpsc, Arc, Mutex};
+use hinawa::{FwNode, FwNodeExt, FwRcode, FwResp, FwRespExt, FwRespExtManual};
 
-use hinawa::{FwNodeExt, FwRcode, FwRespExt, FwRespExtManual};
+use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual, EventDataCtl, EventType};
 
-use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual};
-
-use core::dispatcher;
+use core::dispatcher::*;
 
 use tascam_protocols::asynch::*;
 
-use crate::{fe8_model::Fe8Model, *};
+use crate::{fe8_model::Fe8Model, seq_cntr::*, *};
 
 enum AsyncUnitEvent {
     Shutdown,
     Disconnected,
     BusReset(u32),
     Surface((u32, u32, u32)),
-    SeqAppl(alsaseq::EventDataCtl),
+    SeqAppl(EventDataCtl),
 }
 
 pub struct AsynchRuntime {
-    node: hinawa::FwNode,
+    node: FwNode,
     model: Fe8Model,
-    resp: hinawa::FwResp,
-    seq_cntr: seq_cntr::SeqCntr,
+    resp: FwResp,
+    seq_cntr: SeqCntr,
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
+    dispatchers: Vec<Dispatcher>,
     state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
 }
 
@@ -56,10 +58,10 @@ impl Drop for AsynchRuntime {
 impl AsynchRuntime {
     const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
 
-    pub fn new(node: hinawa::FwNode, name: String) -> Result<Self, Error> {
-        let resp = hinawa::FwResp::new();
+    pub fn new(node: FwNode, name: String) -> Result<Self, Error> {
+        let resp = FwResp::new();
 
-        let seq_cntr = seq_cntr::SeqCntr::new(&name)?;
+        let seq_cntr = SeqCntr::new(&name)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
@@ -81,7 +83,7 @@ impl AsynchRuntime {
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         // Use a dispatcher.
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_fw_node(&self.node, move |_| {
@@ -95,7 +97,7 @@ impl AsynchRuntime {
         });
 
         let tx = self.tx.clone();
-        dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
+        dispatcher.attach_signal_handler(Signal::SIGINT, move || {
             let _ = tx.send(AsyncUnitEvent::Shutdown);
             source::Continue(false)
         });
@@ -107,7 +109,7 @@ impl AsynchRuntime {
             .connect_handle_event(move |_, ev_cntr| {
                 (0..ev_cntr.count_events()).filter_map(|i| {
                     ev_cntr.get_event_type(i).ok().filter(|ev_type| {
-                        alsaseq::EventType::Controller.eq(ev_type)
+                        EventType::Controller.eq(ev_type)
                     }).and_then(|_| ev_cntr.get_ctl_data(i).ok())
                 }).for_each(|ctl_data| {
                     let data = AsyncUnitEvent::SeqAppl(ctl_data);
