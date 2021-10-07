@@ -355,6 +355,31 @@ impl RegisterDspMixerReturnOperation for F828mk2Protocol {
     ];
 }
 
+impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
+    const MIXER_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::Mic0,
+        TargetPort::Mic1,
+        TargetPort::Spdif0,
+        TargetPort::Spdif1,
+        TargetPort::Adat0,
+        TargetPort::Adat1,
+        TargetPort::Adat2,
+        TargetPort::Adat3,
+        TargetPort::Adat4,
+        TargetPort::Adat5,
+        TargetPort::Adat6,
+        TargetPort::Adat7,
+    ];
+}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
@@ -405,6 +430,27 @@ impl RegisterDspMixerReturnOperation for F8preProtocol {
         TargetPort::AdatPair1,
         TargetPort::AdatPair2,
         TargetPort::AdatPair3,
+    ];
+}
+
+impl RegisterDspMixerMonauralSourceOperation for F8preProtocol {
+    const MIXER_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::Adat0,
+        TargetPort::Adat1,
+        TargetPort::Adat2,
+        TargetPort::Adat3,
+        TargetPort::Adat4,
+        TargetPort::Adat5,
+        TargetPort::Adat6,
+        TargetPort::Adat7,
     ];
 }
 
@@ -494,6 +540,31 @@ impl RegisterDspMixerReturnOperation for TravelerProtocol {
     ];
 }
 
+impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
+    const MIXER_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::AesEbu0,
+        TargetPort::AesEbu1,
+        TargetPort::Spdif0,
+        TargetPort::Spdif1,
+        TargetPort::Adat0,
+        TargetPort::Adat1,
+        TargetPort::Adat2,
+        TargetPort::Adat3,
+        TargetPort::Adat4,
+        TargetPort::Adat5,
+        TargetPort::Adat6,
+        TargetPort::Adat7,
+    ];
+}
+
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
 pub struct UltraliteProtocol;
@@ -556,6 +627,21 @@ impl RegisterDspMixerReturnOperation for UltraliteProtocol {
         TargetPort::AnalogPair3,
         TargetPort::MainPair0,
         TargetPort::SpdifPair0,
+    ];
+}
+
+impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
+    const MIXER_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::Spdif0,
+        TargetPort::Spdif1,
     ];
 }
 
@@ -645,5 +731,28 @@ impl RegisterDspMixerReturnOperation for F896hdProtocol {
         TargetPort::AdatPair1,
         TargetPort::AdatPair2,
         TargetPort::AdatPair3,
+    ];
+}
+
+impl RegisterDspMixerMonauralSourceOperation for F896hdProtocol {
+    const MIXER_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::AesEbu0,
+        TargetPort::AesEbu1,
+        TargetPort::Adat0,
+        TargetPort::Adat1,
+        TargetPort::Adat2,
+        TargetPort::Adat3,
+        TargetPort::Adat4,
+        TargetPort::Adat5,
+        TargetPort::Adat6,
+        TargetPort::Adat7,
     ];
 }
