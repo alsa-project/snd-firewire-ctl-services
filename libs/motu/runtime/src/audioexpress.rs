@@ -23,6 +23,7 @@ pub struct AudioExpress {
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
+    input_ctl: InputCtl,
     output_ctl: OutputCtl,
 }
 
@@ -88,6 +89,19 @@ impl RegisterDspOutputCtlOperation<AudioExpressProtocol> for OutputCtl {
     }
 }
 
+#[derive(Default)]
+struct InputCtl(Audioexpress4preInputState, Vec<ElemId>);
+
+impl Audioexpress4preInputCtlOperation<AudioExpressProtocol> for InputCtl {
+    fn state(&self) -> &Audioexpress4preInputState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Audioexpress4preInputState {
+        &mut self.0
+    }
+}
+
 impl CtlModel<SndMotu> for AudioExpress {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -100,6 +114,8 @@ impl CtlModel<SndMotu> for AudioExpress {
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         self.output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
+        self.input_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -120,6 +136,8 @@ impl CtlModel<SndMotu> for AudioExpress {
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -144,6 +162,8 @@ impl CtlModel<SndMotu> for AudioExpress {
         } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.input_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
