@@ -10,7 +10,7 @@ use glib::Error;
 
 use hinawa::FwReq;
 
-use super::*;
+use super::{register_dsp::*, *};
 
 /// The enumeration to express source of sampling clock.
 pub enum V3ClkSrc {
@@ -378,6 +378,10 @@ impl V3ClkOperation for AudioExpressProtocol {
     const HAS_LCD: bool = false;
 }
 
+impl RegisterDspMixerOutputOperation for AudioExpressProtocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
+}
+
 /// The protocol implementation for 828mk3.
 #[derive(Default)]
 pub struct F828mk3Protocol;
@@ -455,6 +459,10 @@ impl V3ClkOperation for H4preProtocol {
         &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
 
     const HAS_LCD: bool = false;
+}
+
+impl RegisterDspMixerOutputOperation for H4preProtocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[];
 }
 
 /// The protocol implementation for Ultralite mk3.
