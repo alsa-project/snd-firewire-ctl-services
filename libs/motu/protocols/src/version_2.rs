@@ -380,6 +380,8 @@ impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
     ];
 }
 
+impl RegisterDspOutputOperation for F828mk2Protocol {}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
@@ -453,6 +455,8 @@ impl RegisterDspMixerMonauralSourceOperation for F8preProtocol {
         TargetPort::Adat7,
     ];
 }
+
+impl RegisterDspOutputOperation for F8preProtocol {}
 
 /// The protocol implementation for Traveler.
 #[derive(Default)]
@@ -565,6 +569,8 @@ impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
     ];
 }
 
+impl RegisterDspOutputOperation for TravelerProtocol {}
+
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
 pub struct UltraliteProtocol;
@@ -644,6 +650,8 @@ impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
         TargetPort::Spdif1,
     ];
 }
+
+impl RegisterDspOutputOperation for UltraliteProtocol {}
 
 /// The protocol implementation for 896HD.
 #[derive(Default)]
@@ -756,3 +764,5 @@ impl RegisterDspMixerMonauralSourceOperation for F896hdProtocol {
         TargetPort::Adat7,
     ];
 }
+
+impl RegisterDspOutputOperation for F896hdProtocol {}
