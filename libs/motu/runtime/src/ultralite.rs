@@ -9,10 +9,9 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
-use motu_protocols::version_2::*;
+use motu_protocols::{register_dsp::*, version_2::*};
 
-use super::common_ctls::*;
-use super::v2_ctls::*;
+use super::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -22,6 +21,7 @@ pub struct UltraLite{
     clk_ctls: ClkCtl,
     main_assign_ctl: MainAssignCtl,
     phone_assign_ctl: PhoneAssignCtl,
+    mixer_output_ctl: MixerOutputCtl,
     msg_cache: u32,
 }
 
@@ -40,19 +40,33 @@ struct MainAssignCtl(Vec<ElemId>);
 
 impl V2MainAssignCtlOperation<UltraliteProtocol> for MainAssignCtl {}
 
+#[derive(Default)]
+struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
+
+impl RegisterDspMixerOutputCtlOperation<UltraliteProtocol> for MixerOutputCtl {
+    fn state(&self) -> &RegisterDspMixerOutputState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMixerOutputState {
+        &mut self.0
+    }
+}
+
+
 impl UltraLite {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
 
 impl CtlModel<SndMotu> for UltraLite {
-    fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
+    fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.main_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.main_assign_ctl.0.append(&mut elem_id_list))?;
         self.phone_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.phone_assign_ctl.0.append(&mut elem_id_list))?;
+        self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -67,6 +81,8 @@ impl CtlModel<SndMotu> for UltraLite {
         } else if self.main_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -85,6 +101,8 @@ impl CtlModel<SndMotu> for UltraLite {
         } else if self.main_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
