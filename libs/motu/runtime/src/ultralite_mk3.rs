@@ -2,26 +2,28 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::FwReq;
-use hinawa::SndMotu;
+use hinawa::{FwReq, FwRcode, FwResp, FwRespExtManual, FwTcode};
+use hinawa::{SndMotu, SndUnitExt};
 
 use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
-use motu_protocols::version_3::*;
+use motu_protocols::{command_dsp::*, version_3::*};
 
-use super::common_ctls::*;
-use super::v3_ctls::*;
+use super::{common_ctls::*, v3_ctls::*};
+use super::command_dsp_runtime::*;
 
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
 pub struct UltraLiteMk3 {
     req: FwReq,
+    resp: FwResp,
     clk_ctls: ClkCtl,
     port_assign_ctl: PortAssignCtl,
     phone_assign_ctl: PhoneAssignCtl,
+    sequence_number: u8,
     msg_cache: u32,
 }
 
@@ -122,5 +124,64 @@ impl NotifyModel<SndMotu, u32> for UltraLiteMk3 {
         } else {
             Ok(false)
         }
+    }
+}
+
+impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    }
+
+    fn parse_notification(&mut self, _: &mut SndMotu, _: &&[DspCmd]) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndMotu,
+        _: &ElemId,
+        _: &mut ElemValue
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+}
+
+impl<'a> CommandDspModel<'a> for UltraLiteMk3 {
+    fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
+        where
+            F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static
+    {
+        UltraliteMk3Protocol::register_message_destination_address(
+            &mut self.resp,
+            &mut self.req,
+            &mut unit.get_node(),
+            TIMEOUT_MS
+        )?;
+        self.resp.connect_requested2(handler);
+        Ok(())
+    }
+
+    fn begin_messaging(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        UltraliteMk3Protocol::begin_messaging(
+            &mut self.req,
+            &mut unit.get_node(),
+            &mut self.sequence_number,
+            TIMEOUT_MS
+        )
+    }
+
+    fn release_message_handler(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        UltraliteMk3Protocol::cancel_messaging(
+            &mut self.req,
+            &mut unit.get_node(),
+            &mut self.sequence_number,
+            TIMEOUT_MS
+        )?;
+        UltraliteMk3Protocol::release_message_destination_address(
+            &mut self.resp,
+            &mut self.req,
+            &mut unit.get_node(),
+            TIMEOUT_MS
+        )?;
+        Ok(())
     }
 }
