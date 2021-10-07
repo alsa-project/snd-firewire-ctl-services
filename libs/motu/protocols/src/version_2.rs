@@ -10,7 +10,7 @@ use glib::Error;
 
 use hinawa::FwReq;
 
-use super::*;
+use super::{register_dsp::*, *};
 
 /// The enumeration to express source of sampling clock.
 pub enum V2ClkSrc {
@@ -321,6 +321,23 @@ impl V2OptIfaceOperation for F828mk2Protocol {
     ];
 }
 
+impl RegisterDspMixerOutputOperation for F828mk2Protocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::MainPair0,
+        TargetPort::SpdifPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
+}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
@@ -348,6 +365,18 @@ impl V2ClkOperation for F8preProtocol {
 impl V2OptIfaceOperation for F8preProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
         &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
+}
+
+impl RegisterDspMixerOutputOperation for F8preProtocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::MainPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
 }
 
 /// The protocol implementation for Traveler.
@@ -402,6 +431,23 @@ impl V2OptIfaceOperation for TravelerProtocol {
     ];
 }
 
+impl RegisterDspMixerOutputOperation for TravelerProtocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::AesEbuPair0,
+        TargetPort::SpdifPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
+}
+
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
 pub struct UltraliteProtocol;
@@ -438,6 +484,19 @@ impl V2MainAssignOperation for UltraliteProtocol {
         (TargetPort::Analog6Pairs, 0x01),
         (TargetPort::Analog8Pairs, 0x02),
         (TargetPort::SpdifPair0, 0x03),
+    ];
+}
+
+impl RegisterDspMixerOutputOperation for UltraliteProtocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::MainPair0,
+        TargetPort::SpdifPair0,
     ];
 }
 
@@ -494,4 +553,21 @@ impl V2ClkOperation for F896hdProtocol {
 impl V2OptIfaceOperation for F896hdProtocol {
     const OPT_IFACE_MODES: &'static [(V2OptIfaceMode, u8)] =
         &[(V2OptIfaceMode::None, 0x00), (V2OptIfaceMode::Adat, 0x01)];
+}
+
+impl RegisterDspMixerOutputOperation for F896hdProtocol {
+    const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::MainPair0,
+        TargetPort::AesEbuPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
 }
