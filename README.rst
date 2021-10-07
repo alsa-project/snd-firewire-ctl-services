@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2021/08/23
+2021/10/07
 Takashi Sakamoto
 
 Introduction
@@ -52,7 +52,7 @@ Runtime dependencies
 ====================
 
 * glib <https://developer.gnome.org/glib/>
-* libhinawa v2.2.0 or later <https://github.com/alsa-project/libhinawa>
+* libhinawa v2.3 or later <https://github.com/alsa-project/libhinawa>
 * alsa-gobject v0.2 or later <https://github.com/alsa-project/alsa-gobject/>
 
 How to build
