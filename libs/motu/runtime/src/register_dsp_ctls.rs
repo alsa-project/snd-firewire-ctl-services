@@ -164,3 +164,102 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
         }
     }
 }
+
+const MIXER_RETURN_SOURCE_NAME: &str = "mixer-return-source";
+const MIXER_RETURN_ENABLE_NAME: &str = "mixer-return-enable";
+
+pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation> {
+    fn state(&self) -> &RegisterDspMixerReturnState;
+    fn state_mut(&mut self) -> &mut RegisterDspMixerReturnState;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        T::read_mixer_return_state(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        if T::RETURN_SOURCES.len() > 0 {
+            let labels: Vec<&str> = T::RETURN_SOURCES.iter()
+                .map(|p| target_port_to_str(p))
+                .collect();
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_SOURCE_NAME, 0);
+            card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+        }
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_ENABLE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_RETURN_SOURCE_NAME => {
+                ElemValueAccessor::<u32>::set_val(elem_value, || {
+                    let pos = T::RETURN_SOURCES
+                        .iter()
+                        .position(|s| self.state().source.eq(s))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                    .map(|_| true)
+            }
+            MIXER_RETURN_ENABLE_NAME => {
+                elem_value.set_bool(&[self.state().enable]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_RETURN_SOURCE_NAME => {
+                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                    let &src = T::RETURN_SOURCES
+                        .iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index for source of mixer return: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })?;
+                    T::write_mixer_return_source(
+                        req,
+                        &mut unit.get_node(),
+                        src,
+                        self.state_mut(),
+                        timeout_ms
+                    )
+                })
+                    .map(|_| true)
+            }
+            MIXER_RETURN_ENABLE_NAME => {
+                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                    T::write_mixer_return_enable(
+                        req,
+                        &mut unit.get_node(),
+                        val,
+                        self.state_mut(),
+                        timeout_ms
+                    )
+                })
+                        .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}

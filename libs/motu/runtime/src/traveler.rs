@@ -23,6 +23,7 @@ pub struct Traveler {
     phone_assign_ctl: PhoneAssignCtl,
     word_clk_ctl: WordClkCtl,
     mixer_output_ctl: MixerOutputCtl,
+    mixer_return_ctl: MixerReturnCtl,
     msg_cache: u32,
 }
 
@@ -59,6 +60,19 @@ impl RegisterDspMixerOutputCtlOperation<TravelerProtocol> for MixerOutputCtl {
     }
 }
 
+#[derive(Default)]
+struct MixerReturnCtl(RegisterDspMixerReturnState, Vec<ElemId>);
+
+impl RegisterDspMixerReturnCtlOperation<TravelerProtocol> for MixerReturnCtl {
+    fn state(&self) -> &RegisterDspMixerReturnState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMixerReturnState {
+        &mut self.0
+    }
+}
+
 impl Traveler {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
     //const NOTIFY_FORMAT_CHANGE: u32 = 0x08000000; // The format for payload of isochronous packet is changed.
@@ -74,6 +88,8 @@ impl CtlModel<SndMotu> for Traveler {
             .map(|mut elem_id_list| self.word_clk_ctl.0.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
+        self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -92,6 +108,8 @@ impl CtlModel<SndMotu> for Traveler {
         } else if self.word_clk_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -114,6 +132,8 @@ impl CtlModel<SndMotu> for Traveler {
         } else if self.word_clk_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
