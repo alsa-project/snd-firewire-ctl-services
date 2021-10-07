@@ -27,6 +27,7 @@ pub struct F828mk3 {
     word_clk_ctl: WordClkCtl,
     sequence_number: u8,
     reverb_ctl: ReverbCtl,
+    monitor_ctl: MonitorCtl,
     msg_cache: u32,
 }
 
@@ -68,6 +69,19 @@ impl CommandDspReverbCtlOperation<F828mk3Protocol> for ReverbCtl {
     }
 }
 
+#[derive(Default)]
+struct MonitorCtl(CommandDspMonitorState, Vec<ElemId>);
+
+impl CommandDspMonitorCtlOperation<F828mk3Protocol> for MonitorCtl {
+    fn state(&self) -> &CommandDspMonitorState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut CommandDspMonitorState {
+        &mut self.0
+    }
+}
+
 impl F828mk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
@@ -88,6 +102,8 @@ impl CtlModel<SndMotu> for F828mk3 {
             .map(|mut elem_id_list| self.word_clk_ctl.0.append(&mut elem_id_list))?;
         self.reverb_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.reverb_ctl.1.append(&mut elem_id_list))?;
+        self.monitor_ctl.load(card_cntr)
+            .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -108,6 +124,8 @@ impl CtlModel<SndMotu> for F828mk3 {
         } else if self.word_clk_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.reverb_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -132,6 +150,15 @@ impl CtlModel<SndMotu> for F828mk3 {
         } else if self.word_clk_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.reverb_ctl.write(
+            &mut self.sequence_number,
+            unit,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.monitor_ctl.write(
             &mut self.sequence_number,
             unit,
             &mut self.req,
@@ -183,10 +210,12 @@ impl NotifyModel<SndMotu, u32> for F828mk3 {
 impl NotifyModel<SndMotu, &[DspCmd]> for F828mk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.1);
+        elem_id_list.extend_from_slice(&self.monitor_ctl.1);
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, cmds: &&[DspCmd]) -> Result<(), Error> {
         self.reverb_ctl.parse_commands(*cmds);
+        self.monitor_ctl.parse_commands(*cmds);
         Ok(())
     }
 
@@ -197,6 +226,8 @@ impl NotifyModel<SndMotu, &[DspCmd]> for F828mk3 {
         elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
         if self.reverb_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.monitor_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
