@@ -1615,6 +1615,80 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
     }
 }
 
+/// The structure for state of monitor function.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct CommandDspMonitorState {
+    /// The volume adjusted by main (master) knob. -inf (mute), -80.0 dB to 0.0 dB.
+    pub main_volume: i32,
+    pub assign_target: TargetPort,
+}
+
+fn create_monitor_commands(
+    state: &CommandDspMonitorState,
+    target_ports: &[TargetPort]
+) -> Vec<DspCmd> {
+    let pos = target_ports.iter().position(|p| state.assign_target.eq(p)).unwrap_or_default();
+
+    vec![
+        DspCmd::Monitor(MonitorCmd::Volume(state.main_volume)),
+        DspCmd::Monitor(MonitorCmd::ReturnAssign(pos)),
+    ]
+}
+
+fn parse_monitor_command(
+    state: &mut CommandDspMonitorState,
+    cmd: &MonitorCmd,
+    target_ports: &[TargetPort]
+) {
+    match cmd {
+        MonitorCmd::Volume(val) => state.main_volume = *val,
+        MonitorCmd::ReturnAssign(val) => {
+            state.assign_target = target_ports
+                .iter()
+                .nth(*val as usize)
+                .map(|&p| p)
+                .unwrap_or_default();
+        },
+        _ => (),
+    }
+}
+
+/// The trait for operation of monitor.
+pub trait CommandDspMonitorOperation : CommandDspOperation {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort];
+
+    const VOLUME_MIN: i32 = 0x00000000u32 as i32;
+    const VOLUME_MAX: i32 = 0x3f800000u32 as i32;
+    const VOLUME_STEP: i32 = 0x01;
+
+    fn parse_monitor_commands(
+        state: &mut CommandDspMonitorState,
+        cmds: &[DspCmd],
+    ) {
+        cmds
+            .iter()
+            .for_each(|cmd| {
+                if let DspCmd::Monitor(c) = cmd {
+                    parse_monitor_command(state, c, Self::RETURN_ASSIGN_TARGETS);
+                }
+            });
+    }
+
+    fn write_monitor_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        state: CommandDspMonitorState,
+        old: &mut CommandDspMonitorState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut new_cmds = create_monitor_commands(&state, Self::RETURN_ASSIGN_TARGETS);
+        let old_cmds = create_monitor_commands(old, Self::RETURN_ASSIGN_TARGETS);
+        new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
+        Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
