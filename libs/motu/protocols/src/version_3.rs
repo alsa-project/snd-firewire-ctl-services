@@ -394,50 +394,171 @@ impl Audioexpress4preInputOperation for AudioExpressProtocol {
     const MIC_COUNT: usize = 2;
 }
 
-/// The protocol implementation for 828mk3.
+/// The protocol implementation for 828mk3 (FireWire only).
 #[derive(Default)]
 pub struct F828mk3Protocol;
 
+const F828MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
+    (TargetPort::MainPair0, 0x00), // = Stream-11/12
+    (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
+    (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
+    (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
+    (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
+    (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
+    (TargetPort::PhonePair0, 0x06), // = Stream-1/2
+    (TargetPort::OpticalAPair0, 0x07), // = Stream-15/16
+    (TargetPort::OpticalAPair1, 0x08), // = Stream-17/18
+    (TargetPort::OpticalAPair2, 0x09), // = Stream-19/20
+    (TargetPort::OpticalAPair3, 0x0a), // = Stream-21/22
+    (TargetPort::OpticalBPair0, 0x0b), // = Stream-23/24
+    (TargetPort::OpticalBPair1, 0x0c), // = Stream-25/26
+    (TargetPort::OpticalBPair2, 0x0d), // = Stream-27/28
+    (TargetPort::OpticalBPair3, 0x0e), // = Stream-29/30
+];
+
+const F828MK3_CLK_RATES: &[(ClkRate, u8)] = &[
+    (ClkRate::R44100, 0x00),
+    (ClkRate::R48000, 0x01),
+    (ClkRate::R88200, 0x02),
+    (ClkRate::R96000, 0x03),
+    (ClkRate::R176400, 0x04),
+    (ClkRate::R192000, 0x05),
+];
+
+const F828MK3_CLK_SRCS: &[(V3ClkSrc, u8)] = &[
+    (V3ClkSrc::Internal, 0x00),
+    (V3ClkSrc::WordClk, 0x01),
+    (V3ClkSrc::SpdifCoax, 0x10),
+    (V3ClkSrc::SignalOptA, 0x18),
+    (V3ClkSrc::SignalOptB, 0x19),
+];
+
+const F828MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
+    TargetPort::MainPair0,
+    TargetPort::AnalogPair0,
+    TargetPort::AnalogPair1,
+    TargetPort::AnalogPair2,
+    TargetPort::AnalogPair3,
+    TargetPort::SpdifPair0,
+    TargetPort::PhonePair0,
+    TargetPort::OpticalAPair0,
+    TargetPort::OpticalAPair1,
+    TargetPort::OpticalAPair2,
+    TargetPort::OpticalAPair3,
+    TargetPort::OpticalBPair0,
+    TargetPort::OpticalBPair1,
+    TargetPort::OpticalBPair2,
+    TargetPort::OpticalBPair3,
+];
+
+const F828MK3_MIXER_SOURCE_PORTS: &[TargetPort] = &[
+    TargetPort::Mic0,
+    TargetPort::Mic1,
+    TargetPort::Analog0,
+    TargetPort::Analog1,
+    TargetPort::Analog2,
+    TargetPort::Analog3,
+    TargetPort::Analog4,
+    TargetPort::Analog5,
+    TargetPort::Analog6,
+    TargetPort::Analog7,
+    TargetPort::Spdif0,
+    TargetPort::Spdif1,
+    TargetPort::OpticalA0,
+    TargetPort::OpticalA1,
+    TargetPort::OpticalA2,
+    TargetPort::OpticalA3,
+    TargetPort::OpticalA4,
+    TargetPort::OpticalA5,
+    TargetPort::OpticalA6,
+    TargetPort::OpticalA7,
+    TargetPort::OpticalB0,
+    TargetPort::OpticalB1,
+    TargetPort::OpticalB2,
+    TargetPort::OpticalB3,
+    TargetPort::OpticalB4,
+    TargetPort::OpticalB5,
+    TargetPort::OpticalB6,
+    TargetPort::OpticalB7,
+];
+
+const F828MK3_MIXER_OUTPUT_PORTS: &[TargetPort] = &[
+    TargetPort::Disabled,
+    TargetPort::MainPair0,
+    TargetPort::AnalogPair0,
+    TargetPort::AnalogPair1,
+    TargetPort::AnalogPair2,
+    TargetPort::AnalogPair3,
+    TargetPort::SpdifPair0,
+    TargetPort::PhonePair0,
+    TargetPort::OpticalAPair0,
+    TargetPort::OpticalAPair1,
+    TargetPort::OpticalAPair2,
+    TargetPort::OpticalAPair3,
+    TargetPort::OpticalBPair0,
+    TargetPort::OpticalBPair1,
+    TargetPort::OpticalBPair2,
+    TargetPort::OpticalBPair3,
+];
+
+const F828MK3_INPUT_PORTS: &[TargetPort] = &[
+    TargetPort::Mic0,
+    TargetPort::Mic1,
+    TargetPort::Analog0,
+    TargetPort::Analog1,
+    TargetPort::Analog2,
+    TargetPort::Analog3,
+    TargetPort::Analog4,
+    TargetPort::Analog5,
+    TargetPort::Analog6,
+    TargetPort::Analog7,
+    TargetPort::Spdif0,
+    TargetPort::Spdif1,
+    TargetPort::OpticalA0,
+    TargetPort::OpticalA1,
+    TargetPort::OpticalA2,
+    TargetPort::OpticalA3,
+    TargetPort::OpticalA4,
+    TargetPort::OpticalA5,
+    TargetPort::OpticalA6,
+    TargetPort::OpticalA7,
+    TargetPort::OpticalB0,
+    TargetPort::OpticalB1,
+    TargetPort::OpticalB2,
+    TargetPort::OpticalB3,
+    TargetPort::OpticalB4,
+    TargetPort::OpticalB5,
+    TargetPort::OpticalB6,
+    TargetPort::OpticalB7,
+];
+
+const F828MK3_OUTPUT_PORTS: &[TargetPort] = &[
+    TargetPort::MainPair0,
+    TargetPort::AnalogPair0,
+    TargetPort::AnalogPair1,
+    TargetPort::AnalogPair2,
+    TargetPort::AnalogPair3,
+    TargetPort::SpdifPair0,
+    TargetPort::PhonePair0,
+    TargetPort::OpticalAPair0,
+    TargetPort::OpticalAPair1,
+    TargetPort::OpticalAPair2,
+    TargetPort::OpticalAPair3,
+    TargetPort::OpticalBPair0,
+    TargetPort::OpticalBPair1,
+    TargetPort::OpticalBPair2,
+    TargetPort::OpticalBPair3,
+];
+
 impl AssignOperation for F828mk3Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::MainPair0, 0x00), // = Stream-11/12
-        (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
-        (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
-        (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
-        (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
-        (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
-        (TargetPort::PhonePair0, 0x06), // = Stream-1/2
-        (TargetPort::OpticalAPair0, 0x07), // = Stream-15/16
-        (TargetPort::OpticalAPair1, 0x08), // = Stream-17/18
-        (TargetPort::OpticalAPair2, 0x09), // = Stream-19/20
-        (TargetPort::OpticalAPair3, 0x0a), // = Stream-21/22
-        (TargetPort::OpticalBPair0, 0x0b), // = Stream-23/24
-        (TargetPort::OpticalBPair1, 0x0c), // = Stream-25/26
-        (TargetPort::OpticalBPair2, 0x0d), // = Stream-27/28
-        (TargetPort::OpticalBPair3, 0x0e), // = Stream-29/30
-    ];
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
 }
 
 impl WordClkOperation for F828mk3Protocol {}
 
 impl V3ClkOperation for F828mk3Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-        (ClkRate::R176400, 0x04),
-        (ClkRate::R192000, 0x05),
-    ];
-
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = &[
-        (V3ClkSrc::Internal, 0x00),
-        (V3ClkSrc::WordClk, 0x01),
-        (V3ClkSrc::SpdifCoax, 0x10),
-        (V3ClkSrc::SignalOptA, 0x18),
-        (V3ClkSrc::SignalOptB, 0x19),
-    ];
-
+    const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = F828MK3_CLK_SRCS;
     const HAS_LCD: bool = true;
 }
 
@@ -450,129 +571,64 @@ impl CommandDspOperation for F828mk3Protocol {}
 impl CommandDspReverbOperation for F828mk3Protocol {}
 
 impl CommandDspMonitorOperation for F828mk3Protocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
-        TargetPort::MainPair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::SpdifPair0,
-        TargetPort::PhonePair0,
-        TargetPort::OpticalAPair0,
-        TargetPort::OpticalAPair1,
-        TargetPort::OpticalAPair2,
-        TargetPort::OpticalAPair3,
-        TargetPort::OpticalBPair0,
-        TargetPort::OpticalBPair1,
-        TargetPort::OpticalBPair2,
-        TargetPort::OpticalBPair3,
-    ];
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
 }
 
 impl CommandDspMixerOperation for F828mk3Protocol {
-    const SOURCE_PORTS: &'static [TargetPort] = &[
-        TargetPort::Mic0,
-        TargetPort::Mic1,
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
-        TargetPort::OpticalA0,
-        TargetPort::OpticalA1,
-        TargetPort::OpticalA2,
-        TargetPort::OpticalA3,
-        TargetPort::OpticalA4,
-        TargetPort::OpticalA5,
-        TargetPort::OpticalA6,
-        TargetPort::OpticalA7,
-        TargetPort::OpticalB0,
-        TargetPort::OpticalB1,
-        TargetPort::OpticalB2,
-        TargetPort::OpticalB3,
-        TargetPort::OpticalB4,
-        TargetPort::OpticalB5,
-        TargetPort::OpticalB6,
-        TargetPort::OpticalB7,
-    ];
-
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::MainPair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::SpdifPair0,
-        TargetPort::PhonePair0,
-        TargetPort::OpticalAPair0,
-        TargetPort::OpticalAPair1,
-        TargetPort::OpticalAPair2,
-        TargetPort::OpticalAPair3,
-        TargetPort::OpticalBPair0,
-        TargetPort::OpticalBPair1,
-        TargetPort::OpticalBPair2,
-        TargetPort::OpticalBPair3,
-    ];
+    const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
+    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
 }
 
 impl CommandDspInputOperation for F828mk3Protocol {
-    const INPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Mic0,
-        TargetPort::Mic1,
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
-        TargetPort::OpticalA0,
-        TargetPort::OpticalA1,
-        TargetPort::OpticalA2,
-        TargetPort::OpticalA3,
-        TargetPort::OpticalA4,
-        TargetPort::OpticalA5,
-        TargetPort::OpticalA6,
-        TargetPort::OpticalA7,
-        TargetPort::OpticalB0,
-        TargetPort::OpticalB1,
-        TargetPort::OpticalB2,
-        TargetPort::OpticalB3,
-        TargetPort::OpticalB4,
-        TargetPort::OpticalB5,
-        TargetPort::OpticalB6,
-        TargetPort::OpticalB7,
-    ];
-    const MIC_COUNT: usize = 2;
+    const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
+    const MIC_COUNT: usize = 0;
 }
 
 impl CommandDspOutputOperation for F828mk3Protocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::MainPair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::SpdifPair0,
-        TargetPort::PhonePair0,
-        TargetPort::OpticalAPair0,
-        TargetPort::OpticalAPair1,
-        TargetPort::OpticalAPair2,
-        TargetPort::OpticalAPair3,
-        TargetPort::OpticalBPair0,
-        TargetPort::OpticalBPair1,
-        TargetPort::OpticalBPair2,
-        TargetPort::OpticalBPair3,
-    ];
+    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
+}
+
+/// The protocol implementation for 828mk3 Hybrid.
+#[derive(Default)]
+pub struct F828mk3HybridProtocol;
+
+impl AssignOperation for F828mk3HybridProtocol {
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
+}
+
+impl WordClkOperation for F828mk3HybridProtocol {}
+
+impl V3ClkOperation for F828mk3HybridProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = F828MK3_CLK_RATES;
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = F828MK3_CLK_SRCS;
+    const HAS_LCD: bool = true;
+}
+
+impl V3PortAssignOperation for F828mk3HybridProtocol {}
+
+impl V3OptIfaceOperation for F828mk3HybridProtocol {}
+
+impl CommandDspOperation for F828mk3HybridProtocol {}
+
+impl CommandDspReverbOperation for F828mk3HybridProtocol {}
+
+impl CommandDspMonitorOperation for F828mk3HybridProtocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = F828MK3_RETURN_ASSIGN_TARGETS;
+}
+
+impl CommandDspMixerOperation for F828mk3HybridProtocol {
+    const SOURCE_PORTS: &'static [TargetPort] = F828MK3_MIXER_SOURCE_PORTS;
+    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_MIXER_OUTPUT_PORTS;
+}
+
+impl CommandDspInputOperation for F828mk3HybridProtocol {
+    const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
+    // The mic functions are not configureble by command. They are just hard-wired.
+    const MIC_COUNT: usize = 2;
+}
+
+impl CommandDspOutputOperation for F828mk3HybridProtocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
 
 /// The protocol implementation for 4pre.
