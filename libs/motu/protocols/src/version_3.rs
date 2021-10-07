@@ -555,6 +555,26 @@ impl CommandDspInputOperation for F828mk3Protocol {
     const MIC_COUNT: usize = 2;
 }
 
+impl CommandDspOutputOperation for F828mk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::MainPair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::SpdifPair0,
+        TargetPort::PhonePair0,
+        TargetPort::OpticalAPair0,
+        TargetPort::OpticalAPair1,
+        TargetPort::OpticalAPair2,
+        TargetPort::OpticalAPair3,
+        TargetPort::OpticalBPair0,
+        TargetPort::OpticalBPair1,
+        TargetPort::OpticalBPair2,
+        TargetPort::OpticalBPair3,
+    ];
+}
+
 /// The protocol implementation for 4pre.
 #[derive(Default)]
 pub struct H4preProtocol;
@@ -688,4 +708,16 @@ impl CommandDspInputOperation for UltraliteMk3Protocol {
     ];
     // The mic functions are not configureble by command. They are just hard-wired.
     const MIC_COUNT: usize = 0;
+}
+
+impl CommandDspOutputOperation for UltraliteMk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::MainPair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::SpdifPair0,
+        TargetPort::PhonePair0,
+    ];
 }

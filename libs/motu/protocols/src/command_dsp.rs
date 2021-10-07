@@ -2289,6 +2289,167 @@ pub trait CommandDspInputOperation : CommandDspOperation {
     }
 }
 
+/// The structure for state of input function.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct CommandDspOutputState {
+    pub equalizer: CommandDspEqualizerState,
+    pub dynamics: CommandDspDynamicsState,
+
+    pub reverb_send: Vec<i32>,
+    pub reverb_return: Vec<i32>,
+
+    pub master_monitor: Vec<bool>,
+    pub master_talkback: Vec<bool>,
+    pub master_listenback: Vec<bool>,
+}
+
+fn create_output_commands(state: &CommandDspOutputState, output_count: usize) -> Vec<DspCmd> {
+    let mut cmds = Vec::new();
+
+    (0..output_count)
+        .for_each(|ch| {
+            create_equalizer_parameters(&state.equalizer, ch)
+                .into_iter()
+                .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Equalizer(ch, param))));
+
+            create_dynamics_parameters(&state.dynamics, ch)
+                .into_iter()
+                .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Dynamics(ch, param))));
+
+            cmds.push(DspCmd::Output(OutputCmd::ReverbSend(ch, state.reverb_send[ch])));
+            cmds.push(DspCmd::Output(OutputCmd::ReverbReturn(ch, state.reverb_return[ch])));
+
+            cmds.push(DspCmd::Output(OutputCmd::MasterMonitor(ch, state.master_monitor[ch])));
+            cmds.push(DspCmd::Output(OutputCmd::MasterTalkback(ch, state.master_talkback[ch])));
+            cmds.push(DspCmd::Output(OutputCmd::MasterListenback(ch, state.master_listenback[ch])));
+        });
+
+    cmds
+}
+
+fn parse_output_command(
+    state: &mut CommandDspOutputState,
+    cmd: &OutputCmd
+) {
+    match cmd {
+        OutputCmd::Equalizer(ch, param) => parse_equalizer_parameter(&mut state.equalizer, param, *ch),
+        OutputCmd::Dynamics(ch, param) => parse_dynamics_parameter(&mut state.dynamics, param, *ch),
+        OutputCmd::ReverbSend(ch, val) => state.reverb_send[*ch] = *val,
+        OutputCmd::ReverbReturn(ch, val) => state.reverb_return[*ch] = *val,
+        OutputCmd::MasterMonitor(ch, val) => state.master_monitor[*ch] = *val,
+        OutputCmd::MasterTalkback(ch, val) => state.master_talkback[*ch] = *val,
+        OutputCmd::MasterListenback(ch, val) => state.master_listenback[*ch] = *val,
+        _ => (),
+    }
+}
+
+/// The trait for operation of input function.
+pub trait CommandDspOutputOperation : CommandDspOperation {
+    const OUTPUT_PORTS: &'static [TargetPort];
+
+    const GAIN_MIN: i32 = 0x00000000u32 as i32;
+    const GAIN_MAX: i32 = 0x3f800000u32 as i32;
+    const GAIN_STEP: i32 = 0x01;
+
+    const VOLUME_MIN: i32 = 0x00000000u32 as i32;
+    const VOLUME_MAX: i32 = 0x3f800000u32 as i32;
+    const VOLUME_STEP: i32 = 0x01;
+
+    fn create_output_state() -> CommandDspOutputState {
+        CommandDspOutputState {
+            equalizer: CommandDspEqualizerState {
+                enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                hpf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hpf_slope: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hpf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                lpf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lpf_slope: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lpf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                lf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                lmf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lmf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lmf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lmf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                lmf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                mf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                mf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                mf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                mf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                mf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                hmf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hmf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hmf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hmf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hmf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                hf_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hf_type: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hf_freq: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hf_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                hf_width: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            },
+            dynamics: CommandDspDynamicsState {
+                enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                comp_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_detect_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_threshold: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_ratio: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_attack: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_release: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_trim: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+
+                leveler_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                leveler_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                leveler_makeup: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                leveler_reduce: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            },
+            reverb_send: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            reverb_return: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            master_monitor: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            master_talkback: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+            master_listenback: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+        }
+    }
+
+    fn parse_output_commands(
+        state: &mut CommandDspOutputState,
+        cmds: &[DspCmd]
+    ) {
+        cmds
+            .iter()
+            .for_each(|cmd| {
+                if let DspCmd::Output(c) = cmd {
+                    parse_output_command(state, c);
+                }
+            });
+    }
+
+    fn write_output_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        state: CommandDspOutputState,
+        old: &mut CommandDspOutputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut new_cmds = create_output_commands(&state, Self::OUTPUT_PORTS.len());
+        let old_cmds = create_output_commands(old, Self::OUTPUT_PORTS.len());
+        new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
+        Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
