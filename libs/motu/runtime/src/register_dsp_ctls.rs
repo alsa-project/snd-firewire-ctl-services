@@ -13,7 +13,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
-use motu_protocols::register_dsp::*;
+use motu_protocols::{register_dsp::*, *};
 
 use super::model::*;
 
@@ -672,6 +672,117 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
                     req,
                     &mut unit.get_node(),
                     vals[0] as u8,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const INPUT_NOMINAL_LEVEL_NAME: &str = "input-nominal-level";
+const INPUT_BOOST_NAME: &str = "input-boost";
+
+pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperation> {
+    fn state(&self) -> &Traveler828mk2LineInputState;
+    fn state_mut(&mut self) -> &mut Traveler828mk2LineInputState;
+
+    const NOMINAL_LEVELS: [NominalSignalLevel; 2] = [
+        NominalSignalLevel::Consumer,
+        NominalSignalLevel::Professional,
+    ];
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut state = T::create_line_input_state();
+        T::read_line_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        *self.state_mut() = state;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        let labels: Vec<&str> = Self::NOMINAL_LEVELS
+            .iter()
+            .map(|l| nominal_signal_level_to_str(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_NOMINAL_LEVEL_NAME, 0);
+        card_cntr.add_enum_elems( &elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_BOOST_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, T::LINE_INPUT_COUNT, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_NOMINAL_LEVEL_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::LINE_INPUT_COUNT, |idx| {
+                    let pos = Self::NOMINAL_LEVELS
+                        .iter()
+                        .position(|l| self.state().level[idx].eq(l))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                    .map(|_| true)
+            }
+            INPUT_BOOST_NAME => {
+                elem_value.set_bool(&self.state().boost);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_NOMINAL_LEVEL_NAME => {
+                let mut vals = vec![0; T::LINE_INPUT_COUNT];
+                elem_value.get_enum(&mut vals);
+                let mut level = Vec::new();
+                vals
+                    .iter()
+                    .try_for_each(|&val| {
+                        Self::NOMINAL_LEVELS
+                            .iter()
+                            .nth(val as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of nominal signal level: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| level.push(l))
+                    })?;
+                T::write_line_input_level(
+                    req,
+                    &mut unit.get_node(),
+                    &level,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            INPUT_BOOST_NAME => {
+                let mut vals = vec![false; T::LINE_INPUT_COUNT];
+                elem_value.get_bool(&mut vals);
+                T::write_line_input_boost(
+                    req,
+                    &mut unit.get_node(),
+                    &vals,
                     self.state_mut(),
                     timeout_ms
                 )

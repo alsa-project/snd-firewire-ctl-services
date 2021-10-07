@@ -191,3 +191,10 @@ pub fn target_port_to_str(port: &TargetPort) -> &'static str {
         TargetPort::Adat7 => "ADAT-8",
     }
 }
+
+pub fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
+    match level {
+        NominalSignalLevel::Consumer => "-10dBu",
+        NominalSignalLevel::Professional => "+4dBV",
+    }
+}
