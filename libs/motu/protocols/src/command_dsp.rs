@@ -1358,6 +1358,137 @@ pub trait CommandDspOperation {
     }
 }
 
+/// The structure for state of message parser.
+#[derive(Debug)]
+pub struct CommandDspMessageHandler {
+    state: ParserState,
+    cache: Vec<u8>,
+    seq_num: u8,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum ParserState {
+    Initialized,
+    Prepared,
+    InTruncatedMessage,
+}
+
+impl Default for CommandDspMessageHandler {
+    fn default() -> Self {
+        Self {
+            state: ParserState::Initialized,
+            cache: Vec::with_capacity(MAXIMUM_DSP_FRAME_SIZE + 6),
+            seq_num: 0,
+        }
+    }
+}
+
+fn remove_padding(cache: &mut Vec<u8>) {
+    let mut buf = &cache[..];
+    let mut count = 0;
+
+    while buf.len() > 4 {
+        let length = match buf[0] {
+            CMD_RESOURCE => CMD_RESOURCE_LENGTH,
+            CMD_QUADLET_MULTIPLE => 6 + 4 * buf[1] as usize,
+            CMD_BYTE_MULTIPLE => 6 + buf[1] as usize,
+            CMD_DRAIN => 1,
+            CMD_END => 0,
+            CMD_QUADLET_SINGLE => CMD_QUADLET_SINGLE_LENGTH,
+            CMD_BYTE_SINGLE => CMD_BYTE_SINGLE_LENGTH,
+            _ => 0,
+        };
+        if length == 0 {
+            break;
+        }
+
+        count += length;
+        buf = &buf[length..];
+    }
+
+    let _ = cache.drain(count..);
+}
+
+fn increment_seq_num(seq_num: u8) -> u8 {
+    if seq_num == u8::MAX {
+        0
+    } else {
+        seq_num + 1
+    }
+}
+
+impl CommandDspMessageHandler {
+    // MEMO: After initiating messaging function by sending command with 0x02 in its first byte, the
+    // target device start transferring messages immediately. There are two types of messages:
+    //
+    // Type 1: active sensing message
+    // Type 2: commands
+    //
+    // In both, the fransaction frame has two bytes prefixes which consists of:
+    //
+    // 0: 0x00/0x01/0x02. Unknown purpose.
+    // 1: sequence number, incremented within 1 byte.
+    //
+    // When message is split to several transactions due to maximum length of frame (248 bytes),
+    // Type 1 message is not delivered between subsequent transactions.
+    //
+    pub fn cache_dsp_messages(&mut self, frame: &[u8]) {
+        let seq_num = frame[1];
+
+        if self.state == ParserState::Initialized {
+            self.seq_num = seq_num;
+            self.state = ParserState::Prepared;
+        }
+
+        if self.seq_num == seq_num {
+            self.seq_num = increment_seq_num(seq_num);
+
+            if self.state == ParserState::Prepared {
+                // Check the type of first command in the message.
+                if frame.len() > 4 && frame[2] != 0x00 {
+                    self.cache.extend_from_slice(&frame[2..]);
+
+                    if frame.len() == MAXIMUM_DSP_FRAME_SIZE {
+                        self.state = ParserState::InTruncatedMessage;
+                    } else {
+                        remove_padding(&mut self.cache);
+                    }
+                }
+            } else if self.state == ParserState::InTruncatedMessage {
+                self.cache.extend_from_slice(&frame[2..]);
+
+                if frame.len() < MAXIMUM_DSP_FRAME_SIZE {
+                    remove_padding(&mut self.cache);
+                    self.state = ParserState::Prepared;
+                }
+            }
+        } else {
+            self.cache.clear();
+            self.state = ParserState::Prepared;
+        }
+    }
+
+
+    pub fn has_dsp_message(&self) -> bool {
+        self.cache.len() > 0 && (self.state == ParserState::Prepared)
+    }
+
+    pub fn decode_messages(&mut self) -> Vec<DspCmd> {
+        let mut cmds = Vec::new();
+
+        while self.cache.len() > 0 {
+            let consumed = DspCmd::parse(&self.cache, &mut cmds);
+            if consumed == 0 {
+                break;
+            }
+
+            let _ = self.cache.drain(..consumed);
+        }
+
+        cmds
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1535,5 +1666,39 @@ mod test {
         let mut c = Vec::new();
         assert_eq!(DspCmd::parse(&raw, &mut c), CMD_RESOURCE_LENGTH);
         assert_eq!(c[0], cmd);
+    }
+
+    #[test]
+    fn message_decode_test() {
+        let raw = [
+            0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f,
+            0x69, 0x00, 0x00, 0x01, 0x00, 0x00,
+            0x69, 0x00, 0x00, 0x02, 0x00, 0x00,
+            0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01,
+            0x62,
+            0x46, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f,
+            0x49, 0x07, 0x00, 0x02, 0x0c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x46, 0x02, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x65,
+            0x46, 0x00, 0xa0, 0x8c, 0x46, 0x00, 0xa0, 0x8c,
+        ];
+        let mut handler = CommandDspMessageHandler::default();
+        handler.cache.extend_from_slice(&raw);
+        let cmds = handler.decode_messages();
+        assert_eq!(cmds[0], DspCmd::Monitor(MonitorCmd::Volume(0x3f800000)));
+        assert_eq!(cmds[1], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x01, 0x00, 0x00], vec![0x00])));
+        assert_eq!(cmds[2], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x02, 0x00, 0x00], vec![0x00])));
+        assert_eq!(cmds[3], DspCmd::Reserved(vec![0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01]));
+        assert_eq!(cmds[4], DspCmd::Monitor(MonitorCmd::Volume(0x3f800000)));
+        assert_eq!(cmds[5], DspCmd::Output(OutputCmd::MasterListenback(0, false)));
+        assert_eq!(cmds[6], DspCmd::Output(OutputCmd::MasterListenback(1, false)));
+        assert_eq!(cmds[7], DspCmd::Output(OutputCmd::MasterListenback(2, false)));
+        assert_eq!(cmds[8], DspCmd::Output(OutputCmd::MasterListenback(3, false)));
+        assert_eq!(cmds[9], DspCmd::Output(OutputCmd::MasterListenback(4, false)));
+        assert_eq!(cmds[10], DspCmd::Output(OutputCmd::MasterListenback(5, false)));
+        assert_eq!(cmds[11], DspCmd::Output(OutputCmd::MasterListenback(6, false)));
+        assert_eq!(cmds[12], DspCmd::Input(InputCmd::Width(0, 0x00000000)));
+        assert_eq!(cmds[13], DspCmd::Input(InputCmd::Width(1, 0x00000000)));
+        assert_eq!(cmds.len(), 14);
     }
 }
