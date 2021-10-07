@@ -11,9 +11,11 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 //use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
-//use core::elem_value_accessor::*;
+use core::elem_value_accessor::*;
 
 use motu_protocols::command_dsp::*;
+
+use crate::*;
 
 const REVERB_ENABLE: &str = "reverb-enable";
 const REVERB_SPLIT_POINT_NAME: &str = "reverb-split-point";
@@ -493,5 +495,418 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
 
     fn parse_commands(&mut self, cmds: &[DspCmd]) {
         T::parse_monitor_commands(self.state_mut(), cmds);
+    }
+}
+
+fn mixer_source_stereo_pair_mode_to_str(mode: &SourceStereoPairMode) -> &'static str {
+    match mode {
+        SourceStereoPairMode::Width => "width",
+        SourceStereoPairMode::LrBalance => "left-right-balance",
+        SourceStereoPairMode::Reserved(_) => "reserved",
+    }
+}
+
+const MIXER_OUTPUT_DESTINATION_NAME: &str = "mixer-output-destination";
+const MIXER_OUTPUT_MUTE_NAME: &str = "mixer-output-mute";
+const MIXER_OUTPUT_VOLUME_NAME: &str = "mixer-output-volume";
+const MIXER_REVERB_SEND_NAME: &str = "mixer-reverb-send";
+const MIXER_REVERB_RETURN_NAME: &str = "mixer-reverb-return";
+
+const MIXER_SOURCE_MUTE_NAME: &str = "mixer-soruce-mute";
+const MIXER_SOURCE_SOLO_NAME: &str = "mixer-source-solo";
+const MIXER_SOURCE_GAIN_NAME: &str = "mixer-source-gain";
+const MIXER_SOURCE_PAN_NAME: &str = "mixer-source-pan";
+const MIXER_SOURCE_STEREO_PAIR_MODE_NAME: &str = "mixer-source-stereo-mode";
+const MIXER_SOURCE_STEREO_BALANCE_NAME: &str = "mixer-source-stereo-balance";
+const MIXER_SOURCE_STEREO_WIDTH_NAME: &str = "mixer-source-stereo-width";
+
+pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
+    fn state(&self) -> &CommandDspMixerState;
+    fn state_mut(&mut self) -> &mut CommandDspMixerState;
+
+    const SOURCE_STEREO_PAIR_MODES: [SourceStereoPairMode; 2] = [
+        SourceStereoPairMode::Width,
+        SourceStereoPairMode::LrBalance,
+    ];
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+    ) -> Result<Vec<ElemId>, Error> {
+        let state = T::create_mixer_state();
+        *self.state_mut() = state;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        let labels: Vec<&str> = T::OUTPUT_PORTS
+            .iter()
+            .map(|p| target_port_to_str(p))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DESTINATION_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, T::MIXER_COUNT, &labels, None, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, T::MIXER_COUNT, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_VOLUME_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::OUTPUT_VOLUME_MIN,
+            T::OUTPUT_VOLUME_MAX,
+            T::OUTPUT_VOLUME_STEP,
+            T::MIXER_COUNT,
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_REVERB_SEND_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::OUTPUT_VOLUME_MIN,
+            T::OUTPUT_VOLUME_MAX,
+            T::OUTPUT_VOLUME_STEP,
+            T::MIXER_COUNT,
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_REVERB_RETURN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::OUTPUT_VOLUME_MIN,
+            T::OUTPUT_VOLUME_MAX,
+            T::OUTPUT_VOLUME_STEP,
+            T::MIXER_COUNT,
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::SOURCE_PORTS.len(), true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_SOLO_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::SOURCE_PORTS.len(), true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_GAIN_MIN,
+            T::SOURCE_GAIN_MAX,
+            T::SOURCE_GAIN_STEP,
+            T::SOURCE_PORTS.len(),
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_PAN_MIN,
+            T::SOURCE_PAN_MAX,
+            T::SOURCE_PAN_STEP,
+            T::SOURCE_PORTS.len(),
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let labels: Vec<&str> = Self::SOURCE_STEREO_PAIR_MODES
+            .iter()
+            .map(|p| mixer_source_stereo_pair_mode_to_str(p))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_STEREO_PAIR_MODE_NAME, 0);
+        card_cntr.add_enum_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_PORTS.len(),
+            &labels,
+            None,
+            true
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_STEREO_BALANCE_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_PAN_MIN,
+            T::SOURCE_PAN_MAX,
+            T::SOURCE_PAN_STEP,
+            T::SOURCE_PORTS.len(),
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_STEREO_WIDTH_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_PAN_MIN,
+            T::SOURCE_PAN_MAX,
+            T::SOURCE_PAN_STEP,
+            T::SOURCE_PORTS.len(),
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_OUTPUT_DESTINATION_NAME => {
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::MIXER_COUNT, |idx| {
+                    let pos = T::OUTPUT_PORTS
+                        .iter()
+                        .position(|p| self.state().output_assign[idx].eq(p))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                    .map(|_| true)
+            }
+            MIXER_OUTPUT_MUTE_NAME => {
+                elem_value.set_bool(&self.state().output_mute);
+                Ok(true)
+            }
+            MIXER_OUTPUT_VOLUME_NAME => {
+                elem_value.set_int(&self.state().output_volume);
+                Ok(true)
+            }
+            MIXER_REVERB_SEND_NAME => {
+                elem_value.set_int(&self.state().reverb_send);
+                Ok(true)
+            }
+            MIXER_REVERB_RETURN_NAME => {
+                elem_value.set_int(&self.state().reverb_return);
+                Ok(true)
+            }
+            MIXER_SOURCE_MUTE_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.state().source[mixer].mute);
+                Ok(true)
+            }
+            MIXER_SOURCE_SOLO_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.state().source[mixer].solo);
+                Ok(true)
+            }
+            MIXER_SOURCE_PAN_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state().source[mixer].pan);
+                Ok(true)
+            }
+            MIXER_SOURCE_GAIN_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state().source[mixer].gain);
+                Ok(true)
+            }
+            MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::SOURCE_PORTS.len(), |idx| {
+                    let pos = Self::SOURCE_STEREO_PAIR_MODES
+                        .iter()
+                        .position(|m| self.state().source[mixer].stereo_mode[idx].eq(m))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                    .map(|_| true)
+            }
+            MIXER_SOURCE_STEREO_BALANCE_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state().source[mixer].stereo_balance);
+                Ok(true)
+            }
+            MIXER_SOURCE_STEREO_WIDTH_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_int(&self.state().source[mixer].stereo_width);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_OUTPUT_DESTINATION_NAME => {
+                let mut vals = vec![0; T::MIXER_COUNT];
+                elem_value.get_enum(&mut vals);
+                let mut dsts = Vec::new();
+                vals
+                    .iter()
+                    .try_for_each(|&val| {
+                        T::OUTPUT_PORTS
+                            .iter()
+                            .nth(val as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of output destinations: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&p| dsts.push(p))
+                    })?;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.output_assign.copy_from_slice(&dsts);
+                    Ok(())
+                })
+            }
+            MIXER_OUTPUT_MUTE_NAME => {
+                let mut vals = vec![false; T::MIXER_COUNT];
+                elem_value.get_bool(&mut vals);
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.output_mute.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_OUTPUT_VOLUME_NAME => {
+                let mut vals = vec![0; T::MIXER_COUNT];
+                elem_value.get_int(&mut vals);
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.output_volume.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_REVERB_SEND_NAME => {
+                let mut vals = vec![0; T::MIXER_COUNT];
+                elem_value.get_int(&mut vals);
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.reverb_send.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_REVERB_RETURN_NAME => {
+                let mut vals = vec![0; T::MIXER_COUNT];
+                elem_value.get_int(&mut vals);
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.reverb_return.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_MUTE_NAME => {
+                let mut vals = vec![false; T::SOURCE_PORTS.len()];
+                elem_value.get_bool(&mut vals);
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].mute.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_SOLO_NAME => {
+                let mut vals = vec![false; T::SOURCE_PORTS.len()];
+                elem_value.get_bool(&mut vals);
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].solo.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_PAN_NAME => {
+                let mut vals = vec![0; T::SOURCE_PORTS.len()];
+                elem_value.get_int(&mut vals);
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].pan.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_GAIN_NAME => {
+                let mut vals = vec![0; T::SOURCE_PORTS.len()];
+                elem_value.get_int(&mut vals);
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].gain.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
+                let mut vals = vec![0; T::SOURCE_PORTS.len()];
+                elem_value.get_enum(&mut vals);
+                let mut stereo_modes = Vec::new();
+                vals
+                    .iter()
+                    .try_for_each(|&val| {
+                        Self::SOURCE_STEREO_PAIR_MODES
+                            .iter()
+                            .nth(val as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index of stereo pair modes: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&mode| stereo_modes.push(mode))
+                    })?;
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].stereo_mode.copy_from_slice(&stereo_modes);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_STEREO_BALANCE_NAME => {
+                let mut vals = vec![0; T::SOURCE_PORTS.len()];
+                elem_value.get_int(&mut vals);
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].stereo_balance.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            MIXER_SOURCE_STEREO_WIDTH_NAME=> {
+                let mut vals = vec![0; T::SOURCE_PORTS.len()];
+                elem_value.get_int(&mut vals);
+                let mixer = elem_id.get_index() as usize;
+                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                    state.source[mixer].stereo_width.copy_from_slice(&vals);
+                    Ok(())
+                })
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn parse_commands(&mut self, cmds: &[DspCmd]) {
+        T::parse_mixer_commands(self.state_mut(), cmds);
+    }
+
+    fn write_state<F>(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+        func: F,
+    ) -> Result<bool, Error>
+        where F: Fn(&mut CommandDspMixerState) -> Result<(), Error>,
+    {
+        let mut state = self.state().clone();
+        func(&mut state)?;
+        T::write_mixer_state(
+            req,
+            &mut unit.get_node(),
+            sequence_number,
+            state,
+            self.state_mut(),
+            timeout_ms
+        )
+            .map(|_| true)
     }
 }
