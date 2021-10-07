@@ -598,6 +598,18 @@ pub enum TargetPort {
     Analog7,
     AesEbu0,
     AesEbu1,
+    Mic0,
+    Mic1,
+    Spdif0,
+    Spdif1,
+    Adat0,
+    Adat1,
+    Adat2,
+    Adat3,
+    Adat4,
+    Adat5,
+    Adat6,
+    Adat7,
 }
 
 impl Default for TargetPort {

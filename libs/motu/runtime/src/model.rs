@@ -177,5 +177,17 @@ pub fn target_port_to_str(port: &TargetPort) -> &'static str {
         TargetPort::OpticalBPair1 => "Optical-B-3/4",
         TargetPort::OpticalBPair2 => "Optical-B-5/6",
         TargetPort::OpticalBPair3 => "Optical-B-7/8",
+        TargetPort::Mic0 => "Mic-1",
+        TargetPort::Mic1 => "Mic-2",
+        TargetPort::Spdif0 => "S/PDIF-1",
+        TargetPort::Spdif1 => "S/PDIF-2",
+        TargetPort::Adat0 => "ADAT-1",
+        TargetPort::Adat1 => "ADAT-2",
+        TargetPort::Adat2 => "ADAT-3",
+        TargetPort::Adat3 => "ADAT-4",
+        TargetPort::Adat4 => "ADAT-5",
+        TargetPort::Adat5 => "ADAT-6",
+        TargetPort::Adat6 => "ADAT-7",
+        TargetPort::Adat7 => "ADAT-8",
     }
 }
