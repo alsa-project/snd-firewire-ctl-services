@@ -28,6 +28,7 @@ pub struct UltraLiteMk3 {
     monitor_ctl: MonitorCtl,
     mixer_ctl: MixerCtl,
     input_ctl: InputCtl,
+    output_ctl: OutputCtl,
     msg_cache: u32,
 }
 
@@ -98,6 +99,19 @@ impl CommandDspInputCtlOperation<UltraliteMk3Protocol> for InputCtl {
     }
 }
 
+#[derive(Default)]
+struct OutputCtl(CommandDspOutputState, Vec<ElemId>);
+
+impl CommandDspOutputCtlOperation<UltraliteMk3Protocol> for OutputCtl {
+    fn state(&self) -> &CommandDspOutputState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut CommandDspOutputState {
+        &mut self.0
+    }
+}
+
 impl UltraLiteMk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
@@ -125,6 +139,12 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
         self.input_ctl.load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
+        self.output_ctl.load(card_cntr)
+            .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
+        self.output_ctl.load_equalizer(card_cntr)
+            .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
+        self.output_ctl.load_dynamics(card_cntr)
+            .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -151,6 +171,12 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         } else if self.input_ctl.read_equalizer(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read_dynamics(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read_equalizer(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -224,6 +250,33 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             TIMEOUT_MS
         )? {
             Ok(true)
+        } else if self.output_ctl.write(
+            &mut self.sequence_number,
+            unit,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.output_ctl.write_equalizer(
+            &mut self.sequence_number,
+            unit,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.output_ctl.write_dynamics(
+            &mut self.sequence_number,
+            unit,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -267,6 +320,7 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
         elem_id_list.extend_from_slice(&self.monitor_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_ctl.1);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.1);
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, cmds: &&[DspCmd]) -> Result<(), Error> {
@@ -274,6 +328,7 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
         self.monitor_ctl.parse_commands(*cmds);
         self.mixer_ctl.parse_commands(*cmds);
         self.input_ctl.parse_commands(*cmds);
+        self.output_ctl.parse_commands(*cmds);
         Ok(())
     }
 
@@ -294,6 +349,12 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
         } else if self.input_ctl.read_equalizer(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read_dynamics(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read_equalizer(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
