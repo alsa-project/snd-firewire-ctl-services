@@ -26,6 +26,7 @@ pub struct UltraLiteMk3 {
     sequence_number: u8,
     reverb_ctl: ReverbCtl,
     monitor_ctl: MonitorCtl,
+    mixer_ctl: MixerCtl,
     msg_cache: u32,
 }
 
@@ -70,6 +71,19 @@ impl CommandDspMonitorCtlOperation<UltraliteMk3Protocol> for MonitorCtl {
     }
 }
 
+#[derive(Default)]
+struct MixerCtl(CommandDspMixerState, Vec<ElemId>);
+
+impl CommandDspMixerCtlOperation<UltraliteMk3Protocol> for MixerCtl {
+    fn state(&self) -> &CommandDspMixerState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut CommandDspMixerState {
+        &mut self.0
+    }
+}
+
 impl UltraLiteMk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
@@ -89,6 +103,8 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             .map(|mut elem_id_list| self.reverb_ctl.1.append(&mut elem_id_list))?;
         self.monitor_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
+        self.mixer_ctl.load(card_cntr)
+            .map(|mut elem_id_list| self.mixer_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -107,6 +123,8 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         } else if self.reverb_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -136,6 +154,15 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         )? {
             Ok(true)
         } else if self.monitor_ctl.write(
+            &mut self.sequence_number,
+            unit,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.mixer_ctl.write(
             &mut self.sequence_number,
             unit,
             &mut self.req,
@@ -185,11 +212,13 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.1);
         elem_id_list.extend_from_slice(&self.monitor_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_ctl.1);
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, cmds: &&[DspCmd]) -> Result<(), Error> {
         self.reverb_ctl.parse_commands(*cmds);
         self.monitor_ctl.parse_commands(*cmds);
+        self.mixer_ctl.parse_commands(*cmds);
         Ok(())
     }
 
@@ -202,6 +231,8 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
         if self.reverb_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.monitor_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
