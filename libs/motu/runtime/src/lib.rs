@@ -17,6 +17,7 @@ mod common_ctls;
 mod v1_ctls;
 mod v2_ctls;
 mod v3_ctls;
+mod register_dsp_ctls;
 
 use glib::{Error, FileError};
 use glib::source;
