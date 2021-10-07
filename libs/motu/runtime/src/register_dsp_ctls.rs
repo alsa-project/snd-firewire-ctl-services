@@ -263,3 +263,167 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
         }
     }
 }
+
+const MIXER_SOURCE_GAIN_NAME: &str = "mixer-source-gain";
+const MIXER_SOURCE_PAN_NAME: &str = "mixer-source-pan";
+const MIXER_SOURCE_MUTE_NAME: &str = "mixer-source-mute";
+const MIXER_SOURCE_SOLO_NAME: &str = "mixer-source-solo";
+
+pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonauralSourceOperation> {
+    fn state(&self) -> &RegisterDspMixerMonauralSourceState;
+    fn state_mut(&mut self) -> &mut RegisterDspMixerMonauralSourceState;
+
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -6400,
+        max: 0,
+        linear: true,
+        mute_avail: false,
+    };
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut state = T::create_mixer_monaural_source_state();
+        T::read_mixer_monaural_source_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        *self.state_mut() = state;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_GAIN_MIN as i32,
+            T::SOURCE_GAIN_MAX as i32,
+            T::SOURCE_GAIN_STEP as i32,
+            T::MIXER_SOURCES.len(),
+            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAN_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            T::MIXER_COUNT,
+            T::SOURCE_PAN_MIN as i32,
+            T::SOURCE_PAN_MAX as i32,
+            T::SOURCE_PAN_STEP as i32,
+            T::MIXER_SOURCES.len(),
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_MUTE_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_SOLO_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_SOURCE_GAIN_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                copy_int_to_elem_value(elem_value, &self.state().0[mixer].gain);
+                Ok(true)
+            }
+            MIXER_SOURCE_PAN_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                copy_int_to_elem_value(elem_value, &self.state().0[mixer].pan);
+                Ok(true)
+            }
+            MIXER_SOURCE_MUTE_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.state().0[mixer].mute);
+                Ok(true)
+            }
+            MIXER_SOURCE_SOLO_NAME => {
+                let mixer = elem_id.get_index() as usize;
+                elem_value.set_bool(&self.state().0[mixer].solo);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIXER_SOURCE_GAIN_NAME => {
+                let mut vals = vec![0; T::MIXER_SOURCES.len()];
+                elem_value.get_int(&mut vals);
+                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                let mixer = elem_id.get_index() as usize;
+                T::write_mixer_monaural_source_gain(
+                    req,
+                    &mut unit.get_node(),
+                    mixer,
+                    &gain,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            MIXER_SOURCE_PAN_NAME => {
+                let mut vals = vec![0; T::MIXER_SOURCES.len()];
+                elem_value.get_int(&mut vals);
+                let pan: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                let mixer = elem_id.get_index() as usize;
+                T::write_mixer_monaural_source_pan(
+                    req,
+                    &mut unit.get_node(),
+                    mixer,
+                    &pan,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            MIXER_SOURCE_MUTE_NAME => {
+                let mut mute = vec![false; T::MIXER_SOURCES.len()];
+                elem_value.get_bool(&mut mute);
+                let mixer = elem_id.get_index() as usize;
+                T::write_mixer_monaural_source_mute(
+                    req,
+                    &mut unit.get_node(),
+                    mixer,
+                    &mute,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            MIXER_SOURCE_SOLO_NAME => {
+                let mut solo = vec![false; T::MIXER_SOURCES.len()];
+                elem_value.get_bool(&mut solo);
+                let mixer = elem_id.get_index() as usize;
+                T::write_mixer_monaural_source_solo(
+                    req,
+                    &mut unit.get_node(),
+                    mixer,
+                    &solo,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
