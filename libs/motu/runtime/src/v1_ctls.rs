@@ -12,7 +12,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::version_1::*;
 
-use super::model::*;
+use super::*;
 
 fn clk_src_to_str(src: &V1ClkSrc) -> &'static str {
     match src {

@@ -13,7 +13,7 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use motu_protocols::*;
 
-use super::model::*;
+use super::*;
 
 const PHONE_ASSIGN_NAME: &str = "phone-assign";
 

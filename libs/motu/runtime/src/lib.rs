@@ -33,7 +33,7 @@ use core::dispatcher;
 use core::card_cntr;
 
 use ieee1212_config_rom::*;
-use motu_protocols::config_rom::*;
+use motu_protocols::{config_rom::*, *};
 
 use model::MotuModel;
 
@@ -197,5 +197,73 @@ impl MotuRuntime {
         self.dispatchers.push(dispatcher);
 
         Ok(())
+    }
+}
+
+pub fn clk_rate_to_str(rate: &ClkRate) -> &'static str {
+    match rate {
+        ClkRate::R44100 => "44100",
+        ClkRate::R48000 => "48000",
+        ClkRate::R88200 => "88200",
+        ClkRate::R96000 => "96000",
+        ClkRate::R176400 => "176400",
+        ClkRate::R192000 => "192000",
+    }
+}
+
+pub fn target_port_to_str(port: &TargetPort) -> &'static str {
+    match port {
+        TargetPort::Disabled => "Disabled",
+        TargetPort::AnalogPair0 => "Analog-1/2",
+        TargetPort::AnalogPair1 => "Analog-3/4",
+        TargetPort::AnalogPair2 => "Analog-5/6",
+        TargetPort::AnalogPair3 => "Analog-7/8",
+        TargetPort::AesEbuPair0 => "AES/EBU-1/2",
+        TargetPort::PhonePair0 => "Phone-1/2",
+        TargetPort::MainPair0 => "Main-1/2",
+        TargetPort::SpdifPair0 => "SPDIF-1/2",
+        TargetPort::AdatPair0 => "ADAT-1/2",
+        TargetPort::AdatPair1 => "ADAT-3/4",
+        TargetPort::AdatPair2 => "ADAT-5/6",
+        TargetPort::AdatPair3 => "ADAT-7/8",
+        TargetPort::Analog0 => "Analog-1",
+        TargetPort::Analog1 => "Analog-2",
+        TargetPort::Analog2 => "Analog-3",
+        TargetPort::Analog3 => "Analog-4",
+        TargetPort::Analog4 => "Analog-5",
+        TargetPort::Analog5 => "Analog-6",
+        TargetPort::Analog6 => "Analog-7",
+        TargetPort::Analog7 => "Analog-8",
+        TargetPort::AesEbu0 => "AES/EBU-1",
+        TargetPort::AesEbu1 => "AES/EBU-2",
+        TargetPort::Analog6Pairs => "Analog-1/2/3/4/5/6",
+        TargetPort::Analog8Pairs => "Analog-1/2/3/4/5/6/7/8",
+        TargetPort::OpticalAPair0 => "Optical-A-1/2",
+        TargetPort::OpticalAPair1 => "Optical-A-3/4",
+        TargetPort::OpticalAPair2 => "Optical-A-5/6",
+        TargetPort::OpticalAPair3 => "Optical-A-7/8",
+        TargetPort::OpticalBPair0 => "Optical-B-1/2",
+        TargetPort::OpticalBPair1 => "Optical-B-3/4",
+        TargetPort::OpticalBPair2 => "Optical-B-5/6",
+        TargetPort::OpticalBPair3 => "Optical-B-7/8",
+        TargetPort::Mic0 => "Mic-1",
+        TargetPort::Mic1 => "Mic-2",
+        TargetPort::Spdif0 => "S/PDIF-1",
+        TargetPort::Spdif1 => "S/PDIF-2",
+        TargetPort::Adat0 => "ADAT-1",
+        TargetPort::Adat1 => "ADAT-2",
+        TargetPort::Adat2 => "ADAT-3",
+        TargetPort::Adat3 => "ADAT-4",
+        TargetPort::Adat4 => "ADAT-5",
+        TargetPort::Adat5 => "ADAT-6",
+        TargetPort::Adat6 => "ADAT-7",
+        TargetPort::Adat7 => "ADAT-8",
+    }
+}
+
+pub fn nominal_signal_level_to_str(level: &NominalSignalLevel) -> &'static str {
+    match level {
+        NominalSignalLevel::Consumer => "-10dBu",
+        NominalSignalLevel::Professional => "+4dBV",
     }
 }
