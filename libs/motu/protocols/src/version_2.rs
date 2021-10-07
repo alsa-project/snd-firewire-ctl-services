@@ -338,6 +338,23 @@ impl RegisterDspMixerOutputOperation for F828mk2Protocol {
     ];
 }
 
+impl RegisterDspMixerReturnOperation for F828mk2Protocol {
+    const RETURN_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::MainPair0,
+        TargetPort::SpdifPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
+}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
@@ -369,6 +386,18 @@ impl V2OptIfaceOperation for F8preProtocol {
 
 impl RegisterDspMixerOutputOperation for F8preProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::MainPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
+}
+
+impl RegisterDspMixerReturnOperation for F8preProtocol {
+    const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
         TargetPort::PhonePair0,
         TargetPort::MainPair0,
@@ -448,6 +477,23 @@ impl RegisterDspMixerOutputOperation for TravelerProtocol {
     ];
 }
 
+impl RegisterDspMixerReturnOperation for TravelerProtocol {
+    const RETURN_SOURCES: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::AesEbuPair0,
+        TargetPort::SpdifPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
+}
+
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
 pub struct UltraliteProtocol;
@@ -489,6 +535,19 @@ impl V2MainAssignOperation for UltraliteProtocol {
 
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::MainPair0,
+        TargetPort::SpdifPair0,
+    ];
+}
+
+impl RegisterDspMixerReturnOperation for UltraliteProtocol {
+    const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
         TargetPort::PhonePair0,
         TargetPort::AnalogPair0,
@@ -557,6 +616,23 @@ impl V2OptIfaceOperation for F896hdProtocol {
 
 impl RegisterDspMixerOutputOperation for F896hdProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::PhonePair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::MainPair0,
+        TargetPort::AesEbuPair0,
+        TargetPort::AdatPair0,
+        TargetPort::AdatPair1,
+        TargetPort::AdatPair2,
+        TargetPort::AdatPair3,
+    ];
+}
+
+impl RegisterDspMixerReturnOperation for F896hdProtocol {
+    const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
         TargetPort::PhonePair0,
         TargetPort::AnalogPair0,
