@@ -449,6 +449,26 @@ impl CommandDspOperation for F828mk3Protocol {}
 
 impl CommandDspReverbOperation for F828mk3Protocol {}
 
+impl CommandDspMonitorOperation for F828mk3Protocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
+        TargetPort::MainPair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::SpdifPair0,
+        TargetPort::PhonePair0,
+        TargetPort::OpticalAPair0,
+        TargetPort::OpticalAPair1,
+        TargetPort::OpticalAPair2,
+        TargetPort::OpticalAPair3,
+        TargetPort::OpticalBPair0,
+        TargetPort::OpticalBPair1,
+        TargetPort::OpticalBPair2,
+        TargetPort::OpticalBPair3,
+    ];
+}
+
 /// The protocol implementation for 4pre.
 #[derive(Default)]
 pub struct H4preProtocol;
@@ -528,3 +548,15 @@ impl V3PortAssignOperation for UltraliteMk3Protocol {}
 impl CommandDspOperation for UltraliteMk3Protocol {}
 
 impl CommandDspReverbOperation for UltraliteMk3Protocol {}
+
+impl CommandDspMonitorOperation for UltraliteMk3Protocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
+        TargetPort::MainPair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::SpdifPair0,
+        TargetPort::PhonePair0,
+    ];
+}
