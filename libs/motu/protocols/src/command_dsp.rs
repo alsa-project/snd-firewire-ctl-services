@@ -8,9 +8,13 @@
 
 use glib::Error;
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+use hinawa::{FwNode, FwNodeExt, FwReq, FwReqExtManual, FwResp, FwRespExt, FwTcode};
+
+use crate::*;
 
 const DSP_CMD_OFFSET: u64 = 0xffff00010000;
+const DSP_MSG_DST_HIGH_OFFSET: u32 = 0x0b38;
+const DSP_MSG_DST_LOW_OFFSET: u32 = 0x0b3c;
 
 const MAXIMUM_DSP_FRAME_SIZE: usize = 248;
 
@@ -25,6 +29,9 @@ const CMD_QUADLET_SINGLE: u8 = 0x66;
 const CMD_RESOURCE_LENGTH: usize = 6;
 const CMD_BYTE_SINGLE_LENGTH: usize = 6;
 const CMD_QUADLET_SINGLE_LENGTH: usize = 9;
+
+const MSG_DST_OFFSET_BEGIN: u64 = 0xffffe0000000;
+const MSG_DST_OFFSET_END: u64 = MSG_DST_OFFSET_BEGIN + 0x10000000;
 
 /// The mode of stereo-paired channels.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -1280,6 +1287,74 @@ pub trait CommandDspOperation {
         let mut frame = Vec::new();
         cmds.iter().for_each(|cmd| cmd.build(&mut frame));
         send_message(req, node, 0x02, sequence_number, &mut frame, timeout_ms)
+    }
+
+    fn register_message_destination_address(
+        resp: &mut FwResp,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms:u32
+    ) -> Result<(), Error> {
+        if !resp.get_property_is_reserved() {
+            resp.reserve_within_region(
+                node,
+                MSG_DST_OFFSET_BEGIN,
+                MSG_DST_OFFSET_END,
+                8 + MAXIMUM_DSP_FRAME_SIZE as u32,
+            )?;
+        }
+
+        let local_node_id = node.get_property_local_node_id() as u64;
+        let addr = (local_node_id << 48) | resp.get_property_offset();
+
+        let high = (addr >> 32) as u32;
+        write_quad(req, node, DSP_MSG_DST_HIGH_OFFSET, high, timeout_ms)?;
+
+        let low = (addr & 0xffffffff) as u32;
+        write_quad(req, node, DSP_MSG_DST_LOW_OFFSET, low, timeout_ms)?;
+
+        Ok(())
+    }
+
+    fn begin_messaging(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        timeout_ms:u32
+    ) -> Result<(), Error> {
+        let frame = [0x00, 0x00];
+        send_message(req, node, 0x01, sequence_number, &frame, timeout_ms)?;
+
+        let frame = [0x00, 0x00];
+        send_message(req, node, 0x02, sequence_number, &frame, timeout_ms)?;
+
+        Ok(())
+    }
+
+    fn cancel_messaging(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        timeout_ms:u32
+    ) -> Result<(), Error> {
+        let frame = [0x00, 0x00];
+        send_message(req, node, 0x00, sequence_number, &frame, timeout_ms)
+    }
+
+    fn release_message_destination_address(
+        resp: &mut FwResp,
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms:u32
+    ) -> Result<(), Error> {
+        write_quad(req, node, DSP_MSG_DST_HIGH_OFFSET, 0, timeout_ms)?;
+        write_quad(req, node, DSP_MSG_DST_LOW_OFFSET, 0, timeout_ms)?;
+
+        if resp.get_property_is_reserved() {
+            resp.release();
+        }
+
+        Ok(())
     }
 }
 
