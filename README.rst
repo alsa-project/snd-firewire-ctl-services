@@ -109,11 +109,12 @@ your device, please contact to developer.
   * MOTU 896HD
   * MOTU UltraLite
   * MOTU 8pre
-  * MOTU 828mk3
-  * MOTU UltraLite mk3 (FireWire only)
-  * MOTU UltraLite mk3 (Hybrid)
   * MOTU 4pre
   * MOTU AudioExpress
+  * MOTU 828mk3 (FireWire only)
+  * MOTU 828mk3 (Hybrid)
+  * MOTU UltraLite mk3 (FireWire only)
+  * MOTU UltraLite mk3 (Hybrid)
 
 * snd-oxfw-ctl-service
 
