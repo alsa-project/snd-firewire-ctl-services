@@ -447,6 +447,8 @@ impl V3OptIfaceOperation for F828mk3Protocol {}
 
 impl CommandDspOperation for F828mk3Protocol {}
 
+impl CommandDspReverbOperation for F828mk3Protocol {}
+
 /// The protocol implementation for 4pre.
 #[derive(Default)]
 pub struct H4preProtocol;
@@ -524,3 +526,5 @@ impl V3ClkOperation for UltraliteMk3Protocol {
 impl V3PortAssignOperation for UltraliteMk3Protocol {}
 
 impl CommandDspOperation for UltraliteMk3Protocol {}
+
+impl CommandDspReverbOperation for UltraliteMk3Protocol {}
