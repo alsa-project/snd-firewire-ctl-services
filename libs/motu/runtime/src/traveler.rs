@@ -26,6 +26,7 @@ pub struct Traveler {
     mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
+    line_input_ctl: LineInputCtl,
     msg_cache: u32,
 }
 
@@ -101,6 +102,19 @@ impl RegisterDspOutputCtlOperation<TravelerProtocol> for OutputCtl {
     }
 }
 
+#[derive(Default)]
+struct LineInputCtl(Traveler828mk2LineInputState, Vec<ElemId>);
+
+impl Traveler828mk2LineInputCtlOperation<TravelerProtocol> for LineInputCtl {
+    fn state(&self) -> &Traveler828mk2LineInputState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut Traveler828mk2LineInputState {
+        &mut self.0
+    }
+}
+
 impl Traveler {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
     //const NOTIFY_FORMAT_CHANGE: u32 = 0x08000000; // The format for payload of isochronous packet is changed.
@@ -122,6 +136,8 @@ impl CtlModel<SndMotu> for Traveler {
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         self.output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
+        self.line_input_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.line_input_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -146,6 +162,8 @@ impl CtlModel<SndMotu> for Traveler {
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.line_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -174,6 +192,8 @@ impl CtlModel<SndMotu> for Traveler {
         } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.line_input_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
