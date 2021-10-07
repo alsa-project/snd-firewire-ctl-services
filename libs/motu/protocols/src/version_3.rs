@@ -388,6 +388,8 @@ impl RegisterDspMixerReturnOperation for AudioExpressProtocol {
 
 impl RegisterDspMixerStereoSourceOperation for AudioExpressProtocol {}
 
+impl RegisterDspOutputOperation for AudioExpressProtocol {}
+
 /// The protocol implementation for 828mk3.
 #[derive(Default)]
 pub struct F828mk3Protocol;
@@ -476,6 +478,8 @@ impl RegisterDspMixerReturnOperation for H4preProtocol {
 }
 
 impl RegisterDspMixerStereoSourceOperation for H4preProtocol {}
+
+impl RegisterDspOutputOperation for H4preProtocol {}
 
 /// The protocol implementation for Ultralite mk3.
 #[derive(Default)]

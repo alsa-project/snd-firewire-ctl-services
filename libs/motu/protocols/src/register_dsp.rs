@@ -575,3 +575,59 @@ pub trait RegisterDspMixerStereoSourceOperation {
             })
     }
 }
+
+const MASTER_VOLUME_OFFSET: usize = 0x0c0c;
+const PHONE_VOLUME_OFFSET: usize = 0x0c10;
+
+/// The structure for state of output.
+#[derive(Default)]
+pub struct RegisterDspOutputState {
+    pub master_volume: u8,
+    pub phone_volume: u8,
+}
+
+/// The trait for operation of output.
+pub trait RegisterDspOutputOperation {
+    const VOLUME_MIN: u8 = 0x00;
+    const VOLUME_MAX: u8 = 0x80;
+    const VOLUME_STEP: u8 = 0x01;
+
+    fn read_output_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut RegisterDspOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, MASTER_VOLUME_OFFSET as u32, timeout_ms).map(|val| {
+            state.master_volume = val as u8;
+        })?;
+        read_quad(req, node, PHONE_VOLUME_OFFSET as u32, timeout_ms).map(|val| {
+            state.phone_volume = val as u8;
+        })?;
+        Ok(())
+    }
+
+    fn write_output_master_volume(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        vol: u8,
+        state: &mut RegisterDspOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_quad(req, node, MASTER_VOLUME_OFFSET as u32, vol as u32, timeout_ms).map(|_| {
+            state.master_volume = vol;
+        })
+    }
+
+    fn write_output_phone_volume(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        vol: u8,
+        state: &mut RegisterDspOutputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        write_quad(req, node, PHONE_VOLUME_OFFSET as u32, vol as u32, timeout_ms).map(|_| {
+            state.phone_volume = vol;
+        })
+    }
+}
