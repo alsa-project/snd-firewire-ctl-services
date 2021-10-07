@@ -183,6 +183,22 @@ pub fn target_port_to_str(port: &TargetPort) -> &'static str {
         TargetPort::Adat5 => "ADAT-6",
         TargetPort::Adat6 => "ADAT-7",
         TargetPort::Adat7 => "ADAT-8",
+        TargetPort::OpticalA0 => "Optical-A-0",
+        TargetPort::OpticalA1 => "Optical-A-1",
+        TargetPort::OpticalA2 => "Optical-A-2",
+        TargetPort::OpticalA3 => "Optical-A-3",
+        TargetPort::OpticalA4 => "Optical-A-4",
+        TargetPort::OpticalA5 => "Optical-A-5",
+        TargetPort::OpticalA6 => "Optical-A-6",
+        TargetPort::OpticalA7 => "Optical-A-7",
+        TargetPort::OpticalB0 => "Optical-B-0",
+        TargetPort::OpticalB1 => "Optical-B-1",
+        TargetPort::OpticalB2 => "Optical-B-2",
+        TargetPort::OpticalB3 => "Optical-B-3",
+        TargetPort::OpticalB4 => "Optical-B-4",
+        TargetPort::OpticalB5 => "Optical-B-5",
+        TargetPort::OpticalB6 => "Optical-B-6",
+        TargetPort::OpticalB7 => "Optical-B-7",
     }
 }
 

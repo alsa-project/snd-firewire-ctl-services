@@ -611,6 +611,22 @@ pub enum TargetPort {
     Adat5,
     Adat6,
     Adat7,
+    OpticalA0,
+    OpticalA1,
+    OpticalA2,
+    OpticalA3,
+    OpticalA4,
+    OpticalA5,
+    OpticalA6,
+    OpticalA7,
+    OpticalB0,
+    OpticalB1,
+    OpticalB2,
+    OpticalB3,
+    OpticalB4,
+    OpticalB5,
+    OpticalB6,
+    OpticalB7,
 }
 
 impl Default for TargetPort {

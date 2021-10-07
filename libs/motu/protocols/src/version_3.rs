@@ -469,6 +469,58 @@ impl CommandDspMonitorOperation for F828mk3Protocol {
     ];
 }
 
+impl CommandDspMixerOperation for F828mk3Protocol {
+    const SOURCE_PORTS: &'static [TargetPort] = &[
+        TargetPort::Mic0,
+        TargetPort::Mic1,
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::Spdif0,
+        TargetPort::Spdif1,
+        TargetPort::OpticalA0,
+        TargetPort::OpticalA1,
+        TargetPort::OpticalA2,
+        TargetPort::OpticalA3,
+        TargetPort::OpticalA4,
+        TargetPort::OpticalA5,
+        TargetPort::OpticalA6,
+        TargetPort::OpticalA7,
+        TargetPort::OpticalB0,
+        TargetPort::OpticalB1,
+        TargetPort::OpticalB2,
+        TargetPort::OpticalB3,
+        TargetPort::OpticalB4,
+        TargetPort::OpticalB5,
+        TargetPort::OpticalB6,
+        TargetPort::OpticalB7,
+    ];
+
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::MainPair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::SpdifPair0,
+        TargetPort::PhonePair0,
+        TargetPort::OpticalAPair0,
+        TargetPort::OpticalAPair1,
+        TargetPort::OpticalAPair2,
+        TargetPort::OpticalAPair3,
+        TargetPort::OpticalBPair0,
+        TargetPort::OpticalBPair1,
+        TargetPort::OpticalBPair2,
+        TargetPort::OpticalBPair3,
+    ];
+}
+
 /// The protocol implementation for 4pre.
 #[derive(Default)]
 pub struct H4preProtocol;
@@ -551,6 +603,32 @@ impl CommandDspReverbOperation for UltraliteMk3Protocol {}
 
 impl CommandDspMonitorOperation for UltraliteMk3Protocol {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
+        TargetPort::MainPair0,
+        TargetPort::AnalogPair0,
+        TargetPort::AnalogPair1,
+        TargetPort::AnalogPair2,
+        TargetPort::AnalogPair3,
+        TargetPort::SpdifPair0,
+        TargetPort::PhonePair0,
+    ];
+}
+
+impl CommandDspMixerOperation for UltraliteMk3Protocol {
+    const SOURCE_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Analog4,
+        TargetPort::Analog5,
+        TargetPort::Analog6,
+        TargetPort::Analog7,
+        TargetPort::Spdif0,
+        TargetPort::Spdif1,
+    ];
+
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
         TargetPort::MainPair0,
         TargetPort::AnalogPair0,
         TargetPort::AnalogPair1,
