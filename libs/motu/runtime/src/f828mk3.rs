@@ -31,6 +31,7 @@ pub struct F828mk3 {
     mixer_ctl: MixerCtl,
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
+    resource_ctl: ResourceCtl,
     msg_cache: u32,
 }
 
@@ -124,6 +125,19 @@ impl CommandDspOutputCtlOperation<F828mk3Protocol> for OutputCtl {
     }
 }
 
+#[derive(Default)]
+struct ResourceCtl(u32, Vec<ElemId>);
+
+impl CommandDspResourcebCtlOperation for ResourceCtl {
+    fn state(&self) -> &u32 {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut u32 {
+        &mut self.0
+    }
+}
+
 impl F828mk3 {
     const NOTIFY_OPERATED: u32 = 0x40000000;
     const NOTIFY_COMPLETED: u32 = 0x00000002;
@@ -160,6 +174,8 @@ impl CtlModel<SndMotu> for F828mk3 {
             .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
         self.output_ctl.load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
+        self.resource_ctl.load(card_cntr)
+            .map(|mut elem_id_list| self.resource_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -196,6 +212,8 @@ impl CtlModel<SndMotu> for F828mk3 {
         } else if self.output_ctl.read_equalizer(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.resource_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -347,6 +365,7 @@ impl NotifyModel<SndMotu, &[DspCmd]> for F828mk3 {
         elem_id_list.extend_from_slice(&self.mixer_ctl.1);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
+        elem_id_list.extend_from_slice(&self.resource_ctl.1);
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, cmds: &&[DspCmd]) -> Result<(), Error> {
@@ -355,6 +374,7 @@ impl NotifyModel<SndMotu, &[DspCmd]> for F828mk3 {
         self.mixer_ctl.parse_commands(*cmds);
         self.input_ctl.parse_commands(*cmds);
         self.output_ctl.parse_commands(*cmds);
+        self.resource_ctl.parse_commands(*cmds);
         Ok(())
     }
 
@@ -381,6 +401,8 @@ impl NotifyModel<SndMotu, &[DspCmd]> for F828mk3 {
         } else if self.output_ctl.read_equalizer(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.resource_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
