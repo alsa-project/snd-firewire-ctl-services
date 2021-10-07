@@ -390,6 +390,10 @@ impl RegisterDspMixerStereoSourceOperation for AudioExpressProtocol {}
 
 impl RegisterDspOutputOperation for AudioExpressProtocol {}
 
+impl Audioexpress4preInputOperation for AudioExpressProtocol {
+    const MIC_COUNT: usize = 2;
+}
+
 /// The protocol implementation for 828mk3.
 #[derive(Default)]
 pub struct F828mk3Protocol;
@@ -480,6 +484,10 @@ impl RegisterDspMixerReturnOperation for H4preProtocol {
 impl RegisterDspMixerStereoSourceOperation for H4preProtocol {}
 
 impl RegisterDspOutputOperation for H4preProtocol {}
+
+impl Audioexpress4preInputOperation for H4preProtocol {
+    const MIC_COUNT: usize = 4;
+}
 
 /// The protocol implementation for Ultralite mk3.
 #[derive(Default)]

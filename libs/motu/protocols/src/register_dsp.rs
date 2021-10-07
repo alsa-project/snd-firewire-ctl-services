@@ -745,3 +745,223 @@ pub trait Traveler828mk2LineInputOperation {
         })
     }
 }
+
+/// The structure for state of input in Audio Express and 4 pre.
+#[derive(Default)]
+pub struct Audioexpress4preInputState {
+    pub gain: [u8; 6],
+    pub invert: [bool; 6],
+    pub phantom: Vec<bool>,
+    pub pad: Vec<bool>,
+}
+
+const AE_4PRE_ANALOG_INPUT_OFFSET: usize = 0x0c70;
+const AE_4PRE_SPDIF_INPUT_OFFSET: usize = 0x0c74;
+const   AE_4PRE_INPUT_GAIN_MASK: u8 = 0x3c;
+const   AE_4PRE_INPUT_INVERT_FLAG: u8 = 0x40;
+const   AE_4PRE_INPUT_CHANGE_FLAG: u8 = 0x80;
+const AE_4PRE_MIC_PARAM_OFFSET: usize = 0x0c80;
+const   AE_4PRE_MIC_PARAM_PAD_FLAG: u8 = 0x02;
+const   AE_4PRE_MIC_PARAM_PHANTOM_FLAG: u8 = 0x01;
+const   AE_4PRE_MIC_PARAM_CHANGE_FLAG: u8 = 0x80;
+
+/// The trait for operation of input in Audio Express and 4 pre.
+pub trait Audioexpress4preInputOperation {
+    const INPUT_COUNT: usize = 6;
+    const MIC_COUNT: usize;
+
+    const INPUT_GAIN_MIN: u8 = 0x00;
+    const INPUT_GAIN_MAX: u8 = 0x3c;
+    const INPUT_GAIN_STEP: u8 = 0x01;
+
+    fn create_input_state() -> Audioexpress4preInputState {
+        Audioexpress4preInputState {
+            gain: Default::default(),
+            invert: Default::default(),
+            phantom: vec![false; Self::MIC_COUNT],
+            pad: vec![false; Self::MIC_COUNT],
+        }
+    }
+
+    fn read_input_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut Audioexpress4preInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        read_quad(req, node, AE_4PRE_ANALOG_INPUT_OFFSET as u32, timeout_ms).map(|val| {
+            (0..4)
+                .for_each(|i| {
+                    let v = (val >> (i * 8)) as u8;
+                    state.gain[i] = v & AE_4PRE_INPUT_GAIN_MASK;
+                    state.invert[i] = v & AE_4PRE_INPUT_INVERT_FLAG > 0;
+                });
+        })?;
+
+        read_quad(req, node, AE_4PRE_SPDIF_INPUT_OFFSET as u32, timeout_ms).map(|val| {
+            (0..2)
+                .for_each(|i| {
+                    let v = (val >> (i * 8)) as u8;
+                    state.gain[4 + i] = v & AE_4PRE_INPUT_GAIN_MASK;
+                    state.invert[4 + i] = v & AE_4PRE_INPUT_INVERT_FLAG > 0;
+                });
+        })?;
+
+        read_quad(req, node, AE_4PRE_MIC_PARAM_OFFSET as u32, timeout_ms).map(|val| {
+            (0..Self::MIC_COUNT)
+                .for_each(|i| {
+                    let v = (val >> (i * 8)) as u8;
+                    state.phantom[i] = v & AE_4PRE_MIC_PARAM_PHANTOM_FLAG > 0;
+                    state.pad[i] = v & AE_4PRE_MIC_PARAM_PAD_FLAG > 0;
+                });
+        })?;
+
+        Ok(())
+    }
+
+    fn write_input_gain(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        gain: &[u8],
+        state: &mut Audioexpress4preInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        assert_eq!(gain.len(), Self::INPUT_COUNT);
+
+        let val = gain[..4]
+            .iter()
+            .enumerate()
+            .filter(|&(i, g)| !state.gain[i].eq(g))
+            .fold(0u32, |val, (i, &g)| {
+                let mut v = AE_4PRE_INPUT_CHANGE_FLAG;
+                if state.invert[i] {
+                    v |= AE_4PRE_INPUT_INVERT_FLAG;
+                }
+                v |= g & AE_4PRE_INPUT_GAIN_MASK;
+                val | ((v as u32) << (i * 8))
+            });
+        if val > 0 {
+            write_quad(req, node, AE_4PRE_ANALOG_INPUT_OFFSET as u32, val, timeout_ms)?;
+        }
+
+        let val = gain[4..6]
+            .iter()
+            .enumerate()
+            .filter(|&(i, g)| !state.gain[4 + i].eq(g))
+            .fold(0u32, |val, (i, &g)| {
+                let mut v = AE_4PRE_INPUT_CHANGE_FLAG;
+                if state.invert[4 + i] {
+                    v |= AE_4PRE_INPUT_INVERT_FLAG;
+                }
+                v |= g & AE_4PRE_INPUT_GAIN_MASK;
+                val | ((v as u32) << (i * 8))
+            });
+        if val > 0 {
+            write_quad(req, node, AE_4PRE_SPDIF_INPUT_OFFSET as u32, val, timeout_ms)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_input_invert(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        invert: &[bool],
+        state: &mut Audioexpress4preInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        assert_eq!(invert.len(), Self::INPUT_COUNT);
+
+        let val = invert[..4]
+            .iter()
+            .enumerate()
+            .filter(|&(i, g)| !state.invert[i].eq(g))
+            .fold(0u32, |val, (i, &inv)| {
+                let mut v = AE_4PRE_INPUT_CHANGE_FLAG;
+                if inv {
+                    v |= AE_4PRE_INPUT_INVERT_FLAG;
+                }
+                v |= state.gain[i] & AE_4PRE_INPUT_GAIN_MASK;
+                val | ((v as u32) << (i * 8))
+            });
+        if val > 0 {
+            write_quad(req, node, AE_4PRE_ANALOG_INPUT_OFFSET as u32, val, timeout_ms)?;
+        }
+
+        let val = invert[4..6]
+            .iter()
+            .enumerate()
+            .filter(|&(i, g)| !state.invert[4 + i].eq(g))
+            .fold(0u32, |val, (i, &inv)| {
+                let mut v = AE_4PRE_INPUT_CHANGE_FLAG;
+                if inv {
+                    v |= AE_4PRE_INPUT_INVERT_FLAG;
+                }
+                v |= state.gain[4 + i] & AE_4PRE_INPUT_GAIN_MASK;
+                val | ((v as u32) << (i * 8))
+            });
+        if val > 0 {
+            write_quad(req, node, AE_4PRE_SPDIF_INPUT_OFFSET as u32, val, timeout_ms)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_mic_phantom(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        phantom: &[bool],
+        state: &mut Audioexpress4preInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        assert_eq!(phantom.len(), Self::MIC_COUNT);
+
+        let val = phantom
+            .iter()
+            .enumerate()
+            .filter(|&(i, p)| !state.phantom[i].eq(p))
+            .fold(0u32, |val, (i, &p)| {
+                let mut v = AE_4PRE_MIC_PARAM_CHANGE_FLAG;
+                if p {
+                    v |= AE_4PRE_MIC_PARAM_PHANTOM_FLAG;
+                }
+                if state.pad[i] {
+                    v |= AE_4PRE_MIC_PARAM_PAD_FLAG;
+                }
+                val | ((v as u32) << (i * 8))
+            });
+
+        write_quad(req, node, AE_4PRE_MIC_PARAM_OFFSET as u32, val, timeout_ms).map(|_| {
+            state.phantom.copy_from_slice(phantom);
+        })
+    }
+
+    fn write_mic_pad(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        pad: &[bool],
+        state: &mut Audioexpress4preInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        assert_eq!(pad.len(), Self::MIC_COUNT);
+
+        let val = pad
+            .iter()
+            .enumerate()
+            .filter(|&(i, p)| !state.pad[i].eq(p))
+            .fold(0u32, |val, (i, &p)| {
+                let mut v = AE_4PRE_MIC_PARAM_CHANGE_FLAG;
+                if state.phantom[i] {
+                    v |= AE_4PRE_MIC_PARAM_PAD_FLAG;
+                }
+                if p {
+                    v |= AE_4PRE_MIC_PARAM_PHANTOM_FLAG;
+                }
+                val | ((v as u32) << (i * 8))
+            });
+
+        write_quad(req, node, AE_4PRE_MIC_PARAM_OFFSET as u32, val, timeout_ms).map(|_| {
+            state.pad.copy_from_slice(pad);
+        })
+    }
+}
