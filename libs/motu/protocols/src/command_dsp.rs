@@ -311,6 +311,20 @@ pub enum EqualizerParameter {
     HfWidth(i32),
 }
 
+impl EqualizerParameter {
+    pub const FREQ_MIN: i32 = 0x447a0000u32 as i32;
+    pub const FREQ_MAX: i32 = 0x469c4000u32 as i32;
+    pub const FREQ_STEP: i32 = 0x01;
+
+    pub const GAIN_MIN: i32 = 0x00000000u32 as i32;
+    pub const GAIN_MAX: i32 = 0x3f800000u32 as i32;
+    pub const GAIN_STEP: i32 = 0x01;
+
+    pub const WIDTH_MIN: i32 = 0xbc23d70au32 as i32;
+    pub const WIDTH_MAX: i32 = 0x3f800000u32 as i32;
+    pub const WIDTH_STEP: i32 = 0x01;
+}
+
 /// The DSP command specific to dynamics effects.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum DynamicsParameter {
@@ -326,6 +340,32 @@ pub enum DynamicsParameter {
     LevelerMode(LevelerMode),
     LevelerMakeup(i32),
     LevelerReduce(i32),
+}
+
+impl DynamicsParameter {
+    pub const THRESHOLD_MIN: i32 = 0xc2400000u32 as i32;
+    pub const THRESHOLD_MAX: i32 = 0x00000000u32 as i32;
+    pub const THRESHOLD_STEP: i32 = 0x01;
+
+    pub const RATIO_MIN: i32 = 0x3f800000u32 as i32;
+    pub const RATIO_MAX: i32 = 0x41200000u32 as i32;
+    pub const RATIO_STEP: i32 = 0x01;
+
+    pub const ATTACK_MIN: i32 = 0x41200000u32 as i32;
+    pub const ATTACK_MAX: i32 = 0x42c80000u32 as i32;
+    pub const ATTACK_STEP: i32 = 0x01;
+
+    pub const RELEASE_MIN: i32 = 0x41200000u32 as i32;
+    pub const RELEASE_MAX: i32 = 0x44fa0000u32 as i32;
+    pub const RELEASE_STEP: i32 = 0x01;
+
+    pub const GAIN_MIN: i32 = 0xc0c00000u32 as i32;
+    pub const GAIN_MAX: i32 = 0xc0bccccdu32 as i32;
+    pub const GAIN_STEP: i32 = 0x01;
+
+    pub const PERCENTAGE_MIN: i32 = 0x00000000u32 as i32;
+    pub const PERCENTAGE_MAX: i32 = 0x42c80000u32 as i32;
+    pub const PERCENTAGE_STEP: i32 = 0x01;
 }
 
 fn to_bool(raw: &[u8]) -> bool {
@@ -1837,6 +1877,413 @@ pub trait CommandDspMixerOperation : CommandDspOperation {
     ) -> Result<(), Error> {
         let mut new_cmds = create_mixer_commands(&state, Self::SOURCE_PORTS.len(), Self::OUTPUT_PORTS);
         let old_cmds = create_mixer_commands(old, Self::SOURCE_PORTS.len(), Self::OUTPUT_PORTS);
+        new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
+        Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
+    }
+}
+
+/// The structure for state of equalizer.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct CommandDspEqualizerState {
+    pub enable: Vec<bool>,
+
+    pub hpf_enable: Vec<bool>,
+    pub hpf_slope: Vec<RollOffLevel>,
+    pub hpf_freq: Vec<i32>,
+
+    pub lpf_enable: Vec<bool>,
+    pub lpf_slope: Vec<RollOffLevel>,
+    pub lpf_freq: Vec<i32>,
+
+    pub lf_enable: Vec<bool>,
+    pub lf_type: Vec<FilterType5>,
+    pub lf_freq: Vec<i32>,
+    pub lf_gain: Vec<i32>,
+    pub lf_width: Vec<i32>,
+
+    pub lmf_enable: Vec<bool>,
+    pub lmf_type: Vec<FilterType4>,
+    pub lmf_freq: Vec<i32>,
+    pub lmf_gain: Vec<i32>,
+    pub lmf_width: Vec<i32>,
+
+    pub mf_enable: Vec<bool>,
+    pub mf_type: Vec<FilterType4>,
+    pub mf_freq: Vec<i32>,
+    pub mf_gain: Vec<i32>,
+    pub mf_width: Vec<i32>,
+
+    pub hmf_enable: Vec<bool>,
+    pub hmf_type: Vec<FilterType4>,
+    pub hmf_freq: Vec<i32>,
+    pub hmf_gain: Vec<i32>,
+    pub hmf_width: Vec<i32>,
+
+    pub hf_enable: Vec<bool>,
+    pub hf_type: Vec<FilterType5>,
+    pub hf_freq: Vec<i32>,
+    pub hf_gain: Vec<i32>,
+    pub hf_width: Vec<i32>,
+}
+
+fn create_equalizer_parameters(
+    state: &CommandDspEqualizerState,
+    ch: usize
+) -> Vec<EqualizerParameter> {
+    let mut params = Vec::new();
+
+    params.push(EqualizerParameter::Enable(state.enable[ch]));
+
+    params.push(EqualizerParameter::HpfEnable(state.hpf_enable[ch]));
+    params.push(EqualizerParameter::HpfSlope(state.hpf_slope[ch]));
+    params.push(EqualizerParameter::HpfFreq(state.hpf_freq[ch]));
+
+    params.push(EqualizerParameter::LpfEnable(state.lpf_enable[ch]));
+    params.push(EqualizerParameter::LpfSlope(state.lpf_slope[ch]));
+    params.push(EqualizerParameter::LpfFreq(state.lpf_freq[ch]));
+
+    params.push(EqualizerParameter::LfEnable(state.lf_enable[ch]));
+    params.push(EqualizerParameter::LfType(state.lf_type[ch]));
+    params.push(EqualizerParameter::LfFreq(state.lf_freq[ch]));
+    params.push(EqualizerParameter::LfGain(state.lf_gain[ch]));
+    params.push(EqualizerParameter::LfWidth(state.lf_width[ch]));
+
+    params.push(EqualizerParameter::LmfEnable(state.lmf_enable[ch]));
+    params.push(EqualizerParameter::LmfType(state.lmf_type[ch]));
+    params.push(EqualizerParameter::LmfFreq(state.lmf_freq[ch]));
+    params.push(EqualizerParameter::LmfGain(state.lmf_gain[ch]));
+    params.push(EqualizerParameter::LmfWidth(state.lmf_width[ch]));
+
+    params.push(EqualizerParameter::MfEnable(state.mf_enable[ch]));
+    params.push(EqualizerParameter::MfType(state.mf_type[ch]));
+    params.push(EqualizerParameter::MfFreq(state.mf_freq[ch]));
+    params.push(EqualizerParameter::MfGain(state.mf_gain[ch]));
+    params.push(EqualizerParameter::MfWidth(state.mf_width[ch]));
+
+    params.push(EqualizerParameter::HmfEnable(state.hmf_enable[ch]));
+    params.push(EqualizerParameter::HmfType(state.hmf_type[ch]));
+    params.push(EqualizerParameter::HmfFreq(state.hmf_freq[ch]));
+    params.push(EqualizerParameter::HmfGain(state.hmf_gain[ch]));
+    params.push(EqualizerParameter::HmfWidth(state.hmf_width[ch]));
+
+    params.push(EqualizerParameter::HfEnable(state.hf_enable[ch]));
+    params.push(EqualizerParameter::HfType(state.hf_type[ch]));
+    params.push(EqualizerParameter::HfFreq(state.hf_freq[ch]));
+    params.push(EqualizerParameter::HfGain(state.hf_gain[ch]));
+    params.push(EqualizerParameter::HfWidth(state.hf_width[ch]));
+
+    params
+}
+
+fn parse_equalizer_parameter(
+    state: &mut CommandDspEqualizerState,
+    param: &EqualizerParameter,
+    ch: usize
+) {
+    match param {
+        EqualizerParameter::Enable(val) => state.enable[ch] = *val,
+
+        EqualizerParameter::HpfEnable(val) => state.hpf_enable[ch] = *val,
+        EqualizerParameter::HpfSlope(val) => state.hpf_slope[ch] = *val,
+        EqualizerParameter::HpfFreq(val) => state.hpf_freq[ch] = *val,
+
+        EqualizerParameter::LpfEnable(val) => state.lpf_enable[ch] = *val,
+        EqualizerParameter::LpfSlope(val) => state.lpf_slope[ch] = *val,
+        EqualizerParameter::LpfFreq(val) => state.lpf_freq[ch] = *val,
+
+        EqualizerParameter::LfEnable(val) => state.lf_enable[ch] = *val,
+        EqualizerParameter::LfType(val) => state.lf_type[ch] = *val,
+        EqualizerParameter::LfFreq(val) => state.lf_freq[ch] = *val,
+        EqualizerParameter::LfGain(val) => state.lf_gain[ch] = *val,
+        EqualizerParameter::LfWidth(val) => state.lf_width[ch] = *val,
+
+        EqualizerParameter::LmfEnable(val) => state.lmf_enable[ch] = *val,
+        EqualizerParameter::LmfType(val) => state.lmf_type[ch] = *val,
+        EqualizerParameter::LmfFreq(val) => state.lmf_freq[ch] = *val,
+        EqualizerParameter::LmfGain(val) => state.lmf_gain[ch] = *val,
+        EqualizerParameter::LmfWidth(val) => state.lmf_width[ch] = *val,
+
+        EqualizerParameter::MfEnable(val) => state.mf_enable[ch] = *val,
+        EqualizerParameter::MfType(val) => state.mf_type[ch] = *val,
+        EqualizerParameter::MfFreq(val) => state.mf_freq[ch] = *val,
+        EqualizerParameter::MfGain(val) => state.mf_gain[ch] = *val,
+        EqualizerParameter::MfWidth(val) => state.mf_width[ch] = *val,
+
+        EqualizerParameter::HmfEnable(val) => state.hmf_enable[ch] = *val,
+        EqualizerParameter::HmfType(val) => state.hmf_type[ch] = *val,
+        EqualizerParameter::HmfFreq(val) => state.hmf_freq[ch] = *val,
+        EqualizerParameter::HmfGain(val) => state.hmf_gain[ch] = *val,
+        EqualizerParameter::HmfWidth(val) => state.hmf_width[ch] = *val,
+
+        EqualizerParameter::HfEnable(val) => state.hf_enable[ch] = *val,
+        EqualizerParameter::HfType(val) => state.hf_type[ch] = *val,
+        EqualizerParameter::HfFreq(val) => state.hf_freq[ch] = *val,
+        EqualizerParameter::HfGain(val) => state.hf_gain[ch] = *val,
+        EqualizerParameter::HfWidth(val) => state.hf_width[ch] = *val,
+    }
+}
+
+/// The structure for state of dynamics.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct CommandDspDynamicsState {
+    pub enable: Vec<bool>,
+
+    pub comp_enable: Vec<bool>,
+    pub comp_detect_mode: Vec<LevelDetectMode>,
+    pub comp_threshold: Vec<i32>,
+    pub comp_ratio: Vec<i32>,
+    pub comp_attack: Vec<i32>,
+    pub comp_release: Vec<i32>,
+    pub comp_trim: Vec<i32>,
+
+    pub leveler_enable: Vec<bool>,
+    pub leveler_mode: Vec<LevelerMode>,
+    pub leveler_makeup: Vec<i32>,
+    pub leveler_reduce: Vec<i32>,
+}
+
+fn create_dynamics_parameters(
+    state: &CommandDspDynamicsState,
+    ch: usize,
+) -> Vec<DynamicsParameter> {
+    let mut params = Vec::new();
+
+    params.push(DynamicsParameter::Enable(state.enable[ch]));
+
+    params.push(DynamicsParameter::CompEnable(state.comp_enable[ch]));
+    params.push(DynamicsParameter::CompDetectMode(state.comp_detect_mode[ch]));
+    params.push(DynamicsParameter::CompThreshold(state.comp_threshold[ch]));
+    params.push(DynamicsParameter::CompRatio(state.comp_ratio[ch]));
+    params.push(DynamicsParameter::CompAttach(state.comp_attack[ch]));
+    params.push(DynamicsParameter::CompRelease(state.comp_release[ch]));
+    params.push(DynamicsParameter::CompTrim(state.comp_trim[ch]));
+
+    params.push(DynamicsParameter::LevelerEnable(state.leveler_enable[ch]));
+    params.push(DynamicsParameter::LevelerMode(state.leveler_mode[ch]));
+    params.push(DynamicsParameter::LevelerMakeup(state.leveler_makeup[ch]));
+    params.push(DynamicsParameter::LevelerReduce(state.leveler_reduce[ch]));
+
+    params
+}
+
+fn parse_dynamics_parameter(
+    state: &mut CommandDspDynamicsState,
+    param: &DynamicsParameter,
+    ch: usize,
+) {
+    match param {
+        DynamicsParameter::Enable(val) => state.enable[ch] = *val,
+
+        DynamicsParameter::CompEnable(val) => state.comp_enable[ch] = *val,
+        DynamicsParameter::CompDetectMode(val) => state.comp_detect_mode[ch] = *val,
+        DynamicsParameter::CompThreshold(val) => state.comp_threshold[ch] = *val,
+        DynamicsParameter::CompRatio(val) => state.comp_ratio[ch] = *val,
+        DynamicsParameter::CompAttach(val) => state.comp_attack[ch] = *val,
+        DynamicsParameter::CompRelease(val) => state.comp_release[ch] = *val,
+        DynamicsParameter::CompTrim(val) => state.comp_trim[ch] = *val,
+
+        DynamicsParameter::LevelerEnable(val) => state.leveler_enable[ch] = *val,
+        DynamicsParameter::LevelerMode(val) => state.leveler_mode[ch] = *val,
+        DynamicsParameter::LevelerMakeup(val) => state.leveler_makeup[ch] = *val,
+        DynamicsParameter::LevelerReduce(val) => state.leveler_reduce[ch] = *val,
+    }
+}
+
+/// The structure for state of input function.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct CommandDspInputState {
+    pub phase: Vec<bool>,
+    pub pair: Vec<bool>,
+    pub gain: Vec<i32>,
+    pub swap: Vec<bool>,
+    pub stereo_mode: Vec<InputStereoPairMode>,
+    pub width: Vec<i32>,
+
+    pub reverb_send: Vec<i32>,
+    pub reverb_balance: Vec<i32>,
+
+    pub equalizer: CommandDspEqualizerState,
+    pub dynamics: CommandDspDynamicsState,
+
+    pub pad: Vec<bool>,
+    pub phantom: Vec<bool>,
+    pub limitter: Vec<bool>,
+    pub lookahead: Vec<bool>,
+    pub soft_clip: Vec<bool>,
+}
+
+fn create_input_commands(state: &CommandDspInputState, input_count: usize) -> Vec<DspCmd> {
+    let mut cmds = Vec::new();
+
+    (0..input_count)
+        .for_each(|ch| {
+            cmds.push(DspCmd::Input(InputCmd::Phase(ch, state.phase[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Pair(ch, state.pair[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Trim(ch, state.gain[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Swap(ch, state.swap[ch])));
+            cmds.push(DspCmd::Input(InputCmd::StereoMode(ch, state.stereo_mode[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Width(ch, state.width[ch])));
+
+            create_equalizer_parameters(&state.equalizer, ch)
+                .into_iter()
+                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Equalizer(ch, param))));
+
+            create_dynamics_parameters(&state.dynamics, ch)
+                .into_iter()
+                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Dynamics(ch, param))));
+
+            cmds.push(DspCmd::Input(InputCmd::ReverbSend(ch, state.reverb_send[ch])));
+            cmds.push(DspCmd::Input(InputCmd::ReverbLrBalance(ch, state.reverb_balance[ch])));
+
+            cmds.push(DspCmd::Input(InputCmd::Pad(ch, state.pad[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Phantom(ch, state.phantom[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Limitter(ch, state.limitter[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Lookahead(ch, state.lookahead[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Softclip(ch, state.soft_clip[ch])));
+        });
+
+    cmds
+}
+
+fn parse_input_command(
+    state: &mut CommandDspInputState,
+    cmd: &InputCmd
+) {
+    match cmd {
+        InputCmd::Phase(ch, val) => state.phase[*ch] = *val,
+        InputCmd::Pair(ch, val) => state.pair[*ch] = *val,
+        InputCmd::Trim(ch, val) => state.gain[*ch] = *val,
+        InputCmd::Swap(ch, val) => state.swap[*ch] = *val,
+        InputCmd::StereoMode(ch, val) =>state.stereo_mode[*ch] = *val,
+        InputCmd::Width(ch, val) => state.width[*ch] = *val,
+        InputCmd::Equalizer(ch, param) => parse_equalizer_parameter(&mut state.equalizer, param, *ch),
+        InputCmd::Dynamics(ch, param) => parse_dynamics_parameter(&mut state.dynamics, param, *ch),
+        InputCmd::ReverbSend(ch, val) => state.reverb_send[*ch] = *val,
+        InputCmd::ReverbLrBalance(ch, val) => state.reverb_balance[*ch] = *val,
+        InputCmd::Pad(ch, val) => if *ch < state.pad.len() { state.pad[*ch] = *val },
+        InputCmd::Phantom(ch, val) => if *ch < state.pad.len() { state.phantom[*ch] = *val },
+        InputCmd::Limitter(ch, val) => if *ch < state.pad.len() { state.limitter[*ch] = *val },
+        InputCmd::Lookahead(ch, val) => if *ch < state.pad.len() { state.lookahead[*ch] = *val },
+        InputCmd::Softclip(ch, val) => if *ch < state.pad.len() { state.soft_clip[*ch] = *val },
+        _ => (),
+    }
+}
+
+/// The trait for operation of input function.
+pub trait CommandDspInputOperation : CommandDspOperation {
+    const INPUT_PORTS: &'static [TargetPort];
+    const MIC_COUNT: usize;
+
+    const GAIN_MIN: i32 = 0x00000000u32 as i32;
+    const GAIN_MAX: i32 = 0x42540000u32 as i32;
+    const GAIN_STEP: i32 = 0x01;
+
+    const WIDTH_MIN: i32 = 0xbc23d70au32 as i32;
+    const WIDTH_MAX: i32 = 0x3f800000u32 as i32;
+    const WIDTH_STEP: i32 = 0x01;
+
+    const BALANCE_MIN: i32 = 0x3f800000u32 as i32;
+    const BALANCE_MAX: i32 = 0xbf800000u32 as i32;
+    const BALANCE_STEP: i32 = 0x01;
+
+    fn create_input_state() -> CommandDspInputState {
+        CommandDspInputState {
+            phase: vec![Default::default(); Self::INPUT_PORTS.len()],
+            pair: vec![Default::default(); Self::INPUT_PORTS.len()],
+            gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+            swap: vec![Default::default(); Self::INPUT_PORTS.len()],
+            stereo_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+            width: vec![Default::default(); Self::INPUT_PORTS.len()],
+            reverb_send: vec![Default::default(); Self::INPUT_PORTS.len()],
+            reverb_balance: vec![Default::default(); Self::INPUT_PORTS.len()],
+            equalizer: CommandDspEqualizerState {
+                enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                hpf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hpf_slope: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hpf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                lpf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lpf_slope: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lpf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                lf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                lmf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                lmf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                mf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                mf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                hmf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hmf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                hf_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_type: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_freq: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
+                hf_width: vec![Default::default(); Self::INPUT_PORTS.len()],
+            },
+            dynamics: CommandDspDynamicsState {
+                enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                comp_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_detect_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_threshold: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_ratio: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_attack: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_release: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_trim: vec![Default::default(); Self::INPUT_PORTS.len()],
+
+                leveler_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
+                leveler_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
+                leveler_makeup: vec![Default::default(); Self::INPUT_PORTS.len()],
+                leveler_reduce: vec![Default::default(); Self::INPUT_PORTS.len()],
+            },
+            pad: vec![Default::default(); Self::MIC_COUNT],
+            phantom: vec![Default::default(); Self::MIC_COUNT],
+            limitter: vec![Default::default(); Self::MIC_COUNT],
+            lookahead: vec![Default::default(); Self::MIC_COUNT],
+            soft_clip: vec![Default::default(); Self::MIC_COUNT],
+        }
+    }
+
+    fn parse_input_commands(
+        state: &mut CommandDspInputState,
+        cmds: &[DspCmd]
+    ) {
+        cmds
+            .iter()
+            .for_each(|cmd| {
+                if let DspCmd::Input(c) = cmd {
+                    parse_input_command(state, c);
+                }
+            });
+    }
+
+    fn write_input_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        state: CommandDspInputState,
+        old: &mut CommandDspInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut new_cmds = create_input_commands(&state, Self::INPUT_PORTS.len());
+        let old_cmds = create_input_commands(old, Self::INPUT_PORTS.len());
         new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
         Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
     }
