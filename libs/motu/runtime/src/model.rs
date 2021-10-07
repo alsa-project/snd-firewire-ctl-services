@@ -84,10 +84,14 @@ impl MotuModel {
 
         match &mut self.ctl_model {
             MotuCtlModel::F828mk2(m) => m.get_notified_elem_list(&mut self.notified_elems),
+            MotuCtlModel::F896hd(m) => m.get_notified_elem_list(&mut self.notified_elems),
             MotuCtlModel::Traveler(m) => m.get_notified_elem_list(&mut self.notified_elems),
             MotuCtlModel::UltraLite(m) => m.get_notified_elem_list(&mut self.notified_elems),
+            MotuCtlModel::F8pre(m) => m.get_notified_elem_list(&mut self.notified_elems),
             MotuCtlModel::UltraLiteMk3(m) => m.get_notified_elem_list(&mut self.notified_elems),
+            MotuCtlModel::AudioExpress(m) => m.get_notified_elem_list(&mut self.notified_elems),
             MotuCtlModel::F828mk3(m) => m.get_notified_elem_list(&mut self.notified_elems),
+            MotuCtlModel::H4pre(m) => m.get_notified_elem_list(&mut self.notified_elems),
             _ => (),
         }
 
@@ -120,10 +124,14 @@ impl MotuModel {
 
         match &mut self.ctl_model {
             MotuCtlModel::F828mk2(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
+            MotuCtlModel::F896hd(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             MotuCtlModel::Traveler(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             MotuCtlModel::UltraLite(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
+            MotuCtlModel::F8pre(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             MotuCtlModel::UltraLiteMk3(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
+            MotuCtlModel::AudioExpress(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             MotuCtlModel::F828mk3(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
+            MotuCtlModel::H4pre(m) => card_cntr.dispatch_notification(unit, msg, elem_id_list, m),
             _ => Ok(()),
         }
     }
