@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-mod model;
-mod ultralite_mk3;
-mod audioexpress;
-mod h4pre;
-mod f828mk3;
-mod ultralite;
-mod traveler;
-mod f8pre;
-mod f828mk2;
-mod f896hd;
+mod v1_runtime;
+mod register_dsp_runtime;
+mod command_dsp_runtime;
+
 mod f828;
 mod f896;
+
+mod f828mk2;
+mod f896hd;
+mod f8pre;
+mod traveler;
+mod ultralite;
+
+mod audioexpress;
+mod f828mk3;
+mod h4pre;
+mod ultralite_mk3;
 
 mod common_ctls;
 mod v1_ctls;
@@ -20,53 +25,29 @@ mod v3_ctls;
 mod register_dsp_ctls;
 
 use glib::{Error, FileError};
-use glib::source;
-use nix::sys::signal;
-use std::sync::mpsc;
 use std::convert::TryFrom;
 
-use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndMotuExt};
-use alsactl::CardExt;
+use hinawa::{FwNodeExtManual, SndUnitExt, SndMotuExt};
 
 use core::RuntimeOperation;
-use core::dispatcher;
-use core::card_cntr;
 
 use ieee1212_config_rom::*;
 use motu_protocols::{config_rom::*, *};
 
-use model::MotuModel;
+use crate::{v1_runtime::*, register_dsp_runtime::*, command_dsp_runtime::*};
 
-enum Event {
-    Shutdown,
-    Disconnected,
-    BusReset(u32),
-    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
-    Notify(u32),
-}
-
-pub struct MotuRuntime{
-    unit: hinawa::SndMotu,
-    model: MotuModel,
-    card_cntr: card_cntr::CardCntr,
-    rx: mpsc::Receiver<Event>,
-    tx: mpsc::SyncSender<Event>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-}
-
-impl Drop for MotuRuntime {
-    fn drop(&mut self) {
-        // At first, stop event loop in all of dispatchers to avoid queueing new events.
-        for dispatcher in &mut self.dispatchers {
-            dispatcher.stop();
-        }
-
-        // Next, consume all events in queue to release blocked thread for sender.
-        for _ in self.rx.try_iter() {}
-
-        // Finally Finish I/O threads.
-        self.dispatchers.clear();
-    }
+pub enum MotuRuntime {
+         F828(F828Runtime),
+         F896(F896Runtime),
+         F828mk2(F828mk2Runtime),
+         F896hd(F896hdRuntime),
+         Traveler(TravelerRuntime),
+         Ultralite(UltraliteRuntime),
+         F8pre(F8preRuntime),
+         Ultralitemk3(UltraliteMk3Runtime),
+         AudioExpress(AudioExpressRuntime),
+         F828mk3(F828mk3Runtime),
+         H4pre(H4preRuntime),
 }
 
 impl RuntimeOperation<u32> for MotuRuntime {
@@ -76,127 +57,70 @@ impl RuntimeOperation<u32> for MotuRuntime {
 
         let node = unit.get_node();
         let data = node.get_config_rom()?;
-        let config_rom = ConfigRom::try_from(data)
+        let unit_data = ConfigRom::try_from(data)
             .map_err(|e| {
-                let msg = format!("Malformed configuration ROM detected: {}", e.to_string());
+                let msg = format!("Malformed configuration ROM detected: {}", e);
                 Error::new(FileError::Nxio, &msg)
+            })
+            .and_then(|config_rom| {
+                config_rom.get_unit_data()
+                    .ok_or_else(|| {
+                        Error::new(FileError::Nxio, "Unexpected content of configuration ROM.")
+                    })
             })?;
-        let unit_data = config_rom.get_unit_data()
-            .ok_or_else(|| {
-                Error::new(FileError::Nxio, "Unexpected content of configuration ROM.")
-            })?;
-        let model = MotuModel::new(unit_data.model_id, unit_data.version)?;
 
-        let card_cntr = card_cntr::CardCntr::new();
-        card_cntr.card.open(card_id, 0)?;
+        let version = unit_data.version;
 
-        // Use uni-directional channel for communication to child threads.
-        let (tx, rx) = mpsc::sync_channel(32);
-
-        let dispatchers = Vec::new();
-
-        Ok(MotuRuntime {
-            unit,
-            model,
-            card_cntr,
-            rx,
-            tx,
-            dispatchers,
-        })
+        match unit_data.model_id {
+            0x000001 => Ok(Self::F828(F828Runtime::new(unit, card_id, version)?)),
+            0x000002 => Ok(Self::F896(F896Runtime::new(unit, card_id, version)?)),
+            0x000003 => Ok(Self::F828mk2(F828mk2Runtime::new(unit, card_id, version)?)),
+            0x000005 => Ok(Self::F896hd(F896hdRuntime::new(unit, card_id, version)?)),
+            0x000009 => Ok(Self::Traveler(TravelerRuntime::new(unit, card_id, version)?)),
+            0x00000d => Ok(Self::Ultralite(UltraliteRuntime::new(unit, card_id, version)?)),
+            0x00000f => Ok(Self::F8pre(F8preRuntime::new(unit, card_id, version)?)),
+            0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(unit, card_id, version)?)),
+            0x000033 => Ok(Self::AudioExpress(AudioExpressRuntime::new(unit, card_id, version)?)),
+            0x000015 |  // Firewire only.
+            0x000035 => Ok(Self::F828mk3(F828mk3Runtime::new(unit, card_id, version)?)),
+            0x000045 => Ok(Self::H4pre(H4preRuntime::new(unit, card_id, version)?)),
+            _ => {
+                let label = format!("Unsupported model ID: 0x{:06x}", unit_data.model_id);
+                Err(Error::new(FileError::Noent, &label))
+            }
+        }
     }
 
     fn listen(&mut self) -> Result<(), Error> {
-        self.launch_node_event_dispatcher()?;
-        self.launch_system_event_dispatcher()?;
-
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
-
-        Ok(())
+        match self {
+            Self::F828(runtime) => runtime.listen(),
+            Self::F896(runtime) => runtime.listen(),
+            Self::F828mk2(runtime) => runtime.listen(),
+            Self::F896hd(runtime) => runtime.listen(),
+            Self::Traveler(runtime) => runtime.listen(),
+            Self::Ultralite(runtime) => runtime.listen(),
+            Self::F8pre(runtime) => runtime.listen(),
+            Self::Ultralitemk3(runtime) => runtime.listen(),
+            Self::AudioExpress(runtime) => runtime.listen(),
+            Self::F828mk3(runtime) => runtime.listen(),
+            Self::H4pre(runtime) => runtime.listen(),
+        }
     }
 
     fn run(&mut self) -> Result<(), Error> {
-        loop {
-            let ev = match self.rx.recv() {
-                Ok(ev) => ev,
-                Err(_) => continue,
-            };
-
-            match ev {
-                Event::Shutdown | Event::Disconnected => break,
-                Event::BusReset(generation) => {
-                    println!("IEEE 1394 bus is updated: {}", generation);
-                }
-                Event::Elem((elem_id, events)) => {
-                    let _ = self.model.dispatch_elem_event(&mut self.unit, &mut self.card_cntr,
-                                                           &elem_id, &events);
-                }
-                Event::Notify(msg) => {
-                    let _ = self.model.dispatch_notification(&mut self.unit, &msg, &mut self.card_cntr);
-                }
-            }
+        match self {
+            Self::F828(runtime) => runtime.run(),
+            Self::F896(runtime) => runtime.run(),
+            Self::F828mk2(runtime) => runtime.run(),
+            Self::F896hd(runtime) => runtime.run(),
+            Self::Traveler(runtime) => runtime.run(),
+            Self::Ultralite(runtime) => runtime.run(),
+            Self::F8pre(runtime) => runtime.run(),
+            Self::Ultralitemk3(runtime) => runtime.run(),
+            Self::AudioExpress(runtime) => runtime.run(),
+            Self::F828mk3(runtime) => runtime.run(),
+            Self::H4pre(runtime) => runtime.run(),
         }
-        Ok(())
-    }
-}
-
-impl MotuRuntime {
-    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
-
-    fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
-
-        let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
-            let _ = tx.send(Event::Disconnected);
-        })?;
-
-        let tx = self.tx.clone();
-        self.unit.connect_notified(move |_, msg| {
-            let t = tx.clone();
-            let _ = std::thread::spawn(move || {
-                // Just after notification, the target device tends to return RCODE_BUSY against
-                // read request. Here, wait for 100 msec to avoid it.
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                let _ = t.send(Event::Notify(msg));
-            });
-        });
-
-        let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
-            let _ = tx.send(Event::Disconnected);
-        })?;
-
-        let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
-        });
-
-        self.dispatchers.push(dispatcher);
-
-        Ok(())
-    }
-
-    fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
-        let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
-
-        let tx = self.tx.clone();
-        dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
-            let _ = tx.send(Event::Shutdown);
-            source::Continue(false)
-        });
-
-        let tx = self.tx.clone();
-        dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
-        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
-            let _ = tx.send(Event::Elem((elem_id.clone(), events)));
-        });
-
-        self.dispatchers.push(dispatcher);
-
-        Ok(())
     }
 }
 
