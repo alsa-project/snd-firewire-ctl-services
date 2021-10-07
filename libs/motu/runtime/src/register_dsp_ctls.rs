@@ -15,7 +15,7 @@ use core::elem_value_accessor::*;
 
 use motu_protocols::{register_dsp::*, *};
 
-use super::model::*;
+use super::*;
 
 const MIXER_OUTPUT_VOLUME_NAME: &str = "mixer-output-volume";
 const MIXER_OUTPUT_MUTE_NAME: &str = "mixer-output-mute";
