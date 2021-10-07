@@ -619,33 +619,94 @@ impl Audioexpress4preInputOperation for H4preProtocol {
     const MIC_COUNT: usize = 4;
 }
 
-/// The protocol implementation for Ultralite mk3.
+/// The protocol implementation for Ultralite mk3 (FireWire only).
 #[derive(Default)]
 pub struct UltraliteMk3Protocol;
 
+const ULTRALITE_MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
+    (TargetPort::MainPair0, 0x00), // = Stream-1/2
+    (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
+    (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
+    (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
+    (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
+    (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
+    (TargetPort::PhonePair0, 0x06), // = Stream-11/12
+];
+
+const ULTRALITE_MK3_CLK_RATES: &[(ClkRate, u8)] = &[
+    (ClkRate::R44100, 0x00),
+    (ClkRate::R48000, 0x01),
+    (ClkRate::R88200, 0x02),
+    (ClkRate::R96000, 0x03),
+];
+
+const ULTRALITE_MK3_CLK_SRCS: &[(V3ClkSrc, u8)] =
+    &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
+
+const ULTRALITE_MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
+    TargetPort::MainPair0,
+    TargetPort::AnalogPair0,
+    TargetPort::AnalogPair1,
+    TargetPort::AnalogPair2,
+    TargetPort::AnalogPair3,
+    TargetPort::SpdifPair0,
+    TargetPort::PhonePair0,
+];
+
+const ULTRALITE_MK3_MIXER_SOURCE_PORTS: &[TargetPort] = &[
+    TargetPort::Analog0,
+    TargetPort::Analog1,
+    TargetPort::Analog2,
+    TargetPort::Analog3,
+    TargetPort::Analog4,
+    TargetPort::Analog5,
+    TargetPort::Analog6,
+    TargetPort::Analog7,
+    TargetPort::Spdif0,
+    TargetPort::Spdif1,
+];
+
+const ULTRALITE_MK3_MIXER_OUTPUT_PORTS: &[TargetPort] = &[
+    TargetPort::Disabled,
+    TargetPort::MainPair0,
+    TargetPort::AnalogPair0,
+    TargetPort::AnalogPair1,
+    TargetPort::AnalogPair2,
+    TargetPort::AnalogPair3,
+    TargetPort::SpdifPair0,
+    TargetPort::PhonePair0,
+];
+
+const ULTRALITE_MK3_INPUT_PORTS: &[TargetPort] = &[
+    TargetPort::Analog0,
+    TargetPort::Analog1,
+    TargetPort::Analog2,
+    TargetPort::Analog3,
+    TargetPort::Analog4,
+    TargetPort::Analog5,
+    TargetPort::Analog6,
+    TargetPort::Analog7,
+    TargetPort::Spdif0,
+    TargetPort::Spdif1,
+];
+
+const ULTRALITE_MK3_OUTPUT_PORTS: &[TargetPort] = &[
+    TargetPort::MainPair0,
+    TargetPort::AnalogPair0,
+    TargetPort::AnalogPair1,
+    TargetPort::AnalogPair2,
+    TargetPort::AnalogPair3,
+    TargetPort::SpdifPair0,
+    TargetPort::PhonePair0,
+];
+
 impl AssignOperation for UltraliteMk3Protocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::MainPair0, 0x00), // = Stream-1/2
-        (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
-        (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
-        (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
-        (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
-        (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
-        (TargetPort::PhonePair0, 0x06), // = Stream-11/12
-    ];
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
 }
 
 impl V3ClkOperation for UltraliteMk3Protocol {
-    const CLK_RATES: &'static [(ClkRate, u8)] = &[
-        (ClkRate::R44100, 0x00),
-        (ClkRate::R48000, 0x01),
-        (ClkRate::R88200, 0x02),
-        (ClkRate::R96000, 0x03),
-    ];
-
-    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
-        &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
-
+    const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = ULTRALITE_MK3_CLK_SRCS;
     const HAS_LCD: bool = true;
 }
 
@@ -656,68 +717,58 @@ impl CommandDspOperation for UltraliteMk3Protocol {}
 impl CommandDspReverbOperation for UltraliteMk3Protocol {}
 
 impl CommandDspMonitorOperation for UltraliteMk3Protocol {
-    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
-        TargetPort::MainPair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::SpdifPair0,
-        TargetPort::PhonePair0,
-    ];
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
 }
 
 impl CommandDspMixerOperation for UltraliteMk3Protocol {
-    const SOURCE_PORTS: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
-    ];
-
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Disabled,
-        TargetPort::MainPair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::SpdifPair0,
-        TargetPort::PhonePair0,
-    ];
+    const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
+    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
 }
 
 impl CommandDspInputOperation for UltraliteMk3Protocol {
-    const INPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
-    ];
+    const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
     // The mic functions are not configureble by command. They are just hard-wired.
     const MIC_COUNT: usize = 0;
 }
 
 impl CommandDspOutputOperation for UltraliteMk3Protocol {
-    const OUTPUT_PORTS: &'static [TargetPort] = &[
-        TargetPort::MainPair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::SpdifPair0,
-        TargetPort::PhonePair0,
-    ];
+    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
+}
+
+/// The protocol implementation for Ultralite mk3 Hybrid.
+#[derive(Default)]
+pub struct UltraliteMk3HybridProtocol;
+
+impl AssignOperation for UltraliteMk3HybridProtocol {
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
+}
+
+impl V3ClkOperation for UltraliteMk3HybridProtocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = ULTRALITE_MK3_CLK_RATES;
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] = ULTRALITE_MK3_CLK_SRCS;
+    const HAS_LCD: bool = true;
+}
+
+impl V3PortAssignOperation for UltraliteMk3HybridProtocol {}
+
+impl CommandDspOperation for UltraliteMk3HybridProtocol {}
+
+impl CommandDspReverbOperation for UltraliteMk3HybridProtocol {}
+
+impl CommandDspMonitorOperation for UltraliteMk3HybridProtocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = ULTRALITE_MK3_RETURN_ASSIGN_TARGETS;
+}
+
+impl CommandDspMixerOperation for UltraliteMk3HybridProtocol {
+    const SOURCE_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_SOURCE_PORTS;
+    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_MIXER_OUTPUT_PORTS;
+}
+
+impl CommandDspInputOperation for UltraliteMk3HybridProtocol {
+    const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
+    const MIC_COUNT: usize = 2;
+}
+
+impl CommandDspOutputOperation for UltraliteMk3HybridProtocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
