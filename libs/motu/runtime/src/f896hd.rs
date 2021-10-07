@@ -25,6 +25,7 @@ pub struct F896hd {
     level_meters_ctl: LevelMetersCtl,
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
+    mixer_source_ctl: MixerSourceCtl,
 }
 
 #[derive(Default)]
@@ -78,6 +79,19 @@ impl RegisterDspMixerReturnCtlOperation<F896hdProtocol> for MixerReturnCtl {
     }
 }
 
+#[derive(Default)]
+struct MixerSourceCtl(RegisterDspMixerMonauralSourceState, Vec<ElemId>);
+
+impl RegisterDspMixerMonauralSourceCtlOperation<F896hdProtocol> for MixerSourceCtl {
+    fn state(&self) -> &RegisterDspMixerMonauralSourceState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMixerMonauralSourceState {
+        &mut self.0
+    }
+}
+
 impl CtlModel<SndMotu> for F896hd {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -89,6 +103,8 @@ impl CtlModel<SndMotu> for F896hd {
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
+        self.mixer_source_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -129,6 +145,8 @@ impl CtlModel<SndMotu> for F896hd {
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -173,6 +191,8 @@ impl CtlModel<SndMotu> for F896hd {
         } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
