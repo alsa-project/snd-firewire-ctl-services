@@ -24,6 +24,7 @@ pub struct UltraLite{
     mixer_output_ctl: MixerOutputCtl,
     mixer_return_ctl: MixerReturnCtl,
     mixer_source_ctl: MixerSourceCtl,
+    output_ctl: OutputCtl,
     msg_cache: u32,
 }
 
@@ -81,6 +82,19 @@ impl RegisterDspMixerMonauralSourceCtlOperation<UltraliteProtocol> for MixerSour
     }
 }
 
+#[derive(Default)]
+struct OutputCtl(RegisterDspOutputState, Vec<ElemId>);
+
+impl RegisterDspOutputCtlOperation<UltraliteProtocol> for OutputCtl {
+    fn state(&self) -> &RegisterDspOutputState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspOutputState {
+        &mut self.0
+    }
+}
+
 impl UltraLite {
     const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
@@ -98,6 +112,8 @@ impl CtlModel<SndMotu> for UltraLite {
             .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
         self.mixer_source_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
+        self.output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -118,6 +134,8 @@ impl CtlModel<SndMotu> for UltraLite {
         } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -142,6 +160,8 @@ impl CtlModel<SndMotu> for UltraLite {
         } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
