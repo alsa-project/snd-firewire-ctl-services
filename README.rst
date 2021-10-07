@@ -110,7 +110,8 @@ your device, please contact to developer.
   * MOTU UltraLite
   * MOTU 8pre
   * MOTU 828mk3
-  * MOTU UltraLite mk3
+  * MOTU UltraLite mk3 (FireWire only)
+  * MOTU UltraLite mk3 (Hybrid)
   * MOTU 4pre
   * MOTU AudioExpress
 

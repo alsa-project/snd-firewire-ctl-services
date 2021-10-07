@@ -17,6 +17,7 @@ mod audioexpress;
 mod f828mk3;
 mod h4pre;
 mod ultralite_mk3;
+mod ultralite_mk3_hybrid;
 
 mod common_ctls;
 mod v1_ctls;
@@ -46,6 +47,7 @@ pub enum MotuRuntime {
          Ultralite(UltraliteRuntime),
          F8pre(F8preRuntime),
          Ultralitemk3(UltraliteMk3Runtime),
+         Ultralitemk3Hybrid(UltraliteMk3HybridRuntime),
          AudioExpress(AudioExpressRuntime),
          F828mk3(F828mk3Runtime),
          H4pre(H4preRuntime),
@@ -81,6 +83,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             0x00000d => Ok(Self::Ultralite(UltraliteRuntime::new(unit, card_id, version)?)),
             0x00000f => Ok(Self::F8pre(F8preRuntime::new(unit, card_id, version)?)),
             0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(unit, card_id, version)?)),
+            0x000030 => Ok(Self::Ultralitemk3Hybrid(UltraliteMk3HybridRuntime::new(unit, card_id, version)?)),
             0x000033 => Ok(Self::AudioExpress(AudioExpressRuntime::new(unit, card_id, version)?)),
             0x000015 |  // Firewire only.
             0x000035 => Ok(Self::F828mk3(F828mk3Runtime::new(unit, card_id, version)?)),
@@ -102,6 +105,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::Ultralite(runtime) => runtime.listen(),
             Self::F8pre(runtime) => runtime.listen(),
             Self::Ultralitemk3(runtime) => runtime.listen(),
+            Self::Ultralitemk3Hybrid(runtime) => runtime.listen(),
             Self::AudioExpress(runtime) => runtime.listen(),
             Self::F828mk3(runtime) => runtime.listen(),
             Self::H4pre(runtime) => runtime.listen(),
@@ -118,6 +122,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::Ultralite(runtime) => runtime.run(),
             Self::F8pre(runtime) => runtime.run(),
             Self::Ultralitemk3(runtime) => runtime.run(),
+            Self::Ultralitemk3Hybrid(runtime) => runtime.run(),
             Self::AudioExpress(runtime) => runtime.run(),
             Self::F828mk3(runtime) => runtime.run(),
             Self::H4pre(runtime) => runtime.run(),

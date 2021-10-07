@@ -18,9 +18,10 @@ use core::{card_cntr::*, dispatcher::*};
 
 use motu_protocols::command_dsp::*;
 
-use crate::{f828mk3::*, ultralite_mk3::*};
+use crate::{f828mk3::*, ultralite_mk3::*, ultralite_mk3_hybrid::*};
 
 pub type UltraliteMk3Runtime = Version3Runtime<UltraLiteMk3>;
+pub type UltraliteMk3HybridRuntime = Version3Runtime<UltraliteMk3Hybrid>;
 pub type F828mk3Runtime = Version3Runtime<F828mk3>;
 
 pub struct Version3Runtime<T>
