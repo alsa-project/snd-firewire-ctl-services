@@ -575,3 +575,109 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         }
     }
 }
+
+const MASTER_OUTPUT_VOLUME_NAME: &str = "master-output-volume";
+const PHONE_VOLUME_NAME: &str = "headphone-volume";
+
+pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
+    fn state(&self) -> &RegisterDspOutputState;
+    fn state_mut(&mut self) -> &mut RegisterDspOutputState;
+
+    const VOL_TLV: DbInterval = DbInterval {
+        min: -6400,
+        max: 0,
+        linear: true,
+        mute_avail: false,
+    };
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        T::read_output_state(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUTPUT_VOLUME_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::VOLUME_MIN as i32,
+            T::VOLUME_MAX as i32,
+            T::VOLUME_STEP as i32,
+            1,
+            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_VOLUME_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::VOLUME_MIN as i32,
+            T::VOLUME_MAX as i32,
+            T::VOLUME_STEP as i32,
+            1,
+            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MASTER_OUTPUT_VOLUME_NAME => {
+                elem_value.set_int(&[self.state().master_volume as i32]);
+                Ok(true)
+            }
+            PHONE_VOLUME_NAME => {
+                elem_value.set_int(&[self.state().phone_volume as i32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MASTER_OUTPUT_VOLUME_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                T::write_output_master_volume(
+                    req,
+                    &mut unit.get_node(),
+                    vals[0] as u8,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            PHONE_VOLUME_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                T::write_output_phone_volume(
+                    req,
+                    &mut unit.get_node(),
+                    vals[0] as u8,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
