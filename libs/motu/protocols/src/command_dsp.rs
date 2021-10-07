@@ -1489,6 +1489,132 @@ impl CommandDspMessageHandler {
     }
 }
 
+/// The structure for state of reverb function.
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct CommandDspReverbState {
+    pub enable: bool,
+    pub split_point: SplitPoint,
+    pub pre_delay: i32,
+    pub shelf_filter_freq: i32,
+    pub shelf_filter_attenuation: i32,
+    pub decay_time: i32,
+    pub freq_time: [i32; 3],
+    pub freq_crossover: [i32; 2],
+    pub width: i32,
+    pub reflection_mode: RoomShape,
+    pub reflection_size: i32,
+    pub reflection_level: i32,
+}
+
+fn create_reverb_command(state: &CommandDspReverbState) -> Vec<DspCmd> {
+    vec![
+        DspCmd::Reverb(ReverbCmd::Enable(state.enable)),
+        DspCmd::Reverb(ReverbCmd::Split(state.split_point)),
+        DspCmd::Reverb(ReverbCmd::PreDelay(state.pre_delay)),
+        DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(state.shelf_filter_freq)),
+        DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(state.shelf_filter_attenuation)),
+        DspCmd::Reverb(ReverbCmd::DecayTime(state.decay_time)),
+        DspCmd::Reverb(ReverbCmd::TimeLow(state.freq_time[0])),
+        DspCmd::Reverb(ReverbCmd::TimeMiddle(state.freq_time[1])),
+        DspCmd::Reverb(ReverbCmd::TimeHigh(state.freq_time[2])),
+        DspCmd::Reverb(ReverbCmd::CrossoverLow(state.freq_crossover[0])),
+        DspCmd::Reverb(ReverbCmd::CrossoverHigh(state.freq_crossover[1])),
+        DspCmd::Reverb(ReverbCmd::Width(state.width)),
+        DspCmd::Reverb(ReverbCmd::ReflectionMode(state.reflection_mode)),
+        DspCmd::Reverb(ReverbCmd::ReflectionSize(state.reflection_size)),
+        DspCmd::Reverb(ReverbCmd::ReflectionLevel(state.reflection_level)),
+    ]
+}
+
+fn parse_reverb_command(state: &mut CommandDspReverbState, cmd: &ReverbCmd) {
+    match cmd {
+        ReverbCmd::Enable(val) => state.enable = *val,
+        ReverbCmd::Split(val) => state.split_point = *val,
+        ReverbCmd::PreDelay(val) => state.pre_delay = *val,
+        ReverbCmd::ShelfFilterFreq(val) => state.shelf_filter_freq = *val,
+        ReverbCmd::ShelfFilterAttenuation(val) => state.shelf_filter_attenuation = *val,
+        ReverbCmd::DecayTime(val) => state.decay_time = *val,
+        ReverbCmd::TimeLow(val) => state.freq_time[0] = *val,
+        ReverbCmd::TimeMiddle(val) => state.freq_time[1] = *val,
+        ReverbCmd::TimeHigh(val) => state.freq_time[2] = *val,
+        ReverbCmd::CrossoverLow(val) => state.freq_crossover[0] = *val,
+        ReverbCmd::CrossoverHigh(val) => state.freq_crossover[1] = *val,
+        ReverbCmd::Width(val) => state.width = *val,
+        ReverbCmd::ReflectionMode(val) => state.reflection_mode = *val,
+        ReverbCmd::ReflectionSize(val) => state.reflection_size = *val,
+        ReverbCmd::ReflectionLevel(val) => state.reflection_level = *val,
+        _ => (),
+    }
+}
+
+/// The trait for operation of reverb effect.
+pub trait CommandDspReverbOperation : CommandDspOperation {
+    const DECAY_TIME_MIN: i32 = 0x42c80000u32 as i32;
+    const DECAY_TIME_MAX: i32 = 0x476a6000u32 as i32;
+    const DECAY_TIME_STEP: i32 = 0x01;
+
+    const PRE_DELAY_MIN: i32 = 0x3f800000u32 as i32;
+    const PRE_DELAY_MAX: i32 = 0x42c60000u32 as i32;
+    const PRE_DELAY_STEP: i32 = 0x01;
+
+    const SHELF_FILTER_FREQ_MIN: i32 = 0x447a0000u32 as i32;
+    const SHELF_FILTER_FREQ_MAX: i32 = 0x469c4000u32 as i32;
+    const SHELF_FILTER_FREQ_STEP: i32 = 0x01;
+
+    const SHELF_FILTER_ATTR_MIN: i32 = 0x447a0000u32 as i32;
+    const SHELF_FILTER_ATTR_MAX: i32 = 0x469c4000u32 as i32;
+    const SHELF_FILTER_ATTR_STEP: i32 = 0x01;
+
+    const FREQ_TIME_COUNT: usize = 3;
+    const FREQ_TIME_MIN: i32 = 0x3f800000u32 as i32;
+    const FREQ_TIME_MAX: i32 = 0x42c00000u32 as i32;
+    const FREQ_TIME_STEP: i32 = 0x01;
+
+    const FREQ_CROSSOVER_COUNT: usize = 2;
+    const FREQ_CROSSOVER_MIN: i32 = 0x42c80000u32 as i32;
+    const FREQ_CROSSOVER_MAX: i32 = 0x469c4000u32 as i32;
+    const FREQ_CROSSOVER_STEP: i32 = 0x01;
+
+    const WIDTH_MIN: i32 = 0xbc23d70au32 as i32;
+    const WIDTH_MAX: i32 = 0x3f800000u32 as i32;
+    const WIDTH_STEP: i32 = 0x01;
+
+    const REFLECTION_SIZE_MIN: i32 = 0x42480000u32 as i32;
+    const REFLECTION_SIZE_MAX: i32 = 0x43c80000u32 as i32;
+    const REFLECTION_SIZE_STEP: i32 = 0x01;
+
+    const REFLECTION_LEVEL_MIN: i32 = 0x00000000u32 as i32;
+    const REFLECTION_LEVEL_MAX: i32 = 0x3f800000u32 as i32;
+    const REFLECTION_LEVEL_STEP: i32 = 0x01;
+
+    fn parse_reverb_commands(
+        state: &mut CommandDspReverbState,
+        cmds: &[DspCmd],
+    ) {
+        cmds
+            .iter()
+            .for_each(|cmd| {
+                if let DspCmd::Reverb(c) = cmd {
+                    parse_reverb_command(state, c);
+                }
+            });
+    }
+
+    fn write_reverb_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        state: CommandDspReverbState,
+        old: &mut CommandDspReverbState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut new_cmds = create_reverb_command(&state);
+        let old_cmds = create_reverb_command(old);
+        new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
+        Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
