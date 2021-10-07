@@ -6,6 +6,14 @@
 //! The module includes structure, enumeration, and trait for hardware mixer function operated by
 //! command.
 
+use glib::Error;
+
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+
+const DSP_CMD_OFFSET: u64 = 0xffff00010000;
+
+const MAXIMUM_DSP_FRAME_SIZE: usize = 248;
+
 const CMD_RESOURCE: u8 = 0x23;
 const CMD_BYTE_MULTIPLE: u8 = 0x49;
 const CMD_QUADLET_MULTIPLE: u8 = 0x46;
@@ -1214,6 +1222,65 @@ fn append_resource(raw: &mut Vec<u8>, usage: u32, flag: u8) {
     raw.push(CMD_RESOURCE);
     raw.extend_from_slice(&usage.to_be_bytes());
     raw.push(flag);
+}
+
+// MEMO: The transaction frame can be truncated according to maximum length of frame (248 bytes).
+// When truncated, the rest of frame is delivered by subsequent transaction.
+//
+// The sequence number is independent of the sequence number in message from the peer.
+//
+fn send_message(
+    req: &mut FwReq,
+    node: &mut FwNode,
+    tag: u8,
+    sequence_number: &mut u8,
+    mut msg: &[u8],
+    timeout_ms: u32
+) -> Result<(), Error> {
+    while msg.len() > 0 {
+        let length = std::cmp::min(msg.len(), MAXIMUM_DSP_FRAME_SIZE - 2);
+        let mut frame = Vec::with_capacity(2 + length);
+        frame.push(tag);
+        frame.push(*sequence_number);
+        frame.extend_from_slice(&msg[..length]);
+
+        // The length of frame should be aligned to quadlet unit. If it's not, the unit becomes
+        // not to transfer any messages voluntarily.
+        while frame.len() % 4 > 0 {
+            frame.push(0x00);
+        }
+
+        req.transaction_sync(
+            node,
+            FwTcode::WriteBlockRequest,
+            DSP_CMD_OFFSET,
+            frame.len(),
+            &mut frame,
+            timeout_ms
+        )?;
+
+        *sequence_number += 1;
+        *sequence_number %= 0xff;
+
+        msg = &msg[length..];
+    }
+
+    Ok(())
+}
+
+/// The trait for operation of command DSP.
+pub trait CommandDspOperation {
+    fn send_commands(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sequence_number: &mut u8,
+        cmds: &[DspCmd],
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut frame = Vec::new();
+        cmds.iter().for_each(|cmd| cmd.build(&mut frame));
+        send_message(req, node, 0x02, sequence_number, &mut frame, timeout_ms)
+    }
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use glib::Error;
 
 use hinawa::FwReq;
 
-use super::{register_dsp::*, *};
+use super::{command_dsp::*, register_dsp::*, *};
 
 /// The enumeration to express source of sampling clock.
 pub enum V3ClkSrc {
@@ -445,6 +445,8 @@ impl V3PortAssignOperation for F828mk3Protocol {}
 
 impl V3OptIfaceOperation for F828mk3Protocol {}
 
+impl CommandDspOperation for F828mk3Protocol {}
+
 /// The protocol implementation for 4pre.
 #[derive(Default)]
 pub struct H4preProtocol;
@@ -520,3 +522,5 @@ impl V3ClkOperation for UltraliteMk3Protocol {
 }
 
 impl V3PortAssignOperation for UltraliteMk3Protocol {}
+
+impl CommandDspOperation for UltraliteMk3Protocol {}
