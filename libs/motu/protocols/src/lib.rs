@@ -617,3 +617,18 @@ impl Default for TargetPort {
         Self::Disabled
     }
 }
+
+/// The enumeration to express nominal level of audio signal.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum NominalSignalLevel {
+    /// -10 dBV.
+    Consumer,
+    /// +4 dBu.
+    Professional,
+}
+
+impl Default for NominalSignalLevel {
+    fn default() -> Self {
+        Self::Consumer
+    }
+}

@@ -631,3 +631,117 @@ pub trait RegisterDspOutputOperation {
         })
     }
 }
+
+/// The structure for state of inputs in 828mkII.
+#[derive(Default)]
+pub struct Traveler828mk2LineInputState {
+    pub level: Vec<NominalSignalLevel>,
+    /// + 6dB.
+    pub boost: Vec<bool>,
+}
+
+const TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET: usize = 0x0c08;
+const TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET: usize = 0x0c14;
+
+/// The trait for operation of line input in Traveler and 828mk2.
+pub trait Traveler828mk2LineInputOperation {
+    const LINE_INPUT_COUNT: usize;
+    const CH_OFFSET: usize;
+
+    fn create_line_input_state() -> Traveler828mk2LineInputState {
+        Traveler828mk2LineInputState {
+            level: vec![Default::default(); Self::LINE_INPUT_COUNT],
+            boost: vec![Default::default(); Self::LINE_INPUT_COUNT],
+        }
+    }
+
+    fn read_line_input_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut Traveler828mk2LineInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32, timeout_ms).map(|val| {
+            state.level
+                .iter_mut()
+                .enumerate()
+                .for_each(|(mut i, level)| {
+                    i += Self::CH_OFFSET;
+                    *level = if val & (1 << i) > 0 {
+                        NominalSignalLevel::Professional
+                    } else {
+                        NominalSignalLevel::Consumer
+                    };
+                });
+        })?;
+
+        read_quad(req, node, TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32, timeout_ms).map(|val| {
+            state.boost
+                .iter_mut()
+                .enumerate()
+                .for_each(|(mut i, boost)| {
+                    i += Self::CH_OFFSET;
+                    *boost = val & (1 << i) > 0
+                });
+        })?;
+
+        Ok(())
+    }
+
+    fn write_line_input_level(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        level: &[NominalSignalLevel],
+        state: &mut Traveler828mk2LineInputState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let val = level
+            .iter()
+            .enumerate()
+            .fold(0u32, |mut val, (i, l)| {
+                if NominalSignalLevel::Professional.eq(l) {
+                    val |= 1 << (i + Self::CH_OFFSET);
+                }
+                val
+            });
+
+        write_quad(
+            req,
+            node,
+            TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32,
+            val,
+            timeout_ms
+        ).map(|_| {
+            state.level.copy_from_slice(level);
+        })
+    }
+
+    fn write_line_input_boost(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        boost: &[bool],
+        state: &mut Traveler828mk2LineInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let val = boost
+            .iter()
+            .enumerate()
+            .fold(0u32, |mut val, (mut i, b)| {
+                i += Self::CH_OFFSET;
+                if *b {
+                    val |= 1 << i;
+                }
+                val
+            });
+
+        write_quad(
+            req,
+            node,
+            TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32,
+            val,
+            timeout_ms
+        ).map(|_| {
+            state.boost.copy_from_slice(boost);
+        })
+    }
+}
