@@ -382,6 +382,11 @@ impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
 
 impl RegisterDspOutputOperation for F828mk2Protocol {}
 
+impl Traveler828mk2LineInputOperation for F828mk2Protocol {
+    const LINE_INPUT_COUNT: usize = 8;
+    const CH_OFFSET: usize = 0;
+}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
@@ -570,6 +575,11 @@ impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
 }
 
 impl RegisterDspOutputOperation for TravelerProtocol {}
+
+impl Traveler828mk2LineInputOperation for TravelerProtocol {
+    const LINE_INPUT_COUNT: usize = 4;
+    const CH_OFFSET: usize = 4;
+}
 
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
