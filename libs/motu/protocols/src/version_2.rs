@@ -581,6 +581,92 @@ impl Traveler828mk2LineInputOperation for TravelerProtocol {
     const CH_OFFSET: usize = 4;
 }
 
+/// The structure for state of inputs in Traveler.
+#[derive(Default)]
+pub struct TravelerMicInputState {
+    pub gain: [u8; TravelerProtocol::MIC_INPUT_COUNT],
+    pub pad: [bool; TravelerProtocol::MIC_INPUT_COUNT],
+}
+
+const TRAVELER_MIC_PARAM_OFFSET: usize = 0x0c1c;
+const   TRAVELER_MIC_GAIN_MASK: u8 = 0x34;
+const   TRAVELER_MIC_PAD_FLAG: u8 = 0x40;
+const   TRAVELER_MIC_CHANGE_FLAG: u8 = 0x80;
+
+impl TravelerProtocol {
+    pub const MIC_INPUT_COUNT: usize = 4;
+
+    pub const MIC_GAIN_MIN: u8 = 0x00;
+    pub const MIC_GAIN_MAX: u8 = 0x00;
+    pub const MIC_GAIN_STEP: u8 = 0x00;
+
+    pub fn read_mic_input_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut TravelerMicInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        read_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, timeout_ms).map(|val| {
+            (0..Self::MIC_INPUT_COUNT)
+                .for_each(|i| {
+                    let v = ((val >> (i * 8)) & 0xff) as u8;
+                    state.gain[i] = v & TRAVELER_MIC_GAIN_MASK;
+                    state.pad[i] = v & TRAVELER_MIC_PAD_FLAG > 0;
+                });
+        })
+    }
+
+    pub fn write_mic_gain(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        gain: &[u8],
+        state: &mut TravelerMicInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        assert_eq!(gain.len(), Self::MIC_INPUT_COUNT);
+
+        let val = gain.iter()
+            .enumerate()
+            .filter(|&(i, g)| !state.gain[i].eq(g))
+            .fold(0u32, |val, (i, &g)| {
+                let mut v = TRAVELER_MIC_CHANGE_FLAG;
+                if state.pad[i] {
+                    v |= TRAVELER_MIC_PAD_FLAG;
+                }
+                v |= g & TRAVELER_MIC_GAIN_MASK;
+                val | ((v as u32) << (i * 8))
+            });
+        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms).map(|_| {
+            state.gain.copy_from_slice(gain)
+        })
+    }
+
+    pub fn write_mic_pad(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        pad: &[bool],
+        state: &mut TravelerMicInputState,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        assert_eq!(pad.len(), Self::MIC_INPUT_COUNT);
+
+        let val = pad.iter()
+            .enumerate()
+            .filter(|&(i, p)| !state.pad[i].eq(p))
+            .fold(0u32, |val, (i, &p)| {
+                let mut v = TRAVELER_MIC_CHANGE_FLAG;
+                if p {
+                    v |= TRAVELER_MIC_PAD_FLAG;
+                }
+                v |= state.gain[i] & TRAVELER_MIC_GAIN_MASK;
+                val | ((v as u32) << (i * 8))
+            });
+        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms).map(|_| {
+            state.pad.copy_from_slice(pad)
+        })
+    }
+}
+
 /// The protocol implementation for Ultralite.
 #[derive(Default)]
 pub struct UltraliteProtocol;
