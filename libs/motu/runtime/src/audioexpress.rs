@@ -7,7 +7,7 @@ use hinawa::SndMotu;
 
 use alsactl::{ElemId, ElemValue};
 
-use core::card_cntr::{CardCntr, CtlModel};
+use core::card_cntr::*;
 
 use motu_protocols::{register_dsp::*, version_3::*};
 
@@ -168,5 +168,22 @@ impl CtlModel<SndMotu> for AudioExpress {
         } else {
             Ok(false)
         }
+    }
+}
+
+impl NotifyModel<SndMotu, u32> for AudioExpress {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
+
+    fn parse_notification(&mut self, _: &mut SndMotu, _: &u32) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndMotu,
+        _: &ElemId,
+        _: &mut ElemValue
+    ) -> Result<bool, Error> {
+        Ok(false)
     }
 }
