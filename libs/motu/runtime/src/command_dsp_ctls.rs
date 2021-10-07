@@ -423,3 +423,75 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         T::parse_reverb_commands(self.state_mut(), cmds);
     }
 }
+
+const MAIN_VOLUME_NAME: &str = "main-volume";
+
+pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
+    fn state(&self) -> &CommandDspMonitorState;
+    fn state_mut(&mut self) -> &mut CommandDspMonitorState;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut notified_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_VOLUME_NAME, 0);
+        card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            T::VOLUME_MIN,
+            T::VOLUME_MAX,
+            T::VOLUME_STEP,
+            1,
+            None,
+            true,
+        )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MAIN_VOLUME_NAME => {
+                elem_value.set_int(&[self.state().main_volume]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MAIN_VOLUME_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                let mut state =self.state().clone();
+                state.main_volume = vals[0];
+                T::write_monitor_state(
+                    req,
+                    &mut unit.get_node(),
+                    sequence_number,
+                    state,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn parse_commands(&mut self, cmds: &[DspCmd]) {
+        T::parse_monitor_commands(self.state_mut(), cmds);
+    }
+}
