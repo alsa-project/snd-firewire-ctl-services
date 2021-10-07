@@ -386,6 +386,8 @@ impl RegisterDspMixerReturnOperation for AudioExpressProtocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[];
 }
 
+impl RegisterDspMixerStereoSourceOperation for AudioExpressProtocol {}
+
 /// The protocol implementation for 828mk3.
 #[derive(Default)]
 pub struct F828mk3Protocol;
@@ -472,6 +474,8 @@ impl RegisterDspMixerOutputOperation for H4preProtocol {
 impl RegisterDspMixerReturnOperation for H4preProtocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[];
 }
+
+impl RegisterDspMixerStereoSourceOperation for H4preProtocol {}
 
 /// The protocol implementation for Ultralite mk3.
 #[derive(Default)]

@@ -369,3 +369,209 @@ pub trait RegisterDspMixerMonauralSourceOperation {
             })
     }
 }
+
+const MIXER_STEREO_SOURCE_COUNT: usize = 6;
+const MIXER_STEREO_SOURCE_PAIR_COUNT: usize = MIXER_STEREO_SOURCE_COUNT / 2;
+
+/// The structure for state of sources in mixer entiry.
+#[derive(Default, Clone)]
+pub struct RegisterDspMixerStereoSourceEntry {
+    pub gain: [u8; MIXER_STEREO_SOURCE_COUNT],
+    pub mute: [bool; MIXER_STEREO_SOURCE_COUNT],
+    pub solo: [bool; MIXER_STEREO_SOURCE_COUNT],
+}
+
+/// The structure for state of mixer sources.
+#[derive(Default)]
+pub struct RegisterDspMixerStereoSourceState {
+    pub source_paired: [bool; MIXER_STEREO_SOURCE_PAIR_COUNT],
+    pub mixer_sources: [RegisterDspMixerStereoSourceEntry; MIXER_COUNT],
+}
+
+const MIXER_SOURCE_PAIRED_OFFSET: u32 = 0x0c84;
+const  MIXER_SOURCE_PAIRED_FLAG: u8 = 0x00000001;
+const  MIXER_SOURCE_PAIRED_CHANGE: u8 = 0x00000080;
+
+// TODO: Audio Express and 4 pre have independent configurations for the below:
+//const MIXER_SOURCE_STEREO_WIDTH_FLAG: u32 = 0x00400000;
+//const MIXER_SOURCE_STEREO_BALANCE_FLAG: u32 = 0x00800000;
+
+/// The trait for operation of mixer sources.
+pub trait RegisterDspMixerStereoSourceOperation {
+    const MIXER_SOURCES: [TargetPort; MIXER_STEREO_SOURCE_COUNT] = [
+        TargetPort::Analog0,
+        TargetPort::Analog1,
+        TargetPort::Analog2,
+        TargetPort::Analog3,
+        TargetPort::Spdif0,
+        TargetPort::Spdif1,
+    ];
+    const MIXER_SOURCE_PAIR_COUNT: usize = Self::MIXER_SOURCES.len() / 2;
+
+    const MIXER_COUNT: usize = MIXER_COUNT;
+
+    const SOURCE_GAIN_MIN: u8 = 0x00;
+    const SOURCE_GAIN_MAX: u8 = 0x80;
+    const SOURCE_GAIN_STEP: u8 = 0x01;
+
+    const SOURCE_PAN_MIN: u8 = 0x00;
+    const SOURCE_PAN_MAX: u8 = 0x80;
+    const SOURCE_PAN_STEP: u8 = 0x01;
+
+    fn create_mixer_stereo_source_state() -> RegisterDspMixerStereoSourceState {
+        Default::default()
+    }
+
+    fn compute_mixer_source_offset(base_offset: usize, src_idx: usize) -> usize {
+        base_offset + 4 * if src_idx < 4 { src_idx } else { src_idx + 4 }
+    }
+
+    fn read_mixer_stereo_source_state(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        state: &mut RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        read_quad(req, node, MIXER_SOURCE_PAIRED_OFFSET as u32, timeout_ms).map(|val| {
+            state.source_paired
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, paired)| {
+                    let flags = ((val >> (i * 8)) & 0x000000ff) as u8;
+                    *paired = (flags & MIXER_SOURCE_PAIRED_FLAG) > 0;
+                });
+        })?;
+
+        state.mixer_sources
+            .iter_mut()
+            .enumerate()
+            .try_for_each(|(i, entry)| {
+                let base_offset = MIXER_SOURCE_OFFSETS[i];
+                (0..Self::MIXER_SOURCES.len())
+                    .try_for_each(|j| {
+                        let offset = Self::compute_mixer_source_offset(base_offset, j);
+                        read_quad(req, node, offset as u32, timeout_ms).map(|val| {
+                            entry.gain[j] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
+                            entry.mute[j] = ((val & MIXER_SOURCE_MUTE_FLAG) >> 8) > 0;
+                            entry.solo[j] = ((val & MIXER_SOURCE_SOLO_FLAG) >> 16) > 0;
+                        })
+                    })
+            })?;
+
+        Ok(())
+    }
+
+    fn write_mixer_stereo_source_paired(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        paired: &[bool],
+        state: &mut RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(paired.len(), MIXER_STEREO_SOURCE_PAIR_COUNT);
+
+        let mut val = 0u32;
+
+        state.source_paired
+            .iter_mut()
+            .zip(paired.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .for_each(|(i, (_, new))| {
+                let mut v = MIXER_SOURCE_PAIRED_CHANGE;
+                if *new {
+                    v |= MIXER_SOURCE_PAIRED_FLAG;
+                }
+                val |= (v as u32) << (i * 8);
+            });
+
+        write_quad(req, node, MIXER_SOURCE_PAIRED_OFFSET, val, timeout_ms).map(|_| {
+            state.source_paired.copy_from_slice(paired);
+        })
+    }
+
+    fn write_mixer_stereo_source_gain(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        mixer: usize,
+        gain: &[u8],
+        state: &mut RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert!(mixer < MIXER_COUNT);
+        assert_eq!(gain.len(), Self::MIXER_SOURCES.len());
+
+        let base_offset = MIXER_SOURCE_OFFSETS[mixer];
+
+        state.mixer_sources[mixer].gain
+            .iter_mut()
+            .zip(gain.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .try_for_each(|(i, (old, new))| {
+                let offset = Self::compute_mixer_source_offset(base_offset, i);
+                let mut val = read_quad(req, node, offset as u32, timeout_ms)?;
+                val &= !MIXER_SOURCE_GAIN_MASK;
+                val |= *new as u32;
+                write_quad(req, node, offset as u32, val, timeout_ms).map(|_| *old = *new)
+            })
+    }
+
+    fn write_mixer_stereo_source_mute(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        mixer: usize,
+        mute: &[bool],
+        state: &mut RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert!(mixer < MIXER_COUNT);
+        assert_eq!(mute.len(), Self::MIXER_SOURCES.len());
+
+        let base_offset = MIXER_SOURCE_OFFSETS[mixer];
+
+        state.mixer_sources[mixer].mute
+            .iter_mut()
+            .zip(mute.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .try_for_each(|(i, (old, new))| {
+                let offset = Self::compute_mixer_source_offset(base_offset, i);
+                let mut val = read_quad(req, node, offset as u32, timeout_ms)?;
+                val &= !MIXER_SOURCE_MUTE_FLAG;
+                if *new {
+                    val |= MIXER_SOURCE_MUTE_FLAG;
+                }
+                write_quad(req, node, offset as u32, val, timeout_ms).map(|_| *old = *new)
+            })
+    }
+
+    fn write_mixer_stereo_source_solo(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        mixer: usize,
+        solo: &[bool],
+        state: &mut RegisterDspMixerStereoSourceState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert!(mixer < MIXER_COUNT);
+        assert_eq!(solo.len(), Self::MIXER_SOURCES.len());
+
+        let base_offset = MIXER_SOURCE_OFFSETS[mixer];
+
+        state.mixer_sources[mixer].solo
+            .iter_mut()
+            .zip(solo.iter())
+            .enumerate()
+            .filter(|(_, (old, new))| !old.eq(new))
+            .try_for_each(|(i, (old, new))| {
+                let offset = Self::compute_mixer_source_offset(base_offset, i);
+                let mut val = read_quad(req, node, offset as u32, timeout_ms)?;
+                val &= !MIXER_SOURCE_SOLO_FLAG;
+                if *new {
+                    val |= MIXER_SOURCE_SOLO_FLAG;
+                }
+                write_quad(req, node, offset as u32, val, timeout_ms).map(|_| *old = *new)
+            })
+    }
+}
