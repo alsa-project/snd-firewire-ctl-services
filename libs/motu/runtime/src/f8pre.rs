@@ -22,6 +22,7 @@ pub struct F8pre{
     opt_iface_ctl: OptIfaceCtl,
     phone_assign_ctl: PhoneAssignCtl,
     mixer_output_ctl: MixerOutputCtl,
+    mixer_return_ctl: MixerReturnCtl,
 }
 
 #[derive(Default)]
@@ -52,6 +53,19 @@ impl RegisterDspMixerOutputCtlOperation<F8preProtocol> for MixerOutputCtl {
     }
 }
 
+#[derive(Default)]
+struct MixerReturnCtl(RegisterDspMixerReturnState, Vec<ElemId>);
+
+impl RegisterDspMixerReturnCtlOperation<F8preProtocol> for MixerReturnCtl {
+    fn state(&self) -> &RegisterDspMixerReturnState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMixerReturnState {
+        &mut self.0
+    }
+}
+
 impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -59,6 +73,8 @@ impl CtlModel<SndMotu> for F8pre {
         let _ = self.phone_assign_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
+        self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -75,6 +91,8 @@ impl CtlModel<SndMotu> for F8pre {
         } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_return_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -95,6 +113,8 @@ impl CtlModel<SndMotu> for F8pre {
         } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+            Ok(true)
+        } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
             Ok(true)
         } else {
             Ok(false)
