@@ -405,10 +405,49 @@ fn append_data(raw: &mut Vec<u8>, identifier: &[u8], vals: &[u8]) {
     }
 }
 
+/// The enumeration for focus target.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum FocusTarget {
+    Output(usize),
+    Input(usize),
+    Reserved(usize, usize),
+}
+
+impl Default for FocusTarget {
+    fn default() -> Self {
+        Self::Output(0)
+    }
+}
+
+impl From<&[u8]> for FocusTarget {
+    fn from(raw: &[u8]) -> Self {
+        match raw[3] {
+            0x01 => Self::Input(raw[0] as usize),
+            0x03 => Self::Output(raw[0] as usize),
+            _ => Self::Reserved(raw[3] as usize, raw[0] as usize),
+        }
+    }
+}
+
+impl From<&FocusTarget> for Vec<u8> {
+    fn from(target: &FocusTarget) -> Self {
+        match target {
+            FocusTarget::Input(ch) => vec![*ch as u8, 0x00, 0x00, 0x01],
+            FocusTarget::Output(ch) => vec![*ch as u8, 0x00, 0x00, 0x03],
+            FocusTarget::Reserved(dir, ch) => vec![*ch as u8, 0x00, 0x00, *dir as u8],
+        }
+    }
+}
+
 /// The DSP command specific to master output.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MonitorCmd {
     Volume(f32),
+    TalkbackEnable(bool),
+    ListenbackEnable(bool),
+    TalkbackVolume(f32),
+    ListenbackVolume(f32),
+    Focus(FocusTarget),
     ReturnAssign(usize),
     Reserved(Vec<u8>, Vec<u8>),
 }
@@ -420,14 +459,14 @@ impl MonitorCmd {
 
         match (identifier[3], identifier[2], identifier[1]) {
             (0x00, 0x00, 0x00) => MonitorCmd::Volume(to_f32(vals)),
+            (0x00, 0x00, 0x01) => MonitorCmd::TalkbackEnable(to_bool(vals)),
+            (0x00, 0x00, 0x02) => MonitorCmd::ListenbackEnable(to_bool(vals)),
             // TODO: model dependent, I guess.
-            // (0, 0, 1) => u8
-            // (0, 0, 2) => u8
             // (0, 0, 3) => u8
             // (0, 0, 4) => u8
-            // (0, 0, 5) => i32
-            // (0, 0, 6) => i32
-            // (0, 0, 7) => i32
+            (0x00, 0x00, 0x05) => MonitorCmd::TalkbackVolume(to_f32(vals)),
+            (0x00, 0x00, 0x06) => MonitorCmd::ListenbackVolume(to_f32(vals)),
+            (0x00, 0x00, 0x07) => MonitorCmd::Focus(FocusTarget::from(vals)),
             (0x00, 0x00, 0x08) => MonitorCmd::ReturnAssign(to_usize(vals)),
             _ => MonitorCmd::Reserved(identifier.to_vec(), vals.to_vec()),
         }
@@ -435,8 +474,13 @@ impl MonitorCmd {
 
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
-            MonitorCmd::ReturnAssign(target) =>         append_u8(raw, 0x00, 0x00, 0x08, 0, *target as u8),
             MonitorCmd::Volume(val) =>                  append_f32(raw, 0x00, 0x00, 0x00, 0, *val),
+            MonitorCmd::TalkbackEnable(val) =>          append_u8(raw, 0x00, 0x00, 0x01, 0, *val as u8),
+            MonitorCmd::ListenbackEnable(val) =>        append_u8(raw, 0x00, 0x00, 0x02, 0, *val as u8),
+            MonitorCmd::TalkbackVolume(val) =>          append_f32(raw, 0x00, 0x00, 0x05, 0, *val),
+            MonitorCmd::ListenbackVolume(val) =>        append_f32(raw, 0x00, 0x00, 0x06, 0, *val),
+            MonitorCmd::Focus(target) =>                append_data(raw, &[0x00, 0x07, 0x00, 0x00], &Vec::from(target)),
+            MonitorCmd::ReturnAssign(target) =>         append_u8(raw, 0x00, 0x00, 0x08, 0, *target as u8),
             MonitorCmd::Reserved(identifier, vals) =>   append_data(raw, identifier, vals),
         }
     }
@@ -1673,6 +1717,11 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
 pub struct CommandDspMonitorState {
     /// The volume adjusted by main (master) knob. -inf (mute), -80.0 dB to 0.0 dB.
     pub main_volume: f32,
+    pub talkback_enable: bool,
+    pub listenback_enable: bool,
+    pub talkback_volume: f32,
+    pub listenback_volume: f32,
+    pub focus: FocusTarget,
     pub assign_target: TargetPort,
 }
 
@@ -1684,6 +1733,11 @@ fn create_monitor_commands(
 
     vec![
         DspCmd::Monitor(MonitorCmd::Volume(state.main_volume)),
+        DspCmd::Monitor(MonitorCmd::TalkbackEnable(state.talkback_enable)),
+        DspCmd::Monitor(MonitorCmd::ListenbackEnable(state.listenback_enable)),
+        DspCmd::Monitor(MonitorCmd::TalkbackVolume(state.talkback_volume)),
+        DspCmd::Monitor(MonitorCmd::ListenbackVolume(state.listenback_volume)),
+        DspCmd::Monitor(MonitorCmd::Focus(state.focus)),
         DspCmd::Monitor(MonitorCmd::ReturnAssign(pos)),
     ]
 }
@@ -1695,6 +1749,11 @@ fn parse_monitor_command(
 ) {
     match cmd {
         MonitorCmd::Volume(val) => state.main_volume = *val,
+        MonitorCmd::TalkbackEnable(val) => state.talkback_enable = *val,
+        MonitorCmd::ListenbackEnable(val) => state.listenback_enable = *val,
+        MonitorCmd::TalkbackVolume(val) => state.talkback_volume = *val,
+        MonitorCmd::ListenbackVolume(val) => state.listenback_volume = *val,
+        MonitorCmd::Focus(val) => state.focus = *val,
         MonitorCmd::ReturnAssign(val) => {
             state.assign_target = target_ports
                 .iter()
@@ -2481,6 +2540,8 @@ mod test {
     fn test_u8_cmds() {
         [
             DspCmd::Monitor(MonitorCmd::ReturnAssign(0x69)),
+            DspCmd::Monitor(MonitorCmd::TalkbackEnable(true)),
+            DspCmd::Monitor(MonitorCmd::ListenbackEnable(true)),
             DspCmd::Input(InputCmd::Phase(0x59, true)),
             DspCmd::Input(InputCmd::Pair(0x0, false)),
             DspCmd::Input(InputCmd::Swap(0x24, false)),
@@ -2556,6 +2617,7 @@ mod test {
     #[test]
     fn test_i32_cmds() {
         [
+            DspCmd::Monitor(MonitorCmd::Focus(FocusTarget::Output(11))),
             DspCmd::Input(InputCmd::Gain(0xe4, 0x01)),
             DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(97531))),
             DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(86420))),
@@ -2621,6 +2683,8 @@ mod test {
     fn test_f32_cmds() {
         [
             DspCmd::Monitor(MonitorCmd::Volume(9.012345678)),
+            DspCmd::Monitor(MonitorCmd::ListenbackVolume(9.234567891)),
+            DspCmd::Monitor(MonitorCmd::TalkbackVolume(9.345678912)),
             DspCmd::Input(InputCmd::Width(0xd3, 0.0987654321)),
             DspCmd::Input(InputCmd::Equalizer(0xa0, EqualizerParameter::LfGain(0.123456789))),
             DspCmd::Input(InputCmd::Equalizer(0x9f, EqualizerParameter::LfWidth(0.987654321))),
@@ -2684,8 +2748,8 @@ mod test {
     fn message_decode_test() {
         let raw = [
             0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f,
-            0x69, 0x00, 0x00, 0x01, 0x00, 0x00,
-            0x69, 0x00, 0x00, 0x02, 0x00, 0x00,
+            0x69, 0x00, 0x00, 0x0a, 0x00, 0x00,
+            0x69, 0x00, 0x00, 0x0b, 0x00, 0x00,
             0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01,
             0x62,
             0x46, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f,
@@ -2698,8 +2762,8 @@ mod test {
         handler.cache.extend_from_slice(&raw);
         let cmds = handler.decode_messages();
         assert_eq!(cmds[0], DspCmd::Monitor(MonitorCmd::Volume(1.0)));
-        assert_eq!(cmds[1], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x01, 0x00, 0x00], vec![0x00])));
-        assert_eq!(cmds[2], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x02, 0x00, 0x00], vec![0x00])));
+        assert_eq!(cmds[1], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x0a, 0x00, 0x00], vec![0x00])));
+        assert_eq!(cmds[2], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x0b, 0x00, 0x00], vec![0x00])));
         assert_eq!(cmds[3], DspCmd::Reserved(vec![0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01]));
         assert_eq!(cmds[4], DspCmd::Monitor(MonitorCmd::Volume(1.0)));
         assert_eq!(cmds[5], DspCmd::Output(OutputCmd::MasterListenback(0, false)));
