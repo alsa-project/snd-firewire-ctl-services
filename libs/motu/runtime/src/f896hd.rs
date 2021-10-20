@@ -242,18 +242,28 @@ impl CtlModel<SndMotu> for F896hd {
 }
 
 impl NotifyModel<SndMotu, u32> for F896hd {
-    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.level_meters_ctl.1);
+    }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, _: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+        if *msg & F896hdProtocol::NOTIFY_PROGRAMMABLE_METER_MASK > 0 {
+            self.level_meters_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
+        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
         _: &SndMotu,
-        _: &ElemId,
-        _: &mut ElemValue
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.level_meters_ctl.refer(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
