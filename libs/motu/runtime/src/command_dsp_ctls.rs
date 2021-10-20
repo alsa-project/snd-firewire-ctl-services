@@ -437,6 +437,10 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
 }
 
 const MAIN_VOLUME_NAME: &str = "main-volume";
+const TALKBACK_ENABLE_NAME: &str = "talkback-enable";
+const LISTENBACK_ENABLE_NAME: &str = "listenback-enable";
+const TALKBACK_VOLUME_NAME: &str = "talkback-volume";
+const LISTENBACK_VOLUME_NAME: &str = "listenback-volume";
 
 pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
     fn state(&self) -> &CommandDspMonitorState;
@@ -450,18 +454,37 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
     ) -> Result<Vec<ElemId>, Error> {
         let mut notified_elem_id_list = Vec::new();
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_VOLUME_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            (T::VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
-            (T::VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
-            1,
-            1,
-            None,
-            true,
-        )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+        [
+            MAIN_VOLUME_NAME,
+            TALKBACK_VOLUME_NAME,
+            LISTENBACK_VOLUME_NAME,
+        ]
+            .iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_int_elems(
+                    &elem_id,
+                    1,
+                    (T::VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
+                    (T::VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+                    1,
+                    1,
+                    None,
+                    true,
+                )
+                    .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+            })?;
+
+        [
+            TALKBACK_ENABLE_NAME,
+            LISTENBACK_ENABLE_NAME,
+        ]
+            .iter()
+            .try_for_each(|name| {
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+                card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+                    .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))
+            })?;
 
         Ok(notified_elem_id_list)
     }
@@ -470,6 +493,24 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
         match elem_id.get_name().as_str() {
             MAIN_VOLUME_NAME => {
                 let val = (self.state().main_volume * Self::F32_CONVERT_SCALE) as i32;
+                elem_value.set_int(&[val]);
+                Ok(true)
+            }
+            TALKBACK_ENABLE_NAME => {
+                elem_value.set_bool(&[self.state().talkback_enable]);
+                Ok(true)
+            }
+            LISTENBACK_ENABLE_NAME => {
+                elem_value.set_bool(&[self.state().listenback_enable]);
+                Ok(true)
+            }
+            TALKBACK_VOLUME_NAME => {
+                let val = (self.state().talkback_volume * Self::F32_CONVERT_SCALE) as i32;
+                elem_value.set_int(&[val]);
+                Ok(true)
+            }
+            LISTENBACK_VOLUME_NAME => {
+                let val = (self.state().listenback_volume * Self::F32_CONVERT_SCALE) as i32;
                 elem_value.set_int(&[val]);
                 Ok(true)
             }
@@ -491,8 +532,69 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
-                let mut state =self.state().clone();
+                let mut state = self.state().clone();
                 state.main_volume = val;
+                T::write_monitor_state(
+                    req,
+                    &mut unit.get_node(),
+                    sequence_number,
+                    state,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            TALKBACK_ENABLE_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                let mut state = self.state().clone();
+                state.talkback_enable = vals[0];
+                T::write_monitor_state(
+                    req,
+                    &mut unit.get_node(),
+                    sequence_number,
+                    state,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            LISTENBACK_ENABLE_NAME => {
+                let mut vals = [false];
+                elem_value.get_bool(&mut vals);
+                let mut state = self.state().clone();
+                state.listenback_enable = vals[0];
+                T::write_monitor_state(
+                    req,
+                    &mut unit.get_node(),
+                    sequence_number,
+                    state,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+            }
+            TALKBACK_VOLUME_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                let mut state = self.state().clone();
+                state.talkback_volume = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
+                T::write_monitor_state(
+                    req,
+                    &mut unit.get_node(),
+                    sequence_number,
+                    state,
+                    self.state_mut(),
+                    timeout_ms
+                )
+                    .map(|_| true)
+                
+            }
+            LISTENBACK_VOLUME_NAME => {
+                let mut vals = [0];
+                elem_value.get_int(&mut vals);
+                let mut state = self.state().clone();
+                state.listenback_volume = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
                 T::write_monitor_state(
                     req,
                     &mut unit.get_node(),
