@@ -874,6 +874,14 @@ impl UltraliteProtocol {
 #[derive(Default)]
 pub struct F896hdProtocol;
 
+impl F896hdProtocol {
+    /// Notification mask for programmable meter.
+    pub const NOTIFY_PROGRAMMABLE_METER_MASK: u32 = 0x40000000;
+
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+}
+
 impl AssignOperation for F896hdProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
         (TargetPort::PhonePair0, 0x01),
