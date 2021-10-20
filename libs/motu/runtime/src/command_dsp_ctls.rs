@@ -535,6 +535,8 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         SourceStereoPairMode::LrBalance,
     ];
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -560,9 +562,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::OUTPUT_VOLUME_MIN,
-            T::OUTPUT_VOLUME_MAX,
-            T::OUTPUT_VOLUME_STEP,
+            (T::OUTPUT_VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::OUTPUT_VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::MIXER_COUNT,
             None,
             true,
@@ -573,9 +575,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::OUTPUT_VOLUME_MIN,
-            T::OUTPUT_VOLUME_MAX,
-            T::OUTPUT_VOLUME_STEP,
+            (T::OUTPUT_VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::OUTPUT_VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::MIXER_COUNT,
             None,
             true,
@@ -586,9 +588,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::OUTPUT_VOLUME_MIN,
-            T::OUTPUT_VOLUME_MAX,
-            T::OUTPUT_VOLUME_STEP,
+            (T::OUTPUT_VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::OUTPUT_VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::MIXER_COUNT,
             None,
             true,
@@ -607,9 +609,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             T::MIXER_COUNT,
-            T::SOURCE_GAIN_MIN,
-            T::SOURCE_GAIN_MAX,
-            T::SOURCE_GAIN_STEP,
+            (T::SOURCE_GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::SOURCE_GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::SOURCE_PORTS.len(),
             None,
             true,
@@ -620,9 +622,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             T::MIXER_COUNT,
-            T::SOURCE_PAN_MIN,
-            T::SOURCE_PAN_MAX,
-            T::SOURCE_PAN_STEP,
+            (T::SOURCE_PAN_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::SOURCE_PAN_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::SOURCE_PORTS.len(),
             None,
             true,
@@ -648,9 +650,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             T::MIXER_COUNT,
-            T::SOURCE_PAN_MIN,
-            T::SOURCE_PAN_MAX,
-            T::SOURCE_PAN_STEP,
+            (T::SOURCE_PAN_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::SOURCE_PAN_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::SOURCE_PORTS.len(),
             None,
             true,
@@ -661,9 +663,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             T::MIXER_COUNT,
-            T::SOURCE_PAN_MIN,
-            T::SOURCE_PAN_MAX,
-            T::SOURCE_PAN_STEP,
+            (T::SOURCE_PAN_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::SOURCE_PAN_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::SOURCE_PORTS.len(),
             None,
             true,
@@ -671,6 +673,19 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
+    }
+
+    fn read_f32_values(
+        elem_value: &mut ElemValue,
+        vals: &[f32],
+    ) -> Result<bool, Error> {
+        let vals: Vec<i32> = vals
+            .iter()
+            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
+            .collect();
+
+        elem_value.set_int(&vals);
+        Ok(true)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -690,16 +705,13 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 Ok(true)
             }
             MIXER_OUTPUT_VOLUME_NAME => {
-                elem_value.set_int(&self.state().output_volume);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().output_volume)
             }
             MIXER_REVERB_SEND_NAME => {
-                elem_value.set_int(&self.state().reverb_send);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().reverb_send)
             }
             MIXER_REVERB_RETURN_NAME => {
-                elem_value.set_int(&self.state().reverb_return);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().reverb_return)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mixer = elem_id.get_index() as usize;
@@ -713,13 +725,11 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
             }
             MIXER_SOURCE_PAN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().source[mixer].pan);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().source[mixer].pan)
             }
             MIXER_SOURCE_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().source[mixer].gain);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().source[mixer].gain)
             }
             MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
                 let mixer = elem_id.get_index() as usize;
@@ -734,16 +744,20 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().source[mixer].stereo_balance);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().source[mixer].stereo_balance)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                elem_value.set_int(&self.state().source[mixer].stereo_width);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().source[mixer].stereo_width)
             }
             _ => Ok(false),
         }
+    }
+
+    fn f32_array_from_i32_values(elem_value: &ElemValue, count: usize) -> Vec<f32> {
+        let mut vals = vec![0; count];
+        elem_value.get_int(&mut vals);
+        vals.iter().map(|&val| (val as f32) / Self::F32_CONVERT_SCALE).collect()
     }
 
     fn write(
@@ -786,24 +800,21 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_OUTPUT_VOLUME_NAME => {
-                let mut vals = vec![0; T::MIXER_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::MIXER_COUNT);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.output_volume.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIXER_REVERB_SEND_NAME => {
-                let mut vals = vec![0; T::MIXER_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::MIXER_COUNT);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.reverb_send.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIXER_REVERB_RETURN_NAME => {
-                let mut vals = vec![0; T::MIXER_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::MIXER_COUNT);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.reverb_return.copy_from_slice(&vals);
                     Ok(())
@@ -828,8 +839,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_PAN_NAME => {
-                let mut vals = vec![0; T::SOURCE_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
                 let mixer = elem_id.get_index() as usize;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.source[mixer].pan.copy_from_slice(&vals);
@@ -837,8 +847,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_GAIN_NAME => {
-                let mut vals = vec![0; T::SOURCE_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
                 let mixer = elem_id.get_index() as usize;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.source[mixer].gain.copy_from_slice(&vals);
@@ -868,8 +877,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
-                let mut vals = vec![0; T::SOURCE_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
                 let mixer = elem_id.get_index() as usize;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.source[mixer].stereo_balance.copy_from_slice(&vals);
@@ -877,8 +885,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME=> {
-                let mut vals = vec![0; T::SOURCE_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value, T::SOURCE_PORTS.len());
                 let mixer = elem_id.get_index() as usize;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.source[mixer].stereo_width.copy_from_slice(&vals);
