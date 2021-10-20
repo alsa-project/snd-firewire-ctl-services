@@ -346,6 +346,7 @@ pub trait AesebuRateConvertOperation {
 }
 
 /// The enumeration to express the mode of hold time for clip and peak LEDs.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersHoldTimeMode {
     /// off.
     Off,
@@ -365,17 +366,37 @@ pub enum LevelMetersHoldTimeMode {
     Infinite,
 }
 
+impl Default for LevelMetersHoldTimeMode {
+    fn default() -> Self {
+        Self::Off
+    }
+}
+
 /// The enumeration to express the mode of programmable meter display.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersProgrammableMode {
     AnalogOutput,
     AdatInput,
     AdatOutput,
 }
 
+impl Default for LevelMetersProgrammableMode {
+    fn default() -> Self {
+        Self::AnalogOutput
+    }
+}
+
 /// The enumeration to express the mode of AES/EBU meter display.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersAesebuMode {
     Input,
     Output,
+}
+
+impl Default for LevelMetersAesebuMode {
+    fn default() -> Self {
+        Self::Input
+    }
 }
 
 const LEVEL_METERS_OFFSET: u32 = 0x0b24;
