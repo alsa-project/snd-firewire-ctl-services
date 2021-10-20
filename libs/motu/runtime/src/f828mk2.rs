@@ -27,7 +27,6 @@ pub struct F828mk2{
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     line_input_ctl: LineInputCtl,
-    msg_cache: u32,
 }
 
 #[derive(Default)]
@@ -139,10 +138,6 @@ impl Traveler828mk2LineInputCtlOperation<F828mk2Protocol> for LineInputCtl {
     }
 }
 
-impl F828mk2 {
-    const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
-}
-
 impl CtlModel<SndMotu> for F828mk2 {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -227,29 +222,25 @@ impl CtlModel<SndMotu> for F828mk2 {
 
 impl NotifyModel<SndMotu, u32> for F828mk2 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.1);
     }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {
-        self.msg_cache = *msg;
+    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+        if *msg & F828mk2Protocol::NOTIFY_PORT_CHANGE > 0 {
+            self.word_clk_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
+        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
         _: &SndMotu,
-        _: &ElemId,
-        _: &mut ElemValue
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
-        if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
-            //if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else if self.word_clk_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else {
-                Ok(false)
-            //}
+        if self.word_clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }

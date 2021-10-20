@@ -387,6 +387,15 @@ impl Traveler828mk2LineInputOperation for F828mk2Protocol {
     const CH_OFFSET: usize = 0;
 }
 
+impl F828mk2Protocol {
+    /// Notification mask for speed of word clock output, and phone assignment. The change of phone
+    /// assignment is also notified in message delivered by the sequence of isochronous packets.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+}
+
 /// The protocol implementation for 8pre.
 #[derive(Default)]
 pub struct F8preProtocol;
