@@ -9,11 +9,11 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
-use core::card_cntr::*;
+use core::{card_cntr::*, elem_value_accessor::*};
 
 use motu_protocols::{register_dsp::*, version_2::*};
 
-use super::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*};
+use crate::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*, *};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -50,9 +50,7 @@ struct ClkCtl;
 impl V2ClkCtlOperation<UltraliteProtocol> for ClkCtl {}
 
 #[derive(Default)]
-struct MainAssignCtl(Vec<ElemId>);
-
-impl V2MainAssignCtlOperation for MainAssignCtl {}
+struct MainAssignCtl(usize, Vec<ElemId>);
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
@@ -116,8 +114,7 @@ impl UltraLite {
 impl CtlModel<SndMotu> for UltraLite {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.main_assign_ctl.load(card_cntr)
-            .map(|mut elem_id_list| self.main_assign_ctl.0.append(&mut elem_id_list))?;
+        self.main_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -141,7 +138,7 @@ impl CtlModel<SndMotu> for UltraLite {
     ) -> Result<bool, Error> {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.main_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.main_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -191,7 +188,7 @@ impl CtlModel<SndMotu> for UltraLite {
 
 impl NotifyModel<SndMotu, u32> for UltraLite {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.main_assign_ctl.0);
+        elem_id_list.extend_from_slice(&self.main_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
     }
 
@@ -216,6 +213,75 @@ impl NotifyModel<SndMotu, u32> for UltraLite {
             //}
         } else {
             Ok(false)
+        }
+    }
+}
+
+const MAIN_ASSIGNMENT_NAME: &str = "main-assign";
+
+impl MainAssignCtl {
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        self.cache(unit, req, timeout_ms)?;
+
+        let labels: Vec<&str> = UltraliteProtocol::KNOB_TARGETS
+            .iter()
+            .map(|e| target_port_to_str(&e.0))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_ASSIGNMENT_NAME, 0);
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
+
+        Ok(())
+    }
+
+    fn cache(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        UltraliteProtocol::get_main_assign(req, &mut unit.get_node(), timeout_ms)
+            .map(|idx| self.0 = idx)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MAIN_ASSIGNMENT_NAME => {
+                elem_value.set_enum(&[self.0 as u32]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MAIN_ASSIGNMENT_NAME => {
+                ElemValueAccessor::<u32>::get_val(new, |val| {
+                    UltraliteProtocol::set_main_assign(
+                        req,
+                        &mut unit.get_node(),
+                        val as usize,
+                        timeout_ms
+                    )
+                        .map(|_| self.0 = val as usize)
+                })
+                .map(|_| true)
+            }
+            _ => Ok(false),
         }
     }
 }
