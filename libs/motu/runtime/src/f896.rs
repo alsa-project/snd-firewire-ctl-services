@@ -45,9 +45,17 @@ struct AesebuRateConvertCtl;
 impl AesebuRateConvertCtlOperation<F896Protocol> for AesebuRateConvertCtl {}
 
 #[derive(Default)]
-struct LevelMetersCtl;
+struct LevelMetersCtl(LevelMeterState);
 
-impl LevelMetersCtlOperation<F896Protocol> for LevelMetersCtl {}
+impl LevelMetersCtlOperation<F896Protocol> for LevelMetersCtl {
+    fn state(&self) -> &LevelMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut LevelMeterState {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -65,7 +73,7 @@ impl CtlModel<SndMotu> for F896 {
         self.monitor_input_ctl.load(card_cntr)?;
         let _ = self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        self.level_meters_ctl.load(card_cntr)?;
+        let _ = self.level_meters_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 

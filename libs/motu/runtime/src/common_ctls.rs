@@ -271,8 +271,24 @@ const CLIP_HOLD_TIME_MODE_NAME: &str = "meter-clip-hold-time";
 const AESEBU_MODE_NAME: &str = "AES/EBU-meter";
 const PROGRAMMABLE_MODE_NAME: &str = "programmable-meter";
 
+#[derive(Default)]
+pub struct LevelMeterState(usize, usize);
+
 pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &LevelMeterState;
+    fn state_mut(&mut self) -> &mut LevelMeterState;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<Vec<ElemId>, Error> {
+        self.cache(unit, req, timeout_ms)?;
+
+        let mut notified_elem_id_list = Vec::new();
+
         let labels: Vec<&str> = T::LEVEL_METERS_HOLD_TIME_MODES
             .iter()
             .map(|l| level_meters_hold_time_mode_to_string(&l))
@@ -290,7 +306,8 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
             .map(|l| level_meters_aesebu_mode_to_string(&l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, AESEBU_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<&str> = T::LEVEL_METERS_PROGRAMMABLE_MODES
             .iter()
@@ -298,7 +315,25 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
             .collect();
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Card, 0, 0, PROGRAMMABLE_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn cache(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        T::get_level_meters_aesebu_mode(req, &mut unit.get_node(), timeout_ms).map(|idx| {
+            self.state_mut().0 = idx;
+        })?;
+
+        T::get_level_meters_programmable_mode(req, &mut unit.get_node(), timeout_ms).map(|idx| {
+            self.state_mut().1 = idx;
+        })?;
 
         Ok(())
     }
@@ -326,18 +361,18 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
                 })
                 .map(|_| true)
             }
+            _ => self.refer(elem_id, elem_value),
+        }
+    }
+
+    fn refer(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
             AESEBU_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_level_meters_aesebu_mode(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().0 as u32))
                 .map(|_| true)
             }
             PROGRAMMABLE_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_level_meters_programmable_mode(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().1 as u32))
                 .map(|_| true)
             }
             _ => Ok(false),
@@ -368,12 +403,14 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
             AESEBU_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     T::set_level_meters_aesebu_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                        .map(|_| self.state_mut().0 = val as usize)
                 })
                 .map(|_| true)
             }
             PROGRAMMABLE_MODE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     T::set_level_meters_programmable_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                        .map(|_| self.state_mut().1 = val as usize)
                 })
                 .map(|_| true)
             }
