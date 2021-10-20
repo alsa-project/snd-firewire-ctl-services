@@ -90,9 +90,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::DECAY_TIME_MIN,
-            T::DECAY_TIME_MAX,
-            T::DECAY_TIME_STEP,
+            T::DECAY_TIME_MIN as i32,
+            T::DECAY_TIME_MAX as i32,
+            T::DECAY_TIME_STEP as i32,
             1,
             None,
             true,
@@ -103,9 +103,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::PRE_DELAY_MIN,
-            T::PRE_DELAY_MAX,
-            T::PRE_DELAY_STEP,
+            T::PRE_DELAY_MIN as i32,
+            T::PRE_DELAY_MAX as i32,
+            T::PRE_DELAY_STEP as i32,
             1,
             None,
             true,
@@ -116,9 +116,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::SHELF_FILTER_FREQ_MIN,
-            T::SHELF_FILTER_FREQ_MAX,
-            T::SHELF_FILTER_FREQ_STEP,
+            T::SHELF_FILTER_FREQ_MIN as i32,
+            T::SHELF_FILTER_FREQ_MAX as i32,
+            T::SHELF_FILTER_FREQ_STEP as i32,
             1,
             None,
             true,
@@ -142,9 +142,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::FREQ_TIME_MIN,
-            T::FREQ_TIME_MAX,
-            T::FREQ_TIME_STEP,
+            T::FREQ_TIME_MIN as i32,
+            T::FREQ_TIME_MAX as i32,
+            T::FREQ_TIME_STEP as i32,
             3,
             None,
             true,
@@ -155,9 +155,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::FREQ_CROSSOVER_MIN,
-            T::FREQ_CROSSOVER_MAX,
-            T::FREQ_CROSSOVER_STEP,
+            T::FREQ_CROSSOVER_MIN as i32,
+            T::FREQ_CROSSOVER_MAX as i32,
+            T::FREQ_CROSSOVER_STEP as i32,
             2,
             None,
             true,
@@ -189,9 +189,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::REFLECTION_SIZE_MIN,
-            T::REFLECTION_SIZE_MAX,
-            T::REFLECTION_SIZE_STEP,
+            T::REFLECTION_SIZE_MIN as i32,
+            T::REFLECTION_SIZE_MAX as i32,
+            T::REFLECTION_SIZE_STEP as i32,
             1,
             None,
             true,
@@ -229,11 +229,11 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 Ok(true)
             }
             REVERB_PRE_DELAY_NAME => {
-                elem_value.set_int(&[self.state().pre_delay]);
+                elem_value.set_int(&[self.state().pre_delay as i32]);
                 Ok(true)
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                elem_value.set_int(&[self.state().shelf_filter_freq]);
+                elem_value.set_int(&[self.state().shelf_filter_freq as i32]);
                 Ok(true)
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
@@ -241,15 +241,17 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 Ok(true)
             }
             REVERB_DECAY_TIME_NAME => {
-                elem_value.set_int(&[self.state().decay_time]);
+                elem_value.set_int(&[self.state().decay_time as i32]);
                 Ok(true)
             }
             REVERB_FREQ_TIME_NAME => {
-                elem_value.set_int(&self.state().freq_time);
+                let vals: Vec<i32> = self.state().freq_time.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             REVERB_FREQ_CROSSOVER_NAME => {
-                elem_value.set_int(&self.state().freq_crossover);
+                let vals: Vec<i32> = self.state().freq_crossover.iter().map(|&val| val as i32).collect();
+                elem_value.set_int(&vals);
                 Ok(true)
             }
             REVERB_WIDTH_NAME => {
@@ -266,7 +268,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 Ok(true)
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                elem_value.set_int(&[self.state().reflection_size]);
+                elem_value.set_int(&[self.state().reflection_size as i32]);
                 Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
@@ -315,7 +317,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.pre_delay = vals[0];
+                    state.pre_delay = vals[0] as u32;
                     Ok(())
                 })
             }
@@ -323,7 +325,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.shelf_filter_freq = vals[0];
+                    state.shelf_filter_freq = vals[0] as u32;
                     Ok(())
                 })
             }
@@ -339,23 +341,25 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.decay_time = vals[0];
+                    state.decay_time = vals[0] as u32;
                     Ok(())
                 })
             }
             REVERB_FREQ_TIME_NAME => {
                 let mut vals = vec![0; T::FREQ_TIME_COUNT];
                 elem_value.get_int(&mut vals);
+                let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.freq_time.copy_from_slice(&vals);
+                    state.freq_time.copy_from_slice(&raw);
                     Ok(())
                 })
             }
             REVERB_FREQ_CROSSOVER_NAME => {
                 let mut vals = vec![0; T::FREQ_CROSSOVER_COUNT];
                 elem_value.get_int(&mut vals);
+                let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.freq_crossover.copy_from_slice(&vals);
+                    state.freq_crossover.copy_from_slice(&raw);
                     Ok(())
                 })
             }
@@ -387,7 +391,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reflection_size = vals[0];
+                    state.reflection_size = vals[0] as u32;
                     Ok(())
                 })
             }
