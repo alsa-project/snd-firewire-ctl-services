@@ -1705,6 +1705,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         LevelerMode::Limit,
     ];
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load_dynamics(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -1749,9 +1751,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            DynamicsParameter::RATIO_MIN,
-            DynamicsParameter::RATIO_MAX,
-            DynamicsParameter::RATIO_STEP,
+            (DynamicsParameter::RATIO_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (DynamicsParameter::RATIO_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             Self::CH_COUNT,
             None,
             true,
@@ -1788,9 +1790,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            DynamicsParameter::GAIN_MIN,
-            DynamicsParameter::GAIN_MAX,
-            DynamicsParameter::GAIN_STEP,
+            (DynamicsParameter::GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (DynamicsParameter::GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             Self::CH_COUNT,
             None,
             true,
@@ -1854,6 +1856,20 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         Ok(true)
     }
 
+    fn read_f32_values(
+        elem_value: &mut ElemValue,
+        vals: &[f32],
+    ) -> Result<bool, Error> {
+        assert_eq!(vals.len(), Self::CH_COUNT);
+
+        let raw: Vec<i32> = vals
+            .iter()
+            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
+            .collect();
+        elem_value.set_int(&raw);
+        Ok(true)
+    }
+
     fn read_level_detect_mode(
         elem_value: &mut ElemValue,
         modes: &[LevelDetectMode],
@@ -1902,13 +1918,13 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_THRESHOLD_NAME {
             Self::read_int_values(elem_value, &self.state().comp_threshold)
         } else if name == Self::COMP_RATIO_NAME {
-            Self::read_int_values(elem_value, &self.state().comp_ratio)
+            Self::read_f32_values(elem_value, &self.state().comp_ratio)
         } else if name == Self::COMP_ATTACK_NAME {
             Self::read_int_values(elem_value, &self.state().comp_attack)
         } else if name == Self::COMP_RELEASE_NAME {
             Self::read_int_values(elem_value, &self.state().comp_release)
         } else if name == Self::COMP_GAIN_NAME {
-            Self::read_int_values(elem_value, &self.state().comp_trim)
+            Self::read_f32_values(elem_value, &self.state().comp_gain)
         } else if name == Self::LEVELER_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().leveler_enable)
         } else if name == Self::LEVELER_MODE_NAME {
@@ -1956,6 +1972,29 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         elem_value.get_int(&mut vals);
         self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
+            Ok(())
+        })
+    }
+
+    fn write_f32_values<F>(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+        func: F,
+    ) -> Result<bool, Error>
+        where F: Fn(&mut CommandDspDynamicsState, &[f32]),
+    {
+        let mut vals = vec![0; Self::CH_COUNT];
+        elem_value.get_int(&mut vals);
+        let raw: Vec<f32> = vals
+            .iter()
+            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
+            .collect();
+        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+            func(state, &raw);
             Ok(())
         })
     }
@@ -2052,7 +2091,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 state.comp_threshold.copy_from_slice(vals)
             })
         } else if name == Self::COMP_RATIO_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.comp_ratio.copy_from_slice(vals)
             })
         } else if name == Self::COMP_ATTACK_NAME {
@@ -2064,8 +2103,8 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 state.comp_release.copy_from_slice(vals)
             })
         } else if name == Self::COMP_GAIN_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.comp_trim.copy_from_slice(vals)
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+                state.comp_gain.copy_from_slice(vals)
             })
         } else if name == Self::LEVELER_ENABLE_NAME {
             self.write_bool_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
