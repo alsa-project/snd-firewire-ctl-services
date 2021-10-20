@@ -2171,6 +2171,8 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         InputStereoPairMode::MonauralStereo,
     ];
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -2217,9 +2219,9 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::WIDTH_MIN,
-            T::WIDTH_MAX,
-            T::WIDTH_STEP,
+            (T::WIDTH_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::WIDTH_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::INPUT_PORTS.len(),
             None,
             true,
@@ -2230,9 +2232,9 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::GAIN_MIN,
-            T::GAIN_MAX,
-            T::GAIN_STEP,
+            (T::REVERB_GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::REVERB_GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::INPUT_PORTS.len(),
             None,
             true,
@@ -2243,9 +2245,9 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::BALANCE_MIN,
-            T::BALANCE_MAX,
-            T::BALANCE_STEP,
+            (T::REVERB_BALANCE_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::REVERB_BALANCE_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             T::INPUT_PORTS.len(),
             None,
             true,
@@ -2277,6 +2279,19 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         Ok(notified_elem_id_list)
     }
 
+    fn read_f32_values(
+        elem_value: &mut ElemValue,
+        vals: &[f32],
+    ) -> Result<bool, Error> {
+        let vals: Vec<i32> = vals
+            .iter()
+            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
+            .collect();
+
+        elem_value.set_int(&vals);
+        Ok(true)
+    }
+
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_PHASE_NAME => {
@@ -2306,16 +2321,13 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                     .map(|_| true)
             }
             INPUT_WIDTH_NAME => {
-                elem_value.set_int(&self.state().width);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().width)
             }
             INPUT_REVERB_SEND_NAME => {
-                elem_value.set_int(&self.state().reverb_send);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().reverb_send)
             }
             INPUT_REVERB_BALANCE_NAME => {
-                elem_value.set_int(&self.state().reverb_balance);
-                Ok(true)
+                Self::read_f32_values(elem_value, &self.state().reverb_balance)
             }
             MIC_PAD_NAME => {
                 elem_value.set_bool(&self.state().pad);
@@ -2339,6 +2351,12 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
             }
             _ => Ok(false),
         }
+    }
+
+    fn f32_array_from_i32_values(elem_value: &ElemValue) -> Vec<f32> {
+        let mut vals = vec![0; T::INPUT_PORTS.len()];
+        elem_value.get_int(&mut vals);
+        vals.iter().map(|&val| (val as f32) / Self::F32_CONVERT_SCALE).collect()
     }
 
     fn write(
@@ -2405,24 +2423,21 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                 })
             }
             INPUT_WIDTH_NAME => {
-                let mut vals = vec![0; T::INPUT_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.width.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_REVERB_SEND_NAME => {
-                let mut vals = vec![0; T::INPUT_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.reverb_send.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_REVERB_BALANCE_NAME => {
-                let mut vals = vec![0; T::INPUT_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = Self::f32_array_from_i32_values(elem_value);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.reverb_balance.copy_from_slice(&vals);
                     Ok(())
