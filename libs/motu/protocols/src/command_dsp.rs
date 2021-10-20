@@ -275,7 +275,7 @@ impl From<LevelerMode> for u8 {
 }
 
 /// The DSP command specific to equalizer effects.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EqualizerParameter {
     Enable(bool),
     HpfEnable(bool),
@@ -287,28 +287,28 @@ pub enum EqualizerParameter {
     LfEnable(bool),
     LfType(FilterType5),
     LfFreq(i32),
-    LfGain(i32),
-    LfWidth(i32),
+    LfGain(f32),
+    LfWidth(f32),
     LmfEnable(bool),
     LmfType(FilterType4),
     LmfFreq(i32),
-    LmfGain(i32),
-    LmfWidth(i32),
+    LmfGain(f32),
+    LmfWidth(f32),
     MfEnable(bool),
     MfType(FilterType4),
     MfFreq(i32),
-    MfGain(i32),
-    MfWidth(i32),
+    MfGain(f32),
+    MfWidth(f32),
     HmfEnable(bool),
     HmfType(FilterType4),
     HmfFreq(i32),
-    HmfGain(i32),
-    HmfWidth(i32),
+    HmfGain(f32),
+    HmfWidth(f32),
     HfEnable(bool),
     HfType(FilterType5),
     HfFreq(i32),
-    HfGain(i32),
-    HfWidth(i32),
+    HfGain(f32),
+    HfWidth(f32),
 }
 
 impl EqualizerParameter {
@@ -316,13 +316,11 @@ impl EqualizerParameter {
     pub const FREQ_MAX: i32 = 0x469c4000u32 as i32;
     pub const FREQ_STEP: i32 = 0x01;
 
-    pub const GAIN_MIN: i32 = 0x00000000u32 as i32;
-    pub const GAIN_MAX: i32 = 0x3f800000u32 as i32;
-    pub const GAIN_STEP: i32 = 0x01;
+    pub const GAIN_MIN: f32 = -20.0;
+    pub const GAIN_MAX: f32 = 20.0;
 
-    pub const WIDTH_MIN: i32 = 0xbc23d70au32 as i32;
-    pub const WIDTH_MAX: i32 = 0x3f800000u32 as i32;
-    pub const WIDTH_STEP: i32 = 0x01;
+    pub const WIDTH_MIN: f32 = 0.01;
+    pub const WIDTH_MAX: f32 = 3.0;
 }
 
 /// The DSP command specific to dynamics effects.
@@ -448,7 +446,7 @@ impl MonitorCmd {
 }
 
 /// The DSP command specific to input.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InputCmd {
     Phase(usize, bool),
     Pair(usize, bool),
@@ -497,32 +495,32 @@ impl InputCmd {
             (0x01, 0x03, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::LfEnable(to_bool(vals))),
             (0x01, 0x03, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::LfType(FilterType5::from(vals[0]))),
             (0x01, 0x03, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::LfFreq(to_i32(vals))),
-            (0x01, 0x03, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_i32(vals))),
-            (0x01, 0x03, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_i32(vals))),
+            (0x01, 0x03, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_f32(vals))),
+            (0x01, 0x03, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_f32(vals))),
 
             (0x01, 0x04, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(to_bool(vals))),
             (0x01, 0x04, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::LmfType(FilterType4::from(vals[0]))),
             (0x01, 0x04, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(to_i32(vals))),
-            (0x01, 0x04, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_i32(vals))),
-            (0x01, 0x04, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_i32(vals))),
+            (0x01, 0x04, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_f32(vals))),
+            (0x01, 0x04, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_f32(vals))),
 
             (0x01, 0x05, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::MfEnable(to_bool(vals))),
             (0x01, 0x05, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::MfType(FilterType4::from(vals[0]))),
             (0x01, 0x05, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::MfFreq(to_i32(vals))),
-            (0x01, 0x05, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_i32(vals))),
-            (0x01, 0x05, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_i32(vals))),
+            (0x01, 0x05, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_f32(vals))),
+            (0x01, 0x05, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_f32(vals))),
 
             (0x01, 0x06, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(to_bool(vals))),
             (0x01, 0x06, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::HmfType(FilterType4::from(vals[0]))),
             (0x01, 0x06, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(to_i32(vals))),
-            (0x01, 0x06, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_i32(vals))),
-            (0x01, 0x06, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_i32(vals))),
+            (0x01, 0x06, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_f32(vals))),
+            (0x01, 0x06, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_f32(vals))),
 
             (0x01, 0x07, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::HfEnable(to_bool(vals))),
             (0x01, 0x07, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::HfType(FilterType5::from(vals[0]))),
             (0x01, 0x07, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::HfFreq(to_i32(vals))),
-            (0x01, 0x07, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_i32(vals))),
-            (0x01, 0x07, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_i32(vals))),
+            (0x01, 0x07, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_f32(vals))),
+            (0x01, 0x07, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_f32(vals))),
 
             (0x01, 0x08, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(to_bool(vals))),
             (0x01, 0x08, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(RollOffLevel::from(vals[0]))),
@@ -578,32 +576,32 @@ impl InputCmd {
             InputCmd::Equalizer(ch, EqualizerParameter::LfEnable(enabled)) =>       append_u8(raw, 0x01, 0x03, 0x00, *ch, *enabled),
             InputCmd::Equalizer(ch, EqualizerParameter::LfType(filter_type)) =>     append_u8(raw, 0x01, 0x03, 0x01, *ch, *filter_type),
             InputCmd::Equalizer(ch, EqualizerParameter::LfFreq(val)) =>             append_i32(raw, 0x01, 0x03, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) =>             append_i32(raw, 0x01, 0x03, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) =>            append_i32(raw, 0x01, 0x03, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) =>             append_f32(raw, 0x01, 0x03, 0x03, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) =>            append_f32(raw, 0x01, 0x03, 0x04, *ch, *val),
 
             InputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(enabled)) =>      append_u8(raw, 0x01, 0x04, 0x00, *ch, *enabled),
             InputCmd::Equalizer(ch, EqualizerParameter::LmfType(filter_type)) =>    append_u8(raw, 0x01, 0x04, 0x01, *ch, *filter_type),
             InputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(val)) =>            append_i32(raw, 0x01, 0x04, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) =>            append_i32(raw, 0x01, 0x04, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) =>           append_i32(raw, 0x01, 0x04, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) =>            append_f32(raw, 0x01, 0x04, 0x03, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) =>           append_f32(raw, 0x01, 0x04, 0x04, *ch, *val),
 
             InputCmd::Equalizer(ch, EqualizerParameter::MfEnable(enabled)) =>       append_u8(raw, 0x01, 0x05, 0x00, *ch, *enabled),
             InputCmd::Equalizer(ch, EqualizerParameter::MfType(filter_type)) =>     append_u8(raw, 0x01, 0x05, 0x01, *ch, *filter_type),
             InputCmd::Equalizer(ch, EqualizerParameter::MfFreq(val)) =>             append_i32(raw, 0x01, 0x05, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) =>             append_i32(raw, 0x01, 0x05, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) =>            append_i32(raw, 0x01, 0x05, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) =>             append_f32(raw, 0x01, 0x05, 0x03, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) =>            append_f32(raw, 0x01, 0x05, 0x04, *ch, *val),
 
             InputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(enabled)) =>      append_u8(raw, 0x01, 0x06, 0x00, *ch, *enabled),
             InputCmd::Equalizer(ch, EqualizerParameter::HmfType(filter_type)) =>    append_u8(raw, 0x01, 0x06, 0x01, *ch, *filter_type),
             InputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(val)) =>            append_i32(raw, 0x01, 0x06, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) =>            append_i32(raw, 0x01, 0x06, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) =>           append_i32(raw, 0x01, 0x06, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) =>            append_f32(raw, 0x01, 0x06, 0x03, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) =>           append_f32(raw, 0x01, 0x06, 0x04, *ch, *val),
 
             InputCmd::Equalizer(ch, EqualizerParameter::HfEnable(enabled)) =>       append_u8(raw, 0x01, 0x07, 0x00, *ch, *enabled),
             InputCmd::Equalizer(ch, EqualizerParameter::HfType(filter_type)) =>     append_u8(raw, 0x01, 0x07, 0x01, *ch, *filter_type),
             InputCmd::Equalizer(ch, EqualizerParameter::HfFreq(val)) =>             append_i32(raw, 0x01, 0x07, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) =>             append_i32(raw, 0x01, 0x07, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) =>            append_i32(raw, 0x01, 0x07, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) =>             append_f32(raw, 0x01, 0x07, 0x03, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) =>            append_f32(raw, 0x01, 0x07, 0x04, *ch, *val),
 
             InputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(enabled)) =>      append_u8(raw, 0x01, 0x08, 0x00, *ch, *enabled),
             InputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(level)) =>         append_u8(raw, 0x01, 0x08, 0x01, *ch, *level),
@@ -734,7 +732,7 @@ impl MixerCmd {
 }
 
 /// The DSP command specific to input.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OutputCmd {
     Equalizer(usize, EqualizerParameter),
     Dynamics(usize, DynamicsParameter),
@@ -760,32 +758,32 @@ impl OutputCmd {
             (0x03, 0x02, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::LfEnable(to_bool(vals))),
             (0x03, 0x02, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::LfType(FilterType5::from(vals[0]))),
             (0x03, 0x02, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::LfFreq(to_i32(vals))),
-            (0x03, 0x02, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_i32(vals))),
-            (0x03, 0x02, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_i32(vals))),
+            (0x03, 0x02, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_f32(vals))),
+            (0x03, 0x02, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_f32(vals))),
 
             (0x03, 0x03, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(to_bool(vals))),
             (0x03, 0x03, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfType(FilterType4::from(vals[0]))),
             (0x03, 0x03, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(to_i32(vals))),
-            (0x03, 0x03, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_i32(vals))),
-            (0x03, 0x03, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_i32(vals))),
+            (0x03, 0x03, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_f32(vals))),
+            (0x03, 0x03, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_f32(vals))),
 
             (0x03, 0x04, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::MfEnable(to_bool(vals))),
             (0x03, 0x04, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::MfType(FilterType4::from(vals[0]))),
             (0x03, 0x04, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::MfFreq(to_i32(vals))),
-            (0x03, 0x04, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_i32(vals))),
-            (0x03, 0x04, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_i32(vals))),
+            (0x03, 0x04, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_f32(vals))),
+            (0x03, 0x04, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_f32(vals))),
 
             (0x03, 0x05, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(to_bool(vals))),
             (0x03, 0x05, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfType(FilterType4::from(vals[0]))),
             (0x03, 0x05, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(to_i32(vals))),
-            (0x03, 0x05, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_i32(vals))),
-            (0x03, 0x05, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_i32(vals))),
+            (0x03, 0x05, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_f32(vals))),
+            (0x03, 0x05, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_f32(vals))),
 
             (0x03, 0x06, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::HfEnable(to_bool(vals))),
             (0x03, 0x06, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::HfType(FilterType5::from(vals[0]))),
             (0x03, 0x06, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::HfFreq(to_i32(vals))),
-            (0x03, 0x06, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_i32(vals))),
-            (0x03, 0x06, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_i32(vals))),
+            (0x03, 0x06, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_f32(vals))),
+            (0x03, 0x06, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_f32(vals))),
 
             (0x03, 0x07, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(to_bool(vals))),
             (0x03, 0x07, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(RollOffLevel::from(vals[0]))),
@@ -828,32 +826,32 @@ impl OutputCmd {
             OutputCmd::Equalizer(ch, EqualizerParameter::LfEnable(enabled)) =>      append_u8(raw, 0x03, 0x02, 0x00, *ch, *enabled),
             OutputCmd::Equalizer(ch, EqualizerParameter::LfType(filter_type)) =>    append_u8(raw, 0x03, 0x02, 0x01, *ch, *filter_type),
             OutputCmd::Equalizer(ch, EqualizerParameter::LfFreq(val)) =>            append_i32(raw, 0x03, 0x02, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) =>            append_i32(raw, 0x03, 0x02, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) =>           append_i32(raw, 0x03, 0x02, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) =>            append_f32(raw, 0x03, 0x02, 0x03, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) =>           append_f32(raw, 0x03, 0x02, 0x04, *ch, *val),
 
             OutputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(enabled)) =>     append_u8(raw, 0x03, 0x03, 0x00, *ch, *enabled),
             OutputCmd::Equalizer(ch, EqualizerParameter::LmfType(filter_type)) =>   append_u8(raw, 0x03, 0x03, 0x01, *ch, *filter_type),
             OutputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(val)) =>           append_i32(raw, 0x03, 0x03, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) =>           append_i32(raw, 0x03, 0x03, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) =>          append_i32(raw, 0x03, 0x03, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) =>           append_f32(raw, 0x03, 0x03, 0x03, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) =>          append_f32(raw, 0x03, 0x03, 0x04, *ch, *val),
 
             OutputCmd::Equalizer(ch, EqualizerParameter::MfEnable(enabled)) =>      append_u8(raw, 0x03, 0x04, 0x00, *ch, *enabled),
             OutputCmd::Equalizer(ch, EqualizerParameter::MfType(filter_type)) =>    append_u8(raw, 0x03, 0x04, 0x01, *ch, *filter_type),
             OutputCmd::Equalizer(ch, EqualizerParameter::MfFreq(val)) =>            append_i32(raw, 0x03, 0x04, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) =>            append_i32(raw, 0x03, 0x04, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) =>           append_i32(raw, 0x03, 0x04, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) =>            append_f32(raw, 0x03, 0x04, 0x03, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) =>           append_f32(raw, 0x03, 0x04, 0x04, *ch, *val),
 
             OutputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(enabled)) =>     append_u8(raw, 0x03, 0x05, 0x00, *ch, *enabled),
             OutputCmd::Equalizer(ch, EqualizerParameter::HmfType(filter_type)) =>   append_u8(raw, 0x03, 0x05, 0x01, *ch, *filter_type),
             OutputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(val)) =>           append_i32(raw, 0x03, 0x05, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) =>           append_i32(raw, 0x03, 0x05, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) =>          append_i32(raw, 0x03, 0x05, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) =>           append_f32(raw, 0x03, 0x05, 0x03, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) =>          append_f32(raw, 0x03, 0x05, 0x04, *ch, *val),
 
             OutputCmd::Equalizer(ch, EqualizerParameter::HfEnable(enabled)) =>      append_u8(raw, 0x03, 0x06, 0x00, *ch, *enabled),
             OutputCmd::Equalizer(ch, EqualizerParameter::HfType(filter_type)) =>    append_u8(raw, 0x03, 0x06, 0x01, *ch, *filter_type),
             OutputCmd::Equalizer(ch, EqualizerParameter::HfFreq(val)) =>            append_i32(raw, 0x03, 0x06, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) =>            append_i32(raw, 0x03, 0x06, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) =>           append_i32(raw, 0x03, 0x06, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) =>            append_f32(raw, 0x03, 0x06, 0x03, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) =>           append_f32(raw, 0x03, 0x06, 0x04, *ch, *val),
 
             OutputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(enabled)) =>     append_u8(raw, 0x03, 0x07, 0x00, *ch, *enabled),
             OutputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(level)) =>        append_u8(raw, 0x03, 0x07, 0x01, *ch, *level),
@@ -1896,7 +1894,7 @@ pub trait CommandDspMixerOperation : CommandDspOperation {
 }
 
 /// The structure for state of equalizer.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspEqualizerState {
     pub enable: Vec<bool>,
 
@@ -1911,32 +1909,32 @@ pub struct CommandDspEqualizerState {
     pub lf_enable: Vec<bool>,
     pub lf_type: Vec<FilterType5>,
     pub lf_freq: Vec<i32>,
-    pub lf_gain: Vec<i32>,
-    pub lf_width: Vec<i32>,
+    pub lf_gain: Vec<f32>,
+    pub lf_width: Vec<f32>,
 
     pub lmf_enable: Vec<bool>,
     pub lmf_type: Vec<FilterType4>,
     pub lmf_freq: Vec<i32>,
-    pub lmf_gain: Vec<i32>,
-    pub lmf_width: Vec<i32>,
+    pub lmf_gain: Vec<f32>,
+    pub lmf_width: Vec<f32>,
 
     pub mf_enable: Vec<bool>,
     pub mf_type: Vec<FilterType4>,
     pub mf_freq: Vec<i32>,
-    pub mf_gain: Vec<i32>,
-    pub mf_width: Vec<i32>,
+    pub mf_gain: Vec<f32>,
+    pub mf_width: Vec<f32>,
 
     pub hmf_enable: Vec<bool>,
     pub hmf_type: Vec<FilterType4>,
     pub hmf_freq: Vec<i32>,
-    pub hmf_gain: Vec<i32>,
-    pub hmf_width: Vec<i32>,
+    pub hmf_gain: Vec<f32>,
+    pub hmf_width: Vec<f32>,
 
     pub hf_enable: Vec<bool>,
     pub hf_type: Vec<FilterType5>,
     pub hf_freq: Vec<i32>,
-    pub hf_gain: Vec<i32>,
-    pub hf_width: Vec<i32>,
+    pub hf_gain: Vec<f32>,
+    pub hf_width: Vec<f32>,
 }
 
 fn create_equalizer_parameters(
@@ -2103,7 +2101,7 @@ fn parse_dynamics_parameter(
 }
 
 /// The structure for state of input function.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspInputState {
     pub phase: Vec<bool>,
     pub pair: Vec<bool>,
@@ -2318,7 +2316,7 @@ pub trait CommandDspInputOperation : CommandDspOperation {
 }
 
 /// The structure for state of input function.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspOutputState {
     pub equalizer: CommandDspEqualizerState,
     pub dynamics: CommandDspDynamicsState,
@@ -2566,20 +2564,10 @@ mod test {
             DspCmd::Input(InputCmd::Width(0xd3, 0x02)),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::HpfFreq(0x01010101))),
             DspCmd::Input(InputCmd::Equalizer(0xb1, EqualizerParameter::LfFreq(0x02020202))),
-            DspCmd::Input(InputCmd::Equalizer(0xa0, EqualizerParameter::LfGain(0x03030303))),
-            DspCmd::Input(InputCmd::Equalizer(0x9f, EqualizerParameter::LfWidth(0x04040404))),
             DspCmd::Input(InputCmd::Equalizer(0x8e, EqualizerParameter::LmfFreq(0x05050505))),
-            DspCmd::Input(InputCmd::Equalizer(0x7d, EqualizerParameter::LmfGain(0x06060606))),
-            DspCmd::Input(InputCmd::Equalizer(0x6c, EqualizerParameter::LmfWidth(0x07070707))),
             DspCmd::Input(InputCmd::Equalizer(0x5b, EqualizerParameter::MfFreq(0x08080808))),
-            DspCmd::Input(InputCmd::Equalizer(0x4a, EqualizerParameter::MfGain(0x09090909))),
-            DspCmd::Input(InputCmd::Equalizer(0x39, EqualizerParameter::MfWidth(0x0a0a0a0a))),
             DspCmd::Input(InputCmd::Equalizer(0x28, EqualizerParameter::HmfFreq(0x0b0b0b0b))),
-            DspCmd::Input(InputCmd::Equalizer(0x17, EqualizerParameter::HmfGain(0x0c0c0c0c))),
-            DspCmd::Input(InputCmd::Equalizer(0x06, EqualizerParameter::HmfWidth(0x0d0d0d0d))),
             DspCmd::Input(InputCmd::Equalizer(0xf5, EqualizerParameter::HfFreq(0x0e0e0e0e))),
-            DspCmd::Input(InputCmd::Equalizer(0xe4, EqualizerParameter::HfGain(0x0f0f0f0f))),
-            DspCmd::Input(InputCmd::Equalizer(0xd3, EqualizerParameter::HfWidth(01234567))),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::LpfFreq(0x2345678))),
             DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(0x3456789))),
             DspCmd::Input(InputCmd::Dynamics(0xa0, DynamicsParameter::CompRatio(0x456789a))),
@@ -2592,20 +2580,10 @@ mod test {
             DspCmd::Input(InputCmd::ReverbLrBalance(0xcc, 0x24689753)),
             DspCmd::Output(OutputCmd::Equalizer(0xa8, EqualizerParameter::HpfFreq(0x77792f78))),
             DspCmd::Output(OutputCmd::Equalizer(0x39, EqualizerParameter::LfFreq(0x20fc256f))),
-            DspCmd::Output(OutputCmd::Equalizer(0x11, EqualizerParameter::LfGain(0x34649fb4))),
-            DspCmd::Output(OutputCmd::Equalizer(0x5a, EqualizerParameter::LfWidth(0x6620a2de))),
             DspCmd::Output(OutputCmd::Equalizer(0x5b, EqualizerParameter::LmfFreq(0x1e10a3f8))),
-            DspCmd::Output(OutputCmd::Equalizer(0x98, EqualizerParameter::LmfGain(0x6d0b5422))),
-            DspCmd::Output(OutputCmd::Equalizer(0x74, EqualizerParameter::LmfWidth(0x72b8ce7c))),
             DspCmd::Output(OutputCmd::Equalizer(0xbc, EqualizerParameter::MfFreq(0x50110b27))),
-            DspCmd::Output(OutputCmd::Equalizer(0x32, EqualizerParameter::MfGain(0x2155f212))),
-            DspCmd::Output(OutputCmd::Equalizer(0x20, EqualizerParameter::MfWidth(0x31d83f53))),
             DspCmd::Output(OutputCmd::Equalizer(0xf7, EqualizerParameter::HmfFreq(0x2c79c6f3))),
-            DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HmfGain(0x12d6c247))),
-            DspCmd::Output(OutputCmd::Equalizer(0xf5, EqualizerParameter::HmfWidth(0x53a26fe4))),
             DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HfFreq(0x0b1f0cb3))),
-            DspCmd::Output(OutputCmd::Equalizer(0x01, EqualizerParameter::HfGain(0x2b6de491))),
-            DspCmd::Output(OutputCmd::Equalizer(0xdb, EqualizerParameter::HfWidth(0x0e7a2c75))),
             DspCmd::Output(OutputCmd::Equalizer(0x29, EqualizerParameter::LpfFreq(0x1cbdda81))),
             DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(0x2469b8dd))),
             DspCmd::Output(OutputCmd::Dynamics(0x5e, DynamicsParameter::CompRatio(0x71136c4f))),
@@ -2641,6 +2619,16 @@ mod test {
     #[test]
     fn test_f32_cmds() {
         [
+            DspCmd::Input(InputCmd::Equalizer(0xa0, EqualizerParameter::LfGain(0.123456789))),
+            DspCmd::Input(InputCmd::Equalizer(0x9f, EqualizerParameter::LfWidth(0.987654321))),
+            DspCmd::Input(InputCmd::Equalizer(0x7d, EqualizerParameter::LmfGain(0.234567891))),
+            DspCmd::Input(InputCmd::Equalizer(0x6c, EqualizerParameter::LmfWidth(0.876543219))),
+            DspCmd::Input(InputCmd::Equalizer(0x4a, EqualizerParameter::MfGain(0.345678912))),
+            DspCmd::Input(InputCmd::Equalizer(0x39, EqualizerParameter::MfWidth(0.765432198))),
+            DspCmd::Input(InputCmd::Equalizer(0x17, EqualizerParameter::HmfGain(0.456789123))),
+            DspCmd::Input(InputCmd::Equalizer(0x06, EqualizerParameter::HmfWidth(0.654321987))),
+            DspCmd::Input(InputCmd::Equalizer(0xe4, EqualizerParameter::HfGain(0.567891234))),
+            DspCmd::Input(InputCmd::Equalizer(0xd3, EqualizerParameter::HfWidth(0.543219876))),
             DspCmd::Mixer(MixerCmd::OutputVolume(0x4a, 1.2345678)),
             DspCmd::Mixer(MixerCmd::ReverbSend(0x39, 1.3456789)),
             DspCmd::Mixer(MixerCmd::ReverbReturn(0x28, 1.456789)),
@@ -2648,6 +2636,16 @@ mod test {
             DspCmd::Mixer(MixerCmd::SourceGain(0x06, 0x11, 1.876543)),
             DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(0xe5, 0x13, 1.7654321)),
             DspCmd::Mixer(MixerCmd::SourceStereoWidth(0xd4, 0x1a, 1.654321)),
+            DspCmd::Output(OutputCmd::Equalizer(0x11, EqualizerParameter::LfGain(2.123456789))),
+            DspCmd::Output(OutputCmd::Equalizer(0x5a, EqualizerParameter::LfWidth(2.987654321))),
+            DspCmd::Output(OutputCmd::Equalizer(0x98, EqualizerParameter::LmfGain(2.234567891))),
+            DspCmd::Output(OutputCmd::Equalizer(0x74, EqualizerParameter::LmfWidth(2.876543219))),
+            DspCmd::Output(OutputCmd::Equalizer(0x32, EqualizerParameter::MfGain(2.345678912))),
+            DspCmd::Output(OutputCmd::Equalizer(0x20, EqualizerParameter::MfWidth(2.765432198))),
+            DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HmfGain(2.456789123))),
+            DspCmd::Output(OutputCmd::Equalizer(0xf5, EqualizerParameter::HmfWidth(2.654321987))),
+            DspCmd::Output(OutputCmd::Equalizer(0x01, EqualizerParameter::HfGain(2.567891234))),
+            DspCmd::Output(OutputCmd::Equalizer(0xdb, EqualizerParameter::HfWidth(2.543219876))),
             DspCmd::Reverb(ReverbCmd::Width(123.456)),
             DspCmd::Reverb(ReverbCmd::ReflectionLevel(234.561)),
         ]
