@@ -2112,7 +2112,11 @@ pub struct CommandDspInputState {
     pub soft_clip: Vec<bool>,
 }
 
-fn create_input_commands(state: &CommandDspInputState, input_count: usize) -> Vec<DspCmd> {
+fn create_input_commands(
+    state: &CommandDspInputState,
+    input_count: usize,
+    mic_count: usize
+) -> Vec<DspCmd> {
     let mut cmds = Vec::new();
 
     (0..input_count)
@@ -2134,7 +2138,10 @@ fn create_input_commands(state: &CommandDspInputState, input_count: usize) -> Ve
 
             cmds.push(DspCmd::Input(InputCmd::ReverbSend(ch, state.reverb_send[ch])));
             cmds.push(DspCmd::Input(InputCmd::ReverbLrBalance(ch, state.reverb_balance[ch])));
+        });
 
+    (0..mic_count)
+        .for_each(|ch| {
             cmds.push(DspCmd::Input(InputCmd::Pad(ch, state.pad[ch])));
             cmds.push(DspCmd::Input(InputCmd::Phantom(ch, state.phantom[ch])));
             cmds.push(DspCmd::Input(InputCmd::Limitter(ch, state.limitter[ch])));
@@ -2282,8 +2289,16 @@ pub trait CommandDspInputOperation : CommandDspOperation {
         old: &mut CommandDspInputState,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let mut new_cmds = create_input_commands(&state, Self::INPUT_PORTS.len());
-        let old_cmds = create_input_commands(old, Self::INPUT_PORTS.len());
+        let mut new_cmds = create_input_commands(
+            &state,
+            Self::INPUT_PORTS.len(),
+            Self::MIC_COUNT,
+        );
+        let old_cmds = create_input_commands(
+            old,
+            Self::INPUT_PORTS.len(),
+            Self::MIC_COUNT,
+        );
         new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
         Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
     }
