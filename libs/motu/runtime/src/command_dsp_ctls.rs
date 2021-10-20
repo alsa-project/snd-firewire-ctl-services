@@ -1520,11 +1520,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             })
         } else if name == Self::LMF_FREQ_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.lmf_width.copy_from_slice(vals);
+                state.lmf_freq.copy_from_slice(vals);
             })
         } else if name == Self::LMF_GAIN_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.lmf_width.copy_from_slice(vals);
+                state.lmf_gain.copy_from_slice(vals);
             })
         } else if name == Self::LMF_WIDTH_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
@@ -1540,11 +1540,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             })
         } else if name == Self::MF_FREQ_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.mf_width.copy_from_slice(vals);
+                state.mf_freq.copy_from_slice(vals);
             })
         } else if name == Self::MF_GAIN_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.mf_width.copy_from_slice(vals);
+                state.mf_gain.copy_from_slice(vals);
             })
         } else if name == Self::MF_WIDTH_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
@@ -1560,11 +1560,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             })
         } else if name == Self::HMF_FREQ_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.hmf_width.copy_from_slice(vals);
+                state.hmf_freq.copy_from_slice(vals);
             })
         } else if name == Self::HMF_GAIN_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.hmf_width.copy_from_slice(vals);
+                state.hmf_gain.copy_from_slice(vals);
             })
         } else if name == Self::HMF_WIDTH_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
@@ -1580,11 +1580,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
             })
         } else if name == Self::HF_FREQ_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.hf_width.copy_from_slice(vals);
+                state.hf_freq.copy_from_slice(vals);
             })
         } else if name == Self::HF_GAIN_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
-                state.hf_width.copy_from_slice(vals);
+                state.hf_gain.copy_from_slice(vals);
             })
         } else if name == Self::HF_WIDTH_NAME {
             self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
