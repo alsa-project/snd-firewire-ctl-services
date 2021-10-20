@@ -952,10 +952,10 @@ pub trait Audioexpress4preInputOperation {
             .fold(0u32, |val, (i, &p)| {
                 let mut v = AE_4PRE_MIC_PARAM_CHANGE_FLAG;
                 if state.phantom[i] {
-                    v |= AE_4PRE_MIC_PARAM_PAD_FLAG;
+                    v |= AE_4PRE_MIC_PARAM_PHANTOM_FLAG;
                 }
                 if p {
-                    v |= AE_4PRE_MIC_PARAM_PHANTOM_FLAG;
+                    v |= AE_4PRE_MIC_PARAM_PAD_FLAG;
                 }
                 val | ((v as u32) << (i * 8))
             });
