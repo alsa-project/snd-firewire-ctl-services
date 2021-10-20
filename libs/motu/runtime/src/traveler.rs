@@ -30,7 +30,6 @@ pub struct Traveler {
     output_ctl: OutputCtl,
     line_input_ctl: LineInputCtl,
     mic_input_ctl: MicInputCtl,
-    msg_cache: u32,
 }
 
 #[derive(Default)]
@@ -237,13 +236,21 @@ impl NotifyModel<SndMotu, u32> for Traveler {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.mic_input_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.word_clk_ctl.1);
+        elem_id_list.extend_from_slice(&self.opt_iface_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
         if *msg & TravelerProtocol::NOTIFY_MIC_PARAM_MASK > 0 {
             self.mic_input_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
-        self.msg_cache = *msg;
+        if *msg & TravelerProtocol::NOTIFY_PORT_CHANGE > 0 {
+            self.phone_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.word_clk_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
+        if *msg & TravelerProtocol::NOTIFY_FORMAT_CHANGE > 0 {
+            self.opt_iface_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
@@ -255,16 +262,14 @@ impl NotifyModel<SndMotu, u32> for Traveler {
     ) -> Result<bool, Error> {
         if self.mic_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
+        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
-            //if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
-            //    if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //        Ok(true)
-            //    } else {
-            //        Ok(false)
-            //    }
-            //} else {
-                Ok(false)
-            //}
+            Ok(false)
         }
     }
 }
