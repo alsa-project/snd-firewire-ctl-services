@@ -46,9 +46,17 @@ struct ClkCtl;
 impl V2ClkCtlOperation<F8preProtocol> for ClkCtl {}
 
 #[derive(Default)]
-struct OptIfaceCtl;
+struct OptIfaceCtl((usize, usize), Vec<ElemId>);
 
-impl V2OptIfaceCtlOperation<F8preProtocol> for OptIfaceCtl {}
+impl V2OptIfaceCtlOperation<F8preProtocol> for OptIfaceCtl {
+    fn state(&self) -> &(usize, usize) {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut (usize, usize) {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);
@@ -105,7 +113,8 @@ impl RegisterDspOutputCtlOperation<F8preProtocol> for OutputCtl {
 impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl.load(card_cntr)?;
+        self.opt_iface_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
         self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -127,7 +136,7 @@ impl CtlModel<SndMotu> for F8pre {
     ) -> Result<bool, Error> {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
