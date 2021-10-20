@@ -67,9 +67,17 @@ struct ClkCtl;
 impl V3ClkCtlOperation<F828mk3Protocol> for ClkCtl {}
 
 #[derive(Default)]
-struct PortAssignCtl(Vec<ElemId>);
+struct PortAssignCtl(V3PortAssignState, Vec<ElemId>);
 
-impl V3PortAssignCtlOperation<F828mk3Protocol> for PortAssignCtl {}
+impl V3PortAssignCtlOperation<F828mk3Protocol> for PortAssignCtl {
+    fn state(&self) -> &V3PortAssignState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut V3PortAssignState {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct OptIfaceCtl;
@@ -163,8 +171,8 @@ impl F828mk3 {
 impl CtlModel<SndMotu> for F828mk3 {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.port_assign_ctl.load(card_cntr)
-            .map(|mut elem_id_list| self.port_assign_ctl.0.append(&mut elem_id_list))?;
+        self.port_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
@@ -201,7 +209,7 @@ impl CtlModel<SndMotu> for F828mk3 {
     ) -> Result<bool, Error> {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.port_assign_ctl.read(unit, &mut self.req,  elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -340,7 +348,7 @@ impl CtlModel<SndMotu> for F828mk3 {
 
 impl NotifyModel<SndMotu, u32> for F828mk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
-        elem_id_list.extend_from_slice(&self.port_assign_ctl.0);
+        elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.1);
     }

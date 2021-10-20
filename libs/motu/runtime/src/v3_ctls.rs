@@ -5,7 +5,7 @@ use glib::{Error, FileError};
 use hinawa::FwReq;
 use hinawa::{SndMotu, SndUnitExt};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
+use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
 
 use core::card_cntr::CardCntr;
 use core::elem_value_accessor::ElemValueAccessor;
@@ -118,8 +118,22 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
 const MAIN_ASSIGN_NAME: &str = "main-assign";
 const RETURN_ASSIGN_NAME: &str = "return-assign";
 
+#[derive(Default)]
+pub struct V3PortAssignState(usize, usize);
+
 pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+    fn state(&self) -> &V3PortAssignState;
+    fn state_mut(&mut self) -> &mut V3PortAssignState;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<Vec<ElemId>, Error> {
+        self.cache(unit, req, timeout_ms)?;
+
         let mut notified_elem_id_list = Vec::new();
 
         let labels: Vec<&str> = T::ASSIGN_PORTS
@@ -140,28 +154,28 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
         Ok(notified_elem_id_list)
     }
 
-    fn read(
+    fn cache(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    ) -> Result<(), Error> {
+        T::get_main_assign(req, &mut unit.get_node(), timeout_ms)
+            .map(|idx| self.state_mut().0 = idx)?;
+        T::get_return_assign(req, &mut unit.get_node(), timeout_ms)
+            .map(|idx| self.state_mut().1 = idx)?;
+        Ok(())
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MAIN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_main_assign(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
-                .map(|_| true)
+                elem_value.set_enum(&[self.state().0 as u32]);
+                Ok(true)
             }
             RETURN_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_return_assign(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
-                .map(|_| true)
+                elem_value.set_enum(&[self.state().1 as u32]);
+                Ok(true)
             }
             _ => Ok(false),
         }
@@ -179,12 +193,14 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
             MAIN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     T::set_main_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                        .map(|_| self.state_mut().0 = val as usize)
                 })
                 .map(|_| true)
             }
             RETURN_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     T::set_return_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                        .map(|_| self.state_mut().1 = val as usize)
                 })
                 .map(|_| true)
             }
