@@ -1805,9 +1805,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            DynamicsParameter::ATTACK_MIN,
-            DynamicsParameter::ATTACK_MAX,
-            DynamicsParameter::ATTACK_STEP,
+            DynamicsParameter::ATTACK_MIN as i32,
+            DynamicsParameter::ATTACK_MAX as i32,
+            DynamicsParameter::ATTACK_STEP as i32,
             Self::CH_COUNT,
             None,
             true,
@@ -1818,9 +1818,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            DynamicsParameter::RELEASE_MIN,
-            DynamicsParameter::RELEASE_MAX,
-            DynamicsParameter::RELEASE_STEP,
+            DynamicsParameter::RELEASE_MIN as i32,
+            DynamicsParameter::RELEASE_MAX as i32,
+            DynamicsParameter::RELEASE_STEP as i32,
             Self::CH_COUNT,
             None,
             true,
@@ -1852,9 +1852,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            DynamicsParameter::PERCENTAGE_MIN,
-            DynamicsParameter::PERCENTAGE_MAX,
-            DynamicsParameter::PERCENTAGE_STEP,
+            DynamicsParameter::PERCENTAGE_MIN as i32,
+            DynamicsParameter::PERCENTAGE_MAX as i32,
+            DynamicsParameter::PERCENTAGE_STEP as i32,
             Self::CH_COUNT,
             None,
             true,
@@ -1865,9 +1865,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            DynamicsParameter::PERCENTAGE_MIN,
-            DynamicsParameter::PERCENTAGE_MAX,
-            DynamicsParameter::PERCENTAGE_STEP,
+            DynamicsParameter::PERCENTAGE_MIN as i32,
+            DynamicsParameter::PERCENTAGE_MAX as i32,
+            DynamicsParameter::PERCENTAGE_STEP as i32,
             Self::CH_COUNT,
             None,
             true,
@@ -1894,6 +1894,17 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
         elem_value.set_int(vals);
+        Ok(true)
+    }
+
+    fn read_u32_values(
+        elem_value: &mut ElemValue,
+        raw: &[u32],
+    ) -> Result<bool, Error> {
+        assert_eq!(raw.len(), Self::CH_COUNT);
+
+        let raw: Vec<i32> = raw.iter().map(|&r| r as i32).collect();
+        elem_value.set_int(&raw);
         Ok(true)
     }
 
@@ -1961,9 +1972,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::COMP_RATIO_NAME {
             Self::read_f32_values(elem_value, &self.state().comp_ratio)
         } else if name == Self::COMP_ATTACK_NAME {
-            Self::read_int_values(elem_value, &self.state().comp_attack)
+            Self::read_u32_values(elem_value, &self.state().comp_attack)
         } else if name == Self::COMP_RELEASE_NAME {
-            Self::read_int_values(elem_value, &self.state().comp_release)
+            Self::read_u32_values(elem_value, &self.state().comp_release)
         } else if name == Self::COMP_GAIN_NAME {
             Self::read_f32_values(elem_value, &self.state().comp_gain)
         } else if name == Self::LEVELER_ENABLE_NAME {
@@ -1971,9 +1982,9 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LEVELER_MODE_NAME {
             Self::read_leveler_mode(elem_value, &self.state().leveler_mode)
         } else if name == Self::LEVELER_MAKEUP_NAME {
-            Self::read_int_values(elem_value, &self.state().leveler_makeup)
+            Self::read_u32_values(elem_value, &self.state().leveler_makeup)
         } else if name == Self::LEVELER_REDUCE_NAME {
-            Self::read_int_values(elem_value, &self.state().leveler_reduce)
+            Self::read_u32_values(elem_value, &self.state().leveler_reduce)
         } else {
             Ok(false)
         }
@@ -2013,6 +2024,26 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
         elem_value.get_int(&mut vals);
         self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
+            Ok(())
+        })
+    }
+
+    fn write_u32_values<F>(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+        func: F,
+    ) -> Result<bool, Error>
+        where F: Fn(&mut CommandDspDynamicsState, &[u32]),
+    {
+        let mut vals = vec![0; Self::CH_COUNT];
+        elem_value.get_int(&mut vals);
+        let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
+        self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
+            func(state, &raw);
             Ok(())
         })
     }
@@ -2136,11 +2167,11 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 state.comp_ratio.copy_from_slice(vals)
             })
         } else if name == Self::COMP_ATTACK_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_u32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.comp_attack.copy_from_slice(vals)
             })
         } else if name == Self::COMP_RELEASE_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_u32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.comp_release.copy_from_slice(vals)
             })
         } else if name == Self::COMP_GAIN_NAME {
@@ -2156,11 +2187,11 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
                 state.leveler_mode.copy_from_slice(vals)
             })
         } else if name == Self::LEVELER_MAKEUP_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_u32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.leveler_makeup.copy_from_slice(vals)
             })
         } else if name == Self::LEVELER_REDUCE_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_u32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.leveler_reduce.copy_from_slice(vals)
             })
         } else {
