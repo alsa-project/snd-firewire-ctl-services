@@ -796,6 +796,12 @@ impl CommandDspOutputOperation for UltraliteMk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
 }
 
+impl UltraliteMk3Protocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment. The change
+    /// of phone assignment is also notified in command message.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+}
+
 /// The protocol implementation for Ultralite mk3 Hybrid.
 #[derive(Default)]
 pub struct UltraliteMk3HybridProtocol;
@@ -832,4 +838,10 @@ impl CommandDspInputOperation for UltraliteMk3HybridProtocol {
 
 impl CommandDspOutputOperation for UltraliteMk3HybridProtocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
+}
+
+impl UltraliteMk3HybridProtocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment. The change
+    /// of phone assignment is also notified in command message.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
