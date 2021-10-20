@@ -228,13 +228,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.connect_notified(move |_, msg| {
-            let t = tx.clone();
-            let _ = thread::spawn(move || {
-                // Just after notification, the target device tends to return RCODE_BUSY against
-                // read request. Here, wait for 100 msec to avoid it.
-                thread::sleep(Duration::from_millis(100));
-                let _ = t.send(Event::Notify(msg));
-            });
+            let _ = tx.send(Event::Notify(msg));
         });
 
         let tx = self.tx.clone();
