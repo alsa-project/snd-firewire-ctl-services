@@ -48,9 +48,17 @@ struct AesebuRateConvertCtl;
 impl AesebuRateConvertCtlOperation<F896hdProtocol> for AesebuRateConvertCtl {}
 
 #[derive(Default)]
-struct LevelMetersCtl;
+struct LevelMetersCtl(LevelMeterState, Vec<ElemId>);
 
-impl LevelMetersCtlOperation<F896hdProtocol> for LevelMetersCtl {}
+impl LevelMetersCtlOperation<F896hdProtocol> for LevelMetersCtl {
+    fn state(&self) -> &LevelMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut LevelMeterState {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -130,7 +138,8 @@ impl CtlModel<SndMotu> for F896hd {
         self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        self.level_meters_ctl.load(card_cntr)?;
+        self.level_meters_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.level_meters_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
