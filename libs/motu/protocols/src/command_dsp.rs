@@ -667,20 +667,20 @@ impl From<SourceStereoPairMode> for u8 {
 }
 
 /// The DSP command specific to mixer.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MixerCmd {
     OutputAssign(usize, usize),
     OutputMute(usize, bool),
-    OutputVolume(usize, i32),
-    ReverbSend(usize, i32),
-    ReverbReturn(usize, i32),
+    OutputVolume(usize, f32),
+    ReverbSend(usize, f32),
+    ReverbReturn(usize, f32),
     SourceMute(usize, usize, bool),
     SourceSolo(usize, usize, bool),
-    SourceMonauralLrBalance(usize, usize, i32),
-    SourceGain(usize, usize, i32),
+    SourceMonauralLrBalance(usize, usize, f32),
+    SourceGain(usize, usize, f32),
     SourceStereoMode(usize, usize, SourceStereoPairMode),
-    SourceStereoLrBalance(usize, usize, i32),
-    SourceStereoWidth(usize, usize, i32),
+    SourceStereoLrBalance(usize, usize, f32),
+    SourceStereoWidth(usize, usize, f32),
     Reserved(Vec<u8>, Vec<u8>),
 }
 
@@ -695,18 +695,18 @@ impl MixerCmd {
         match (identifier[3], identifier[2], identifier[1]) {
             (0x02, 0x00, 0x00) => MixerCmd::OutputAssign(ch, to_usize(vals)),
             (0x02, 0x00, 0x01) => MixerCmd::OutputMute(ch, to_bool(vals)),
-            (0x02, 0x00, 0x02) => MixerCmd::OutputVolume(ch, to_i32(vals)),
+            (0x02, 0x00, 0x02) => MixerCmd::OutputVolume(ch, to_f32(vals)),
 
-            (0x02, 0x01, 0x00) => MixerCmd::ReverbSend(ch, to_i32(vals)),
-            (0x02, 0x01, 0x01) => MixerCmd::ReverbReturn(ch, to_i32(vals)),
+            (0x02, 0x01, 0x00) => MixerCmd::ReverbSend(ch, to_f32(vals)),
+            (0x02, 0x01, 0x01) => MixerCmd::ReverbReturn(ch, to_f32(vals)),
 
             (0x02,    _, 0x00) => MixerCmd::SourceMute(ch, mixer_src_ch - 2, to_bool(vals)),
             (0x02,    _, 0x01) => MixerCmd::SourceSolo(ch, mixer_src_ch - 2, to_bool(vals)),
-            (0x02,    _, 0x02) => MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch - 2, to_i32(vals)),
-            (0x02,    _, 0x03) => MixerCmd::SourceGain(ch, mixer_src_ch - 2, to_i32(vals)),
+            (0x02,    _, 0x02) => MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch - 2, to_f32(vals)),
+            (0x02,    _, 0x03) => MixerCmd::SourceGain(ch, mixer_src_ch - 2, to_f32(vals)),
             (0x02,    _, 0x04) => MixerCmd::SourceStereoMode(ch, mixer_src_ch - 2, SourceStereoPairMode::from(vals[0])),
-            (0x02,    _, 0x05) => MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch - 2, to_i32(vals)),
-            (0x02,    _, 0x06) => MixerCmd::SourceStereoWidth(ch, mixer_src_ch - 2, to_i32(vals)),
+            (0x02,    _, 0x05) => MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch - 2, to_f32(vals)),
+            (0x02,    _, 0x06) => MixerCmd::SourceStereoWidth(ch, mixer_src_ch - 2, to_f32(vals)),
             _ => MixerCmd::Reserved(identifier.to_vec(), vals.to_vec()),
         }
     }
@@ -715,18 +715,18 @@ impl MixerCmd {
         match self {
             MixerCmd::OutputAssign(ch, target) =>                       append_u8(raw, 0x02, 0x00, 0x00, *ch, *target as u8),
             MixerCmd::OutputMute(ch, enabled) =>                        append_u8(raw, 0x02, 0x00, 0x01, *ch, *enabled),
-            MixerCmd::OutputVolume(ch, val) =>                          append_i32(raw, 0x02, 0x00, 0x02, *ch, *val),
+            MixerCmd::OutputVolume(ch, val) =>                          append_f32(raw, 0x02, 0x00, 0x02, *ch, *val),
 
-            MixerCmd::ReverbSend(ch, val) =>                            append_i32(raw, 0x02, 0x01, 0x00, *ch, *val),
-            MixerCmd::ReverbReturn(ch, val) =>                          append_i32(raw, 0x02, 0x01, 0x01, *ch, *val),
+            MixerCmd::ReverbSend(ch, val) =>                            append_f32(raw, 0x02, 0x01, 0x00, *ch, *val),
+            MixerCmd::ReverbReturn(ch, val) =>                          append_f32(raw, 0x02, 0x01, 0x01, *ch, *val),
 
             MixerCmd::SourceMute(ch, mixer_src_ch, enabled) =>          append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x00, *ch, *enabled),
             MixerCmd::SourceSolo(ch, mixer_src_ch, enabled) =>          append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x01, *ch, *enabled),
-            MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch, val) => append_i32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x02, *ch, *val),
-            MixerCmd::SourceGain(ch, mixer_src_ch, val) =>              append_i32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x03, *ch, *val),
+            MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch, val) => append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x02, *ch, *val),
+            MixerCmd::SourceGain(ch, mixer_src_ch, val) =>              append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x03, *ch, *val),
             MixerCmd::SourceStereoMode(ch, mixer_src_ch, pair_mode) =>  append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x04, *ch, *pair_mode),
-            MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch, val) =>   append_i32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x05, *ch, *val),
-            MixerCmd::SourceStereoWidth(ch, mixer_src_ch, val) =>       append_i32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x06, *ch, *val),
+            MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch, val) =>   append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x05, *ch, *val),
+            MixerCmd::SourceStereoWidth(ch, mixer_src_ch, val) =>       append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x06, *ch, *val),
 
             MixerCmd::Reserved(identifier, vals) =>                     append_data(raw, identifier, vals),
         }
@@ -1746,27 +1746,27 @@ pub trait CommandDspMonitorOperation : CommandDspOperation {
 }
 
 /// The structure for state of entry of mixer function.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMixerSourceState {
     pub mute: Vec<bool>,
     pub solo: Vec<bool>,
-    pub gain: Vec<i32>,
-    pub pan: Vec<i32>,
+    pub gain: Vec<f32>,
+    pub pan: Vec<f32>,
     pub stereo_mode: Vec<SourceStereoPairMode>,
-    pub stereo_balance: Vec<i32>,
-    pub stereo_width: Vec<i32>,
+    pub stereo_balance: Vec<f32>,
+    pub stereo_width: Vec<f32>,
 }
 
 const MIXER_COUNT: usize = 8;
 
 /// The structure for state of mixer function.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMixerState {
     pub output_assign: [TargetPort; MIXER_COUNT],
     pub output_mute: [bool; MIXER_COUNT],
-    pub output_volume: [i32; MIXER_COUNT],
-    pub reverb_send: [i32; MIXER_COUNT],
-    pub reverb_return: [i32; MIXER_COUNT],
+    pub output_volume: [f32; MIXER_COUNT],
+    pub reverb_send: [f32; MIXER_COUNT],
+    pub reverb_return: [f32; MIXER_COUNT],
     pub source: [CommandDspMixerSourceState; MIXER_COUNT],
 }
 
@@ -1840,17 +1840,14 @@ pub trait CommandDspMixerOperation : CommandDspOperation {
 
     const MIXER_COUNT: usize = MIXER_COUNT;
 
-    const OUTPUT_VOLUME_MIN: i32 = 0x00000000u32 as i32;
-    const OUTPUT_VOLUME_MAX: i32 = 0x3f800000u32 as i32;
-    const OUTPUT_VOLUME_STEP: i32 = 0x01;
+    const OUTPUT_VOLUME_MIN: f32 = 0.0;
+    const OUTPUT_VOLUME_MAX: f32 = 1.0;
 
-    const SOURCE_GAIN_MIN: i32 = 0x00000000u32 as i32;
-    const SOURCE_GAIN_MAX: i32 = 0x3f800000u32 as i32;
-    const SOURCE_GAIN_STEP: i32 = 0x01;
+    const SOURCE_GAIN_MIN: f32 = 0.0;
+    const SOURCE_GAIN_MAX: f32 = 1.0;
 
-    const SOURCE_PAN_MIN: i32 = 0x3f800000u32 as i32;
-    const SOURCE_PAN_MAX: i32 = 0xbf800000u32 as i32;
-    const SOURCE_PAN_STEP: i32 = 0x01;
+    const SOURCE_PAN_MIN: f32 = -1.0;
+    const SOURCE_PAN_MAX: f32 = 1.0;
 
     fn create_mixer_state() -> CommandDspMixerState {
         let mut state = CommandDspMixerState::default();
@@ -2593,13 +2590,6 @@ mod test {
             DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(0x1c92835a))),
             DspCmd::Input(InputCmd::ReverbSend(0x33, 0x35792468)),
             DspCmd::Input(InputCmd::ReverbLrBalance(0xcc, 0x24689753)),
-            DspCmd::Mixer(MixerCmd::OutputVolume(0x4a, 0x7789abcd)),
-            DspCmd::Mixer(MixerCmd::ReverbSend(0x39, 0x66789abc)),
-            DspCmd::Mixer(MixerCmd::ReverbReturn(0x28, 0x11234567)),
-            DspCmd::Mixer(MixerCmd::SourceMonauralLrBalance(0x17, 0xc8, 0x76543210)),
-            DspCmd::Mixer(MixerCmd::SourceGain(0x06, 0x11, 0x65432109)),
-            DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(0xe5, 0x13, 0x54321987)),
-            DspCmd::Mixer(MixerCmd::SourceStereoWidth(0xd4, 0x1a, 0x43210987)),
             DspCmd::Output(OutputCmd::Equalizer(0xa8, EqualizerParameter::HpfFreq(0x77792f78))),
             DspCmd::Output(OutputCmd::Equalizer(0x39, EqualizerParameter::LfFreq(0x20fc256f))),
             DspCmd::Output(OutputCmd::Equalizer(0x11, EqualizerParameter::LfGain(0x34649fb4))),
@@ -2651,6 +2641,13 @@ mod test {
     #[test]
     fn test_f32_cmds() {
         [
+            DspCmd::Mixer(MixerCmd::OutputVolume(0x4a, 1.2345678)),
+            DspCmd::Mixer(MixerCmd::ReverbSend(0x39, 1.3456789)),
+            DspCmd::Mixer(MixerCmd::ReverbReturn(0x28, 1.456789)),
+            DspCmd::Mixer(MixerCmd::SourceMonauralLrBalance(0x17, 0xc8, 1.987654)),
+            DspCmd::Mixer(MixerCmd::SourceGain(0x06, 0x11, 1.876543)),
+            DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(0xe5, 0x13, 1.7654321)),
+            DspCmd::Mixer(MixerCmd::SourceStereoWidth(0xd4, 0x1a, 1.654321)),
             DspCmd::Reverb(ReverbCmd::Width(123.456)),
             DspCmd::Reverb(ReverbCmd::ReflectionLevel(234.561)),
         ]
