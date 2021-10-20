@@ -589,16 +589,25 @@ pub struct TravelerMicInputState {
 }
 
 const TRAVELER_MIC_PARAM_OFFSET: usize = 0x0c1c;
-const   TRAVELER_MIC_GAIN_MASK: u8 = 0x34;
+const   TRAVELER_MIC_GAIN_MASK: u8 = 0x3f;
 const   TRAVELER_MIC_PAD_FLAG: u8 = 0x40;
 const   TRAVELER_MIC_CHANGE_FLAG: u8 = 0x80;
 
 impl TravelerProtocol {
+    /// Notification mask for mic gain, and pad.
+    pub const NOTIFY_MIC_PARAM_MASK: u32 = 0x20000000;
+
+    /// Notification mask for speed of word clock output, phone assignment.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+
+    /// Notification mask for signal format of optical input/output interfaces.
+    pub const NOTIFY_FORMAT_CHANGE: u32 = 0x08000000;
+
     pub const MIC_INPUT_COUNT: usize = 4;
 
     pub const MIC_GAIN_MIN: u8 = 0x00;
-    pub const MIC_GAIN_MAX: u8 = 0x00;
-    pub const MIC_GAIN_STEP: u8 = 0x00;
+    pub const MIC_GAIN_MAX: u8 = 0x35;
+    pub const MIC_GAIN_STEP: u8 = 0x01;
 
     pub fn read_mic_input_state(
         req: &mut FwReq,

@@ -145,11 +145,6 @@ impl Traveler828mk2LineInputCtlOperation<TravelerProtocol> for LineInputCtl {
 #[derive(Default)]
 struct MicInputCtl(TravelerMicInputState, Vec<ElemId>);
 
-impl Traveler {
-    const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
-    //const NOTIFY_FORMAT_CHANGE: u32 = 0x08000000; // The format for payload of isochronous packet is changed.
-}
-
 impl CtlModel<SndMotu> for Traveler {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -240,10 +235,14 @@ impl CtlModel<SndMotu> for Traveler {
 
 impl NotifyModel<SndMotu, u32> for Traveler {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.mic_input_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
     }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+        if *msg & TravelerProtocol::NOTIFY_MIC_PARAM_MASK > 0 {
+            self.mic_input_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
         self.msg_cache = *msg;
         Ok(())
     }
@@ -251,17 +250,21 @@ impl NotifyModel<SndMotu, u32> for Traveler {
     fn read_notified_elem(
         &mut self,
         _: &SndMotu,
-        _: &ElemId,
-        _: &mut ElemValue
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
-        if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
-            //if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
+        if self.mic_input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            //if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
+            //    if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
+            //        Ok(true)
+            //    } else {
+            //        Ok(false)
+            //    }
             //} else {
                 Ok(false)
             //}
-        } else {
-            Ok(false)
         }
     }
 }
@@ -284,7 +287,7 @@ impl MicInputCtl {
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        TravelerProtocol::read_mic_input_state(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        self.cache(unit, req, timeout_ms)?;
 
         let mut notified_elem_id_list = Vec::new();
 
@@ -312,6 +315,10 @@ impl MicInputCtl {
                 .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
+    }
+
+    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
+        TravelerProtocol::read_mic_input_state(req, &mut unit.get_node(), &mut self.0, timeout_ms)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
