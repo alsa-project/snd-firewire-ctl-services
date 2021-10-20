@@ -968,18 +968,18 @@ impl From<SplitPoint> for u8 {
 pub enum ReverbCmd {
     Enable(bool),
     Split(SplitPoint),
-    PreDelay(i32),
-    ShelfFilterFreq(i32),
+    PreDelay(u32),
+    ShelfFilterFreq(u32),
     ShelfFilterAttenuation(i32),
-    DecayTime(i32),
-    TimeLow(i32),
-    TimeMiddle(i32),
-    TimeHigh(i32),
-    CrossoverLow(i32),
-    CrossoverHigh(i32),
+    DecayTime(u32),
+    LowFreqTime(u32),
+    MiddleFreqTime(u32),
+    HighFreqTime(u32),
+    LowFreqCrossover(u32),
+    HighFreqCrossover(u32),
     Width(f32),
     ReflectionMode(RoomShape),
-    ReflectionSize(i32),
+    ReflectionSize(u32),
     ReflectionLevel(f32),
     Reserved(Vec<u8>, Vec<u8>),
 }
@@ -992,18 +992,18 @@ impl ReverbCmd {
         match (identifier[3], identifier[2], identifier[1]) {
             (0x04, 0x00, 0x00) => ReverbCmd::Enable(to_bool(vals)),
             (0x04, 0x00, 0x01) => ReverbCmd::Split(SplitPoint::from(vals[0])),
-            (0x04, 0x00, 0x02) => ReverbCmd::PreDelay(to_i32(vals)),
-            (0x04, 0x00, 0x03) => ReverbCmd::ShelfFilterFreq(to_i32(vals)),
+            (0x04, 0x00, 0x02) => ReverbCmd::PreDelay(to_u32(vals)),
+            (0x04, 0x00, 0x03) => ReverbCmd::ShelfFilterFreq(to_u32(vals)),
             (0x04, 0x00, 0x04) => ReverbCmd::ShelfFilterAttenuation(to_i32(vals)),
-            (0x04, 0x00, 0x05) => ReverbCmd::DecayTime(to_i32(vals)),
-            (0x04, 0x00, 0x06) => ReverbCmd::TimeLow(to_i32(vals)),
-            (0x04, 0x00, 0x07) => ReverbCmd::TimeMiddle(to_i32(vals)),
-            (0x04, 0x00, 0x08) => ReverbCmd::TimeHigh(to_i32(vals)),
-            (0x04, 0x00, 0x09) => ReverbCmd::CrossoverLow(to_i32(vals)),
-            (0x04, 0x00, 0x0a) => ReverbCmd::CrossoverHigh(to_i32(vals)),
+            (0x04, 0x00, 0x05) => ReverbCmd::DecayTime(to_u32(vals)),
+            (0x04, 0x00, 0x06) => ReverbCmd::LowFreqTime(to_u32(vals)),
+            (0x04, 0x00, 0x07) => ReverbCmd::MiddleFreqTime(to_u32(vals)),
+            (0x04, 0x00, 0x08) => ReverbCmd::HighFreqTime(to_u32(vals)),
+            (0x04, 0x00, 0x09) => ReverbCmd::LowFreqCrossover(to_u32(vals)),
+            (0x04, 0x00, 0x0a) => ReverbCmd::HighFreqCrossover(to_u32(vals)),
             (0x04, 0x00, 0x0b) => ReverbCmd::Width(to_f32(vals)),
             (0x04, 0x00, 0x0c) => ReverbCmd::ReflectionMode(RoomShape::from(vals[0])),
-            (0x04, 0x00, 0x0d) => ReverbCmd::ReflectionSize(to_i32(vals)),
+            (0x04, 0x00, 0x0d) => ReverbCmd::ReflectionSize(to_u32(vals)),
             (0x04, 0x00, 0x0e) => ReverbCmd::ReflectionLevel(to_f32(vals)),
             _ => ReverbCmd::Reserved(identifier.to_vec(), vals.to_vec()),
         }
@@ -1013,18 +1013,18 @@ impl ReverbCmd {
         match self {
             ReverbCmd::Enable(enabled) =>               append_u8(raw, 0x04, 0x00, 0x00, 0, *enabled),
             ReverbCmd::Split(point) =>                  append_u8(raw, 0x04, 0x00, 0x01, 0, *point),
-            ReverbCmd::PreDelay(val) =>                 append_i32(raw, 0x04, 0x00, 0x02, 0, *val),
-            ReverbCmd::ShelfFilterFreq(val) =>          append_i32(raw, 0x04, 0x00, 0x03, 0, *val),
+            ReverbCmd::PreDelay(val) =>                 append_u32(raw, 0x04, 0x00, 0x02, 0, *val),
+            ReverbCmd::ShelfFilterFreq(val) =>          append_u32(raw, 0x04, 0x00, 0x03, 0, *val),
             ReverbCmd::ShelfFilterAttenuation(val) =>   append_i32(raw, 0x04, 0x00, 0x04, 0, *val),
-            ReverbCmd::DecayTime(val) =>                append_i32(raw, 0x04, 0x00, 0x05, 0, *val),
-            ReverbCmd::TimeLow(val) =>                  append_i32(raw, 0x04, 0x00, 0x06, 0, *val),
-            ReverbCmd::TimeMiddle(val) =>               append_i32(raw, 0x04, 0x00, 0x07, 0, *val),
-            ReverbCmd::TimeHigh(val) =>                 append_i32(raw, 0x04, 0x00, 0x08, 0, *val),
-            ReverbCmd::CrossoverLow(val) =>             append_i32(raw, 0x04, 0x00, 0x09, 0, *val),
-            ReverbCmd::CrossoverHigh(val) =>            append_i32(raw, 0x04, 0x00, 0x0a, 0, *val),
+            ReverbCmd::DecayTime(val) =>                append_u32(raw, 0x04, 0x00, 0x05, 0, *val),
+            ReverbCmd::LowFreqTime(val) =>              append_u32(raw, 0x04, 0x00, 0x06, 0, *val),
+            ReverbCmd::MiddleFreqTime(val) =>           append_u32(raw, 0x04, 0x00, 0x07, 0, *val),
+            ReverbCmd::HighFreqTime(val) =>             append_u32(raw, 0x04, 0x00, 0x08, 0, *val),
+            ReverbCmd::LowFreqCrossover(val) =>         append_u32(raw, 0x04, 0x00, 0x09, 0, *val),
+            ReverbCmd::HighFreqCrossover(val) =>        append_u32(raw, 0x04, 0x00, 0x0a, 0, *val),
             ReverbCmd::Width(val) =>                    append_f32(raw, 0x04, 0x00, 0x0b, 0, *val),
-            ReverbCmd::ReflectionSize(val) =>           append_i32(raw, 0x04, 0x00, 0x0d, 0, *val),
             ReverbCmd::ReflectionMode(shape) =>         append_u8(raw, 0x04, 0x00, 0x0c, 0, *shape),
+            ReverbCmd::ReflectionSize(val) =>           append_u32(raw, 0x04, 0x00, 0x0d, 0, *val),
             ReverbCmd::ReflectionLevel(val) =>          append_f32(raw, 0x04, 0x00, 0x0e, 0, *val),
             ReverbCmd::Reserved(identifier, vals) =>    append_data(raw, identifier, vals),
         }
@@ -1559,15 +1559,15 @@ impl CommandDspMessageHandler {
 pub struct CommandDspReverbState {
     pub enable: bool,
     pub split_point: SplitPoint,
-    pub pre_delay: i32,
-    pub shelf_filter_freq: i32,
+    pub pre_delay: u32,
+    pub shelf_filter_freq: u32,
     pub shelf_filter_attenuation: i32,
-    pub decay_time: i32,
-    pub freq_time: [i32; 3],
-    pub freq_crossover: [i32; 2],
+    pub decay_time: u32,
+    pub freq_time: [u32; 3],
+    pub freq_crossover: [u32; 2],
     pub width: f32,
     pub reflection_mode: RoomShape,
-    pub reflection_size: i32,
+    pub reflection_size: u32,
     pub reflection_level: f32,
 }
 
@@ -1579,11 +1579,11 @@ fn create_reverb_command(state: &CommandDspReverbState) -> Vec<DspCmd> {
         DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(state.shelf_filter_freq)),
         DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(state.shelf_filter_attenuation)),
         DspCmd::Reverb(ReverbCmd::DecayTime(state.decay_time)),
-        DspCmd::Reverb(ReverbCmd::TimeLow(state.freq_time[0])),
-        DspCmd::Reverb(ReverbCmd::TimeMiddle(state.freq_time[1])),
-        DspCmd::Reverb(ReverbCmd::TimeHigh(state.freq_time[2])),
-        DspCmd::Reverb(ReverbCmd::CrossoverLow(state.freq_crossover[0])),
-        DspCmd::Reverb(ReverbCmd::CrossoverHigh(state.freq_crossover[1])),
+        DspCmd::Reverb(ReverbCmd::LowFreqTime(state.freq_time[0])),
+        DspCmd::Reverb(ReverbCmd::MiddleFreqTime(state.freq_time[1])),
+        DspCmd::Reverb(ReverbCmd::HighFreqTime(state.freq_time[2])),
+        DspCmd::Reverb(ReverbCmd::LowFreqCrossover(state.freq_crossover[0])),
+        DspCmd::Reverb(ReverbCmd::HighFreqCrossover(state.freq_crossover[1])),
         DspCmd::Reverb(ReverbCmd::Width(state.width)),
         DspCmd::Reverb(ReverbCmd::ReflectionMode(state.reflection_mode)),
         DspCmd::Reverb(ReverbCmd::ReflectionSize(state.reflection_size)),
@@ -1599,11 +1599,11 @@ fn parse_reverb_command(state: &mut CommandDspReverbState, cmd: &ReverbCmd) {
         ReverbCmd::ShelfFilterFreq(val) => state.shelf_filter_freq = *val,
         ReverbCmd::ShelfFilterAttenuation(val) => state.shelf_filter_attenuation = *val,
         ReverbCmd::DecayTime(val) => state.decay_time = *val,
-        ReverbCmd::TimeLow(val) => state.freq_time[0] = *val,
-        ReverbCmd::TimeMiddle(val) => state.freq_time[1] = *val,
-        ReverbCmd::TimeHigh(val) => state.freq_time[2] = *val,
-        ReverbCmd::CrossoverLow(val) => state.freq_crossover[0] = *val,
-        ReverbCmd::CrossoverHigh(val) => state.freq_crossover[1] = *val,
+        ReverbCmd::LowFreqTime(val) => state.freq_time[0] = *val,
+        ReverbCmd::MiddleFreqTime(val) => state.freq_time[1] = *val,
+        ReverbCmd::HighFreqTime(val) => state.freq_time[2] = *val,
+        ReverbCmd::LowFreqCrossover(val) => state.freq_crossover[0] = *val,
+        ReverbCmd::HighFreqCrossover(val) => state.freq_crossover[1] = *val,
         ReverbCmd::Width(val) => state.width = *val,
         ReverbCmd::ReflectionMode(val) => state.reflection_mode = *val,
         ReverbCmd::ReflectionSize(val) => state.reflection_size = *val,
@@ -1614,38 +1614,38 @@ fn parse_reverb_command(state: &mut CommandDspReverbState, cmd: &ReverbCmd) {
 
 /// The trait for operation of reverb effect.
 pub trait CommandDspReverbOperation : CommandDspOperation {
-    const DECAY_TIME_MIN: i32 = 0x42c80000u32 as i32;
-    const DECAY_TIME_MAX: i32 = 0x476a6000u32 as i32;
-    const DECAY_TIME_STEP: i32 = 0x01;
+    const DECAY_TIME_MIN: u32 = 100;
+    const DECAY_TIME_MAX: u32 = 60000;
+    const DECAY_TIME_STEP: u32 = 1;
 
-    const PRE_DELAY_MIN: i32 = 0x3f800000u32 as i32;
-    const PRE_DELAY_MAX: i32 = 0x42c60000u32 as i32;
-    const PRE_DELAY_STEP: i32 = 0x01;
+    const PRE_DELAY_MIN: u32 = 0;
+    const PRE_DELAY_MAX: u32 = 100;
+    const PRE_DELAY_STEP: u32 = 1;
 
-    const SHELF_FILTER_FREQ_MIN: i32 = 0x447a0000u32 as i32;
-    const SHELF_FILTER_FREQ_MAX: i32 = 0x469c4000u32 as i32;
-    const SHELF_FILTER_FREQ_STEP: i32 = 0x01;
+    const SHELF_FILTER_FREQ_MIN: u32 = 1000;
+    const SHELF_FILTER_FREQ_MAX: u32 = 20000;
+    const SHELF_FILTER_FREQ_STEP: u32 = 1;
 
     const SHELF_FILTER_ATTR_MIN: i32 = 0x447a0000u32 as i32;
     const SHELF_FILTER_ATTR_MAX: i32 = 0x469c4000u32 as i32;
     const SHELF_FILTER_ATTR_STEP: i32 = 0x01;
 
     const FREQ_TIME_COUNT: usize = 3;
-    const FREQ_TIME_MIN: i32 = 0x3f800000u32 as i32;
-    const FREQ_TIME_MAX: i32 = 0x42c00000u32 as i32;
-    const FREQ_TIME_STEP: i32 = 0x01;
+    const FREQ_TIME_MIN: u32 = 0;
+    const FREQ_TIME_MAX: u32 = 100;
+    const FREQ_TIME_STEP: u32 = 1;
 
     const FREQ_CROSSOVER_COUNT: usize = 2;
-    const FREQ_CROSSOVER_MIN: i32 = 0x42c80000u32 as i32;
-    const FREQ_CROSSOVER_MAX: i32 = 0x469c4000u32 as i32;
-    const FREQ_CROSSOVER_STEP: i32 = 0x01;
+    const FREQ_CROSSOVER_MIN: u32 = 100;
+    const FREQ_CROSSOVER_MAX: u32 = 20000;
+    const FREQ_CROSSOVER_STEP: u32 = 1;
 
     const WIDTH_MIN: f32 = -1.0;
     const WIDTH_MAX: f32 = 1.0;
 
-    const REFLECTION_SIZE_MIN: i32 = 0x42480000u32 as i32;
-    const REFLECTION_SIZE_MAX: i32 = 0x43c80000u32 as i32;
-    const REFLECTION_SIZE_STEP: i32 = 0x01;
+    const REFLECTION_SIZE_MIN: u32 = 50;
+    const REFLECTION_SIZE_MAX: u32 = 400;
+    const REFLECTION_SIZE_STEP: u32 = 1;
 
     const REFLECTION_LEVEL_MIN: f32 = 0.0;
     const REFLECTION_LEVEL_MAX: f32 = 1.0;
@@ -2569,17 +2569,7 @@ mod test {
             DspCmd::Input(InputCmd::Trim(0xe4, 0x01)),
             DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(0x3456789))),
             DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(0x2469b8dd))),
-            DspCmd::Reverb(ReverbCmd::PreDelay(0x556e2bc1)),
-            DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(0x4f760819)),
             DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(0x29f2c867)),
-            DspCmd::Reverb(ReverbCmd::DecayTime(0x5c5b8924)),
-            DspCmd::Reverb(ReverbCmd::TimeLow(0x704980ae)),
-            DspCmd::Reverb(ReverbCmd::TimeMiddle(0x741fdbf1)),
-            DspCmd::Reverb(ReverbCmd::TimeHigh(0x4c24fcd4)),
-            DspCmd::Reverb(ReverbCmd::CrossoverLow(0x11a9d331)),
-            DspCmd::Reverb(ReverbCmd::CrossoverHigh(0x76a9aa46)),
-            DspCmd::Reverb(ReverbCmd::ReflectionSize(0x5e847d68)),
-            DspCmd::Reserved(vec![0x66, 0x00, 0x01, 0x02, 0x80, 0x04, 0x05, 0x06, 0x07]),
         ]
             .iter()
             .for_each(|cmd| {
@@ -2616,6 +2606,16 @@ mod test {
             DspCmd::Output(OutputCmd::Dynamics(0x49, DynamicsParameter::CompRelease(113))),
             DspCmd::Input(InputCmd::Dynamics(0x6c, DynamicsParameter::LevelerMakeup(1111))),
             DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(1113))),
+            DspCmd::Reverb(ReverbCmd::PreDelay(11111)),
+            DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(111113)),
+            DspCmd::Reverb(ReverbCmd::DecayTime(111115)),
+            DspCmd::Reverb(ReverbCmd::LowFreqTime(111117)),
+            DspCmd::Reverb(ReverbCmd::MiddleFreqTime(111119)),
+            DspCmd::Reverb(ReverbCmd::HighFreqTime(111121)),
+            DspCmd::Reverb(ReverbCmd::LowFreqCrossover(111123)),
+            DspCmd::Reverb(ReverbCmd::HighFreqCrossover(111125)),
+            DspCmd::Reverb(ReverbCmd::ReflectionSize(111127)),
+            DspCmd::Reserved(vec![0x66, 0x00, 0x01, 0x02, 0x80, 0x04, 0x05, 0x06, 0x07]),
         ]
             .iter()
             .for_each(|cmd| {
