@@ -331,13 +331,13 @@ pub enum DynamicsParameter {
     CompDetectMode(LevelDetectMode),
     CompThreshold(i32),
     CompRatio(f32),
-    CompAttach(i32),
-    CompRelease(i32),
+    CompAttack(u32),
+    CompRelease(u32),
     CompGain(f32),
     LevelerEnable(bool),
     LevelerMode(LevelerMode),
-    LevelerMakeup(i32),
-    LevelerReduce(i32),
+    LevelerMakeup(u32),
+    LevelerReduce(u32),
 }
 
 impl DynamicsParameter {
@@ -348,20 +348,20 @@ impl DynamicsParameter {
     pub const RATIO_MIN: f32 = 1.0;
     pub const RATIO_MAX: f32 = 10.0;
 
-    pub const ATTACK_MIN: i32 = 0x41200000u32 as i32;
-    pub const ATTACK_MAX: i32 = 0x42c80000u32 as i32;
-    pub const ATTACK_STEP: i32 = 0x01;
+    pub const ATTACK_MIN: i32 = 10;
+    pub const ATTACK_MAX: i32 = 100;
+    pub const ATTACK_STEP: i32 = 1;
 
-    pub const RELEASE_MIN: i32 = 0x41200000u32 as i32;
-    pub const RELEASE_MAX: i32 = 0x44fa0000u32 as i32;
-    pub const RELEASE_STEP: i32 = 0x01;
+    pub const RELEASE_MIN: i32 = 10;
+    pub const RELEASE_MAX: i32 = 100;
+    pub const RELEASE_STEP: i32 = 1;
 
     pub const GAIN_MIN: f32 = -6.0;
     pub const GAIN_MAX: f32 = 0.0;
 
-    pub const PERCENTAGE_MIN: i32 = 0x00000000u32 as i32;
-    pub const PERCENTAGE_MAX: i32 = 0x42c80000u32 as i32;
-    pub const PERCENTAGE_STEP: i32 = 0x01;
+    pub const PERCENTAGE_MIN: u32 = 0;
+    pub const PERCENTAGE_MAX: u32 = 100;
+    pub const PERCENTAGE_STEP: u32 = 1;
 }
 
 fn to_bool(raw: &[u8]) -> bool {
@@ -533,15 +533,15 @@ impl InputCmd {
             (0x01, 0x0a, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals))),
             (0x01, 0x0a, 0x01) => InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals))),
             (0x01, 0x0a, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals))),
-            (0x01, 0x0a, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::CompAttach(to_i32(vals))),
-            (0x01, 0x0a, 0x04) => InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_i32(vals))),
+            (0x01, 0x0a, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::CompAttack(to_u32(vals))),
+            (0x01, 0x0a, 0x04) => InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_u32(vals))),
             (0x01, 0x0a, 0x05) => InputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals))),
             (0x01, 0x0a, 0x06) => InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0]))),
 
             (0x01, 0x0b, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals))),
             (0x01, 0x0b, 0x01) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(LevelerMode::from(vals[0]))),
-            (0x01, 0x0b, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_i32(vals))),
-            (0x01, 0x0b, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_i32(vals))),
+            (0x01, 0x0b, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_u32(vals))),
+            (0x01, 0x0b, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_u32(vals))),
 
             (0x01, 0x0c, 0x00) => InputCmd::ReverbSend(ch, to_f32(vals)),
             (0x01, 0x0c, 0x02) => InputCmd::ReverbLrBalance(ch, to_f32(vals)),
@@ -614,15 +614,15 @@ impl InputCmd {
             InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) =>       append_u8(raw, 0x01, 0x0a, 0x00, *ch, *enabled),
             InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) =>        append_i32(raw, 0x01, 0x0a, 0x01, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>            append_f32(raw, 0x01, 0x0a, 0x02, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompAttach(val)) =>           append_i32(raw, 0x01, 0x0a, 0x03, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>          append_i32(raw, 0x01, 0x0a, 0x04, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::CompAttack(val)) =>           append_u32(raw, 0x01, 0x0a, 0x03, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>          append_u32(raw, 0x01, 0x0a, 0x04, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) =>             append_f32(raw, 0x01, 0x0a, 0x05, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) =>      append_u8(raw, 0x01, 0x0a, 0x06, *ch, *mode),
 
             InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) =>    append_u8(raw, 0x01, 0x0b, 0x00, *ch, *enabled),
             InputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(mode)) =>         append_u8(raw, 0x01, 0x0b, 0x01, *ch, *mode),
-            InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>        append_i32(raw, 0x01, 0x0b, 0x02, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>        append_i32(raw, 0x01, 0x0b, 0x03, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>        append_u32(raw, 0x01, 0x0b, 0x02, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>        append_u32(raw, 0x01, 0x0b, 0x03, *ch, *val),
 
             InputCmd::ReverbSend(ch, val) =>                                        append_f32(raw, 0x01, 0x0c, 0x00, *ch, *val),
             InputCmd::ReverbLrBalance(ch, val) =>                                   append_f32(raw, 0x01, 0x0c, 0x02, *ch, *val),
@@ -796,15 +796,15 @@ impl OutputCmd {
             (0x03, 0x09, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals))),
             (0x03, 0x09, 0x01) => OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals))),
             (0x03, 0x09, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals))),
-            (0x03, 0x09, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::CompAttach(to_i32(vals))),
-            (0x03, 0x09, 0x04) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_i32(vals))),
+            (0x03, 0x09, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::CompAttack(to_u32(vals))),
+            (0x03, 0x09, 0x04) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_u32(vals))),
             (0x03, 0x09, 0x05) => OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals))),
             (0x03, 0x09, 0x06) => OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0]))),
 
             (0x03, 0x0a, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals))),
             (0x03, 0x0a, 0x01) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(LevelerMode::from(vals[0]))),
-            (0x03, 0x0a, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_i32(vals))),
-            (0x03, 0x0a, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_i32(vals))),
+            (0x03, 0x0a, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_u32(vals))),
+            (0x03, 0x0a, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_u32(vals))),
 
             (0x03, 0x0b, 0x00) => OutputCmd::ReverbSend(ch, to_f32(vals)),
             (0x03, 0x0b, 0x01) => OutputCmd::ReverbReturn(ch, to_f32(vals)),
@@ -864,15 +864,15 @@ impl OutputCmd {
             OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) =>      append_u8(raw, 0x03, 0x09, 0x00, *ch, *enabled),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) =>       append_i32(raw, 0x03, 0x09, 0x01, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>           append_f32(raw, 0x03, 0x09, 0x02, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompAttach(val)) =>          append_i32(raw, 0x03, 0x09, 0x03, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>         append_i32(raw, 0x03, 0x09, 0x04, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompAttack(val)) =>          append_u32(raw, 0x03, 0x09, 0x03, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>         append_u32(raw, 0x03, 0x09, 0x04, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) =>            append_f32(raw, 0x03, 0x09, 0x05, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) =>     append_u8(raw, 0x03, 0x09, 0x06, *ch, *mode),
 
             OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) =>   append_u8(raw, 0x03, 0x0a, 0x00, *ch, *enabled),
             OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(mode)) =>        append_u8(raw, 0x03, 0x0a, 0x01, *ch, *mode),
-            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>       append_i32(raw, 0x03, 0x0a, 0x02, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>       append_i32(raw, 0x03, 0x0a, 0x03, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>       append_u32(raw, 0x03, 0x0a, 0x02, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>       append_u32(raw, 0x03, 0x0a, 0x03, *ch, *val),
 
             OutputCmd::ReverbSend(ch, val) =>                                       append_f32(raw, 0x03, 0x0b, 0x00, *ch, *val),
             OutputCmd::ReverbReturn(ch, val) =>                                     append_f32(raw, 0x03, 0x0b, 0x01, *ch, *val),
@@ -2051,14 +2051,14 @@ pub struct CommandDspDynamicsState {
     pub comp_detect_mode: Vec<LevelDetectMode>,
     pub comp_threshold: Vec<i32>,
     pub comp_ratio: Vec<f32>,
-    pub comp_attack: Vec<i32>,
-    pub comp_release: Vec<i32>,
+    pub comp_attack: Vec<u32>,
+    pub comp_release: Vec<u32>,
     pub comp_gain: Vec<f32>,
 
     pub leveler_enable: Vec<bool>,
     pub leveler_mode: Vec<LevelerMode>,
-    pub leveler_makeup: Vec<i32>,
-    pub leveler_reduce: Vec<i32>,
+    pub leveler_makeup: Vec<u32>,
+    pub leveler_reduce: Vec<u32>,
 }
 
 fn create_dynamics_parameters(
@@ -2073,7 +2073,7 @@ fn create_dynamics_parameters(
     params.push(DynamicsParameter::CompDetectMode(state.comp_detect_mode[ch]));
     params.push(DynamicsParameter::CompThreshold(state.comp_threshold[ch]));
     params.push(DynamicsParameter::CompRatio(state.comp_ratio[ch]));
-    params.push(DynamicsParameter::CompAttach(state.comp_attack[ch]));
+    params.push(DynamicsParameter::CompAttack(state.comp_attack[ch]));
     params.push(DynamicsParameter::CompRelease(state.comp_release[ch]));
     params.push(DynamicsParameter::CompGain(state.comp_gain[ch]));
 
@@ -2097,7 +2097,7 @@ fn parse_dynamics_parameter(
         DynamicsParameter::CompDetectMode(val) => state.comp_detect_mode[ch] = *val,
         DynamicsParameter::CompThreshold(val) => state.comp_threshold[ch] = *val,
         DynamicsParameter::CompRatio(val) => state.comp_ratio[ch] = *val,
-        DynamicsParameter::CompAttach(val) => state.comp_attack[ch] = *val,
+        DynamicsParameter::CompAttack(val) => state.comp_attack[ch] = *val,
         DynamicsParameter::CompRelease(val) => state.comp_release[ch] = *val,
         DynamicsParameter::CompGain(val) => state.comp_gain[ch] = *val,
 
@@ -2568,15 +2568,7 @@ mod test {
         [
             DspCmd::Input(InputCmd::Trim(0xe4, 0x01)),
             DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(0x3456789))),
-            DspCmd::Input(InputCmd::Dynamics(0x9f, DynamicsParameter::CompAttach(0x56789ab))),
-            DspCmd::Input(InputCmd::Dynamics(0x8e, DynamicsParameter::CompRelease(0x6789abc))),
-            DspCmd::Input(InputCmd::Dynamics(0x6c, DynamicsParameter::LevelerMakeup(0x09abcdef))),
-            DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(0x1c92835a))),
             DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(0x2469b8dd))),
-            DspCmd::Output(OutputCmd::Dynamics(0x1b, DynamicsParameter::CompAttach(0x0ea8d07d))),
-            DspCmd::Output(OutputCmd::Dynamics(0x49, DynamicsParameter::CompRelease(0x28cff071))),
-            DspCmd::Output(OutputCmd::Dynamics(0x7f, DynamicsParameter::LevelerMakeup(0x100e66ba))),
-            DspCmd::Output(OutputCmd::Dynamics(0xf2, DynamicsParameter::LevelerReduce(0x3a6bd56a))),
             DspCmd::Reverb(ReverbCmd::PreDelay(0x556e2bc1)),
             DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(0x4f760819)),
             DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(0x29f2c867)),
@@ -2609,6 +2601,10 @@ mod test {
             DspCmd::Input(InputCmd::Equalizer(0x28, EqualizerParameter::HmfFreq(50))),
             DspCmd::Input(InputCmd::Equalizer(0xf5, EqualizerParameter::HfFreq(60))),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::LpfFreq(70))),
+            DspCmd::Input(InputCmd::Dynamics(0x9f, DynamicsParameter::CompAttack(100))),
+            DspCmd::Input(InputCmd::Dynamics(0x8e, DynamicsParameter::CompRelease(200))),
+            DspCmd::Output(OutputCmd::Dynamics(0x7f, DynamicsParameter::LevelerMakeup(1000))),
+            DspCmd::Output(OutputCmd::Dynamics(0xf2, DynamicsParameter::LevelerReduce(2000))),
             DspCmd::Output(OutputCmd::Equalizer(0xa8, EqualizerParameter::HpfFreq(103))),
             DspCmd::Output(OutputCmd::Equalizer(0x39, EqualizerParameter::LfFreq(105))),
             DspCmd::Output(OutputCmd::Equalizer(0x5b, EqualizerParameter::LmfFreq(107))),
@@ -2616,6 +2612,10 @@ mod test {
             DspCmd::Output(OutputCmd::Equalizer(0xf7, EqualizerParameter::HmfFreq(111))),
             DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HfFreq(113))),
             DspCmd::Output(OutputCmd::Equalizer(0x29, EqualizerParameter::LpfFreq(115))),
+            DspCmd::Output(OutputCmd::Dynamics(0x1b, DynamicsParameter::CompAttack(111))),
+            DspCmd::Output(OutputCmd::Dynamics(0x49, DynamicsParameter::CompRelease(113))),
+            DspCmd::Input(InputCmd::Dynamics(0x6c, DynamicsParameter::LevelerMakeup(1111))),
+            DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(1113))),
         ]
             .iter()
             .for_each(|cmd| {
