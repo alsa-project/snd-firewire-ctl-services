@@ -183,6 +183,7 @@ impl NotifyModel<SndMotu, u32> for AudioExpress {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
     fn parse_notification(&mut self, _: &mut SndMotu, _: &u32) -> Result<(), Error> {
+        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
 

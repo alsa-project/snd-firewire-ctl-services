@@ -394,6 +394,11 @@ impl Audioexpress4preInputOperation for AudioExpressProtocol {
     const MIC_COUNT: usize = 2;
 }
 
+impl AudioExpressProtocol {
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+}
+
 /// The protocol implementation for 828mk3 (FireWire only).
 #[derive(Default)]
 pub struct F828mk3Protocol;
