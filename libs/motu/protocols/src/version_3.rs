@@ -593,6 +593,15 @@ impl CommandDspOutputOperation for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
 }
 
+impl F828mk3Protocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment. The change
+    /// of phone assignment is also notified in command message.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+}
+
 /// The protocol implementation for 828mk3 Hybrid.
 #[derive(Default)]
 pub struct F828mk3HybridProtocol;
@@ -634,6 +643,15 @@ impl CommandDspInputOperation for F828mk3HybridProtocol {
 
 impl CommandDspOutputOperation for F828mk3HybridProtocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
+}
+
+impl F828mk3HybridProtocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment. The change
+    /// of phone assignment is also notified in command message.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
 }
 
 /// The protocol implementation for 4pre.
