@@ -32,7 +32,6 @@ pub struct F828mk3 {
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     resource_ctl: ResourceCtl,
-    msg_cache: u32,
 }
 
 #[derive(Default)]
@@ -160,12 +159,6 @@ impl CommandDspResourcebCtlOperation for ResourceCtl {
     fn state_mut(&mut self) -> &mut u32 {
         &mut self.0
     }
-}
-
-impl F828mk3 {
-    const NOTIFY_OPERATED: u32 = 0x40000000;
-    const NOTIFY_COMPLETED: u32 = 0x00000002;
-    const NOTIFY_OPERATED_AND_COMPLETED: u32 = Self::NOTIFY_OPERATED | Self::NOTIFY_COMPLETED;
 }
 
 impl CtlModel<SndMotu> for F828mk3 {
@@ -353,27 +346,28 @@ impl NotifyModel<SndMotu, u32> for F828mk3 {
         elem_id_list.extend_from_slice(&self.word_clk_ctl.1);
     }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {
-        self.msg_cache = *msg;
+    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+        if *msg & F828mk3HybridProtocol::NOTIFY_PORT_CHANGE > 0 {
+            self.port_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.phone_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.word_clk_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
+        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
         _: &SndMotu,
-        _: &ElemId,
-        _: &mut ElemValue
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
-        if self.msg_cache & (Self::NOTIFY_OPERATED_AND_COMPLETED) == Self::NOTIFY_OPERATED_AND_COMPLETED {
-            //if self.port_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else if self.word_clk_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else {
-                Ok(false)
-            //}
+        if self.port_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
