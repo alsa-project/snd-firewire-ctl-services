@@ -9,7 +9,7 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
 
-use motu_protocols::{register_dsp::*, version_2::*};
+use motu_protocols::{register_dsp::*, version_2::*, *};
 
 use super::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*};
 
@@ -30,9 +30,17 @@ pub struct F896hd {
 }
 
 #[derive(Default)]
-struct WordClkCtl;
+struct WordClkCtl(WordClkSpeedMode, Vec<ElemId>);
 
-impl WordClkCtlOperation<F896hdProtocol> for WordClkCtl {}
+impl WordClkCtlOperation<F896hdProtocol> for WordClkCtl {
+    fn state(&self) -> &WordClkSpeedMode {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut WordClkSpeedMode {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct AesebuRateConvertCtl;
@@ -110,7 +118,8 @@ impl CtlModel<SndMotu> for F896hd {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
-        self.word_clk_ctl.load(card_cntr)?;
+        self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
         self.level_meters_ctl.load(card_cntr)?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -140,10 +149,7 @@ impl CtlModel<SndMotu> for F896hd {
             .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .word_clk_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.read(
             unit,

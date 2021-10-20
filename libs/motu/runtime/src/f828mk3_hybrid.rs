@@ -9,7 +9,7 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
-use motu_protocols::{command_dsp::*, version_3::*};
+use motu_protocols::{command_dsp::*, version_3::*, *};
 
 use super::{command_dsp_ctls::*, common_ctls::*, v3_ctls::*};
 use super::command_dsp_runtime::*;
@@ -49,9 +49,17 @@ impl PhoneAssignCtlOperation<F828mk3HybridProtocol> for PhoneAssignCtl {
 }
 
 #[derive(Default)]
-struct WordClkCtl(Vec<ElemId>);
+struct WordClkCtl(WordClkSpeedMode, Vec<ElemId>);
 
-impl WordClkCtlOperation<F828mk3HybridProtocol> for WordClkCtl {}
+impl WordClkCtlOperation<F828mk3HybridProtocol> for WordClkCtl {
+    fn state(&self) -> &WordClkSpeedMode {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut WordClkSpeedMode {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -160,8 +168,8 @@ impl CtlModel<SndMotu> for F828mk3Hybrid {
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
-        self.word_clk_ctl.load(card_cntr)
-            .map(|mut elem_id_list| self.word_clk_ctl.0.append(&mut elem_id_list))?;
+        self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.reverb_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.reverb_ctl.1.append(&mut elem_id_list))?;
         self.monitor_ctl.load(card_cntr)
@@ -199,7 +207,7 @@ impl CtlModel<SndMotu> for F828mk3Hybrid {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.word_clk_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.reverb_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -334,7 +342,7 @@ impl NotifyModel<SndMotu, u32> for F828mk3Hybrid {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.0);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
-        elem_id_list.extend_from_slice(&self.word_clk_ctl.0);
+        elem_id_list.extend_from_slice(&self.word_clk_ctl.1);
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {

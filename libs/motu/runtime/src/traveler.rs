@@ -11,7 +11,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 
 use core::card_cntr::*;
 
-use motu_protocols::{register_dsp::*, version_2::*};
+use motu_protocols::{register_dsp::*, version_2::*, *};
 
 use super::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*};
 
@@ -47,9 +47,17 @@ impl PhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {
 }
 
 #[derive(Default)]
-struct WordClkCtl(Vec<ElemId>);
+struct WordClkCtl(WordClkSpeedMode, Vec<ElemId>);
 
-impl WordClkCtlOperation<TravelerProtocol> for WordClkCtl {}
+impl WordClkCtlOperation<TravelerProtocol> for WordClkCtl {
+    fn state(&self) -> &WordClkSpeedMode {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut WordClkSpeedMode {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -140,8 +148,8 @@ impl CtlModel<SndMotu> for Traveler {
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
-        self.word_clk_ctl.load(card_cntr)
-            .map(|mut elem_id_list| self.word_clk_ctl.0.append(&mut elem_id_list))?;
+        self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -169,7 +177,7 @@ impl CtlModel<SndMotu> for Traveler {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.word_clk_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)

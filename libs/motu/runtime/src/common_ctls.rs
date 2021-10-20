@@ -92,8 +92,18 @@ const WORD_OUT_MODES: [WordClkSpeedMode; 2] = [
 ];
 
 pub trait WordClkCtlOperation<T: WordClkOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error>
-    {
+    fn state(&self) -> &WordClkSpeedMode;
+    fn state_mut(&mut self) -> &mut WordClkSpeedMode;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<Vec<ElemId>, Error> {
+        self.cache(unit, req, timeout_ms)?;
+
         let labels: Vec<&str> = WORD_OUT_MODES
             .iter()
             .map(|m| word_clk_speed_mode_to_str(m))
@@ -102,25 +112,30 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn read(
+    fn cache(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        T::get_word_out(req, &mut unit.get_node(), timeout_ms).map(|mode| *self.state_mut() = mode)
+    }
+
+    fn read(
+        &mut self,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             WORD_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_word_out(req, &mut unit.get_node(), timeout_ms).map(|mode| {
-                        WORD_OUT_MODES
-                            .iter()
-                            .position(|&m| m == mode)
-                            .unwrap() as u32
-                    })
+                    let pos = WORD_OUT_MODES
+                        .iter()
+                        .position(|m| self.state().eq(m))
+                        .unwrap();
+                    Ok(pos as u32)
                 })
-                .map(|_| true)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -145,6 +160,7 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
                             Error::new(FileError::Inval, &msg)
                         })?;
                     T::set_word_out(req, &mut unit.get_node(), mode, timeout_ms)
+                        .map(|_| *self.state_mut() = mode)
                 })
                 .map(|_| true)
             }

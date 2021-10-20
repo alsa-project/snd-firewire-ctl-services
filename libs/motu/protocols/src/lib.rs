@@ -218,6 +218,12 @@ pub enum WordClkSpeedMode {
     FollowSystemClk,
 }
 
+impl Default for WordClkSpeedMode {
+    fn default() -> Self {
+        Self::FollowSystemClk
+    }
+}
+
 const WORD_OUT_LABEL: &str = "word-out";
 const WORD_OUT_MASK: u32 = 0x08000000;
 const WORD_OUT_SHIFT: usize = 27;
