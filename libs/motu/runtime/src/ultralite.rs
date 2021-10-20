@@ -32,9 +32,17 @@ pub struct UltraLite{
 }
 
 #[derive(Default)]
-struct PhoneAssignCtl(Vec<ElemId>);
+struct PhoneAssignCtl(usize, Vec<ElemId>);
 
-impl PhoneAssignCtlOperation<UltraliteProtocol> for PhoneAssignCtl {}
+impl PhoneAssignCtlOperation<UltraliteProtocol> for PhoneAssignCtl {
+    fn state(&self) -> &usize {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut usize {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -110,8 +118,8 @@ impl CtlModel<SndMotu> for UltraLite {
         self.clk_ctls.load(card_cntr)?;
         self.main_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.main_assign_ctl.0.append(&mut elem_id_list))?;
-        self.phone_assign_ctl.load(card_cntr)
-            .map(|mut elem_id_list| self.phone_assign_ctl.0.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -135,7 +143,7 @@ impl CtlModel<SndMotu> for UltraLite {
             Ok(true)
         } else if self.main_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -184,7 +192,7 @@ impl CtlModel<SndMotu> for UltraLite {
 impl NotifyModel<SndMotu, u32> for UltraLite {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.main_assign_ctl.0);
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {

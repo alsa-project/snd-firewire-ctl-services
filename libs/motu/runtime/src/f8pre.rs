@@ -28,9 +28,17 @@ pub struct F8pre{
 }
 
 #[derive(Default)]
-struct PhoneAssignCtl;
+struct PhoneAssignCtl(usize, Vec<ElemId>);
 
-impl PhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {}
+impl PhoneAssignCtlOperation<F8preProtocol> for PhoneAssignCtl {
+    fn state(&self) -> &usize {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut usize {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -98,7 +106,8 @@ impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl.load(card_cntr)?;
-        let _ = self.phone_assign_ctl.load(card_cntr)?;
+        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -120,7 +129,7 @@ impl CtlModel<SndMotu> for F8pre {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)

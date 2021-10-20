@@ -18,7 +18,18 @@ use super::*;
 const PHONE_ASSIGN_NAME: &str = "phone-assign";
 
 pub trait PhoneAssignCtlOperation<T: AssignOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+    fn state(&self) -> &usize;
+    fn state_mut(&mut self) -> &mut usize;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32
+    ) -> Result<Vec<ElemId>, Error> {
+        self.cache(unit, req, timeout_ms)?;
+
         let labels: Vec<&str> = T::ASSIGN_PORTS
             .iter()
             .map(|e| target_port_to_str(&e.0))
@@ -27,21 +38,19 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
+    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
+        T::get_phone_assign(req, &mut unit.get_node(), timeout_ms).map(|val| *self.state_mut() = val)
+    }
+
     fn read(
         &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
-        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PHONE_ASSIGN_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_phone_assign(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
-                .map(|_| true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(*self.state() as u32))
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -59,6 +68,7 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
             PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     T::set_phone_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                        .map(|_| *self.state_mut() = val as usize)
                 })
                 .map(|_| true)
             }

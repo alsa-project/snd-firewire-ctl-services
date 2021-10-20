@@ -28,9 +28,17 @@ pub struct AudioExpress {
 }
 
 #[derive(Default)]
-struct PhoneAssignCtl;
+struct PhoneAssignCtl(usize, Vec<ElemId>);
 
-impl PhoneAssignCtlOperation<AudioExpressProtocol> for PhoneAssignCtl {}
+impl PhoneAssignCtlOperation<AudioExpressProtocol> for PhoneAssignCtl {
+    fn state(&self) -> &usize {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut usize {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -105,7 +113,7 @@ impl Audioexpress4preInputCtlOperation<AudioExpressProtocol> for InputCtl {
 impl CtlModel<SndMotu> for AudioExpress {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.phone_assign_ctl.load(card_cntr)?;
+        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -127,7 +135,7 @@ impl CtlModel<SndMotu> for AudioExpress {
     ) -> Result<bool, Error> {
         if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
