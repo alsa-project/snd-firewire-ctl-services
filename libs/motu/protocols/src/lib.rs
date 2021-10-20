@@ -146,7 +146,7 @@ fn update_clk_display(
     label: &str,
     timeout_ms: u32,
 ) -> Result<(), Error> {
-    let mut chars = [0; DISPLAY_CHARS];
+    let mut chars = [0x20; DISPLAY_CHARS];
     chars
         .iter_mut()
         .zip(label.bytes())
