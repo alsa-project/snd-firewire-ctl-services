@@ -1028,17 +1028,20 @@ impl ReverbCmd {
 }
 
 /// The DSP command specific to usage of resource.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ResourceCmd {
-    Usage(u32, u8),
+    Usage(f32, u8),
     Reserved(Vec<u8>),
 }
 
 impl ResourceCmd {
+    pub const USAGE_MIN: f32 = 0.0;
+    pub const USAGE_MAX: f32 = 100.0;
+
     fn parse(raw: &[u8]) -> Self {
         let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&raw[1..5]);
-        ResourceCmd::Usage(u32::from_be_bytes(quadlet), raw[5])
+        ResourceCmd::Usage(f32::from_le_bytes(quadlet), raw[5])
     }
 
     fn build(&self, raw: &mut Vec<u8>) {
@@ -1279,9 +1282,9 @@ fn append_f32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level:
     raw.extend_from_slice(&val.to_le_bytes());
 }
 
-fn append_resource(raw: &mut Vec<u8>, usage: u32, flag: u8) {
+fn append_resource(raw: &mut Vec<u8>, usage: f32, flag: u8) {
     raw.push(CMD_RESOURCE);
-    raw.extend_from_slice(&usage.to_be_bytes());
+    raw.extend_from_slice(&usage.to_le_bytes());
     raw.push(flag);
 }
 
@@ -2658,7 +2661,7 @@ mod test {
 
     #[test]
     fn test_resource() {
-        let cmd = DspCmd::Resource(ResourceCmd::Usage(0x98765432, 0x17));
+        let cmd = DspCmd::Resource(ResourceCmd::Usage(99.99999, 0x17));
         let mut raw = Vec::new();
         cmd.build(&mut raw);
         let mut c = Vec::new();

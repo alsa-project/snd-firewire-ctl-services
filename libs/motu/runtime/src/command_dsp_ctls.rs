@@ -2999,6 +2999,8 @@ pub trait CommandDspResourcebCtlOperation {
     fn state(&self) -> &u32;
     fn state_mut(&mut self) -> &mut u32;
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -3009,9 +3011,9 @@ pub trait CommandDspResourcebCtlOperation {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            0x00000000,
-            0x42c80000,
-            0x01,
+            (ResourceCmd::USAGE_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (ResourceCmd::USAGE_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             1,
             None,
             false,
@@ -3039,7 +3041,9 @@ pub trait CommandDspResourcebCtlOperation {
                 if let DspCmd::Resource(c) = cmd {
                     match c {
                         // TODO: flag?
-                        ResourceCmd::Usage(usage, _) => *self.state_mut() = *usage,
+                        ResourceCmd::Usage(usage, _) => {
+                            *self.state_mut() = (*usage * Self::F32_CONVERT_SCALE) as u32;
+                        }
                         _ => (),
                     }
                 }
