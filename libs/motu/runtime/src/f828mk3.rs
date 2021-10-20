@@ -36,9 +36,17 @@ pub struct F828mk3 {
 }
 
 #[derive(Default)]
-struct PhoneAssignCtl(Vec<ElemId>);
+struct PhoneAssignCtl(usize, Vec<ElemId>);
 
-impl PhoneAssignCtlOperation<F828mk3Protocol> for PhoneAssignCtl {}
+impl PhoneAssignCtlOperation<F828mk3Protocol> for PhoneAssignCtl {
+    fn state(&self) -> &usize {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut usize {
+        &mut self.0
+    }
+}
 
 #[derive(Default)]
 struct WordClkCtl(Vec<ElemId>);
@@ -145,15 +153,13 @@ impl F828mk3 {
 }
 
 impl CtlModel<SndMotu> for F828mk3 {
-    fn load(&mut self, _: &mut SndMotu, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
+    fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.port_assign_ctl.0.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
-        self.phone_assign_ctl.load(card_cntr)
-            .map(|mut elem_id_list| self.phone_assign_ctl.0.append(&mut elem_id_list))?;
+        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.word_clk_ctl.load(card_cntr)
             .map(|mut elem_id_list| self.word_clk_ctl.0.append(&mut elem_id_list))?;
         self.reverb_ctl.load(card_cntr)
@@ -191,7 +197,7 @@ impl CtlModel<SndMotu> for F828mk3 {
             Ok(true)
         } else if self.opt_iface_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.phone_assign_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.word_clk_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -327,7 +333,7 @@ impl CtlModel<SndMotu> for F828mk3 {
 impl NotifyModel<SndMotu, u32> for F828mk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.0);
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.0);
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.word_clk_ctl.0);
     }
 
