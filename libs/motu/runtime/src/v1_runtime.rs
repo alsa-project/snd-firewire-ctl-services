@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 use std::sync::mpsc;
-use std::thread;
-use std::time::Duration;
 
 use nix::sys::signal::Signal;
 
@@ -23,7 +21,7 @@ pub type F896Runtime = Version1Runtime<F896>;
 
 pub struct Version1Runtime<T>
 where
-    T: CtlModel<SndMotu> + Default,
+    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
 {
     unit: SndMotu,
     model: T,
@@ -33,11 +31,12 @@ where
     dispatchers: Vec<Dispatcher>,
     #[allow(dead_code)]
     version: u32,
+    notified_elem_id_list: Vec<ElemId>,
 }
 
 impl<T>  Drop for Version1Runtime<T>
 where
-    T: CtlModel<SndMotu> + Default,
+    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -66,7 +65,7 @@ const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
 
 impl<T> Version1Runtime<T>
 where
-    T: CtlModel<SndMotu> + Default,
+    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
 {
     pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -83,6 +82,7 @@ where
             tx,
             dispatchers: Default::default(),
             version,
+            notified_elem_id_list: Default::default(),
         })
     }
 
@@ -91,6 +91,7 @@ where
         self.launch_system_event_dispatcher()?;
 
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.get_notified_elem_list(&mut self.notified_elem_id_list);
 
         Ok(())
     }
@@ -115,7 +116,14 @@ where
                         &mut self.model,
                     );
                 }
-                Event::Notify(_) => (),
+                Event::Notify(msg) => {
+                    let _ = self.card_cntr.dispatch_notification(
+                        &mut self.unit,
+                        &msg,
+                        &self.notified_elem_id_list,
+                        &mut self.model,
+                    );
+                }
             }
         }
         Ok(())
@@ -132,13 +140,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.connect_notified(move |_, msg| {
-            let t = tx.clone();
-            let _ = thread::spawn(move || {
-                // Just after notification, the target device tends to return RCODE_BUSY against
-                // read request. Here, wait for 100 msec to avoid it.
-                thread::sleep(Duration::from_millis(100));
-                let _ = t.send(Event::Notify(msg));
-            });
+            let _ = tx.send(Event::Notify(msg));
         });
 
         let tx = self.tx.clone();
