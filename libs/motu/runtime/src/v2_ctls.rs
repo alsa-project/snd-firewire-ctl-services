@@ -182,7 +182,20 @@ const OPT_IN_IFACE_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_OUT_IFACE_MODE_NAME: &str = "optical-iface-out-mode";
 
 pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn state(&self) -> &(usize, usize);
+    fn state_mut(&mut self) -> &mut (usize, usize);
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        self.cache(unit, req, timeout_ms)?;
+
+        let mut notified_elem_id_list = Vec::new();
+
         let labels: Vec<&str> = T::OPT_IFACE_MODES
             .iter()
             .map(|e| opt_iface_mode_to_str(&e.0))
@@ -190,37 +203,38 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IN_IFACE_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_OUT_IFACE_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        Ok(())
+        Ok(notified_elem_id_list)
     }
 
-    fn read(
+    fn cache(
         &mut self,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error> {
+    ) -> Result<(), Error> {
+        T::get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
+            .map(|val| self.state_mut().0 = val)?;
+        T::get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
+            .map(|val| self.state_mut().1 = val)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
-                .map(|_| true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().0 as u32))
+                    .map(|_| true)
             }
             OPT_OUT_IFACE_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
-                        .map(|val| val as u32)
-                })
-                .map(|_| true)
+                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().1 as u32))
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -239,6 +253,9 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
                     let res = T::set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    if res.is_ok() {
+                        self.state_mut().0 = val as usize;
+                    }
                     unit.unlock()?;
                     res
                 })
@@ -248,6 +265,9 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.lock()?;
                     let res = T::set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                    if res.is_ok() {
+                        self.state_mut().1 = val as usize;
+                    }
                     unit.unlock()?;
                     res
                 })
