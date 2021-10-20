@@ -389,6 +389,15 @@ fn to_i32(raw: &[u8]) -> i32 {
     i32::from_le_bytes(quadlet)
 }
 
+fn to_f32(raw: &[u8]) -> f32 {
+    assert_eq!(raw.len(), 4);
+
+    let mut quadlet = [0; 4];
+    quadlet.copy_from_slice(raw);
+
+    f32::from_le_bytes(quadlet)
+}
+
 fn append_data(raw: &mut Vec<u8>, identifier: &[u8], vals: &[u8]) {
     if vals.len() == 4 {
         raw.push(CMD_QUADLET_SINGLE);
@@ -955,7 +964,7 @@ impl From<SplitPoint> for u8 {
 }
 
 /// The DSP command specific to reverb effect.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ReverbCmd {
     Enable(bool),
     Split(SplitPoint),
@@ -968,10 +977,10 @@ pub enum ReverbCmd {
     TimeHigh(i32),
     CrossoverLow(i32),
     CrossoverHigh(i32),
-    Width(i32),
+    Width(f32),
     ReflectionMode(RoomShape),
     ReflectionSize(i32),
-    ReflectionLevel(i32),
+    ReflectionLevel(f32),
     Reserved(Vec<u8>, Vec<u8>),
 }
 
@@ -992,10 +1001,10 @@ impl ReverbCmd {
             (0x04, 0x00, 0x08) => ReverbCmd::TimeHigh(to_i32(vals)),
             (0x04, 0x00, 0x09) => ReverbCmd::CrossoverLow(to_i32(vals)),
             (0x04, 0x00, 0x0a) => ReverbCmd::CrossoverHigh(to_i32(vals)),
-            (0x04, 0x00, 0x0b) => ReverbCmd::Width(to_i32(vals)),
+            (0x04, 0x00, 0x0b) => ReverbCmd::Width(to_f32(vals)),
             (0x04, 0x00, 0x0c) => ReverbCmd::ReflectionMode(RoomShape::from(vals[0])),
             (0x04, 0x00, 0x0d) => ReverbCmd::ReflectionSize(to_i32(vals)),
-            (0x04, 0x00, 0x0e) => ReverbCmd::ReflectionLevel(to_i32(vals)),
+            (0x04, 0x00, 0x0e) => ReverbCmd::ReflectionLevel(to_f32(vals)),
             _ => ReverbCmd::Reserved(identifier.to_vec(), vals.to_vec()),
         }
     }
@@ -1013,10 +1022,10 @@ impl ReverbCmd {
             ReverbCmd::TimeHigh(val) =>                 append_i32(raw, 0x04, 0x00, 0x08, 0, *val),
             ReverbCmd::CrossoverLow(val) =>             append_i32(raw, 0x04, 0x00, 0x09, 0, *val),
             ReverbCmd::CrossoverHigh(val) =>            append_i32(raw, 0x04, 0x00, 0x0a, 0, *val),
-            ReverbCmd::Width(val) =>                    append_i32(raw, 0x04, 0x00, 0x0b, 0, *val),
+            ReverbCmd::Width(val) =>                    append_f32(raw, 0x04, 0x00, 0x0b, 0, *val),
             ReverbCmd::ReflectionSize(val) =>           append_i32(raw, 0x04, 0x00, 0x0d, 0, *val),
             ReverbCmd::ReflectionMode(shape) =>         append_u8(raw, 0x04, 0x00, 0x0c, 0, *shape),
-            ReverbCmd::ReflectionLevel(val) =>          append_i32(raw, 0x04, 0x00, 0x0e, 0, *val),
+            ReverbCmd::ReflectionLevel(val) =>          append_f32(raw, 0x04, 0x00, 0x0e, 0, *val),
             ReverbCmd::Reserved(identifier, vals) =>    append_data(raw, identifier, vals),
         }
     }
@@ -1045,7 +1054,7 @@ impl ResourceCmd {
 }
 
 /// The DSP command.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DspCmd {
     Monitor(MonitorCmd),
     Input(InputCmd),
@@ -1257,6 +1266,15 @@ fn append_u8<T>(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_leve
 }
 
 fn append_i32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: i32) {
+    raw.push(CMD_QUADLET_SINGLE);
+    raw.push(ch as u8);
+    raw.push(third_level);
+    raw.push(second_level);
+    raw.push(first_level);
+    raw.extend_from_slice(&val.to_le_bytes());
+}
+
+fn append_f32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: f32) {
     raw.push(CMD_QUADLET_SINGLE);
     raw.push(ch as u8);
     raw.push(third_level);
@@ -1530,7 +1548,7 @@ impl CommandDspMessageHandler {
 }
 
 /// The structure for state of reverb function.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct CommandDspReverbState {
     pub enable: bool,
     pub split_point: SplitPoint,
@@ -1540,10 +1558,10 @@ pub struct CommandDspReverbState {
     pub decay_time: i32,
     pub freq_time: [i32; 3],
     pub freq_crossover: [i32; 2],
-    pub width: i32,
+    pub width: f32,
     pub reflection_mode: RoomShape,
     pub reflection_size: i32,
-    pub reflection_level: i32,
+    pub reflection_level: f32,
 }
 
 fn create_reverb_command(state: &CommandDspReverbState) -> Vec<DspCmd> {
@@ -1615,17 +1633,15 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
     const FREQ_CROSSOVER_MAX: i32 = 0x469c4000u32 as i32;
     const FREQ_CROSSOVER_STEP: i32 = 0x01;
 
-    const WIDTH_MIN: i32 = 0xbc23d70au32 as i32;
-    const WIDTH_MAX: i32 = 0x3f800000u32 as i32;
-    const WIDTH_STEP: i32 = 0x01;
+    const WIDTH_MIN: f32 = -1.0;
+    const WIDTH_MAX: f32 = 1.0;
 
     const REFLECTION_SIZE_MIN: i32 = 0x42480000u32 as i32;
     const REFLECTION_SIZE_MAX: i32 = 0x43c80000u32 as i32;
     const REFLECTION_SIZE_STEP: i32 = 0x01;
 
-    const REFLECTION_LEVEL_MIN: i32 = 0x00000000u32 as i32;
-    const REFLECTION_LEVEL_MAX: i32 = 0x3f800000u32 as i32;
-    const REFLECTION_LEVEL_STEP: i32 = 0x01;
+    const REFLECTION_LEVEL_MIN: f32 = 0.0;
+    const REFLECTION_LEVEL_MAX: f32 = 1.0;
 
     fn parse_reverb_commands(
         state: &mut CommandDspReverbState,
@@ -2619,10 +2635,24 @@ mod test {
             DspCmd::Reverb(ReverbCmd::TimeHigh(0x4c24fcd4)),
             DspCmd::Reverb(ReverbCmd::CrossoverLow(0x11a9d331)),
             DspCmd::Reverb(ReverbCmd::CrossoverHigh(0x76a9aa46)),
-            DspCmd::Reverb(ReverbCmd::Width(0x1d9d06c7)),
             DspCmd::Reverb(ReverbCmd::ReflectionSize(0x5e847d68)),
-            DspCmd::Reverb(ReverbCmd::ReflectionLevel(0x235868ad)),
             DspCmd::Reserved(vec![0x66, 0x00, 0x01, 0x02, 0x80, 0x04, 0x05, 0x06, 0x07]),
+        ]
+            .iter()
+            .for_each(|cmd| {
+                let mut raw = Vec::new();
+                cmd.build(&mut raw);
+                let mut c = Vec::new();
+                assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
+                assert_eq!(&c[0], cmd);
+            });
+    }
+
+    #[test]
+    fn test_f32_cmds() {
+        [
+            DspCmd::Reverb(ReverbCmd::Width(123.456)),
+            DspCmd::Reverb(ReverbCmd::ReflectionLevel(234.561)),
         ]
             .iter()
             .for_each(|cmd| {
