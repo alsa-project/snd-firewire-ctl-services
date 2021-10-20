@@ -66,6 +66,8 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         RoomShape::E,
     ];
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -166,9 +168,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::WIDTH_MIN,
-            T::WIDTH_MAX,
-            T::WIDTH_STEP,
+            (T::WIDTH_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::WIDTH_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             1,
             None,
             true,
@@ -200,9 +202,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::REFLECTION_LEVEL_MIN,
-            T::REFLECTION_LEVEL_MAX,
-            T::REFLECTION_LEVEL_STEP,
+            (T::REFLECTION_LEVEL_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::REFLECTION_LEVEL_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             1,
             None,
             true,
@@ -251,7 +253,8 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 Ok(true)
             }
             REVERB_WIDTH_NAME => {
-                elem_value.set_int(&[self.state().width]);
+                let val = (self.state().width * Self::F32_CONVERT_SCALE) as i32;
+                elem_value.set_int(&[val]);
                 Ok(true)
             }
             REVERB_REFLECTION_MODE_NAME => {
@@ -267,7 +270,8 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 Ok(true)
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                elem_value.set_int(&[self.state().reflection_level]);
+                let val = (self.state().reflection_level * Self::F32_CONVERT_SCALE) as i32;
+                elem_value.set_int(&[val]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -358,8 +362,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
             REVERB_WIDTH_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
+                let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.width = vals[0];
+                    state.width = val;
                     Ok(())
                 })
             }
@@ -389,8 +394,9 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
             REVERB_REFLECTION_LEVEL_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
+                let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reflection_level = vals[0];
+                    state.reflection_level = val;
                     Ok(())
                 })
             }
