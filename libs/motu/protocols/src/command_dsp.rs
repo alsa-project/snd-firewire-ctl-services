@@ -324,16 +324,16 @@ impl EqualizerParameter {
 }
 
 /// The DSP command specific to dynamics effects.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DynamicsParameter {
     Enable(bool),
     CompEnable(bool),
     CompDetectMode(LevelDetectMode),
     CompThreshold(i32),
-    CompRatio(i32),
+    CompRatio(f32),
     CompAttach(i32),
     CompRelease(i32),
-    CompTrim(i32),
+    CompGain(f32),
     LevelerEnable(bool),
     LevelerMode(LevelerMode),
     LevelerMakeup(i32),
@@ -345,9 +345,8 @@ impl DynamicsParameter {
     pub const THRESHOLD_MAX: i32 = 0x00000000u32 as i32;
     pub const THRESHOLD_STEP: i32 = 0x01;
 
-    pub const RATIO_MIN: i32 = 0x3f800000u32 as i32;
-    pub const RATIO_MAX: i32 = 0x41200000u32 as i32;
-    pub const RATIO_STEP: i32 = 0x01;
+    pub const RATIO_MIN: f32 = 1.0;
+    pub const RATIO_MAX: f32 = 10.0;
 
     pub const ATTACK_MIN: i32 = 0x41200000u32 as i32;
     pub const ATTACK_MAX: i32 = 0x42c80000u32 as i32;
@@ -357,9 +356,8 @@ impl DynamicsParameter {
     pub const RELEASE_MAX: i32 = 0x44fa0000u32 as i32;
     pub const RELEASE_STEP: i32 = 0x01;
 
-    pub const GAIN_MIN: i32 = 0xc0c00000u32 as i32;
-    pub const GAIN_MAX: i32 = 0xc0bccccdu32 as i32;
-    pub const GAIN_STEP: i32 = 0x01;
+    pub const GAIN_MIN: f32 = -6.0;
+    pub const GAIN_MAX: f32 = 0.0;
 
     pub const PERCENTAGE_MIN: i32 = 0x00000000u32 as i32;
     pub const PERCENTAGE_MAX: i32 = 0x42c80000u32 as i32;
@@ -530,10 +528,10 @@ impl InputCmd {
 
             (0x01, 0x0a, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals))),
             (0x01, 0x0a, 0x01) => InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals))),
-            (0x01, 0x0a, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_i32(vals))),
+            (0x01, 0x0a, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals))),
             (0x01, 0x0a, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::CompAttach(to_i32(vals))),
             (0x01, 0x0a, 0x04) => InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_i32(vals))),
-            (0x01, 0x0a, 0x05) => InputCmd::Dynamics(ch, DynamicsParameter::CompTrim(to_i32(vals))),
+            (0x01, 0x0a, 0x05) => InputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals))),
             (0x01, 0x0a, 0x06) => InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0]))),
 
             (0x01, 0x0b, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals))),
@@ -611,10 +609,10 @@ impl InputCmd {
 
             InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) =>       append_u8(raw, 0x01, 0x0a, 0x00, *ch, *enabled),
             InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) =>        append_i32(raw, 0x01, 0x0a, 0x01, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>            append_i32(raw, 0x01, 0x0a, 0x02, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>            append_f32(raw, 0x01, 0x0a, 0x02, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::CompAttach(val)) =>           append_i32(raw, 0x01, 0x0a, 0x03, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>          append_i32(raw, 0x01, 0x0a, 0x04, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompTrim(val)) =>             append_i32(raw, 0x01, 0x0a, 0x05, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) =>             append_f32(raw, 0x01, 0x0a, 0x05, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) =>      append_u8(raw, 0x01, 0x0a, 0x06, *ch, *mode),
 
             InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) =>    append_u8(raw, 0x01, 0x0b, 0x00, *ch, *enabled),
@@ -793,10 +791,10 @@ impl OutputCmd {
 
             (0x03, 0x09, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals))),
             (0x03, 0x09, 0x01) => OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals))),
-            (0x03, 0x09, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_i32(vals))),
+            (0x03, 0x09, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals))),
             (0x03, 0x09, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::CompAttach(to_i32(vals))),
             (0x03, 0x09, 0x04) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_i32(vals))),
-            (0x03, 0x09, 0x05) => OutputCmd::Dynamics(ch, DynamicsParameter::CompTrim(to_i32(vals))),
+            (0x03, 0x09, 0x05) => OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals))),
             (0x03, 0x09, 0x06) => OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0]))),
 
             (0x03, 0x0a, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals))),
@@ -861,10 +859,10 @@ impl OutputCmd {
 
             OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) =>      append_u8(raw, 0x03, 0x09, 0x00, *ch, *enabled),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) =>       append_i32(raw, 0x03, 0x09, 0x01, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>           append_i32(raw, 0x03, 0x09, 0x02, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>           append_f32(raw, 0x03, 0x09, 0x02, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompAttach(val)) =>          append_i32(raw, 0x03, 0x09, 0x03, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>         append_i32(raw, 0x03, 0x09, 0x04, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompTrim(val)) =>            append_i32(raw, 0x03, 0x09, 0x05, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) =>            append_f32(raw, 0x03, 0x09, 0x05, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) =>     append_u8(raw, 0x03, 0x09, 0x06, *ch, *mode),
 
             OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) =>   append_u8(raw, 0x03, 0x0a, 0x00, *ch, *enabled),
@@ -2035,17 +2033,17 @@ fn parse_equalizer_parameter(
 }
 
 /// The structure for state of dynamics.
-#[derive(Default, Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspDynamicsState {
     pub enable: Vec<bool>,
 
     pub comp_enable: Vec<bool>,
     pub comp_detect_mode: Vec<LevelDetectMode>,
     pub comp_threshold: Vec<i32>,
-    pub comp_ratio: Vec<i32>,
+    pub comp_ratio: Vec<f32>,
     pub comp_attack: Vec<i32>,
     pub comp_release: Vec<i32>,
-    pub comp_trim: Vec<i32>,
+    pub comp_gain: Vec<f32>,
 
     pub leveler_enable: Vec<bool>,
     pub leveler_mode: Vec<LevelerMode>,
@@ -2067,7 +2065,7 @@ fn create_dynamics_parameters(
     params.push(DynamicsParameter::CompRatio(state.comp_ratio[ch]));
     params.push(DynamicsParameter::CompAttach(state.comp_attack[ch]));
     params.push(DynamicsParameter::CompRelease(state.comp_release[ch]));
-    params.push(DynamicsParameter::CompTrim(state.comp_trim[ch]));
+    params.push(DynamicsParameter::CompGain(state.comp_gain[ch]));
 
     params.push(DynamicsParameter::LevelerEnable(state.leveler_enable[ch]));
     params.push(DynamicsParameter::LevelerMode(state.leveler_mode[ch]));
@@ -2091,7 +2089,7 @@ fn parse_dynamics_parameter(
         DynamicsParameter::CompRatio(val) => state.comp_ratio[ch] = *val,
         DynamicsParameter::CompAttach(val) => state.comp_attack[ch] = *val,
         DynamicsParameter::CompRelease(val) => state.comp_release[ch] = *val,
-        DynamicsParameter::CompTrim(val) => state.comp_trim[ch] = *val,
+        DynamicsParameter::CompGain(val) => state.comp_gain[ch] = *val,
 
         DynamicsParameter::LevelerEnable(val) => state.leveler_enable[ch] = *val,
         DynamicsParameter::LevelerMode(val) => state.leveler_mode[ch] = *val,
@@ -2264,7 +2262,7 @@ pub trait CommandDspInputOperation : CommandDspOperation {
                 comp_ratio: vec![Default::default(); Self::INPUT_PORTS.len()],
                 comp_attack: vec![Default::default(); Self::INPUT_PORTS.len()],
                 comp_release: vec![Default::default(); Self::INPUT_PORTS.len()],
-                comp_trim: vec![Default::default(); Self::INPUT_PORTS.len()],
+                comp_gain: vec![Default::default(); Self::INPUT_PORTS.len()],
 
                 leveler_enable: vec![Default::default(); Self::INPUT_PORTS.len()],
                 leveler_mode: vec![Default::default(); Self::INPUT_PORTS.len()],
@@ -2433,7 +2431,7 @@ pub trait CommandDspOutputOperation : CommandDspOperation {
                 comp_ratio: vec![Default::default(); Self::OUTPUT_PORTS.len()],
                 comp_attack: vec![Default::default(); Self::OUTPUT_PORTS.len()],
                 comp_release: vec![Default::default(); Self::OUTPUT_PORTS.len()],
-                comp_trim: vec![Default::default(); Self::OUTPUT_PORTS.len()],
+                comp_gain: vec![Default::default(); Self::OUTPUT_PORTS.len()],
 
                 leveler_enable: vec![Default::default(); Self::OUTPUT_PORTS.len()],
                 leveler_mode: vec![Default::default(); Self::OUTPUT_PORTS.len()],
@@ -2570,10 +2568,8 @@ mod test {
             DspCmd::Input(InputCmd::Equalizer(0xf5, EqualizerParameter::HfFreq(0x0e0e0e0e))),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::LpfFreq(0x2345678))),
             DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(0x3456789))),
-            DspCmd::Input(InputCmd::Dynamics(0xa0, DynamicsParameter::CompRatio(0x456789a))),
             DspCmd::Input(InputCmd::Dynamics(0x9f, DynamicsParameter::CompAttach(0x56789ab))),
             DspCmd::Input(InputCmd::Dynamics(0x8e, DynamicsParameter::CompRelease(0x6789abc))),
-            DspCmd::Input(InputCmd::Dynamics(0x7d, DynamicsParameter::CompTrim(0x789abcde))),
             DspCmd::Input(InputCmd::Dynamics(0x6c, DynamicsParameter::LevelerMakeup(0x09abcdef))),
             DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(0x1c92835a))),
             DspCmd::Input(InputCmd::ReverbSend(0x33, 0x35792468)),
@@ -2586,10 +2582,8 @@ mod test {
             DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HfFreq(0x0b1f0cb3))),
             DspCmd::Output(OutputCmd::Equalizer(0x29, EqualizerParameter::LpfFreq(0x1cbdda81))),
             DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(0x2469b8dd))),
-            DspCmd::Output(OutputCmd::Dynamics(0x5e, DynamicsParameter::CompRatio(0x71136c4f))),
             DspCmd::Output(OutputCmd::Dynamics(0x1b, DynamicsParameter::CompAttach(0x0ea8d07d))),
             DspCmd::Output(OutputCmd::Dynamics(0x49, DynamicsParameter::CompRelease(0x28cff071))),
-            DspCmd::Output(OutputCmd::Dynamics(0xba, DynamicsParameter::CompTrim(0x7cfab69f))),
             DspCmd::Output(OutputCmd::Dynamics(0x7f, DynamicsParameter::LevelerMakeup(0x100e66ba))),
             DspCmd::Output(OutputCmd::Dynamics(0xf2, DynamicsParameter::LevelerReduce(0x3a6bd56a))),
             DspCmd::Output(OutputCmd::ReverbSend(0x99, 0x19287465)),
@@ -2629,6 +2623,8 @@ mod test {
             DspCmd::Input(InputCmd::Equalizer(0x06, EqualizerParameter::HmfWidth(0.654321987))),
             DspCmd::Input(InputCmd::Equalizer(0xe4, EqualizerParameter::HfGain(0.567891234))),
             DspCmd::Input(InputCmd::Equalizer(0xd3, EqualizerParameter::HfWidth(0.543219876))),
+            DspCmd::Input(InputCmd::Dynamics(0xa0, DynamicsParameter::CompRatio(0.678912345))),
+            DspCmd::Input(InputCmd::Dynamics(0x7d, DynamicsParameter::CompGain(0.432198765))),
             DspCmd::Mixer(MixerCmd::OutputVolume(0x4a, 1.2345678)),
             DspCmd::Mixer(MixerCmd::ReverbSend(0x39, 1.3456789)),
             DspCmd::Mixer(MixerCmd::ReverbReturn(0x28, 1.456789)),
@@ -2646,6 +2642,8 @@ mod test {
             DspCmd::Output(OutputCmd::Equalizer(0xf5, EqualizerParameter::HmfWidth(2.654321987))),
             DspCmd::Output(OutputCmd::Equalizer(0x01, EqualizerParameter::HfGain(2.567891234))),
             DspCmd::Output(OutputCmd::Equalizer(0xdb, EqualizerParameter::HfWidth(2.543219876))),
+            DspCmd::Output(OutputCmd::Dynamics(0x5e, DynamicsParameter::CompRatio(2.678912345))),
+            DspCmd::Output(OutputCmd::Dynamics(0xba, DynamicsParameter::CompGain(2.432198765))),
             DspCmd::Reverb(ReverbCmd::Width(123.456)),
             DspCmd::Reverb(ReverbCmd::ReflectionLevel(234.561)),
         ]
