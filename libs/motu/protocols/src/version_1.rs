@@ -667,6 +667,11 @@ impl F828Protocol {
 #[derive(Default)]
 pub struct F896Protocol;
 
+impl F896Protocol {
+    /// Notification mask for footswitch.
+    pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
+}
+
 impl WordClkOperation for F896Protocol {}
 
 impl V1ClkOperation for F896Protocol {

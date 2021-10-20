@@ -159,6 +159,7 @@ impl NotifyModel<SndMotu, u32> for F896 {
     }
 
     fn parse_notification(&mut self, _: &mut SndMotu, _: &u32) -> Result<(), Error> {
+        // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
     }
 
