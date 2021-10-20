@@ -341,9 +341,9 @@ pub enum DynamicsParameter {
 }
 
 impl DynamicsParameter {
-    pub const THRESHOLD_MIN: i32 = 0xc2400000u32 as i32;
-    pub const THRESHOLD_MAX: i32 = 0x00000000u32 as i32;
-    pub const THRESHOLD_STEP: i32 = 0x01;
+    pub const THRESHOLD_MIN: i32 = -48;
+    pub const THRESHOLD_MAX: i32 = 0;
+    pub const THRESHOLD_STEP: i32 = 1;
 
     pub const RATIO_MIN: f32 = 1.0;
     pub const RATIO_MAX: f32 = 10.0;
@@ -377,12 +377,7 @@ fn to_usize(raw: &[u8]) -> usize {
 }
 
 fn to_i32(raw: &[u8]) -> i32 {
-    assert_eq!(raw.len(), 4);
-
-    let mut quadlet = [0; 4];
-    quadlet.copy_from_slice(raw);
-
-    i32::from_le_bytes(quadlet)
+    to_f32(raw) as i32
 }
 
 fn to_f32(raw: &[u8]) -> f32 {
@@ -452,7 +447,7 @@ impl MonitorCmd {
 pub enum InputCmd {
     Phase(usize, bool),
     Pair(usize, bool),
-    Trim(usize, i32),
+    Gain(usize, i32),
     Swap(usize, bool),
     StereoMode(usize, InputStereoPairMode),
     Width(usize, f32),
@@ -478,7 +473,7 @@ impl InputCmd {
         match (identifier[3], identifier[2], identifier[1]) {
             (0x01, 0x00, 0x00) => InputCmd::Phase(ch,  to_bool(vals)),
             (0x01, 0x00, 0x01) => InputCmd::Pair(ch, to_bool(vals)),
-            (0x01, 0x00, 0x02) => InputCmd::Trim(ch, to_i32(vals)),
+            (0x01, 0x00, 0x02) => InputCmd::Gain(ch, to_i32(vals)),
             (0x01, 0x00, 0x03) => InputCmd::Swap(ch, to_bool(vals)),
             (0x01, 0x00, 0x04) => InputCmd::StereoMode(ch, InputStereoPairMode::from(vals[0])),
             (0x01, 0x00, 0x05) => InputCmd::Width(ch, to_f32(vals)),
@@ -559,7 +554,7 @@ impl InputCmd {
         match self {
             InputCmd::Phase(ch, enabled) =>                                         append_u8(raw, 0x01, 0x00, 0x00, *ch, *enabled),
             InputCmd::Pair(ch, enabled) =>                                          append_u8(raw, 0x01, 0x00, 0x01, *ch, *enabled),
-            InputCmd::Trim(ch, val) =>                                              append_i32(raw, 0x01, 0x00, 0x02, *ch, *val),
+            InputCmd::Gain(ch, val) =>                                              append_i32(raw, 0x01, 0x00, 0x02, *ch, *val),
             InputCmd::Swap(ch, enabled) =>                                          append_u8(raw, 0x01, 0x00, 0x03, *ch, *enabled),
             InputCmd::StereoMode(ch, pair_mode) =>                                  append_u8(raw, 0x01, 0x00, 0x04, *ch, *pair_mode),
             InputCmd::Width(ch, val) =>                                             append_f32(raw, 0x01, 0x00, 0x05, *ch, *val),
@@ -1269,12 +1264,7 @@ fn append_u8<T>(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_leve
 }
 
 fn append_i32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: i32) {
-    raw.push(CMD_QUADLET_SINGLE);
-    raw.push(ch as u8);
-    raw.push(third_level);
-    raw.push(second_level);
-    raw.push(first_level);
-    raw.extend_from_slice(&val.to_le_bytes());
+    append_f32(raw, first_level, second_level, third_level, ch, val as f32)
 }
 
 fn append_f32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: f32) {
@@ -1626,9 +1616,9 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
     const SHELF_FILTER_FREQ_MAX: u32 = 20000;
     const SHELF_FILTER_FREQ_STEP: u32 = 1;
 
-    const SHELF_FILTER_ATTR_MIN: i32 = 0x447a0000u32 as i32;
-    const SHELF_FILTER_ATTR_MAX: i32 = 0x469c4000u32 as i32;
-    const SHELF_FILTER_ATTR_STEP: i32 = 0x01;
+    const SHELF_FILTER_ATTR_MIN: i32 = -40;
+    const SHELF_FILTER_ATTR_MAX: i32 = 0;
+    const SHELF_FILTER_ATTR_STEP: i32 = 0;
 
     const FREQ_TIME_COUNT: usize = 3;
     const FREQ_TIME_MIN: u32 = 0;
@@ -2142,7 +2132,7 @@ fn create_input_commands(
         .for_each(|ch| {
             cmds.push(DspCmd::Input(InputCmd::Phase(ch, state.phase[ch])));
             cmds.push(DspCmd::Input(InputCmd::Pair(ch, state.pair[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Trim(ch, state.gain[ch])));
+            cmds.push(DspCmd::Input(InputCmd::Gain(ch, state.gain[ch])));
             cmds.push(DspCmd::Input(InputCmd::Swap(ch, state.swap[ch])));
             cmds.push(DspCmd::Input(InputCmd::StereoMode(ch, state.stereo_mode[ch])));
             cmds.push(DspCmd::Input(InputCmd::Width(ch, state.width[ch])));
@@ -2178,7 +2168,7 @@ fn parse_input_command(
     match cmd {
         InputCmd::Phase(ch, val) => state.phase[*ch] = *val,
         InputCmd::Pair(ch, val) => state.pair[*ch] = *val,
-        InputCmd::Trim(ch, val) => state.gain[*ch] = *val,
+        InputCmd::Gain(ch, val) => state.gain[*ch] = *val,
         InputCmd::Swap(ch, val) => state.swap[*ch] = *val,
         InputCmd::StereoMode(ch, val) =>state.stereo_mode[*ch] = *val,
         InputCmd::Width(ch, val) => state.width[*ch] = *val,
@@ -2200,9 +2190,9 @@ pub trait CommandDspInputOperation : CommandDspOperation {
     const INPUT_PORTS: &'static [TargetPort];
     const MIC_COUNT: usize;
 
-    const GAIN_MIN: i32 = 0x00000000u32 as i32;
-    const GAIN_MAX: i32 = 0x42540000u32 as i32;
-    const GAIN_STEP: i32 = 0x01;
+    const GAIN_MIN: i32 = -96;
+    const GAIN_MAX: i32 = 22;
+    const GAIN_STEP: i32 = 1;
 
     const WIDTH_MIN: f32 = 0.0;
     const WIDTH_MAX: f32 = 1.0;
@@ -2566,10 +2556,10 @@ mod test {
     #[test]
     fn test_i32_cmds() {
         [
-            DspCmd::Input(InputCmd::Trim(0xe4, 0x01)),
-            DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(0x3456789))),
-            DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(0x2469b8dd))),
-            DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(0x29f2c867)),
+            DspCmd::Input(InputCmd::Gain(0xe4, 0x01)),
+            DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(97531))),
+            DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(86420))),
+            DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(98765)),
         ]
             .iter()
             .for_each(|cmd| {
