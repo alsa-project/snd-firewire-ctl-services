@@ -52,7 +52,7 @@ impl V2ClkCtlOperation<UltraliteProtocol> for ClkCtl {}
 #[derive(Default)]
 struct MainAssignCtl(Vec<ElemId>);
 
-impl V2MainAssignCtlOperation<UltraliteProtocol> for MainAssignCtl {}
+impl V2MainAssignCtlOperation for MainAssignCtl {}
 
 #[derive(Default)]
 struct MixerOutputCtl(RegisterDspMixerOutputState, Vec<ElemId>);

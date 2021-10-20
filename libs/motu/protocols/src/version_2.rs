@@ -131,53 +131,6 @@ pub trait V2ClkOperation {
     }
 }
 
-const MAIN_VOL_LABEL: &str = "main-vol-target-v2";
-const MAIN_VOL_MASK: u32 = 0x000f0000;
-const MAIN_VOL_SHIFT: usize = 16;
-
-/// The trait for main volume knob assignment in version 2.
-pub trait V2MainAssignOperation {
-    const KNOB_TARGETS: &'static [(TargetPort, u8)];
-
-    fn get_main_vol_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
-        let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
-        get_idx_from_val(
-            OFFSET_PORT,
-            MAIN_VOL_MASK,
-            MAIN_VOL_SHIFT,
-            MAIN_VOL_LABEL,
-            req,
-            node,
-            &vals,
-            timeout_ms,
-        )
-    }
-
-    fn set_main_vol_assign(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        idx: usize,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
-        set_idx_to_val(
-            OFFSET_PORT,
-            MAIN_VOL_MASK,
-            MAIN_VOL_SHIFT,
-            MAIN_VOL_LABEL,
-            req,
-            node,
-            &vals,
-            idx,
-            timeout_ms,
-        )
-    }
-}
-
 /// The enumeration to express mode of optical interface.
 pub enum V2OptIfaceMode {
     None,
@@ -715,15 +668,6 @@ impl V2ClkOperation for UltraliteProtocol {
     const HAS_LCD: bool = true;
 }
 
-impl V2MainAssignOperation for UltraliteProtocol {
-    const KNOB_TARGETS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::MainPair0, 0x00),
-        (TargetPort::Analog6Pairs, 0x01),
-        (TargetPort::Analog8Pairs, 0x02),
-        (TargetPort::SpdifPair0, 0x03),
-    ];
-}
-
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
@@ -771,6 +715,10 @@ const ULTRALITE_INPUT_OFFSETS: [usize; 3] = [0x0c70, 0x0c74, 0x0c78];
 const   ULTRALITE_INPUT_GAIN_MASK: u8 = 0x18;
 const   ULTRALITE_INPUT_INVERT_FLAG: u8 = 0x20;
 const   ULTRALITE_INPUT_CHANGE_FLAG: u8 = 0x80;
+const   ULTRALITE_MAIN_ASSIGN_MASK: u32 = 0x000f0000;
+const   ULTRALITE_MAIN_ASSIGN_SHIFT: usize = 16;
+const ULTRALITE_MAIN_ASSIGN_LABEL: &str = "ultralite-main-assign";
+
 
 /// The structure for state of input in Ultralite.
 #[derive(Default)]
@@ -780,6 +728,13 @@ pub struct UltraliteInputState {
 }
 
 impl UltraliteProtocol {
+    pub const KNOB_TARGETS: &'static [(TargetPort, u8)] = &[
+        (TargetPort::MainPair0, 0x00),
+        (TargetPort::Analog6Pairs, 0x01),
+        (TargetPort::Analog8Pairs, 0x02),
+        (TargetPort::SpdifPair0, 0x03),
+    ];
+
     pub const INPUT_COUNT: usize = 10;
 
     pub const INPUT_GAIN_MIN: u8 = 0x00;
@@ -787,6 +742,44 @@ impl UltraliteProtocol {
     pub const INPUT_GAIN_STEP: u8 = 0x01;
 
     const CH_TABLE: [(usize, usize); 3] = [(0, 4), (4, 8), (8, 10)];
+
+    pub fn get_main_assign(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        timeout_ms: u32
+    ) -> Result<usize, Error> {
+        let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
+        get_idx_from_val(
+            OFFSET_PORT,
+            ULTRALITE_MAIN_ASSIGN_MASK,
+            ULTRALITE_MAIN_ASSIGN_SHIFT,
+            ULTRALITE_MAIN_ASSIGN_LABEL,
+            req,
+            node,
+            &vals,
+            timeout_ms,
+        )
+    }
+
+    pub fn set_main_assign(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        idx: usize,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
+        set_idx_to_val(
+            OFFSET_PORT,
+            ULTRALITE_MAIN_ASSIGN_MASK,
+            ULTRALITE_MAIN_ASSIGN_SHIFT,
+            ULTRALITE_MAIN_ASSIGN_LABEL,
+            req,
+            node,
+            &vals,
+            idx,
+            timeout_ms,
+        )
+    }
 
     pub fn read_input_state(
         req: &mut FwReq,
