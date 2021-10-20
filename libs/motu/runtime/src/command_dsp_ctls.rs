@@ -438,6 +438,8 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
     fn state(&self) -> &CommandDspMonitorState;
     fn state_mut(&mut self) -> &mut CommandDspMonitorState;
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -448,9 +450,9 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
         card_cntr.add_int_elems(
             &elem_id,
             1,
-            T::VOLUME_MIN,
-            T::VOLUME_MAX,
-            T::VOLUME_STEP,
+            (T::VOLUME_MIN * Self::F32_CONVERT_SCALE) as i32,
+            (T::VOLUME_MAX * Self::F32_CONVERT_SCALE) as i32,
+            1,
             1,
             None,
             true,
@@ -463,7 +465,8 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MAIN_VOLUME_NAME => {
-                elem_value.set_int(&[self.state().main_volume]);
+                let val = (self.state().main_volume * Self::F32_CONVERT_SCALE) as i32;
+                elem_value.set_int(&[val]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -483,8 +486,9 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
             MAIN_VOLUME_NAME => {
                 let mut vals = [0];
                 elem_value.get_int(&mut vals);
+                let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
                 let mut state =self.state().clone();
-                state.main_volume = vals[0];
+                state.main_volume = val;
                 T::write_monitor_state(
                     req,
                     &mut unit.get_node(),

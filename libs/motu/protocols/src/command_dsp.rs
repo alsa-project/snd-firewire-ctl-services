@@ -407,9 +407,9 @@ fn append_data(raw: &mut Vec<u8>, identifier: &[u8], vals: &[u8]) {
 }
 
 /// The DSP command specific to master output.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MonitorCmd {
-    Volume(i32),
+    Volume(f32),
     ReturnAssign(usize),
     Reserved(Vec<u8>, Vec<u8>),
 }
@@ -420,7 +420,7 @@ impl MonitorCmd {
         assert!(vals.len() > 0);
 
         match (identifier[3], identifier[2], identifier[1]) {
-            (0x00, 0x00, 0x00) => MonitorCmd::Volume(to_i32(vals)),
+            (0x00, 0x00, 0x00) => MonitorCmd::Volume(to_f32(vals)),
             // TODO: model dependent, I guess.
             // (0, 0, 1) => u8
             // (0, 0, 2) => u8
@@ -437,7 +437,7 @@ impl MonitorCmd {
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
             MonitorCmd::ReturnAssign(target) =>         append_u8(raw, 0x00, 0x00, 0x08, 0, *target as u8),
-            MonitorCmd::Volume(val) =>                  append_i32(raw, 0x00, 0x00, 0x00, 0, *val),
+            MonitorCmd::Volume(val) =>                  append_f32(raw, 0x00, 0x00, 0x00, 0, *val),
             MonitorCmd::Reserved(identifier, vals) =>   append_data(raw, identifier, vals),
         }
     }
@@ -1671,10 +1671,10 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
 }
 
 /// The structure for state of monitor function.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct CommandDspMonitorState {
     /// The volume adjusted by main (master) knob. -inf (mute), -80.0 dB to 0.0 dB.
-    pub main_volume: i32,
+    pub main_volume: f32,
     pub assign_target: TargetPort,
 }
 
@@ -1712,9 +1712,8 @@ fn parse_monitor_command(
 pub trait CommandDspMonitorOperation : CommandDspOperation {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort];
 
-    const VOLUME_MIN: i32 = 0x00000000u32 as i32;
-    const VOLUME_MAX: i32 = 0x3f800000u32 as i32;
-    const VOLUME_STEP: i32 = 0x01;
+    const VOLUME_MIN: f32 = 0.0;
+    const VOLUME_MAX: f32 = 1.0;
 
     fn parse_monitor_commands(
         state: &mut CommandDspMonitorState,
@@ -2559,7 +2558,6 @@ mod test {
     #[test]
     fn test_i32_cmds() {
         [
-            DspCmd::Monitor(MonitorCmd::Volume(0x00)),
             DspCmd::Input(InputCmd::Trim(0xe4, 0x01)),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::HpfFreq(0x01010101))),
             DspCmd::Input(InputCmd::Equalizer(0xb1, EqualizerParameter::LfFreq(0x02020202))),
@@ -2610,6 +2608,7 @@ mod test {
     #[test]
     fn test_f32_cmds() {
         [
+            DspCmd::Monitor(MonitorCmd::Volume(9.012345678)),
             DspCmd::Input(InputCmd::Width(0xd3, 0.0987654321)),
             DspCmd::Input(InputCmd::Equalizer(0xa0, EqualizerParameter::LfGain(0.123456789))),
             DspCmd::Input(InputCmd::Equalizer(0x9f, EqualizerParameter::LfWidth(0.987654321))),
@@ -2686,11 +2685,11 @@ mod test {
         let mut handler = CommandDspMessageHandler::default();
         handler.cache.extend_from_slice(&raw);
         let cmds = handler.decode_messages();
-        assert_eq!(cmds[0], DspCmd::Monitor(MonitorCmd::Volume(0x3f800000)));
+        assert_eq!(cmds[0], DspCmd::Monitor(MonitorCmd::Volume(1.0)));
         assert_eq!(cmds[1], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x01, 0x00, 0x00], vec![0x00])));
         assert_eq!(cmds[2], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x02, 0x00, 0x00], vec![0x00])));
         assert_eq!(cmds[3], DspCmd::Reserved(vec![0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01]));
-        assert_eq!(cmds[4], DspCmd::Monitor(MonitorCmd::Volume(0x3f800000)));
+        assert_eq!(cmds[4], DspCmd::Monitor(MonitorCmd::Volume(1.0)));
         assert_eq!(cmds[5], DspCmd::Output(OutputCmd::MasterListenback(0, false)));
         assert_eq!(cmds[6], DspCmd::Output(OutputCmd::MasterListenback(1, false)));
         assert_eq!(cmds[7], DspCmd::Output(OutputCmd::MasterListenback(2, false)));
