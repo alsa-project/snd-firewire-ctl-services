@@ -118,67 +118,6 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
     }
 }
 
-const MAIN_VOL_TARGET_NAME: &str = "main-volume-target";
-
-pub trait V2MainAssignCtlOperation {
-    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let labels: Vec<&str> = UltraliteProtocol::KNOB_TARGETS
-            .iter()
-            .map(|e| target_port_to_str(&e.0))
-            .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_VOL_TARGET_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
-    }
-
-    fn read(
-        &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            MAIN_VOL_TARGET_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    UltraliteProtocol::get_main_assign(
-                        req,
-                        &mut unit.get_node(),
-                        timeout_ms
-                    )
-                        .map(|val| val as u32)
-                })
-                .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        new: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            MAIN_VOL_TARGET_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    UltraliteProtocol::set_main_assign(
-                        req,
-                        &mut unit.get_node(),
-                        val as usize,
-                        timeout_ms
-                    )
-                })
-                .map(|_| true)
-            }
-            _ => Ok(false),
-        }
-    }
-}
-
 fn opt_iface_mode_to_str(mode: &V2OptIfaceMode) -> &'static str {
     match mode {
         V2OptIfaceMode::None => "None",
