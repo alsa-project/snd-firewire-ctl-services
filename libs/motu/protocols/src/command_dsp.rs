@@ -734,8 +734,8 @@ impl MixerCmd {
 pub enum OutputCmd {
     Equalizer(usize, EqualizerParameter),
     Dynamics(usize, DynamicsParameter),
-    ReverbSend(usize, i32),
-    ReverbReturn(usize, i32),
+    ReverbSend(usize, f32),
+    ReverbReturn(usize, f32),
     MasterMonitor(usize, bool),
     MasterTalkback(usize, bool),
     MasterListenback(usize, bool),
@@ -802,8 +802,8 @@ impl OutputCmd {
             (0x03, 0x0a, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_i32(vals))),
             (0x03, 0x0a, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_i32(vals))),
 
-            (0x03, 0x0b, 0x00) => OutputCmd::ReverbSend(ch, to_i32(vals)),
-            (0x03, 0x0b, 0x01) => OutputCmd::ReverbReturn(ch, to_i32(vals)),
+            (0x03, 0x0b, 0x00) => OutputCmd::ReverbSend(ch, to_f32(vals)),
+            (0x03, 0x0b, 0x01) => OutputCmd::ReverbReturn(ch, to_f32(vals)),
 
             (0x03, 0x0c, 0x00) => OutputCmd::MasterMonitor(ch, to_bool(vals)),
             (0x03, 0x0c, 0x01) => OutputCmd::MasterTalkback(ch, to_bool(vals)),
@@ -870,8 +870,8 @@ impl OutputCmd {
             OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>       append_i32(raw, 0x03, 0x0a, 0x02, *ch, *val),
             OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>       append_i32(raw, 0x03, 0x0a, 0x03, *ch, *val),
 
-            OutputCmd::ReverbSend(ch, val) =>                                       append_i32(raw, 0x03, 0x0b, 0x00, *ch, *val),
-            OutputCmd::ReverbReturn(ch, val) =>                                     append_i32(raw, 0x03, 0x0b, 0x01, *ch, *val),
+            OutputCmd::ReverbSend(ch, val) =>                                       append_f32(raw, 0x03, 0x0b, 0x00, *ch, *val),
+            OutputCmd::ReverbReturn(ch, val) =>                                     append_f32(raw, 0x03, 0x0b, 0x01, *ch, *val),
 
             OutputCmd::MasterMonitor(ch, val) =>                                    append_u8(raw, 0x03, 0x0c, 0x00, *ch, *val),
             OutputCmd::MasterTalkback(ch, enabled) =>                               append_u8(raw, 0x03, 0x0c, 0x01, *ch, *enabled),
@@ -2320,8 +2320,8 @@ pub struct CommandDspOutputState {
     pub equalizer: CommandDspEqualizerState,
     pub dynamics: CommandDspDynamicsState,
 
-    pub reverb_send: Vec<i32>,
-    pub reverb_return: Vec<i32>,
+    pub reverb_send: Vec<f32>,
+    pub reverb_return: Vec<f32>,
 
     pub master_monitor: Vec<bool>,
     pub master_talkback: Vec<bool>,
@@ -2372,13 +2372,11 @@ fn parse_output_command(
 pub trait CommandDspOutputOperation : CommandDspOperation {
     const OUTPUT_PORTS: &'static [TargetPort];
 
-    const GAIN_MIN: i32 = 0x00000000u32 as i32;
-    const GAIN_MAX: i32 = 0x3f800000u32 as i32;
-    const GAIN_STEP: i32 = 0x01;
+    const GAIN_MIN: f32 = 0.0;
+    const GAIN_MAX: f32 = 1.0;
 
-    const VOLUME_MIN: i32 = 0x00000000u32 as i32;
-    const VOLUME_MAX: i32 = 0x3f800000u32 as i32;
-    const VOLUME_STEP: i32 = 0x01;
+    const VOLUME_MIN: f32 = 0.0;
+    const VOLUME_MAX: f32 = 1.0;
 
     fn create_output_state() -> CommandDspOutputState {
         CommandDspOutputState {
@@ -2584,8 +2582,6 @@ mod test {
             DspCmd::Output(OutputCmd::Dynamics(0x49, DynamicsParameter::CompRelease(0x28cff071))),
             DspCmd::Output(OutputCmd::Dynamics(0x7f, DynamicsParameter::LevelerMakeup(0x100e66ba))),
             DspCmd::Output(OutputCmd::Dynamics(0xf2, DynamicsParameter::LevelerReduce(0x3a6bd56a))),
-            DspCmd::Output(OutputCmd::ReverbSend(0x99, 0x19287465)),
-            DspCmd::Output(OutputCmd::ReverbReturn(0x88, 0x59187342)),
             DspCmd::Reverb(ReverbCmd::PreDelay(0x556e2bc1)),
             DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(0x4f760819)),
             DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(0x29f2c867)),
@@ -2645,6 +2641,8 @@ mod test {
             DspCmd::Output(OutputCmd::Equalizer(0xdb, EqualizerParameter::HfWidth(2.543219876))),
             DspCmd::Output(OutputCmd::Dynamics(0x5e, DynamicsParameter::CompRatio(2.678912345))),
             DspCmd::Output(OutputCmd::Dynamics(0xba, DynamicsParameter::CompGain(2.432198765))),
+            DspCmd::Output(OutputCmd::ReverbSend(0x99, 2.78912345)),
+            DspCmd::Output(OutputCmd::ReverbReturn(0x88, 2.321987654)),
             DspCmd::Reverb(ReverbCmd::Width(123.456)),
             DspCmd::Reverb(ReverbCmd::ReflectionLevel(234.561)),
         ]

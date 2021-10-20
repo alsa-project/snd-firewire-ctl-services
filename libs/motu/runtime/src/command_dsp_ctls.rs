@@ -2650,6 +2650,8 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn state(&self) -> &CommandDspOutputState;
     fn state_mut(&mut self) -> &mut CommandDspOutputState;
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -2660,18 +2662,18 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         let mut notified_elem_id_list = Vec::new();
 
         [
-            (OUTPUT_REVERB_SEND_NAME, T::GAIN_MIN, T::GAIN_MAX, T::GAIN_STEP),
-            (OUTPUT_REVERB_RETURN_NAME, T::VOLUME_MIN, T::VOLUME_MAX, T::VOLUME_STEP),
+            (OUTPUT_REVERB_SEND_NAME, T::GAIN_MIN, T::GAIN_MAX),
+            (OUTPUT_REVERB_RETURN_NAME, T::VOLUME_MIN, T::VOLUME_MAX)
         ]
             .iter()
-            .try_for_each(|&(name, min, max, step)| {
+            .try_for_each(|&(name, min, max)| {
                 let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
                 card_cntr.add_int_elems(
                     &elem_id,
                     1,
-                    min,
-                    max,
-                    step,
+                    (min * Self::F32_CONVERT_SCALE) as i32,
+                    (max * Self::F32_CONVERT_SCALE) as i32,
+                    1,
                     T::OUTPUT_PORTS.len(),
                     None,
                     true,
@@ -2704,13 +2706,26 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         Ok(true)
     }
 
+    fn read_f32_values(
+        elem_value: &mut ElemValue,
+        vals: &[f32],
+    ) -> Result<bool, Error> {
+        let vals: Vec<i32> = vals
+            .iter()
+            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
+            .collect();
+
+        elem_value.set_int(&vals);
+        Ok(true)
+    }
+
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUTPUT_REVERB_SEND_NAME => {
-                Self::read_int_values(elem_value, &self.state().reverb_send)
+                Self::read_f32_values(elem_value, &self.state().reverb_send)
             }
             OUTPUT_REVERB_RETURN_NAME => {
-                Self::read_int_values(elem_value, &self.state().reverb_return)
+                Self::read_f32_values(elem_value, &self.state().reverb_return)
             }
             OUTPUT_MASTER_MONITOR_NAME => {
                 Self::read_bool_values(elem_value, &self.state().master_monitor)
@@ -2763,6 +2778,29 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         })
     }
 
+    fn write_f32_values<F>(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+        func: F,
+    ) -> Result<bool, Error>
+        where F: Fn(&mut CommandDspOutputState, &[f32]),
+    {
+        let mut vals = vec![0; T::OUTPUT_PORTS.len()];
+        elem_value.get_int(&mut vals);
+        let raw: Vec<f32> = vals
+            .iter()
+            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
+            .collect();
+        self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+            func(state, &raw);
+            Ok(())
+        })
+    }
+
     fn write(
         &mut self,
         sequence_number: &mut u8,
@@ -2774,12 +2812,12 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUTPUT_REVERB_SEND_NAME => {
-                self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+                self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                     state.reverb_send.copy_from_slice(&vals);
                 })
             }
             OUTPUT_REVERB_RETURN_NAME => {
-                self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+                self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                     state.reverb_return.copy_from_slice(&vals);
                 })
             }
