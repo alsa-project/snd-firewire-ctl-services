@@ -728,6 +728,10 @@ pub struct UltraliteInputState {
 }
 
 impl UltraliteProtocol {
+    /// Notification mask for main assignment, and phone assignment. The change of phone assignment
+    /// is also notified in message delivered by the sequence of isochronous packets.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+
     pub const KNOB_TARGETS: &'static [(TargetPort, u8)] = &[
         (TargetPort::MainPair0, 0x00),
         (TargetPort::Analog6Pairs, 0x01),

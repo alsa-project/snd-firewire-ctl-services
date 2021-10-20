@@ -28,7 +28,6 @@ pub struct UltraLite{
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     input_ctl: InputCtl,
-    msg_cache: u32,
 }
 
 #[derive(Default)]
@@ -106,10 +105,6 @@ impl RegisterDspOutputCtlOperation<UltraliteProtocol> for OutputCtl {
 
 #[derive(Default)]
 struct InputCtl(UltraliteInputState, Vec<ElemId>);
-
-impl UltraLite {
-    const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
-}
 
 impl CtlModel<SndMotu> for UltraLite {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -189,28 +184,25 @@ impl CtlModel<SndMotu> for UltraLite {
 impl NotifyModel<SndMotu, u32> for UltraLite {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.main_assign_ctl.1);
-        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
     }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, msg: &u32) -> Result<(), Error> {
-        self.msg_cache = *msg;
+    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+        if *msg & UltraliteProtocol::NOTIFY_PORT_CHANGE > 0 {
+            // Just after changing, busy rcode returns so often.
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            self.main_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
         _: &SndMotu,
-        _: &ElemId,
-        _: &mut ElemValue
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
     ) -> Result<bool, Error> {
-        if self.msg_cache & Self::NOTIFY_PORT_CHANGE > 0 {
-            //if self.main_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else if self.phone_assign_ctl.read(unit, &self.proto, elem_id, elem_value, TIMEOUT_MS)? {
-            //    Ok(true)
-            //} else {
-                Ok(false)
-            //}
+        if self.main_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
         } else {
             Ok(false)
         }
