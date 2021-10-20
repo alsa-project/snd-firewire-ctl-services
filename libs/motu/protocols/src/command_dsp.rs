@@ -451,11 +451,11 @@ pub enum InputCmd {
     Trim(usize, i32),
     Swap(usize, bool),
     StereoMode(usize, InputStereoPairMode),
-    Width(usize, i32),
+    Width(usize, f32),
     Equalizer(usize, EqualizerParameter),
     Dynamics(usize, DynamicsParameter),
-    ReverbSend(usize, i32),
-    ReverbLrBalance(usize, i32),
+    ReverbSend(usize, f32),
+    ReverbLrBalance(usize, f32),
     Pad(usize, bool),
     Phantom(usize, bool),
     Limitter(usize, bool),
@@ -477,7 +477,7 @@ impl InputCmd {
             (0x01, 0x00, 0x02) => InputCmd::Trim(ch, to_i32(vals)),
             (0x01, 0x00, 0x03) => InputCmd::Swap(ch, to_bool(vals)),
             (0x01, 0x00, 0x04) => InputCmd::StereoMode(ch, InputStereoPairMode::from(vals[0])),
-            (0x01, 0x00, 0x05) => InputCmd::Width(ch, to_i32(vals)),
+            (0x01, 0x00, 0x05) => InputCmd::Width(ch, to_f32(vals)),
             (0x01, 0x00, 0x06) => InputCmd::Limitter(ch, to_bool(vals)),
             (0x01, 0x00, 0x07) => InputCmd::Lookahead(ch, to_bool(vals)),
             (0x01, 0x00, 0x08) => InputCmd::Softclip(ch, to_bool(vals)),
@@ -539,8 +539,8 @@ impl InputCmd {
             (0x01, 0x0b, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_i32(vals))),
             (0x01, 0x0b, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_i32(vals))),
 
-            (0x01, 0x0c, 0x00) => InputCmd::ReverbSend(ch, to_i32(vals)),
-            (0x01, 0x0c, 0x02) => InputCmd::ReverbLrBalance(ch, to_i32(vals)),
+            (0x01, 0x0c, 0x00) => InputCmd::ReverbSend(ch, to_f32(vals)),
+            (0x01, 0x0c, 0x02) => InputCmd::ReverbLrBalance(ch, to_f32(vals)),
 
             // TODO: model dependent, I guess.
             // (0x01, 0xfe, 0x00) => u8
@@ -558,7 +558,7 @@ impl InputCmd {
             InputCmd::Trim(ch, val) =>                                              append_i32(raw, 0x01, 0x00, 0x02, *ch, *val),
             InputCmd::Swap(ch, enabled) =>                                          append_u8(raw, 0x01, 0x00, 0x03, *ch, *enabled),
             InputCmd::StereoMode(ch, pair_mode) =>                                  append_u8(raw, 0x01, 0x00, 0x04, *ch, *pair_mode),
-            InputCmd::Width(ch, val) =>                                             append_i32(raw, 0x01, 0x00, 0x05, *ch, *val),
+            InputCmd::Width(ch, val) =>                                             append_f32(raw, 0x01, 0x00, 0x05, *ch, *val),
             InputCmd::Limitter(ch, enabled) =>                                      append_u8(raw, 0x01, 0x00, 0x06, *ch, *enabled),
             InputCmd::Lookahead(ch, enabled) =>                                     append_u8(raw, 0x01, 0x00, 0x07, *ch, *enabled),
             InputCmd::Softclip(ch, enabled) =>                                      append_u8(raw, 0x01, 0x00, 0x08, *ch, *enabled),
@@ -620,8 +620,8 @@ impl InputCmd {
             InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>        append_i32(raw, 0x01, 0x0b, 0x02, *ch, *val),
             InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>        append_i32(raw, 0x01, 0x0b, 0x03, *ch, *val),
 
-            InputCmd::ReverbSend(ch, val) =>                                        append_i32(raw, 0x01, 0x0c, 0x00, *ch, *val),
-            InputCmd::ReverbLrBalance(ch, val) =>                                   append_i32(raw, 0x01, 0x0c, 0x02, *ch, *val),
+            InputCmd::ReverbSend(ch, val) =>                                        append_f32(raw, 0x01, 0x0c, 0x00, *ch, *val),
+            InputCmd::ReverbLrBalance(ch, val) =>                                   append_f32(raw, 0x01, 0x0c, 0x02, *ch, *val),
 
             InputCmd::Reserved(identifier, vals) =>                                 append_data(raw, identifier, vals),
         }
@@ -2106,10 +2106,10 @@ pub struct CommandDspInputState {
     pub gain: Vec<i32>,
     pub swap: Vec<bool>,
     pub stereo_mode: Vec<InputStereoPairMode>,
-    pub width: Vec<i32>,
+    pub width: Vec<f32>,
 
-    pub reverb_send: Vec<i32>,
-    pub reverb_balance: Vec<i32>,
+    pub reverb_send: Vec<f32>,
+    pub reverb_balance: Vec<f32>,
 
     pub equalizer: CommandDspEqualizerState,
     pub dynamics: CommandDspDynamicsState,
@@ -2194,13 +2194,14 @@ pub trait CommandDspInputOperation : CommandDspOperation {
     const GAIN_MAX: i32 = 0x42540000u32 as i32;
     const GAIN_STEP: i32 = 0x01;
 
-    const WIDTH_MIN: i32 = 0xbc23d70au32 as i32;
-    const WIDTH_MAX: i32 = 0x3f800000u32 as i32;
-    const WIDTH_STEP: i32 = 0x01;
+    const WIDTH_MIN: f32 = 0.0;
+    const WIDTH_MAX: f32 = 1.0;
 
-    const BALANCE_MIN: i32 = 0x3f800000u32 as i32;
-    const BALANCE_MAX: i32 = 0xbf800000u32 as i32;
-    const BALANCE_STEP: i32 = 0x01;
+    const REVERB_GAIN_MIN: f32 = 0.0;
+    const REVERB_GAIN_MAX: f32 = 1.0;
+
+    const REVERB_BALANCE_MIN: f32 = -1.0;
+    const REVERB_BALANCE_MAX: f32 = 1.0;
 
     fn create_input_state() -> CommandDspInputState {
         CommandDspInputState {
@@ -2559,7 +2560,6 @@ mod test {
         [
             DspCmd::Monitor(MonitorCmd::Volume(0x00)),
             DspCmd::Input(InputCmd::Trim(0xe4, 0x01)),
-            DspCmd::Input(InputCmd::Width(0xd3, 0x02)),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::HpfFreq(0x01010101))),
             DspCmd::Input(InputCmd::Equalizer(0xb1, EqualizerParameter::LfFreq(0x02020202))),
             DspCmd::Input(InputCmd::Equalizer(0x8e, EqualizerParameter::LmfFreq(0x05050505))),
@@ -2572,8 +2572,6 @@ mod test {
             DspCmd::Input(InputCmd::Dynamics(0x8e, DynamicsParameter::CompRelease(0x6789abc))),
             DspCmd::Input(InputCmd::Dynamics(0x6c, DynamicsParameter::LevelerMakeup(0x09abcdef))),
             DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(0x1c92835a))),
-            DspCmd::Input(InputCmd::ReverbSend(0x33, 0x35792468)),
-            DspCmd::Input(InputCmd::ReverbLrBalance(0xcc, 0x24689753)),
             DspCmd::Output(OutputCmd::Equalizer(0xa8, EqualizerParameter::HpfFreq(0x77792f78))),
             DspCmd::Output(OutputCmd::Equalizer(0x39, EqualizerParameter::LfFreq(0x20fc256f))),
             DspCmd::Output(OutputCmd::Equalizer(0x5b, EqualizerParameter::LmfFreq(0x1e10a3f8))),
@@ -2613,6 +2611,7 @@ mod test {
     #[test]
     fn test_f32_cmds() {
         [
+            DspCmd::Input(InputCmd::Width(0xd3, 0.0987654321)),
             DspCmd::Input(InputCmd::Equalizer(0xa0, EqualizerParameter::LfGain(0.123456789))),
             DspCmd::Input(InputCmd::Equalizer(0x9f, EqualizerParameter::LfWidth(0.987654321))),
             DspCmd::Input(InputCmd::Equalizer(0x7d, EqualizerParameter::LmfGain(0.234567891))),
@@ -2625,6 +2624,8 @@ mod test {
             DspCmd::Input(InputCmd::Equalizer(0xd3, EqualizerParameter::HfWidth(0.543219876))),
             DspCmd::Input(InputCmd::Dynamics(0xa0, DynamicsParameter::CompRatio(0.678912345))),
             DspCmd::Input(InputCmd::Dynamics(0x7d, DynamicsParameter::CompGain(0.432198765))),
+            DspCmd::Input(InputCmd::ReverbSend(0x33, 0.789123456)),
+            DspCmd::Input(InputCmd::ReverbLrBalance(0xcc, 0.891234567)),
             DspCmd::Mixer(MixerCmd::OutputVolume(0x4a, 1.2345678)),
             DspCmd::Mixer(MixerCmd::ReverbSend(0x39, 1.3456789)),
             DspCmd::Mixer(MixerCmd::ReverbReturn(0x28, 1.456789)),
@@ -2696,8 +2697,8 @@ mod test {
         assert_eq!(cmds[9], DspCmd::Output(OutputCmd::MasterListenback(4, false)));
         assert_eq!(cmds[10], DspCmd::Output(OutputCmd::MasterListenback(5, false)));
         assert_eq!(cmds[11], DspCmd::Output(OutputCmd::MasterListenback(6, false)));
-        assert_eq!(cmds[12], DspCmd::Input(InputCmd::Width(0, 0x00000000)));
-        assert_eq!(cmds[13], DspCmd::Input(InputCmd::Width(1, 0x00000000)));
+        assert_eq!(cmds[12], DspCmd::Input(InputCmd::Width(0, 0.0)));
+        assert_eq!(cmds[13], DspCmd::Input(InputCmd::Width(1, 0.0)));
         assert_eq!(cmds.len(), 14);
     }
 }
