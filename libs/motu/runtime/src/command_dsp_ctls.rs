@@ -1037,6 +1037,8 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         LevelerMode::Limit,
     ];
 
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
     fn load_equalizer(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -1152,9 +1154,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                     .add_int_elems(
                         &elem_id,
                         1,
-                        EqualizerParameter::GAIN_MIN,
-                        EqualizerParameter::GAIN_MAX,
-                        EqualizerParameter::GAIN_STEP,
+                        (EqualizerParameter::GAIN_MIN * Self::F32_CONVERT_SCALE) as i32,
+                        (EqualizerParameter::GAIN_MAX * Self::F32_CONVERT_SCALE) as i32,
+                        1,
                         Self::CH_COUNT,
                         None,
                         true,
@@ -1177,9 +1179,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                     .add_int_elems(
                         &elem_id,
                         1,
-                        EqualizerParameter::WIDTH_MIN,
-                        EqualizerParameter::WIDTH_MAX,
-                        EqualizerParameter::WIDTH_STEP,
+                        (EqualizerParameter::WIDTH_MIN * Self::F32_CONVERT_SCALE) as i32,
+                        (EqualizerParameter::WIDTH_MAX * Self::F32_CONVERT_SCALE) as i32,
+                        1,
                         Self::CH_COUNT,
                         None,
                         true,
@@ -1207,6 +1209,20 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         assert_eq!(vals.len(), Self::CH_COUNT);
 
         elem_value.set_int(vals);
+        Ok(true)
+    }
+
+    fn read_f32_values(
+        elem_value: &mut ElemValue,
+        vals: &[f32],
+    ) -> Result<bool, Error> {
+        assert_eq!(vals.len(), Self::CH_COUNT);
+
+        let raw: Vec<i32> = vals
+            .iter()
+            .map(|&val| (val * Self::F32_CONVERT_SCALE) as i32)
+            .collect();
+        elem_value.set_int(&raw);
         Ok(true)
     }
 
@@ -1282,9 +1298,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LF_FREQ_NAME {
             Self::read_int_values(elem_value, &self.state().lf_freq)
         } else if name == Self::LF_GAIN_NAME {
-            Self::read_int_values(elem_value, &self.state().lf_gain)
+            Self::read_f32_values(elem_value, &self.state().lf_gain)
         } else if name == Self::LF_WIDTH_NAME {
-            Self::read_int_values(elem_value, &self.state().lf_width)
+            Self::read_f32_values(elem_value, &self.state().lf_width)
         } else if name == Self::LMF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().lmf_enable)
         } else if name == Self::LMF_TYPE_NAME {
@@ -1292,9 +1308,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::LMF_FREQ_NAME {
             Self::read_int_values(elem_value, &self.state().lmf_freq)
         } else if name == Self::LMF_GAIN_NAME {
-            Self::read_int_values(elem_value, &self.state().lmf_gain)
+            Self::read_f32_values(elem_value, &self.state().lmf_gain)
         } else if name == Self::LMF_WIDTH_NAME {
-            Self::read_int_values(elem_value, &self.state().lmf_width)
+            Self::read_f32_values(elem_value, &self.state().lmf_width)
         } else if name == Self::MF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().mf_enable)
         } else if name == Self::MF_TYPE_NAME {
@@ -1302,9 +1318,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::MF_FREQ_NAME {
             Self::read_int_values(elem_value, &self.state().mf_freq)
         } else if name == Self::MF_GAIN_NAME {
-            Self::read_int_values(elem_value, &self.state().mf_gain)
+            Self::read_f32_values(elem_value, &self.state().mf_gain)
         } else if name == Self::MF_WIDTH_NAME {
-            Self::read_int_values(elem_value, &self.state().mf_width)
+            Self::read_f32_values(elem_value, &self.state().mf_width)
         } else if name == Self::HMF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().hmf_enable)
         } else if name == Self::HMF_TYPE_NAME {
@@ -1312,9 +1328,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HMF_FREQ_NAME {
             Self::read_int_values(elem_value, &self.state().hmf_freq)
         } else if name == Self::HMF_GAIN_NAME {
-            Self::read_int_values(elem_value, &self.state().hmf_gain)
+            Self::read_f32_values(elem_value, &self.state().hmf_gain)
         } else if name == Self::HMF_WIDTH_NAME {
-            Self::read_int_values(elem_value, &self.state().hmf_width)
+            Self::read_f32_values(elem_value, &self.state().hmf_width)
         } else if name == Self::HF_ENABLE_NAME {
             Self::read_bool_values(elem_value, &self.state().hf_enable)
         } else if name == Self::HF_TYPE_NAME {
@@ -1322,9 +1338,9 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         } else if name == Self::HF_FREQ_NAME {
             Self::read_int_values(elem_value, &self.state().hf_freq)
         } else if name == Self::HF_GAIN_NAME {
-            Self::read_int_values(elem_value, &self.state().hf_gain)
+            Self::read_f32_values(elem_value, &self.state().hf_gain)
         } else if name == Self::HF_WIDTH_NAME {
-            Self::read_int_values(elem_value, &self.state().hf_width)
+            Self::read_f32_values(elem_value, &self.state().hf_width)
         } else {
             Ok(false)
         }
@@ -1364,6 +1380,29 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
         elem_value.get_int(&mut vals);
         self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
+            Ok(())
+        })
+    }
+
+    fn write_f32_values<F>(
+        &mut self,
+        sequence_number: &mut u8,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+        func: F,
+    ) -> Result<bool, Error>
+        where F: Fn(&mut CommandDspEqualizerState, &[f32]),
+    {
+        let mut vals = vec![0; Self::CH_COUNT];
+        elem_value.get_int(&mut vals);
+        let raw: Vec<f32> = vals
+            .iter()
+            .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
+            .collect();
+        self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
+            func(state, &raw);
             Ok(())
         })
     }
@@ -1516,11 +1555,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 state.lf_freq.copy_from_slice(vals);
             })
         } else if name == Self::LF_GAIN_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.lf_gain.copy_from_slice(vals);
             })
         } else if name == Self::LF_WIDTH_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.lf_width.copy_from_slice(vals);
             })
         } else if name == Self::LMF_ENABLE_NAME {
@@ -1536,11 +1575,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 state.lmf_freq.copy_from_slice(vals);
             })
         } else if name == Self::LMF_GAIN_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.lmf_gain.copy_from_slice(vals);
             })
         } else if name == Self::LMF_WIDTH_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.lmf_width.copy_from_slice(vals);
             })
         } else if name == Self::MF_ENABLE_NAME {
@@ -1556,11 +1595,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 state.mf_freq.copy_from_slice(vals);
             })
         } else if name == Self::MF_GAIN_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.mf_gain.copy_from_slice(vals);
             })
         } else if name == Self::MF_WIDTH_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.mf_width.copy_from_slice(vals);
             })
         } else if name == Self::HMF_ENABLE_NAME {
@@ -1576,11 +1615,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 state.hmf_freq.copy_from_slice(vals);
             })
         } else if name == Self::HMF_GAIN_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.hmf_gain.copy_from_slice(vals);
             })
         } else if name == Self::HMF_WIDTH_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.hmf_width.copy_from_slice(vals);
             })
         } else if name == Self::HF_ENABLE_NAME {
@@ -1596,11 +1635,11 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
                 state.hf_freq.copy_from_slice(vals);
             })
         } else if name == Self::HF_GAIN_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.hf_gain.copy_from_slice(vals);
             })
         } else if name == Self::HF_WIDTH_NAME {
-            self.write_int_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
+            self.write_f32_values(sequence_number, unit, req, elem_value, timeout_ms, |state, vals| {
                 state.hf_width.copy_from_slice(vals);
             })
         } else {
