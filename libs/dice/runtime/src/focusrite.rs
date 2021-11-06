@@ -6,7 +6,7 @@ pub mod liquids56_model;
 pub mod spro14_model;
 pub mod spro26_model;
 
-use glib::Error;
+use glib::{Error, FileError};
 
 use hinawa::FwReq;
 use hinawa::{SndDice, SndUnitExt};
@@ -286,6 +286,171 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                     .collect();
                 elem_value.set_int(&vols);
                 Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+const MIC_INPUT_LEVEL_NAME: &str = "mic-input-level";
+const LINE_INPUT_LEVEL_NAME: &str = "line-input-level";
+
+fn mic_input_level_to_str(level: &SaffireproMicInputLevel) -> &'static str {
+    match level {
+        SaffireproMicInputLevel::Line => "line",
+        SaffireproMicInputLevel::Instrument => "instrument",
+    }
+}
+
+fn line_input_level_to_str(level: &SaffireproLineInputLevel) -> &'static str {
+    match level {
+        SaffireproLineInputLevel::Low => "low",
+        SaffireproLineInputLevel::High => "high",
+    }
+}
+
+trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
+    const MIC_LEVELS: [SaffireproMicInputLevel; 2] = [
+        SaffireproMicInputLevel::Line,
+        SaffireproMicInputLevel::Instrument,
+    ];
+
+    const LINE_LEVELS: [SaffireproLineInputLevel; 2] = [
+        SaffireproLineInputLevel::Low,
+        SaffireproLineInputLevel::High,
+    ];
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        let labels: Vec<&str> = Self::MIC_LEVELS
+            .iter()
+            .map(|l| mic_input_level_to_str(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_INPUT_LEVEL_NAME, 0);
+        let _ = card_cntr
+            .add_enum_elems(&elem_id, 1, T::MIC_INPUT_COUNT, &labels, None, true)?;
+
+        let labels: Vec<&str> = Self::LINE_LEVELS
+            .iter()
+            .map(|l| line_input_level_to_str(l))
+            .collect();
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, LINE_INPUT_LEVEL_NAME, 0);
+        let _ = card_cntr
+            .add_enum_elems(&elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)?;
+
+        Ok(())
+    }
+
+    fn read(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        sections: &ExtensionSections,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIC_INPUT_LEVEL_NAME => {
+                let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
+                T::read_mic_level(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &mut levels,
+                    timeout_ms
+                )?;
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::MIC_INPUT_COUNT, |idx| {
+                    let pos = Self::MIC_LEVELS
+                        .iter()
+                        .position(|l| l.eq(&levels[idx]))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                    .map(|_| true)
+            }
+            LINE_INPUT_LEVEL_NAME => {
+                let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
+                T::read_line_level(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &mut levels,
+                    timeout_ms
+                )?;
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::MIC_INPUT_COUNT, |idx| {
+                    let pos = Self::LINE_LEVELS
+                        .iter()
+                        .position(|l| l.eq(&levels[idx]))
+                        .unwrap();
+                    Ok(pos as u32)
+                })
+                    .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndDice,
+        req: &mut FwReq,
+        sections: &ExtensionSections,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            MIC_INPUT_LEVEL_NAME => {
+                let mut vals = vec![0; T::MIC_INPUT_COUNT];
+                elem_value.get_enum(&mut vals);
+                let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
+                vals
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(i, &val)| {
+                        Self::MIC_LEVELS
+                            .iter()
+                            .nth(val as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index for mic input levels: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| levels[i] = l)
+                    })?;
+                T::write_mic_level(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &levels,
+                    timeout_ms,
+                )
+                    .map(|_| true)
+            }
+            LINE_INPUT_LEVEL_NAME => {
+                let mut vals = vec![0; T::LINE_INPUT_COUNT];
+                elem_value.get_enum(&mut vals);
+                let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
+                vals
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(i, &val)| {
+                        Self::LINE_LEVELS
+                            .iter()
+                            .nth(val as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index for line input levels: {}", val);
+                                Error::new(FileError::Inval, &msg)
+                            })
+                            .map(|&l| levels[i] = l)
+                    })?;
+                T::write_line_level(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    &levels,
+                    timeout_ms,
+                )
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
