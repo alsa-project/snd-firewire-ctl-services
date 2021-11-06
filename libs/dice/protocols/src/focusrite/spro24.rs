@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Saffire Pro 24.
 
-use crate::{tcat::{extension::*, tcd22xx_spec::*}};
+use crate::{focusrite::*, tcat::{extension::*, tcd22xx_spec::*}};
 
 /// The structure for protocol implementation specific to Saffire Pro 24.
 #[derive(Debug)]
@@ -34,4 +34,17 @@ impl Tcd22xxSpecOperation for SPro24Protocol {
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];
+}
+
+impl SaffireproSwNoticeOperation for SPro24Protocol {
+    const SW_NOTICE_OFFSET: usize = 0x0068;
+}
+
+impl SaffireproOutGroupOperation for SPro24Protocol {
+    const ENTRY_COUNT: usize = 6;
+    const HAS_VOL_HWCTL: bool = false;
+    const OUT_CTL_OFFSET: usize = 0x000c;
+
+    const SRC_NOTICE: u32 = 0x00000001;
+    const DIM_MUTE_NOTICE: u32 = 0x00000002;
 }
