@@ -99,3 +99,16 @@ impl Tcd22xxSpecOperation for SPro14Protocol {
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];
 }
+
+impl SaffireproSwNoticeOperation for SPro14Protocol {
+    const SW_NOTICE_OFFSET: usize = 0x000c;
+}
+
+impl SaffireproOutGroupOperation for SPro14Protocol {
+    const ENTRY_COUNT: usize = 4;
+    const HAS_VOL_HWCTL: bool = false;
+    const OUT_CTL_OFFSET: usize = 0x0010;
+
+    const SRC_NOTICE: u32 = 0x00000001;
+    const DIM_MUTE_NOTICE: u32 = 0x00000002;
+}
