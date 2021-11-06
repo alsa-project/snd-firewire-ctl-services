@@ -460,3 +460,177 @@ pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
         msg & Self::NOTIFY_VOL_CHANGE > 0
     }
 }
+
+/// The level of microphone input.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaffireproMicInputLevel {
+    /// Gain range: -10dB to +36 dB.
+    Line,
+    /// Gain range: +13 to +60 dB, headroom: +8dBu.
+    Instrument,
+}
+
+impl Default for SaffireproMicInputLevel {
+    fn default() -> Self {
+        Self::Line
+    }
+}
+
+/// The level of line input.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaffireproLineInputLevel {
+    /// +16 dBu.
+    Low,
+    /// -10dBV.
+    High,
+}
+
+impl Default for SaffireproLineInputLevel {
+    fn default() -> Self {
+        Self::Low
+    }
+}
+
+const MIC_INPUT_LEVEL_INSTRUMENT_FLAG: u16 = 0x0002;
+const LINE_INPUT_LEVEL_HIGH_FLAG: u16 = 0x0001;
+
+// The trait for input protocol specific to Pro 14 and Pro 24.
+pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
+    const MIC_INPUT_OFFSET: usize;
+    const LINE_INPUT_OFFSET: usize;
+
+    const SW_NOTICE: u32 = 0x00000004;
+
+    const MIC_INPUT_COUNT: usize = 2;
+    const LINE_INPUT_COUNT: usize = 2;
+
+    fn read_mic_level(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        levels: &mut [SaffireproMicInputLevel],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(levels.len(), Self::MIC_INPUT_COUNT);
+
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            Self::MIC_INPUT_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
+            .map(|_| {
+                let val = u32::from_be_bytes(raw);
+
+                levels
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(i, level)| {
+                        let flag = (MIC_INPUT_LEVEL_INSTRUMENT_FLAG as u32) << (i * 16);
+                        *level = if val & flag > 0 {
+                            SaffireproMicInputLevel::Instrument
+                        } else {
+                            SaffireproMicInputLevel::Line
+                        }
+                    });
+            })
+    }
+
+    fn write_mic_level(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        levels: &[SaffireproMicInputLevel],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(levels.len(), Self::MIC_INPUT_COUNT);
+
+        let val = levels
+            .iter()
+            .enumerate()
+            .fold(0u32, |mut val, (i, &level)| {
+                if level == SaffireproMicInputLevel::Instrument {
+                    val |= (MIC_INPUT_LEVEL_INSTRUMENT_FLAG as u32) << (i * 16);
+                }
+                val
+            });
+
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            Self::MIC_INPUT_OFFSET,
+            &mut val.to_be_bytes(),
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, Self::SW_NOTICE, timeout_ms)
+    }
+
+    fn read_line_level(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        levels: &mut [SaffireproLineInputLevel],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(levels.len(), Self::LINE_INPUT_COUNT);
+
+        let mut raw = [0; 4];
+        ApplSectionProtocol::read_appl_data(
+            req,
+            node,
+            sections,
+            Self::LINE_INPUT_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
+            .map(|_| {
+                let val = u32::from_be_bytes(raw);
+
+                levels
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(i, level)| {
+                        let flag = (LINE_INPUT_LEVEL_HIGH_FLAG as u32) << (i * 16);
+                        *level = if val & flag > 0 {
+                            SaffireproLineInputLevel::High
+                        } else {
+                            SaffireproLineInputLevel::Low
+                        }
+                    });
+            })
+    }
+
+    fn write_line_level(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        levels: &[SaffireproLineInputLevel],
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert_eq!(levels.len(), Self::LINE_INPUT_COUNT);
+
+        let val = levels
+            .iter()
+            .enumerate()
+            .fold(0u32, |mut val, (i, &level)| {
+                if level == SaffireproLineInputLevel::High {
+                    val |= (LINE_INPUT_LEVEL_HIGH_FLAG as u32) << (i * 16);
+                }
+                val
+            });
+
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            Self::LINE_INPUT_OFFSET,
+            &mut val.to_be_bytes(),
+            timeout_ms
+        )?;
+        Self::write_sw_notice(req, node, sections, Self::SW_NOTICE, timeout_ms)
+    }
+}
