@@ -105,13 +105,13 @@
 //!
 //! ```
 
-use crate::tcat::{extension::*, tcd22xx_spec::*};
+use crate::{focusrite::*, tcat::{extension::*, tcd22xx_spec::*}};
 
-/// The structure to represent state of TCD22xx on Saffire Pro 24 DSP.
+/// The structure for protocol implementation specific to Saffire Pro 24 DSP.
 #[derive(Debug)]
-pub struct SPro24DspState;
+pub struct SPro24DspProtocol;
 
-impl Tcd22xxSpecOperation for SPro24DspState {
+impl Tcd22xxSpecOperation for SPro24DspProtocol {
     const INPUTS: &'static [Input] = &[
         Input{id: SrcBlkId::Ins0, offset: 2, count: 2, label: Some("Mic")},
         Input{id: SrcBlkId::Ins0, offset: 0, count: 2, label: Some("Line")},
@@ -132,4 +132,17 @@ impl Tcd22xxSpecOperation for SPro24DspState {
         SrcBlk{id: SrcBlkId::Ins0, ch: 0},
         SrcBlk{id: SrcBlkId::Ins0, ch: 1},
     ];
+}
+
+impl SaffireproSwNoticeOperation for SPro24DspProtocol {
+    const SW_NOTICE_OFFSET: usize = 0x05ec;
+}
+
+impl SaffireproOutGroupOperation for SPro24DspProtocol {
+    const ENTRY_COUNT: usize = 6;
+    const HAS_VOL_HWCTL: bool = false;
+    const OUT_CTL_OFFSET: usize = 0x000c;
+
+    const SRC_NOTICE: u32 = 0x00000001;
+    const DIM_MUTE_NOTICE: u32 = 0x00000002;
 }
