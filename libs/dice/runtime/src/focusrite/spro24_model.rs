@@ -9,7 +9,7 @@ use {
     core::card_cntr::*,
     dice_protocols::tcat::{extension::*, global_section::*, *},
     dice_protocols::focusrite::spro24::*,
-    crate::{common_ctl::*, tcd22xx_ctl::*},
+    crate::{common_ctl::*, focusrite::*, tcd22xx_ctl::*},
 };
 
 #[derive(Default)]
@@ -19,6 +19,7 @@ pub struct SPro24Model {
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
     tcd22xx_ctl: SPro24Tcd22xxCtl,
+    out_grp_ctl: OutGroupCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -69,6 +70,14 @@ impl CtlModel<SndDice> for SPro24Model {
             TIMEOUT_MS
         )?;
 
+        let _ = self.out_grp_ctl.load(
+            card_cntr,
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            TIMEOUT_MS
+        )?;
+
         Ok(())
     }
 
@@ -88,6 +97,8 @@ impl CtlModel<SndDice> for SPro24Model {
             elem_value,
             TIMEOUT_MS
         )? {
+            Ok(true)
+        } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -113,6 +124,15 @@ impl CtlModel<SndDice> for SPro24Model {
             TIMEOUT_MS
         )? {
             Ok(true)
+        } else if self.out_grp_ctl.write(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -123,6 +143,7 @@ impl NotifyModel<SndDice, u32> for SPro24Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
+        elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
@@ -134,6 +155,13 @@ impl NotifyModel<SndDice, u32> for SPro24Model {
             &self.extension_sections,
             TIMEOUT_MS,
             *msg
+        )?;
+        self.out_grp_ctl.parse_notification(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            *msg,
+            TIMEOUT_MS
         )?;
         Ok(())
     }
@@ -147,6 +175,8 @@ impl NotifyModel<SndDice, u32> for SPro24Model {
         if self.ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else if self.tcd22xx_ctl.read_notified_elem(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.out_grp_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -191,6 +221,19 @@ impl Tcd22xxCtlOperation<SPro24Protocol> for SPro24Tcd22xxCtl {
     }
 
     fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
+    }
+}
+
+#[derive(Default)]
+struct OutGroupCtl(OutGroupState, Vec<ElemId>);
+
+impl OutGroupCtlOperation<SPro24Protocol> for OutGroupCtl {
+    fn state(&self) -> &OutGroupState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut OutGroupState {
         &mut self.0
     }
 }
