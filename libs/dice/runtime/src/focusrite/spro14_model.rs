@@ -9,7 +9,7 @@ use {
     core::card_cntr::*,
     dice_protocols::tcat::{extension::*, global_section::*, *},
     dice_protocols::focusrite::spro14::*,
-    crate::{common_ctl::*, tcd22xx_ctl::*},
+    crate::{common_ctl::*, focusrite::*, tcd22xx_ctl::*},
 };
 
 #[derive(Default)]
@@ -19,6 +19,7 @@ pub struct SPro14Model {
     extension_sections: ExtensionSections,
     ctl: CommonCtl,
     tcd22xx_ctl: SPro14Tcd22xxCtl,
+    out_grp_ctl: OutGroupCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -69,6 +70,14 @@ impl CtlModel<SndDice> for SPro14Model {
             TIMEOUT_MS
         )?;
 
+        let _ = self.out_grp_ctl.load(
+            card_cntr,
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            TIMEOUT_MS
+        )?;
+
         Ok(())
     }
 
@@ -88,6 +97,8 @@ impl CtlModel<SndDice> for SPro14Model {
             elem_value,
             TIMEOUT_MS
         )? {
+            Ok(true)
+        } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -109,6 +120,15 @@ impl CtlModel<SndDice> for SPro14Model {
             &self.extension_sections,
             elem_id,
             old,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.out_grp_ctl.write(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            elem_id,
             new,
             TIMEOUT_MS
         )? {
@@ -185,6 +205,19 @@ impl Tcd22xxCtlOperation<SPro14Protocol> for SPro14Tcd22xxCtl {
     }
 
     fn tcd22xx_ctl_mut(&mut self) -> &mut Tcd22xxCtl {
+        &mut self.0
+    }
+}
+
+#[derive(Default)]
+struct OutGroupCtl(OutGroupState, Vec<ElemId>);
+
+impl OutGroupCtlOperation<SPro14Protocol> for OutGroupCtl {
+    fn state(&self) -> &OutGroupState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut OutGroupState {
         &mut self.0
     }
 }
