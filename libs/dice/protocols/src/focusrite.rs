@@ -8,6 +8,7 @@
 
 pub mod spro40;
 pub mod liquids56;
+pub mod spro14;
 pub mod spro26;
 
 use glib::Error;
