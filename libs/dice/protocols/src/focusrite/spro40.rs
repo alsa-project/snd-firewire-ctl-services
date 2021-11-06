@@ -49,7 +49,9 @@ impl Tcd22xxSpecOperation for SPro40Protocol {
     ];
 }
 
-const SW_NOTICE_OFFSET: usize = 0x0068;
+impl SaffireproSwNoticeOperation for SPro40Protocol {
+    const SW_NOTICE_OFFSET: usize = 0x0068;
+}
 
 const SRC_SW_NOTICE: u32 = 0x00000001;
 const DIM_MUTE_SW_NOTICE: u32 = 0x00000002;
@@ -60,7 +62,6 @@ impl SaffireproOutGroupOperation for SPro40Protocol {
     const ENTRY_COUNT: usize = 10;
     const HAS_VOL_HWCTL: bool = true;
     const OUT_CTL_OFFSET: usize = 0x000c;
-    const SW_NOTICE_OFFSET: usize = SW_NOTICE_OFFSET;
 
     const SRC_NOTICE: u32 = SRC_SW_NOTICE;
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
@@ -81,25 +82,6 @@ impl Default for OptOutIfaceMode {
 
 /// The trait to represent protocol specific to Saffire Pro 26.
 impl SPro40Protocol {
-    fn write_sw_notice(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        notice: u32,
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        notice.build_quadlet(&mut raw);
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            SW_NOTICE_OFFSET,
-            &mut raw,
-            timeout_ms
-        )
-    }
-
     pub fn read_analog_out_0_1_pad(
         req: &mut FwReq,
         node: &mut FwNode,

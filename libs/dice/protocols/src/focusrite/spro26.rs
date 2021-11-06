@@ -39,7 +39,9 @@ impl Tcd22xxSpecOperation for SPro26Protocol {
     ];
 }
 
-const SW_NOTICE_OFFSET: usize = 0x000c;
+impl SaffireproSwNoticeOperation for SPro26Protocol {
+    const SW_NOTICE_OFFSET: usize = 0x000c;
+}
 
 const SRC_SW_NOTICE: u32 = 0x00000001;
 const DIM_MUTE_SW_NOTICE: u32 = 0x00000002;
@@ -48,7 +50,6 @@ impl SaffireproOutGroupOperation for SPro26Protocol {
     const ENTRY_COUNT: usize = 6;
     const HAS_VOL_HWCTL: bool = false;
     const OUT_CTL_OFFSET: usize = 0x0010;
-    const SW_NOTICE_OFFSET: usize = SW_NOTICE_OFFSET;
 
     const SRC_NOTICE: u32 = SRC_SW_NOTICE;
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
