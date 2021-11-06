@@ -20,6 +20,7 @@ pub struct SPro24Model {
     ctl: CommonCtl,
     tcd22xx_ctl: SPro24Tcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
+    input_ctl: InputCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -78,6 +79,8 @@ impl CtlModel<SndDice> for SPro24Model {
             TIMEOUT_MS
         )?;
 
+        self.input_ctl.load(card_cntr)?;
+
         Ok(())
     }
 
@@ -99,6 +102,15 @@ impl CtlModel<SndDice> for SPro24Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -125,6 +137,15 @@ impl CtlModel<SndDice> for SPro24Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.input_ctl.write(
             unit,
             &mut self.req,
             &self.extension_sections,
@@ -237,3 +258,8 @@ impl OutGroupCtlOperation<SPro24Protocol> for OutGroupCtl {
         &mut self.0
     }
 }
+
+#[derive(Default)]
+struct InputCtl;
+
+impl SaffireproInputCtlOperation<SPro24Protocol> for InputCtl {}
