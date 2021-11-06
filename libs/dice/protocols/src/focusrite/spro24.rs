@@ -48,3 +48,8 @@ impl SaffireproOutGroupOperation for SPro24Protocol {
     const SRC_NOTICE: u32 = 0x00000001;
     const DIM_MUTE_NOTICE: u32 = 0x00000002;
 }
+
+impl SaffireproInputOperation for SPro24Protocol {
+    const MIC_INPUT_OFFSET: usize = 0x0058;
+    const LINE_INPUT_OFFSET: usize = 0x005c;
+}
