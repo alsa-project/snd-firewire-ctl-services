@@ -175,6 +175,7 @@ your device, please contact to developer.
   * Focusrite Saffire Pro 40
   * Focusrite Liquid Saffire 56
   * Focusrite Saffire Pro 24
+  * Focusrite Saffire Pro 24 DSP
   * Focusrite Saffire Pro 14
   * Focusrite Saffire Pro 26
   * PreSonus FireStudio
