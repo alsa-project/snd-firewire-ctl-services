@@ -17,6 +17,30 @@ use hinawa::{FwNode, FwReq};
 use super::tcat::extension::{*, appl_section::*};
 use super::*;
 
+/// The trait for software notice protocol to update hardware parameter.
+pub trait SaffireproSwNoticeOperation {
+    const SW_NOTICE_OFFSET: usize;
+
+    fn write_sw_notice(
+        req: &mut FwReq,
+        node: &mut FwNode,
+        sections: &ExtensionSections,
+        notice: u32,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let mut raw = [0; 4];
+        notice.build_quadlet(&mut raw);
+        ApplSectionProtocol::write_appl_data(
+            req,
+            node,
+            sections,
+            Self::SW_NOTICE_OFFSET,
+            &mut raw,
+            timeout_ms
+        )
+    }
+}
+
 /// The structure to represent a set of entries for output control.
 #[derive(Default, Debug)]
 pub struct OutGroupState {
@@ -34,12 +58,11 @@ pub struct OutGroupState {
 }
 
 /// The trait for output group protocol.
-pub trait SaffireproOutGroupOperation {
+pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
     const ENTRY_COUNT: usize;
     const HAS_VOL_HWCTL: bool;
 
     const OUT_CTL_OFFSET: usize;
-    const SW_NOTICE_OFFSET: usize;
 
     const SRC_NOTICE: u32;
     const DIM_MUTE_NOTICE: u32;
@@ -67,25 +90,6 @@ pub trait SaffireproOutGroupOperation {
             dim_hwctls: vec![false; Self::ENTRY_COUNT],
             hw_knob_value: 0,
         }
-    }
-
-    fn write_notice(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        sections: &ExtensionSections,
-        notice: u32,
-        timeout_ms: u32
-    ) -> Result<(), Error> {
-        let mut raw = [0; 4];
-        notice.build_quadlet(&mut raw);
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            Self::SW_NOTICE_OFFSET,
-            &mut raw,
-            timeout_ms
-        )
     }
 
     fn read_out_group_mute(
@@ -129,7 +133,7 @@ pub trait SaffireproOutGroupOperation {
             &mut raw,
             timeout_ms
         )?;
-        Self::write_notice(req, node, sections, Self::DIM_MUTE_NOTICE, timeout_ms)
+        Self::write_sw_notice(req, node, sections, Self::DIM_MUTE_NOTICE, timeout_ms)
             .map(|_| state.mute_enabled = enable)
     }
 
@@ -174,7 +178,7 @@ pub trait SaffireproOutGroupOperation {
             &mut raw,
             timeout_ms
         )?;
-        Self::write_notice(req, node, sections, Self::DIM_MUTE_NOTICE, timeout_ms)
+        Self::write_sw_notice(req, node, sections, Self::DIM_MUTE_NOTICE, timeout_ms)
             .map(|_| state.dim_enabled = enable)
     }
 
@@ -233,7 +237,7 @@ pub trait SaffireproOutGroupOperation {
             &mut raw,
             timeout_ms
         )?;
-        Self::write_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)
+        Self::write_sw_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)
             .map(|_| state.vols.copy_from_slice(&vols))
     }
 
@@ -354,7 +358,7 @@ pub trait SaffireproOutGroupOperation {
                 }
             })?;
 
-        Self::write_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)
+        Self::write_sw_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)
             .map(|_| {
                 state.vol_mutes.copy_from_slice(&vol_mutes);
                 state.vol_hwctls.copy_from_slice(&vol_hwctls);
@@ -421,7 +425,7 @@ pub trait SaffireproOutGroupOperation {
             &mut raw,
             timeout_ms
         )?;
-        Self::write_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)
+        Self::write_sw_notice(req, node, sections, Self::SRC_NOTICE, timeout_ms)
             .map(|_| {
                 state.dim_hwctls.copy_from_slice(&dim_hwctls);
                 state.mute_hwctls.copy_from_slice(&mute_hwctls);
