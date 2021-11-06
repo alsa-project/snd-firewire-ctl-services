@@ -20,6 +20,7 @@ pub struct SPro24DspModel {
     ctl: CommonCtl,
     tcd22xx_ctl: SPro24DspTcd22xxCtl,
     out_grp_ctl: OutGroupCtl,
+    input_ctl: InputCtl,
 }
 
 const TIMEOUT_MS: u32 = 20;
@@ -79,6 +80,8 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )
             .map(|mut elem_id_list| self.out_grp_ctl.1.append(&mut elem_id_list))?;
 
+        self.input_ctl.load(card_cntr)?;
+
         Ok(())
     }
 
@@ -100,6 +103,15 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -126,6 +138,15 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            elem_id,
+            new,
+            TIMEOUT_MS
+        )? {
+            Ok(true)
+        } else if self.input_ctl.write(
             unit,
             &mut self.req,
             &self.extension_sections,
@@ -238,3 +259,8 @@ impl OutGroupCtlOperation<SPro24DspProtocol> for OutGroupCtl {
         &mut self.0
     }
 }
+
+#[derive(Default)]
+struct InputCtl;
+
+impl SaffireproInputCtlOperation<SPro24DspProtocol> for InputCtl {}
