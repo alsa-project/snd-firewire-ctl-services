@@ -28,6 +28,7 @@ use super::mbox3_model::*;
 use super::blackbird_model::*;
 use super::focusrite::spro40_model::*;
 use super::focusrite::liquids56_model::*;
+use super::focusrite::spro14_model::*;
 use super::focusrite::spro26_model::*;
 use super::presonus::fstudioproject_model::*;
 use super::presonus::fstudiomobile_model::*;
@@ -50,6 +51,7 @@ enum Model {
     LoudBlackbird(BlackbirdModel),
     FocusriteSPro40(SPro40Model),
     FocusriteLiquidS56(LiquidS56Model),
+    FocusriteSPro14(SPro14Model),
     FocusriteSPro26(SPro26Model),
     PresonusFStudioProject(FStudioProjectModel),
     PresonusFStudioMobile(FStudioMobileModel),
@@ -95,6 +97,7 @@ impl DiceModel {
             (0x000ff2, 0x000007) => Model::LoudBlackbird(BlackbirdModel::default()),
             (0x00130e, 0x000005) => Model::FocusriteSPro40(SPro40Model::default()),
             (0x00130e, 0x000006) => Model::FocusriteLiquidS56(LiquidS56Model::default()),
+            (0x00130e, 0x000009) => Model::FocusriteSPro14(Default::default()),
             (0x00130e, 0x000012) => Model::FocusriteSPro26(SPro26Model::default()),
             (0x000a92, 0x00000b) => Model::PresonusFStudioProject(FStudioProjectModel::default()),
             (0x000a92, 0x000011) => Model::PresonusFStudioMobile(FStudioMobileModel::default()),
@@ -147,6 +150,7 @@ impl DiceModel {
             Model::LoudBlackbird(m) => m.load(unit, card_cntr),
             Model::FocusriteSPro40(m) => m.load(unit, card_cntr),
             Model::FocusriteLiquidS56(m) => m.load(unit, card_cntr),
+            Model::FocusriteSPro14(m) => m.load(unit, card_cntr),
             Model::FocusriteSPro26(m) => m.load(unit, card_cntr),
             Model::PresonusFStudioProject(m) => m.load(unit, card_cntr),
             Model::PresonusFStudioMobile(m) => m.load(unit, card_cntr),
@@ -170,6 +174,7 @@ impl DiceModel {
             Model::LoudBlackbird(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::FocusriteSPro40(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::FocusriteLiquidS56(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::FocusriteSPro14(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::FocusriteSPro26(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::PresonusFStudioProject(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::PresonusFStudioMobile(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -193,6 +198,7 @@ impl DiceModel {
             Model::LoudBlackbird(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::FocusriteSPro40(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::FocusriteLiquidS56(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
+            Model::FocusriteSPro14(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::FocusriteSPro26(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::PresonusFStudioProject(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
             Model::PresonusFStudioMobile(m) => m.get_measure_elem_list(&mut self.measured_elem_list),
@@ -223,6 +229,7 @@ impl DiceModel {
             Model::LoudBlackbird(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteSPro40(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteLiquidS56(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSPro14(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteSPro26(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFStudioProject(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFStudioMobile(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
@@ -250,6 +257,7 @@ impl DiceModel {
             Model::LoudBlackbird(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::FocusriteSPro40(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::FocusriteLiquidS56(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
+            Model::FocusriteSPro14(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::FocusriteSPro26(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::PresonusFStudioProject(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
             Model::PresonusFStudioMobile(m) => card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m),
@@ -277,6 +285,7 @@ impl DiceModel {
             Model::LoudBlackbird(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteSPro40(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteLiquidS56(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::FocusriteSPro14(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteSPro26(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::PresonusFStudioProject(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::PresonusFStudioMobile(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
