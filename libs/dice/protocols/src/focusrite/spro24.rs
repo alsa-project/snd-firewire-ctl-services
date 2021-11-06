@@ -5,6 +5,86 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Saffire Pro 24.
+//!
+//! ## Diagram of internal signal flow for Saffire Pro 24.
+//!
+//! I note that optical input interface is available exclusively for ADAT input and S/PDIF input.
+//!
+//! ```text
+//!                          ++===========++
+//! mixer-input-0/1 -------> ||           || -> mixer-output-0/1
+//! mixer-input-2/3 -------> ||           || -> mixer-output-2/3
+//! mixer-input-4/5 -------> ||           || -> mixer-output-4/5
+//! mixer-input-6/7 -------> ||   mixer   || -> mixer-output-6/7
+//! mixer-input-8/9 -------> ||           || -> mixer-output-8/9
+//! mixer-input-10/11 -----> ||  18 x 16  || -> mixer-output-10/11
+//! mixer-input-12/13 -----> ||           || -> mixer-output-12/13
+//! mixer-input-14/15 -----> ||           || -> mixer-output-14/15
+//! mixer-input-16/17 -----> ||           ||
+//!                          ++===========++
+//!
+//!                          ++===========++
+//! mic-input-0/1 ---------> ||           ||
+//! line-input-0/1 --------> ||           ||
+//! spdif-coax-input-0/1 --> ||           || -> mixer-input-0/1
+//! adat-input-0/1 --------> ||           || -> mixer-input-2/3
+//! adat-input-2/3 --------> ||           || -> mixer-input-4/5
+//! adat-input-4/5 --------> ||  mixer    || -> mixer-input-6/7
+//! adat-input-6/7 --------> ||  input    || -> mixer-input-8/9
+//! spdif-opt-input-0/1 ---> ||  router   || -> mixer-input-10/11
+//!                          ||           || -> mixer-input-12/13
+//! stream-input-0/1 ------> ||   x 18    || -> mixer-input-14/15
+//! stream-input-2/3 ------> ||           || -> mixer-input-16/17
+//! stream-input-4/5 ------> ||           ||
+//! stream-input-6/7 ------> ||           ||
+//!                          ++===========++
+//!
+//!                          ++===========++
+//! mic-input-0/1 ---------> ||           ||
+//! line-input-0/1 --------> ||           ||
+//! spdif-coax-input-0/1 --> ||           ||
+//! adat-input-0/1 --------> ||           ||
+//! adat-input-2/3 --------> ||           || -> stream-output-0/1
+//! adat-input-4/5 --------> ||           || -> stream-output-2/3
+//! adat-input-6/7 --------> ||           || -> stream-output-4/5
+//! spdif-opt-input-0/1 ---> ||  stream   || -> stream-output-6/7
+//!                          ||  capture  || -> stream-output-8/9
+//! mixer-output-0/1 ------> ||  router   || -> stream-output-10/11
+//! mixer-output-2/3 ------> ||           || -> stream-output-12/13
+//! mixer-output-4/5 ------> ||   x 16    || -> stream-output-14/15
+//! mixer-output-6/7 ------> ||           ||
+//! mixer-output-8/9 ------> ||           ||
+//! mixer-output-10/11 ----> ||           ||
+//! mixer-output-12/13 ----> ||           ||
+//! mixer-output-14/15 ----> ||           ||
+//!                          ++===========++
+//!
+//!                          ++===========++
+//! mic-input-0/1 ---------> ||           ||
+//! line-input-0/1 --------> ||           ||
+//! spdif-coax-input-0/1 --> ||           ||
+//! adat-input-0/1 --------> ||           ||
+//! adat-input-2/3 --------> ||           ||
+//! adat-input-4/5 --------> ||           ||
+//! adat-input-6/7 --------> ||           ||
+//! spdif-opt-input-0/1 ---> ||           ||
+//!                          ||  physical ||
+//! stream-input-0/1 ------> ||  output   || -> analog-output-0/1
+//! stream-input-2/3 ------> ||  router   || -> analog-output-2/3
+//! stream-input-4/5 ------> ||           || -> analog-output-4/5
+//! stream-input-6/7 ------> ||    x 8    || -> spdif-output-0/1
+//!                          ||           ||
+//! mixer-output-0/1 ------> ||           ||
+//! mixer-output-2/3 ------> ||           ||
+//! mixer-output-4/5 ------> ||           ||
+//! mixer-output-6/7 ------> ||           ||
+//! mixer-output-8/9 ------> ||           ||
+//! mixer-output-10/11 ----> ||           ||
+//! mixer-output-12/13 ----> ||           ||
+//! mixer-output-14/15 ----> ||           ||
+//!                          ++===========++
+//!
+//! ```
 
 use crate::{focusrite::*, tcat::{extension::*, tcd22xx_spec::*}};
 

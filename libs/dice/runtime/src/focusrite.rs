@@ -3,6 +3,7 @@
 
 pub mod spro40_model;
 pub mod liquids56_model;
+pub mod spro24_model;
 pub mod spro14_model;
 pub mod spro26_model;
 
