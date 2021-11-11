@@ -23,6 +23,9 @@ fn clk_src_to_str(src: &ClkSrc) -> &'static str {
 
 #[derive(Default)]
 pub struct ClkCtl {
+    pub notified_elem_id_list: Vec<ElemId>,
+    pub curr_src: ClkSrc,
+    pub curr_rate: u32,
     srcs: Vec<ClkSrc>,
     rates: Vec<u32>,
 }
@@ -35,54 +38,67 @@ impl ClkCtl {
         &mut self,
         hwinfo: &HwInfo,
         card_cntr: &mut CardCntr,
+        unit: &mut SndEfw,
+        timeout_ms: u32
     ) -> Result<(), Error> {
         self.srcs.extend_from_slice(&hwinfo.clk_srcs);
         self.rates.extend_from_slice(&hwinfo.clk_rates);
 
+        self.cache(unit, timeout_ms)?;
+
         let labels: Vec<&str> = self.srcs.iter().map(|src| clk_src_to_str(src)).collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         let labels: Vec<String> = hwinfo.clk_rates.iter().map(|rate| rate.to_string()).collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
+        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    pub fn read(
+    pub fn cache(
         &mut self,
         unit: &mut SndEfw,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let state = unit.get_clock(timeout_ms)?;
+
+        if self.srcs.iter().find(|s| state.0.eq(s)).is_none() {
+            let name = clk_src_to_str(&state.0);
+            let label = format!("Unexpected value for source of clock: {}", name);
+            Err(Error::new(FileError::Io, &label))?;
+        } else {
+            self.curr_src = state.0;
+        }
+
+        if self.rates.iter().find(|r| state.1.eq(r)).is_none() {
+            let label = format!("Unexpected value for rate of clock: {}", state.1);
+            Err(Error::new(FileError::Io, &label))?;
+        } else {
+            self.curr_rate = state.1;
+        }
+
+        Ok(())
+    }
+
+    pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             SRC_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let (src, _) = unit.get_clock(timeout_ms)?;
-                    if let Some(pos) = self.srcs.iter().position(|s| *s == src) {
-                        Ok(pos as u32)
-                    } else {
-                        let label = "Unexpected value for source of clock";
-                        Err(Error::new(FileError::Io, &label))
-                    }
-                })?;
-                Ok(true)
+                    Ok(self.srcs.iter().position(|s| self.curr_src.eq(s)).unwrap() as u32)
+                })
+                    .map(|_| true)
             }
             RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let (_, rate) = unit.get_clock(timeout_ms)?;
-                    if let Some(pos) = self.rates.iter().position(|r| *r == rate) {
-                        Ok(pos as u32)
-                    } else {
-                        let label = "Unexpected value for rate of clock";
-                        Err(Error::new(FileError::Io, &label))
-                    }
-                })?;
-                Ok(true)
+                    Ok(self.rates.iter().position(|r| self.curr_rate.eq(r)).unwrap() as u32)
+                })
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

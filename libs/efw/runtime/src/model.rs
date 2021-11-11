@@ -88,7 +88,7 @@ impl CtlModel<SndEfw> for EfwModel {
     fn load(&mut self, unit: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut hwinfo = HwInfo::default();
         unit.get_hw_info(&mut hwinfo, TIMEOUT_MS)?;
-        self.clk_ctl.load(&hwinfo, card_cntr)?;
+        self.clk_ctl.load(&hwinfo, card_cntr, unit, TIMEOUT_MS)?;
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
         self.input_ctl.load(unit, &hwinfo, card_cntr, TIMEOUT_MS)?;
@@ -102,7 +102,7 @@ impl CtlModel<SndEfw> for EfwModel {
     fn read(&mut self, unit: &mut SndEfw, elem_id: &ElemId,
             elem_value: &mut ElemValue)
         -> Result<bool, Error> {
-        if self.clk_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -168,19 +168,27 @@ impl MeasureModel<SndEfw> for EfwModel {
 }
 
 impl NotifyModel<SndEfw, bool> for EfwModel {
-    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_id_list);
     }
 
-    fn parse_notification(&mut self, _: &mut SndEfw, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
+        if locked {
+            self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+        }
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
         _: &SndEfw,
-        _: &ElemId,
-        _: &mut ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        Ok(false)
+        if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
