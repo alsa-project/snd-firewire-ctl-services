@@ -6,7 +6,7 @@ use {
     hinawa::SndEfw,
     alsactl::{ElemId, ElemIfaceType, ElemValueExtManual, ElemValueExt, ElemValue},
     core::card_cntr::*,
-    efw_protocols::{hw_info::*, hw_ctl::*},
+    efw_protocols::{hw_info::*, hw_ctl::*, *},
 };
 
 #[derive(Default)]
@@ -20,7 +20,9 @@ impl Iec60958Ctl {
     const AES0_NONAUDIO: u8 = 0x2;
 
     pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        if hwinfo.caps.iter().find(|&cap| *cap == HwCap::SpdifCoax).is_some() {
+        let has_spdif = hwinfo.clk_srcs.iter().find(|src| ClkSrc::Spdif.eq(src)).is_some();
+
+        if has_spdif {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DEFAULT_NAME, 0);
             let _ = card_cntr.add_iec60958_elem(&elem_id, 1, true)?;
 
