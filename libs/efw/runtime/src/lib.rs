@@ -11,19 +11,22 @@ mod mixer_ctl;
 mod output_ctl;
 mod port_ctl;
 
-use glib::source;
-use glib::Error;
-use nix::sys::signal;
-use std::sync::mpsc;
-
-use hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt};
-
-use alsactl::{CardExt, CardExtManual, ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
-
-use card_cntr::{CtlModel, MeasureModel};
-use core::card_cntr;
-use core::dispatcher;
-use core::RuntimeOperation;
+use {
+    glib::{source, Error},
+    nix::sys::signal,
+    std::{sync::mpsc, time},
+    hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
+    core::{card_cntr::*, dispatcher::*, RuntimeOperation},
+    alsactl::{
+        CardExt,
+        CardExtManual,
+        ElemEventMask,
+        ElemId,
+        ElemIfaceType,
+        ElemValue,
+        ElemValueExtManual,
+    },
+};
 
 enum Event {
     Shutdown,
@@ -36,11 +39,11 @@ enum Event {
 pub struct EfwRuntime {
     unit: SndEfw,
     model: model::EfwModel,
-    card_cntr: card_cntr::CardCntr,
+    card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    timer: Option<dispatcher::Dispatcher>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
     measure_elems: Vec<ElemId>,
 }
 
@@ -68,7 +71,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let data = node.get_config_rom()?;
         let model = model::EfwModel::new(&data)?;
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
         // Use uni-directional channel for communication to child threads.
@@ -161,11 +164,11 @@ impl EfwRuntime {
     const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
 
     const TIMER_NAME: &'static str = "metering";
-    const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+    const TIMER_INTERVAL: time::Duration = time::Duration::from_millis(50);
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -189,7 +192,7 @@ impl EfwRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -212,7 +215,7 @@ impl EfwRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);

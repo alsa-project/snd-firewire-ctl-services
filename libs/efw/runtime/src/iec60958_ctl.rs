@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use core::card_cntr;
-
-use alsactl::{ElemValueExt, ElemValueExtManual};
-
-use efw_protocols::hw_info::*;
-use efw_protocols::hw_ctl::*;
+use {
+    glib::Error,
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValueExtManual, ElemValueExt, ElemValue},
+    core::card_cntr::*,
+    efw_protocols::{hw_info::*, hw_ctl::*},
+};
 
 #[derive(Default)]
 pub struct Iec60958Ctl;
@@ -19,14 +19,12 @@ impl Iec60958Ctl {
     const AES0_PROFESSIONAL: u8 = 0x1;
     const AES0_NONAUDIO: u8 = 0x2;
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::SpdifCoax).is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, DEFAULT_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DEFAULT_NAME, 0);
             let _ = card_cntr.add_iec60958_elem(&elem_id, 1, true)?;
 
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, MASK_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASK_NAME, 0);
             let _ = card_cntr.add_iec60958_elem(&elem_id, 1, false)?;
         }
 
@@ -35,9 +33,9 @@ impl Iec60958Ctl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -65,10 +63,10 @@ impl Iec60958Ctl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {

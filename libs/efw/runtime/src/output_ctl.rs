@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use efw_protocols::NominalSignalLevel;
-use efw_protocols::hw_info::*;
-use efw_protocols::phys_output::*;
+use {
+    glib::{Error, FileError},
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    alsa_ctl_tlv_codec::items::DbInterval,
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_info::*, phys_output::*, *},
+};
 
 #[derive(Default)]
 pub struct OutputCtl {
@@ -33,9 +32,7 @@ impl OutputCtl {
         NominalSignalLevel::Consumer,
     ];
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.phys_outputs = hwinfo.phys_outputs.iter().fold(0, |accm, entry| {
             if entry.group_type != PhysGroupType::AnalogMirror {
                 accm + entry.group_count
@@ -44,19 +41,19 @@ impl OutputCtl {
             }
         });
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1,
             Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
             self.phys_outputs, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, OUT_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(
+            ElemIfaceType::Mixer, 0, 0, OUT_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, self.phys_outputs, true)?;
 
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::NominalOutput).is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, OUT_NOMINAL_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Mixer, 0, 0, OUT_NOMINAL_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1,
                 self.phys_outputs, &Self::OUT_NOMINAL_LABELS, None, true)?;
         }
@@ -66,9 +63,9 @@ impl OutputCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -101,10 +98,10 @@ impl OutputCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {

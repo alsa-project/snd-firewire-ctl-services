@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use core::card_cntr;
-
-use alsactl::{ElemId, ElemIfaceType, ElemValueExt, ElemValueExtManual};
-
-use efw_protocols::hw_info::*;
+use {
+    glib::{Error, FileError},
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValueExt, ElemValueExtManual, ElemValue},
+    core::card_cntr::*,
+    efw_protocols::hw_info::*,
+};
 
 #[derive(Default)]
 pub struct MeterCtl {
-    pub measure_elems: Vec<alsactl::ElemId>,
+    pub measure_elems: Vec<ElemId>,
     meters: Option<HwMeter>,
     midi_inputs: usize,
     midi_outputs: usize,
@@ -30,9 +31,7 @@ impl MeterCtl {
     const COEF_MAX: i32 = 0x007fffff;
     const COEF_STEP: i32 = 1;
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.meters = Some(HwMeter::new(
             &hwinfo.clk_srcs,
             hwinfo.mixer_captures,
@@ -92,7 +91,7 @@ impl MeterCtl {
         Ok(())
     }
 
-    pub fn measure_states(&mut self, unit: &mut hinawa::SndEfw, timeout_ms: u32) -> Result<(), Error> {
+    pub fn measure_states(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
         match &mut self.meters {
             Some(meters) => unit.get_hw_meter(meters, timeout_ms),
             None => {
@@ -102,7 +101,7 @@ impl MeterCtl {
         }
     }
 
-    pub fn measure_elem(&mut self, elem_id: &alsactl::ElemId, elem_value: &mut alsactl::ElemValue)
+    pub fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
         -> Result<bool, Error>
     {
         match elem_id.get_name().as_str() {

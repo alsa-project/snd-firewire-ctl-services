@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use hinawa::SndUnitExt;
-
-use efw_protocols::ClkSrc;
-use efw_protocols::hw_info::*;
-use efw_protocols::hw_ctl::*;
+use {
+    glib::{Error, FileError},
+    core::{card_cntr::*, elem_value_accessor::*},
+    hinawa::{SndEfw, SndUnitExt},
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    efw_protocols::{ClkSrc, hw_info::*, hw_ctl::*},
+};
 
 fn clk_src_to_str(src: &ClkSrc) -> &'static str {
     match src {
@@ -36,21 +34,19 @@ impl ClkCtl {
     pub fn load(
         &mut self,
         hwinfo: &HwInfo,
-        card_cntr: &mut card_cntr::CardCntr,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.srcs.extend_from_slice(&hwinfo.clk_srcs);
         self.rates.extend_from_slice(&hwinfo.clk_rates);
 
         let labels: Vec<&str> = self.srcs.iter().map(|src| clk_src_to_str(src)).collect();
 
-        let elem_id =
-            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         let labels: Vec<String> = hwinfo.clk_rates.iter().map(|rate| rate.to_string()).collect();
 
-        let elem_id =
-            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         Ok(())
@@ -58,9 +54,9 @@ impl ClkCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -94,10 +90,10 @@ impl ClkCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {

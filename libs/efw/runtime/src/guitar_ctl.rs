@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use efw_protocols::hw_info::*;
-use efw_protocols::robot_guitar::*;
+use {
+    glib::Error,
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_info::*, robot_guitar::*},
+};
 
 #[derive(Default)]
 pub struct GuitarCtl;
@@ -20,22 +21,20 @@ impl GuitarCtl {
     const MAX_SEC: i32 = 60 * 60;   // = One hour.
     const STEP_SEC: i32 = 1;
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let has_guitar_charge = hwinfo.caps.iter().find(|&e| *e == HwCap::GuitarCharging).is_some();
 
         if has_guitar_charge {
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Card, 0, 0, MANUAL_CHARGE_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card, 0, 0, MANUAL_CHARGE_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Card, 0, 0, AUTO_CHARGE_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card, 0, 0, AUTO_CHARGE_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Card, 0, 0, SUSPEND_TO_CHARGE, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Card, 0, 0, SUSPEND_TO_CHARGE, 0);
             let _ = card_cntr.add_int_elems(&elem_id, 1,
                 Self::MIN_SEC, Self::MAX_SEC, Self::STEP_SEC, 1, None, true)?;
         }
@@ -45,9 +44,9 @@ impl GuitarCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -78,10 +77,10 @@ impl GuitarCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
