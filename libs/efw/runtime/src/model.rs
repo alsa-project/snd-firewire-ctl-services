@@ -166,3 +166,21 @@ impl MeasureModel<SndEfw> for EfwModel {
         self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }
+
+impl NotifyModel<SndEfw, bool> for EfwModel {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
+    }
+
+    fn parse_notification(&mut self, _: &mut SndEfw, _: &bool) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndEfw,
+        _: &ElemId,
+        _: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        Ok(false)
+    }
+}
