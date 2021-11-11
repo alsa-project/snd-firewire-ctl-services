@@ -55,8 +55,10 @@ impl MixerCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
 
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_SOLO_NAME, 0);
-        let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
+        if hwinfo.caps.iter().find(|cap| HwCap::ControlRoom.eq(cap)).is_none() {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_SOLO_NAME, 0);
+            let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
+        }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, self.playbacks,
