@@ -92,7 +92,7 @@ impl CtlModel<SndEfw> for EfwModel {
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
         self.input_ctl.load(unit, &hwinfo, card_cntr, TIMEOUT_MS)?;
-        self.port_ctl.load(&hwinfo, card_cntr, unit, TIMEOUT_MS)?;
+        self.port_ctl.load(&hwinfo, card_cntr, unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
         self.meter_ctl.load(&hwinfo, card_cntr)?;
         self.guitar_ctl.load(&hwinfo, card_cntr)?;
         self.iec60958_ctl.load(&hwinfo, card_cntr)?;
@@ -176,7 +176,7 @@ impl NotifyModel<SndEfw, bool> for EfwModel {
     fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
-            self.port_ctl.cache(unit, TIMEOUT_MS)?;
+            self.port_ctl.cache(unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
         }
         Ok(())
     }
