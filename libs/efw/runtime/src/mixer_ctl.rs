@@ -76,7 +76,11 @@ impl MixerCtl {
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ENABLE_MIXER, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
-        self.has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
+
+        // Onyx 1200f has both DSP and FPGA.
+        let has_dsp = hwinfo.caps.iter().find(|cap| HwCap::Dsp.eq(cap)).is_some();
+        let has_fpga = hwinfo.caps.iter().find(|cap| HwCap::Fpga.eq(cap)).is_some();
+        self.has_fpga = !has_dsp && has_fpga;
 
         Ok(())
     }
