@@ -31,6 +31,12 @@ pub enum ClkSrc {
     Reserved(usize),
 }
 
+impl Default for ClkSrc {
+    fn default() -> Self {
+        Self::Reserved(usize::MAX)
+    }
+}
+
 impl From<ClkSrc> for usize {
     fn from(src: ClkSrc) -> Self {
         match src {
