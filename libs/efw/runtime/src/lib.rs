@@ -44,7 +44,7 @@ pub struct EfwRuntime {
     tx: mpsc::SyncSender<Event>,
     dispatchers: Vec<Dispatcher>,
     timer: Option<Dispatcher>,
-    measure_elems: Vec<ElemId>,
+    measured_elem_id_list: Vec<ElemId>,
 }
 
 impl Drop for EfwRuntime {
@@ -77,19 +77,15 @@ impl RuntimeOperation<u32> for EfwRuntime {
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        let dispatchers = Vec::new();
-        let timer = None;
-        let measure_elems = Vec::new();
-
         Ok(EfwRuntime {
             unit,
             model,
             card_cntr,
             rx,
             tx,
-            dispatchers,
-            timer,
-            measure_elems,
+            dispatchers: Default::default(),
+            timer: Default::default(),
+            measured_elem_id_list: Default::default(),
         })
     }
 
@@ -102,7 +98,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        self.model.get_measure_elem_list(&mut self.measure_elems);
+        self.model.get_measure_elem_list(&mut self.measured_elem_id_list);
 
         Ok(())
     }
@@ -122,7 +118,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
                 Event::Timer => {
                     let _ = self.card_cntr.measure_elems(
                         &mut self.unit,
-                        &self.measure_elems,
+                        &self.measured_elem_id_list,
                         &mut self.model,
                     );
                 }
