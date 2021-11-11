@@ -38,6 +38,7 @@ fn digital_mode_to_str(mode: &DigitalMode) -> &'static str {
 #[derive(Default)]
 pub struct PortCtl {
     dig_modes: Vec<DigitalMode>,
+    pub notified_elem_id_list: Vec<ElemId>,
     phys_in_pairs: usize,
     phys_out_pairs: usize,
     tx_stream_pair_counts: [usize; 3],
@@ -61,7 +62,7 @@ impl PortCtl {
     ];
 
     fn add_mapping_ctl(
-        &self,
+        &mut self,
         card_cntr: &mut CardCntr,
         name: &str,
         phys_pairs: usize,
@@ -72,9 +73,8 @@ impl PortCtl {
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, phys_pairs, &labels, None, true)?;
-
-        Ok(())
+        card_cntr.add_enum_elems(&elem_id, 1, phys_pairs, &labels, None, true)
+            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))
     }
 
     pub fn load(
@@ -229,6 +229,16 @@ impl PortCtl {
                 })?;
                 Ok(true)
             }
+            _ => self.read_notified_elem(elem_id, elem_value),
+        }
+    }
+
+    pub fn read_notified_elem(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
             RX_MAP_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, self.rx_stream_map.len(), |idx| {
                     Ok(self.rx_stream_map[idx] as u32)
