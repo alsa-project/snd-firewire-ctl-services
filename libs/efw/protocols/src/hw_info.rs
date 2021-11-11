@@ -23,7 +23,7 @@ pub enum HwCap {
     /// The address to which response of transaction is transmitted is configurable.
     ChangeableRespAddr,
     /// Has control room for output mirror.
-    MirrorOutput,
+    ControlRoom,
     /// S/PDIF signal is available for coaxial interface as option.
     OptionalSpdifCoax,
     /// S/PDIF signal is available for AES/EBU XLR interface as option.
@@ -62,7 +62,7 @@ impl From<usize> for HwCap {
     fn from(val: usize) -> Self {
         match val {
             0 => HwCap::ChangeableRespAddr,
-            1 => HwCap::MirrorOutput,
+            1 => HwCap::ControlRoom,
             2 => HwCap::OptionalSpdifCoax,
             3 => HwCap::OptionalAesebuXlr,
             4 => HwCap::Dsp,
@@ -219,7 +219,7 @@ impl HwInfo {
                 caps.push(HwCap::NominalInput);
                 caps.push(HwCap::NominalOutput);
             }
-            O1200F => caps.push(HwCap::MirrorOutput),
+            O1200F => caps.push(HwCap::ControlRoom),
             _ => (),
         }
 
