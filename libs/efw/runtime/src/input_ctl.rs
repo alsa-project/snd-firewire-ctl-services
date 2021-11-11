@@ -35,18 +35,17 @@ impl InputCtl {
                 alsactl::ElemIfaceType::Mixer, 0, 0, IN_NOMINAL_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1,
                 self.phys_inputs, &Self::IN_NOMINAL_LABELS, None, true)?;
-        }
 
-        // FPGA models return invalid state of nominal level. Here, initialize them and cache the
-        // state instead.
-        let has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
-        if has_fpga {
-            let cache = vec![NominalSignalLevel::Professional;self.phys_inputs];
-            cache.iter().enumerate()
-                .try_for_each( |(i, &level)| {
-                    unit.set_nominal(i, level, timeout_ms)
-                })?;
-            self.cache = Some(cache);
+            // FPGA models return invalid state of nominal level.
+            let has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
+            if has_fpga {
+                let cache = vec![NominalSignalLevel::Professional;self.phys_inputs];
+                cache.iter().enumerate()
+                    .try_for_each( |(i, &level)| {
+                        unit.set_nominal(i, level, timeout_ms)
+                    })?;
+                self.cache = Some(cache);
+            }
         }
 
         Ok(())
