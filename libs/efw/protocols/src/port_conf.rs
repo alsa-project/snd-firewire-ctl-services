@@ -60,6 +60,8 @@ impl From<DigitalMode> for u32 {
 }
 
 const MAP_SIZE: usize = 70;
+const MAP_ENTRY_COUNT: usize = 32;
+const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
 
 /// Protocol about port configuration for Fireworks board module.
 pub trait PortConfProtocol: EfwProtocol {
@@ -133,37 +135,21 @@ pub trait PortConfProtocol: EfwProtocol {
     fn set_stream_map(
         &mut self,
         rate: u32,
-        rx_map: Option<Vec<usize>>,
-        tx_map: Option<Vec<usize>>,
+        phys_output_pair_count: usize,
+        phys_input_pair_count: usize,
+        rx_stream_map: &[Option<usize>],
+        tx_stream_map: &[Option<usize>],
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut args = [rate];
-        let mut params = [0; MAP_SIZE];
-        self.transaction_sync(
-            CATEGORY_PORT_CONF,
-            CMD_GET_STREAM_MAP,
-            Some(&mut args),
-            Some(&mut params),
-            timeout_ms,
-        )?;
         let mut args = [0; MAP_SIZE];
-        args[0] = rate;
-        if let Some(entries) = rx_map {
-            args[2] = entries.len() as u32;
-            args[3] = params[3];
-            entries
-                .iter()
-                .enumerate()
-                .for_each(|(pos, entry)| args[4 + pos] = 2 * *entry as u32);
-        }
-        if let Some(entries) = tx_map {
-            args[36] = entries.len() as u32;
-            args[37] = params[37];
-            entries
-                .iter()
-                .enumerate()
-                .for_each(|(pos, entry)| args[38 + pos] = 2 * *entry as u32);
-        }
+        build_stream_map(
+            &mut args,
+            rate,
+            phys_output_pair_count,
+            phys_input_pair_count,
+            rx_stream_map,
+            tx_stream_map
+        );
         self.transaction_sync(
             CATEGORY_PORT_CONF,
             CMD_SET_STREAM_MAP,
@@ -176,8 +162,12 @@ pub trait PortConfProtocol: EfwProtocol {
     fn get_stream_map(
         &mut self,
         rate: u32,
+        phys_output_pair_count: usize,
+        phys_input_pair_count: usize,
+        rx_stream_map: &mut [Option<usize>],
+        tx_stream_map: &mut [Option<usize>],
         timeout_ms: u32
-    ) -> Result<(Vec<usize>, Vec<usize>), Error> {
+    ) -> Result<(), Error> {
         let args = [rate];
         let mut params = [0; MAP_SIZE];
         self.transaction_sync(
@@ -188,17 +178,82 @@ pub trait PortConfProtocol: EfwProtocol {
             timeout_ms,
         )
         .map(|_| {
-            let rx_entry_count = params[2] as usize;
-            let rx_entries: Vec<usize> = (0..rx_entry_count)
-                .map(|pos| (params[4 + pos] / 2) as usize)
-                .collect();
-            let tx_entry_count = params[36] as usize;
-            let tx_entries: Vec<usize> = (0..tx_entry_count)
-                .map(|pos| (params[38 + pos] / 2) as usize)
-                .collect();
-            (rx_entries, tx_entries)
+            let phys_output_count = 2 * phys_output_pair_count as u32;
+            let phys_input_count = 2 * phys_input_pair_count as u32;
+
+            rx_stream_map
+                .iter_mut()
+                .zip(params[4..].iter())
+                .take(params[2] as usize)
+                .for_each(|(entry, &val)| {
+                    *entry = if val < phys_output_count {
+                        Some((val / 2) as usize)
+                    } else {
+                        None
+                    };
+                });
+            tx_stream_map
+                .iter_mut()
+                .zip(params[38..].iter())
+                .take(params[36] as usize)
+                .for_each(|(entry, &val)| {
+                    *entry = if val < phys_input_count {
+                        Some((val / 2) as usize)
+                    } else {
+                        None
+                    };
+                });
         })
     }
+}
+
+fn build_stream_map(
+    quads: &mut [u32],
+    rate: u32,
+    phys_output_pair_count: usize,
+    phys_input_pair_count: usize,
+    rx_stream_map: &[Option<usize>],
+    tx_stream_map: &[Option<usize>]
+) {
+    assert_eq!(quads.len(), MAP_SIZE);
+    assert!(rx_stream_map.len() < MAP_ENTRY_COUNT);
+    assert!(tx_stream_map.len() < MAP_ENTRY_COUNT);
+
+    quads[0] = rate;
+    // NOTE: This field is filled with clock source bits, however it's not used actually.
+    quads[1] = 0;
+    quads[2] = rx_stream_map.len() as u32;
+    quads[3] = (phys_output_pair_count * 2) as u32;
+    quads[4..(4 + MAP_ENTRY_COUNT)]
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, entry)| {
+            *entry = if i < rx_stream_map.len() {
+                if let Some(entry) = rx_stream_map[i] {
+                    entry as u32
+                } else {
+                    MAP_ENTRY_DISABLE
+                }
+            } else {
+                MAP_ENTRY_DISABLE
+            };
+        });
+    quads[36] = tx_stream_map.len() as u32;
+    quads[37] = (phys_input_pair_count * 2) as u32;
+    quads[38..(38 + MAP_ENTRY_COUNT)]
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, entry)| {
+            *entry = if i < tx_stream_map.len() {
+                if let Some(entry) = tx_stream_map[i] {
+                    entry as u32
+                } else {
+                    MAP_ENTRY_DISABLE
+                }
+            } else {
+                MAP_ENTRY_DISABLE
+            };
+        });
 }
 
 impl<O: EfwProtocol> PortConfProtocol for O {}

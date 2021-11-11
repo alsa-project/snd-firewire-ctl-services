@@ -4,7 +4,7 @@
 use {
     glib::{Error, FileError},
     hinawa::SndEfw,
-    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    alsactl::{ElemId, ElemIfaceType, ElemValueExt, ElemValueExtManual, ElemValue},
     core::{card_cntr::*, elem_value_accessor::*},
     efw_protocols::{hw_info::*, port_conf::*},
 };
@@ -44,8 +44,8 @@ pub struct PortCtl {
     phys_out_pairs: usize,
     tx_stream_pair_counts: [usize; 3],
     rx_stream_pair_counts: [usize; 3],
-    tx_stream_map: Vec<usize>,
-    rx_stream_map: Vec<usize>,
+    tx_stream_map: Vec<Option<usize>>,
+    rx_stream_map: Vec<Option<usize>>,
 }
 
 const MIRROR_OUTPUT_NAME: &str = "mirror-output";
@@ -54,6 +54,38 @@ const PHANTOM_NAME: &str = "phantom-powering";
 const RX_MAP_NAME: &str = "stream-playback-routing";
 const TX_MAP_NAME: &str = "stream-capture-routing";
 
+fn create_stream_map_labels(phys_entries: &[PhysGroupEntry]) -> Vec<String> {
+    let mut labels = vec!["Disable".to_string()];
+    phys_entries
+        .iter()
+        .for_each(|entry| {
+            let name = phys_group_type_to_str(&entry.group_type);
+            let pair_count = entry.group_count / 2;
+            (0..pair_count).for_each(|i| {
+                let label = format!("{}-{}/{}", name, i * 2 + 1, i * 2 + 2);
+                labels.push(label);
+            });
+        });
+    labels
+}
+
+fn enum_values_from_entries(elem_value: &mut ElemValue, entries: &[Option<usize>]) {
+    let vals: Vec<u32> = entries
+        .iter()
+        .map(|entry| if let Some(pos) = entry { 1 + *pos as u32 } else { 0 })
+        .collect();
+    elem_value.set_enum(&vals);
+}
+
+fn enum_values_to_entries(elem_value: &ElemValue, entries: &mut [Option<usize>]) {
+    let mut vals = vec![0; entries.len()];
+    elem_value.get_enum(&mut vals);
+    entries
+        .iter_mut()
+        .zip(vals.iter())
+        .for_each(|(entry, &pos)| *entry = if pos == 0 { None } else { Some((pos as usize) - 1) });
+}
+
 impl PortCtl {
     const DIG_MODES: [(HwCap, DigitalMode);4] = [
         (HwCap::SpdifCoax, DigitalMode::SpdifCoax),
@@ -61,22 +93,6 @@ impl PortCtl {
         (HwCap::SpdifOpt, DigitalMode::SpdifOpt),
         (HwCap::AdatOpt, DigitalMode::AdatOpt),
     ];
-
-    fn add_mapping_ctl(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        name: &str,
-        phys_pairs: usize,
-        stream_pairs: usize,
-    ) -> Result<(), Error> {
-        let labels: Vec<String> = (0..stream_pairs)
-            .map(|pair| format!("Stream-{}/{}", pair * 2 + 1, pair * 2 + 2))
-            .collect();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, phys_pairs, &labels, None, true)
-            .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))
-    }
 
     pub fn load(
         &mut self,
@@ -129,12 +145,11 @@ impl PortCtl {
         let has_tx_mapping = hwinfo.caps.iter().find(|cap| HwCap::InputMapping.eq(cap)).is_some();
 
         if has_rx_mapping || has_tx_mapping {
-            self.phys_in_pairs = hwinfo.phys_inputs
-                .iter()
-                .fold(0, |accm, entry| accm + entry.group_count) / 2;
-            self.phys_out_pairs = hwinfo.phys_outputs
-                .iter()
-                .fold(0, |accm, entry| accm + entry.group_count) / 2;
+            let phys_input_pair_labels = create_stream_map_labels(&hwinfo.phys_inputs);
+            let phys_output_pair_labels = create_stream_map_labels(&hwinfo.phys_outputs);
+
+            self.phys_in_pairs = phys_input_pair_labels.len();
+            self.phys_out_pairs = phys_output_pair_labels.len();
 
             hwinfo.tx_channels
                 .iter()
@@ -145,27 +160,41 @@ impl PortCtl {
                 .enumerate()
                 .for_each(|(i, count)| self.rx_stream_pair_counts[i] = count / 2);
 
-            self.tx_stream_map = vec![0; self.tx_stream_pair_counts[0]];
-            self.rx_stream_map = vec![0; self.rx_stream_pair_counts[0]];
+            self.tx_stream_map = vec![Default::default(); self.tx_stream_pair_counts[0]];
+            self.rx_stream_map = vec![Default::default(); self.rx_stream_pair_counts[0]];
 
             self.cache(unit, curr_rate, timeout_ms)?;
 
             if has_tx_mapping {
-                self.add_mapping_ctl(
-                    card_cntr,
-                    TX_MAP_NAME,
-                    self.phys_in_pairs,
-                    self.tx_stream_map.len(),
-                )?;
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TX_MAP_NAME, 0);
+                card_cntr
+                    .add_enum_elems(
+                        &elem_id,
+                        1,
+                        self.tx_stream_map.len(),
+                        &phys_input_pair_labels,
+                        None,
+                        true
+                    )
+                        .map(|mut elem_id_list| {
+                            self.notified_elem_id_list.append(&mut elem_id_list);
+                        })?;
             }
 
             if has_rx_mapping {
-                self.add_mapping_ctl(
-                    card_cntr,
-                    RX_MAP_NAME,
-                    self.phys_out_pairs,
-                    self.rx_stream_map.len(),
-                )?;
+                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, RX_MAP_NAME, 0);
+                card_cntr
+                    .add_enum_elems(
+                        &elem_id,
+                        1,
+                        self.rx_stream_map.len(),
+                        &phys_output_pair_labels,
+                        None,
+                        true
+                    )
+                        .map(|mut elem_id_list| {
+                            self.notified_elem_id_list.append(&mut elem_id_list);
+                        })?;
             }
         }
 
@@ -178,27 +207,15 @@ impl PortCtl {
         curr_rate: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let (rx_entries, tx_entries) = unit.get_stream_map(curr_rate, timeout_ms)?;
-        self.tx_stream_map.iter_mut()
-            .enumerate()
-            .for_each(|(i, map)| {
-                *map = if i < tx_entries.len() {
-                    tx_entries[i]
-                } else {
-                    0
-                }
-            });
-        self.rx_stream_map.iter_mut()
-            .enumerate()
-            .for_each(|(i, map)| {
-                *map = if i < rx_entries.len() {
-                    rx_entries[i]
-                } else {
-                    0
-                }
-            });
-        self.curr_rate = curr_rate;
-        Ok(())
+        unit.get_stream_map(
+            curr_rate,
+            self.phys_out_pairs,
+            self.phys_in_pairs,
+            &mut self.rx_stream_map,
+            &mut self.tx_stream_map,
+            timeout_ms
+        )
+            .map(|_| self.curr_rate = curr_rate)
     }
 
     pub fn read(
@@ -244,15 +261,11 @@ impl PortCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RX_MAP_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, self.rx_stream_map.len(), |idx| {
-                    Ok(self.rx_stream_map[idx] as u32)
-                })?;
+                enum_values_from_entries(elem_value, &self.rx_stream_map);
                 Ok(true)
             }
             TX_MAP_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, self.tx_stream_map.len(), |idx| {
-                    Ok(self.tx_stream_map[idx] as u32)
-                })?;
+                enum_values_from_entries(elem_value, &self.tx_stream_map);
                 Ok(true)
             }
             _ => Ok(false),
@@ -263,7 +276,7 @@ impl PortCtl {
         &mut self,
         unit: &mut SndEfw,
         elem_id: &ElemId,
-        old: &ElemValue,
+        _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
@@ -292,22 +305,36 @@ impl PortCtl {
                 Ok(true)
             }
             RX_MAP_NAME => {
-                let (mut rx_entries, _) = unit.get_stream_map(self.curr_rate, timeout_ms)?;
-                ElemValueAccessor::<u32>::get_vals(new, old, self.rx_stream_map.len(), |idx, val| {
-                    rx_entries[idx] = val as usize;
-                    Ok(())
-                })?;
-                unit.set_stream_map(self.curr_rate, Some(rx_entries), None, timeout_ms)?;
-                Ok(true)
+                let mut rx_stream_map = vec![Default::default(); self.rx_stream_map.len()];
+                enum_values_to_entries(new, &mut rx_stream_map);
+                unit.set_stream_map(
+                    self.curr_rate,
+                    self.phys_out_pairs,
+                    self.phys_in_pairs,
+                    &rx_stream_map,
+                    &self.tx_stream_map,
+                    timeout_ms,
+                )
+                    .map(|_| {
+                        self.rx_stream_map.copy_from_slice(&rx_stream_map);
+                        true
+                    })
             }
             TX_MAP_NAME => {
-                let (_, mut tx_entries) = unit.get_stream_map(self.curr_rate, timeout_ms)?;
-                ElemValueAccessor::<u32>::get_vals(new, old, self.tx_stream_map.len(), |idx, val| {
-                    tx_entries[idx] = val as usize;
-                    Ok(())
-                })?;
-                unit.set_stream_map(self.curr_rate, None, Some(tx_entries), timeout_ms)?;
-                Ok(true)
+                let mut tx_stream_map = vec![Default::default(); self.tx_stream_map.len()];
+                enum_values_to_entries(new, &mut tx_stream_map);
+                unit.set_stream_map(
+                    self.curr_rate,
+                    self.phys_out_pairs,
+                    self.phys_in_pairs,
+                    &self.rx_stream_map,
+                    &tx_stream_map,
+                    timeout_ms,
+                )
+                    .map(|_| {
+                        self.tx_stream_map.copy_from_slice(&tx_stream_map);
+                        true
+                    })
             }
             _ => Ok(false),
         }
