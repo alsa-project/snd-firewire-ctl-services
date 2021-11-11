@@ -24,10 +24,10 @@ pub enum HwCap {
     ChangeableRespAddr,
     /// Has control room for output mirror.
     MirrorOutput,
-    /// Has coaxial interface for S/PDIF signal.
-    SpdifCoax,
-    /// Has XLR interface for AES/EBU signal.
-    AesebuXlr,
+    /// S/PDIF signal is available for coaxial interface as option.
+    OptionalSpdifCoax,
+    /// S/PDIF signal is available for AES/EBU XLR interface as option.
+    OptionalAesebuXlr,
     /// Has DSP (Texas Instrument TMS320C67).
     Dsp,
     /// Has FPGA (Xilinx Spartan XC35250E).
@@ -38,10 +38,10 @@ pub enum HwCap {
     OutputMapping,
     /// The gain of physical input is adjustable.
     InputGain,
-    /// Has optical interface for S/PDIF.
-    SpdifOpt,
-    /// Has optical interface for ADAT.
-    AdatOpt,
+    /// S/PDIF signal is available for optical interface as option.
+    OptionalSpdifOpt,
+    /// ADAT signal is available for optical interface as option.
+    OptionalAdatOpt,
     /// The nominal level of input audio signal is selectable.
     NominalInput,
     /// The nominal level of output audio signal is selectable.
@@ -63,15 +63,15 @@ impl From<usize> for HwCap {
         match val {
             0 => HwCap::ChangeableRespAddr,
             1 => HwCap::MirrorOutput,
-            2 => HwCap::SpdifCoax,
-            3 => HwCap::AesebuXlr,
+            2 => HwCap::OptionalSpdifCoax,
+            3 => HwCap::OptionalAesebuXlr,
             4 => HwCap::Dsp,
             5 => HwCap::Fpga,
             6 => HwCap::PhantomPowering,
             7 => HwCap::OutputMapping,
             8 => HwCap::InputGain,
-            9 => HwCap::SpdifOpt,
-            10 => HwCap::AdatOpt,
+            9 => HwCap::OptionalSpdifOpt,
+            10 => HwCap::OptionalAdatOpt,
             11 => HwCap::NominalInput,
             12 => HwCap::NominalOutput,
             13 => HwCap::SoftClip,
@@ -174,6 +174,7 @@ impl Default for HwInfo {
 }
 
 // Known models.
+#[allow(dead_code)]
 const O400F: u32 = 0x0000400f;
 const O1200F: u32 = 0x0001200f;
 const AF2: u32 = 0x00000af2;
@@ -214,27 +215,11 @@ impl HwInfo {
             .collect();
 
         match hw_type {
-            O400F => caps.push(HwCap::SpdifCoax),
+            AF2 | AF4 | AF8 | AFP8 | AF12 => {
+                caps.push(HwCap::NominalInput);
+                caps.push(HwCap::NominalOutput);
+            }
             O1200F => caps.push(HwCap::MirrorOutput),
-            AF2 | AF4 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-                caps.push(HwCap::SpdifCoax);
-            }
-            AF8 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-                caps.push(HwCap::SpdifCoax);
-            }
-            AFP8 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-                // It has flags for Coaxial/Optical interface for S/PDIF signal.
-            }
-            AF12 => {
-                caps.push(HwCap::NominalInput);
-                caps.push(HwCap::NominalOutput);
-            }
             _ => (),
         }
 

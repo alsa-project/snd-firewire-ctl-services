@@ -88,10 +88,10 @@ fn enum_values_to_entries(elem_value: &ElemValue, entries: &mut [Option<usize>])
 
 impl PortCtl {
     const DIG_MODES: [(HwCap, DigitalMode);4] = [
-        (HwCap::SpdifCoax, DigitalMode::SpdifCoax),
-        (HwCap::AesebuXlr, DigitalMode::AesebuXlr),
-        (HwCap::SpdifOpt, DigitalMode::SpdifOpt),
-        (HwCap::AdatOpt, DigitalMode::AdatOpt),
+        (HwCap::OptionalSpdifCoax, DigitalMode::SpdifCoax),
+        (HwCap::OptionalAesebuXlr, DigitalMode::AesebuXlr),
+        (HwCap::OptionalSpdifOpt, DigitalMode::SpdifOpt),
+        (HwCap::OptionalAdatOpt, DigitalMode::AdatOpt),
     ];
 
     pub fn load(
