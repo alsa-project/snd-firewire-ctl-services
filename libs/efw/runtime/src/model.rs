@@ -170,11 +170,13 @@ impl MeasureModel<SndEfw> for EfwModel {
 impl NotifyModel<SndEfw, bool> for EfwModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.notified_elem_id_list);
+        elem_id_list.extend_from_slice(&self.port_ctl.notified_elem_id_list);
     }
 
     fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
+            self.port_ctl.cache(unit, TIMEOUT_MS)?;
         }
         Ok(())
     }
@@ -186,6 +188,8 @@ impl NotifyModel<SndEfw, bool> for EfwModel {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.port_ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
