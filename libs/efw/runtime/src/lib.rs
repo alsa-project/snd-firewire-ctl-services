@@ -14,7 +14,7 @@ mod port_ctl;
 use {
     glib::{source, Error},
     nix::sys::signal,
-    std::{sync::mpsc, time},
+    std::{sync::mpsc, time, thread},
     hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
     core::{card_cntr::*, dispatcher::*, RuntimeOperation},
     alsactl::{
@@ -34,6 +34,7 @@ enum Event {
     BusReset(u32),
     Timer,
     Elem((ElemId, ElemEventMask)),
+    StreamLock(bool),
 }
 
 pub struct EfwRuntime {
@@ -45,6 +46,7 @@ pub struct EfwRuntime {
     dispatchers: Vec<Dispatcher>,
     timer: Option<Dispatcher>,
     measured_elem_id_list: Vec<ElemId>,
+    notified_elem_id_list: Vec<ElemId>,
 }
 
 impl Drop for EfwRuntime {
@@ -86,6 +88,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
             dispatchers: Default::default(),
             timer: Default::default(),
             measured_elem_id_list: Default::default(),
+            notified_elem_id_list: Default::default(),
         })
     }
 
@@ -99,6 +102,8 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         self.model.get_measure_elem_list(&mut self.measured_elem_id_list);
+
+        self.model.get_notified_elem_list(&mut self.notified_elem_id_list);
 
         Ok(())
     }
@@ -147,6 +152,14 @@ impl RuntimeOperation<u32> for EfwRuntime {
                             }
                         }
                     }
+                }
+                Event::StreamLock(locked) => {
+                    let _ = self.card_cntr.dispatch_notification(
+                        &mut self.unit,
+                        &locked,
+                        &self.notified_elem_id_list,
+                        &mut self.model,
+                    );
                 }
             }
         }
@@ -204,6 +217,18 @@ impl EfwRuntime {
                 let elem_id: ElemId = elem_id.clone();
                 let _ = tx.send(Event::Elem((elem_id, events)));
             });
+
+        let tx = self.tx.clone();
+        self.unit.connect_lock_status(move |_, locked| {
+            let t = tx.clone();
+            let _ = thread::spawn(move || {
+                // The notification of stream lock is not strictly corresponding to actual
+                // packet streaming. Here, wait for 500 msec to catch the actual packet
+                // streaming.
+                thread::sleep(time::Duration::from_millis(500));
+                let _ = t.send(Event::StreamLock(locked));
+            });
+        });
 
         self.dispatchers.push(dispatcher);
 
