@@ -87,7 +87,7 @@ your device, please contact to developer.
   * Tascam FW-1804
   * Tascam FE-8
 
-* snd-fireowrks-ctl-service
+* snd-fireworks-ctl-service
 
   * Mackie (Loud) Onyx 1200F
   * Mackie (Loud) Onyx 400F
