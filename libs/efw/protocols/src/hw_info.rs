@@ -215,7 +215,7 @@ impl HwInfo {
 
         match hw_type {
             O400F => caps.push(HwCap::SpdifCoax),
-            O1200F => caps.push(HwCap::InputMapping),
+            O1200F => caps.push(HwCap::MirrorOutput),
             AF2 | AF4 => {
                 caps.push(HwCap::NominalInput);
                 caps.push(HwCap::NominalOutput);
