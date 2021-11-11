@@ -40,8 +40,10 @@ pub struct PortCtl {
     dig_modes: Vec<DigitalMode>,
     phys_in_pairs: usize,
     phys_out_pairs: usize,
-    rx_pairs: usize,
-    tx_pairs: usize,
+    tx_stream_pair_counts: [usize; 3],
+    rx_stream_pair_counts: [usize; 3],
+    tx_stream_map: Vec<usize>,
+    rx_stream_map: Vec<usize>,
 }
 
 const MIRROR_OUTPUT_NAME: &str = "mirror-output";
@@ -75,7 +77,13 @@ impl PortCtl {
         Ok(())
     }
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(
+        &mut self,
+        hwinfo: &HwInfo,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndEfw,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::MirrorOutput).is_some() {
             let labels = hwinfo.phys_outputs.iter()
                 .filter(|entry| entry.group_type != PhysGroupType::AnalogMirror)
@@ -115,28 +123,77 @@ impl PortCtl {
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
-        if hwinfo.caps.iter().position(|cap| *cap == HwCap::OutputMapping).is_some() {
-            self.phys_out_pairs = hwinfo.phys_outputs.iter()
-                .fold(0, |accm, entry| accm + entry.group_count)
-                / 2;
-            self.rx_pairs = hwinfo.rx_channels[0] / 2;
+        let has_rx_mapping = hwinfo.caps.iter().find(|cap| HwCap::OutputMapping.eq(cap)).is_some();
+        let has_tx_mapping = hwinfo.caps.iter().find(|cap| HwCap::InputMapping.eq(cap)).is_some();
 
-            self.add_mapping_ctl(card_cntr, RX_MAP_NAME, self.phys_out_pairs, self.rx_pairs)?;
-        }
-
-        if hwinfo.caps.iter().position(|cap| *cap == HwCap::InputMapping).is_some() {
-            self.phys_in_pairs = hwinfo.phys_inputs.iter()
+        if has_rx_mapping || has_tx_mapping {
+            self.phys_in_pairs = hwinfo.phys_inputs
+                .iter()
                 .fold(0, |accm, entry| accm + entry.group_count) / 2;
-            self.tx_pairs = hwinfo.tx_channels[0] / 2;
+            self.phys_out_pairs = hwinfo.phys_outputs
+                .iter()
+                .fold(0, |accm, entry| accm + entry.group_count) / 2;
 
-            self.add_mapping_ctl(
-                card_cntr,
-                TX_MAP_NAME,
-                self.phys_in_pairs,
-                self.tx_pairs,
-            )?;
+            hwinfo.tx_channels
+                .iter()
+                .enumerate()
+                .for_each(|(i, count)| self.tx_stream_pair_counts[i] = count / 2);
+            hwinfo.rx_channels
+                .iter()
+                .enumerate()
+                .for_each(|(i, count)| self.rx_stream_pair_counts[i] = count / 2);
+
+            self.tx_stream_map = vec![0; self.tx_stream_pair_counts[0]];
+            self.rx_stream_map = vec![0; self.rx_stream_pair_counts[0]];
+
+            self.cache(unit, timeout_ms)?;
+
+            if has_tx_mapping {
+                self.add_mapping_ctl(
+                    card_cntr,
+                    TX_MAP_NAME,
+                    self.phys_in_pairs,
+                    self.tx_stream_map.len(),
+                )?;
+            }
+
+            if has_rx_mapping {
+                self.add_mapping_ctl(
+                    card_cntr,
+                    RX_MAP_NAME,
+                    self.phys_out_pairs,
+                    self.rx_stream_map.len(),
+                )?;
+            }
         }
 
+        Ok(())
+    }
+
+    pub fn cache(
+        &mut self,
+        unit: &mut SndEfw,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
+        let (rx_entries, tx_entries) = unit.get_stream_map(timeout_ms)?;
+        self.tx_stream_map.iter_mut()
+            .enumerate()
+            .for_each(|(i, map)| {
+                *map = if i < tx_entries.len() {
+                    tx_entries[i]
+                } else {
+                    0
+                }
+            });
+        self.rx_stream_map.iter_mut()
+            .enumerate()
+            .for_each(|(i, map)| {
+                *map = if i < rx_entries.len() {
+                    rx_entries[i]
+                } else {
+                    0
+                }
+            });
         Ok(())
     }
 
@@ -173,16 +230,14 @@ impl PortCtl {
                 Ok(true)
             }
             RX_MAP_NAME => {
-                let (rx_entries, _) = unit.get_stream_map(timeout_ms)?;
-                ElemValueAccessor::<u32>::set_vals(elem_value, rx_entries.len(), |idx| {
-                    Ok(rx_entries[idx] as u32)
+                ElemValueAccessor::<u32>::set_vals(elem_value, self.rx_stream_map.len(), |idx| {
+                    Ok(self.rx_stream_map[idx] as u32)
                 })?;
                 Ok(true)
             }
             TX_MAP_NAME => {
-                let (_, tx_entries) = unit.get_stream_map(timeout_ms)?;
-                ElemValueAccessor::<u32>::set_vals(elem_value, tx_entries.len(), |idx| {
-                    Ok(tx_entries[idx] as u32)
+                ElemValueAccessor::<u32>::set_vals(elem_value, self.tx_stream_map.len(), |idx| {
+                    Ok(self.tx_stream_map[idx] as u32)
                 })?;
                 Ok(true)
             }
@@ -224,7 +279,7 @@ impl PortCtl {
             }
             RX_MAP_NAME => {
                 let (mut rx_entries, _) = unit.get_stream_map(timeout_ms)?;
-                ElemValueAccessor::<u32>::get_vals(new, old, rx_entries.len(), |idx, val| {
+                ElemValueAccessor::<u32>::get_vals(new, old, self.rx_stream_map.len(), |idx, val| {
                     rx_entries[idx] = val as usize;
                     Ok(())
                 })?;
@@ -233,7 +288,7 @@ impl PortCtl {
             }
             TX_MAP_NAME => {
                 let (_, mut tx_entries) = unit.get_stream_map(timeout_ms)?;
-                ElemValueAccessor::<u32>::get_vals(new, old, tx_entries.len(), |idx, val| {
+                ElemValueAccessor::<u32>::get_vals(new, old, self.tx_stream_map.len(), |idx, val| {
                     tx_entries[idx] = val as usize;
                     Ok(())
                 })?;

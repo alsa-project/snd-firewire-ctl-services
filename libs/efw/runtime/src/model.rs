@@ -92,7 +92,7 @@ impl CtlModel<SndEfw> for EfwModel {
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
         self.input_ctl.load(unit, &hwinfo, card_cntr, TIMEOUT_MS)?;
-        self.port_ctl.load(&hwinfo, card_cntr)?;
+        self.port_ctl.load(&hwinfo, card_cntr, unit, TIMEOUT_MS)?;
         self.meter_ctl.load(&hwinfo, card_cntr)?;
         self.guitar_ctl.load(&hwinfo, card_cntr)?;
         self.iec60958_ctl.load(&hwinfo, card_cntr)?;
