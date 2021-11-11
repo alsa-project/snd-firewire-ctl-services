@@ -48,7 +48,7 @@ pub struct PortCtl {
     rx_stream_map: Vec<Option<usize>>,
 }
 
-const MIRROR_OUTPUT_NAME: &str = "mirror-output";
+const CONTROL_ROOM_SOURCE_NAME: &str = "control-room-source";
 const DIG_MODE_NAME: &str = "digital-mode";
 const PHANTOM_NAME: &str = "phantom-powering";
 const RX_MAP_NAME: &str = "stream-playback-routing";
@@ -102,7 +102,7 @@ impl PortCtl {
         curr_rate: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        if hwinfo.caps.iter().find(|&cap| *cap == HwCap::MirrorOutput).is_some() {
+        if hwinfo.caps.iter().find(|&cap| *cap == HwCap::ControlRoom).is_some() {
             let labels = hwinfo.phys_outputs.iter()
                 .filter(|entry| entry.group_type != PhysGroupType::AnalogMirror)
                 .map(|entry| {
@@ -116,7 +116,7 @@ impl PortCtl {
                 .collect::<Vec<String>>();
 
             let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Mixer, 0, 0, MIRROR_OUTPUT_NAME, 0);
+                ElemIfaceType::Mixer, 0, 0, CONTROL_ROOM_SOURCE_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
@@ -226,9 +226,9 @@ impl PortCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MIRROR_OUTPUT_NAME => {
+            CONTROL_ROOM_SOURCE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pair = unit.get_output_mirror(timeout_ms)?;
+                    let pair = unit.get_control_room_source(timeout_ms)?;
                     Ok(pair as u32)
                 })?;
                 Ok(true)
@@ -281,9 +281,9 @@ impl PortCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MIRROR_OUTPUT_NAME => {
+            CONTROL_ROOM_SOURCE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
-                    unit.set_output_mirror(val as usize, timeout_ms)
+                    unit.set_control_room_source(val as usize, timeout_ms)
                 })?;
                 Ok(true)
             }

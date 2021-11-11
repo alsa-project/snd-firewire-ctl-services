@@ -65,17 +65,17 @@ const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
 
 /// Protocol about port configuration for Fireworks board module.
 pub trait PortConfProtocol: EfwProtocol {
-    fn set_output_mirror(&mut self, pair: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn set_control_room_source(&mut self, pair: usize, timeout_ms: u32) -> Result<(), Error> {
         self.transaction_sync(
             CATEGORY_PORT_CONF,
             CMD_SET_MIRROR,
-            Some(&[pair as u32]),
+            Some(&[(pair * 2) as u32]),
             None,
             timeout_ms,
         )
     }
 
-    fn get_output_mirror(&mut self, timeout_ms: u32) -> Result<usize, Error> {
+    fn get_control_room_source(&mut self, timeout_ms: u32) -> Result<usize, Error> {
         let mut params = [0];
         self.transaction_sync(
             CATEGORY_PORT_CONF,
@@ -84,7 +84,7 @@ pub trait PortConfProtocol: EfwProtocol {
             Some(&mut params),
             timeout_ms,
         )
-        .map(|_| params[0] as usize)
+        .map(|_| (params[0] / 2) as usize)
     }
 
     fn set_digital_mode(&mut self, mode: DigitalMode, timeout_ms: u32) -> Result<(), Error> {
