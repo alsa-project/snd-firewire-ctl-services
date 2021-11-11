@@ -5,6 +5,28 @@
 //!
 //! The crate includes protocol about hardware information defined by Echo Audio Digital Corporation
 //! for Fireworks board module.
+//!
+//! ## Table for capabilities retrieved from each Fireworks model
+//!
+//! capabilities       | 1200f | 400f | af12(old) | af12(new) | af8(old) | af9 | af4 | af2 | rip |
+//! ------------------ | ----- | ---- | --------- | --------- | -------- | --- | --- | --- | --- |
+//! ChangeableRespAddr |   *   |   *  |     *     |     *     |    *     |  *  |  *  |  *  |  *  |
+//! ControlRoom        |       |   *  |           |           |          |     |     |     |     |
+//! OptionalSpdifCoax  |   *   |      |           |           |          |  *  |     |     |     |
+//! OptionalAesebuXlr  |   *   |      |           |           |          |     |     |     |     |
+//! Dsp                |   *   |   *  |     *     |     *     |    *     |     |     |     |     |
+//! Fpga               |   *   |      |           |           |          |  *  |  *  |  *  |  *  |
+//! PhantomPowering    |       |      |           |           |          |     |  *  |     |     |
+//! OutputMapping      |       |      |           |           |          |     |  *  |  *  |     |
+//! InputGain          |       |      |           |     *     |          |     |     |     |     |
+//! OptionalSpdifOpt   |       |      |           |           |          |  *  |     |     |     |
+//! OptionalAdatOpt    |       |      |           |           |          |  *  |     |     |     |
+//! NominalInput       |       |      |           |           |          |     |     |     |     |
+//! NominalOutput      |       |      |           |           |          |     |     |     |     |
+//! SoftClip           |       |      |           |           |          |     |     |     |     |
+//! RobotGuitar        |       |      |           |           |          |     |     |     |  *  |
+//! GuitarCharging     |       |      |           |           |          |     |     |     |  *  |
+
 
 use glib::{Error, FileError};
 
