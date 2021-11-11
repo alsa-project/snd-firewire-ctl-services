@@ -39,6 +39,7 @@ fn digital_mode_to_str(mode: &DigitalMode) -> &'static str {
 pub struct PortCtl {
     dig_modes: Vec<DigitalMode>,
     pub notified_elem_id_list: Vec<ElemId>,
+    curr_rate: u32,
     phys_in_pairs: usize,
     phys_out_pairs: usize,
     tx_stream_pair_counts: [usize; 3],
@@ -82,6 +83,7 @@ impl PortCtl {
         hwinfo: &HwInfo,
         card_cntr: &mut CardCntr,
         unit: &mut SndEfw,
+        curr_rate: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::MirrorOutput).is_some() {
@@ -146,7 +148,7 @@ impl PortCtl {
             self.tx_stream_map = vec![0; self.tx_stream_pair_counts[0]];
             self.rx_stream_map = vec![0; self.rx_stream_pair_counts[0]];
 
-            self.cache(unit, timeout_ms)?;
+            self.cache(unit, curr_rate, timeout_ms)?;
 
             if has_tx_mapping {
                 self.add_mapping_ctl(
@@ -173,9 +175,10 @@ impl PortCtl {
     pub fn cache(
         &mut self,
         unit: &mut SndEfw,
+        curr_rate: u32,
         timeout_ms: u32
     ) -> Result<(), Error> {
-        let (rx_entries, tx_entries) = unit.get_stream_map(timeout_ms)?;
+        let (rx_entries, tx_entries) = unit.get_stream_map(curr_rate, timeout_ms)?;
         self.tx_stream_map.iter_mut()
             .enumerate()
             .for_each(|(i, map)| {
@@ -194,6 +197,7 @@ impl PortCtl {
                     0
                 }
             });
+        self.curr_rate = curr_rate;
         Ok(())
     }
 
@@ -288,21 +292,21 @@ impl PortCtl {
                 Ok(true)
             }
             RX_MAP_NAME => {
-                let (mut rx_entries, _) = unit.get_stream_map(timeout_ms)?;
+                let (mut rx_entries, _) = unit.get_stream_map(self.curr_rate, timeout_ms)?;
                 ElemValueAccessor::<u32>::get_vals(new, old, self.rx_stream_map.len(), |idx, val| {
                     rx_entries[idx] = val as usize;
                     Ok(())
                 })?;
-                unit.set_stream_map(Some(rx_entries), None, timeout_ms)?;
+                unit.set_stream_map(self.curr_rate, Some(rx_entries), None, timeout_ms)?;
                 Ok(true)
             }
             TX_MAP_NAME => {
-                let (_, mut tx_entries) = unit.get_stream_map(timeout_ms)?;
+                let (_, mut tx_entries) = unit.get_stream_map(self.curr_rate, timeout_ms)?;
                 ElemValueAccessor::<u32>::get_vals(new, old, self.tx_stream_map.len(), |idx, val| {
                     tx_entries[idx] = val as usize;
                     Ok(())
                 })?;
-                unit.set_stream_map(None, Some(tx_entries), timeout_ms)?;
+                unit.set_stream_map(self.curr_rate, None, Some(tx_entries), timeout_ms)?;
                 Ok(true)
             }
             _ => Ok(false),

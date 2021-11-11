@@ -132,20 +132,25 @@ pub trait PortConfProtocol: EfwProtocol {
 
     fn set_stream_map(
         &mut self,
+        rate: u32,
         rx_map: Option<Vec<usize>>,
         tx_map: Option<Vec<usize>>,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut args = [0; MAP_SIZE];
+        let mut args = [rate];
+        let mut params = [0; MAP_SIZE];
         self.transaction_sync(
             CATEGORY_PORT_CONF,
             CMD_GET_STREAM_MAP,
-            None,
             Some(&mut args),
+            Some(&mut params),
             timeout_ms,
         )?;
+        let mut args = [0; MAP_SIZE];
+        args[0] = rate;
         if let Some(entries) = rx_map {
             args[2] = entries.len() as u32;
+            args[3] = params[3];
             entries
                 .iter()
                 .enumerate()
@@ -153,6 +158,7 @@ pub trait PortConfProtocol: EfwProtocol {
         }
         if let Some(entries) = tx_map {
             args[36] = entries.len() as u32;
+            args[37] = params[37];
             entries
                 .iter()
                 .enumerate()
@@ -167,12 +173,17 @@ pub trait PortConfProtocol: EfwProtocol {
         )
     }
 
-    fn get_stream_map(&mut self, timeout_ms: u32) -> Result<(Vec<usize>, Vec<usize>), Error> {
+    fn get_stream_map(
+        &mut self,
+        rate: u32,
+        timeout_ms: u32
+    ) -> Result<(Vec<usize>, Vec<usize>), Error> {
+        let args = [rate];
         let mut params = [0; MAP_SIZE];
         self.transaction_sync(
             CATEGORY_PORT_CONF,
             CMD_GET_STREAM_MAP,
-            None,
+            Some(&args),
             Some(&mut params),
             timeout_ms,
         )
