@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use efw_protocols::hw_info::*;
-use efw_protocols::hw_ctl::*;
-use efw_protocols::playback::*;
-use efw_protocols::monitor::*;
+use {
+    glib::Error,
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    alsa_ctl_tlv_codec::items::DbInterval,
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_info::*, hw_ctl::*, playback::*, monitor::*},
+};
 
 #[derive(Default)]
 pub struct MixerCtl {
@@ -44,47 +42,39 @@ impl MixerCtl {
     pub fn load(
         &mut self,
         hwinfo: &HwInfo,
-        card_cntr: &mut card_cntr::CardCntr,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         self.playbacks = hwinfo.mixer_playbacks;
         self.captures = hwinfo.mixer_captures;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, PLAYBACK_VOL_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, 1,
             Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
             self.playbacks, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, PLAYBACK_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, PLAYBACK_SOLO_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_SOLO_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, MONITOR_GAIN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, self.playbacks,
             Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
             self.captures, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, MONITOR_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, self.playbacks, self.captures, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, MONITOR_SOLO_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_SOLO_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, self.playbacks, self.captures, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Mixer, 0, 0, MONITOR_PAN_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_PAN_NAME, 0);
         let _ = card_cntr.add_int_elems(&elem_id, self.playbacks,
             Self::PAN_MIN, Self::PAN_MAX, Self::PAN_STEP,
             self.captures, None, true)?;
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
-                                                   ENABLE_MIXER, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ENABLE_MIXER, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         self.has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
 
@@ -93,9 +83,9 @@ impl MixerCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -162,10 +152,10 @@ impl MixerCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {

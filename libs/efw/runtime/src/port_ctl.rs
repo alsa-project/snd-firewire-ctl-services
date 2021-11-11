@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use efw_protocols::hw_info::*;
-use efw_protocols::port_conf::*;
+use {
+    glib::{Error, FileError},
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_info::*, port_conf::*},
+};
 
 fn phys_group_type_to_str(phys_group_type: &PhysGroupType) -> &'static str {
     match phys_group_type {
@@ -59,7 +60,7 @@ impl PortCtl {
 
     fn add_mapping_ctl(
         &self,
-        card_cntr: &mut card_cntr::CardCntr,
+        card_cntr: &mut CardCntr,
         name: &str,
         phys_pairs: usize,
         stream_pairs: usize,
@@ -68,15 +69,13 @@ impl PortCtl {
             .map(|pair| format!("Stream-{}/{}", pair * 2 + 1, pair * 2 + 2))
             .collect();
 
-        let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, name, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, phys_pairs, &labels, None, true)?;
 
         Ok(())
     }
 
-    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::MirrorOutput).is_some() {
             let labels = hwinfo.phys_outputs.iter()
                 .filter(|entry| entry.group_type != PhysGroupType::AnalogMirror)
@@ -90,8 +89,8 @@ impl PortCtl {
                 .flatten()
                 .collect::<Vec<String>>();
 
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, MIRROR_OUTPUT_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Mixer, 0, 0, MIRROR_OUTPUT_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
@@ -105,14 +104,14 @@ impl PortCtl {
                 .map(|mode| digital_mode_to_str(mode))
                 .collect();
 
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, DIG_MODE_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Mixer, 0, 0, DIG_MODE_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         }
 
         if hwinfo.caps.iter().position(|cap| *cap == HwCap::PhantomPowering).is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, PHANTOM_NAME, 0);
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Mixer, 0, 0, PHANTOM_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -143,9 +142,9 @@ impl PortCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -193,10 +192,10 @@ impl PortCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {

@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use core::card_cntr;
-use card_cntr::{CtlModel, MeasureModel};
-
-use ieee1212_config_rom::ConfigRom;
-use ta1394::config_rom::Ta1394ConfigRom;
-
-use efw_protocols::hw_info::*;
-use super::clk_ctl;
-use super::mixer_ctl;
-use super::output_ctl;
-use super::input_ctl;
-use super::port_ctl;
-use super::meter_ctl;
-use super::guitar_ctl;
-use super::iec60958_ctl;
-
-use std::convert::TryFrom;
+use {
+    glib::{Error, FileError},
+    core::card_cntr::*,
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemValue},
+    ieee1212_config_rom::ConfigRom,
+    ta1394::config_rom::Ta1394ConfigRom,
+    efw_protocols::hw_info::*,
+    super::{
+       clk_ctl,
+       mixer_ctl,
+       output_ctl,
+       input_ctl,
+       port_ctl,
+       meter_ctl,
+       guitar_ctl,
+       iec60958_ctl,
+    },
+    std::convert::TryFrom,
+};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -82,10 +84,8 @@ impl EfwModel {
     }
 }
 
-impl CtlModel<hinawa::SndEfw> for EfwModel {
-    fn load(&mut self, unit: &mut hinawa::SndEfw, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+impl CtlModel<SndEfw> for EfwModel {
+    fn load(&mut self, unit: &mut SndEfw, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut hwinfo = HwInfo::default();
         unit.get_hw_info(&mut hwinfo, TIMEOUT_MS)?;
         self.clk_ctl.load(&hwinfo, card_cntr)?;
@@ -99,8 +99,8 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
         Ok(())
     }
 
-    fn read(&mut self, unit: &mut hinawa::SndEfw, elem_id: &alsactl::ElemId,
-            elem_value: &mut alsactl::ElemValue)
+    fn read(&mut self, unit: &mut SndEfw, elem_id: &ElemId,
+            elem_value: &mut ElemValue)
         -> Result<bool, Error> {
         if self.clk_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
@@ -123,10 +123,10 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
 
     fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.clk_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
@@ -148,19 +148,21 @@ impl CtlModel<hinawa::SndEfw> for EfwModel {
     }
 }
 
-impl MeasureModel<hinawa::SndEfw> for EfwModel {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl MeasureModel<SndEfw> for EfwModel {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.measure_elems);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndEfw) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndEfw) -> Result<(), Error> {
         self.meter_ctl.measure_states(unit, TIMEOUT_MS)
     }
 
-    fn measure_elem(&mut self, _: &hinawa::SndEfw, elem_id: &alsactl::ElemId,
-                    elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue
+    ) -> Result<bool, Error> {
         self.meter_ctl.measure_elem(elem_id, elem_value)
     }
 }

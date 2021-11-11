@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use efw_protocols::NominalSignalLevel;
-use efw_protocols::hw_info::*;
-use efw_protocols::phys_input::*;
+use {
+    glib::{Error, FileError},
+    hinawa::SndEfw,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_info::*, phys_input::*, *},
+};
 
 #[derive(Default)]
 pub struct InputCtl {
@@ -24,15 +24,17 @@ impl InputCtl {
         NominalSignalLevel::Consumer,
     ];
 
-    pub fn load(&mut self, unit: &mut hinawa::SndEfw, hwinfo: &HwInfo, card_cntr: &mut card_cntr::CardCntr,
-                timeout_ms: u32)
-        -> Result<(), Error>
-    {
+    pub fn load(
+        &mut self,
+        unit: &mut SndEfw,
+        hwinfo: &HwInfo,
+        card_cntr: &mut CardCntr,
+        timeout_ms: u32
+    ) -> Result<(), Error> {
         self.phys_inputs = hwinfo.phys_inputs.iter().fold(0, |accm, entry| accm + entry.group_count);
 
         if hwinfo.caps.iter().find(|&cap| *cap == HwCap::NominalInput).is_some() {
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer, 0, 0, IN_NOMINAL_NAME, 0);
+            let elem_id = ElemId::new_by_name( ElemIfaceType::Mixer, 0, 0, IN_NOMINAL_NAME, 0);
             let _ = card_cntr.add_enum_elems(&elem_id, 1,
                 self.phys_inputs, &Self::IN_NOMINAL_LABELS, None, true)?;
 
@@ -53,9 +55,9 @@ impl InputCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
@@ -82,10 +84,10 @@ impl InputCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut hinawa::SndEfw,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
