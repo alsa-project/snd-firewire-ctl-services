@@ -12,7 +12,7 @@ Implementation of service runtime for models based on Oxford Semiconductor FW970
 [dependencies]
 nix = "0.17"
 glib = "0.10"
-hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.4.0", version = "0.4" }
+hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.5.1", version = "0.5" }
 alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.2.0", version = "0.2" }
 core = { path = "../../core" }
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
