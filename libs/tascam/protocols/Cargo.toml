@@ -11,7 +11,7 @@ Protocol implementation for TASCAM FireWire series
 
 [dependencies]
 glib = "0.10"
-hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.5.1", version = "0.5" }
+hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.5.2", version = "0.5" }
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 
 [[bin]]

@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2022/05/02
+2022/05/06
 Takashi Sakamoto
 
 Introduction
@@ -45,7 +45,7 @@ Build dependencies
 * Some crates and their dependencies
 
   * glib crate in <https://gtk-rs.org/>
-  * hinawa crate v0.5.1 in <https://github.com/alsa-project/hinawa-rs/>
+  * hinawa crate v0.5.2 in <https://github.com/alsa-project/hinawa-rs/>
   * alsactl/alsaseq crates v0.2.0 in <https://github.com/alsa-project/alsa-gobject-rs/>
 
 Runtime dependencies
