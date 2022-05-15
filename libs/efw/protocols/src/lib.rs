@@ -15,6 +15,7 @@ pub mod phys_output;
 pub mod playback;
 pub mod port_conf;
 pub mod robot_guitar;
+pub mod transaction;
 pub mod transport;
 
 use {
