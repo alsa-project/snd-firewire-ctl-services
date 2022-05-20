@@ -17,6 +17,7 @@ mod audioexpress;
 mod f828mk3;
 mod f828mk3_hybrid;
 mod h4pre;
+mod traveler_mk3;
 mod ultralite_mk3;
 mod ultralite_mk3_hybrid;
 
@@ -47,6 +48,7 @@ pub enum MotuRuntime {
     Ultralite(UltraliteRuntime),
     F8pre(F8preRuntime),
     Ultralitemk3(UltraliteMk3Runtime),
+    TravelerMk3(TravelerMk3Runtime),
     Ultralitemk3Hybrid(UltraliteMk3HybridRuntime),
     AudioExpress(AudioExpressRuntime),
     F828mk3(F828mk3Runtime),
@@ -90,6 +92,9 @@ impl RuntimeOperation<u32> for MotuRuntime {
             0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(
                 unit, card_id, version,
             )?)),
+            0x00001b => Ok(Self::TravelerMk3(TravelerMk3Runtime::new(
+                unit, card_id, version,
+            )?)),
             0x000030 => Ok(Self::Ultralitemk3Hybrid(UltraliteMk3HybridRuntime::new(
                 unit, card_id, version,
             )?)),
@@ -118,6 +123,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::F8pre(runtime) => runtime.listen(),
             Self::F828mk3(runtime) => runtime.listen(),
             Self::Ultralitemk3(runtime) => runtime.listen(),
+            Self::TravelerMk3(runtime) => runtime.listen(),
             Self::Ultralitemk3Hybrid(runtime) => runtime.listen(),
             Self::AudioExpress(runtime) => runtime.listen(),
             Self::F828mk3Hybrid(runtime) => runtime.listen(),
@@ -136,6 +142,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::F8pre(runtime) => runtime.run(),
             Self::F828mk3(runtime) => runtime.run(),
             Self::Ultralitemk3(runtime) => runtime.run(),
+            Self::TravelerMk3(runtime) => runtime.run(),
             Self::Ultralitemk3Hybrid(runtime) => runtime.run(),
             Self::AudioExpress(runtime) => runtime.run(),
             Self::F828mk3Hybrid(runtime) => runtime.run(),
