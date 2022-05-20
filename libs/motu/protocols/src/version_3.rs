@@ -1378,6 +1378,88 @@ impl WordClkOperation for Track16Protocol {}
 
 impl CommandDspOperation for Track16Protocol {}
 
+impl CommandDspReverbOperation for Track16Protocol {}
+
+impl CommandDspMonitorOperation for Track16Protocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+    ];
+}
+
+impl CommandDspMixerOperation for Track16Protocol {
+    const SOURCE_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0), // Mic-0
+        TargetPort::Analog(1), // Mic-1
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::OpticalA(0),
+        TargetPort::OpticalA(1),
+        TargetPort::OpticalA(2),
+        TargetPort::OpticalA(3),
+        TargetPort::OpticalA(4),
+        TargetPort::OpticalA(5),
+        TargetPort::OpticalA(6),
+        TargetPort::OpticalA(7),
+    ];
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+    ];
+}
+
+impl CommandDspInputOperation for Track16Protocol {
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0), // Mic-0
+        TargetPort::Analog(1), // Mic-1
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::OpticalA(0),
+        TargetPort::OpticalA(1),
+        TargetPort::OpticalA(2),
+        TargetPort::OpticalA(3),
+        TargetPort::OpticalA(4),
+        TargetPort::OpticalA(5),
+        TargetPort::OpticalA(6),
+        TargetPort::OpticalA(7),
+    ];
+    const MIC_COUNT: usize = 2;
+    const LINE_INPUT_COUNT: usize = 0;
+}
+
+impl CommandDspOutputOperation for Track16Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+    ];
+}
+
 impl Track16Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
