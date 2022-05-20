@@ -6,16 +6,16 @@
 //! The module includes structure, enumeration, and trait for hardware mixer function expressed
 //! in registers.
 
-use hinawa::{FwReq, FwNode};
+use hinawa::{FwNode, FwReq};
 
 use super::*;
 
 const MIXER_COUNT: usize = 4;
 
 const MIXER_OUTPUT_OFFSETS: [usize; MIXER_COUNT] = [0x0c20, 0x0c24, 0x0c28, 0x0c2c];
-const   MIXER_OUTPUT_MUTE_FLAG: u32 = 0x00001000;
-const   MIXER_OUTPUT_DESTINATION_MASK: u32 = 0x00000f00;
-const   MIXER_OUTPUT_VOLUME_MASK: u32 = 0x000000ff;
+const MIXER_OUTPUT_MUTE_FLAG: u32 = 0x00001000;
+const MIXER_OUTPUT_DESTINATION_MASK: u32 = 0x00000f00;
+const MIXER_OUTPUT_VOLUME_MASK: u32 = 0x000000ff;
 
 /// The structure for state of mixer output.
 #[derive(Default)]
@@ -66,7 +66,8 @@ pub trait RegisterDspMixerOutputOperation {
         state: &mut RegisterDspMixerOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.volume
+        state
+            .volume
             .iter_mut()
             .zip(volume.iter())
             .zip(MIXER_OUTPUT_OFFSETS.iter())
@@ -86,7 +87,8 @@ pub trait RegisterDspMixerOutputOperation {
         state: &mut RegisterDspMixerOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.mute
+        state
+            .mute
             .iter_mut()
             .zip(mute.iter())
             .zip(MIXER_OUTPUT_OFFSETS.iter())
@@ -109,7 +111,8 @@ pub trait RegisterDspMixerOutputOperation {
         state: &mut RegisterDspMixerOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.destination
+        state
+            .destination
             .iter_mut()
             .zip(destination.iter())
             .zip(MIXER_OUTPUT_OFFSETS.iter())
@@ -131,7 +134,7 @@ pub trait RegisterDspMixerOutputOperation {
 }
 
 const MIXER_RETURN_SOURCE_OFFSET: usize = 0x0b2c; // TODO: read-only.
-const  MIXER_RETURN_SOURCE_MASK: u32 = 0x000000ff;
+const MIXER_RETURN_SOURCE_MASK: u32 = 0x000000ff;
 const MIXER_RETURN_ENABLE_OFFSET: usize = 0x0c18;
 
 /// The structure for state of mixer return.
@@ -168,14 +171,21 @@ pub trait RegisterDspMixerReturnOperation {
         let idx = Self::RETURN_SOURCES
             .iter()
             .position(|s| source.eq(s))
-            .ok_or_else(||{
+            .ok_or_else(|| {
                 let msg = format!("Invalid source of mix return");
                 Error::new(FileError::Inval, &msg)
             })?;
         let mut val = read_quad(req, node, MIXER_RETURN_SOURCE_OFFSET as u32, timeout_ms)?;
         val &= !MIXER_RETURN_SOURCE_MASK;
         val |= idx as u32;
-        write_quad(req, node, MIXER_RETURN_SOURCE_OFFSET as u32, val, timeout_ms).map(|_| {
+        write_quad(
+            req,
+            node,
+            MIXER_RETURN_SOURCE_OFFSET as u32,
+            val,
+            timeout_ms,
+        )
+        .map(|_| {
             state.source = source;
         })
     }
@@ -187,7 +197,14 @@ pub trait RegisterDspMixerReturnOperation {
         state: &mut RegisterDspMixerReturnState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_quad(req, node, MIXER_RETURN_ENABLE_OFFSET as u32, enable as u32, timeout_ms).map(|_| {
+        write_quad(
+            req,
+            node,
+            MIXER_RETURN_ENABLE_OFFSET as u32,
+            enable as u32,
+            timeout_ms,
+        )
+        .map(|_| {
             state.enable = enable;
         })
     }
@@ -204,15 +221,17 @@ pub struct RegisterDspMixerMonauralSourceEntry {
 
 /// The structure for state of mixer sources.
 #[derive(Default)]
-pub struct RegisterDspMixerMonauralSourceState(pub [RegisterDspMixerMonauralSourceEntry; MIXER_COUNT]);
+pub struct RegisterDspMixerMonauralSourceState(
+    pub [RegisterDspMixerMonauralSourceEntry; MIXER_COUNT],
+);
 
 const MIXER_SOURCE_OFFSETS: [usize; MIXER_COUNT] = [0x4000, 0x4100, 0x4200, 0x4300];
-const   MIXER_SOURCE_PAN_CHANGE_FLAG: u32 = 0x80000000;
-const   MIXER_SOURCE_GAIN_CHANGE_FLAG: u32 = 0x40000000;
-const   MIXER_SOURCE_MUTE_FLAG: u32 = 0x00010000;
-const   MIXER_SOURCE_SOLO_FLAG: u32 = 0x00020000;
-const   MIXER_SOURCE_PAN_MASK: u32 = 0x0000ff00;
-const   MIXER_SOURCE_GAIN_MASK: u32 = 0x000000ff;
+const MIXER_SOURCE_PAN_CHANGE_FLAG: u32 = 0x80000000;
+const MIXER_SOURCE_GAIN_CHANGE_FLAG: u32 = 0x40000000;
+const MIXER_SOURCE_MUTE_FLAG: u32 = 0x00010000;
+const MIXER_SOURCE_SOLO_FLAG: u32 = 0x00020000;
+const MIXER_SOURCE_PAN_MASK: u32 = 0x0000ff00;
+const MIXER_SOURCE_GAIN_MASK: u32 = 0x000000ff;
 
 /// The trait for operation of mixer sources.
 pub trait RegisterDspMixerMonauralSourceOperation {
@@ -230,14 +249,12 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 
     fn create_mixer_monaural_source_state() -> RegisterDspMixerMonauralSourceState {
         let mut state = RegisterDspMixerMonauralSourceState::default();
-        state.0
-            .iter_mut()
-            .for_each(|entry| {
-                entry.gain = vec![Default::default(); Self::MIXER_SOURCES.len()];
-                entry.pan = vec![Default::default(); Self::MIXER_SOURCES.len()];
-                entry.mute = vec![Default::default(); Self::MIXER_SOURCES.len()];
-                entry.solo = vec![Default::default(); Self::MIXER_SOURCES.len()];
-            });
+        state.0.iter_mut().for_each(|entry| {
+            entry.gain = vec![Default::default(); Self::MIXER_SOURCES.len()];
+            entry.pan = vec![Default::default(); Self::MIXER_SOURCES.len()];
+            entry.mute = vec![Default::default(); Self::MIXER_SOURCES.len()];
+            entry.solo = vec![Default::default(); Self::MIXER_SOURCES.len()];
+        });
         state
     }
 
@@ -247,19 +264,19 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         state: &mut RegisterDspMixerMonauralSourceState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        state.0
+        state
+            .0
             .iter_mut()
             .zip(MIXER_SOURCE_OFFSETS.iter())
             .try_for_each(|(entry, &offset)| {
-                (0..Self::MIXER_SOURCES.len())
-                    .try_for_each(|i| {
-                        read_quad(req, node, (offset + i * 4) as u32, timeout_ms).map(|val| {
-                            entry.gain[i] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
-                            entry.pan[i] = ((val & MIXER_SOURCE_PAN_MASK) >> 8) as u8;
-                            entry.mute[i] = val & MIXER_SOURCE_MUTE_FLAG > 0;
-                            entry.solo[i] = val & MIXER_SOURCE_SOLO_FLAG > 0;
-                        })
+                (0..Self::MIXER_SOURCES.len()).try_for_each(|i| {
+                    read_quad(req, node, (offset + i * 4) as u32, timeout_ms).map(|val| {
+                        entry.gain[i] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
+                        entry.pan[i] = ((val & MIXER_SOURCE_PAN_MASK) >> 8) as u8;
+                        entry.mute[i] = val & MIXER_SOURCE_MUTE_FLAG > 0;
+                        entry.solo[i] = val & MIXER_SOURCE_SOLO_FLAG > 0;
                     })
+                })
             })
     }
 
@@ -276,7 +293,9 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 
         let offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.0[mixer].gain.iter_mut()
+        state.0[mixer]
+            .gain
+            .iter_mut()
             .zip(gain.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -302,7 +321,9 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 
         let offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.0[mixer].pan.iter_mut()
+        state.0[mixer]
+            .pan
+            .iter_mut()
             .zip(pan.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -328,7 +349,9 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 
         let offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.0[mixer].mute.iter_mut()
+        state.0[mixer]
+            .mute
+            .iter_mut()
             .zip(mute.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -355,7 +378,9 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 
         let offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.0[mixer].solo.iter_mut()
+        state.0[mixer]
+            .solo
+            .iter_mut()
             .zip(solo.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -389,8 +414,8 @@ pub struct RegisterDspMixerStereoSourceState {
 }
 
 const MIXER_SOURCE_PAIRED_OFFSET: u32 = 0x0c84;
-const  MIXER_SOURCE_PAIRED_FLAG: u8 = 0x00000001;
-const  MIXER_SOURCE_PAIRED_CHANGE: u8 = 0x00000080;
+const MIXER_SOURCE_PAIRED_FLAG: u8 = 0x00000001;
+const MIXER_SOURCE_PAIRED_CHANGE: u8 = 0x00000080;
 
 // TODO: Audio Express and 4 pre have independent configurations for the below:
 //const MIXER_SOURCE_STEREO_WIDTH_FLAG: u32 = 0x00400000;
@@ -433,7 +458,8 @@ pub trait RegisterDspMixerStereoSourceOperation {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         read_quad(req, node, MIXER_SOURCE_PAIRED_OFFSET as u32, timeout_ms).map(|val| {
-            state.source_paired
+            state
+                .source_paired
                 .iter_mut()
                 .enumerate()
                 .for_each(|(i, paired)| {
@@ -442,20 +468,20 @@ pub trait RegisterDspMixerStereoSourceOperation {
                 });
         })?;
 
-        state.mixer_sources
+        state
+            .mixer_sources
             .iter_mut()
             .enumerate()
             .try_for_each(|(i, entry)| {
                 let base_offset = MIXER_SOURCE_OFFSETS[i];
-                (0..Self::MIXER_SOURCES.len())
-                    .try_for_each(|j| {
-                        let offset = Self::compute_mixer_source_offset(base_offset, j);
-                        read_quad(req, node, offset as u32, timeout_ms).map(|val| {
-                            entry.gain[j] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
-                            entry.mute[j] = ((val & MIXER_SOURCE_MUTE_FLAG) >> 8) > 0;
-                            entry.solo[j] = ((val & MIXER_SOURCE_SOLO_FLAG) >> 16) > 0;
-                        })
+                (0..Self::MIXER_SOURCES.len()).try_for_each(|j| {
+                    let offset = Self::compute_mixer_source_offset(base_offset, j);
+                    read_quad(req, node, offset as u32, timeout_ms).map(|val| {
+                        entry.gain[j] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
+                        entry.mute[j] = ((val & MIXER_SOURCE_MUTE_FLAG) >> 8) > 0;
+                        entry.solo[j] = ((val & MIXER_SOURCE_SOLO_FLAG) >> 16) > 0;
                     })
+                })
             })?;
 
         Ok(())
@@ -472,7 +498,8 @@ pub trait RegisterDspMixerStereoSourceOperation {
 
         let mut val = 0u32;
 
-        state.source_paired
+        state
+            .source_paired
             .iter_mut()
             .zip(paired.iter())
             .enumerate()
@@ -503,7 +530,8 @@ pub trait RegisterDspMixerStereoSourceOperation {
 
         let base_offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.mixer_sources[mixer].gain
+        state.mixer_sources[mixer]
+            .gain
             .iter_mut()
             .zip(gain.iter())
             .enumerate()
@@ -530,7 +558,8 @@ pub trait RegisterDspMixerStereoSourceOperation {
 
         let base_offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.mixer_sources[mixer].mute
+        state.mixer_sources[mixer]
+            .mute
             .iter_mut()
             .zip(mute.iter())
             .enumerate()
@@ -559,7 +588,8 @@ pub trait RegisterDspMixerStereoSourceOperation {
 
         let base_offset = MIXER_SOURCE_OFFSETS[mixer];
 
-        state.mixer_sources[mixer].solo
+        state.mixer_sources[mixer]
+            .solo
             .iter_mut()
             .zip(solo.iter())
             .enumerate()
@@ -614,7 +644,14 @@ pub trait RegisterDspOutputOperation {
         state: &mut RegisterDspOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_quad(req, node, MASTER_VOLUME_OFFSET as u32, vol as u32, timeout_ms).map(|_| {
+        write_quad(
+            req,
+            node,
+            MASTER_VOLUME_OFFSET as u32,
+            vol as u32,
+            timeout_ms,
+        )
+        .map(|_| {
             state.master_volume = vol;
         })
     }
@@ -626,7 +663,14 @@ pub trait RegisterDspOutputOperation {
         state: &mut RegisterDspOutputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        write_quad(req, node, PHONE_VOLUME_OFFSET as u32, vol as u32, timeout_ms).map(|_| {
+        write_quad(
+            req,
+            node,
+            PHONE_VOLUME_OFFSET as u32,
+            vol as u32,
+            timeout_ms,
+        )
+        .map(|_| {
             state.phone_volume = vol;
         })
     }
@@ -661,8 +705,15 @@ pub trait Traveler828mk2LineInputOperation {
         state: &mut Traveler828mk2LineInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        read_quad(req, node, TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32, timeout_ms).map(|val| {
-            state.level
+        read_quad(
+            req,
+            node,
+            TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32,
+            timeout_ms,
+        )
+        .map(|val| {
+            state
+                .level
                 .iter_mut()
                 .enumerate()
                 .for_each(|(mut i, level)| {
@@ -675,8 +726,15 @@ pub trait Traveler828mk2LineInputOperation {
                 });
         })?;
 
-        read_quad(req, node, TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32, timeout_ms).map(|val| {
-            state.boost
+        read_quad(
+            req,
+            node,
+            TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32,
+            timeout_ms,
+        )
+        .map(|val| {
+            state
+                .boost
                 .iter_mut()
                 .enumerate()
                 .for_each(|(mut i, boost)| {
@@ -695,23 +753,21 @@ pub trait Traveler828mk2LineInputOperation {
         state: &mut Traveler828mk2LineInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val = level
-            .iter()
-            .enumerate()
-            .fold(0u32, |mut val, (i, l)| {
-                if NominalSignalLevel::Professional.eq(l) {
-                    val |= 1 << (i + Self::CH_OFFSET);
-                }
-                val
-            });
+        let val = level.iter().enumerate().fold(0u32, |mut val, (i, l)| {
+            if NominalSignalLevel::Professional.eq(l) {
+                val |= 1 << (i + Self::CH_OFFSET);
+            }
+            val
+        });
 
         write_quad(
             req,
             node,
             TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32,
             val,
-            timeout_ms
-        ).map(|_| {
+            timeout_ms,
+        )
+        .map(|_| {
             state.level.copy_from_slice(level);
         })
     }
@@ -721,26 +777,24 @@ pub trait Traveler828mk2LineInputOperation {
         node: &mut FwNode,
         boost: &[bool],
         state: &mut Traveler828mk2LineInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let val = boost
-            .iter()
-            .enumerate()
-            .fold(0u32, |mut val, (mut i, b)| {
-                i += Self::CH_OFFSET;
-                if *b {
-                    val |= 1 << i;
-                }
-                val
-            });
+        let val = boost.iter().enumerate().fold(0u32, |mut val, (mut i, b)| {
+            i += Self::CH_OFFSET;
+            if *b {
+                val |= 1 << i;
+            }
+            val
+        });
 
         write_quad(
             req,
             node,
             TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32,
             val,
-            timeout_ms
-        ).map(|_| {
+            timeout_ms,
+        )
+        .map(|_| {
             state.boost.copy_from_slice(boost);
         })
     }
@@ -757,13 +811,13 @@ pub struct Audioexpress4preInputState {
 
 const AE_4PRE_ANALOG_INPUT_OFFSET: usize = 0x0c70;
 const AE_4PRE_SPDIF_INPUT_OFFSET: usize = 0x0c74;
-const   AE_4PRE_INPUT_GAIN_MASK: u8 = 0x3c;
-const   AE_4PRE_INPUT_INVERT_FLAG: u8 = 0x40;
-const   AE_4PRE_INPUT_CHANGE_FLAG: u8 = 0x80;
+const AE_4PRE_INPUT_GAIN_MASK: u8 = 0x3c;
+const AE_4PRE_INPUT_INVERT_FLAG: u8 = 0x40;
+const AE_4PRE_INPUT_CHANGE_FLAG: u8 = 0x80;
 const AE_4PRE_MIC_PARAM_OFFSET: usize = 0x0c80;
-const   AE_4PRE_MIC_PARAM_PAD_FLAG: u8 = 0x02;
-const   AE_4PRE_MIC_PARAM_PHANTOM_FLAG: u8 = 0x01;
-const   AE_4PRE_MIC_PARAM_CHANGE_FLAG: u8 = 0x80;
+const AE_4PRE_MIC_PARAM_PAD_FLAG: u8 = 0x02;
+const AE_4PRE_MIC_PARAM_PHANTOM_FLAG: u8 = 0x01;
+const AE_4PRE_MIC_PARAM_CHANGE_FLAG: u8 = 0x80;
 
 /// The trait for operation of input in Audio Express and 4 pre.
 pub trait Audioexpress4preInputOperation {
@@ -787,33 +841,30 @@ pub trait Audioexpress4preInputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         state: &mut Audioexpress4preInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         read_quad(req, node, AE_4PRE_ANALOG_INPUT_OFFSET as u32, timeout_ms).map(|val| {
-            (0..4)
-                .for_each(|i| {
-                    let v = (val >> (i * 8)) as u8;
-                    state.gain[i] = v & AE_4PRE_INPUT_GAIN_MASK;
-                    state.invert[i] = v & AE_4PRE_INPUT_INVERT_FLAG > 0;
-                });
+            (0..4).for_each(|i| {
+                let v = (val >> (i * 8)) as u8;
+                state.gain[i] = v & AE_4PRE_INPUT_GAIN_MASK;
+                state.invert[i] = v & AE_4PRE_INPUT_INVERT_FLAG > 0;
+            });
         })?;
 
         read_quad(req, node, AE_4PRE_SPDIF_INPUT_OFFSET as u32, timeout_ms).map(|val| {
-            (0..2)
-                .for_each(|i| {
-                    let v = (val >> (i * 8)) as u8;
-                    state.gain[4 + i] = v & AE_4PRE_INPUT_GAIN_MASK;
-                    state.invert[4 + i] = v & AE_4PRE_INPUT_INVERT_FLAG > 0;
-                });
+            (0..2).for_each(|i| {
+                let v = (val >> (i * 8)) as u8;
+                state.gain[4 + i] = v & AE_4PRE_INPUT_GAIN_MASK;
+                state.invert[4 + i] = v & AE_4PRE_INPUT_INVERT_FLAG > 0;
+            });
         })?;
 
         read_quad(req, node, AE_4PRE_MIC_PARAM_OFFSET as u32, timeout_ms).map(|val| {
-            (0..Self::MIC_COUNT)
-                .for_each(|i| {
-                    let v = (val >> (i * 8)) as u8;
-                    state.phantom[i] = v & AE_4PRE_MIC_PARAM_PHANTOM_FLAG > 0;
-                    state.pad[i] = v & AE_4PRE_MIC_PARAM_PAD_FLAG > 0;
-                });
+            (0..Self::MIC_COUNT).for_each(|i| {
+                let v = (val >> (i * 8)) as u8;
+                state.phantom[i] = v & AE_4PRE_MIC_PARAM_PHANTOM_FLAG > 0;
+                state.pad[i] = v & AE_4PRE_MIC_PARAM_PAD_FLAG > 0;
+            });
         })?;
 
         Ok(())
@@ -824,7 +875,7 @@ pub trait Audioexpress4preInputOperation {
         node: &mut FwNode,
         gain: &[u8],
         state: &mut Audioexpress4preInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(gain.len(), Self::INPUT_COUNT);
 
@@ -841,7 +892,13 @@ pub trait Audioexpress4preInputOperation {
                 val | ((v as u32) << (i * 8))
             });
         if val > 0 {
-            write_quad(req, node, AE_4PRE_ANALOG_INPUT_OFFSET as u32, val, timeout_ms)?;
+            write_quad(
+                req,
+                node,
+                AE_4PRE_ANALOG_INPUT_OFFSET as u32,
+                val,
+                timeout_ms,
+            )?;
         }
 
         let val = gain[4..6]
@@ -857,7 +914,13 @@ pub trait Audioexpress4preInputOperation {
                 val | ((v as u32) << (i * 8))
             });
         if val > 0 {
-            write_quad(req, node, AE_4PRE_SPDIF_INPUT_OFFSET as u32, val, timeout_ms)?;
+            write_quad(
+                req,
+                node,
+                AE_4PRE_SPDIF_INPUT_OFFSET as u32,
+                val,
+                timeout_ms,
+            )?;
         }
 
         Ok(())
@@ -868,7 +931,7 @@ pub trait Audioexpress4preInputOperation {
         node: &mut FwNode,
         invert: &[bool],
         state: &mut Audioexpress4preInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(invert.len(), Self::INPUT_COUNT);
 
@@ -885,7 +948,13 @@ pub trait Audioexpress4preInputOperation {
                 val | ((v as u32) << (i * 8))
             });
         if val > 0 {
-            write_quad(req, node, AE_4PRE_ANALOG_INPUT_OFFSET as u32, val, timeout_ms)?;
+            write_quad(
+                req,
+                node,
+                AE_4PRE_ANALOG_INPUT_OFFSET as u32,
+                val,
+                timeout_ms,
+            )?;
         }
 
         let val = invert[4..6]
@@ -901,7 +970,13 @@ pub trait Audioexpress4preInputOperation {
                 val | ((v as u32) << (i * 8))
             });
         if val > 0 {
-            write_quad(req, node, AE_4PRE_SPDIF_INPUT_OFFSET as u32, val, timeout_ms)?;
+            write_quad(
+                req,
+                node,
+                AE_4PRE_SPDIF_INPUT_OFFSET as u32,
+                val,
+                timeout_ms,
+            )?;
         }
 
         Ok(())
@@ -912,7 +987,7 @@ pub trait Audioexpress4preInputOperation {
         node: &mut FwNode,
         phantom: &[bool],
         state: &mut Audioexpress4preInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(phantom.len(), Self::MIC_COUNT);
 
@@ -941,7 +1016,7 @@ pub trait Audioexpress4preInputOperation {
         node: &mut FwNode,
         pad: &[bool],
         state: &mut Audioexpress4preInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(pad.len(), Self::MIC_COUNT);
 
