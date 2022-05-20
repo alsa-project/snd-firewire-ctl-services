@@ -1342,4 +1342,44 @@ impl TravelerMk3Protocol {
 #[derive(Default)]
 pub struct Track16Protocol;
 
+impl AssignOperation for Track16Protocol {
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
+        (TargetPort::AnalogPair(0), 0x00),   // = Stream-2/3
+        (TargetPort::AnalogPair(1), 0x01),   // = Stream-4/5
+        (TargetPort::PhonePair, 0x02),       // = Stream-0/1
+        (TargetPort::OpticalAPair(0), 0x07), // = Stream-14/15
+        (TargetPort::OpticalAPair(1), 0x08), // = Stream-16/17
+        (TargetPort::OpticalAPair(2), 0x09), // = Stream-18/19
+        (TargetPort::OpticalAPair(3), 0x0a), // = Stream-20/21
+    ];
+}
+
+impl V3ClkOperation for Track16Protocol {
+    const CLK_RATES: &'static [(ClkRate, u8)] = &[
+        (ClkRate::R44100, 0x00),
+        (ClkRate::R48000, 0x01),
+        (ClkRate::R88200, 0x02),
+        (ClkRate::R96000, 0x03),
+        (ClkRate::R176400, 0x04),
+        (ClkRate::R192000, 0x05),
+    ];
+    const CLK_SRCS: &'static [(V3ClkSrc, u8)] =
+        &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SignalOptA, 0x18)];
+    const HAS_LCD: bool = false;
+}
+
+impl V3PortAssignOperation for Track16Protocol {}
+
+impl V3OptIfaceOperation for Track16Protocol {
+    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A];
+}
+
+impl WordClkOperation for Track16Protocol {}
+
 impl CommandDspOperation for Track16Protocol {}
+
+impl Track16Protocol {
+    /// Notification mask for main assignment, return assignment, and phone assignment. The change
+    /// of phone assignment is also notified in command message.
+    pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
+}
