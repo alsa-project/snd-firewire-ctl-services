@@ -562,6 +562,98 @@ const F828MK3_OUTPUT_PORTS: &[TargetPort] = &[
     TargetPort::OpticalBPair(3),
 ];
 
+const F828MK3_METER_INPUT_PORTS: &[(TargetPort, usize)] = &[
+    (TargetPort::Analog(0), 2),
+    (TargetPort::Analog(1), 3),
+    (TargetPort::Analog(2), 4),
+    (TargetPort::Analog(3), 5),
+    (TargetPort::Analog(4), 6),
+    (TargetPort::Analog(5), 7),
+    (TargetPort::Analog(6), 8),
+    (TargetPort::Analog(7), 9),
+    (TargetPort::Analog(8), 10),
+    (TargetPort::Analog(9), 11),
+    (TargetPort::Spdif(0), 12),
+    (TargetPort::Spdif(1), 13),
+    (TargetPort::OpticalA(0), 14),
+    (TargetPort::OpticalA(1), 15),
+    (TargetPort::OpticalA(2), 16),
+    (TargetPort::OpticalA(3), 17),
+    (TargetPort::OpticalA(4), 18),
+    (TargetPort::OpticalA(5), 19),
+    (TargetPort::OpticalA(6), 20),
+    (TargetPort::OpticalA(7), 21),
+    (TargetPort::OpticalB(0), 22),
+    (TargetPort::OpticalB(1), 23),
+    (TargetPort::OpticalB(2), 24),
+    (TargetPort::OpticalB(3), 25),
+    (TargetPort::OpticalB(4), 26),
+    (TargetPort::OpticalB(5), 27),
+    (TargetPort::OpticalB(6), 28),
+    (TargetPort::OpticalB(7), 29),
+    (TargetPort::Analog(0), 46),
+    (TargetPort::Analog(1), 47),
+    (TargetPort::Analog(2), 48),
+    (TargetPort::Analog(3), 49),
+    (TargetPort::Analog(4), 50),
+    (TargetPort::Analog(5), 51),
+    (TargetPort::Analog(6), 52),
+    (TargetPort::Analog(7), 53),
+    (TargetPort::Analog(8), 54),
+    (TargetPort::Analog(9), 55),
+    (TargetPort::Spdif(0), 56),
+    (TargetPort::Spdif(1), 57),
+    (TargetPort::OpticalA(0), 58),
+    (TargetPort::OpticalA(1), 59),
+    (TargetPort::OpticalA(2), 60),
+    (TargetPort::OpticalA(3), 61),
+    (TargetPort::OpticalA(4), 62),
+    (TargetPort::OpticalA(5), 63),
+    (TargetPort::OpticalA(6), 64),
+    (TargetPort::OpticalA(7), 65),
+    (TargetPort::OpticalB(0), 66),
+    (TargetPort::OpticalB(1), 67),
+    (TargetPort::OpticalB(2), 68),
+    (TargetPort::OpticalB(3), 69),
+    (TargetPort::OpticalB(4), 70),
+    (TargetPort::OpticalB(5), 71),
+    (TargetPort::OpticalB(6), 72),
+    (TargetPort::OpticalB(7), 73),
+];
+
+const F828MK3_METER_OUTPUT_PORTS: &[(TargetPort, usize)] = &[
+    (TargetPort::Phone(0), 86),
+    (TargetPort::Phone(1), 87),
+    (TargetPort::Analog(0), 76),
+    (TargetPort::Analog(1), 77),
+    (TargetPort::Analog(2), 78),
+    (TargetPort::Analog(3), 79),
+    (TargetPort::Analog(4), 80),
+    (TargetPort::Analog(5), 81),
+    (TargetPort::Analog(6), 82),
+    (TargetPort::Analog(7), 83),
+    (TargetPort::Main(0), 74),
+    (TargetPort::Main(1), 75),
+    (TargetPort::Spdif(0), 84),
+    (TargetPort::Spdif(1), 85),
+    (TargetPort::OpticalA(0), 88),
+    (TargetPort::OpticalA(1), 89),
+    (TargetPort::OpticalA(2), 90),
+    (TargetPort::OpticalA(3), 91),
+    (TargetPort::OpticalA(4), 92),
+    (TargetPort::OpticalA(5), 93),
+    (TargetPort::OpticalA(6), 94),
+    (TargetPort::OpticalA(7), 95),
+    (TargetPort::OpticalB(0), 96),
+    (TargetPort::OpticalB(1), 97),
+    (TargetPort::OpticalB(2), 98),
+    (TargetPort::OpticalB(3), 99),
+    (TargetPort::OpticalB(4), 100),
+    (TargetPort::OpticalB(5), 101),
+    (TargetPort::OpticalB(6), 102),
+    (TargetPort::OpticalB(7), 103),
+];
+
 impl AssignOperation for F828mk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = F828MK3_ASSIGN_PORTS;
 }
@@ -598,6 +690,11 @@ impl CommandDspInputOperation for F828mk3Protocol {
 
 impl CommandDspOutputOperation for F828mk3Protocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
+}
+
+impl CommandDspMeterOperation for F828mk3Protocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_INPUT_PORTS;
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
 }
 
 impl F828mk3Protocol {
@@ -650,6 +747,11 @@ impl CommandDspInputOperation for F828mk3HybridProtocol {
 
 impl CommandDspOutputOperation for F828mk3HybridProtocol {
     const OUTPUT_PORTS: &'static [TargetPort] = F828MK3_OUTPUT_PORTS;
+}
+
+impl CommandDspMeterOperation for F828mk3HybridProtocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_INPUT_PORTS;
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = F828MK3_METER_OUTPUT_PORTS;
 }
 
 impl F828mk3HybridProtocol {
@@ -805,6 +907,43 @@ const ULTRALITE_MK3_OUTPUT_PORTS: &[TargetPort] = &[
     TargetPort::PhonePair,
 ];
 
+const ULTRALITEMK3_METER_INPUT_PORTS: &[(TargetPort, usize)] = &[
+    (TargetPort::Analog(0), 2),
+    (TargetPort::Analog(1), 3),
+    (TargetPort::Analog(2), 4),
+    (TargetPort::Analog(3), 5),
+    (TargetPort::Analog(4), 6),
+    (TargetPort::Analog(5), 7),
+    (TargetPort::Analog(6), 8),
+    (TargetPort::Analog(7), 9),
+    (TargetPort::Spdif(0), 10),
+    (TargetPort::Spdif(1), 11),
+    (TargetPort::Analog(0), 28),
+    (TargetPort::Analog(1), 29),
+    (TargetPort::Analog(2), 30),
+    (TargetPort::Analog(3), 31),
+    (TargetPort::Analog(4), 32),
+    (TargetPort::Analog(5), 33),
+    (TargetPort::Analog(6), 34),
+    (TargetPort::Analog(7), 35),
+    (TargetPort::Spdif(0), 36),
+    (TargetPort::Spdif(1), 37),
+];
+const ULTRALITEMK3_METER_OUTPUT_PORTS: &[(TargetPort, usize)] = &[
+    (TargetPort::Spdif(0), 40),
+    (TargetPort::Spdif(1), 41),
+    (TargetPort::Analog(0), 42),
+    (TargetPort::Analog(1), 43),
+    (TargetPort::Analog(2), 44),
+    (TargetPort::Analog(3), 45),
+    (TargetPort::Analog(4), 46),
+    (TargetPort::Analog(5), 47),
+    (TargetPort::Analog(6), 48),
+    (TargetPort::Analog(7), 49),
+    (TargetPort::Phone(0), 50),
+    (TargetPort::Phone(1), 51),
+];
+
 impl AssignOperation for UltraliteMk3Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = ULTRALITE_MK3_ASSIGN_PORTS;
 }
@@ -846,6 +985,11 @@ impl UltraliteMk3Protocol {
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
 
+impl CommandDspMeterOperation for UltraliteMk3Protocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_INPUT_PORTS;
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_OUTPUT_PORTS;
+}
+
 /// The protocol implementation for Ultralite mk3 Hybrid.
 #[derive(Default)]
 pub struct UltraliteMk3HybridProtocol;
@@ -882,6 +1026,11 @@ impl CommandDspInputOperation for UltraliteMk3HybridProtocol {
 
 impl CommandDspOutputOperation for UltraliteMk3HybridProtocol {
     const OUTPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_OUTPUT_PORTS;
+}
+
+impl CommandDspMeterOperation for UltraliteMk3HybridProtocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_INPUT_PORTS;
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = ULTRALITEMK3_METER_OUTPUT_PORTS;
 }
 
 impl UltraliteMk3HybridProtocol {
