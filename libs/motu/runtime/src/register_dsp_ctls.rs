@@ -634,8 +634,8 @@ const INPUT_NOMINAL_LEVEL_NAME: &str = "input-nominal-level";
 const INPUT_BOOST_NAME: &str = "input-boost";
 
 pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperation> {
-    fn state(&self) -> &Traveler828mk2LineInputState;
-    fn state_mut(&mut self) -> &mut Traveler828mk2LineInputState;
+    fn state(&self) -> &RegisterDspLineInputState;
+    fn state_mut(&mut self) -> &mut RegisterDspLineInputState;
 
     const NOMINAL_LEVELS: [NominalSignalLevel; 2] = [
         NominalSignalLevel::Consumer,

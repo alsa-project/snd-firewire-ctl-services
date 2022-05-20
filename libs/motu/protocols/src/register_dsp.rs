@@ -629,22 +629,22 @@ pub trait RegisterDspOutputOperation {
 
 /// The structure for state of inputs in 828mkII.
 #[derive(Default)]
-pub struct Traveler828mk2LineInputState {
+pub struct RegisterDspLineInputState {
     pub level: Vec<NominalSignalLevel>,
     /// + 6dB.
     pub boost: Vec<bool>,
 }
 
-const TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET: usize = 0x0c08;
-const TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET: usize = 0x0c14;
+const LINE_INPUT_LEVEL_OFFSET: usize = 0x0c08;
+const LINE_INPUT_BOOST_OFFSET: usize = 0x0c14;
 
 /// The trait for operation of line input in Traveler and 828mk2.
 pub trait Traveler828mk2LineInputOperation {
     const LINE_INPUT_COUNT: usize;
     const CH_OFFSET: usize;
 
-    fn create_line_input_state() -> Traveler828mk2LineInputState {
-        Traveler828mk2LineInputState {
+    fn create_line_input_state() -> RegisterDspLineInputState {
+        RegisterDspLineInputState {
             level: vec![Default::default(); Self::LINE_INPUT_COUNT],
             boost: vec![Default::default(); Self::LINE_INPUT_COUNT],
         }
@@ -653,16 +653,10 @@ pub trait Traveler828mk2LineInputOperation {
     fn read_line_input_state(
         req: &mut FwReq,
         node: &mut FwNode,
-        state: &mut Traveler828mk2LineInputState,
+        state: &mut RegisterDspLineInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        read_quad(
-            req,
-            node,
-            TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32,
-            timeout_ms,
-        )
-        .map(|val| {
+        read_quad(req, node, LINE_INPUT_LEVEL_OFFSET as u32, timeout_ms).map(|val| {
             state
                 .level
                 .iter_mut()
@@ -677,13 +671,7 @@ pub trait Traveler828mk2LineInputOperation {
                 });
         })?;
 
-        read_quad(
-            req,
-            node,
-            TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32,
-            timeout_ms,
-        )
-        .map(|val| {
+        read_quad(req, node, LINE_INPUT_BOOST_OFFSET as u32, timeout_ms).map(|val| {
             state
                 .boost
                 .iter_mut()
@@ -701,7 +689,7 @@ pub trait Traveler828mk2LineInputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         level: &[NominalSignalLevel],
-        state: &mut Traveler828mk2LineInputState,
+        state: &mut RegisterDspLineInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let val = level.iter().enumerate().fold(0u32, |mut val, (i, l)| {
@@ -711,14 +699,7 @@ pub trait Traveler828mk2LineInputOperation {
             val
         });
 
-        write_quad(
-            req,
-            node,
-            TRAVELER_828MK2_LINE_INPUT_LEVEL_OFFSET as u32,
-            val,
-            timeout_ms,
-        )
-        .map(|_| {
+        write_quad(req, node, LINE_INPUT_LEVEL_OFFSET as u32, val, timeout_ms).map(|_| {
             state.level.copy_from_slice(level);
         })
     }
@@ -727,7 +708,7 @@ pub trait Traveler828mk2LineInputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         boost: &[bool],
-        state: &mut Traveler828mk2LineInputState,
+        state: &mut RegisterDspLineInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let val = boost.iter().enumerate().fold(0u32, |mut val, (mut i, b)| {
@@ -738,14 +719,7 @@ pub trait Traveler828mk2LineInputOperation {
             val
         });
 
-        write_quad(
-            req,
-            node,
-            TRAVELER_828MK2_LINE_INPUT_BOOST_OFFSET as u32,
-            val,
-            timeout_ms,
-        )
-        .map(|_| {
+        write_quad(req, node, LINE_INPUT_BOOST_OFFSET as u32, val, timeout_ms).map(|_| {
             state.boost.copy_from_slice(boost);
         })
     }
