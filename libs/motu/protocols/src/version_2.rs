@@ -647,20 +647,9 @@ impl RegisterDspOutputOperation for UltraliteProtocol {}
 
 impl RegisterDspMonauralInputOperation for UltraliteProtocol {}
 
-const ULTRALITE_INPUT_OFFSETS: [usize; 3] = [0x0c70, 0x0c74, 0x0c78];
-const ULTRALITE_INPUT_GAIN_MASK: u8 = 0x18;
-const ULTRALITE_INPUT_INVERT_FLAG: u8 = 0x20;
-const ULTRALITE_INPUT_CHANGE_FLAG: u8 = 0x80;
 const ULTRALITE_MAIN_ASSIGN_MASK: u32 = 0x000f0000;
 const ULTRALITE_MAIN_ASSIGN_SHIFT: usize = 16;
 const ULTRALITE_MAIN_ASSIGN_LABEL: &str = "ultralite-main-assign";
-
-/// The structure for state of input in Ultralite.
-#[derive(Default)]
-pub struct UltraliteInputState {
-    pub gain: [u8; UltraliteProtocol::INPUT_COUNT],
-    pub invert: [bool; UltraliteProtocol::INPUT_COUNT],
-}
 
 impl UltraliteProtocol {
     /// Notification mask for main assignment, and phone assignment. The change of phone assignment
@@ -679,8 +668,6 @@ impl UltraliteProtocol {
     pub const INPUT_GAIN_MIN: u8 = 0x00;
     pub const INPUT_GAIN_MAX: u8 = 0x18;
     pub const INPUT_GAIN_STEP: u8 = 0x01;
-
-    const CH_TABLE: [(usize, usize); 3] = [(0, 4), (4, 8), (8, 10)];
 
     pub fn get_main_assign(
         req: &mut FwReq,
@@ -718,90 +705,6 @@ impl UltraliteProtocol {
             idx,
             timeout_ms,
         )
-    }
-
-    pub fn read_input_state(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        state: &mut UltraliteInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        ULTRALITE_INPUT_OFFSETS
-            .iter()
-            .zip(Self::CH_TABLE.iter())
-            .try_for_each(|(&offset, &(begin, end))| {
-                read_quad(req, node, offset as u32, timeout_ms).map(|val| {
-                    (begin..end).for_each(|i| {
-                        let pos = i % 4;
-                        let v = ((val >> (pos * 8)) & 0xff) as u8;
-                        state.gain[i] = v & ULTRALITE_INPUT_GAIN_MASK;
-                        state.invert[i] = v & ULTRALITE_INPUT_INVERT_FLAG > 0;
-                    });
-                })
-            })
-    }
-
-    pub fn write_input_gain(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        gain: &[u8],
-        state: &mut UltraliteInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(gain.len(), Self::INPUT_COUNT);
-
-        let mut vals = [0u32; 3];
-        gain.iter()
-            .enumerate()
-            .filter(|&(i, g)| !state.gain[i].eq(g))
-            .for_each(|(i, &g)| {
-                let mut v = ULTRALITE_INPUT_CHANGE_FLAG;
-                if state.invert[i] {
-                    v |= ULTRALITE_INPUT_INVERT_FLAG;
-                }
-                v |= g;
-                let pos = i % 4;
-                vals[i / 4] |= (v as u32) << (pos * 8);
-            });
-
-        ULTRALITE_INPUT_OFFSETS
-            .iter()
-            .zip(vals.iter())
-            .filter(|(_, &val)| val > 0)
-            .try_for_each(|(&offset, &val)| write_quad(req, node, offset as u32, val, timeout_ms))
-            .map(|_| state.gain.copy_from_slice(gain))
-    }
-
-    pub fn write_input_invert(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        invert: &[bool],
-        state: &mut UltraliteInputState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        assert_eq!(invert.len(), Self::INPUT_COUNT);
-
-        let mut vals = [0u32; 3];
-        invert
-            .iter()
-            .enumerate()
-            .filter(|&(i, v)| !state.invert[i].eq(v))
-            .for_each(|(i, &inv)| {
-                let mut v = ULTRALITE_INPUT_CHANGE_FLAG;
-                if inv {
-                    v |= ULTRALITE_INPUT_INVERT_FLAG;
-                }
-                v |= state.gain[i];
-                let pos = i % 4;
-                vals[i / 4] |= (v as u32) << (pos * 8);
-            });
-
-        ULTRALITE_INPUT_OFFSETS
-            .iter()
-            .zip(vals.iter())
-            .filter(|(_, &val)| val > 0)
-            .try_for_each(|(&offset, &val)| write_quad(req, node, offset as u32, val, timeout_ms))
-            .map(|_| state.invert.copy_from_slice(invert))
     }
 }
 
