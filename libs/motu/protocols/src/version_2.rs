@@ -645,6 +645,8 @@ impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
 
 impl RegisterDspOutputOperation for UltraliteProtocol {}
 
+impl RegisterDspMonauralInputOperation for UltraliteProtocol {}
+
 const ULTRALITE_INPUT_OFFSETS: [usize; 3] = [0x0c70, 0x0c74, 0x0c78];
 const ULTRALITE_INPUT_GAIN_MASK: u8 = 0x18;
 const ULTRALITE_INPUT_INVERT_FLAG: u8 = 0x20;
