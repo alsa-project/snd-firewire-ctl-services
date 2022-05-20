@@ -1,17 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use hinawa::FwReq;
-use hinawa::SndMotu;
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
-
-use motu_protocols::{register_dsp::*, version_2::*, *};
-
-use super::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*};
+use super::register_dsp_runtime::*;
 
 const TIMEOUT_MS: u32 = 100;
 

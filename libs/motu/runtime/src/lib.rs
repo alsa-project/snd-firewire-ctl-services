@@ -27,17 +27,16 @@ mod v1_ctls;
 mod v2_ctls;
 mod v3_ctls;
 
-use glib::{Error, FileError};
-use std::convert::TryFrom;
-
-use hinawa::{FwNodeExtManual, SndMotuExt, SndUnitExt};
-
-use core::RuntimeOperation;
-
-use ieee1212_config_rom::*;
-use motu_protocols::{config_rom::*, *};
-
-use crate::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*};
+use {
+    self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
+    core::RuntimeOperation,
+    glib::{Error, FileError},
+    hinawa::{FwNodeExt, FwNodeExtManual},
+    hinawa::{SndMotu, SndMotuExt, SndUnitExt},
+    ieee1212_config_rom::*,
+    motu_protocols::{config_rom::*, *},
+    std::convert::TryFrom,
+};
 
 pub enum MotuRuntime {
     F828(F828Runtime),
@@ -57,7 +56,7 @@ pub enum MotuRuntime {
 
 impl RuntimeOperation<u32> for MotuRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
-        let unit = hinawa::SndMotu::new();
+        let unit = SndMotu::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
         let node = unit.get_node();

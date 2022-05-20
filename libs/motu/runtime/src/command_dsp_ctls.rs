@@ -1,21 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use hinawa::FwReq;
-use hinawa::{SndMotu, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-//use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use motu_protocols::command_dsp::*;
-
-use crate::*;
+use super::command_dsp_runtime::*;
 
 const REVERB_ENABLE: &str = "reverb-enable";
 const REVERB_SPLIT_POINT_NAME: &str = "reverb-split-point";
