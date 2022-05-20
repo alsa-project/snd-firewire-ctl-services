@@ -6,11 +6,10 @@
 //! The module includes structure, enumeration, and trait for hardware mixer function operated by
 //! command.
 
-use glib::Error;
-
-use hinawa::{FwNode, FwNodeExt, FwReq, FwReqExtManual, FwResp, FwRespExt, FwTcode};
-
-use crate::*;
+use {
+    super::*,
+    hinawa::{FwResp, FwRespExt},
+};
 
 const DSP_CMD_OFFSET: u64 = 0xffff00010000;
 const DSP_MSG_DST_HIGH_OFFSET: u32 = 0x0b38;

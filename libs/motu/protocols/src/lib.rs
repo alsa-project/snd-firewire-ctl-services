@@ -12,10 +12,11 @@ pub mod version_1;
 pub mod version_2;
 pub mod version_3;
 
-use glib::{Error, FileError};
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use std::{thread, time};
+use {
+    glib::{Error, FileError},
+    hinawa::{FwNode, FwNodeExt, FwReq, FwReqExtManual, FwTcode},
+    std::{thread, time},
+};
 
 const BASE_OFFSET: u64 = 0xfffff0000000;
 const OFFSET_CLK: u32 = 0x0b14;
