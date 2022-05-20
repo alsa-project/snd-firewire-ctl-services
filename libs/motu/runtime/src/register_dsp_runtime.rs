@@ -32,7 +32,8 @@ where
         + CtlModel<SndMotu>
         + NotifyModel<SndMotu, u32>
         + NotifyModel<SndMotu, bool>
-        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>,
+        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>
+        + MeasureModel<SndMotu>,
 {
     unit: SndMotu,
     model: T,
@@ -43,6 +44,8 @@ where
     #[allow(dead_code)]
     version: u32,
     notified_elem_id_list: Vec<ElemId>,
+    timer: Option<Dispatcher>,
+    measured_elem_id_list: Vec<ElemId>,
 }
 
 impl<T> Drop for RegisterDspRuntime<T>
@@ -51,7 +54,8 @@ where
         + CtlModel<SndMotu>
         + NotifyModel<SndMotu, u32>
         + NotifyModel<SndMotu, bool>
-        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>,
+        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>
+        + MeasureModel<SndMotu>,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -75,10 +79,15 @@ enum Event {
     MessageNotify(u32),
     LockNotify(bool),
     ChangedNotify(Vec<RegisterDspEvent>),
+    Timer,
 }
 
 const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
 const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
+const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
+
+const TIMER_NAME: &str = "metering";
+const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
 
 impl<T> RegisterDspRuntime<T>
 where
@@ -86,7 +95,8 @@ where
         + CtlModel<SndMotu>
         + NotifyModel<SndMotu, u32>
         + NotifyModel<SndMotu, bool>
-        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>,
+        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>
+        + MeasureModel<SndMotu>,
 {
     pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -104,6 +114,8 @@ where
             dispatchers: Default::default(),
             version,
             notified_elem_id_list: Default::default(),
+            timer: Default::default(),
+            measured_elem_id_list: Default::default(),
         })
     }
 
@@ -123,6 +135,13 @@ where
             &mut self.notified_elem_id_list,
         );
 
+        self.model
+            .get_measure_elem_list(&mut self.measured_elem_id_list);
+        if self.measured_elem_id_list.len() > 0 {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
+            let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
+        }
+
         Ok(())
     }
 
@@ -139,12 +158,29 @@ where
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    let _ = self.card_cntr.dispatch_elem_event(
-                        &mut self.unit,
-                        &elem_id,
-                        &events,
-                        &mut self.model,
-                    );
+                    if elem_id.get_name() != TIMER_NAME {
+                        let _ = self.card_cntr.dispatch_elem_event(
+                            &mut self.unit,
+                            &elem_id,
+                            &events,
+                            &mut self.model,
+                        );
+                    } else {
+                        let mut elem_value = ElemValue::new();
+                        let _ = self
+                            .card_cntr
+                            .card
+                            .read_elem_value(&elem_id, &mut elem_value)
+                            .map(|_| {
+                                let mut vals = [false];
+                                elem_value.get_bool(&mut vals);
+                                if vals[0] {
+                                    let _ = self.start_interval_timer();
+                                } else {
+                                    self.stop_interval_timer();
+                                }
+                            });
+                    }
                 }
                 Event::MessageNotify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
@@ -170,9 +206,36 @@ where
                         &mut self.model,
                     );
                 }
+                Event::Timer => {
+                    let _ = self.card_cntr.measure_elems(
+                        &mut self.unit,
+                        &self.measured_elem_id_list,
+                        &mut self.model,
+                    );
+                }
             }
         }
         Ok(())
+    }
+
+    fn start_interval_timer(&mut self) -> Result<(), Error> {
+        let mut dispatcher = Dispatcher::run(TIMER_DISPATCHER_NAME.to_string())?;
+        let tx = self.tx.clone();
+        dispatcher.attach_interval_handler(TIMER_INTERVAL, move || {
+            let _ = tx.send(Event::Timer);
+            source::Continue(true)
+        });
+
+        self.timer = Some(dispatcher);
+
+        Ok(())
+    }
+
+    fn stop_interval_timer(&mut self) {
+        if let Some(dispatcher) = &self.timer {
+            drop(dispatcher);
+            self.timer = None;
+        }
     }
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
