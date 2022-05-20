@@ -872,6 +872,8 @@ const INPUT_GAIN_NAME: &str = "input-gain";
 const INPUT_INVERT_NAME: &str = "input-invert";
 const MIC_PHANTOM_NAME: &str = "mic-phantom";
 const MIC_PAD_NAME: &str = "mic-pad";
+const INPUT_JACK_NAME: &str = "input-jack";
+const INPUT_PAIRED_NAME: &str = "input-paired";
 
 pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperation> {
     fn state(&self) -> &RegisterDspMonauralInputState;
@@ -1029,6 +1031,16 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
             .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_JACK_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PAIRED_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::INPUT_PAIR_COUNT, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
         Ok(notified_elem_id_list)
     }
 
@@ -1048,6 +1060,14 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
             }
             MIC_PAD_NAME => {
                 elem_value.set_bool(&self.state().pad);
+                Ok(true)
+            }
+            INPUT_JACK_NAME => {
+                elem_value.set_bool(&self.state().jack);
+                Ok(true)
+            }
+            INPUT_PAIRED_NAME => {
+                elem_value.set_bool(&self.state().paired);
                 Ok(true)
             }
             _ => Ok(false),
@@ -1107,6 +1127,18 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
                     req,
                     &mut unit.get_node(),
                     &pad,
+                    self.state_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            INPUT_PAIRED_NAME => {
+                let mut paired = vec![false; T::INPUT_PAIR_COUNT];
+                elem_value.get_bool(&mut paired);
+                T::write_stereo_input_paired(
+                    req,
+                    &mut unit.get_node(),
+                    &paired,
                     self.state_mut(),
                     timeout_ms,
                 )
