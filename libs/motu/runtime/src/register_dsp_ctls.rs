@@ -167,8 +167,8 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
 
@@ -392,8 +392,8 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
 
@@ -648,8 +648,8 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
 
@@ -764,8 +764,8 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
 
@@ -883,8 +883,8 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
 
@@ -997,8 +997,8 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
 
@@ -1176,7 +1176,7 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
         T::parse_dsp_parameter(self.state_mut(), params)
     }
 
-    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
-        false
+    fn parse_dsp_event(&mut self, event: &RegisterDspEvent) -> bool {
+        T::parse_dsp_event(self.state_mut(), event)
     }
 }
