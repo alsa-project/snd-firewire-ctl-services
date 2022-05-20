@@ -131,68 +131,24 @@ pub trait RegisterDspMixerOutputOperation {
     }
 }
 
-const MIXER_RETURN_SOURCE_OFFSET: usize = 0x0b2c; // TODO: read-only.
-const MIXER_RETURN_SOURCE_MASK: u32 = 0x000000ff;
 const MIXER_RETURN_ENABLE_OFFSET: usize = 0x0c18;
-
-/// The structure for state of mixer return.
-#[derive(Default)]
-pub struct RegisterDspMixerReturnState {
-    pub source: TargetPort,
-    pub enable: bool,
-}
 
 /// The trait for operation of mixer return.
 pub trait RegisterDspMixerReturnOperation {
-    const RETURN_SOURCES: &'static [TargetPort];
-
-    fn read_mixer_return_state(
+    fn read_mixer_return_enable(
         req: &mut FwReq,
         node: &mut FwNode,
-        state: &mut RegisterDspMixerReturnState,
+        enable: &mut bool,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        read_quad(req, node, MIXER_RETURN_ENABLE_OFFSET as u32, timeout_ms).map(|val| {
-            state.enable = val > 0;
-        })?;
-
-        Ok(())
-    }
-
-    fn write_mixer_return_source(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        source: TargetPort,
-        state: &mut RegisterDspMixerReturnState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let idx = Self::RETURN_SOURCES
-            .iter()
-            .position(|s| source.eq(s))
-            .ok_or_else(|| {
-                let msg = format!("Invalid source of mix return");
-                Error::new(FileError::Inval, &msg)
-            })?;
-        let mut val = read_quad(req, node, MIXER_RETURN_SOURCE_OFFSET as u32, timeout_ms)?;
-        val &= !MIXER_RETURN_SOURCE_MASK;
-        val |= idx as u32;
-        write_quad(
-            req,
-            node,
-            MIXER_RETURN_SOURCE_OFFSET as u32,
-            val,
-            timeout_ms,
-        )
-        .map(|_| {
-            state.source = source;
-        })
+        read_quad(req, node, MIXER_RETURN_ENABLE_OFFSET as u32, timeout_ms)
+            .map(|val| *enable = val > 0)
     }
 
     fn write_mixer_return_enable(
         req: &mut FwReq,
         node: &mut FwNode,
         enable: bool,
-        state: &mut RegisterDspMixerReturnState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         write_quad(
@@ -202,9 +158,6 @@ pub trait RegisterDspMixerReturnOperation {
             enable as u32,
             timeout_ms,
         )
-        .map(|_| {
-            state.enable = enable;
-        })
     }
 }
 

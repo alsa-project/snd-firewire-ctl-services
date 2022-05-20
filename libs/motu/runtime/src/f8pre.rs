@@ -62,14 +62,14 @@ impl RegisterDspMixerOutputCtlOperation<F8preProtocol> for MixerOutputCtl {
 }
 
 #[derive(Default)]
-struct MixerReturnCtl(RegisterDspMixerReturnState, Vec<ElemId>);
+struct MixerReturnCtl(bool, Vec<ElemId>);
 
 impl RegisterDspMixerReturnCtlOperation<F8preProtocol> for MixerReturnCtl {
-    fn state(&self) -> &RegisterDspMixerReturnState {
+    fn state(&self) -> &bool {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut RegisterDspMixerReturnState {
+    fn state_mut(&mut self) -> &mut bool {
         &mut self.0
     }
 }
@@ -112,9 +112,9 @@ impl CtlModel<SndMotu> for F8pre {
         self.mixer_output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
-            .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
+        let _ = self
+            .mixer_return_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
