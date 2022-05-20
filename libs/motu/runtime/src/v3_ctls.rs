@@ -321,7 +321,7 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
                             let msg = format!("Invalid index for mode of opt interface: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    T::set_opt_input_iface_mode(
+                    T::set_opt_output_iface_mode(
                         req,
                         &mut unit.get_node(),
                         Self::TARGETS[idx],
