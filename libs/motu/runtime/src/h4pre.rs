@@ -105,6 +105,8 @@ impl RegisterDspStereoInputCtlOperation<H4preProtocol> for InputCtl {
 
 impl CtlModel<SndMotu> for H4pre {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        unit.read_register_dsp_parameter(&mut self.params)?;
+
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -116,7 +118,7 @@ impl CtlModel<SndMotu> for H4pre {
             .mixer_return_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, &self.params, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         self.output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)

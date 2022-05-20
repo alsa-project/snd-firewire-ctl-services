@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait for hardware mixer function expressed
 //! in registers.
 
-use super::*;
+use {super::*, hinawa::SndMotuRegisterDspParameter};
 
 const MIXER_COUNT: usize = 4;
 
@@ -32,6 +32,37 @@ pub trait RegisterDspMixerOutputOperation {
     const MIXER_OUTPUT_VOLUME_MIN: u8 = 0x00;
     const MIXER_OUTPUT_VOLUME_MAX: u8 = 0x80;
     const MIXER_OUTPUT_VOLUME_STEP: u8 = 0x01;
+
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspMixerOutputState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        let vols = param.get_mixer_output_paired_volume();
+        state.volume.copy_from_slice(vols);
+
+        let flags = param.get_mixer_output_paired_flag();
+        state
+            .mute
+            .iter_mut()
+            .zip(flags.iter())
+            .for_each(|(mute, &flag)| {
+                let val = (flag as u32) << 8;
+                *mute = val & MIXER_OUTPUT_MUTE_FLAG > 0;
+            });
+        state
+            .destination
+            .iter_mut()
+            .zip(flags.iter())
+            .for_each(|(dest, &flag)| {
+                let val = (flag as u32) << 8;
+                let idx = ((val & MIXER_OUTPUT_DESTINATION_MASK) >> 8) as usize;
+                *dest = Self::OUTPUT_DESTINATIONS
+                    .iter()
+                    .nth(idx)
+                    .map(|&port| port)
+                    .unwrap_or_default();
+            });
+    }
 
     fn read_mixer_output_state(
         req: &mut FwReq,
@@ -207,6 +238,40 @@ pub trait RegisterDspMixerMonauralSourceOperation {
             entry.solo = vec![Default::default(); Self::MIXER_SOURCES.len()];
         });
         state
+    }
+
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspMixerMonauralSourceState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        state.0.iter_mut().enumerate().for_each(|(i, src)| {
+            let gains = param.get_mixer_source_gain(i);
+            src.gain
+                .iter_mut()
+                .zip(gains.iter())
+                .for_each(|(dst, src)| *dst = *src);
+
+            let pans = param.get_mixer_source_pan(i);
+            src.pan
+                .iter_mut()
+                .zip(pans.iter())
+                .for_each(|(dst, src)| *dst = *src);
+
+            let flags: Vec<u32> = param
+                .get_mixer_source_flag(i)
+                .iter()
+                .map(|&flag| (flag as u32) << 16)
+                .collect();
+
+            src.mute
+                .iter_mut()
+                .zip(flags.iter())
+                .for_each(|(mute, &flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
+            src.solo
+                .iter_mut()
+                .zip(flags.iter())
+                .for_each(|(solo, &flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
+        });
     }
 
     fn read_mixer_monaural_source_state(
@@ -399,6 +464,40 @@ pub trait RegisterDspMixerStereoSourceOperation {
 
     fn create_mixer_stereo_source_state() -> RegisterDspMixerStereoSourceState {
         Default::default()
+    }
+
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspMixerStereoSourceState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        state.0.iter_mut().enumerate().for_each(|(i, src)| {
+            let gains = param.get_mixer_source_gain(i);
+            src.gain
+                .iter_mut()
+                .zip(gains.iter())
+                .for_each(|(dst, src)| *dst = *src);
+
+            let pans = param.get_mixer_source_pan(i);
+            src.pan
+                .iter_mut()
+                .zip(pans.iter())
+                .for_each(|(dst, src)| *dst = *src);
+
+            let flags: Vec<u32> = param
+                .get_mixer_source_flag(i)
+                .iter()
+                .map(|&flag| (flag as u32) << 16)
+                .collect();
+
+            src.mute
+                .iter_mut()
+                .zip(flags.iter())
+                .for_each(|(mute, &flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
+            src.solo
+                .iter_mut()
+                .zip(flags.iter())
+                .for_each(|(solo, &flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
+        });
     }
 
     fn compute_mixer_source_offset(base_offset: usize, src_idx: usize) -> usize {
@@ -618,6 +717,14 @@ pub trait RegisterDspOutputOperation {
     const VOLUME_MAX: u8 = 0x80;
     const VOLUME_STEP: u8 = 0x01;
 
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspOutputState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        state.master_volume = param.get_main_output_paired_volume();
+        state.phone_volume = param.get_headphone_output_paired_volume();
+    }
+
     fn read_output_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -693,6 +800,27 @@ pub trait Traveler828mk2LineInputOperation {
             level: vec![Default::default(); Self::LINE_INPUT_COUNT],
             boost: vec![Default::default(); Self::LINE_INPUT_COUNT],
         }
+    }
+
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspLineInputState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        let flags = param.get_line_input_nominal_level_flag();
+        state.level.iter_mut().enumerate().for_each(|(i, level)| {
+            let shift = i + Self::CH_OFFSET;
+            *level = if flags & (1 << shift) > 0 {
+                NominalSignalLevel::Professional
+            } else {
+                NominalSignalLevel::Consumer
+            };
+        });
+
+        let flags = param.get_line_input_boost_flag();
+        state.boost.iter_mut().enumerate().for_each(|(i, boost)| {
+            let shift = i + Self::CH_OFFSET;
+            *boost = flags & (1 << shift) > 0;
+        });
     }
 
     fn read_line_input_state(
@@ -789,6 +917,7 @@ pub struct RegisterDspStereoInputState {
     pub paired: [bool; STEREO_INPUT_COUNT / 2],
     pub phantom: Vec<bool>,
     pub pad: Vec<bool>,
+    pub jack: Vec<bool>,
 }
 
 const INPUT_GAIN_INVERT_OFFSET: usize = 0x0c70;
@@ -806,6 +935,12 @@ const INPUT_PAIRED_FLAG: u8 = 0x01;
 const INPUT_PAIRED_CHANGE_FLAG: u8 = 0x80;
 const INPUT_PAIRED_CH_MAP: [usize; STEREO_INPUT_COUNT / 2] = [0, 1, 3];
 
+const EV_INPUT_PAIRED_FLAG: u8 = 0x01;
+const EV_MIC_PHANTOM_FLAG: u8 = 0x02;
+const EV_MIC_PAD_FLAG: u8 = 0x04;
+const EV_INPUT_JACK_FLAG: u8 = 0x08;
+const EV_INPUT_PAIRED_CH_MAP: [usize; STEREO_INPUT_COUNT] = [0, 1, 2, 3, 8, 9];
+
 /// The trait for operation of input in Ultralite.
 pub trait RegisterDspMonauralInputOperation {
     const INPUT_COUNT: usize = MONAURAL_INPUT_COUNT;
@@ -821,6 +956,23 @@ pub trait RegisterDspMonauralInputOperation {
             gain: Default::default(),
             invert: Default::default(),
         }
+    }
+
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspMonauralInputState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        let vals = param.get_input_gain_and_invert();
+        state
+            .gain
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(gain, val)| *gain = val & MONAURAL_INPUT_GAIN_MASK);
+        state
+            .invert
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(invert, val)| *invert = val & MONAURAL_INPUT_INVERT_FLAG > 0);
     }
 
     fn read_monaural_input_state(
@@ -926,7 +1078,46 @@ pub trait RegisterDspStereoInputOperation {
             paired: Default::default(),
             phantom: vec![false; Self::MIC_COUNT],
             pad: vec![false; Self::MIC_COUNT],
+            jack: vec![false; Self::MIC_COUNT],
         }
+    }
+
+    fn parse_dsp_parameter(
+        state: &mut RegisterDspStereoInputState,
+        param: &SndMotuRegisterDspParameter,
+    ) {
+        let vals = param.get_input_gain_and_invert();
+        state
+            .gain
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(gain, val)| *gain = val & STEREO_INPUT_GAIN_MASK);
+        state
+            .invert
+            .iter_mut()
+            .zip(vals.iter())
+            .for_each(|(invert, val)| *invert = val & STEREO_INPUT_INVERT_FLAG > 0);
+
+        let flags = param.get_input_flag();
+        state
+            .phantom
+            .iter_mut()
+            .zip(flags.iter())
+            .for_each(|(phantom, val)| *phantom = val & EV_MIC_PHANTOM_FLAG > 0);
+        state
+            .pad
+            .iter_mut()
+            .zip(flags.iter())
+            .for_each(|(pad, val)| *pad = val & EV_MIC_PAD_FLAG > 0);
+        state
+            .jack
+            .iter_mut()
+            .zip(flags.iter())
+            .for_each(|(jack, val)| *jack = val & EV_INPUT_JACK_FLAG > 0);
+        state.paired.iter_mut().enumerate().for_each(|(i, paired)| {
+            let pos = EV_INPUT_PAIRED_CH_MAP[i * 2];
+            *paired = flags[pos] & EV_INPUT_PAIRED_FLAG > 0;
+        });
     }
 
     fn read_stereo_input_state(
