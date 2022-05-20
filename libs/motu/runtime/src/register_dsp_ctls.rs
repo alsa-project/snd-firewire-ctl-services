@@ -166,6 +166,10 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
     }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
+    }
 }
 
 const MIXER_RETURN_ENABLE_NAME: &str = "mixer-return-enable";
@@ -386,6 +390,10 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
 
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
+    }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
     }
 }
 
@@ -639,6 +647,10 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
     }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
+    }
 }
 
 const MASTER_OUTPUT_VOLUME_NAME: &str = "master-output-volume";
@@ -750,6 +762,10 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
 
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
+    }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
     }
 }
 
@@ -866,6 +882,10 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
     }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
+    }
 }
 
 const INPUT_GAIN_NAME: &str = "input-gain";
@@ -975,6 +995,10 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
 
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
+    }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
     }
 }
 
@@ -1150,5 +1174,9 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
 
     fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
         T::parse_dsp_parameter(self.state_mut(), params)
+    }
+
+    fn parse_dsp_event(&mut self, _: &RegisterDspEvent) -> bool {
+        false
     }
 }

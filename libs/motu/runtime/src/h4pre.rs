@@ -266,3 +266,44 @@ impl NotifyModel<SndMotu, bool> for H4pre {
         }
     }
 }
+
+impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for H4pre {
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
+        // MEMO: handled by the above implementation.
+    }
+
+    fn parse_notification(
+        &mut self,
+        _: &mut SndMotu,
+        events: &Vec<RegisterDspEvent>,
+    ) -> Result<(), Error> {
+        events.iter().for_each(|event| {
+            let _ = self.mixer_output_ctl.parse_dsp_event(event)
+                || self.mixer_source_ctl.parse_dsp_event(event)
+                || self.output_ctl.parse_dsp_event(event)
+                || self.input_ctl.parse_dsp_event(event);
+        });
+        Ok(())
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
