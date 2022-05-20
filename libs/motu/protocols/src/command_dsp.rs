@@ -501,6 +501,7 @@ pub enum InputCmd {
     ReverbSend(usize, f32),
     ReverbLrBalance(usize, f32),
     Pad(usize, bool),
+    NominalLevel(usize, NominalSignalLevel),
     Phantom(usize, bool),
     Limitter(usize, bool),
     Lookahead(usize, bool),
@@ -526,6 +527,14 @@ impl InputCmd {
             (0x01, 0x00, 0x07) => InputCmd::Lookahead(ch, to_bool(vals)),
             (0x01, 0x00, 0x08) => InputCmd::Softclip(ch, to_bool(vals)),
             (0x01, 0x00, 0x09) => InputCmd::Pad(ch, to_bool(vals)),
+            (0x01, 0x00, 0x0a) => {
+                let level = if to_bool(vals) {
+                    NominalSignalLevel::Professional
+                } else {
+                    NominalSignalLevel::Consumer
+                };
+                InputCmd::NominalLevel(ch, level)
+            }
             (0x01, 0x00, 0x0b) => InputCmd::Phantom(ch, to_bool(vals)),
 
             (0x01, 0x01, 0x00) => {
@@ -685,6 +694,15 @@ impl InputCmd {
             InputCmd::Lookahead(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x07, *ch, *enabled),
             InputCmd::Softclip(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x08, *ch, *enabled),
             InputCmd::Pad(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x09, *ch, *enabled),
+            InputCmd::NominalLevel(ch, level) => {
+                let val = if *level == NominalSignalLevel::Professional {
+                    0x01
+                } else {
+                    0x00
+                };
+                append_u8(raw, 0x01, 0x00, 0x0a, *ch, val)
+            }
+
             InputCmd::Phantom(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x0b, *ch, *enabled),
 
             InputCmd::Equalizer(ch, EqualizerParameter::Enable(enabled)) => {
@@ -3030,6 +3048,10 @@ mod test {
             DspCmd::Input(InputCmd::Lookahead(0xdd, true)),
             DspCmd::Input(InputCmd::Softclip(0xfc, false)),
             DspCmd::Input(InputCmd::Pad(0x91, true)),
+            DspCmd::Input(InputCmd::NominalLevel(
+                0x91,
+                NominalSignalLevel::Professional,
+            )),
             DspCmd::Input(InputCmd::Phantom(0x13, false)),
             DspCmd::Input(InputCmd::Equalizer(0x14, EqualizerParameter::Enable(false))),
             DspCmd::Input(InputCmd::Equalizer(
