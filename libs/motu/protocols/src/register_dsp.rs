@@ -8,6 +8,26 @@
 
 use {super::*, hinawa::SndMotuRegisterDspParameter};
 
+/// The event emitted from ALSA firewire-motu driver for register DSP.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct RegisterDspEvent {
+    pub ev_type: u8,
+    pub identifier0: u8,
+    pub identifier1: u8,
+    pub value: u8,
+}
+
+impl From<u32> for RegisterDspEvent {
+    fn from(val: u32) -> Self {
+        Self {
+            ev_type: ((val & 0xff000000) >> 24) as u8,
+            identifier0: ((val & 0x00ff0000) >> 16) as u8,
+            identifier1: ((val & 0x0000ff00) >> 8) as u8,
+            value: (val & 0x000000ff) as u8,
+        }
+    }
+}
+
 const MIXER_COUNT: usize = 4;
 
 const MIXER_OUTPUT_OFFSETS: [usize; MIXER_COUNT] = [0x0c20, 0x0c24, 0x0c28, 0x0c2c];
