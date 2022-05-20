@@ -11,7 +11,7 @@ pub use {
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*},
     glib::source,
     hinawa::FwReq,
-    hinawa::{SndMotu, SndMotuExt, SndUnitExt},
+    hinawa::{SndMotu, SndMotuExt, SndMotuExtManual, SndMotuRegisterDspParameter, SndUnitExt},
     motu_protocols::{register_dsp::*, version_2::*, version_3::*},
     nix::sys::signal::Signal,
     std::sync::mpsc,
@@ -28,7 +28,7 @@ pub type H4preRuntime = RegisterDspRuntime<H4pre>;
 
 pub struct RegisterDspRuntime<T>
 where
-    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
+    T: Default + CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + NotifyModel<SndMotu, bool>,
 {
     unit: SndMotu,
     model: T,
@@ -43,7 +43,7 @@ where
 
 impl<T> Drop for RegisterDspRuntime<T>
 where
-    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
+    T: Default + CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + NotifyModel<SndMotu, bool>,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -65,6 +65,7 @@ enum Event {
     BusReset(u32),
     Elem((ElemId, ElemEventMask)),
     MessageNotify(u32),
+    LockNotify(bool),
 }
 
 const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
@@ -72,7 +73,7 @@ const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
 
 impl<T> RegisterDspRuntime<T>
 where
-    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
+    T: Default + CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + NotifyModel<SndMotu, bool>,
 {
     pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -104,6 +105,11 @@ where
             &mut self.notified_elem_id_list,
         );
 
+        NotifyModel::<SndMotu, bool>::get_notified_elem_list(
+            &mut self.model,
+            &mut self.notified_elem_id_list,
+        );
+
         Ok(())
     }
 
@@ -131,6 +137,14 @@ where
                     let _ = self.card_cntr.dispatch_notification(
                         &mut self.unit,
                         &msg,
+                        &self.notified_elem_id_list,
+                        &mut self.model,
+                    );
+                }
+                Event::LockNotify(locked) => {
+                    let _ = self.card_cntr.dispatch_notification(
+                        &mut self.unit,
+                        &locked,
                         &self.notified_elem_id_list,
                         &mut self.model,
                     );
@@ -177,6 +191,11 @@ where
         dispatcher.attach_signal_handler(Signal::SIGINT, move || {
             let _ = tx.send(Event::Shutdown);
             source::Continue(false)
+        });
+
+        let tx = self.tx.clone();
+        self.unit.connect_lock_status(move |_, locked| {
+            let _ = tx.send(Event::LockNotify(locked));
         });
 
         let tx = self.tx.clone();

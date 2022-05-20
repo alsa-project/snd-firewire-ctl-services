@@ -16,6 +16,7 @@ pub struct UltraLite {
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     input_ctl: InputCtl,
+    params: SndMotuRegisterDspParameter,
 }
 
 #[derive(Default)]
@@ -30,6 +31,8 @@ impl PhoneAssignCtlOperation<UltraliteProtocol> for PhoneAssignCtl {
         &mut self.0
     }
 }
+
+impl RegisterDspPhoneAssignCtlOperation<UltraliteProtocol> for PhoneAssignCtl {}
 
 #[derive(Default)]
 struct ClkCtl;
@@ -235,6 +238,51 @@ impl NotifyModel<SndMotu, u32> for UltraLite {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.main_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl NotifyModel<SndMotu, bool> for UltraLite {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_output_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_source_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.1);
+        elem_id_list.extend_from_slice(&self.input_ctl.1);
+    }
+
+    fn parse_notification(&mut self, unit: &mut SndMotu, is_locked: &bool) -> Result<(), Error> {
+        if *is_locked {
+            unit.read_register_dsp_parameter(&mut self.params).map(|_| {
+                self.phone_assign_ctl.parse_dsp_parameter(&self.params);
+                self.mixer_output_ctl.parse_dsp_parameter(&self.params);
+                self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+                self.output_ctl.parse_dsp_parameter(&self.params);
+                self.input_ctl.parse_dsp_parameter(&self.params);
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
