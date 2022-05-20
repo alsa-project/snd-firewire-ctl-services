@@ -343,11 +343,11 @@ pub struct AudioExpressProtocol;
 
 impl AssignOperation for AudioExpressProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
-        (TargetPort::MainPair0, 0x02),   // = Stream-5/6
-        (TargetPort::AnalogPair0, 0x06), // = Stream-3/4
-        (TargetPort::SpdifPair0, 0x07),  // = Stream-7/8
-                                         // Blank for Stream-9/10
+        (TargetPort::PhonePair, 0x01),     // = Stream-1/2
+        (TargetPort::MainPair, 0x02),      // = Stream-5/6
+        (TargetPort::AnalogPair(0), 0x06), // = Stream-3/4
+        (TargetPort::SpdifPair, 0x07),     // = Stream-7/8
+                                           // Blank for Stream-9/10
     ];
 }
 
@@ -391,21 +391,21 @@ impl AudioExpressProtocol {
 pub struct F828mk3Protocol;
 
 const F828MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
-    (TargetPort::MainPair0, 0x00),     // = Stream-11/12
-    (TargetPort::AnalogPair0, 0x01),   // = Stream-3/4
-    (TargetPort::AnalogPair1, 0x02),   // = Stream-5/6
-    (TargetPort::AnalogPair2, 0x03),   // = Stream-7/8
-    (TargetPort::AnalogPair3, 0x04),   // = Stream-9/10
-    (TargetPort::SpdifPair0, 0x05),    // = Stream-13/14
-    (TargetPort::PhonePair0, 0x06),    // = Stream-1/2
-    (TargetPort::OpticalAPair0, 0x07), // = Stream-15/16
-    (TargetPort::OpticalAPair1, 0x08), // = Stream-17/18
-    (TargetPort::OpticalAPair2, 0x09), // = Stream-19/20
-    (TargetPort::OpticalAPair3, 0x0a), // = Stream-21/22
-    (TargetPort::OpticalBPair0, 0x0b), // = Stream-23/24
-    (TargetPort::OpticalBPair1, 0x0c), // = Stream-25/26
-    (TargetPort::OpticalBPair2, 0x0d), // = Stream-27/28
-    (TargetPort::OpticalBPair3, 0x0e), // = Stream-29/30
+    (TargetPort::MainPair, 0x00),        // = Stream-10/13
+    (TargetPort::AnalogPair(0), 0x01),   // = Stream-2/3
+    (TargetPort::AnalogPair(1), 0x02),   // = Stream-4/5
+    (TargetPort::AnalogPair(2), 0x03),   // = Stream-6/7
+    (TargetPort::AnalogPair(3), 0x04),   // = Stream-8/9
+    (TargetPort::SpdifPair, 0x05),       // = Stream-12/13
+    (TargetPort::PhonePair, 0x06),       // = Stream-0/1
+    (TargetPort::OpticalAPair(0), 0x07), // = Stream-14/15
+    (TargetPort::OpticalAPair(1), 0x08), // = Stream-16/17
+    (TargetPort::OpticalAPair(2), 0x09), // = Stream-18/19
+    (TargetPort::OpticalAPair(3), 0x0a), // = Stream-20/21
+    (TargetPort::OpticalBPair(0), 0x0b), // = Stream-22/23
+    (TargetPort::OpticalBPair(1), 0x0c), // = Stream-24/25
+    (TargetPort::OpticalBPair(2), 0x0d), // = Stream-26/27
+    (TargetPort::OpticalBPair(3), 0x0e), // = Stream-28/29
 ];
 
 const F828MK3_CLK_RATES: &[(ClkRate, u8)] = &[
@@ -426,120 +426,120 @@ const F828MK3_CLK_SRCS: &[(V3ClkSrc, u8)] = &[
 ];
 
 const F828MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
-    TargetPort::MainPair0,
-    TargetPort::AnalogPair0,
-    TargetPort::AnalogPair1,
-    TargetPort::AnalogPair2,
-    TargetPort::AnalogPair3,
-    TargetPort::SpdifPair0,
-    TargetPort::PhonePair0,
-    TargetPort::OpticalAPair0,
-    TargetPort::OpticalAPair1,
-    TargetPort::OpticalAPair2,
-    TargetPort::OpticalAPair3,
-    TargetPort::OpticalBPair0,
-    TargetPort::OpticalBPair1,
-    TargetPort::OpticalBPair2,
-    TargetPort::OpticalBPair3,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
+    TargetPort::OpticalAPair(0),
+    TargetPort::OpticalAPair(1),
+    TargetPort::OpticalAPair(2),
+    TargetPort::OpticalAPair(3),
+    TargetPort::OpticalBPair(0),
+    TargetPort::OpticalBPair(1),
+    TargetPort::OpticalBPair(2),
+    TargetPort::OpticalBPair(3),
 ];
 
 const F828MK3_MIXER_SOURCE_PORTS: &[TargetPort] = &[
-    TargetPort::Mic0,
-    TargetPort::Mic1,
-    TargetPort::Analog0,
-    TargetPort::Analog1,
-    TargetPort::Analog2,
-    TargetPort::Analog3,
-    TargetPort::Analog4,
-    TargetPort::Analog5,
-    TargetPort::Analog6,
-    TargetPort::Analog7,
-    TargetPort::Spdif0,
-    TargetPort::Spdif1,
-    TargetPort::OpticalA0,
-    TargetPort::OpticalA1,
-    TargetPort::OpticalA2,
-    TargetPort::OpticalA3,
-    TargetPort::OpticalA4,
-    TargetPort::OpticalA5,
-    TargetPort::OpticalA6,
-    TargetPort::OpticalA7,
-    TargetPort::OpticalB0,
-    TargetPort::OpticalB1,
-    TargetPort::OpticalB2,
-    TargetPort::OpticalB3,
-    TargetPort::OpticalB4,
-    TargetPort::OpticalB5,
-    TargetPort::OpticalB6,
-    TargetPort::OpticalB7,
+    TargetPort::Analog(0), // Mic-0
+    TargetPort::Analog(1), // Mic-1
+    TargetPort::Analog(2),
+    TargetPort::Analog(3),
+    TargetPort::Analog(4),
+    TargetPort::Analog(5),
+    TargetPort::Analog(6),
+    TargetPort::Analog(7),
+    TargetPort::Analog(8),
+    TargetPort::Analog(9),
+    TargetPort::Spdif(0),
+    TargetPort::Spdif(1),
+    TargetPort::OpticalA(0),
+    TargetPort::OpticalA(1),
+    TargetPort::OpticalA(2),
+    TargetPort::OpticalA(3),
+    TargetPort::OpticalA(4),
+    TargetPort::OpticalA(5),
+    TargetPort::OpticalA(6),
+    TargetPort::OpticalA(7),
+    TargetPort::OpticalB(0),
+    TargetPort::OpticalB(1),
+    TargetPort::OpticalB(2),
+    TargetPort::OpticalB(3),
+    TargetPort::OpticalB(4),
+    TargetPort::OpticalB(5),
+    TargetPort::OpticalB(6),
+    TargetPort::OpticalB(7),
 ];
 
 const F828MK3_MIXER_OUTPUT_PORTS: &[TargetPort] = &[
     TargetPort::Disabled,
-    TargetPort::MainPair0,
-    TargetPort::AnalogPair0,
-    TargetPort::AnalogPair1,
-    TargetPort::AnalogPair2,
-    TargetPort::AnalogPair3,
-    TargetPort::SpdifPair0,
-    TargetPort::PhonePair0,
-    TargetPort::OpticalAPair0,
-    TargetPort::OpticalAPair1,
-    TargetPort::OpticalAPair2,
-    TargetPort::OpticalAPair3,
-    TargetPort::OpticalBPair0,
-    TargetPort::OpticalBPair1,
-    TargetPort::OpticalBPair2,
-    TargetPort::OpticalBPair3,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
+    TargetPort::OpticalAPair(0),
+    TargetPort::OpticalAPair(1),
+    TargetPort::OpticalAPair(2),
+    TargetPort::OpticalAPair(3),
+    TargetPort::OpticalBPair(0),
+    TargetPort::OpticalBPair(1),
+    TargetPort::OpticalBPair(2),
+    TargetPort::OpticalBPair(3),
 ];
 
 const F828MK3_INPUT_PORTS: &[TargetPort] = &[
-    TargetPort::Mic0,
-    TargetPort::Mic1,
-    TargetPort::Analog0,
-    TargetPort::Analog1,
-    TargetPort::Analog2,
-    TargetPort::Analog3,
-    TargetPort::Analog4,
-    TargetPort::Analog5,
-    TargetPort::Analog6,
-    TargetPort::Analog7,
-    TargetPort::Spdif0,
-    TargetPort::Spdif1,
-    TargetPort::OpticalA0,
-    TargetPort::OpticalA1,
-    TargetPort::OpticalA2,
-    TargetPort::OpticalA3,
-    TargetPort::OpticalA4,
-    TargetPort::OpticalA5,
-    TargetPort::OpticalA6,
-    TargetPort::OpticalA7,
-    TargetPort::OpticalB0,
-    TargetPort::OpticalB1,
-    TargetPort::OpticalB2,
-    TargetPort::OpticalB3,
-    TargetPort::OpticalB4,
-    TargetPort::OpticalB5,
-    TargetPort::OpticalB6,
-    TargetPort::OpticalB7,
+    TargetPort::Analog(0), // Mic-0
+    TargetPort::Analog(1), // Mic-1
+    TargetPort::Analog(2),
+    TargetPort::Analog(3),
+    TargetPort::Analog(4),
+    TargetPort::Analog(5),
+    TargetPort::Analog(6),
+    TargetPort::Analog(7),
+    TargetPort::Analog(8),
+    TargetPort::Analog(9),
+    TargetPort::Spdif(0),
+    TargetPort::Spdif(1),
+    TargetPort::OpticalA(0),
+    TargetPort::OpticalA(1),
+    TargetPort::OpticalA(2),
+    TargetPort::OpticalA(3),
+    TargetPort::OpticalA(4),
+    TargetPort::OpticalA(5),
+    TargetPort::OpticalA(6),
+    TargetPort::OpticalA(7),
+    TargetPort::OpticalB(0),
+    TargetPort::OpticalB(1),
+    TargetPort::OpticalB(2),
+    TargetPort::OpticalB(3),
+    TargetPort::OpticalB(4),
+    TargetPort::OpticalB(5),
+    TargetPort::OpticalB(6),
+    TargetPort::OpticalB(7),
 ];
 
 const F828MK3_OUTPUT_PORTS: &[TargetPort] = &[
-    TargetPort::MainPair0,
-    TargetPort::AnalogPair0,
-    TargetPort::AnalogPair1,
-    TargetPort::AnalogPair2,
-    TargetPort::AnalogPair3,
-    TargetPort::SpdifPair0,
-    TargetPort::PhonePair0,
-    TargetPort::OpticalAPair0,
-    TargetPort::OpticalAPair1,
-    TargetPort::OpticalAPair2,
-    TargetPort::OpticalAPair3,
-    TargetPort::OpticalBPair0,
-    TargetPort::OpticalBPair1,
-    TargetPort::OpticalBPair2,
-    TargetPort::OpticalBPair3,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
+    TargetPort::OpticalAPair(0),
+    TargetPort::OpticalAPair(1),
+    TargetPort::OpticalAPair(2),
+    TargetPort::OpticalAPair(3),
+    TargetPort::OpticalBPair(0),
+    TargetPort::OpticalBPair(1),
+    TargetPort::OpticalBPair(2),
+    TargetPort::OpticalBPair(3),
 ];
 
 impl AssignOperation for F828mk3Protocol {
@@ -647,11 +647,11 @@ pub struct H4preProtocol;
 
 impl AssignOperation for H4preProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
-        (TargetPort::MainPair0, 0x02),   // = Stream-5/6
-        (TargetPort::AnalogPair0, 0x06), // = Stream-3/4
-        (TargetPort::SpdifPair0, 0x07),  // = Stream-7/8
-                                         // Blank for Stream-9/10
+        (TargetPort::PhonePair, 0x01),     // = Stream-1/2
+        (TargetPort::MainPair, 0x02),      // = Stream-5/6
+        (TargetPort::AnalogPair(0), 0x06), // = Stream-3/4
+        (TargetPort::SpdifPair, 0x07),     // = Stream-7/8
+                                           // Blank for Stream-9/10
     ];
 }
 
@@ -690,13 +690,13 @@ impl Audioexpress4preInputOperation for H4preProtocol {
 pub struct UltraliteMk3Protocol;
 
 const ULTRALITE_MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
-    (TargetPort::MainPair0, 0x00),   // = Stream-1/2
-    (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
-    (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
-    (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
-    (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
-    (TargetPort::SpdifPair0, 0x05),  // = Stream-13/14
-    (TargetPort::PhonePair0, 0x06),  // = Stream-11/12
+    (TargetPort::MainPair, 0x00),      // = Stream-0/1
+    (TargetPort::AnalogPair(0), 0x01), // = Stream-2/3
+    (TargetPort::AnalogPair(1), 0x02), // = Stream-4/5
+    (TargetPort::AnalogPair(2), 0x03), // = Stream-6/7
+    (TargetPort::AnalogPair(3), 0x04), // = Stream-8/9
+    (TargetPort::SpdifPair, 0x05),     // = Stream-12/13
+    (TargetPort::PhonePair, 0x06),     // = Stream-10/11
 ];
 
 const ULTRALITE_MK3_CLK_RATES: &[(ClkRate, u8)] = &[
@@ -710,60 +710,59 @@ const ULTRALITE_MK3_CLK_SRCS: &[(V3ClkSrc, u8)] =
     &[(V3ClkSrc::Internal, 0x00), (V3ClkSrc::SpdifCoax, 0x01)];
 
 const ULTRALITE_MK3_RETURN_ASSIGN_TARGETS: &[TargetPort] = &[
-    TargetPort::MainPair0,
-    TargetPort::AnalogPair0,
-    TargetPort::AnalogPair1,
-    TargetPort::AnalogPair2,
-    TargetPort::AnalogPair3,
-    TargetPort::SpdifPair0,
-    TargetPort::PhonePair0,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
 ];
 
 const ULTRALITE_MK3_MIXER_SOURCE_PORTS: &[TargetPort] = &[
-    TargetPort::Analog0,
-    TargetPort::Analog1,
-    TargetPort::Analog2,
-    TargetPort::Analog3,
-    TargetPort::Analog4,
-    TargetPort::Analog5,
-    TargetPort::Analog6,
-    TargetPort::Analog7,
-    TargetPort::Spdif0,
-    TargetPort::Spdif1,
+    TargetPort::Analog(0),
+    TargetPort::Analog(1),
+    TargetPort::Analog(2),
+    TargetPort::Analog(3),
+    TargetPort::Analog(4),
+    TargetPort::Analog(5),
+    TargetPort::Analog(6),
+    TargetPort::Analog(7),
+    TargetPort::Spdif(0),
+    TargetPort::Spdif(1),
 ];
 
 const ULTRALITE_MK3_MIXER_OUTPUT_PORTS: &[TargetPort] = &[
-    TargetPort::Disabled,
-    TargetPort::MainPair0,
-    TargetPort::AnalogPair0,
-    TargetPort::AnalogPair1,
-    TargetPort::AnalogPair2,
-    TargetPort::AnalogPair3,
-    TargetPort::SpdifPair0,
-    TargetPort::PhonePair0,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
 ];
 
 const ULTRALITE_MK3_INPUT_PORTS: &[TargetPort] = &[
-    TargetPort::Analog0,
-    TargetPort::Analog1,
-    TargetPort::Analog2,
-    TargetPort::Analog3,
-    TargetPort::Analog4,
-    TargetPort::Analog5,
-    TargetPort::Analog6,
-    TargetPort::Analog7,
-    TargetPort::Spdif0,
-    TargetPort::Spdif1,
+    TargetPort::Analog(0),
+    TargetPort::Analog(1),
+    TargetPort::Analog(2),
+    TargetPort::Analog(3),
+    TargetPort::Analog(4),
+    TargetPort::Analog(5),
+    TargetPort::Analog(6),
+    TargetPort::Analog(7),
+    TargetPort::Spdif(0),
+    TargetPort::Spdif(1),
 ];
 
 const ULTRALITE_MK3_OUTPUT_PORTS: &[TargetPort] = &[
-    TargetPort::MainPair0,
-    TargetPort::AnalogPair0,
-    TargetPort::AnalogPair1,
-    TargetPort::AnalogPair2,
-    TargetPort::AnalogPair3,
-    TargetPort::SpdifPair0,
-    TargetPort::PhonePair0,
+    TargetPort::MainPair,
+    TargetPort::AnalogPair(0),
+    TargetPort::AnalogPair(1),
+    TargetPort::AnalogPair(2),
+    TargetPort::AnalogPair(3),
+    TargetPort::SpdifPair,
+    TargetPort::PhonePair,
 ];
 
 impl AssignOperation for UltraliteMk3Protocol {

@@ -54,9 +54,9 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         if T::OUTPUT_DESTINATIONS.len() > 0 {
-            let labels: Vec<&str> = T::OUTPUT_DESTINATIONS
+            let labels: Vec<String> = T::OUTPUT_DESTINATIONS
                 .iter()
-                .map(|p| target_port_to_str(p))
+                .map(|p| target_port_to_string(p))
                 .collect();
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DST_NAME, 0);
             card_cntr
@@ -172,9 +172,9 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
         let mut notified_elem_id_list = Vec::new();
 
         if T::RETURN_SOURCES.len() > 0 {
-            let labels: Vec<&str> = T::RETURN_SOURCES
+            let labels: Vec<String> = T::RETURN_SOURCES
                 .iter()
-                .map(|p| target_port_to_str(p))
+                .map(|p| target_port_to_string(p))
                 .collect();
             let elem_id =
                 ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_SOURCE_NAME, 0);

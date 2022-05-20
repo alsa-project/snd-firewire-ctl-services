@@ -219,17 +219,17 @@ pub struct F828mk2Protocol;
 
 impl AssignOperation for F828mk2Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
-        (TargetPort::AnalogPair0, 0x02), // = Stream-3/4
-        (TargetPort::AnalogPair1, 0x03), // = Stream-5/6
-        (TargetPort::AnalogPair2, 0x04), // = Stream-7/8
-        (TargetPort::AnalogPair3, 0x05), // = Stream-9/10
-        (TargetPort::MainPair0, 0x06),   // = Stream-11/12
-        (TargetPort::SpdifPair0, 0x07),  // = Stream-13/14
-        (TargetPort::AdatPair0, 0x08),   // = Stream-15/16
-        (TargetPort::AdatPair1, 0x09),   // = Stream-17/18
-        (TargetPort::AdatPair2, 0x0a),   // = Stream-19/20
-        (TargetPort::AdatPair3, 0x0b),   // = Stream-21/22
+        (TargetPort::PhonePair, 0x01),     // = Stream-0/1
+        (TargetPort::AnalogPair(0), 0x02), // = Stream-2/3
+        (TargetPort::AnalogPair(1), 0x03), // = Stream-4/5
+        (TargetPort::AnalogPair(2), 0x04), // = Stream-6/7
+        (TargetPort::AnalogPair(3), 0x05), // = Stream-8/9
+        (TargetPort::MainPair, 0x06),      // = Stream-10/11
+        (TargetPort::SpdifPair, 0x07),     // = Stream-12/13
+        (TargetPort::AdatPair(0), 0x08),   // = Stream-14/15
+        (TargetPort::AdatPair(1), 0x09),   // = Stream-16/17
+        (TargetPort::AdatPair(2), 0x0a),   // = Stream-18/19
+        (TargetPort::AdatPair(3), 0x0b),   // = Stream-20/21
     ];
 }
 
@@ -265,59 +265,59 @@ impl V2OptIfaceOperation for F828mk2Protocol {
 impl RegisterDspMixerOutputOperation for F828mk2Protocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::MainPair0,
-        TargetPort::SpdifPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerReturnOperation for F828mk2Protocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::MainPair0,
-        TargetPort::SpdifPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerMonauralSourceOperation for F828mk2Protocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Mic0,
-        TargetPort::Mic1,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
-        TargetPort::Adat0,
-        TargetPort::Adat1,
-        TargetPort::Adat2,
-        TargetPort::Adat3,
-        TargetPort::Adat4,
-        TargetPort::Adat5,
-        TargetPort::Adat6,
-        TargetPort::Adat7,
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::Analog(8), // Mic-0
+        TargetPort::Analog(9), // Mic-1
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
     ];
 }
 
@@ -342,10 +342,8 @@ impl F828mk2Protocol {
 pub struct F8preProtocol;
 
 impl AssignOperation for F8preProtocol {
-    const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),
-        (TargetPort::MainPair0, 0x02),
-    ];
+    const ASSIGN_PORTS: &'static [(TargetPort, u8)] =
+        &[(TargetPort::PhonePair, 0x01), (TargetPort::MainPair, 0x02)];
 }
 
 impl V2ClkOperation for F8preProtocol {
@@ -370,45 +368,45 @@ impl V2OptIfaceOperation for F8preProtocol {
 impl RegisterDspMixerOutputOperation for F8preProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::MainPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::MainPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerReturnOperation for F8preProtocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::MainPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::MainPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerMonauralSourceOperation for F8preProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Adat0,
-        TargetPort::Adat1,
-        TargetPort::Adat2,
-        TargetPort::Adat3,
-        TargetPort::Adat4,
-        TargetPort::Adat5,
-        TargetPort::Adat6,
-        TargetPort::Adat7,
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
     ];
 }
 
@@ -420,17 +418,17 @@ pub struct TravelerProtocol;
 
 impl AssignOperation for TravelerProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
-        (TargetPort::AnalogPair0, 0x02), // = Stream-3/4
-        (TargetPort::AnalogPair1, 0x03), // = Stream-5/6
-        (TargetPort::AnalogPair2, 0x04), // = Stream-7/8
-        (TargetPort::AnalogPair3, 0x05), // = Stream-9/10
-        (TargetPort::AesEbuPair0, 0x06), // = Stream-11/12
-        (TargetPort::SpdifPair0, 0x07),  // = Stream-13/14
-        (TargetPort::AdatPair0, 0x08),   // = Stream-15/16
-        (TargetPort::AdatPair1, 0x09),   // = Stream-17/18
-        (TargetPort::AdatPair2, 0x0a),   // = Stream-19/20
-        (TargetPort::AdatPair3, 0x0b),   // = Stream-21/22
+        (TargetPort::PhonePair, 0x01),     // = Stream-0/1
+        (TargetPort::AnalogPair(0), 0x02), // = Stream-2/3
+        (TargetPort::AnalogPair(1), 0x03), // = Stream-4/5
+        (TargetPort::AnalogPair(2), 0x04), // = Stream-6/7
+        (TargetPort::AnalogPair(3), 0x05), // = Stream-8/9
+        (TargetPort::AesEbuPair, 0x06),    // = Stream-10/11
+        (TargetPort::SpdifPair, 0x07),     // = Stream-12/13
+        (TargetPort::AdatPair(0), 0x08),   // = Stream-14/15
+        (TargetPort::AdatPair(1), 0x09),   // = Stream-16/17
+        (TargetPort::AdatPair(2), 0x0a),   // = Stream-18/19
+        (TargetPort::AdatPair(3), 0x0b),   // = Stream-20/21
     ];
 }
 
@@ -469,59 +467,59 @@ impl V2OptIfaceOperation for TravelerProtocol {
 impl RegisterDspMixerOutputOperation for TravelerProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::AesEbuPair0,
-        TargetPort::SpdifPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerReturnOperation for TravelerProtocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::AesEbuPair0,
-        TargetPort::SpdifPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerMonauralSourceOperation for TravelerProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::AesEbu0,
-        TargetPort::AesEbu1,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
-        TargetPort::Adat0,
-        TargetPort::Adat1,
-        TargetPort::Adat2,
-        TargetPort::Adat3,
-        TargetPort::Adat4,
-        TargetPort::Adat5,
-        TargetPort::Adat6,
-        TargetPort::Adat7,
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::AesEbu(0),
+        TargetPort::AesEbu(1),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
     ];
 }
 
@@ -632,13 +630,13 @@ pub struct UltraliteProtocol;
 
 impl AssignOperation for UltraliteProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),  // Stream-1/2
-        (TargetPort::AnalogPair0, 0x02), // Stream-3/4
-        (TargetPort::AnalogPair1, 0x03), // Stream-5/6
-        (TargetPort::AnalogPair2, 0x04), // Stream-7/8
-        (TargetPort::AnalogPair3, 0x05), // Stream-9/10
-        (TargetPort::MainPair0, 0x06),   // Stream-11/12
-        (TargetPort::SpdifPair0, 0x07),  // Stream-13/14
+        (TargetPort::PhonePair, 0x01),     // Stream-0/1
+        (TargetPort::AnalogPair(0), 0x02), // Stream-2/3
+        (TargetPort::AnalogPair(1), 0x03), // Stream-4/5
+        (TargetPort::AnalogPair(2), 0x04), // Stream-6/7
+        (TargetPort::AnalogPair(3), 0x05), // Stream-8/9
+        (TargetPort::MainPair, 0x06),      // Stream-10/11
+        (TargetPort::SpdifPair, 0x07),     // Stream-12/13
     ];
 }
 
@@ -659,41 +657,41 @@ impl V2ClkOperation for UltraliteProtocol {
 impl RegisterDspMixerOutputOperation for UltraliteProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::MainPair0,
-        TargetPort::SpdifPair0,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
     ];
 }
 
 impl RegisterDspMixerReturnOperation for UltraliteProtocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::MainPair0,
-        TargetPort::SpdifPair0,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::SpdifPair,
     ];
 }
 
 impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
     ];
 }
 
@@ -720,10 +718,10 @@ impl UltraliteProtocol {
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 
     pub const KNOB_TARGETS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::MainPair0, 0x00),
+        (TargetPort::MainPair, 0x00),
         (TargetPort::Analog6Pairs, 0x01),
         (TargetPort::Analog8Pairs, 0x02),
-        (TargetPort::SpdifPair0, 0x03),
+        (TargetPort::SpdifPair, 0x03),
     ];
 
     pub const INPUT_COUNT: usize = 10;
@@ -871,17 +869,17 @@ impl F896hdProtocol {
 
 impl AssignOperation for F896hdProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01),
-        (TargetPort::AnalogPair0, 0x02), // Stream-1/2
-        (TargetPort::AnalogPair1, 0x03), // Stream-3/4
-        (TargetPort::AnalogPair2, 0x04), // Stream-5/6
-        (TargetPort::AnalogPair3, 0x05), // Stream-7/8
-        (TargetPort::MainPair0, 0x06),   // Stream-9/10
-        (TargetPort::AesEbuPair0, 0x07), // Stream-11/12
-        (TargetPort::AdatPair0, 0x08),   // Stream-13/14
-        (TargetPort::AdatPair1, 0x09),   // Stream-15/16
-        (TargetPort::AdatPair2, 0x0a),   // Stream-17/18
-        (TargetPort::AdatPair3, 0x0b),   // Stream-19/20
+        (TargetPort::PhonePair, 0x01),     // Stream-0/1
+        (TargetPort::AnalogPair(0), 0x02), // Stream-2/3
+        (TargetPort::AnalogPair(1), 0x03), // Stream-4/5
+        (TargetPort::AnalogPair(2), 0x04), // Stream-6/7
+        (TargetPort::AnalogPair(3), 0x05), // Stream-8/9
+        (TargetPort::MainPair, 0x06),      // Stream-10/11
+        (TargetPort::AesEbuPair, 0x07),    // Stream-12/13
+        (TargetPort::AdatPair(0), 0x08),   // Stream-14/15
+        (TargetPort::AdatPair(1), 0x09),   // Stream-16/17
+        (TargetPort::AdatPair(2), 0x0a),   // Stream-18/19
+        (TargetPort::AdatPair(3), 0x0b),   // Stream-20/21
     ];
 }
 
@@ -923,57 +921,57 @@ impl V2OptIfaceOperation for F896hdProtocol {
 impl RegisterDspMixerOutputOperation for F896hdProtocol {
     const OUTPUT_DESTINATIONS: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::MainPair0,
-        TargetPort::AesEbuPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::AesEbuPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerReturnOperation for F896hdProtocol {
     const RETURN_SOURCES: &'static [TargetPort] = &[
         TargetPort::Disabled,
-        TargetPort::PhonePair0,
-        TargetPort::AnalogPair0,
-        TargetPort::AnalogPair1,
-        TargetPort::AnalogPair2,
-        TargetPort::AnalogPair3,
-        TargetPort::MainPair0,
-        TargetPort::AesEbuPair0,
-        TargetPort::AdatPair0,
-        TargetPort::AdatPair1,
-        TargetPort::AdatPair2,
-        TargetPort::AdatPair3,
+        TargetPort::PhonePair,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::MainPair,
+        TargetPort::AesEbuPair,
+        TargetPort::AdatPair(0),
+        TargetPort::AdatPair(1),
+        TargetPort::AdatPair(2),
+        TargetPort::AdatPair(3),
     ];
 }
 
 impl RegisterDspMixerMonauralSourceOperation for F896hdProtocol {
     const MIXER_SOURCES: &'static [TargetPort] = &[
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Analog4,
-        TargetPort::Analog5,
-        TargetPort::Analog6,
-        TargetPort::Analog7,
-        TargetPort::AesEbu0,
-        TargetPort::AesEbu1,
-        TargetPort::Adat0,
-        TargetPort::Adat1,
-        TargetPort::Adat2,
-        TargetPort::Adat3,
-        TargetPort::Adat4,
-        TargetPort::Adat5,
-        TargetPort::Adat6,
-        TargetPort::Adat7,
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::AesEbu(0),
+        TargetPort::AesEbu(1),
+        TargetPort::Adat(0),
+        TargetPort::Adat(1),
+        TargetPort::Adat(2),
+        TargetPort::Adat(3),
+        TargetPort::Adat(4),
+        TargetPort::Adat(5),
+        TargetPort::Adat(6),
+        TargetPort::Adat(7),
     ];
 }
 
