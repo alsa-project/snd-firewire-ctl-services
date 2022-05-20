@@ -1460,6 +1460,40 @@ impl CommandDspOutputOperation for Track16Protocol {
     ];
 }
 
+impl CommandDspMeterOperation for Track16Protocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = &[
+        (TargetPort::Analog(0), 2),
+        (TargetPort::Analog(1), 3),
+        (TargetPort::Analog(2), 4),
+        (TargetPort::Analog(3), 5),
+        (TargetPort::Analog(4), 6),
+        (TargetPort::Analog(5), 7),
+        (TargetPort::Adat(0), 10),
+        (TargetPort::Adat(1), 11),
+        (TargetPort::Adat(2), 12),
+        (TargetPort::Adat(3), 13),
+        (TargetPort::Adat(4), 14),
+        (TargetPort::Adat(5), 15),
+        (TargetPort::Adat(6), 16),
+        (TargetPort::Adat(7), 17),
+    ];
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = &[
+        (TargetPort::Main(0), 50),
+        (TargetPort::Main(1), 51),
+        (TargetPort::Analog(0), 52),
+        (TargetPort::Analog(1), 53),
+        (TargetPort::Phone(0), 54),
+        (TargetPort::Adat(0), 55),
+        (TargetPort::Adat(1), 56),
+        (TargetPort::Adat(2), 57),
+        (TargetPort::Adat(3), 58),
+        (TargetPort::Adat(4), 59),
+        (TargetPort::Adat(5), 60),
+        (TargetPort::Adat(6), 61),
+        (TargetPort::Adat(7), 62),
+    ];
+}
+
 impl Track16Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
