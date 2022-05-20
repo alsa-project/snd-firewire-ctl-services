@@ -18,6 +18,7 @@ pub struct Traveler {
     output_ctl: OutputCtl,
     line_input_ctl: LineInputCtl,
     mic_input_ctl: MicInputCtl,
+    params: SndMotuRegisterDspParameter,
 }
 
 #[derive(Default)]
@@ -32,6 +33,8 @@ impl PhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {
         &mut self.0
     }
 }
+
+impl RegisterDspPhoneAssignCtlOperation<TravelerProtocol> for PhoneAssignCtl {}
 
 #[derive(Default)]
 struct WordClkCtl(WordClkSpeedMode, Vec<ElemId>);
@@ -298,6 +301,51 @@ impl NotifyModel<SndMotu, u32> for Traveler {
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl NotifyModel<SndMotu, bool> for Traveler {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_output_ctl.1);
+        elem_id_list.extend_from_slice(&self.mixer_source_ctl.1);
+        elem_id_list.extend_from_slice(&self.output_ctl.1);
+        elem_id_list.extend_from_slice(&self.line_input_ctl.1);
+    }
+
+    fn parse_notification(&mut self, unit: &mut SndMotu, is_locked: &bool) -> Result<(), Error> {
+        if *is_locked {
+            unit.read_register_dsp_parameter(&mut self.params).map(|_| {
+                self.phone_assign_ctl.parse_dsp_parameter(&self.params);
+                self.mixer_output_ctl.parse_dsp_parameter(&self.params);
+                self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+                self.output_ctl.parse_dsp_parameter(&self.params);
+                self.line_input_ctl.parse_dsp_parameter(&self.params);
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    fn read_notified_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.phone_assign_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.line_input_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
