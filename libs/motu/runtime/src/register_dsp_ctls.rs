@@ -370,8 +370,6 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
     }
 }
 
-const MIXER_SOURCE_PAIRED_NAME: &str = "mixer-source-paired";
-
 pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSourceOperation> {
     fn state(&self) -> &RegisterDspMixerStereoSourceState;
     fn state_mut(&mut self) -> &mut RegisterDspMixerStereoSourceState;
@@ -395,11 +393,6 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAIRED_NAME, 0);
-        card_cntr
-            .add_bool_elems(&elem_id, 1, T::MIXER_SOURCE_PAIR_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
         card_cntr
@@ -430,23 +423,19 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MIXER_SOURCE_PAIRED_NAME => {
-                elem_value.set_bool(&self.state().source_paired);
-                Ok(true)
-            }
             MIXER_SOURCE_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                copy_int_to_elem_value(elem_value, &self.state().mixer_sources[mixer].gain);
+                copy_int_to_elem_value(elem_value, &self.state().0[mixer].gain);
                 Ok(true)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                elem_value.set_bool(&self.state().mixer_sources[mixer].mute);
+                elem_value.set_bool(&self.state().0[mixer].mute);
                 Ok(true)
             }
             MIXER_SOURCE_SOLO_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                elem_value.set_bool(&self.state().mixer_sources[mixer].solo);
+                elem_value.set_bool(&self.state().0[mixer].solo);
                 Ok(true)
             }
             _ => Ok(false),
@@ -462,18 +451,6 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MIXER_SOURCE_PAIRED_NAME => {
-                let mut vals = vec![false; T::MIXER_SOURCE_PAIR_COUNT];
-                elem_value.get_bool(&mut vals);
-                T::write_mixer_stereo_source_paired(
-                    req,
-                    &mut unit.get_node(),
-                    &vals,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
             MIXER_SOURCE_GAIN_NAME => {
                 let mut vals = vec![0; T::MIXER_SOURCES.len()];
                 elem_value.get_int(&mut vals);
