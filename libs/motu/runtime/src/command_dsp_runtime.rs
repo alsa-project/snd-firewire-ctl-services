@@ -3,7 +3,7 @@
 
 pub use {
     super::{
-        command_dsp_ctls::*, f828mk3::*, f828mk3_hybrid::*, ultralite_mk3::*,
+        command_dsp_ctls::*, f828mk3::*, f828mk3_hybrid::*, traveler_mk3::*, ultralite_mk3::*,
         ultralite_mk3_hybrid::*, *,
     },
     alsactl::*,
@@ -24,6 +24,7 @@ pub type UltraliteMk3Runtime = Version3Runtime<UltraLiteMk3>;
 pub type UltraliteMk3HybridRuntime = Version3Runtime<UltraliteMk3Hybrid>;
 pub type F828mk3Runtime = Version3Runtime<F828mk3>;
 pub type F828mk3HybridRuntime = Version3Runtime<F828mk3Hybrid>;
+pub type TravelerMk3Runtime = Version3Runtime<TravelerMk3>;
 
 pub struct Version3Runtime<T>
 where
