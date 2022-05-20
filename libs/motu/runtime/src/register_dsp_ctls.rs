@@ -1180,3 +1180,150 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
         T::parse_dsp_event(self.state_mut(), event)
     }
 }
+
+pub struct RegisterDspMeterImage([u8; 48]);
+
+impl Default for RegisterDspMeterImage {
+    fn default() -> Self {
+        Self([0u8; 48])
+    }
+}
+
+const INPUT_METER_NAME: &str = "input-meter";
+const OUTPUT_METER_NAME: &str = "output-meter";
+const OUTPUT_METER_TARGET_NAME: &str = "output-meter-target";
+
+pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
+    fn state(&self) -> &RegisterDspMeterState;
+    fn state_mut(&mut self) -> &mut RegisterDspMeterState;
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut state = T::create_meter_state();
+
+        if T::SELECTABLE {
+            T::select_output(req, &mut unit.get_node(), 0, &mut state, timeout_ms)?;
+        }
+
+        *self.state_mut() = state;
+
+        let mut measured_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::INPUT_PORTS.len(),
+                None,
+                false,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::LEVEL_MIN as i32,
+                T::LEVEL_MAX as i32,
+                T::LEVEL_STEP as i32,
+                T::OUTPUT_PORT_COUNT,
+                None,
+                false,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        if T::SELECTABLE {
+            let labels: Vec<String> = T::OUTPUT_PORT_PAIRS
+                .iter()
+                .map(|(p, _)| target_port_to_string(p))
+                .collect();
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_TARGET_NAME, 0);
+            card_cntr
+                .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+        }
+
+        Ok(measured_elem_id_list)
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_METER_NAME => {
+                copy_int_to_elem_value(elem_value, &self.state().inputs);
+                Ok(true)
+            }
+            OUTPUT_METER_NAME => {
+                copy_int_to_elem_value(elem_value, &self.state().outputs);
+                Ok(true)
+            }
+            OUTPUT_METER_TARGET_NAME => {
+                if T::SELECTABLE {
+                    if let Some(selected) = self.state().selected {
+                        elem_value.set_enum(&[selected as u32]);
+                        Ok(true)
+                    } else {
+                        unreachable!();
+                    }
+                } else {
+                    Err(Error::new(FileError::Inval, "Not supported"))
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            OUTPUT_METER_TARGET_NAME => {
+                if T::SELECTABLE {
+                    let mut vals = [0];
+                    elem_value.get_enum(&mut vals);
+                    let target = vals[0] as usize;
+                    if target < T::OUTPUT_PORT_PAIRS.len() {
+                        T::select_output(
+                            req,
+                            &mut unit.get_node(),
+                            target,
+                            self.state_mut(),
+                            timeout_ms,
+                        )
+                        .map(|_| true)
+                    } else {
+                        let msg = format!("Invalid index for output meter pair: {}", target);
+                        Err(Error::new(FileError::Inval, &msg))
+                    }
+                } else {
+                    Err(Error::new(FileError::Inval, "Not supported"))
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn read_dsp_meter(
+        &mut self,
+        unit: &SndMotu,
+        image: &mut RegisterDspMeterImage,
+    ) -> Result<(), Error> {
+        unit.read_register_dsp_meter(&mut image.0)
+            .map(|_| T::parse_dsp_meter(self.state_mut(), &image.0))
+    }
+}

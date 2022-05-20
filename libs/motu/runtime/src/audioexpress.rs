@@ -16,6 +16,8 @@ pub struct AudioExpress {
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     params: SndMotuRegisterDspParameter,
+    meter: RegisterDspMeterImage,
+    meter_ctl: MeterCtl,
 }
 
 #[derive(Default)]
@@ -103,6 +105,19 @@ impl RegisterDspStereoInputCtlOperation<AudioExpressProtocol> for InputCtl {
     }
 }
 
+#[derive(Default)]
+struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl RegisterDspMeterCtlOperation<F828mk2Protocol> for MeterCtl {
+    fn state(&self) -> &RegisterDspMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMeterState {
+        &mut self.0
+    }
+}
+
 impl CtlModel<SndMotu> for AudioExpress {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         unit.read_register_dsp_parameter(&mut self.params)?;
@@ -125,6 +140,9 @@ impl CtlModel<SndMotu> for AudioExpress {
         self.input_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
+        self.meter_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -150,6 +168,8 @@ impl CtlModel<SndMotu> for AudioExpress {
         } else if self.output_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -195,6 +215,11 @@ impl CtlModel<SndMotu> for AudioExpress {
             Ok(true)
         } else if self
             .input_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .meter_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
@@ -309,13 +334,24 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for AudioExpress {
 }
 
 impl MeasureModel<SndMotu> for AudioExpress {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
-
-    fn measure_states(&mut self, _: &mut SndMotu) -> Result<(), Error> {
-        Ok(())
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_elem(&mut self, _: &SndMotu, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
