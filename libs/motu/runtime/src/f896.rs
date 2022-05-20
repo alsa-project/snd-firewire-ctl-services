@@ -71,9 +71,13 @@ impl CtlModel<SndMotu> for F896 {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.monitor_input_ctl.load(card_cntr)?;
-        let _ = self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        let _ = self
+            .word_clk_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        let _ = self.level_meters_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        let _ = self
+            .level_meters_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -88,10 +92,13 @@ impl CtlModel<SndMotu> for F896 {
             .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .monitor_input_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.monitor_input_ctl.read(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -103,10 +110,13 @@ impl CtlModel<SndMotu> for F896 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .level_meters_ctl
-            .read(unit, &mut self.req,  elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.level_meters_ctl.read(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -155,8 +165,7 @@ impl CtlModel<SndMotu> for F896 {
 }
 
 impl NotifyModel<SndMotu, u32> for F896 {
-    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
-    }
+    fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
     fn parse_notification(&mut self, _: &mut SndMotu, _: &u32) -> Result<(), Error> {
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
@@ -167,7 +176,7 @@ impl NotifyModel<SndMotu, u32> for F896 {
         &mut self,
         _: &SndMotu,
         _: &ElemId,
-        _: &mut ElemValue
+        _: &mut ElemValue,
     ) -> Result<bool, Error> {
         Ok(false)
     }

@@ -133,20 +133,27 @@ impl RegisterDspOutputCtlOperation<F896hdProtocol> for OutputCtl {
 impl CtlModel<SndMotu> for F896hd {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.opt_iface_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
-        self.word_clk_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.word_clk_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
-        self.level_meters_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.level_meters_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.level_meters_ctl.1.append(&mut elem_id_list))?;
-        self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_output_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_return_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
-        self.mixer_source_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_source_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
-        self.output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.output_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
         Ok(())
     }
@@ -174,10 +181,13 @@ impl CtlModel<SndMotu> for F896hd {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self
-            .level_meters_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.level_meters_ctl.read(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.mixer_output_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -227,13 +237,25 @@ impl CtlModel<SndMotu> for F896hd {
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_return_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_source_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -248,7 +270,8 @@ impl NotifyModel<SndMotu, u32> for F896hd {
 
     fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
         if *msg & F896hdProtocol::NOTIFY_PROGRAMMABLE_METER_MASK > 0 {
-            self.level_meters_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.level_meters_ctl
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
@@ -258,7 +281,7 @@ impl NotifyModel<SndMotu, u32> for F896hd {
         &mut self,
         _: &SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.level_meters_ctl.refer(elem_id, elem_value)? {
             Ok(true)

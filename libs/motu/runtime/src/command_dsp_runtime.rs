@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use std::sync::{Arc, Mutex, mpsc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 use nix::sys::signal::Signal;
 
-use glib::{Error, FileError};
 use glib::source;
+use glib::{Error, FileError};
 
-use hinawa::{FwNodeExt, FwResp, FwRcode, FwTcode};
+use hinawa::{FwNodeExt, FwRcode, FwResp, FwTcode};
 use hinawa::{SndMotu, SndMotuExt, SndUnitExt};
 
-use alsactl::{CardExt, ElemId, ElemEventMask};
+use alsactl::{CardExt, ElemEventMask, ElemId};
 
 use core::{card_cntr::*, dispatcher::*};
 
@@ -27,8 +27,11 @@ pub type F828mk3HybridRuntime = Version3Runtime<F828mk3Hybrid>;
 
 pub struct Version3Runtime<T>
 where
-    for<'a> T: Default + CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + NotifyModel<SndMotu, &'a [DspCmd]> +
-               CommandDspModel<'a>,
+    for<'a> T: Default
+        + CtlModel<SndMotu>
+        + NotifyModel<SndMotu, u32>
+        + NotifyModel<SndMotu, &'a [DspCmd]>
+        + CommandDspModel<'a>,
 {
     unit: SndMotu,
     model: T,
@@ -43,10 +46,13 @@ where
     cmd_notified_elem_id_list: Vec<ElemId>,
 }
 
-impl<T>  Drop for Version3Runtime<T>
+impl<T> Drop for Version3Runtime<T>
 where
-    for<'a> T: Default + CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + NotifyModel<SndMotu, &'a [DspCmd]> +
-               CommandDspModel<'a>,
+    for<'a> T: Default
+        + CtlModel<SndMotu>
+        + NotifyModel<SndMotu, u32>
+        + NotifyModel<SndMotu, &'a [DspCmd]>
+        + CommandDspModel<'a>,
 {
     fn drop(&mut self) {
         let _ = self.model.release_message_handler(&mut self.unit);
@@ -78,8 +84,11 @@ const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
 
 impl<T> Version3Runtime<T>
 where
-    for<'a> T: Default + CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + NotifyModel<SndMotu, &'a [DspCmd]> +
-               CommandDspModel<'a>,
+    for<'a> T: Default
+        + CtlModel<SndMotu>
+        + NotifyModel<SndMotu, u32>
+        + NotifyModel<SndMotu, &'a [DspCmd]>
+        + CommandDspModel<'a>,
 {
     pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -89,7 +98,7 @@ where
         // queue to avoid task blocking in node message handling.
         let (tx, rx) = mpsc::sync_channel(256);
 
-        Ok(Self{
+        Ok(Self {
             unit,
             model: Default::default(),
             card_cntr,
@@ -112,30 +121,35 @@ where
         let handler = self.msg_handler.clone();
         // TODO: bus reset can cause change of node ID by updating bus topology.
         let peer_node_id = node.get_property_node_id();
-        self.model.prepare_message_handler(&mut self.unit, move |_, tcode, _, src, _, _, _, frame| {
-            if src != peer_node_id {
-                FwRcode::AddressError
-            } else if tcode != FwTcode::WriteQuadletRequest && tcode != FwTcode::WriteBlockRequest {
-                FwRcode::TypeError
-            } else {
-                let notify = if let Ok(handler) = &mut handler.lock() {
-                    handler.cache_dsp_messages(frame);
-                    if handler.has_dsp_message() {
-                        true
+        self.model.prepare_message_handler(
+            &mut self.unit,
+            move |_, tcode, _, src, _, _, _, frame| {
+                if src != peer_node_id {
+                    FwRcode::AddressError
+                } else if tcode != FwTcode::WriteQuadletRequest
+                    && tcode != FwTcode::WriteBlockRequest
+                {
+                    FwRcode::TypeError
+                } else {
+                    let notify = if let Ok(handler) = &mut handler.lock() {
+                        handler.cache_dsp_messages(frame);
+                        if handler.has_dsp_message() {
+                            true
+                        } else {
+                            false
+                        }
                     } else {
                         false
+                    };
+                    // Full queue block the task, thus it is better to emit the event outside of
+                    // critical section.
+                    if notify {
+                        let _ = tx.send(Event::DspMsg);
                     }
-                } else {
-                    false
-                };
-                // Full queue block the task, thus it is better to emit the event outside of
-                // critical section.
-                if notify {
-                    let _ = tx.send(Event::DspMsg);
+                    FwRcode::Complete
                 }
-                FwRcode::Complete
-            }
-        })?;
+            },
+        )?;
         self.model.begin_messaging(&mut self.unit)?;
 
         // Queue Event::DspMsg at first so that initial state of control is cached.
@@ -157,11 +171,11 @@ where
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
         NotifyModel::<SndMotu, u32>::get_notified_elem_list(
             &mut self.model,
-            &mut self.notified_elem_id_list
+            &mut self.notified_elem_id_list,
         );
         NotifyModel::<SndMotu, &[DspCmd]>::get_notified_elem_list(
             &mut self.model,
-            &mut self.cmd_notified_elem_id_list
+            &mut self.cmd_notified_elem_id_list,
         );
 
         Ok(())
@@ -199,7 +213,7 @@ where
                     let cmds = if let Ok(handler) = &mut self.msg_handler.lock() {
                         if handler.has_dsp_message() {
                             handler.decode_messages()
-                        } else{
+                        } else {
                             Default::default()
                         }
                     } else {
@@ -258,9 +272,11 @@ where
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
-        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
-            let _ = tx.send(Event::Elem((elem_id.clone(), events)));
-        });
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let _ = tx.send(Event::Elem((elem_id.clone(), events)));
+            });
 
         self.dispatchers.push(dispatcher);
 
@@ -268,10 +284,10 @@ where
     }
 }
 
-pub trait CommandDspModel<'a> : NotifyModel<SndMotu, &'a [DspCmd]> {
+pub trait CommandDspModel<'a>: NotifyModel<SndMotu, &'a [DspCmd]> {
     fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
-        where
-            F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static;
+    where
+        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static;
     fn begin_messaging(&mut self, unit: &mut SndMotu) -> Result<(), Error>;
     fn release_message_handler(&mut self, unit: &mut SndMotu) -> Result<(), Error>;
 }
