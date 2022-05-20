@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use glib::Error;
 
-use hinawa::{FwReq, FwRcode, FwResp, FwRespExtManual, FwTcode};
+use hinawa::{FwRcode, FwReq, FwResp, FwRespExtManual, FwTcode};
 use hinawa::{SndMotu, SndUnitExt};
 
 use alsactl::{ElemId, ElemValue};
@@ -11,8 +11,8 @@ use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
 
 use motu_protocols::{command_dsp::*, version_3::*};
 
-use super::{command_dsp_ctls::*, common_ctls::*, v3_ctls::*};
 use super::command_dsp_runtime::*;
+use super::{command_dsp_ctls::*, common_ctls::*, v3_ctls::*};
 
 const TIMEOUT_MS: u32 = 100;
 
@@ -144,29 +144,41 @@ impl CommandDspResourcebCtlOperation for ResourceCtl {
 impl CtlModel<SndMotu> for UltraLiteMk3 {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.port_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.port_assign_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
-        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.phone_assign_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
-        self.reverb_ctl.load(card_cntr)
+        self.reverb_ctl
+            .load(card_cntr)
             .map(|mut elem_id_list| self.reverb_ctl.1.append(&mut elem_id_list))?;
-        self.monitor_ctl.load(card_cntr)
+        self.monitor_ctl
+            .load(card_cntr)
             .map(|mut elem_id_list| self.monitor_ctl.1.append(&mut elem_id_list))?;
-        self.mixer_ctl.load(card_cntr)
+        self.mixer_ctl
+            .load(card_cntr)
             .map(|mut elem_id_list| self.mixer_ctl.1.append(&mut elem_id_list))?;
-        self.input_ctl.load(card_cntr)
+        self.input_ctl
+            .load(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
-        self.input_ctl.load_equalizer(card_cntr)
+        self.input_ctl
+            .load_equalizer(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
-        self.input_ctl.load_dynamics(card_cntr)
+        self.input_ctl
+            .load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.input_ctl.1.append(&mut elem_id_list))?;
-        self.output_ctl.load(card_cntr)
+        self.output_ctl
+            .load(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
-        self.output_ctl.load_equalizer(card_cntr)
+        self.output_ctl
+            .load_equalizer(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
-        self.output_ctl.load_dynamics(card_cntr)
+        self.output_ctl
+            .load_dynamics(card_cntr)
             .map(|mut elem_id_list| self.output_ctl.1.append(&mut elem_id_list))?;
-        self.resource_ctl.load(card_cntr)
+        self.resource_ctl
+            .load(card_cntr)
             .map(|mut elem_id_list| self.resource_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
@@ -175,9 +187,12 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         &mut self,
         unit: &mut SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        if self
+            .clk_ctls
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -213,13 +228,22 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         unit: &mut SndMotu,
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue
+        new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        if self
+            .clk_ctls
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.port_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .port_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .phone_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.reverb_ctl.write(
             &mut self.sequence_number,
@@ -227,7 +251,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.monitor_ctl.write(
@@ -236,7 +260,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.mixer_ctl.write(
@@ -245,7 +269,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.input_ctl.write(
@@ -254,7 +278,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.input_ctl.write_equalizer(
@@ -263,7 +287,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.input_ctl.write_dynamics(
@@ -272,7 +296,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.output_ctl.write(
@@ -281,7 +305,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.output_ctl.write_equalizer(
@@ -290,7 +314,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.output_ctl.write_dynamics(
@@ -299,7 +323,7 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
             &mut self.req,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else {
@@ -316,8 +340,10 @@ impl NotifyModel<SndMotu, u32> for UltraLiteMk3 {
 
     fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
         if *msg & UltraliteMk3Protocol::NOTIFY_PORT_CHANGE > 0 {
-            self.port_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
-            self.phone_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.port_assign_ctl
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.phone_assign_ctl
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
         Ok(())
     }
@@ -326,7 +352,7 @@ impl NotifyModel<SndMotu, u32> for UltraLiteMk3 {
         &mut self,
         _: &SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -362,7 +388,7 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
         &mut self,
         _: &SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.reverb_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -392,14 +418,14 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
 
 impl<'a> CommandDspModel<'a> for UltraLiteMk3 {
     fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
-        where
-            F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static
+    where
+        F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
         UltraliteMk3Protocol::register_message_destination_address(
             &mut self.resp,
             &mut self.req,
             &mut unit.get_node(),
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
         self.resp.connect_requested2(handler);
         Ok(())
@@ -410,7 +436,7 @@ impl<'a> CommandDspModel<'a> for UltraLiteMk3 {
             &mut self.req,
             &mut unit.get_node(),
             &mut self.sequence_number,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )
     }
 
@@ -419,13 +445,13 @@ impl<'a> CommandDspModel<'a> for UltraLiteMk3 {
             &mut self.req,
             &mut unit.get_node(),
             &mut self.sequence_number,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
         UltraliteMk3Protocol::release_message_destination_address(
             &mut self.resp,
             &mut self.req,
             &mut unit.get_node(),
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
         Ok(())
     }

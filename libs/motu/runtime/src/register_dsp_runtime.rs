@@ -4,17 +4,19 @@ use std::sync::mpsc;
 
 use nix::sys::signal::Signal;
 
-use glib::Error;
 use glib::source;
+use glib::Error;
 
 use hinawa::FwNodeExt;
 use hinawa::{SndMotu, SndMotuExt, SndUnitExt};
 
-use alsactl::{CardExt, ElemId, ElemEventMask};
+use alsactl::{CardExt, ElemEventMask, ElemId};
 
 use core::{card_cntr::*, dispatcher::*};
 
-use crate::{audioexpress::*, f828mk2::*, f896hd::*, f8pre::*, h4pre::*, traveler::*, ultralite::*};
+use crate::{
+    audioexpress::*, f828mk2::*, f896hd::*, f8pre::*, h4pre::*, traveler::*, ultralite::*,
+};
 
 pub type F828mk2Runtime = RegisterDspRuntime<F828mk2>;
 pub type F896hdRuntime = RegisterDspRuntime<F896hd>;
@@ -40,7 +42,7 @@ where
     notified_elem_id_list: Vec<ElemId>,
 }
 
-impl<T>  Drop for RegisterDspRuntime<T>
+impl<T> Drop for RegisterDspRuntime<T>
 where
     T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
 {
@@ -80,7 +82,7 @@ where
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        Ok(Self{
+        Ok(Self {
             unit,
             model: Default::default(),
             card_cntr,
@@ -97,7 +99,8 @@ where
         self.launch_system_event_dispatcher()?;
 
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
-        self.model.get_notified_elem_list(&mut self.notified_elem_id_list);
+        self.model
+            .get_notified_elem_list(&mut self.notified_elem_id_list);
 
         Ok(())
     }
@@ -176,9 +179,11 @@ where
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
-        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
-            let _ = tx.send(Event::Elem((elem_id.clone(), events)));
-        });
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let _ = tx.send(Event::Elem((elem_id.clone(), events)));
+            });
 
         self.dispatchers.push(dispatcher);
 

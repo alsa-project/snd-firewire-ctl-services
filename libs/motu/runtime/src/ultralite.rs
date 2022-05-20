@@ -18,7 +18,7 @@ use crate::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*, *};
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct UltraLite{
+pub struct UltraLite {
     req: FwReq,
     clk_ctls: ClkCtl,
     main_assign_ctl: MainAssignCtl,
@@ -109,18 +109,25 @@ struct InputCtl(UltraliteInputState, Vec<ElemId>);
 impl CtlModel<SndMotu> for UltraLite {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.main_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.main_assign_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.phone_assign_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
-        self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_output_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_return_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
-        self.mixer_source_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_source_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
-        self.output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.output_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
-        self.input_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.input_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
         Ok(())
     }
@@ -129,9 +136,12 @@ impl CtlModel<SndMotu> for UltraLite {
         &mut self,
         unit: &mut SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        if self
+            .clk_ctls
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.main_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -157,23 +167,47 @@ impl CtlModel<SndMotu> for UltraLite {
         unit: &mut SndMotu,
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue
+        new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        if self
+            .clk_ctls
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.main_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .main_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .phone_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_return_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_source_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.input_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .input_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -190,7 +224,8 @@ impl NotifyModel<SndMotu, u32> for UltraLite {
         if *msg & UltraliteProtocol::NOTIFY_PORT_CHANGE > 0 {
             // Just after changing, busy rcode returns so often.
             std::thread::sleep(std::time::Duration::from_millis(10));
-            self.main_assign_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.main_assign_ctl
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
         Ok(())
     }
@@ -199,7 +234,7 @@ impl NotifyModel<SndMotu, u32> for UltraLite {
         &mut self,
         _: &SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.main_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -217,7 +252,7 @@ impl MainAssignCtl {
         card_cntr: &mut CardCntr,
         unit: &mut SndMotu,
         req: &mut FwReq,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         self.cache(unit, req, timeout_ms)?;
 
@@ -226,18 +261,14 @@ impl MainAssignCtl {
             .map(|e| target_port_to_str(&e.0))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_ASSIGNMENT_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    fn cache(
-        &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        timeout_ms: u32
-    ) -> Result<(), Error> {
+    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
         UltraliteProtocol::get_main_assign(req, &mut unit.get_node(), timeout_ms)
             .map(|idx| self.0 = idx)
     }
@@ -261,18 +292,16 @@ impl MainAssignCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MAIN_ASSIGNMENT_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    UltraliteProtocol::set_main_assign(
-                        req,
-                        &mut unit.get_node(),
-                        val as usize,
-                        timeout_ms
-                    )
-                        .map(|_| self.0 = val as usize)
-                })
-                .map(|_| true)
-            }
+            MAIN_ASSIGNMENT_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
+                UltraliteProtocol::set_main_assign(
+                    req,
+                    &mut unit.get_node(),
+                    val as usize,
+                    timeout_ms,
+                )
+                .map(|_| self.0 = val as usize)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
@@ -301,27 +330,23 @@ impl InputCtl {
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            UltraliteProtocol::INPUT_GAIN_MIN as i32,
-            UltraliteProtocol::INPUT_GAIN_MAX as i32,
-            UltraliteProtocol::INPUT_GAIN_STEP as i32,
-            UltraliteProtocol::INPUT_COUNT,
-            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                UltraliteProtocol::INPUT_GAIN_MIN as i32,
+                UltraliteProtocol::INPUT_GAIN_MAX as i32,
+                UltraliteProtocol::INPUT_GAIN_STEP as i32,
+                UltraliteProtocol::INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_NAME, 0);
         card_cntr
-            .add_bool_elems(
-                &elem_id,
-                1,
-                UltraliteProtocol::INPUT_COUNT,
-                true
-            )
-                .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+            .add_bool_elems(&elem_id, 1, UltraliteProtocol::INPUT_COUNT, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
     }
@@ -359,9 +384,9 @@ impl InputCtl {
                     &mut unit.get_node(),
                     &gain,
                     &mut self.0,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             INPUT_INVERT_NAME => {
                 let mut invert = [false; UltraliteProtocol::INPUT_COUNT];
@@ -371,9 +396,9 @@ impl InputCtl {
                     &mut unit.get_node(),
                     &invert,
                     &mut self.0,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }

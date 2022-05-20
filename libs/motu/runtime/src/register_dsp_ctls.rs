@@ -49,28 +49,32 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_VOLUME_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::MIXER_OUTPUT_VOLUME_MIN as i32,
-            T::MIXER_OUTPUT_VOLUME_MAX as i32,
-            T::MIXER_OUTPUT_VOLUME_STEP as i32,
-            T::MIXER_COUNT,
-            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::MIXER_OUTPUT_VOLUME_MIN as i32,
+                T::MIXER_OUTPUT_VOLUME_MAX as i32,
+                T::MIXER_OUTPUT_VOLUME_STEP as i32,
+                T::MIXER_COUNT,
+                Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::MIXER_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIXER_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         if T::OUTPUT_DESTINATIONS.len() > 0 {
-            let labels: Vec<&str> = T::OUTPUT_DESTINATIONS.iter()
+            let labels: Vec<&str> = T::OUTPUT_DESTINATIONS
+                .iter()
                 .map(|p| target_port_to_str(p))
                 .collect();
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DST_NAME, 0);
-            card_cntr.add_enum_elems(&elem_id, 1, T::MIXER_COUNT, &labels, None, true)
+            card_cntr
+                .add_enum_elems(&elem_id, 1, T::MIXER_COUNT, &labels, None, true)
                 .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
         }
 
@@ -95,7 +99,7 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
                         .unwrap();
                     Ok(val as u32)
                 })
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -119,9 +123,9 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
                     &mut unit.get_node(),
                     &vols,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
                 let mut mute = vec![false; T::MIXER_COUNT];
@@ -131,34 +135,32 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
                     &mut unit.get_node(),
                     &mute,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_OUTPUT_DST_NAME => {
                 let mut vals = vec![0; T::MIXER_COUNT];
                 elem_value.get_enum(&mut vals);
                 let mut dst = Vec::new();
-                vals
-                    .iter()
-                    .try_for_each(|&val| {
-                        T::OUTPUT_DESTINATIONS
-                            .iter()
-                            .nth(val as usize)
-                            .ok_or_else(|| {
-                                let msg = format!("Invalid index for ourput destination: {}", val);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&port| dst.push(port))
-                    })?;
+                vals.iter().try_for_each(|&val| {
+                    T::OUTPUT_DESTINATIONS
+                        .iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index for ourput destination: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&port| dst.push(port))
+                })?;
                 T::write_mixer_output_destination(
                     req,
                     &mut unit.get_node(),
                     &dst,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -184,16 +186,20 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
         let mut notified_elem_id_list = Vec::new();
 
         if T::RETURN_SOURCES.len() > 0 {
-            let labels: Vec<&str> = T::RETURN_SOURCES.iter()
+            let labels: Vec<&str> = T::RETURN_SOURCES
+                .iter()
                 .map(|p| target_port_to_str(p))
                 .collect();
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_SOURCE_NAME, 0);
-            card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_SOURCE_NAME, 0);
+            card_cntr
+                .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
                 .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
         }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_ENABLE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
@@ -201,16 +207,14 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MIXER_RETURN_SOURCE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    let pos = T::RETURN_SOURCES
-                        .iter()
-                        .position(|s| self.state().source.eq(s))
-                        .unwrap();
-                    Ok(pos as u32)
-                })
-                    .map(|_| true)
-            }
+            MIXER_RETURN_SOURCE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                let pos = T::RETURN_SOURCES
+                    .iter()
+                    .position(|s| self.state().source.eq(s))
+                    .unwrap();
+                Ok(pos as u32)
+            })
+            .map(|_| true),
             MIXER_RETURN_ENABLE_NAME => {
                 elem_value.set_bool(&[self.state().enable]);
                 Ok(true)
@@ -228,37 +232,30 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MIXER_RETURN_SOURCE_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    let &src = T::RETURN_SOURCES
-                        .iter()
-                        .nth(val as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for source of mixer return: {}", val);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    T::write_mixer_return_source(
-                        req,
-                        &mut unit.get_node(),
-                        src,
-                        self.state_mut(),
-                        timeout_ms
-                    )
-                })
-                    .map(|_| true)
-            }
-            MIXER_RETURN_ENABLE_NAME => {
-                ElemValueAccessor::<bool>::get_val(elem_value, |val| {
-                    T::write_mixer_return_enable(
-                        req,
-                        &mut unit.get_node(),
-                        val,
-                        self.state_mut(),
-                        timeout_ms
-                    )
-                })
-                        .map(|_| true)
-            }
+            MIXER_RETURN_SOURCE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                let &src = T::RETURN_SOURCES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index for source of mixer return: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                T::write_mixer_return_source(
+                    req,
+                    &mut unit.get_node(),
+                    src,
+                    self.state_mut(),
+                    timeout_ms,
+                )
+            })
+            .map(|_| true),
+            MIXER_RETURN_ENABLE_NAME => ElemValueAccessor::<bool>::get_val(elem_value, |val| {
+                T::write_mixer_return_enable(
+                    req,
+                    &mut unit.get_node(),
+                    val,
+                    self.state_mut(),
+                    timeout_ms,
+                )
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
@@ -294,37 +291,41 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            T::MIXER_COUNT,
-            T::SOURCE_GAIN_MIN as i32,
-            T::SOURCE_GAIN_MAX as i32,
-            T::SOURCE_GAIN_STEP as i32,
-            T::MIXER_SOURCES.len(),
-            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::MIXER_COUNT,
+                T::SOURCE_GAIN_MIN as i32,
+                T::SOURCE_GAIN_MAX as i32,
+                T::SOURCE_GAIN_STEP as i32,
+                T::MIXER_SOURCES.len(),
+                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            T::MIXER_COUNT,
-            T::SOURCE_PAN_MIN as i32,
-            T::SOURCE_PAN_MAX as i32,
-            T::SOURCE_PAN_STEP as i32,
-            T::MIXER_SOURCES.len(),
-            None,
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::MIXER_COUNT,
+                T::SOURCE_PAN_MIN as i32,
+                T::SOURCE_PAN_MAX as i32,
+                T::SOURCE_PAN_STEP as i32,
+                T::MIXER_SOURCES.len(),
+                None,
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
+        card_cntr
+            .add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_SOLO_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
+        card_cntr
+            .add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
@@ -376,9 +377,9 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                     mixer,
                     &gain,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
                 let mut vals = vec![0; T::MIXER_SOURCES.len()];
@@ -391,9 +392,9 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                     mixer,
                     &pan,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mut mute = vec![false; T::MIXER_SOURCES.len()];
@@ -405,9 +406,9 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                     mixer,
                     &mute,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
                 let mut solo = vec![false; T::MIXER_SOURCES.len()];
@@ -419,9 +420,9 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                     mixer,
                     &solo,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -455,28 +456,32 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_PAIRED_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::MIXER_SOURCE_PAIR_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIXER_SOURCE_PAIR_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            T::MIXER_COUNT,
-            T::SOURCE_GAIN_MIN as i32,
-            T::SOURCE_GAIN_MAX as i32,
-            T::SOURCE_GAIN_STEP as i32,
-            T::MIXER_SOURCES.len(),
-            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                T::MIXER_COUNT,
+                T::SOURCE_GAIN_MIN as i32,
+                T::SOURCE_GAIN_MAX as i32,
+                T::SOURCE_GAIN_STEP as i32,
+                T::MIXER_SOURCES.len(),
+                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
+        card_cntr
+            .add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SOURCE_SOLO_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
+        card_cntr
+            .add_bool_elems(&elem_id, T::MIXER_COUNT, T::MIXER_SOURCES.len(), true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
@@ -524,9 +529,9 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                     &mut unit.get_node(),
                     &vals,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_SOURCE_GAIN_NAME => {
                 let mut vals = vec![0; T::MIXER_SOURCES.len()];
@@ -539,9 +544,9 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                     mixer,
                     &gain,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
                 let mut mute = vec![false; T::MIXER_SOURCES.len()];
@@ -553,9 +558,9 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                     mixer,
                     &mute,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
                 let mut solo = vec![false; T::MIXER_SOURCES.len()];
@@ -567,9 +572,9 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                     mixer,
                     &solo,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -602,29 +607,31 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MASTER_OUTPUT_VOLUME_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::VOLUME_MIN as i32,
-            T::VOLUME_MAX as i32,
-            T::VOLUME_STEP as i32,
-            1,
-            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::VOLUME_MIN as i32,
+                T::VOLUME_MAX as i32,
+                T::VOLUME_STEP as i32,
+                1,
+                Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PHONE_VOLUME_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::VOLUME_MIN as i32,
-            T::VOLUME_MAX as i32,
-            T::VOLUME_STEP as i32,
-            1,
-            Some(&Vec::<u32>::from(&Self::VOL_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::VOLUME_MIN as i32,
+                T::VOLUME_MAX as i32,
+                T::VOLUME_STEP as i32,
+                1,
+                Some(&Vec::<u32>::from(&Self::VOL_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
@@ -661,9 +668,9 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
                     &mut unit.get_node(),
                     vals[0] as u8,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             PHONE_VOLUME_NAME => {
                 let mut vals = [0];
@@ -673,9 +680,9 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
                     &mut unit.get_node(),
                     vals[0] as u8,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -712,11 +719,13 @@ pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperatio
             .map(|l| nominal_signal_level_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_NOMINAL_LEVEL_NAME, 0);
-        card_cntr.add_enum_elems( &elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, T::LINE_INPUT_COUNT, &labels, None, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_BOOST_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::LINE_INPUT_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::LINE_INPUT_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
@@ -732,7 +741,7 @@ pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperatio
                         .unwrap();
                     Ok(pos as u32)
                 })
-                    .map(|_| true)
+                .map(|_| true)
             }
             INPUT_BOOST_NAME => {
                 elem_value.set_bool(&self.state().boost);
@@ -755,26 +764,24 @@ pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperatio
                 let mut vals = vec![0; T::LINE_INPUT_COUNT];
                 elem_value.get_enum(&mut vals);
                 let mut level = Vec::new();
-                vals
-                    .iter()
-                    .try_for_each(|&val| {
-                        Self::NOMINAL_LEVELS
-                            .iter()
-                            .nth(val as usize)
-                            .ok_or_else(|| {
-                                let msg = format!("Invalid index of nominal signal level: {}", val);
-                                Error::new(FileError::Inval, &msg)
-                            })
-                            .map(|&l| level.push(l))
-                    })?;
+                vals.iter().try_for_each(|&val| {
+                    Self::NOMINAL_LEVELS
+                        .iter()
+                        .nth(val as usize)
+                        .ok_or_else(|| {
+                            let msg = format!("Invalid index of nominal signal level: {}", val);
+                            Error::new(FileError::Inval, &msg)
+                        })
+                        .map(|&l| level.push(l))
+                })?;
                 T::write_line_input_level(
                     req,
                     &mut unit.get_node(),
                     &level,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             INPUT_BOOST_NAME => {
                 let mut vals = vec![false; T::LINE_INPUT_COUNT];
@@ -784,9 +791,9 @@ pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperatio
                     &mut unit.get_node(),
                     &vals,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -823,28 +830,32 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
-        card_cntr.add_int_elems(
-            &elem_id,
-            1,
-            T::INPUT_GAIN_MIN as i32,
-            T::INPUT_GAIN_MAX as i32,
-            T::INPUT_GAIN_STEP as i32,
-            T::INPUT_COUNT,
-            Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true,
-        )
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::INPUT_GAIN_MIN as i32,
+                T::INPUT_GAIN_MAX as i32,
+                T::INPUT_GAIN_STEP as i32,
+                T::INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                true,
+            )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::INPUT_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::INPUT_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PHANTOM_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_PAD_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::MIC_COUNT, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(notified_elem_id_list)
@@ -890,9 +901,9 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
                     &mut unit.get_node(),
                     &gain,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             INPUT_INVERT_NAME => {
                 let mut invert = vec![false; T::INPUT_COUNT];
@@ -902,9 +913,9 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
                     &mut unit.get_node(),
                     &invert,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIC_PHANTOM_NAME => {
                 let mut phantom = vec![false; T::MIC_COUNT];
@@ -914,9 +925,9 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
                     &mut unit.get_node(),
                     &phantom,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIC_PAD_NAME => {
                 let mut pad = vec![false; T::MIC_COUNT];
@@ -926,9 +937,9 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
                     &mut unit.get_node(),
                     &pad,
                     self.state_mut(),
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }

@@ -56,18 +56,14 @@ pub trait V1ClkCtlOperation<T: V1ClkOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            RATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
-                })
-                .map(|_| true)
-            }
-            SRC_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
-                })
-                .map(|_| true)
-            }
+            RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+            })
+            .map(|_| true),
+            SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                T::get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
@@ -81,24 +77,20 @@ pub trait V1ClkCtlOperation<T: V1ClkOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    unit.lock()?;
-                    let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
-                    let _ = unit.unlock();
-                    res
-                })
-                .map(|_| true)
-            }
-            SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    unit.lock()?;
-                    let res = T::set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
-                    let _ = unit.unlock();
-                    res
-                })
-                .map(|_| true)
-            }
+            RATE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                unit.lock()?;
+                let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
+                let _ = unit.unlock();
+                res
+            })
+            .map(|_| true),
+            SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
+                unit.lock()?;
+                let res = T::set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
+                let _ = unit.unlock();
+                res
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
@@ -126,13 +118,10 @@ pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MONITOR_INPUT_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    T::get_monitor_input(req, &mut unit.get_node(), timeout_ms)
-                        .map(|idx| idx as u32)
-                })
-                .map(|_| true)
-            }
+            MONITOR_INPUT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                T::get_monitor_input(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
@@ -146,12 +135,10 @@ pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            MONITOR_INPUT_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    T::set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
-                })
-                .map(|_| true)
-            }
+            MONITOR_INPUT_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
+                T::set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }

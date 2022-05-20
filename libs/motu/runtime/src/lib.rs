@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-mod v1_runtime;
-mod register_dsp_runtime;
 mod command_dsp_runtime;
+mod register_dsp_runtime;
+mod v1_runtime;
 
 mod f828;
 mod f896;
@@ -20,39 +20,39 @@ mod h4pre;
 mod ultralite_mk3;
 mod ultralite_mk3_hybrid;
 
+mod command_dsp_ctls;
 mod common_ctls;
+mod register_dsp_ctls;
 mod v1_ctls;
 mod v2_ctls;
 mod v3_ctls;
-mod register_dsp_ctls;
-mod command_dsp_ctls;
 
 use glib::{Error, FileError};
 use std::convert::TryFrom;
 
-use hinawa::{FwNodeExtManual, SndUnitExt, SndMotuExt};
+use hinawa::{FwNodeExtManual, SndMotuExt, SndUnitExt};
 
 use core::RuntimeOperation;
 
 use ieee1212_config_rom::*;
 use motu_protocols::{config_rom::*, *};
 
-use crate::{v1_runtime::*, register_dsp_runtime::*, command_dsp_runtime::*};
+use crate::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*};
 
 pub enum MotuRuntime {
-         F828(F828Runtime),
-         F896(F896Runtime),
-         F828mk2(F828mk2Runtime),
-         F896hd(F896hdRuntime),
-         Traveler(TravelerRuntime),
-         Ultralite(UltraliteRuntime),
-         F8pre(F8preRuntime),
-         Ultralitemk3(UltraliteMk3Runtime),
-         Ultralitemk3Hybrid(UltraliteMk3HybridRuntime),
-         AudioExpress(AudioExpressRuntime),
-         F828mk3(F828mk3Runtime),
-         F828mk3Hybrid(F828mk3HybridRuntime),
-         H4pre(H4preRuntime),
+    F828(F828Runtime),
+    F896(F896Runtime),
+    F828mk2(F828mk2Runtime),
+    F896hd(F896hdRuntime),
+    Traveler(TravelerRuntime),
+    Ultralite(UltraliteRuntime),
+    F8pre(F8preRuntime),
+    Ultralitemk3(UltraliteMk3Runtime),
+    Ultralitemk3Hybrid(UltraliteMk3HybridRuntime),
+    AudioExpress(AudioExpressRuntime),
+    F828mk3(F828mk3Runtime),
+    F828mk3Hybrid(F828mk3HybridRuntime),
+    H4pre(H4preRuntime),
 }
 
 impl RuntimeOperation<u32> for MotuRuntime {
@@ -68,10 +68,9 @@ impl RuntimeOperation<u32> for MotuRuntime {
                 Error::new(FileError::Nxio, &msg)
             })
             .and_then(|config_rom| {
-                config_rom.get_unit_data()
-                    .ok_or_else(|| {
-                        Error::new(FileError::Nxio, "Unexpected content of configuration ROM.")
-                    })
+                config_rom.get_unit_data().ok_or_else(|| {
+                    Error::new(FileError::Nxio, "Unexpected content of configuration ROM.")
+                })
             })?;
 
         let version = unit_data.version;
@@ -81,14 +80,26 @@ impl RuntimeOperation<u32> for MotuRuntime {
             0x000002 => Ok(Self::F896(F896Runtime::new(unit, card_id, version)?)),
             0x000003 => Ok(Self::F828mk2(F828mk2Runtime::new(unit, card_id, version)?)),
             0x000005 => Ok(Self::F896hd(F896hdRuntime::new(unit, card_id, version)?)),
-            0x000009 => Ok(Self::Traveler(TravelerRuntime::new(unit, card_id, version)?)),
-            0x00000d => Ok(Self::Ultralite(UltraliteRuntime::new(unit, card_id, version)?)),
+            0x000009 => Ok(Self::Traveler(TravelerRuntime::new(
+                unit, card_id, version,
+            )?)),
+            0x00000d => Ok(Self::Ultralite(UltraliteRuntime::new(
+                unit, card_id, version,
+            )?)),
             0x00000f => Ok(Self::F8pre(F8preRuntime::new(unit, card_id, version)?)),
             0x000015 => Ok(Self::F828mk3(F828mk3Runtime::new(unit, card_id, version)?)),
-            0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(unit, card_id, version)?)),
-            0x000030 => Ok(Self::Ultralitemk3Hybrid(UltraliteMk3HybridRuntime::new(unit, card_id, version)?)),
-            0x000033 => Ok(Self::AudioExpress(AudioExpressRuntime::new(unit, card_id, version)?)),
-            0x000035 => Ok(Self::F828mk3Hybrid(F828mk3HybridRuntime::new(unit, card_id, version)?)),
+            0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(
+                unit, card_id, version,
+            )?)),
+            0x000030 => Ok(Self::Ultralitemk3Hybrid(UltraliteMk3HybridRuntime::new(
+                unit, card_id, version,
+            )?)),
+            0x000033 => Ok(Self::AudioExpress(AudioExpressRuntime::new(
+                unit, card_id, version,
+            )?)),
+            0x000035 => Ok(Self::F828mk3Hybrid(F828mk3HybridRuntime::new(
+                unit, card_id, version,
+            )?)),
             0x000045 => Ok(Self::H4pre(H4preRuntime::new(unit, card_id, version)?)),
             _ => {
                 let label = format!("Unsupported model ID: 0x{:06x}", unit_data.model_id);

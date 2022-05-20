@@ -16,7 +16,7 @@ use super::{common_ctls::*, register_dsp_ctls::*, v2_ctls::*};
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-pub struct F8pre{
+pub struct F8pre {
     req: FwReq,
     clk_ctls: ClkCtl,
     opt_iface_ctl: OptIfaceCtl,
@@ -113,17 +113,23 @@ impl RegisterDspOutputCtlOperation<F8preProtocol> for OutputCtl {
 impl CtlModel<SndMotu> for F8pre {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
-        self.opt_iface_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.opt_iface_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
-        self.phone_assign_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.phone_assign_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
-        self.mixer_output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_output_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        self.mixer_return_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_return_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_return_ctl.1 = elem_id_list)?;
-        self.mixer_source_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.mixer_source_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
-        self.output_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+        self.output_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
         Ok(())
     }
@@ -132,9 +138,12 @@ impl CtlModel<SndMotu> for F8pre {
         &mut self,
         unit: &mut SndMotu,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        if self
+            .clk_ctls
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -158,21 +167,42 @@ impl CtlModel<SndMotu> for F8pre {
         unit: &mut SndMotu,
         elem_id: &ElemId,
         _: &ElemValue,
-        new: &ElemValue
+        new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctls.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        if self
+            .clk_ctls
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.opt_iface_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .opt_iface_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phone_assign_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .phone_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_return_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_return_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_source_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_source_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.output_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -191,7 +221,7 @@ impl NotifyModel<SndMotu, u32> for F8pre {
         &mut self,
         _: &SndMotu,
         _: &ElemId,
-        _: &mut ElemValue
+        _: &mut ElemValue,
     ) -> Result<bool, Error> {
         Ok(false)
     }
