@@ -405,6 +405,18 @@ impl NotifyModel<SndMotu, Vec<DspCmd>> for UltraliteMk3Hybrid {
     }
 }
 
+impl MeasureModel<SndMotu> for UltraliteMk3Hybrid {
+    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
+
+    fn measure_states(&mut self, _: &mut SndMotu) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn measure_elem(&mut self, _: &SndMotu, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
+        Ok(false)
+    }
+}
+
 impl CommandDspModel for UltraliteMk3Hybrid {
     fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
     where
