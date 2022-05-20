@@ -30,8 +30,8 @@ where
     for<'a> T: Default
         + CtlModel<SndMotu>
         + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, &'a [DspCmd]>
-        + CommandDspModel<'a>,
+        + NotifyModel<SndMotu, Vec<DspCmd>>
+        + CommandDspModel,
 {
     unit: SndMotu,
     model: T,
@@ -51,8 +51,8 @@ where
     for<'a> T: Default
         + CtlModel<SndMotu>
         + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, &'a [DspCmd]>
-        + CommandDspModel<'a>,
+        + NotifyModel<SndMotu, Vec<DspCmd>>
+        + CommandDspModel,
 {
     fn drop(&mut self) {
         let _ = self.model.release_message_handler(&mut self.unit);
@@ -87,8 +87,8 @@ where
     for<'a> T: Default
         + CtlModel<SndMotu>
         + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, &'a [DspCmd]>
-        + CommandDspModel<'a>,
+        + NotifyModel<SndMotu, Vec<DspCmd>>
+        + CommandDspModel,
 {
     pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -173,7 +173,7 @@ where
             &mut self.model,
             &mut self.notified_elem_id_list,
         );
-        NotifyModel::<SndMotu, &[DspCmd]>::get_notified_elem_list(
+        NotifyModel::<SndMotu, Vec<DspCmd>>::get_notified_elem_list(
             &mut self.model,
             &mut self.cmd_notified_elem_id_list,
         );
@@ -221,7 +221,7 @@ where
                     };
                     let _ = self.card_cntr.dispatch_notification(
                         &mut self.unit,
-                        &&cmds[..],
+                        &cmds,
                         &self.cmd_notified_elem_id_list,
                         &mut self.model,
                     );
@@ -284,7 +284,7 @@ where
     }
 }
 
-pub trait CommandDspModel<'a>: NotifyModel<SndMotu, &'a [DspCmd]> {
+pub trait CommandDspModel: NotifyModel<SndMotu, Vec<DspCmd>> {
     fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
     where
         F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static;

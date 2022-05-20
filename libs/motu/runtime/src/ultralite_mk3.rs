@@ -353,7 +353,7 @@ impl NotifyModel<SndMotu, u32> for UltraLiteMk3 {
     }
 }
 
-impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
+impl NotifyModel<SndMotu, Vec<DspCmd>> for UltraLiteMk3 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.1);
         elem_id_list.extend_from_slice(&self.monitor_ctl.1);
@@ -363,13 +363,13 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
         elem_id_list.extend_from_slice(&self.resource_ctl.1);
     }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, cmds: &&[DspCmd]) -> Result<(), Error> {
-        self.reverb_ctl.parse_commands(*cmds);
-        self.monitor_ctl.parse_commands(*cmds);
-        self.mixer_ctl.parse_commands(*cmds);
-        self.input_ctl.parse_commands(*cmds);
-        self.output_ctl.parse_commands(*cmds);
-        self.resource_ctl.parse_commands(*cmds);
+    fn parse_notification(&mut self, _: &mut SndMotu, cmds: &Vec<DspCmd>) -> Result<(), Error> {
+        self.reverb_ctl.parse_commands(&cmds[..]);
+        self.monitor_ctl.parse_commands(&cmds[..]);
+        self.mixer_ctl.parse_commands(&cmds[..]);
+        self.input_ctl.parse_commands(&cmds[..]);
+        self.output_ctl.parse_commands(&cmds[..]);
+        self.resource_ctl.parse_commands(&cmds[..]);
         Ok(())
     }
 
@@ -405,7 +405,7 @@ impl NotifyModel<SndMotu, &[DspCmd]> for UltraLiteMk3 {
     }
 }
 
-impl<'a> CommandDspModel<'a> for UltraLiteMk3 {
+impl CommandDspModel for UltraLiteMk3 {
     fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
     where
         F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
