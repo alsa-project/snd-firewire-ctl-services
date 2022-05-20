@@ -17,6 +17,7 @@ mod audioexpress;
 mod f828mk3;
 mod f828mk3_hybrid;
 mod h4pre;
+mod track16;
 mod traveler_mk3;
 mod ultralite_mk3;
 mod ultralite_mk3_hybrid;
@@ -53,6 +54,7 @@ pub enum MotuRuntime {
     AudioExpress(AudioExpressRuntime),
     F828mk3(F828mk3Runtime),
     F828mk3Hybrid(F828mk3HybridRuntime),
+    Track16(Track16Runtime),
     H4pre(H4preRuntime),
 }
 
@@ -104,6 +106,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             0x000035 => Ok(Self::F828mk3Hybrid(F828mk3HybridRuntime::new(
                 unit, card_id, version,
             )?)),
+            0x000039 => Ok(Self::Track16(Track16Runtime::new(unit, card_id, version)?)),
             0x000045 => Ok(Self::H4pre(H4preRuntime::new(unit, card_id, version)?)),
             _ => {
                 let label = format!("Unsupported model ID: 0x{:06x}", unit_data.model_id);
@@ -127,6 +130,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::Ultralitemk3Hybrid(runtime) => runtime.listen(),
             Self::AudioExpress(runtime) => runtime.listen(),
             Self::F828mk3Hybrid(runtime) => runtime.listen(),
+            Self::Track16(runtime) => runtime.listen(),
             Self::H4pre(runtime) => runtime.listen(),
         }
     }
@@ -146,6 +150,7 @@ impl RuntimeOperation<u32> for MotuRuntime {
             Self::Ultralitemk3Hybrid(runtime) => runtime.run(),
             Self::AudioExpress(runtime) => runtime.run(),
             Self::F828mk3Hybrid(runtime) => runtime.run(),
+            Self::Track16(runtime) => runtime.run(),
             Self::H4pre(runtime) => runtime.run(),
         }
     }
