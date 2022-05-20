@@ -6,10 +6,6 @@
 //! The modules includes structure, enumeration, and trait and its implementation for protocol
 //! used in version 3 devices of Mark of the Unicorn FireWire series.
 
-use glib::Error;
-
-use hinawa::FwReq;
-
 use super::{command_dsp::*, register_dsp::*, *};
 
 /// The enumeration to express source of sampling clock.

@@ -6,8 +6,6 @@
 //! The module includes structure, enumeration, and trait for hardware mixer function expressed
 //! in registers.
 
-use hinawa::{FwNode, FwReq};
-
 use super::*;
 
 const MIXER_COUNT: usize = 4;
