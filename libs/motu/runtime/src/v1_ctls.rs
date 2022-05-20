@@ -89,9 +89,9 @@ const MONITOR_INPUT_NAME: &str = "monitor-input";
 
 pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = T::MONITOR_INPUT_MODES
+        let labels: Vec<String> = T::MONITOR_INPUT_MODES
             .iter()
-            .map(|e| target_port_to_str(e))
+            .map(|e| target_port_to_string(e))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_INPUT_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;

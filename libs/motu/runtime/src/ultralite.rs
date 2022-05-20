@@ -244,9 +244,9 @@ impl MainAssignCtl {
     ) -> Result<(), Error> {
         self.cache(unit, req, timeout_ms)?;
 
-        let labels: Vec<&str> = UltraliteProtocol::KNOB_TARGETS
+        let labels: Vec<String> = UltraliteProtocol::KNOB_TARGETS
             .iter()
-            .map(|e| target_port_to_str(&e.0))
+            .map(|e| target_port_to_string(&e.0))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MAIN_ASSIGNMENT_NAME, 0);
         card_cntr

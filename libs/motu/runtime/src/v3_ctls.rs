@@ -114,9 +114,9 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
 
         let mut notified_elem_id_list = Vec::new();
 
-        let labels: Vec<&str> = T::ASSIGN_PORTS
+        let labels: Vec<String> = T::ASSIGN_PORTS
             .iter()
-            .map(|p| target_port_to_str(&p.0))
+            .map(|p| target_port_to_string(&p.0))
             .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MAIN_ASSIGN_NAME, 0);

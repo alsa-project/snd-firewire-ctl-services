@@ -656,9 +656,9 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
 
         let mut notified_elem_id_list = Vec::new();
 
-        let labels: Vec<&str> = T::OUTPUT_PORTS
+        let labels: Vec<String> = T::OUTPUT_PORTS
             .iter()
-            .map(|p| target_port_to_str(p))
+            .map(|p| target_port_to_string(p))
             .collect();
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_OUTPUT_DESTINATION_NAME, 0);

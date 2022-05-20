@@ -422,12 +422,12 @@ const MIXER_SOURCE_PAIRED_CHANGE: u8 = 0x00000080;
 /// The trait for operation of mixer sources.
 pub trait RegisterDspMixerStereoSourceOperation {
     const MIXER_SOURCES: [TargetPort; MIXER_STEREO_SOURCE_COUNT] = [
-        TargetPort::Analog0,
-        TargetPort::Analog1,
-        TargetPort::Analog2,
-        TargetPort::Analog3,
-        TargetPort::Spdif0,
-        TargetPort::Spdif1,
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
     ];
     const MIXER_SOURCE_PAIR_COUNT: usize = Self::MIXER_SOURCES.len() / 2;
 
