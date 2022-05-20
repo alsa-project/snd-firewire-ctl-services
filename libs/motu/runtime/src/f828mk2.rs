@@ -116,14 +116,14 @@ impl RegisterDspOutputCtlOperation<F828mk2Protocol> for OutputCtl {
 }
 
 #[derive(Default)]
-struct LineInputCtl(Traveler828mk2LineInputState, Vec<ElemId>);
+struct LineInputCtl(RegisterDspLineInputState, Vec<ElemId>);
 
 impl Traveler828mk2LineInputCtlOperation<F828mk2Protocol> for LineInputCtl {
-    fn state(&self) -> &Traveler828mk2LineInputState {
+    fn state(&self) -> &RegisterDspLineInputState {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Traveler828mk2LineInputState {
+    fn state_mut(&mut self) -> &mut RegisterDspLineInputState {
         &mut self.0
     }
 }
