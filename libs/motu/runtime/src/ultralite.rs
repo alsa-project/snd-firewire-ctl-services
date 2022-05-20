@@ -17,6 +17,8 @@ pub struct UltraLite {
     output_ctl: OutputCtl,
     input_ctl: InputCtl,
     params: SndMotuRegisterDspParameter,
+    meter: RegisterDspMeterImage,
+    meter_ctl: MeterCtl,
 }
 
 #[derive(Default)]
@@ -103,6 +105,19 @@ impl RegisterDspMonauralInputCtlOperation<UltraliteProtocol> for InputCtl {
     }
 
     fn state_mut(&mut self) -> &mut RegisterDspMonauralInputState {
+        &mut self.0
+    }
+}
+
+#[derive(Default)]
+struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl RegisterDspMeterCtlOperation<UltraliteProtocol> for MeterCtl {
+    fn state(&self) -> &RegisterDspMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMeterState {
         &mut self.0
     }
 }
@@ -332,14 +347,25 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for UltraLite {
 }
 
 impl MeasureModel<SndMotu> for UltraLite {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
-
-    fn measure_states(&mut self, _: &mut SndMotu) -> Result<(), Error> {
-        Ok(())
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_elem(&mut self, _: &SndMotu, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 

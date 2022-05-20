@@ -18,6 +18,8 @@ pub struct F896hd {
     mixer_source_ctl: MixerSourceCtl,
     output_ctl: OutputCtl,
     params: SndMotuRegisterDspParameter,
+    meter: RegisterDspMeterImage,
+    meter_ctl: MeterCtl,
 }
 
 #[derive(Default)]
@@ -121,6 +123,19 @@ impl RegisterDspOutputCtlOperation<F896hdProtocol> for OutputCtl {
     }
 }
 
+#[derive(Default)]
+struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl RegisterDspMeterCtlOperation<F896hdProtocol> for MeterCtl {
+    fn state(&self) -> &RegisterDspMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMeterState {
+        &mut self.0
+    }
+}
+
 impl CtlModel<SndMotu> for F896hd {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -146,6 +161,9 @@ impl CtlModel<SndMotu> for F896hd {
         self.output_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
+        self.meter_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
@@ -187,6 +205,8 @@ impl CtlModel<SndMotu> for F896hd {
         } else if self.mixer_source_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.output_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -245,6 +265,11 @@ impl CtlModel<SndMotu> for F896hd {
             Ok(true)
         } else if self
             .output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .meter_ctl
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
@@ -356,13 +381,24 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for F896hd {
 }
 
 impl MeasureModel<SndMotu> for F896hd {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
-
-    fn measure_states(&mut self, _: &mut SndMotu) -> Result<(), Error> {
-        Ok(())
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_elem(&mut self, _: &SndMotu, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
