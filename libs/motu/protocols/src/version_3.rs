@@ -300,6 +300,14 @@ fn get_opt_iface_mode(
 
 /// The trait for optical interface protocol in version 3.
 pub trait V3OptIfaceOperation {
+    const TARGETS: &'static [V3OptIfaceTarget];
+
+    const MODES: &'static [V3OptIfaceMode; 3] = &[
+        V3OptIfaceMode::Disabled,
+        V3OptIfaceMode::Adat,
+        V3OptIfaceMode::Spdif,
+    ];
+
     fn set_opt_input_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -670,7 +678,9 @@ impl V3ClkOperation for F828mk3Protocol {
 
 impl V3PortAssignOperation for F828mk3Protocol {}
 
-impl V3OptIfaceOperation for F828mk3Protocol {}
+impl V3OptIfaceOperation for F828mk3Protocol {
+    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
+}
 
 impl CommandDspOperation for F828mk3Protocol {}
 
@@ -727,7 +737,9 @@ impl V3ClkOperation for F828mk3HybridProtocol {
 
 impl V3PortAssignOperation for F828mk3HybridProtocol {}
 
-impl V3OptIfaceOperation for F828mk3HybridProtocol {}
+impl V3OptIfaceOperation for F828mk3HybridProtocol {
+    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
+}
 
 impl CommandDspOperation for F828mk3HybridProtocol {}
 
@@ -1091,7 +1103,9 @@ impl V3ClkOperation for TravelerMk3Protocol {
 
 impl V3PortAssignOperation for TravelerMk3Protocol {}
 
-impl V3OptIfaceOperation for TravelerMk3Protocol {}
+impl V3OptIfaceOperation for TravelerMk3Protocol {
+    const TARGETS: &'static [V3OptIfaceTarget] = &[V3OptIfaceTarget::A, V3OptIfaceTarget::B];
+}
 
 impl WordClkOperation for TravelerMk3Protocol {}
 

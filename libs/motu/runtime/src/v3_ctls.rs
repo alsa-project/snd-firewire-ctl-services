@@ -191,23 +191,14 @@ const OPT_IFACE_IN_MODE_NAME: &str = "optical-iface-in-mode";
 const OPT_IFACE_OUT_MODE_NAME: &str = "optical-iface-out-mode";
 
 pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
-    const MODES: [V3OptIfaceMode; 3] = [
-        V3OptIfaceMode::Disabled,
-        V3OptIfaceMode::Adat,
-        V3OptIfaceMode::Spdif,
-    ];
-    const TARGETS: [V3OptIfaceTarget; 2] = [V3OptIfaceTarget::A, V3OptIfaceTarget::B];
-
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::MODES
-            .iter()
-            .map(|m| opt_iface_mode_to_str(m))
-            .collect();
+        let labels: Vec<&str> = T::MODES.iter().map(|m| opt_iface_mode_to_str(m)).collect();
+
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_IN_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGETS.len(), &labels, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::TARGETS.len(), &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OPT_IFACE_OUT_MODE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::TARGETS.len(), &labels, None, true)?;
+        let _ = card_cntr.add_enum_elems(&elem_id, 1, T::TARGETS.len(), &labels, None, true)?;
 
         Ok(())
     }
@@ -222,26 +213,26 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, Self::TARGETS.len(), |idx| {
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::TARGETS.len(), |idx| {
                     T::get_opt_input_iface_mode(
                         req,
                         &mut unit.get_node(),
-                        Self::TARGETS[idx],
+                        T::TARGETS[idx],
                         timeout_ms,
                     )
-                    .map(|mode| Self::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
+                    .map(|mode| T::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
                 })
                 .map(|_| true)
             }
             OPT_IFACE_OUT_MODE_NAME => {
-                ElemValueAccessor::<u32>::set_vals(elem_value, Self::TARGETS.len(), |idx| {
+                ElemValueAccessor::<u32>::set_vals(elem_value, T::TARGETS.len(), |idx| {
                     T::get_opt_output_iface_mode(
                         req,
                         &mut unit.get_node(),
-                        Self::TARGETS[idx],
+                        T::TARGETS[idx],
                         timeout_ms,
                     )
-                    .map(|mode| Self::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
+                    .map(|mode| T::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
                 })
                 .map(|_| true)
             }
@@ -261,47 +252,39 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
         match elem_id.get_name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
                 unit.lock()?;
-                let res = ElemValueAccessor::<u32>::get_vals(
-                    new,
-                    old,
-                    Self::TARGETS.len(),
-                    |idx, val| {
-                        let &mode = Self::MODES.iter().nth(val as usize).ok_or_else(|| {
+                let res =
+                    ElemValueAccessor::<u32>::get_vals(new, old, T::TARGETS.len(), |idx, val| {
+                        let &mode = T::MODES.iter().nth(val as usize).ok_or_else(|| {
                             let msg = format!("Invalid index for mode of opt interface: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                         T::set_opt_input_iface_mode(
                             req,
                             &mut unit.get_node(),
-                            Self::TARGETS[idx],
+                            T::TARGETS[idx],
                             mode,
                             timeout_ms,
                         )
-                    },
-                );
+                    });
                 let _ = unit.unlock();
                 res.and(Ok(true))
             }
             OPT_IFACE_OUT_MODE_NAME => {
                 unit.lock()?;
-                let res = ElemValueAccessor::<u32>::get_vals(
-                    new,
-                    old,
-                    Self::TARGETS.len(),
-                    |idx, val| {
-                        let &mode = Self::MODES.iter().nth(val as usize).ok_or_else(|| {
+                let res =
+                    ElemValueAccessor::<u32>::get_vals(new, old, T::TARGETS.len(), |idx, val| {
+                        let &mode = T::MODES.iter().nth(val as usize).ok_or_else(|| {
                             let msg = format!("Invalid index for mode of opt interface: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                         T::set_opt_output_iface_mode(
                             req,
                             &mut unit.get_node(),
-                            Self::TARGETS[idx],
+                            T::TARGETS[idx],
                             mode,
                             timeout_ms,
                         )
-                    },
-                );
+                    });
                 let _ = unit.unlock();
                 res.and(Ok(true))
             }
