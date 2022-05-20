@@ -1323,3 +1323,9 @@ impl TravelerMk3Protocol {
     /// of phone assignment is also notified in command message.
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
+
+/// The protocol implementation for Track 16.
+#[derive(Default)]
+pub struct Track16Protocol;
+
+impl CommandDspOperation for Track16Protocol {}
