@@ -8,6 +8,20 @@
 
 use {super::*, hinawa::SndMotuRegisterDspParameter};
 
+const EV_TYPE_MIXER_SRC_GAIN: u8 = 0x02;
+const EV_TYPE_MIXER_SRC_PAN: u8 = 0x03;
+const EV_TYPE_MIXER_SRC_FLAG: u8 = 0x04;
+const EV_TYPE_MIXER_OUTPUT_PAIRED_VOLUME: u8 = 0x05;
+const EV_TYPE_MIXER_OUTPUT_PAIRED_FLAG: u8 = 0x06;
+const EV_TYPE_MAIN_OUTPUT_PAIRED_VOLUME: u8 = 0x07;
+const EV_TYPE_HP_OUTPUT_PAIRED_VOLUME: u8 = 0x08;
+const EV_TYPE_LINE_INPUT_BOOST: u8 = 0x0d;
+const EV_TYPE_LINE_INPUT_NOMINAL_LEVEL: u8 = 0x0e;
+const EV_TYPE_INPUT_GAIN_AND_INVERT: u8 = 0x15;
+const EV_TYPE_INPUT_FLAG: u8 = 0x16;
+const EV_TYPE_MIXER_SRC_PAIRED_BALANCE: u8 = 0x17;
+const EV_TYPE_MIXER_SRC_PAIRED_WIDTH: u8 = 0x18;
+
 /// The event emitted from ALSA firewire-motu driver for register DSP.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct RegisterDspEvent {
@@ -84,6 +98,39 @@ pub trait RegisterDspMixerOutputOperation {
             });
     }
 
+    fn parse_dsp_event(state: &mut RegisterDspMixerOutputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_MIXER_OUTPUT_PAIRED_VOLUME => {
+                let mixer = event.identifier0 as usize;
+                if mixer < MIXER_COUNT {
+                    state.volume[mixer] = event.value;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_OUTPUT_PAIRED_FLAG => {
+                let mixer = event.identifier0 as usize;
+                if mixer < MIXER_COUNT {
+                    let val = (event.value as u32) << 8;
+
+                    state.mute[mixer] = val & MIXER_OUTPUT_MUTE_FLAG > 0;
+
+                    let assign = ((val & MIXER_OUTPUT_DESTINATION_MASK) >> 8) as usize;
+                    state.destination[mixer] = Self::OUTPUT_DESTINATIONS
+                        .iter()
+                        .nth(assign)
+                        .map(|&port| port)
+                        .unwrap_or_default();
+
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
     fn read_mixer_output_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -294,6 +341,51 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         });
     }
 
+    fn parse_dsp_event(
+        state: &mut RegisterDspMixerMonauralSourceState,
+        event: &RegisterDspEvent,
+    ) -> bool {
+        match event.ev_type {
+            EV_TYPE_MIXER_SRC_GAIN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    state.0[mixer].gain[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    state.0[mixer].pan[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_FLAG => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = (event.value as u32) << 16;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    state.0[mixer].mute[src] = val & MIXER_SOURCE_MUTE_FLAG > 0;
+                    state.0[mixer].solo[src] = val & MIXER_SOURCE_SOLO_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
     fn read_mixer_monaural_source_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -452,6 +544,8 @@ pub struct RegisterDspMixerStereoSourceState(pub [RegisterDspMixerStereoSourceEn
 const MIXER_SOURCE_PAIRED_WIDTH_FLAG: u32 = 0x00400000;
 const MIXER_SOURCE_PAIRED_BALANCE_FLAG: u32 = 0x00800000;
 
+const EV_MIXER_SOURCE_PAIRED_CH_MAP: [usize; MIXER_STEREO_SOURCE_COUNT] = [0, 1, 2, 3, 8, 9];
+
 /// The trait for operation of mixer sources.
 pub trait RegisterDspMixerStereoSourceOperation {
     const MIXER_SOURCES: [TargetPort; MIXER_STEREO_SOURCE_COUNT] = [
@@ -518,6 +612,76 @@ pub trait RegisterDspMixerStereoSourceOperation {
                 .zip(flags.iter())
                 .for_each(|(solo, &flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
         });
+    }
+
+    fn parse_dsp_event(
+        state: &mut RegisterDspMixerStereoSourceState,
+        event: &RegisterDspEvent,
+    ) -> bool {
+        match event.ev_type {
+            EV_TYPE_MIXER_SRC_GAIN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    state.0[mixer].gain[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAN => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    state.0[mixer].pan[src] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_FLAG => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = (event.value as u32) << 16;
+
+                if mixer < MIXER_COUNT && src < Self::MIXER_SOURCES.len() {
+                    state.0[mixer].mute[src] = val & MIXER_SOURCE_MUTE_FLAG > 0;
+                    state.0[mixer].solo[src] = val & MIXER_SOURCE_SOLO_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAIRED_BALANCE => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if let Some(idx) = EV_MIXER_SOURCE_PAIRED_CH_MAP.iter().position(|&p| p == src) {
+                    state.0[mixer].balance[idx / 2] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_MIXER_SRC_PAIRED_WIDTH => {
+                let mixer = event.identifier0 as usize;
+                let src = event.identifier1 as usize;
+                let val = event.value;
+
+                if let Some(idx) = EV_MIXER_SOURCE_PAIRED_CH_MAP.iter().position(|&p| p == src) {
+                    state.0[mixer].width[idx / 2] = val;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
     }
 
     fn compute_mixer_source_offset(base_offset: usize, src_idx: usize) -> usize {
@@ -745,6 +909,20 @@ pub trait RegisterDspOutputOperation {
         state.phone_volume = param.get_headphone_output_paired_volume();
     }
 
+    fn parse_dsp_event(state: &mut RegisterDspOutputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_MAIN_OUTPUT_PAIRED_VOLUME => {
+                state.master_volume = event.value;
+                true
+            }
+            EV_TYPE_HP_OUTPUT_PAIRED_VOLUME => {
+                state.phone_volume = event.value;
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn read_output_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -841,6 +1019,30 @@ pub trait Traveler828mk2LineInputOperation {
             let shift = i + Self::CH_OFFSET;
             *boost = flags & (1 << shift) > 0;
         });
+    }
+
+    fn parse_dsp_event(state: &mut RegisterDspLineInputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_LINE_INPUT_NOMINAL_LEVEL => {
+                state.level.iter_mut().enumerate().for_each(|(i, level)| {
+                    let shift = i + Self::CH_OFFSET;
+                    *level = if event.value & (1 << shift) > 0 {
+                        NominalSignalLevel::Professional
+                    } else {
+                        NominalSignalLevel::Consumer
+                    };
+                });
+                true
+            }
+            EV_TYPE_LINE_INPUT_BOOST => {
+                state.boost.iter_mut().enumerate().for_each(|(i, boost)| {
+                    let shift = i + Self::CH_OFFSET;
+                    *boost = event.value & (1 << shift) > 0;
+                });
+                true
+            }
+            _ => false,
+        }
     }
 
     fn read_line_input_state(
@@ -995,6 +1197,25 @@ pub trait RegisterDspMonauralInputOperation {
             .for_each(|(invert, val)| *invert = val & MONAURAL_INPUT_INVERT_FLAG > 0);
     }
 
+    fn parse_dsp_event(
+        state: &mut RegisterDspMonauralInputState,
+        event: &RegisterDspEvent,
+    ) -> bool {
+        match event.ev_type {
+            EV_TYPE_INPUT_GAIN_AND_INVERT => {
+                let ch = event.identifier0 as usize;
+                if ch < MONAURAL_INPUT_COUNT {
+                    state.gain[ch] = event.value & MONAURAL_INPUT_GAIN_MASK;
+                    state.invert[ch] = event.value & MONAURAL_INPUT_INVERT_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
     fn read_monaural_input_state(
         req: &mut FwReq,
         node: &mut FwNode,
@@ -1138,6 +1359,38 @@ pub trait RegisterDspStereoInputOperation {
             let pos = EV_INPUT_PAIRED_CH_MAP[i * 2];
             *paired = flags[pos] & EV_INPUT_PAIRED_FLAG > 0;
         });
+    }
+
+    fn parse_dsp_event(state: &mut RegisterDspStereoInputState, event: &RegisterDspEvent) -> bool {
+        match event.ev_type {
+            EV_TYPE_INPUT_GAIN_AND_INVERT => {
+                let ch = event.identifier0 as usize;
+                if ch < STEREO_INPUT_COUNT {
+                    state.gain[ch] = event.value & STEREO_INPUT_GAIN_MASK;
+                    state.invert[ch] = event.value & STEREO_INPUT_INVERT_FLAG > 0;
+                    true
+                } else {
+                    false
+                }
+            }
+            EV_TYPE_INPUT_FLAG => {
+                let ch = event.identifier0 as usize;
+                if let Some(pos) = EV_INPUT_PAIRED_CH_MAP.iter().position(|&p| p == ch) {
+                    if pos % 2 == 0 {
+                        state.paired[pos / 2] = event.value & EV_INPUT_PAIRED_FLAG > 0;
+                    }
+                    if pos < Self::MIC_COUNT {
+                        state.phantom[ch] = event.value & EV_MIC_PHANTOM_FLAG > 0;
+                        state.pad[ch] = event.value & EV_MIC_PAD_FLAG > 0;
+                        state.jack[ch] = event.value & EV_INPUT_JACK_FLAG > 0;
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
     }
 
     fn read_stereo_input_state(
