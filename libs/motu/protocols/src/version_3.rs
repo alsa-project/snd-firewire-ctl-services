@@ -379,6 +379,28 @@ impl RegisterDspStereoInputOperation for AudioExpressProtocol {
     const MIC_COUNT: usize = 2;
 }
 
+impl RegisterDspMeterOperation for AudioExpressProtocol {
+    const SELECTABLE: bool = false;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [(TargetPort, [usize; 2])] = &[
+        (TargetPort::PhonePair, [0, 1]),
+        (TargetPort::MainPair, [2, 3]),
+        (TargetPort::AnalogPair(0), [10, 11]),
+        (TargetPort::SpdifPair, [12, 13]),
+    ];
+}
+
 impl AudioExpressProtocol {
     /// Notification mask for footswitch.
     pub const NOTIFY_FOOTSWITCH_MASK: u32 = 0x01000000;
@@ -679,6 +701,28 @@ impl RegisterDspOutputOperation for H4preProtocol {}
 
 impl RegisterDspStereoInputOperation for H4preProtocol {
     const MIC_COUNT: usize = 4;
+}
+
+impl RegisterDspMeterOperation for H4preProtocol {
+    const SELECTABLE: bool = false;
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Analog(0),
+        TargetPort::Analog(1),
+        TargetPort::Analog(2),
+        TargetPort::Analog(3),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+    ];
+    const OUTPUT_PORT_PAIRS: &'static [(TargetPort, [usize; 2])] = &[
+        (TargetPort::PhonePair, [0, 1]),
+        (TargetPort::MainPair, [2, 3]),
+        (TargetPort::AnalogPair(0), [10, 11]),
+        (TargetPort::SpdifPair, [12, 13]),
+    ];
 }
 
 /// The protocol implementation for Ultralite mk3 (FireWire only).
