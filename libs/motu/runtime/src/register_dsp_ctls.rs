@@ -6,7 +6,12 @@ use super::register_dsp_runtime::*;
 pub trait RegisterDspPhoneAssignCtlOperation<T: AssignOperation>:
     PhoneAssignCtlOperation<T>
 {
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        let idx = params.get_headphone_output_paired_assignment() as usize;
+        if idx < T::ASSIGN_PORTS.len() {
+            *self.state_mut() = idx;
+        }
+    }
 }
 
 const MIXER_OUTPUT_VOLUME_NAME: &str = "mixer-output-volume";
@@ -158,7 +163,9 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
 
 const MIXER_RETURN_ENABLE_NAME: &str = "mixer-return-enable";
@@ -377,7 +384,9 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
 
 const MIXER_SOURCE_STEREO_BALANCE_NAME: &str = "mixer-source-stereo-balance";
@@ -399,9 +408,11 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         card_cntr: &mut CardCntr,
         unit: &mut SndMotu,
         req: &mut FwReq,
+        params: &SndMotuRegisterDspParameter,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_mixer_stereo_source_state();
+        self.parse_dsp_parameter(params);
         T::read_mixer_stereo_source_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
@@ -625,7 +636,9 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
 
 const MASTER_OUTPUT_VOLUME_NAME: &str = "master-output-volume";
@@ -735,7 +748,9 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
 
 const INPUT_NOMINAL_LEVEL_NAME: &str = "input-nominal-level";
@@ -848,7 +863,9 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
 
 const INPUT_GAIN_NAME: &str = "input-gain";
@@ -954,7 +971,9 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
 
 pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation> {
@@ -1097,5 +1116,7 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
         }
     }
 
-    fn parse_dsp_parameter(&mut self, _: &SndMotuRegisterDspParameter) {}
+    fn parse_dsp_parameter(&mut self, params: &SndMotuRegisterDspParameter) {
+        T::parse_dsp_parameter(self.state_mut(), params)
+    }
 }
