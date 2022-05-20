@@ -88,14 +88,14 @@ impl RegisterDspOutputCtlOperation<AudioExpressProtocol> for OutputCtl {
 }
 
 #[derive(Default)]
-struct InputCtl(Audioexpress4preInputState, Vec<ElemId>);
+struct InputCtl(RegisterDspStereoInputState, Vec<ElemId>);
 
-impl Audioexpress4preInputCtlOperation<AudioExpressProtocol> for InputCtl {
-    fn state(&self) -> &Audioexpress4preInputState {
+impl RegisterDspStereoInputCtlOperation<AudioExpressProtocol> for InputCtl {
+    fn state(&self) -> &RegisterDspStereoInputState {
         &self.0
     }
 
-    fn state_mut(&mut self) -> &mut Audioexpress4preInputState {
+    fn state_mut(&mut self) -> &mut RegisterDspStereoInputState {
         &mut self.0
     }
 }

@@ -845,13 +845,13 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
     }
 }
 
-pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
-    fn state(&self) -> &Audioexpress4preInputState;
-    fn state_mut(&mut self) -> &mut Audioexpress4preInputState;
+pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation> {
+    fn state(&self) -> &RegisterDspStereoInputState;
+    fn state_mut(&mut self) -> &mut RegisterDspStereoInputState;
 
     const GAIN_TLV: DbInterval = DbInterval {
-        min: -6400,
-        max: 0,
+        min: 0,
+        max: 6400,
         linear: true,
         mute_avail: false,
     };
@@ -863,8 +863,8 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        let mut state = T::create_input_state();
-        T::read_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        let mut state = T::create_stereo_input_state();
+        T::read_stereo_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
@@ -875,7 +875,7 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
                 &elem_id,
                 1,
                 T::INPUT_GAIN_MIN as i32,
-                T::INPUT_GAIN_MAX as i32,
+                T::INPUT_MIC_GAIN_MAX as i32, // TODO: differentiate mic and line.
                 T::INPUT_GAIN_STEP as i32,
                 T::INPUT_COUNT,
                 Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
@@ -936,7 +936,7 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
                 let mut vals = vec![0; T::INPUT_COUNT];
                 elem_value.get_int(&mut vals);
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                T::write_input_gain(
+                T::write_stereo_input_gain(
                     req,
                     &mut unit.get_node(),
                     &gain,
@@ -948,7 +948,7 @@ pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
             INPUT_INVERT_NAME => {
                 let mut invert = vec![false; T::INPUT_COUNT];
                 elem_value.get_bool(&mut invert);
-                T::write_input_invert(
+                T::write_stereo_input_invert(
                     req,
                     &mut unit.get_node(),
                     &invert,
