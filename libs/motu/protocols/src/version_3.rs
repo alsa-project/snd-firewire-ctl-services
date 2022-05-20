@@ -1093,6 +1093,226 @@ impl WordClkOperation for TravelerMk3Protocol {}
 
 impl CommandDspOperation for TravelerMk3Protocol {}
 
+impl CommandDspReverbOperation for TravelerMk3Protocol {}
+
+impl CommandDspMonitorOperation for TravelerMk3Protocol {
+    const RETURN_ASSIGN_TARGETS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+        TargetPort::OpticalBPair(0),
+        TargetPort::OpticalBPair(1),
+        TargetPort::OpticalBPair(2),
+        TargetPort::OpticalBPair(3),
+    ];
+}
+
+impl CommandDspMixerOperation for TravelerMk3Protocol {
+    const SOURCE_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0), // Mic-0
+        TargetPort::Analog(1), // Mic-1
+        TargetPort::Analog(2), // Mic-2
+        TargetPort::Analog(3), // Mic-3
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::AesEbu(0),
+        TargetPort::AesEbu(1),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+        TargetPort::OpticalA(0),
+        TargetPort::OpticalA(1),
+        TargetPort::OpticalA(2),
+        TargetPort::OpticalA(3),
+        TargetPort::OpticalA(4),
+        TargetPort::OpticalA(5),
+        TargetPort::OpticalA(6),
+        TargetPort::OpticalA(7),
+        TargetPort::OpticalB(0),
+        TargetPort::OpticalB(1),
+        TargetPort::OpticalB(2),
+        TargetPort::OpticalB(3),
+        TargetPort::OpticalB(4),
+        TargetPort::OpticalB(5),
+        TargetPort::OpticalB(6),
+        TargetPort::OpticalB(7),
+    ];
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Disabled,
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+        TargetPort::OpticalBPair(0),
+        TargetPort::OpticalBPair(1),
+        TargetPort::OpticalBPair(2),
+        TargetPort::OpticalBPair(3),
+    ];
+}
+
+impl CommandDspInputOperation for TravelerMk3Protocol {
+    const INPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::Analog(0), // Mic-0
+        TargetPort::Analog(1), // Mic-1
+        TargetPort::Analog(2), // Mic-2
+        TargetPort::Analog(3), // Mic-3
+        TargetPort::Analog(4),
+        TargetPort::Analog(5),
+        TargetPort::Analog(6),
+        TargetPort::Analog(7),
+        TargetPort::AesEbu(0),
+        TargetPort::AesEbu(1),
+        TargetPort::Spdif(0),
+        TargetPort::Spdif(1),
+        TargetPort::OpticalA(0),
+        TargetPort::OpticalA(1),
+        TargetPort::OpticalA(2),
+        TargetPort::OpticalA(3),
+        TargetPort::OpticalA(4),
+        TargetPort::OpticalA(5),
+        TargetPort::OpticalA(6),
+        TargetPort::OpticalA(7),
+        TargetPort::OpticalB(0),
+        TargetPort::OpticalB(1),
+        TargetPort::OpticalB(2),
+        TargetPort::OpticalB(3),
+        TargetPort::OpticalB(4),
+        TargetPort::OpticalB(5),
+        TargetPort::OpticalB(6),
+        TargetPort::OpticalB(7),
+    ];
+    const MIC_COUNT: usize = 4;
+}
+
+impl CommandDspOutputOperation for TravelerMk3Protocol {
+    const OUTPUT_PORTS: &'static [TargetPort] = &[
+        TargetPort::AnalogPair(0),
+        TargetPort::AnalogPair(1),
+        TargetPort::AnalogPair(2),
+        TargetPort::AnalogPair(3),
+        TargetPort::AesEbuPair,
+        TargetPort::SpdifPair,
+        TargetPort::PhonePair,
+        TargetPort::OpticalAPair(0),
+        TargetPort::OpticalAPair(1),
+        TargetPort::OpticalAPair(2),
+        TargetPort::OpticalAPair(3),
+        TargetPort::OpticalBPair(0),
+        TargetPort::OpticalBPair(1),
+        TargetPort::OpticalBPair(2),
+        TargetPort::OpticalBPair(3),
+    ];
+}
+
+impl CommandDspMeterOperation for TravelerMk3Protocol {
+    const INPUT_PORTS: &'static [(TargetPort, usize)] = &[
+        (TargetPort::Analog(0), 4),
+        (TargetPort::Analog(1), 5),
+        (TargetPort::Analog(2), 6),
+        (TargetPort::Analog(3), 7),
+        (TargetPort::Analog(4), 8),
+        (TargetPort::Analog(5), 9),
+        (TargetPort::Analog(6), 10),
+        (TargetPort::Analog(7), 11),
+        (TargetPort::AesEbu(0), 14),
+        (TargetPort::AesEbu(1), 15),
+        (TargetPort::Spdif(0), 12),
+        (TargetPort::Spdif(1), 13),
+        (TargetPort::OpticalA(0), 16),
+        (TargetPort::OpticalA(1), 17),
+        (TargetPort::OpticalA(2), 18),
+        (TargetPort::OpticalA(3), 19),
+        (TargetPort::OpticalA(4), 20),
+        (TargetPort::OpticalA(5), 21),
+        (TargetPort::OpticalA(6), 22),
+        (TargetPort::OpticalA(7), 23),
+        (TargetPort::OpticalB(0), 24),
+        (TargetPort::OpticalB(1), 25),
+        (TargetPort::OpticalB(2), 26),
+        (TargetPort::OpticalB(3), 27),
+        (TargetPort::OpticalB(4), 28),
+        (TargetPort::OpticalB(5), 29),
+        (TargetPort::OpticalB(6), 30),
+        (TargetPort::OpticalB(7), 31),
+        (TargetPort::Analog(0), 48),
+        (TargetPort::Analog(1), 49),
+        (TargetPort::Analog(2), 50),
+        (TargetPort::Analog(3), 51),
+        (TargetPort::Analog(4), 52),
+        (TargetPort::Analog(5), 53),
+        (TargetPort::Analog(6), 54),
+        (TargetPort::Analog(7), 55),
+        (TargetPort::AesEbu(0), 58),
+        (TargetPort::AesEbu(1), 59),
+        (TargetPort::Spdif(0), 56),
+        (TargetPort::Spdif(1), 57),
+        (TargetPort::OpticalA(0), 60),
+        (TargetPort::OpticalA(1), 61),
+        (TargetPort::OpticalA(2), 62),
+        (TargetPort::OpticalA(3), 63),
+        (TargetPort::OpticalA(4), 64),
+        (TargetPort::OpticalA(5), 65),
+        (TargetPort::OpticalA(6), 66),
+        (TargetPort::OpticalA(7), 67),
+        (TargetPort::OpticalB(0), 68),
+        (TargetPort::OpticalB(1), 69),
+        (TargetPort::OpticalB(2), 70),
+        (TargetPort::OpticalB(3), 71),
+        (TargetPort::OpticalB(4), 72),
+        (TargetPort::OpticalB(5), 73),
+        (TargetPort::OpticalB(6), 74),
+        (TargetPort::OpticalB(7), 75),
+    ];
+    const OUTPUT_PORTS: &'static [(TargetPort, usize)] = &[
+        (TargetPort::Phone(0), 88),
+        (TargetPort::Phone(1), 89),
+        (TargetPort::Analog(0), 78),
+        (TargetPort::Analog(1), 79),
+        (TargetPort::Analog(2), 80),
+        (TargetPort::Analog(3), 81),
+        (TargetPort::Analog(4), 82),
+        (TargetPort::Analog(5), 83),
+        (TargetPort::Analog(6), 84),
+        (TargetPort::Analog(7), 85),
+        (TargetPort::AesEbu(0), 86),
+        (TargetPort::AesEbu(1), 87),
+        (TargetPort::Spdif(0), 76),
+        (TargetPort::Spdif(1), 77),
+        (TargetPort::OpticalA(0), 90),
+        (TargetPort::OpticalA(1), 91),
+        (TargetPort::OpticalA(2), 92),
+        (TargetPort::OpticalA(3), 93),
+        (TargetPort::OpticalA(4), 94),
+        (TargetPort::OpticalA(5), 95),
+        (TargetPort::OpticalA(6), 96),
+        (TargetPort::OpticalA(7), 97),
+        (TargetPort::OpticalB(0), 98),
+        (TargetPort::OpticalB(1), 99),
+        (TargetPort::OpticalB(2), 100),
+        (TargetPort::OpticalB(3), 101),
+        (TargetPort::OpticalB(4), 102),
+        (TargetPort::OpticalB(5), 103),
+        (TargetPort::OpticalB(6), 104),
+        (TargetPort::OpticalB(7), 105),
+    ];
+}
+
 impl TravelerMk3Protocol {
     /// Notification mask for main assignment, return assignment, and phone assignment. The change
     /// of phone assignment is also notified in command message.
