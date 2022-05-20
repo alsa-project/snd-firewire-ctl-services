@@ -64,7 +64,7 @@ enum Event {
     Disconnected,
     BusReset(u32),
     Elem((ElemId, ElemEventMask)),
-    Notify(u32),
+    MessageNotify(u32),
 }
 
 const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
@@ -98,8 +98,11 @@ where
         self.launch_system_event_dispatcher()?;
 
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
-        self.model
-            .get_notified_elem_list(&mut self.notified_elem_id_list);
+
+        NotifyModel::<SndMotu, u32>::get_notified_elem_list(
+            &mut self.model,
+            &mut self.notified_elem_id_list,
+        );
 
         Ok(())
     }
@@ -124,7 +127,7 @@ where
                         &mut self.model,
                     );
                 }
-                Event::Notify(msg) => {
+                Event::MessageNotify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
                         &mut self.unit,
                         &msg,
@@ -148,7 +151,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.connect_notified(move |_, msg| {
-            let _ = tx.send(Event::Notify(msg));
+            let _ = tx.send(Event::MessageNotify(msg));
         });
 
         let tx = self.tx.clone();
