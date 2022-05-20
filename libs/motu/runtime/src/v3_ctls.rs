@@ -8,6 +8,7 @@ fn clk_src_to_str(src: &V3ClkSrc) -> &'static str {
         V3ClkSrc::Internal => "Internal",
         V3ClkSrc::SpdifCoax => "S/PDIF-on-coax",
         V3ClkSrc::WordClk => "Word-clk-on-BNC",
+        V3ClkSrc::AesEbuXlr => "AES/EBU-on-XLR",
         V3ClkSrc::SignalOptA => "Signal-on-opt-A",
         V3ClkSrc::SignalOptB => "Signal-on-opt-B",
     }
