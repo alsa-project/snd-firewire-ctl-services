@@ -688,6 +688,7 @@ impl CommandDspMixerOperation for F828mk3Protocol {
 impl CommandDspInputOperation for F828mk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 0;
+    const LINE_INPUT_COUNT: usize = 0;
 }
 
 impl CommandDspOutputOperation for F828mk3Protocol {
@@ -744,7 +745,8 @@ impl CommandDspMixerOperation for F828mk3HybridProtocol {
 impl CommandDspInputOperation for F828mk3HybridProtocol {
     const INPUT_PORTS: &'static [TargetPort] = F828MK3_INPUT_PORTS;
     // The mic functions are not configureble by command. They are just hard-wired.
-    const MIC_COUNT: usize = 2;
+    const MIC_COUNT: usize = 0;
+    const LINE_INPUT_COUNT: usize = 0;
 }
 
 impl CommandDspOutputOperation for F828mk3HybridProtocol {
@@ -975,6 +977,7 @@ impl CommandDspInputOperation for UltraliteMk3Protocol {
     const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
     // The mic functions are not configureble by command. They are just hard-wired.
     const MIC_COUNT: usize = 0;
+    const LINE_INPUT_COUNT: usize = 0;
 }
 
 impl CommandDspOutputOperation for UltraliteMk3Protocol {
@@ -1024,6 +1027,7 @@ impl CommandDspMixerOperation for UltraliteMk3HybridProtocol {
 impl CommandDspInputOperation for UltraliteMk3HybridProtocol {
     const INPUT_PORTS: &'static [TargetPort] = ULTRALITE_MK3_INPUT_PORTS;
     const MIC_COUNT: usize = 2;
+    const LINE_INPUT_COUNT: usize = 0;
 }
 
 impl CommandDspOutputOperation for UltraliteMk3HybridProtocol {
@@ -1198,6 +1202,7 @@ impl CommandDspInputOperation for TravelerMk3Protocol {
         TargetPort::OpticalB(7),
     ];
     const MIC_COUNT: usize = 4;
+    const LINE_INPUT_COUNT: usize = 4;
 }
 
 impl CommandDspOutputOperation for TravelerMk3Protocol {

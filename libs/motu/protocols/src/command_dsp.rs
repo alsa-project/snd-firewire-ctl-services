@@ -2611,6 +2611,7 @@ pub struct CommandDspInputState {
     pub dynamics: CommandDspDynamicsState,
 
     pub pad: Vec<bool>,
+    pub nominal_level: Vec<NominalSignalLevel>,
     pub phantom: Vec<bool>,
     pub limitter: Vec<bool>,
     pub lookahead: Vec<bool>,
@@ -2621,6 +2622,7 @@ fn create_input_commands(
     state: &CommandDspInputState,
     input_count: usize,
     mic_count: usize,
+    line_count: usize,
 ) -> Vec<DspCmd> {
     let mut cmds = Vec::new();
 
@@ -2661,6 +2663,13 @@ fn create_input_commands(
         cmds.push(DspCmd::Input(InputCmd::Softclip(ch, state.soft_clip[ch])));
     });
 
+    (0..line_count).for_each(|ch| {
+        cmds.push(DspCmd::Input(InputCmd::NominalLevel(
+            mic_count + ch,
+            state.nominal_level[ch],
+        )));
+    });
+
     cmds
 }
 
@@ -2678,29 +2687,9 @@ fn parse_input_command(state: &mut CommandDspInputState, cmd: &InputCmd) {
         InputCmd::Dynamics(ch, param) => parse_dynamics_parameter(&mut state.dynamics, param, *ch),
         InputCmd::ReverbSend(ch, val) => state.reverb_send[*ch] = *val,
         InputCmd::ReverbLrBalance(ch, val) => state.reverb_balance[*ch] = *val,
-        InputCmd::Pad(ch, val) => {
-            if *ch < state.pad.len() {
-                state.pad[*ch] = *val
-            }
-        }
-        InputCmd::Phantom(ch, val) => {
-            if *ch < state.pad.len() {
-                state.phantom[*ch] = *val
-            }
-        }
-        InputCmd::Limitter(ch, val) => {
-            if *ch < state.pad.len() {
-                state.limitter[*ch] = *val
-            }
-        }
-        InputCmd::Lookahead(ch, val) => {
-            if *ch < state.pad.len() {
-                state.lookahead[*ch] = *val
-            }
-        }
-        InputCmd::Softclip(ch, val) => {
-            if *ch < state.pad.len() {
-                state.soft_clip[*ch] = *val
+        InputCmd::NominalLevel(ch, val) => {
+            if *ch >= state.pad.len() && *ch < state.pad.len() + state.nominal_level.len() {
+                state.nominal_level[*ch - state.pad.len()] = *val;
             }
         }
         _ => (),
@@ -2711,6 +2700,7 @@ fn parse_input_command(state: &mut CommandDspInputState, cmd: &InputCmd) {
 pub trait CommandDspInputOperation: CommandDspOperation {
     const INPUT_PORTS: &'static [TargetPort];
     const MIC_COUNT: usize;
+    const LINE_INPUT_COUNT: usize;
 
     const GAIN_MIN: i32 = -96;
     const GAIN_MAX: i32 = 22;
@@ -2797,6 +2787,7 @@ pub trait CommandDspInputOperation: CommandDspOperation {
             limitter: vec![Default::default(); Self::MIC_COUNT],
             lookahead: vec![Default::default(); Self::MIC_COUNT],
             soft_clip: vec![Default::default(); Self::MIC_COUNT],
+            nominal_level: vec![Default::default(); Self::LINE_INPUT_COUNT],
         }
     }
 
@@ -2816,8 +2807,18 @@ pub trait CommandDspInputOperation: CommandDspOperation {
         old: &mut CommandDspInputState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut new_cmds = create_input_commands(&state, Self::INPUT_PORTS.len(), Self::MIC_COUNT);
-        let old_cmds = create_input_commands(old, Self::INPUT_PORTS.len(), Self::MIC_COUNT);
+        let mut new_cmds = create_input_commands(
+            &state,
+            Self::INPUT_PORTS.len(),
+            Self::MIC_COUNT,
+            Self::LINE_INPUT_COUNT,
+        );
+        let old_cmds = create_input_commands(
+            old,
+            Self::INPUT_PORTS.len(),
+            Self::MIC_COUNT,
+            Self::LINE_INPUT_COUNT,
+        );
         new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
         Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
     }
