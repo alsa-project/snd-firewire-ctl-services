@@ -92,7 +92,17 @@ impl RegisterDspOutputCtlOperation<UltraliteProtocol> for OutputCtl {
 }
 
 #[derive(Default)]
-struct InputCtl(UltraliteInputState, Vec<ElemId>);
+struct InputCtl(RegisterDspMonauralInputState, Vec<ElemId>);
+
+impl RegisterDspMonauralInputCtlOperation<UltraliteProtocol> for InputCtl {
+    fn state(&self) -> &RegisterDspMonauralInputState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut RegisterDspMonauralInputState {
+        &mut self.0
+    }
+}
 
 impl CtlModel<SndMotu> for UltraLite {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
@@ -290,104 +300,6 @@ impl MainAssignCtl {
                 .map(|_| self.0 = val as usize)
             })
             .map(|_| true),
-            _ => Ok(false),
-        }
-    }
-}
-
-const INPUT_GAIN_NAME: &str = "input-gain";
-const INPUT_INVERT_NAME: &str = "input-revert";
-
-impl InputCtl {
-    const GAIN_TLV: DbInterval = DbInterval {
-        min: -6400,
-        max: 0,
-        linear: true,
-        mute_avail: false,
-    };
-
-    fn load(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        timeout_ms: u32,
-    ) -> Result<Vec<ElemId>, Error> {
-        UltraliteProtocol::read_input_state(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
-
-        let mut notified_elem_id_list = Vec::new();
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
-        card_cntr
-            .add_int_elems(
-                &elem_id,
-                1,
-                UltraliteProtocol::INPUT_GAIN_MIN as i32,
-                UltraliteProtocol::INPUT_GAIN_MAX as i32,
-                UltraliteProtocol::INPUT_GAIN_STEP as i32,
-                UltraliteProtocol::INPUT_COUNT,
-                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-                true,
-            )
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_NAME, 0);
-        card_cntr
-            .add_bool_elems(&elem_id, 1, UltraliteProtocol::INPUT_COUNT, true)
-            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
-
-        Ok(notified_elem_id_list)
-    }
-
-    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            INPUT_GAIN_NAME => {
-                let vals: Vec<i32> = self.0.gain.iter().map(|&val| val as i32).collect();
-                elem_value.set_int(&vals);
-                Ok(true)
-            }
-            INPUT_INVERT_NAME => {
-                elem_value.set_bool(&self.0.invert);
-                Ok(true)
-            }
-            _ => Ok(false),
-        }
-    }
-
-    fn write(
-        &mut self,
-        unit: &mut SndMotu,
-        req: &mut FwReq,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-        timeout_ms: u32,
-    ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
-            INPUT_GAIN_NAME => {
-                let mut vals = [0; UltraliteProtocol::INPUT_COUNT];
-                elem_value.get_int(&mut vals);
-                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                UltraliteProtocol::write_input_gain(
-                    req,
-                    &mut unit.get_node(),
-                    &gain,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
-            INPUT_INVERT_NAME => {
-                let mut invert = [false; UltraliteProtocol::INPUT_COUNT];
-                elem_value.get_bool(&mut invert);
-                UltraliteProtocol::write_input_invert(
-                    req,
-                    &mut unit.get_node(),
-                    &invert,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
-            }
             _ => Ok(false),
         }
     }

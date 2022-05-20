@@ -746,6 +746,105 @@ const INPUT_INVERT_NAME: &str = "input-invert";
 const MIC_PHANTOM_NAME: &str = "mic-phantom";
 const MIC_PAD_NAME: &str = "mic-pad";
 
+pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperation> {
+    fn state(&self) -> &RegisterDspMonauralInputState;
+    fn state_mut(&mut self) -> &mut RegisterDspMonauralInputState;
+
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: 0,
+        max: 2400,
+        linear: false,
+        mute_avail: false,
+    };
+
+    fn load(
+        &mut self,
+        card_cntr: &mut CardCntr,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<Vec<ElemId>, Error> {
+        let mut state = T::create_monaural_input_state();
+        T::read_monaural_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        *self.state_mut() = state;
+
+        let mut notified_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                T::INPUT_GAIN_MIN as i32,
+                T::INPUT_MIC_GAIN_MAX as i32,
+                T::INPUT_GAIN_STEP as i32,
+                T::INPUT_COUNT,
+                Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
+                true,
+            )
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_INVERT_NAME, 0);
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::INPUT_COUNT, true)
+            .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
+
+        Ok(notified_elem_id_list)
+    }
+
+    fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_GAIN_NAME => {
+                copy_int_to_elem_value(elem_value, &self.state().gain);
+                Ok(true)
+            }
+            INPUT_INVERT_NAME => {
+                elem_value.set_bool(&self.state().invert);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn write(
+        &mut self,
+        unit: &mut SndMotu,
+        req: &mut FwReq,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_GAIN_NAME => {
+                let mut vals = vec![0; T::INPUT_COUNT];
+                elem_value.get_int(&mut vals);
+                let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
+                T::write_monaural_input_gain(
+                    req,
+                    &mut unit.get_node(),
+                    &gain,
+                    self.state_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            INPUT_INVERT_NAME => {
+                let mut invert = vec![false; T::INPUT_COUNT];
+                elem_value.get_bool(&mut invert);
+                T::write_monaural_input_invert(
+                    req,
+                    &mut unit.get_node(),
+                    &invert,
+                    self.state_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 pub trait Audioexpress4preInputCtlOperation<T: Audioexpress4preInputOperation> {
     fn state(&self) -> &Audioexpress4preInputState;
     fn state_mut(&mut self) -> &mut Audioexpress4preInputState;
