@@ -3515,3 +3515,91 @@ pub trait CommandDspResourcebCtlOperation {
         });
     }
 }
+
+pub struct CommandDspMeterImage([f32; 400]);
+
+impl Default for CommandDspMeterImage {
+    fn default() -> Self {
+        Self([0f32; 400])
+    }
+}
+
+const INPUT_METER_NAME: &str = "input-meter";
+const OUTPUT_METER_NAME: &str = "output-meter";
+
+pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
+    fn state(&self) -> &CommandDspMeterState;
+    fn state_mut(&mut self) -> &mut CommandDspMeterState;
+
+    const F32_CONVERT_SCALE: f32 = 1000000.0;
+
+    fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
+        *self.state_mut() = T::create_meter_state();
+
+        let mut measured_elem_id_list = Vec::new();
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                (T::LEVEL_MIN * Self::F32_CONVERT_SCALE) as i32,
+                (T::LEVEL_MAX * Self::F32_CONVERT_SCALE) as i32,
+                1,
+                T::INPUT_PORTS.len(),
+                None,
+                false,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METER_NAME, 0);
+        card_cntr
+            .add_int_elems(
+                &elem_id,
+                1,
+                (T::LEVEL_MIN * Self::F32_CONVERT_SCALE) as i32,
+                (T::LEVEL_MAX * Self::F32_CONVERT_SCALE) as i32,
+                1,
+                T::OUTPUT_PORTS.len(),
+                None,
+                false,
+            )
+            .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
+        Ok(measured_elem_id_list)
+    }
+
+    fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
+        match elem_id.get_name().as_str() {
+            INPUT_METER_NAME => {
+                let levels: Vec<i32> = self
+                    .state()
+                    .inputs
+                    .iter()
+                    .map(|&level| (level * Self::F32_CONVERT_SCALE) as i32)
+                    .collect();
+                elem_value.set_int(&levels);
+                Ok(true)
+            }
+            OUTPUT_METER_NAME => {
+                let levels: Vec<i32> = self
+                    .state()
+                    .outputs
+                    .iter()
+                    .map(|&level| (level * Self::F32_CONVERT_SCALE) as i32)
+                    .collect();
+                elem_value.set_int(&levels);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    fn read_dsp_meter(
+        &mut self,
+        unit: &SndMotu,
+        meter: &mut CommandDspMeterImage,
+    ) -> Result<(), Error> {
+        unit.read_command_dsp_meter(&mut meter.0)
+            .map(|_| T::parse_dsp_meter(self.state_mut(), &meter.0))
+    }
+}

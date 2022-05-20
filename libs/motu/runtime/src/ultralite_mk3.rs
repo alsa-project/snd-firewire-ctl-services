@@ -19,6 +19,8 @@ pub struct UltraLiteMk3 {
     input_ctl: InputCtl,
     output_ctl: OutputCtl,
     resource_ctl: ResourceCtl,
+    meter: CommandDspMeterImage,
+    meter_ctl: MeterCtl,
 }
 
 #[derive(Default)]
@@ -130,6 +132,19 @@ impl CommandDspResourcebCtlOperation for ResourceCtl {
     }
 }
 
+#[derive(Default)]
+struct MeterCtl(CommandDspMeterState, Vec<ElemId>);
+
+impl CommandDspMeterCtlOperation<UltraliteMk3Protocol> for MeterCtl {
+    fn state(&self) -> &CommandDspMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut CommandDspMeterState {
+        &mut self.0
+    }
+}
+
 impl CtlModel<SndMotu> for UltraLiteMk3 {
     fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
@@ -169,6 +184,9 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         self.resource_ctl
             .load(card_cntr)
             .map(|mut elem_id_list| self.resource_ctl.1.append(&mut elem_id_list))?;
+        self.meter_ctl
+            .load(card_cntr)
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
         Ok(())
     }
 
@@ -206,6 +224,8 @@ impl CtlModel<SndMotu> for UltraLiteMk3 {
         } else if self.output_ctl.read_dynamics(elem_id, elem_value)? {
             Ok(true)
         } else if self.resource_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -406,14 +426,25 @@ impl NotifyModel<SndMotu, Vec<DspCmd>> for UltraLiteMk3 {
 }
 
 impl MeasureModel<SndMotu> for UltraLiteMk3 {
-    fn get_measure_elem_list(&mut self, _: &mut Vec<ElemId>) {}
-
-    fn measure_states(&mut self, _: &mut SndMotu) -> Result<(), Error> {
-        Ok(())
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_elem(&mut self, _: &SndMotu, _: &ElemId, _: &mut ElemValue) -> Result<bool, Error> {
-        Ok(false)
+    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    }
+
+    fn measure_elem(
+        &mut self,
+        _: &SndMotu,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self.meter_ctl.read(elem_id, elem_value)? {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
