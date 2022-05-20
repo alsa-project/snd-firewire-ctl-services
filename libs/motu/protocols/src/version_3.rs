@@ -1038,3 +1038,9 @@ impl UltraliteMk3HybridProtocol {
     /// of phone assignment is also notified in command message.
     pub const NOTIFY_PORT_CHANGE: u32 = 0x40000000;
 }
+
+/// The protocol implementation for Traveler mk3.
+#[derive(Default)]
+pub struct TravelerMk3Protocol;
+
+impl CommandDspOperation for TravelerMk3Protocol {}

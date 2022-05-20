@@ -115,6 +115,7 @@ your device, please contact to developer.
   * MOTU 828mk3 (Hybrid)
   * MOTU UltraLite mk3 (FireWire only)
   * MOTU UltraLite mk3 (Hybrid)
+  * MOTU Traveler mk3
 
 * snd-oxfw-ctl-service
 
