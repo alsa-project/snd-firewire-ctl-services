@@ -45,11 +45,7 @@ pub trait V2ClkOperation {
 
     const HAS_LCD: bool;
 
-    fn get_clk_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
+    fn get_clk_rate(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
@@ -67,7 +63,7 @@ pub trait V2ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -83,11 +79,7 @@ pub trait V2ClkOperation {
         )
     }
 
-    fn get_clk_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
+    fn get_clk_src(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
@@ -105,7 +97,7 @@ pub trait V2ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -125,7 +117,7 @@ pub trait V2ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         label: &str,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         update_clk_display(req, node, label, timeout_ms)
     }
@@ -155,7 +147,7 @@ pub trait V2OptIfaceOperation {
     fn get_opt_in_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
             OFFSET_PORT,
@@ -191,7 +183,7 @@ pub trait V2OptIfaceOperation {
     fn get_opt_out_iface_mode(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         get_idx_from_val(
             OFFSET_PORT,
@@ -231,17 +223,17 @@ pub struct F828mk2Protocol;
 
 impl AssignOperation for F828mk2Protocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01), // = Stream-1/2
+        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
         (TargetPort::AnalogPair0, 0x02), // = Stream-3/4
         (TargetPort::AnalogPair1, 0x03), // = Stream-5/6
         (TargetPort::AnalogPair2, 0x04), // = Stream-7/8
         (TargetPort::AnalogPair3, 0x05), // = Stream-9/10
-        (TargetPort::MainPair0, 0x06), // = Stream-11/12
-        (TargetPort::SpdifPair0, 0x07), // = Stream-13/14
-        (TargetPort::AdatPair0, 0x08), // = Stream-15/16
-        (TargetPort::AdatPair1, 0x09), // = Stream-17/18
-        (TargetPort::AdatPair2, 0x0a), // = Stream-19/20
-        (TargetPort::AdatPair3, 0x0b), // = Stream-21/22
+        (TargetPort::MainPair0, 0x06),   // = Stream-11/12
+        (TargetPort::SpdifPair0, 0x07),  // = Stream-13/14
+        (TargetPort::AdatPair0, 0x08),   // = Stream-15/16
+        (TargetPort::AdatPair1, 0x09),   // = Stream-17/18
+        (TargetPort::AdatPair2, 0x0a),   // = Stream-19/20
+        (TargetPort::AdatPair3, 0x0b),   // = Stream-21/22
     ];
 }
 
@@ -368,7 +360,8 @@ impl V2ClkOperation for F8preProtocol {
         (ClkRate::R96000, 0x03),
     ];
 
-    const CLK_SRCS: &'static [(V2ClkSrc, u8)] = &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::AdatOpt, 0x01)];
+    const CLK_SRCS: &'static [(V2ClkSrc, u8)] =
+        &[(V2ClkSrc::Internal, 0x00), (V2ClkSrc::AdatOpt, 0x01)];
 
     const HAS_LCD: bool = false;
 }
@@ -431,17 +424,17 @@ pub struct TravelerProtocol;
 
 impl AssignOperation for TravelerProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01), // = Stream-1/2
+        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
         (TargetPort::AnalogPair0, 0x02), // = Stream-3/4
         (TargetPort::AnalogPair1, 0x03), // = Stream-5/6
         (TargetPort::AnalogPair2, 0x04), // = Stream-7/8
         (TargetPort::AnalogPair3, 0x05), // = Stream-9/10
         (TargetPort::AesEbuPair0, 0x06), // = Stream-11/12
-        (TargetPort::SpdifPair0, 0x07), // = Stream-13/14
-        (TargetPort::AdatPair0, 0x08), // = Stream-15/16
-        (TargetPort::AdatPair1, 0x09), // = Stream-17/18
-        (TargetPort::AdatPair2, 0x0a), // = Stream-19/20
-        (TargetPort::AdatPair3, 0x0b), // = Stream-21/22
+        (TargetPort::SpdifPair0, 0x07),  // = Stream-13/14
+        (TargetPort::AdatPair0, 0x08),   // = Stream-15/16
+        (TargetPort::AdatPair1, 0x09),   // = Stream-17/18
+        (TargetPort::AdatPair2, 0x0a),   // = Stream-19/20
+        (TargetPort::AdatPair3, 0x0b),   // = Stream-21/22
     ];
 }
 
@@ -551,9 +544,9 @@ pub struct TravelerMicInputState {
 }
 
 const TRAVELER_MIC_PARAM_OFFSET: usize = 0x0c1c;
-const   TRAVELER_MIC_GAIN_MASK: u8 = 0x3f;
-const   TRAVELER_MIC_PAD_FLAG: u8 = 0x40;
-const   TRAVELER_MIC_CHANGE_FLAG: u8 = 0x80;
+const TRAVELER_MIC_GAIN_MASK: u8 = 0x3f;
+const TRAVELER_MIC_PAD_FLAG: u8 = 0x40;
+const TRAVELER_MIC_CHANGE_FLAG: u8 = 0x80;
 
 impl TravelerProtocol {
     /// Notification mask for mic gain, and pad.
@@ -575,15 +568,14 @@ impl TravelerProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         state: &mut TravelerMicInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         read_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, timeout_ms).map(|val| {
-            (0..Self::MIC_INPUT_COUNT)
-                .for_each(|i| {
-                    let v = ((val >> (i * 8)) & 0xff) as u8;
-                    state.gain[i] = v & TRAVELER_MIC_GAIN_MASK;
-                    state.pad[i] = v & TRAVELER_MIC_PAD_FLAG > 0;
-                });
+            (0..Self::MIC_INPUT_COUNT).for_each(|i| {
+                let v = ((val >> (i * 8)) & 0xff) as u8;
+                state.gain[i] = v & TRAVELER_MIC_GAIN_MASK;
+                state.pad[i] = v & TRAVELER_MIC_PAD_FLAG > 0;
+            });
         })
     }
 
@@ -592,11 +584,12 @@ impl TravelerProtocol {
         node: &mut FwNode,
         gain: &[u8],
         state: &mut TravelerMicInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(gain.len(), Self::MIC_INPUT_COUNT);
 
-        let val = gain.iter()
+        let val = gain
+            .iter()
             .enumerate()
             .filter(|&(i, g)| !state.gain[i].eq(g))
             .fold(0u32, |val, (i, &g)| {
@@ -607,9 +600,8 @@ impl TravelerProtocol {
                 v |= g & TRAVELER_MIC_GAIN_MASK;
                 val | ((v as u32) << (i * 8))
             });
-        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms).map(|_| {
-            state.gain.copy_from_slice(gain)
-        })
+        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms)
+            .map(|_| state.gain.copy_from_slice(gain))
     }
 
     pub fn write_mic_pad(
@@ -617,11 +609,12 @@ impl TravelerProtocol {
         node: &mut FwNode,
         pad: &[bool],
         state: &mut TravelerMicInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(pad.len(), Self::MIC_INPUT_COUNT);
 
-        let val = pad.iter()
+        let val = pad
+            .iter()
             .enumerate()
             .filter(|&(i, p)| !state.pad[i].eq(p))
             .fold(0u32, |val, (i, &p)| {
@@ -632,9 +625,8 @@ impl TravelerProtocol {
                 v |= state.gain[i] & TRAVELER_MIC_GAIN_MASK;
                 val | ((v as u32) << (i * 8))
             });
-        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms).map(|_| {
-            state.pad.copy_from_slice(pad)
-        })
+        write_quad(req, node, TRAVELER_MIC_PARAM_OFFSET as u32, val, timeout_ms)
+            .map(|_| state.pad.copy_from_slice(pad))
     }
 }
 
@@ -644,13 +636,13 @@ pub struct UltraliteProtocol;
 
 impl AssignOperation for UltraliteProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01), // Stream-1/2
+        (TargetPort::PhonePair0, 0x01),  // Stream-1/2
         (TargetPort::AnalogPair0, 0x02), // Stream-3/4
         (TargetPort::AnalogPair1, 0x03), // Stream-5/6
         (TargetPort::AnalogPair2, 0x04), // Stream-7/8
         (TargetPort::AnalogPair3, 0x05), // Stream-9/10
-        (TargetPort::MainPair0, 0x06), // Stream-11/12
-        (TargetPort::SpdifPair0, 0x07), // Stream-13/14
+        (TargetPort::MainPair0, 0x06),   // Stream-11/12
+        (TargetPort::SpdifPair0, 0x07),  // Stream-13/14
     ];
 }
 
@@ -712,13 +704,12 @@ impl RegisterDspMixerMonauralSourceOperation for UltraliteProtocol {
 impl RegisterDspOutputOperation for UltraliteProtocol {}
 
 const ULTRALITE_INPUT_OFFSETS: [usize; 3] = [0x0c70, 0x0c74, 0x0c78];
-const   ULTRALITE_INPUT_GAIN_MASK: u8 = 0x18;
-const   ULTRALITE_INPUT_INVERT_FLAG: u8 = 0x20;
-const   ULTRALITE_INPUT_CHANGE_FLAG: u8 = 0x80;
-const   ULTRALITE_MAIN_ASSIGN_MASK: u32 = 0x000f0000;
-const   ULTRALITE_MAIN_ASSIGN_SHIFT: usize = 16;
+const ULTRALITE_INPUT_GAIN_MASK: u8 = 0x18;
+const ULTRALITE_INPUT_INVERT_FLAG: u8 = 0x20;
+const ULTRALITE_INPUT_CHANGE_FLAG: u8 = 0x80;
+const ULTRALITE_MAIN_ASSIGN_MASK: u32 = 0x000f0000;
+const ULTRALITE_MAIN_ASSIGN_SHIFT: usize = 16;
 const ULTRALITE_MAIN_ASSIGN_LABEL: &str = "ultralite-main-assign";
-
 
 /// The structure for state of input in Ultralite.
 #[derive(Default)]
@@ -750,7 +741,7 @@ impl UltraliteProtocol {
     pub fn get_main_assign(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
         get_idx_from_val(
@@ -769,7 +760,7 @@ impl UltraliteProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::KNOB_TARGETS.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -789,20 +780,19 @@ impl UltraliteProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         state: &mut UltraliteInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         ULTRALITE_INPUT_OFFSETS
             .iter()
             .zip(Self::CH_TABLE.iter())
             .try_for_each(|(&offset, &(begin, end))| {
                 read_quad(req, node, offset as u32, timeout_ms).map(|val| {
-                    (begin..end)
-                        .for_each(|i| {
-                            let pos = i % 4;
-                            let v = ((val >> (pos * 8)) & 0xff) as u8;
-                            state.gain[i] = v & ULTRALITE_INPUT_GAIN_MASK;
-                            state.invert[i] = v & ULTRALITE_INPUT_INVERT_FLAG > 0;
-                        });
+                    (begin..end).for_each(|i| {
+                        let pos = i % 4;
+                        let v = ((val >> (pos * 8)) & 0xff) as u8;
+                        state.gain[i] = v & ULTRALITE_INPUT_GAIN_MASK;
+                        state.invert[i] = v & ULTRALITE_INPUT_INVERT_FLAG > 0;
+                    });
                 })
             })
     }
@@ -812,13 +802,12 @@ impl UltraliteProtocol {
         node: &mut FwNode,
         gain: &[u8],
         state: &mut UltraliteInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(gain.len(), Self::INPUT_COUNT);
 
         let mut vals = [0u32; 3];
-        gain
-            .iter()
+        gain.iter()
             .enumerate()
             .filter(|&(i, g)| !state.gain[i].eq(g))
             .for_each(|(i, &g)| {
@@ -835,9 +824,7 @@ impl UltraliteProtocol {
             .iter()
             .zip(vals.iter())
             .filter(|(_, &val)| val > 0)
-            .try_for_each(|(&offset, &val)| {
-                write_quad(req, node, offset as u32, val, timeout_ms)
-            })
+            .try_for_each(|(&offset, &val)| write_quad(req, node, offset as u32, val, timeout_ms))
             .map(|_| state.gain.copy_from_slice(gain))
     }
 
@@ -846,7 +833,7 @@ impl UltraliteProtocol {
         node: &mut FwNode,
         invert: &[bool],
         state: &mut UltraliteInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(invert.len(), Self::INPUT_COUNT);
 
@@ -869,9 +856,7 @@ impl UltraliteProtocol {
             .iter()
             .zip(vals.iter())
             .filter(|(_, &val)| val > 0)
-            .try_for_each(|(&offset, &val)| {
-                write_quad(req, node, offset as u32, val, timeout_ms)
-            })
+            .try_for_each(|(&offset, &val)| write_quad(req, node, offset as u32, val, timeout_ms))
             .map(|_| state.invert.copy_from_slice(invert))
     }
 }
@@ -895,12 +880,12 @@ impl AssignOperation for F896hdProtocol {
         (TargetPort::AnalogPair1, 0x03), // Stream-3/4
         (TargetPort::AnalogPair2, 0x04), // Stream-5/6
         (TargetPort::AnalogPair3, 0x05), // Stream-7/8
-        (TargetPort::MainPair0, 0x06), // Stream-9/10
+        (TargetPort::MainPair0, 0x06),   // Stream-9/10
         (TargetPort::AesEbuPair0, 0x07), // Stream-11/12
-        (TargetPort::AdatPair0, 0x08), // Stream-13/14
-        (TargetPort::AdatPair1, 0x09), // Stream-15/16
-        (TargetPort::AdatPair2, 0x0a), // Stream-17/18
-        (TargetPort::AdatPair3, 0x0b), // Stream-19/20
+        (TargetPort::AdatPair0, 0x08),   // Stream-13/14
+        (TargetPort::AdatPair1, 0x09),   // Stream-15/16
+        (TargetPort::AdatPair2, 0x0a),   // Stream-17/18
+        (TargetPort::AdatPair3, 0x0b),   // Stream-19/20
     ];
 }
 

@@ -5,12 +5,12 @@
 //!
 //! The crate includes protocols defined by Mark of the Unicorn for its FireWire series.
 
+pub mod command_dsp;
 pub mod config_rom;
+pub mod register_dsp;
 pub mod version_1;
 pub mod version_2;
 pub mod version_3;
-pub mod register_dsp;
-pub mod command_dsp;
 
 use glib::{Error, FileError};
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
@@ -22,12 +22,7 @@ const OFFSET_CLK: u32 = 0x0b14;
 const OFFSET_PORT: u32 = 0x0c04;
 const OFFSET_CLK_DISPLAY: u32 = 0x0c60;
 
-fn read_quad(
-    req: &FwReq,
-    node: &mut FwNode,
-    offset: u32,
-    timeout_ms: u32
-) -> Result<u32, Error> {
+fn read_quad(req: &FwReq, node: &mut FwNode, offset: u32, timeout_ms: u32) -> Result<u32, Error> {
     let mut frame = [0; 4];
     req.transaction_sync(
         node,
@@ -173,7 +168,7 @@ pub trait AssignOperation {
     fn get_phone_assign(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
@@ -192,7 +187,7 @@ pub trait AssignOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -235,7 +230,7 @@ pub trait WordClkOperation {
     fn get_word_out(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<WordClkSpeedMode, Error> {
         get_idx_from_val(
             OFFSET_CLK,

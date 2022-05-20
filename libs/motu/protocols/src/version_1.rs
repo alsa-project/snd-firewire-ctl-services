@@ -267,11 +267,7 @@ pub trait V1ClkOperation {
     const CLK_SRC_VALS: &'static [u8];
     const CLK_SRC_LABELS: &'static [V1ClkSrc];
 
-    fn get_clk_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
+    fn get_clk_rate(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_RATE_MASK,
@@ -288,7 +284,7 @@ pub trait V1ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         set_idx_to_val(
             Self::CLK_OFFSET,
@@ -303,11 +299,7 @@ pub trait V1ClkOperation {
         )
     }
 
-    fn get_clk_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
+    fn get_clk_src(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         get_idx_from_val(
             Self::CLK_OFFSET,
             Self::CLK_SRC_MASK,
@@ -324,7 +316,7 @@ pub trait V1ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         set_idx_to_val(
             Self::CLK_OFFSET,
@@ -352,12 +344,12 @@ pub trait V1MonitorInputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error>;
     fn get_monitor_input(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error>;
 }
 
@@ -405,7 +397,7 @@ impl V1MonitorInputOperation for F828Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let (disable_idx, ch_idx) = if idx == 0 { (1, 0) } else { (0, idx - 1) };
 
@@ -437,7 +429,7 @@ impl V1MonitorInputOperation for F828Protocol {
     fn get_monitor_input(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         let mut idx = get_idx_from_val(
             CONF_828_OFFSET,
@@ -583,7 +575,7 @@ impl F828Protocol {
     pub fn get_stream_input_enable(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         get_idx_from_val(
             CONF_828_OFFSET,
@@ -624,7 +616,7 @@ impl F828Protocol {
     pub fn get_output_enable(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         get_idx_from_val(
             CONF_828_OFFSET,
@@ -723,7 +715,7 @@ impl V1MonitorInputOperation for F896Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let &(ch_idx, aesebu_idx) =
             CONF_896_MONITOR_INPUT_VALS.iter().nth(idx).ok_or_else(|| {
@@ -757,7 +749,7 @@ impl V1MonitorInputOperation for F896Protocol {
     fn get_monitor_input(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         let ch_idx = get_idx_from_val(
             OFFSET_CLK,

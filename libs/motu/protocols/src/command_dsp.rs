@@ -474,14 +474,16 @@ impl MonitorCmd {
 
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
-            MonitorCmd::Volume(val) =>                  append_f32(raw, 0x00, 0x00, 0x00, 0, *val),
-            MonitorCmd::TalkbackEnable(val) =>          append_u8(raw, 0x00, 0x00, 0x01, 0, *val as u8),
-            MonitorCmd::ListenbackEnable(val) =>        append_u8(raw, 0x00, 0x00, 0x02, 0, *val as u8),
-            MonitorCmd::TalkbackVolume(val) =>          append_f32(raw, 0x00, 0x00, 0x05, 0, *val),
-            MonitorCmd::ListenbackVolume(val) =>        append_f32(raw, 0x00, 0x00, 0x06, 0, *val),
-            MonitorCmd::Focus(target) =>                append_data(raw, &[0x00, 0x07, 0x00, 0x00], &Vec::from(target)),
-            MonitorCmd::ReturnAssign(target) =>         append_u8(raw, 0x00, 0x00, 0x08, 0, *target as u8),
-            MonitorCmd::Reserved(identifier, vals) =>   append_data(raw, identifier, vals),
+            MonitorCmd::Volume(val) => append_f32(raw, 0x00, 0x00, 0x00, 0, *val),
+            MonitorCmd::TalkbackEnable(val) => append_u8(raw, 0x00, 0x00, 0x01, 0, *val as u8),
+            MonitorCmd::ListenbackEnable(val) => append_u8(raw, 0x00, 0x00, 0x02, 0, *val as u8),
+            MonitorCmd::TalkbackVolume(val) => append_f32(raw, 0x00, 0x00, 0x05, 0, *val),
+            MonitorCmd::ListenbackVolume(val) => append_f32(raw, 0x00, 0x00, 0x06, 0, *val),
+            MonitorCmd::Focus(target) => {
+                append_data(raw, &[0x00, 0x07, 0x00, 0x00], &Vec::from(target))
+            }
+            MonitorCmd::ReturnAssign(target) => append_u8(raw, 0x00, 0x00, 0x08, 0, *target as u8),
+            MonitorCmd::Reserved(identifier, vals) => append_data(raw, identifier, vals),
         }
     }
 }
@@ -515,7 +517,7 @@ impl InputCmd {
         let ch = identifier[0] as usize;
 
         match (identifier[3], identifier[2], identifier[1]) {
-            (0x01, 0x00, 0x00) => InputCmd::Phase(ch,  to_bool(vals)),
+            (0x01, 0x00, 0x00) => InputCmd::Phase(ch, to_bool(vals)),
             (0x01, 0x00, 0x01) => InputCmd::Pair(ch, to_bool(vals)),
             (0x01, 0x00, 0x02) => InputCmd::Gain(ch, to_i32(vals)),
             (0x01, 0x00, 0x03) => InputCmd::Swap(ch, to_bool(vals)),
@@ -527,60 +529,136 @@ impl InputCmd {
             (0x01, 0x00, 0x09) => InputCmd::Pad(ch, to_bool(vals)),
             (0x01, 0x00, 0x0b) => InputCmd::Phantom(ch, to_bool(vals)),
 
-            (0x01, 0x01, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::Enable(to_bool(vals))),
+            (0x01, 0x01, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::Enable(to_bool(vals)))
+            }
 
-            (0x01, 0x02, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(to_bool(vals))),
-            (0x01, 0x02, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::HpfSlope(RollOffLevel::from(vals[0]))),
-            (0x01, 0x02, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(to_u32(vals))),
+            (0x01, 0x02, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(to_bool(vals)))
+            }
+            (0x01, 0x02, 0x01) => InputCmd::Equalizer(
+                ch,
+                EqualizerParameter::HpfSlope(RollOffLevel::from(vals[0])),
+            ),
+            (0x01, 0x02, 0x02) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(to_u32(vals)))
+            }
 
-            (0x01, 0x03, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::LfEnable(to_bool(vals))),
-            (0x01, 0x03, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::LfType(FilterType5::from(vals[0]))),
+            (0x01, 0x03, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LfEnable(to_bool(vals)))
+            }
+            (0x01, 0x03, 0x01) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LfType(FilterType5::from(vals[0])))
+            }
             (0x01, 0x03, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::LfFreq(to_u32(vals))),
             (0x01, 0x03, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_f32(vals))),
-            (0x01, 0x03, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_f32(vals))),
+            (0x01, 0x03, 0x04) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_f32(vals)))
+            }
 
-            (0x01, 0x04, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(to_bool(vals))),
-            (0x01, 0x04, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::LmfType(FilterType4::from(vals[0]))),
-            (0x01, 0x04, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(to_u32(vals))),
-            (0x01, 0x04, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_f32(vals))),
-            (0x01, 0x04, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_f32(vals))),
+            (0x01, 0x04, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(to_bool(vals)))
+            }
+            (0x01, 0x04, 0x01) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LmfType(FilterType4::from(vals[0])))
+            }
+            (0x01, 0x04, 0x02) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(to_u32(vals)))
+            }
+            (0x01, 0x04, 0x03) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_f32(vals)))
+            }
+            (0x01, 0x04, 0x04) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_f32(vals)))
+            }
 
-            (0x01, 0x05, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::MfEnable(to_bool(vals))),
-            (0x01, 0x05, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::MfType(FilterType4::from(vals[0]))),
+            (0x01, 0x05, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::MfEnable(to_bool(vals)))
+            }
+            (0x01, 0x05, 0x01) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::MfType(FilterType4::from(vals[0])))
+            }
             (0x01, 0x05, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::MfFreq(to_u32(vals))),
             (0x01, 0x05, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_f32(vals))),
-            (0x01, 0x05, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_f32(vals))),
+            (0x01, 0x05, 0x04) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_f32(vals)))
+            }
 
-            (0x01, 0x06, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(to_bool(vals))),
-            (0x01, 0x06, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::HmfType(FilterType4::from(vals[0]))),
-            (0x01, 0x06, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(to_u32(vals))),
-            (0x01, 0x06, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_f32(vals))),
-            (0x01, 0x06, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_f32(vals))),
+            (0x01, 0x06, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(to_bool(vals)))
+            }
+            (0x01, 0x06, 0x01) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HmfType(FilterType4::from(vals[0])))
+            }
+            (0x01, 0x06, 0x02) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(to_u32(vals)))
+            }
+            (0x01, 0x06, 0x03) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_f32(vals)))
+            }
+            (0x01, 0x06, 0x04) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_f32(vals)))
+            }
 
-            (0x01, 0x07, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::HfEnable(to_bool(vals))),
-            (0x01, 0x07, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::HfType(FilterType5::from(vals[0]))),
+            (0x01, 0x07, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HfEnable(to_bool(vals)))
+            }
+            (0x01, 0x07, 0x01) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HfType(FilterType5::from(vals[0])))
+            }
             (0x01, 0x07, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::HfFreq(to_u32(vals))),
             (0x01, 0x07, 0x03) => InputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_f32(vals))),
-            (0x01, 0x07, 0x04) => InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_f32(vals))),
+            (0x01, 0x07, 0x04) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_f32(vals)))
+            }
 
-            (0x01, 0x08, 0x00) => InputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(to_bool(vals))),
-            (0x01, 0x08, 0x01) => InputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(RollOffLevel::from(vals[0]))),
-            (0x01, 0x08, 0x02) => InputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(to_u32(vals))),
+            (0x01, 0x08, 0x00) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(to_bool(vals)))
+            }
+            (0x01, 0x08, 0x01) => InputCmd::Equalizer(
+                ch,
+                EqualizerParameter::LpfSlope(RollOffLevel::from(vals[0])),
+            ),
+            (0x01, 0x08, 0x02) => {
+                InputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(to_u32(vals)))
+            }
 
             (0x01, 0x09, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::Enable(to_bool(vals))),
 
-            (0x01, 0x0a, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals))),
-            (0x01, 0x0a, 0x01) => InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals))),
-            (0x01, 0x0a, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals))),
-            (0x01, 0x0a, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::CompAttack(to_u32(vals))),
-            (0x01, 0x0a, 0x04) => InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_u32(vals))),
+            (0x01, 0x0a, 0x00) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals)))
+            }
+            (0x01, 0x0a, 0x01) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals)))
+            }
+            (0x01, 0x0a, 0x02) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals)))
+            }
+            (0x01, 0x0a, 0x03) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::CompAttack(to_u32(vals)))
+            }
+            (0x01, 0x0a, 0x04) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_u32(vals)))
+            }
             (0x01, 0x0a, 0x05) => InputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals))),
-            (0x01, 0x0a, 0x06) => InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0]))),
+            (0x01, 0x0a, 0x06) => InputCmd::Dynamics(
+                ch,
+                DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0])),
+            ),
 
-            (0x01, 0x0b, 0x00) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals))),
-            (0x01, 0x0b, 0x01) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(LevelerMode::from(vals[0]))),
-            (0x01, 0x0b, 0x02) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_u32(vals))),
-            (0x01, 0x0b, 0x03) => InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_u32(vals))),
+            (0x01, 0x0b, 0x00) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals)))
+            }
+            (0x01, 0x0b, 0x01) => InputCmd::Dynamics(
+                ch,
+                DynamicsParameter::LevelerMode(LevelerMode::from(vals[0])),
+            ),
+            (0x01, 0x0b, 0x02) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_u32(vals)))
+            }
+            (0x01, 0x0b, 0x03) => {
+                InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_u32(vals)))
+            }
 
             (0x01, 0x0c, 0x00) => InputCmd::ReverbSend(ch, to_f32(vals)),
             (0x01, 0x0c, 0x02) => InputCmd::ReverbLrBalance(ch, to_f32(vals)),
@@ -593,80 +671,170 @@ impl InputCmd {
             _ => InputCmd::Reserved(identifier.to_vec(), vals.to_vec()),
         }
     }
-    
+
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
-            InputCmd::Phase(ch, enabled) =>                                         append_u8(raw, 0x01, 0x00, 0x00, *ch, *enabled),
-            InputCmd::Pair(ch, enabled) =>                                          append_u8(raw, 0x01, 0x00, 0x01, *ch, *enabled),
-            InputCmd::Gain(ch, val) =>                                              append_i32(raw, 0x01, 0x00, 0x02, *ch, *val),
-            InputCmd::Swap(ch, enabled) =>                                          append_u8(raw, 0x01, 0x00, 0x03, *ch, *enabled),
-            InputCmd::StereoMode(ch, pair_mode) =>                                  append_u8(raw, 0x01, 0x00, 0x04, *ch, *pair_mode),
-            InputCmd::Width(ch, val) =>                                             append_f32(raw, 0x01, 0x00, 0x05, *ch, *val),
-            InputCmd::Limitter(ch, enabled) =>                                      append_u8(raw, 0x01, 0x00, 0x06, *ch, *enabled),
-            InputCmd::Lookahead(ch, enabled) =>                                     append_u8(raw, 0x01, 0x00, 0x07, *ch, *enabled),
-            InputCmd::Softclip(ch, enabled) =>                                      append_u8(raw, 0x01, 0x00, 0x08, *ch, *enabled),
-            InputCmd::Pad(ch, enabled) =>                                           append_u8(raw, 0x01, 0x00, 0x09, *ch, *enabled),
-            InputCmd::Phantom(ch, enabled) =>                                       append_u8(raw, 0x01, 0x00, 0x0b, *ch, *enabled),
+            InputCmd::Phase(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x00, *ch, *enabled),
+            InputCmd::Pair(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x01, *ch, *enabled),
+            InputCmd::Gain(ch, val) => append_i32(raw, 0x01, 0x00, 0x02, *ch, *val),
+            InputCmd::Swap(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x03, *ch, *enabled),
+            InputCmd::StereoMode(ch, pair_mode) => {
+                append_u8(raw, 0x01, 0x00, 0x04, *ch, *pair_mode)
+            }
+            InputCmd::Width(ch, val) => append_f32(raw, 0x01, 0x00, 0x05, *ch, *val),
+            InputCmd::Limitter(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x06, *ch, *enabled),
+            InputCmd::Lookahead(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x07, *ch, *enabled),
+            InputCmd::Softclip(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x08, *ch, *enabled),
+            InputCmd::Pad(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x09, *ch, *enabled),
+            InputCmd::Phantom(ch, enabled) => append_u8(raw, 0x01, 0x00, 0x0b, *ch, *enabled),
 
-            InputCmd::Equalizer(ch, EqualizerParameter::Enable(enabled)) =>         append_u8(raw, 0x01, 0x01, 0x00, *ch, *enabled),
+            InputCmd::Equalizer(ch, EqualizerParameter::Enable(enabled)) => {
+                append_u8(raw, 0x01, 0x01, 0x00, *ch, *enabled)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(enabled)) =>      append_u8(raw, 0x01, 0x02, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::HpfSlope(level)) =>         append_u8(raw, 0x01, 0x02, 0x01, *ch, *level),
-            InputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(val)) =>            append_u32(raw, 0x01, 0x02, 0x02, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x02, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HpfSlope(level)) => {
+                append_u8(raw, 0x01, 0x02, 0x01, *ch, *level)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(val)) => {
+                append_u32(raw, 0x01, 0x02, 0x02, *ch, *val)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::LfEnable(enabled)) =>       append_u8(raw, 0x01, 0x03, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::LfType(filter_type)) =>     append_u8(raw, 0x01, 0x03, 0x01, *ch, *filter_type),
-            InputCmd::Equalizer(ch, EqualizerParameter::LfFreq(val)) =>             append_u32(raw, 0x01, 0x03, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) =>             append_f32(raw, 0x01, 0x03, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) =>            append_f32(raw, 0x01, 0x03, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x03, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LfType(filter_type)) => {
+                append_u8(raw, 0x01, 0x03, 0x01, *ch, *filter_type)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LfFreq(val)) => {
+                append_u32(raw, 0x01, 0x03, 0x02, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) => {
+                append_f32(raw, 0x01, 0x03, 0x03, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) => {
+                append_f32(raw, 0x01, 0x03, 0x04, *ch, *val)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(enabled)) =>      append_u8(raw, 0x01, 0x04, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfType(filter_type)) =>    append_u8(raw, 0x01, 0x04, 0x01, *ch, *filter_type),
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(val)) =>            append_u32(raw, 0x01, 0x04, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) =>            append_f32(raw, 0x01, 0x04, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) =>           append_f32(raw, 0x01, 0x04, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x04, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfType(filter_type)) => {
+                append_u8(raw, 0x01, 0x04, 0x01, *ch, *filter_type)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(val)) => {
+                append_u32(raw, 0x01, 0x04, 0x02, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) => {
+                append_f32(raw, 0x01, 0x04, 0x03, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) => {
+                append_f32(raw, 0x01, 0x04, 0x04, *ch, *val)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::MfEnable(enabled)) =>       append_u8(raw, 0x01, 0x05, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::MfType(filter_type)) =>     append_u8(raw, 0x01, 0x05, 0x01, *ch, *filter_type),
-            InputCmd::Equalizer(ch, EqualizerParameter::MfFreq(val)) =>             append_u32(raw, 0x01, 0x05, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) =>             append_f32(raw, 0x01, 0x05, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) =>            append_f32(raw, 0x01, 0x05, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::MfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x05, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::MfType(filter_type)) => {
+                append_u8(raw, 0x01, 0x05, 0x01, *ch, *filter_type)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::MfFreq(val)) => {
+                append_u32(raw, 0x01, 0x05, 0x02, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) => {
+                append_f32(raw, 0x01, 0x05, 0x03, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) => {
+                append_f32(raw, 0x01, 0x05, 0x04, *ch, *val)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(enabled)) =>      append_u8(raw, 0x01, 0x06, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfType(filter_type)) =>    append_u8(raw, 0x01, 0x06, 0x01, *ch, *filter_type),
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(val)) =>            append_u32(raw, 0x01, 0x06, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) =>            append_f32(raw, 0x01, 0x06, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) =>           append_f32(raw, 0x01, 0x06, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x06, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfType(filter_type)) => {
+                append_u8(raw, 0x01, 0x06, 0x01, *ch, *filter_type)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(val)) => {
+                append_u32(raw, 0x01, 0x06, 0x02, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) => {
+                append_f32(raw, 0x01, 0x06, 0x03, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) => {
+                append_f32(raw, 0x01, 0x06, 0x04, *ch, *val)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::HfEnable(enabled)) =>       append_u8(raw, 0x01, 0x07, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::HfType(filter_type)) =>     append_u8(raw, 0x01, 0x07, 0x01, *ch, *filter_type),
-            InputCmd::Equalizer(ch, EqualizerParameter::HfFreq(val)) =>             append_u32(raw, 0x01, 0x07, 0x02, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) =>             append_f32(raw, 0x01, 0x07, 0x03, *ch, *val),
-            InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) =>            append_f32(raw, 0x01, 0x07, 0x04, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::HfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x07, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HfType(filter_type)) => {
+                append_u8(raw, 0x01, 0x07, 0x01, *ch, *filter_type)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HfFreq(val)) => {
+                append_u32(raw, 0x01, 0x07, 0x02, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) => {
+                append_f32(raw, 0x01, 0x07, 0x03, *ch, *val)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) => {
+                append_f32(raw, 0x01, 0x07, 0x04, *ch, *val)
+            }
 
-            InputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(enabled)) =>      append_u8(raw, 0x01, 0x08, 0x00, *ch, *enabled),
-            InputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(level)) =>         append_u8(raw, 0x01, 0x08, 0x01, *ch, *level),
-            InputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(val)) =>            append_u32(raw, 0x01, 0x08, 0x02, *ch, *val),
+            InputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x08, 0x00, *ch, *enabled)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(level)) => {
+                append_u8(raw, 0x01, 0x08, 0x01, *ch, *level)
+            }
+            InputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(val)) => {
+                append_u32(raw, 0x01, 0x08, 0x02, *ch, *val)
+            }
 
-            InputCmd::Dynamics(ch, DynamicsParameter::Enable(enabled)) =>           append_u8(raw, 0x01, 0x09, 0x00, *ch, *enabled),
+            InputCmd::Dynamics(ch, DynamicsParameter::Enable(enabled)) => {
+                append_u8(raw, 0x01, 0x09, 0x00, *ch, *enabled)
+            }
 
-            InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) =>       append_u8(raw, 0x01, 0x0a, 0x00, *ch, *enabled),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) =>        append_i32(raw, 0x01, 0x0a, 0x01, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>            append_f32(raw, 0x01, 0x0a, 0x02, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompAttack(val)) =>           append_u32(raw, 0x01, 0x0a, 0x03, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>          append_u32(raw, 0x01, 0x0a, 0x04, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) =>             append_f32(raw, 0x01, 0x0a, 0x05, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) =>      append_u8(raw, 0x01, 0x0a, 0x06, *ch, *mode),
+            InputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x0a, 0x00, *ch, *enabled)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) => {
+                append_i32(raw, 0x01, 0x0a, 0x01, *ch, *val)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) => {
+                append_f32(raw, 0x01, 0x0a, 0x02, *ch, *val)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::CompAttack(val)) => {
+                append_u32(raw, 0x01, 0x0a, 0x03, *ch, *val)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) => {
+                append_u32(raw, 0x01, 0x0a, 0x04, *ch, *val)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) => {
+                append_f32(raw, 0x01, 0x0a, 0x05, *ch, *val)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) => {
+                append_u8(raw, 0x01, 0x0a, 0x06, *ch, *mode)
+            }
 
-            InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) =>    append_u8(raw, 0x01, 0x0b, 0x00, *ch, *enabled),
-            InputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(mode)) =>         append_u8(raw, 0x01, 0x0b, 0x01, *ch, *mode),
-            InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>        append_u32(raw, 0x01, 0x0b, 0x02, *ch, *val),
-            InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>        append_u32(raw, 0x01, 0x0b, 0x03, *ch, *val),
+            InputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) => {
+                append_u8(raw, 0x01, 0x0b, 0x00, *ch, *enabled)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(mode)) => {
+                append_u8(raw, 0x01, 0x0b, 0x01, *ch, *mode)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) => {
+                append_u32(raw, 0x01, 0x0b, 0x02, *ch, *val)
+            }
+            InputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) => {
+                append_u32(raw, 0x01, 0x0b, 0x03, *ch, *val)
+            }
 
-            InputCmd::ReverbSend(ch, val) =>                                        append_f32(raw, 0x01, 0x0c, 0x00, *ch, *val),
-            InputCmd::ReverbLrBalance(ch, val) =>                                   append_f32(raw, 0x01, 0x0c, 0x02, *ch, *val),
+            InputCmd::ReverbSend(ch, val) => append_f32(raw, 0x01, 0x0c, 0x00, *ch, *val),
+            InputCmd::ReverbLrBalance(ch, val) => append_f32(raw, 0x01, 0x0c, 0x02, *ch, *val),
 
-            InputCmd::Reserved(identifier, vals) =>                                 append_data(raw, identifier, vals),
+            InputCmd::Reserved(identifier, vals) => append_data(raw, identifier, vals),
         }
     }
 }
@@ -739,35 +907,57 @@ impl MixerCmd {
             (0x02, 0x01, 0x00) => MixerCmd::ReverbSend(ch, to_f32(vals)),
             (0x02, 0x01, 0x01) => MixerCmd::ReverbReturn(ch, to_f32(vals)),
 
-            (0x02,    _, 0x00) => MixerCmd::SourceMute(ch, mixer_src_ch - 2, to_bool(vals)),
-            (0x02,    _, 0x01) => MixerCmd::SourceSolo(ch, mixer_src_ch - 2, to_bool(vals)),
-            (0x02,    _, 0x02) => MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch - 2, to_f32(vals)),
-            (0x02,    _, 0x03) => MixerCmd::SourceGain(ch, mixer_src_ch - 2, to_f32(vals)),
-            (0x02,    _, 0x04) => MixerCmd::SourceStereoMode(ch, mixer_src_ch - 2, SourceStereoPairMode::from(vals[0])),
-            (0x02,    _, 0x05) => MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch - 2, to_f32(vals)),
-            (0x02,    _, 0x06) => MixerCmd::SourceStereoWidth(ch, mixer_src_ch - 2, to_f32(vals)),
+            (0x02, _, 0x00) => MixerCmd::SourceMute(ch, mixer_src_ch - 2, to_bool(vals)),
+            (0x02, _, 0x01) => MixerCmd::SourceSolo(ch, mixer_src_ch - 2, to_bool(vals)),
+            (0x02, _, 0x02) => {
+                MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch - 2, to_f32(vals))
+            }
+            (0x02, _, 0x03) => MixerCmd::SourceGain(ch, mixer_src_ch - 2, to_f32(vals)),
+            (0x02, _, 0x04) => MixerCmd::SourceStereoMode(
+                ch,
+                mixer_src_ch - 2,
+                SourceStereoPairMode::from(vals[0]),
+            ),
+            (0x02, _, 0x05) => MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch - 2, to_f32(vals)),
+            (0x02, _, 0x06) => MixerCmd::SourceStereoWidth(ch, mixer_src_ch - 2, to_f32(vals)),
             _ => MixerCmd::Reserved(identifier.to_vec(), vals.to_vec()),
         }
     }
 
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
-            MixerCmd::OutputAssign(ch, target) =>                       append_u8(raw, 0x02, 0x00, 0x00, *ch, *target as u8),
-            MixerCmd::OutputMute(ch, enabled) =>                        append_u8(raw, 0x02, 0x00, 0x01, *ch, *enabled),
-            MixerCmd::OutputVolume(ch, val) =>                          append_f32(raw, 0x02, 0x00, 0x02, *ch, *val),
+            MixerCmd::OutputAssign(ch, target) => {
+                append_u8(raw, 0x02, 0x00, 0x00, *ch, *target as u8)
+            }
+            MixerCmd::OutputMute(ch, enabled) => append_u8(raw, 0x02, 0x00, 0x01, *ch, *enabled),
+            MixerCmd::OutputVolume(ch, val) => append_f32(raw, 0x02, 0x00, 0x02, *ch, *val),
 
-            MixerCmd::ReverbSend(ch, val) =>                            append_f32(raw, 0x02, 0x01, 0x00, *ch, *val),
-            MixerCmd::ReverbReturn(ch, val) =>                          append_f32(raw, 0x02, 0x01, 0x01, *ch, *val),
+            MixerCmd::ReverbSend(ch, val) => append_f32(raw, 0x02, 0x01, 0x00, *ch, *val),
+            MixerCmd::ReverbReturn(ch, val) => append_f32(raw, 0x02, 0x01, 0x01, *ch, *val),
 
-            MixerCmd::SourceMute(ch, mixer_src_ch, enabled) =>          append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x00, *ch, *enabled),
-            MixerCmd::SourceSolo(ch, mixer_src_ch, enabled) =>          append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x01, *ch, *enabled),
-            MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch, val) => append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x02, *ch, *val),
-            MixerCmd::SourceGain(ch, mixer_src_ch, val) =>              append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x03, *ch, *val),
-            MixerCmd::SourceStereoMode(ch, mixer_src_ch, pair_mode) =>  append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x04, *ch, *pair_mode),
-            MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch, val) =>   append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x05, *ch, *val),
-            MixerCmd::SourceStereoWidth(ch, mixer_src_ch, val) =>       append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x06, *ch, *val),
+            MixerCmd::SourceMute(ch, mixer_src_ch, enabled) => {
+                append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x00, *ch, *enabled)
+            }
+            MixerCmd::SourceSolo(ch, mixer_src_ch, enabled) => {
+                append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x01, *ch, *enabled)
+            }
+            MixerCmd::SourceMonauralLrBalance(ch, mixer_src_ch, val) => {
+                append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x02, *ch, *val)
+            }
+            MixerCmd::SourceGain(ch, mixer_src_ch, val) => {
+                append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x03, *ch, *val)
+            }
+            MixerCmd::SourceStereoMode(ch, mixer_src_ch, pair_mode) => {
+                append_u8(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x04, *ch, *pair_mode)
+            }
+            MixerCmd::SourceStereoLrBalance(ch, mixer_src_ch, val) => {
+                append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x05, *ch, *val)
+            }
+            MixerCmd::SourceStereoWidth(ch, mixer_src_ch, val) => {
+                append_f32(raw, 0x02, (*mixer_src_ch + 2) as u8, 0x06, *ch, *val)
+            }
 
-            MixerCmd::Reserved(identifier, vals) =>                     append_data(raw, identifier, vals),
+            MixerCmd::Reserved(identifier, vals) => append_data(raw, identifier, vals),
         }
     }
 }
@@ -790,60 +980,150 @@ impl OutputCmd {
         let ch = identifier[0] as usize;
 
         match (identifier[3], identifier[2], identifier[1]) {
-            (0x03, 0x00, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::Enable(to_bool(vals))),
+            (0x03, 0x00, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::Enable(to_bool(vals)))
+            }
 
-            (0x03, 0x01, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(to_bool(vals))),
-            (0x03, 0x01, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::HpfSlope(RollOffLevel::from(vals[0]))),
-            (0x03, 0x01, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(to_u32(vals))),
+            (0x03, 0x01, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(to_bool(vals)))
+            }
+            (0x03, 0x01, 0x01) => OutputCmd::Equalizer(
+                ch,
+                EqualizerParameter::HpfSlope(RollOffLevel::from(vals[0])),
+            ),
+            (0x03, 0x01, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(to_u32(vals)))
+            }
 
-            (0x03, 0x02, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::LfEnable(to_bool(vals))),
-            (0x03, 0x02, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::LfType(FilterType5::from(vals[0]))),
-            (0x03, 0x02, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::LfFreq(to_u32(vals))),
-            (0x03, 0x02, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_f32(vals))),
-            (0x03, 0x02, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_f32(vals))),
+            (0x03, 0x02, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LfEnable(to_bool(vals)))
+            }
+            (0x03, 0x02, 0x01) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LfType(FilterType5::from(vals[0])))
+            }
+            (0x03, 0x02, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LfFreq(to_u32(vals)))
+            }
+            (0x03, 0x02, 0x03) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(to_f32(vals)))
+            }
+            (0x03, 0x02, 0x04) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(to_f32(vals)))
+            }
 
-            (0x03, 0x03, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(to_bool(vals))),
-            (0x03, 0x03, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfType(FilterType4::from(vals[0]))),
-            (0x03, 0x03, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(to_u32(vals))),
-            (0x03, 0x03, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_f32(vals))),
-            (0x03, 0x03, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_f32(vals))),
+            (0x03, 0x03, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(to_bool(vals)))
+            }
+            (0x03, 0x03, 0x01) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LmfType(FilterType4::from(vals[0])))
+            }
+            (0x03, 0x03, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(to_u32(vals)))
+            }
+            (0x03, 0x03, 0x03) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(to_f32(vals)))
+            }
+            (0x03, 0x03, 0x04) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(to_f32(vals)))
+            }
 
-            (0x03, 0x04, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::MfEnable(to_bool(vals))),
-            (0x03, 0x04, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::MfType(FilterType4::from(vals[0]))),
-            (0x03, 0x04, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::MfFreq(to_u32(vals))),
-            (0x03, 0x04, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_f32(vals))),
-            (0x03, 0x04, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_f32(vals))),
+            (0x03, 0x04, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::MfEnable(to_bool(vals)))
+            }
+            (0x03, 0x04, 0x01) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::MfType(FilterType4::from(vals[0])))
+            }
+            (0x03, 0x04, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::MfFreq(to_u32(vals)))
+            }
+            (0x03, 0x04, 0x03) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(to_f32(vals)))
+            }
+            (0x03, 0x04, 0x04) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(to_f32(vals)))
+            }
 
-            (0x03, 0x05, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(to_bool(vals))),
-            (0x03, 0x05, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfType(FilterType4::from(vals[0]))),
-            (0x03, 0x05, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(to_u32(vals))),
-            (0x03, 0x05, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_f32(vals))),
-            (0x03, 0x05, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_f32(vals))),
+            (0x03, 0x05, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(to_bool(vals)))
+            }
+            (0x03, 0x05, 0x01) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HmfType(FilterType4::from(vals[0])))
+            }
+            (0x03, 0x05, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(to_u32(vals)))
+            }
+            (0x03, 0x05, 0x03) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(to_f32(vals)))
+            }
+            (0x03, 0x05, 0x04) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(to_f32(vals)))
+            }
 
-            (0x03, 0x06, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::HfEnable(to_bool(vals))),
-            (0x03, 0x06, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::HfType(FilterType5::from(vals[0]))),
-            (0x03, 0x06, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::HfFreq(to_u32(vals))),
-            (0x03, 0x06, 0x03) => OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_f32(vals))),
-            (0x03, 0x06, 0x04) => OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_f32(vals))),
+            (0x03, 0x06, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HfEnable(to_bool(vals)))
+            }
+            (0x03, 0x06, 0x01) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HfType(FilterType5::from(vals[0])))
+            }
+            (0x03, 0x06, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HfFreq(to_u32(vals)))
+            }
+            (0x03, 0x06, 0x03) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(to_f32(vals)))
+            }
+            (0x03, 0x06, 0x04) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(to_f32(vals)))
+            }
 
-            (0x03, 0x07, 0x00) => OutputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(to_bool(vals))),
-            (0x03, 0x07, 0x01) => OutputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(RollOffLevel::from(vals[0]))),
-            (0x03, 0x07, 0x02) => OutputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(to_u32(vals))),
+            (0x03, 0x07, 0x00) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(to_bool(vals)))
+            }
+            (0x03, 0x07, 0x01) => OutputCmd::Equalizer(
+                ch,
+                EqualizerParameter::LpfSlope(RollOffLevel::from(vals[0])),
+            ),
+            (0x03, 0x07, 0x02) => {
+                OutputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(to_u32(vals)))
+            }
 
             (0x03, 0x08, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::Enable(to_bool(vals))),
 
-            (0x03, 0x09, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals))),
-            (0x03, 0x09, 0x01) => OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals))),
-            (0x03, 0x09, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals))),
-            (0x03, 0x09, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::CompAttack(to_u32(vals))),
-            (0x03, 0x09, 0x04) => OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_u32(vals))),
-            (0x03, 0x09, 0x05) => OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals))),
-            (0x03, 0x09, 0x06) => OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0]))),
+            (0x03, 0x09, 0x00) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(to_bool(vals)))
+            }
+            (0x03, 0x09, 0x01) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(to_i32(vals)))
+            }
+            (0x03, 0x09, 0x02) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(to_f32(vals)))
+            }
+            (0x03, 0x09, 0x03) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::CompAttack(to_u32(vals)))
+            }
+            (0x03, 0x09, 0x04) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(to_u32(vals)))
+            }
+            (0x03, 0x09, 0x05) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(to_f32(vals)))
+            }
+            (0x03, 0x09, 0x06) => OutputCmd::Dynamics(
+                ch,
+                DynamicsParameter::CompDetectMode(LevelDetectMode::from(vals[0])),
+            ),
 
-            (0x03, 0x0a, 0x00) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals))),
-            (0x03, 0x0a, 0x01) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(LevelerMode::from(vals[0]))),
-            (0x03, 0x0a, 0x02) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_u32(vals))),
-            (0x03, 0x0a, 0x03) => OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_u32(vals))),
+            (0x03, 0x0a, 0x00) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(to_bool(vals)))
+            }
+            (0x03, 0x0a, 0x01) => OutputCmd::Dynamics(
+                ch,
+                DynamicsParameter::LevelerMode(LevelerMode::from(vals[0])),
+            ),
+            (0x03, 0x0a, 0x02) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(to_u32(vals)))
+            }
+            (0x03, 0x0a, 0x03) => {
+                OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(to_u32(vals)))
+            }
 
             (0x03, 0x0b, 0x00) => OutputCmd::ReverbSend(ch, to_f32(vals)),
             (0x03, 0x0b, 0x01) => OutputCmd::ReverbReturn(ch, to_f32(vals)),
@@ -858,67 +1138,159 @@ impl OutputCmd {
 
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
-            OutputCmd::Equalizer(ch, EqualizerParameter::Enable(enabled)) =>        append_u8(raw, 0x03, 0x00, 0x00, *ch, *enabled),
+            OutputCmd::Equalizer(ch, EqualizerParameter::Enable(enabled)) => {
+                append_u8(raw, 0x03, 0x00, 0x00, *ch, *enabled)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(enabled)) =>     append_u8(raw, 0x03, 0x01, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HpfSlope(level)) =>        append_u8(raw, 0x03, 0x01, 0x01, *ch, *level),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(val)) =>           append_u32(raw, 0x03, 0x01, 0x02, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HpfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x01, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HpfSlope(level)) => {
+                append_u8(raw, 0x03, 0x01, 0x01, *ch, *level)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HpfFreq(val)) => {
+                append_u32(raw, 0x03, 0x01, 0x02, *ch, *val)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfEnable(enabled)) =>      append_u8(raw, 0x03, 0x02, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfType(filter_type)) =>    append_u8(raw, 0x03, 0x02, 0x01, *ch, *filter_type),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfFreq(val)) =>            append_u32(raw, 0x03, 0x02, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) =>            append_f32(raw, 0x03, 0x02, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) =>           append_f32(raw, 0x03, 0x02, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x02, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfType(filter_type)) => {
+                append_u8(raw, 0x03, 0x02, 0x01, *ch, *filter_type)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfFreq(val)) => {
+                append_u32(raw, 0x03, 0x02, 0x02, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfGain(val)) => {
+                append_f32(raw, 0x03, 0x02, 0x03, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LfWidth(val)) => {
+                append_f32(raw, 0x03, 0x02, 0x04, *ch, *val)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(enabled)) =>     append_u8(raw, 0x03, 0x03, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfType(filter_type)) =>   append_u8(raw, 0x03, 0x03, 0x01, *ch, *filter_type),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(val)) =>           append_u32(raw, 0x03, 0x03, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) =>           append_f32(raw, 0x03, 0x03, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) =>          append_f32(raw, 0x03, 0x03, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x03, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfType(filter_type)) => {
+                append_u8(raw, 0x03, 0x03, 0x01, *ch, *filter_type)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfFreq(val)) => {
+                append_u32(raw, 0x03, 0x03, 0x02, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfGain(val)) => {
+                append_f32(raw, 0x03, 0x03, 0x03, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LmfWidth(val)) => {
+                append_f32(raw, 0x03, 0x03, 0x04, *ch, *val)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfEnable(enabled)) =>      append_u8(raw, 0x03, 0x04, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfType(filter_type)) =>    append_u8(raw, 0x03, 0x04, 0x01, *ch, *filter_type),
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfFreq(val)) =>            append_u32(raw, 0x03, 0x04, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) =>            append_f32(raw, 0x03, 0x04, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) =>           append_f32(raw, 0x03, 0x04, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x04, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfType(filter_type)) => {
+                append_u8(raw, 0x03, 0x04, 0x01, *ch, *filter_type)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfFreq(val)) => {
+                append_u32(raw, 0x03, 0x04, 0x02, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfGain(val)) => {
+                append_f32(raw, 0x03, 0x04, 0x03, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::MfWidth(val)) => {
+                append_f32(raw, 0x03, 0x04, 0x04, *ch, *val)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(enabled)) =>     append_u8(raw, 0x03, 0x05, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfType(filter_type)) =>   append_u8(raw, 0x03, 0x05, 0x01, *ch, *filter_type),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(val)) =>           append_u32(raw, 0x03, 0x05, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) =>           append_f32(raw, 0x03, 0x05, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) =>          append_f32(raw, 0x03, 0x05, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x05, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfType(filter_type)) => {
+                append_u8(raw, 0x03, 0x05, 0x01, *ch, *filter_type)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfFreq(val)) => {
+                append_u32(raw, 0x03, 0x05, 0x02, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfGain(val)) => {
+                append_f32(raw, 0x03, 0x05, 0x03, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HmfWidth(val)) => {
+                append_f32(raw, 0x03, 0x05, 0x04, *ch, *val)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfEnable(enabled)) =>      append_u8(raw, 0x03, 0x06, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfType(filter_type)) =>    append_u8(raw, 0x03, 0x06, 0x01, *ch, *filter_type),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfFreq(val)) =>            append_u32(raw, 0x03, 0x06, 0x02, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) =>            append_f32(raw, 0x03, 0x06, 0x03, *ch, *val),
-            OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) =>           append_f32(raw, 0x03, 0x06, 0x04, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x06, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfType(filter_type)) => {
+                append_u8(raw, 0x03, 0x06, 0x01, *ch, *filter_type)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfFreq(val)) => {
+                append_u32(raw, 0x03, 0x06, 0x02, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfGain(val)) => {
+                append_f32(raw, 0x03, 0x06, 0x03, *ch, *val)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::HfWidth(val)) => {
+                append_f32(raw, 0x03, 0x06, 0x04, *ch, *val)
+            }
 
-            OutputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(enabled)) =>     append_u8(raw, 0x03, 0x07, 0x00, *ch, *enabled),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(level)) =>        append_u8(raw, 0x03, 0x07, 0x01, *ch, *level),
-            OutputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(val)) =>           append_u32(raw, 0x03, 0x07, 0x02, *ch, *val),
+            OutputCmd::Equalizer(ch, EqualizerParameter::LpfEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x07, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LpfSlope(level)) => {
+                append_u8(raw, 0x03, 0x07, 0x01, *ch, *level)
+            }
+            OutputCmd::Equalizer(ch, EqualizerParameter::LpfFreq(val)) => {
+                append_u32(raw, 0x03, 0x07, 0x02, *ch, *val)
+            }
 
-            OutputCmd::Dynamics(ch, DynamicsParameter::Enable(enabled)) =>          append_u8(raw, 0x03, 0x08, 0x00, *ch, *enabled),
+            OutputCmd::Dynamics(ch, DynamicsParameter::Enable(enabled)) => {
+                append_u8(raw, 0x03, 0x08, 0x00, *ch, *enabled)
+            }
 
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) =>      append_u8(raw, 0x03, 0x09, 0x00, *ch, *enabled),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) =>       append_i32(raw, 0x03, 0x09, 0x01, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) =>           append_f32(raw, 0x03, 0x09, 0x02, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompAttack(val)) =>          append_u32(raw, 0x03, 0x09, 0x03, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) =>         append_u32(raw, 0x03, 0x09, 0x04, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) =>            append_f32(raw, 0x03, 0x09, 0x05, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) =>     append_u8(raw, 0x03, 0x09, 0x06, *ch, *mode),
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x09, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompThreshold(val)) => {
+                append_i32(raw, 0x03, 0x09, 0x01, *ch, *val)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompRatio(val)) => {
+                append_f32(raw, 0x03, 0x09, 0x02, *ch, *val)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompAttack(val)) => {
+                append_u32(raw, 0x03, 0x09, 0x03, *ch, *val)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompRelease(val)) => {
+                append_u32(raw, 0x03, 0x09, 0x04, *ch, *val)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompGain(val)) => {
+                append_f32(raw, 0x03, 0x09, 0x05, *ch, *val)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::CompDetectMode(mode)) => {
+                append_u8(raw, 0x03, 0x09, 0x06, *ch, *mode)
+            }
 
-            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) =>   append_u8(raw, 0x03, 0x0a, 0x00, *ch, *enabled),
-            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(mode)) =>        append_u8(raw, 0x03, 0x0a, 0x01, *ch, *mode),
-            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) =>       append_u32(raw, 0x03, 0x0a, 0x02, *ch, *val),
-            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) =>       append_u32(raw, 0x03, 0x0a, 0x03, *ch, *val),
+            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerEnable(enabled)) => {
+                append_u8(raw, 0x03, 0x0a, 0x00, *ch, *enabled)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMode(mode)) => {
+                append_u8(raw, 0x03, 0x0a, 0x01, *ch, *mode)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerMakeup(val)) => {
+                append_u32(raw, 0x03, 0x0a, 0x02, *ch, *val)
+            }
+            OutputCmd::Dynamics(ch, DynamicsParameter::LevelerReduce(val)) => {
+                append_u32(raw, 0x03, 0x0a, 0x03, *ch, *val)
+            }
 
-            OutputCmd::ReverbSend(ch, val) =>                                       append_f32(raw, 0x03, 0x0b, 0x00, *ch, *val),
-            OutputCmd::ReverbReturn(ch, val) =>                                     append_f32(raw, 0x03, 0x0b, 0x01, *ch, *val),
+            OutputCmd::ReverbSend(ch, val) => append_f32(raw, 0x03, 0x0b, 0x00, *ch, *val),
+            OutputCmd::ReverbReturn(ch, val) => append_f32(raw, 0x03, 0x0b, 0x01, *ch, *val),
 
-            OutputCmd::MasterMonitor(ch, val) =>                                    append_u8(raw, 0x03, 0x0c, 0x00, *ch, *val),
-            OutputCmd::MasterTalkback(ch, enabled) =>                               append_u8(raw, 0x03, 0x0c, 0x01, *ch, *enabled),
-            OutputCmd::MasterListenback(ch, enabled) =>                             append_u8(raw, 0x03, 0x0c, 0x02, *ch, *enabled),
+            OutputCmd::MasterMonitor(ch, val) => append_u8(raw, 0x03, 0x0c, 0x00, *ch, *val),
+            OutputCmd::MasterTalkback(ch, enabled) => {
+                append_u8(raw, 0x03, 0x0c, 0x01, *ch, *enabled)
+            }
+            OutputCmd::MasterListenback(ch, enabled) => {
+                append_u8(raw, 0x03, 0x0c, 0x02, *ch, *enabled)
+            }
 
             OutputCmd::Reserved(identifier, vals) => append_data(raw, identifier, vals),
         }
@@ -1050,22 +1422,22 @@ impl ReverbCmd {
 
     fn build(&self, raw: &mut Vec<u8>) {
         match self {
-            ReverbCmd::Enable(enabled) =>               append_u8(raw, 0x04, 0x00, 0x00, 0, *enabled),
-            ReverbCmd::Split(point) =>                  append_u8(raw, 0x04, 0x00, 0x01, 0, *point),
-            ReverbCmd::PreDelay(val) =>                 append_u32(raw, 0x04, 0x00, 0x02, 0, *val),
-            ReverbCmd::ShelfFilterFreq(val) =>          append_u32(raw, 0x04, 0x00, 0x03, 0, *val),
-            ReverbCmd::ShelfFilterAttenuation(val) =>   append_i32(raw, 0x04, 0x00, 0x04, 0, *val),
-            ReverbCmd::DecayTime(val) =>                append_u32(raw, 0x04, 0x00, 0x05, 0, *val),
-            ReverbCmd::LowFreqTime(val) =>              append_u32(raw, 0x04, 0x00, 0x06, 0, *val),
-            ReverbCmd::MiddleFreqTime(val) =>           append_u32(raw, 0x04, 0x00, 0x07, 0, *val),
-            ReverbCmd::HighFreqTime(val) =>             append_u32(raw, 0x04, 0x00, 0x08, 0, *val),
-            ReverbCmd::LowFreqCrossover(val) =>         append_u32(raw, 0x04, 0x00, 0x09, 0, *val),
-            ReverbCmd::HighFreqCrossover(val) =>        append_u32(raw, 0x04, 0x00, 0x0a, 0, *val),
-            ReverbCmd::Width(val) =>                    append_f32(raw, 0x04, 0x00, 0x0b, 0, *val),
-            ReverbCmd::ReflectionMode(shape) =>         append_u8(raw, 0x04, 0x00, 0x0c, 0, *shape),
-            ReverbCmd::ReflectionSize(val) =>           append_u32(raw, 0x04, 0x00, 0x0d, 0, *val),
-            ReverbCmd::ReflectionLevel(val) =>          append_f32(raw, 0x04, 0x00, 0x0e, 0, *val),
-            ReverbCmd::Reserved(identifier, vals) =>    append_data(raw, identifier, vals),
+            ReverbCmd::Enable(enabled) => append_u8(raw, 0x04, 0x00, 0x00, 0, *enabled),
+            ReverbCmd::Split(point) => append_u8(raw, 0x04, 0x00, 0x01, 0, *point),
+            ReverbCmd::PreDelay(val) => append_u32(raw, 0x04, 0x00, 0x02, 0, *val),
+            ReverbCmd::ShelfFilterFreq(val) => append_u32(raw, 0x04, 0x00, 0x03, 0, *val),
+            ReverbCmd::ShelfFilterAttenuation(val) => append_i32(raw, 0x04, 0x00, 0x04, 0, *val),
+            ReverbCmd::DecayTime(val) => append_u32(raw, 0x04, 0x00, 0x05, 0, *val),
+            ReverbCmd::LowFreqTime(val) => append_u32(raw, 0x04, 0x00, 0x06, 0, *val),
+            ReverbCmd::MiddleFreqTime(val) => append_u32(raw, 0x04, 0x00, 0x07, 0, *val),
+            ReverbCmd::HighFreqTime(val) => append_u32(raw, 0x04, 0x00, 0x08, 0, *val),
+            ReverbCmd::LowFreqCrossover(val) => append_u32(raw, 0x04, 0x00, 0x09, 0, *val),
+            ReverbCmd::HighFreqCrossover(val) => append_u32(raw, 0x04, 0x00, 0x0a, 0, *val),
+            ReverbCmd::Width(val) => append_f32(raw, 0x04, 0x00, 0x0b, 0, *val),
+            ReverbCmd::ReflectionMode(shape) => append_u8(raw, 0x04, 0x00, 0x0c, 0, *shape),
+            ReverbCmd::ReflectionSize(val) => append_u32(raw, 0x04, 0x00, 0x0d, 0, *val),
+            ReverbCmd::ReflectionLevel(val) => append_f32(raw, 0x04, 0x00, 0x0e, 0, *val),
+            ReverbCmd::Reserved(identifier, vals) => append_data(raw, identifier, vals),
         }
     }
 }
@@ -1188,20 +1560,19 @@ impl DspCmd {
                 let first_level = identifier[3];
 
                 if first_level <= 0x04 {
-                    (0..count)
-                        .for_each(|i| {
-                            identifier[0] = i as u8;
-                            let vals = &raw[(6 + i)..(6 + i + 1)];
-                            let cmd = match first_level {
-                                0x00 => DspCmd::Monitor(MonitorCmd::parse(&identifier, vals)),
-                                0x01 => DspCmd::Input(InputCmd::parse(&identifier, vals)),
-                                0x02 => DspCmd::Mixer(MixerCmd::parse(&identifier, vals)),
-                                0x03 => DspCmd::Output(OutputCmd::parse(&identifier, vals)),
-                                0x04 => DspCmd::Reverb(ReverbCmd::parse(&identifier, vals)),
-                                _ => unreachable!(),
-                            };
-                            cmds.push(cmd);
-                        });
+                    (0..count).for_each(|i| {
+                        identifier[0] = i as u8;
+                        let vals = &raw[(6 + i)..(6 + i + 1)];
+                        let cmd = match first_level {
+                            0x00 => DspCmd::Monitor(MonitorCmd::parse(&identifier, vals)),
+                            0x01 => DspCmd::Input(InputCmd::parse(&identifier, vals)),
+                            0x02 => DspCmd::Mixer(MixerCmd::parse(&identifier, vals)),
+                            0x03 => DspCmd::Output(OutputCmd::parse(&identifier, vals)),
+                            0x04 => DspCmd::Reverb(ReverbCmd::parse(&identifier, vals)),
+                            _ => unreachable!(),
+                        };
+                        cmds.push(cmd);
+                    });
                 } else {
                     let cmd = DspCmd::Reserved(raw[..length].to_vec());
                     cmds.push(cmd);
@@ -1218,20 +1589,19 @@ impl DspCmd {
                 let first_level = identifier[3];
 
                 if first_level <= 0x04 {
-                    (0..count)
-                        .for_each(|i| {
-                            identifier[0] = i as u8;
-                            let vals = &raw[(6 + i * 4)..(6 + i * 4 + 4)];
-                            let cmd = match first_level {
-                                0x00 => DspCmd::Monitor(MonitorCmd::parse(&identifier, vals)),
-                                0x01 => DspCmd::Input(InputCmd::parse(&identifier, vals)),
-                                0x02 => DspCmd::Mixer(MixerCmd::parse(&identifier, vals)),
-                                0x03 => DspCmd::Output(OutputCmd::parse(&identifier, vals)),
-                                0x04 => DspCmd::Reverb(ReverbCmd::parse(&identifier, vals)),
-                                _ => unreachable!(),
-                            };
-                            cmds.push(cmd);
-                        });
+                    (0..count).for_each(|i| {
+                        identifier[0] = i as u8;
+                        let vals = &raw[(6 + i * 4)..(6 + i * 4 + 4)];
+                        let cmd = match first_level {
+                            0x00 => DspCmd::Monitor(MonitorCmd::parse(&identifier, vals)),
+                            0x01 => DspCmd::Input(InputCmd::parse(&identifier, vals)),
+                            0x02 => DspCmd::Mixer(MixerCmd::parse(&identifier, vals)),
+                            0x03 => DspCmd::Output(OutputCmd::parse(&identifier, vals)),
+                            0x04 => DspCmd::Reverb(ReverbCmd::parse(&identifier, vals)),
+                            _ => unreachable!(),
+                        };
+                        cmds.push(cmd);
+                    });
                 } else {
                     let cmd = DspCmd::Reserved(raw[..length].to_vec());
                     cmds.push(cmd);
@@ -1296,8 +1666,15 @@ impl DspCmd {
     }
 }
 
-fn append_u8<T>(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: T)
-    where u8: From<T>
+fn append_u8<T>(
+    raw: &mut Vec<u8>,
+    first_level: u8,
+    second_level: u8,
+    third_level: u8,
+    ch: usize,
+    val: T,
+) where
+    u8: From<T>,
 {
     raw.push(CMD_BYTE_SINGLE);
     raw.push(u8::from(val));
@@ -1307,11 +1684,25 @@ fn append_u8<T>(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_leve
     raw.push(first_level);
 }
 
-fn append_i32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: i32) {
+fn append_i32(
+    raw: &mut Vec<u8>,
+    first_level: u8,
+    second_level: u8,
+    third_level: u8,
+    ch: usize,
+    val: i32,
+) {
     append_f32(raw, first_level, second_level, third_level, ch, val as f32)
 }
 
-fn append_f32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: f32) {
+fn append_f32(
+    raw: &mut Vec<u8>,
+    first_level: u8,
+    second_level: u8,
+    third_level: u8,
+    ch: usize,
+    val: f32,
+) {
     raw.push(CMD_QUADLET_SINGLE);
     raw.push(ch as u8);
     raw.push(third_level);
@@ -1320,7 +1711,14 @@ fn append_f32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level:
     raw.extend_from_slice(&val.to_le_bytes());
 }
 
-fn append_u32(raw: &mut Vec<u8>, first_level: u8, second_level: u8, third_level: u8, ch: usize, val: u32) {
+fn append_u32(
+    raw: &mut Vec<u8>,
+    first_level: u8,
+    second_level: u8,
+    third_level: u8,
+    ch: usize,
+    val: u32,
+) {
     append_f32(raw, first_level, second_level, third_level, ch, val as f32)
 }
 
@@ -1341,7 +1739,7 @@ fn send_message(
     tag: u8,
     sequence_number: &mut u8,
     mut msg: &[u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     while msg.len() > 0 {
         let length = std::cmp::min(msg.len(), MAXIMUM_DSP_FRAME_SIZE - 2);
@@ -1362,7 +1760,7 @@ fn send_message(
             DSP_CMD_OFFSET,
             frame.len(),
             &mut frame,
-            timeout_ms
+            timeout_ms,
         )?;
 
         *sequence_number += 1;
@@ -1381,7 +1779,7 @@ pub trait CommandDspOperation {
         node: &mut FwNode,
         sequence_number: &mut u8,
         cmds: &[DspCmd],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut frame = Vec::new();
         cmds.iter().for_each(|cmd| cmd.build(&mut frame));
@@ -1392,7 +1790,7 @@ pub trait CommandDspOperation {
         resp: &mut FwResp,
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms:u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         if !resp.get_property_is_reserved() {
             resp.reserve_within_region(
@@ -1419,7 +1817,7 @@ pub trait CommandDspOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         sequence_number: &mut u8,
-        timeout_ms:u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let frame = [0x00, 0x00];
         send_message(req, node, 0x01, sequence_number, &frame, timeout_ms)?;
@@ -1434,7 +1832,7 @@ pub trait CommandDspOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         sequence_number: &mut u8,
-        timeout_ms:u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let frame = [0x00, 0x00];
         send_message(req, node, 0x00, sequence_number, &frame, timeout_ms)
@@ -1444,7 +1842,7 @@ pub trait CommandDspOperation {
         resp: &mut FwResp,
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms:u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         write_quad(req, node, DSP_MSG_DST_HIGH_OFFSET, 0, timeout_ms)?;
         write_quad(req, node, DSP_MSG_DST_LOW_OFFSET, 0, timeout_ms)?;
@@ -1567,7 +1965,6 @@ impl CommandDspMessageHandler {
         }
     }
 
-
     pub fn has_dsp_message(&self) -> bool {
         self.cache.len() > 0 && (self.state == ParserState::Prepared)
     }
@@ -1611,7 +2008,9 @@ fn create_reverb_command(state: &CommandDspReverbState) -> Vec<DspCmd> {
         DspCmd::Reverb(ReverbCmd::Split(state.split_point)),
         DspCmd::Reverb(ReverbCmd::PreDelay(state.pre_delay)),
         DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(state.shelf_filter_freq)),
-        DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(state.shelf_filter_attenuation)),
+        DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(
+            state.shelf_filter_attenuation,
+        )),
         DspCmd::Reverb(ReverbCmd::DecayTime(state.decay_time)),
         DspCmd::Reverb(ReverbCmd::LowFreqTime(state.freq_time[0])),
         DspCmd::Reverb(ReverbCmd::MiddleFreqTime(state.freq_time[1])),
@@ -1647,7 +2046,7 @@ fn parse_reverb_command(state: &mut CommandDspReverbState, cmd: &ReverbCmd) {
 }
 
 /// The trait for operation of reverb effect.
-pub trait CommandDspReverbOperation : CommandDspOperation {
+pub trait CommandDspReverbOperation: CommandDspOperation {
     const DECAY_TIME_MIN: u32 = 100;
     const DECAY_TIME_MAX: u32 = 60000;
     const DECAY_TIME_STEP: u32 = 1;
@@ -1684,17 +2083,12 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
     const REFLECTION_LEVEL_MIN: f32 = 0.0;
     const REFLECTION_LEVEL_MAX: f32 = 1.0;
 
-    fn parse_reverb_commands(
-        state: &mut CommandDspReverbState,
-        cmds: &[DspCmd],
-    ) {
-        cmds
-            .iter()
-            .for_each(|cmd| {
-                if let DspCmd::Reverb(c) = cmd {
-                    parse_reverb_command(state, c);
-                }
-            });
+    fn parse_reverb_commands(state: &mut CommandDspReverbState, cmds: &[DspCmd]) {
+        cmds.iter().for_each(|cmd| {
+            if let DspCmd::Reverb(c) = cmd {
+                parse_reverb_command(state, c);
+            }
+        });
     }
 
     fn write_reverb_state(
@@ -1703,7 +2097,7 @@ pub trait CommandDspReverbOperation : CommandDspOperation {
         sequence_number: &mut u8,
         state: CommandDspReverbState,
         old: &mut CommandDspReverbState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new_cmds = create_reverb_command(&state);
         let old_cmds = create_reverb_command(old);
@@ -1727,9 +2121,12 @@ pub struct CommandDspMonitorState {
 
 fn create_monitor_commands(
     state: &CommandDspMonitorState,
-    target_ports: &[TargetPort]
+    target_ports: &[TargetPort],
 ) -> Vec<DspCmd> {
-    let pos = target_ports.iter().position(|p| state.assign_target.eq(p)).unwrap_or_default();
+    let pos = target_ports
+        .iter()
+        .position(|p| state.assign_target.eq(p))
+        .unwrap_or_default();
 
     vec![
         DspCmd::Monitor(MonitorCmd::Volume(state.main_volume)),
@@ -1745,7 +2142,7 @@ fn create_monitor_commands(
 fn parse_monitor_command(
     state: &mut CommandDspMonitorState,
     cmd: &MonitorCmd,
-    target_ports: &[TargetPort]
+    target_ports: &[TargetPort],
 ) {
     match cmd {
         MonitorCmd::Volume(val) => state.main_volume = *val,
@@ -1760,29 +2157,24 @@ fn parse_monitor_command(
                 .nth(*val as usize)
                 .map(|&p| p)
                 .unwrap_or_default();
-        },
+        }
         _ => (),
     }
 }
 
 /// The trait for operation of monitor.
-pub trait CommandDspMonitorOperation : CommandDspOperation {
+pub trait CommandDspMonitorOperation: CommandDspOperation {
     const RETURN_ASSIGN_TARGETS: &'static [TargetPort];
 
     const VOLUME_MIN: f32 = 0.0;
     const VOLUME_MAX: f32 = 1.0;
 
-    fn parse_monitor_commands(
-        state: &mut CommandDspMonitorState,
-        cmds: &[DspCmd],
-    ) {
-        cmds
-            .iter()
-            .for_each(|cmd| {
-                if let DspCmd::Monitor(c) = cmd {
-                    parse_monitor_command(state, c, Self::RETURN_ASSIGN_TARGETS);
-                }
-            });
+    fn parse_monitor_commands(state: &mut CommandDspMonitorState, cmds: &[DspCmd]) {
+        cmds.iter().for_each(|cmd| {
+            if let DspCmd::Monitor(c) = cmd {
+                parse_monitor_command(state, c, Self::RETURN_ASSIGN_TARGETS);
+            }
+        });
     }
 
     fn write_monitor_state(
@@ -1791,7 +2183,7 @@ pub trait CommandDspMonitorOperation : CommandDspOperation {
         sequence_number: &mut u8,
         state: CommandDspMonitorState,
         old: &mut CommandDspMonitorState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new_cmds = create_monitor_commands(&state, Self::RETURN_ASSIGN_TARGETS);
         let old_cmds = create_monitor_commands(old, Self::RETURN_ASSIGN_TARGETS);
@@ -1828,34 +2220,60 @@ pub struct CommandDspMixerState {
 fn create_mixer_commands(
     state: &CommandDspMixerState,
     source_count: usize,
-    output_ports: &[TargetPort]
+    output_ports: &[TargetPort],
 ) -> Vec<DspCmd> {
     let mut cmds = Vec::new();
 
-    (0..MIXER_COUNT)
-        .for_each(|mixer| {
-            let pos = output_ports
-                .iter()
-                .position(|p| state.output_assign[mixer].eq(p))
-                .unwrap_or_default();
-            cmds.push(DspCmd::Mixer(MixerCmd::OutputAssign(mixer, pos)));
-            cmds.push(DspCmd::Mixer(MixerCmd::OutputMute(mixer, state.output_mute[mixer])));
-            cmds.push(DspCmd::Mixer(MixerCmd::OutputVolume(mixer, state.output_volume[mixer])));
-            cmds.push(DspCmd::Mixer(MixerCmd::ReverbSend(mixer, state.reverb_send[mixer])));
-            cmds.push(DspCmd::Mixer(MixerCmd::ReverbReturn(mixer, state.reverb_return[mixer])));
+    (0..MIXER_COUNT).for_each(|mixer| {
+        let pos = output_ports
+            .iter()
+            .position(|p| state.output_assign[mixer].eq(p))
+            .unwrap_or_default();
+        cmds.push(DspCmd::Mixer(MixerCmd::OutputAssign(mixer, pos)));
+        cmds.push(DspCmd::Mixer(MixerCmd::OutputMute(
+            mixer,
+            state.output_mute[mixer],
+        )));
+        cmds.push(DspCmd::Mixer(MixerCmd::OutputVolume(
+            mixer,
+            state.output_volume[mixer],
+        )));
+        cmds.push(DspCmd::Mixer(MixerCmd::ReverbSend(
+            mixer,
+            state.reverb_send[mixer],
+        )));
+        cmds.push(DspCmd::Mixer(MixerCmd::ReverbReturn(
+            mixer,
+            state.reverb_return[mixer],
+        )));
 
-            let src = &state.source[mixer];
-            (0..source_count)
-                .for_each(|ch| {
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceMute(mixer, ch, src.mute[ch])));
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceSolo(mixer, ch, src.solo[ch])));
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceGain(mixer, ch, src.gain[ch])));
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceMonauralLrBalance(mixer, ch, src.pan[ch])));
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoMode(mixer, ch, src.stereo_mode[ch])));
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(mixer, ch, src.stereo_balance[ch])));
-                    cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoWidth(mixer, ch, src.stereo_width[ch])));
-                });
+        let src = &state.source[mixer];
+        (0..source_count).for_each(|ch| {
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceMute(mixer, ch, src.mute[ch])));
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceSolo(mixer, ch, src.solo[ch])));
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceGain(mixer, ch, src.gain[ch])));
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceMonauralLrBalance(
+                mixer,
+                ch,
+                src.pan[ch],
+            )));
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoMode(
+                mixer,
+                ch,
+                src.stereo_mode[ch],
+            )));
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(
+                mixer,
+                ch,
+                src.stereo_balance[ch],
+            )));
+            cmds.push(DspCmd::Mixer(MixerCmd::SourceStereoWidth(
+                mixer,
+                ch,
+                src.stereo_width[ch],
+            )));
         });
+    });
 
     cmds
 }
@@ -1863,7 +2281,7 @@ fn create_mixer_commands(
 fn parse_mixer_command(
     state: &mut CommandDspMixerState,
     cmd: &MixerCmd,
-    output_ports: &[TargetPort]
+    output_ports: &[TargetPort],
 ) {
     match cmd {
         MixerCmd::OutputAssign(mixer, val) => {
@@ -1881,15 +2299,21 @@ fn parse_mixer_command(
         MixerCmd::SourceSolo(mixer, src, val) => state.source[*mixer].solo[*src] = *val,
         MixerCmd::SourceGain(mixer, src, val) => state.source[*mixer].gain[*src] = *val,
         MixerCmd::SourceMonauralLrBalance(mixer, src, val) => state.source[*mixer].pan[*src] = *val,
-        MixerCmd::SourceStereoMode(mixer, src, val) => state.source[*mixer].stereo_mode[*src] = *val,
-        MixerCmd::SourceStereoLrBalance(mixer, src, val) => state.source[*mixer].stereo_balance[*src] = *val,
-        MixerCmd::SourceStereoWidth(mixer, src, val) => state.source[*mixer].stereo_width[*src] = *val,
+        MixerCmd::SourceStereoMode(mixer, src, val) => {
+            state.source[*mixer].stereo_mode[*src] = *val
+        }
+        MixerCmd::SourceStereoLrBalance(mixer, src, val) => {
+            state.source[*mixer].stereo_balance[*src] = *val
+        }
+        MixerCmd::SourceStereoWidth(mixer, src, val) => {
+            state.source[*mixer].stereo_width[*src] = *val
+        }
         _ => (),
     }
 }
 
 /// The trait for operation of mixer.
-pub trait CommandDspMixerOperation : CommandDspOperation {
+pub trait CommandDspMixerOperation: CommandDspOperation {
     const SOURCE_PORTS: &'static [TargetPort];
     const OUTPUT_PORTS: &'static [TargetPort];
 
@@ -1907,32 +2331,25 @@ pub trait CommandDspMixerOperation : CommandDspOperation {
     fn create_mixer_state() -> CommandDspMixerState {
         let mut state = CommandDspMixerState::default();
 
-        state.source
-            .iter_mut()
-            .for_each(|src| {
-                src.mute = vec![Default::default(); Self::SOURCE_PORTS.len()];
-                src.solo = vec![Default::default(); Self::SOURCE_PORTS.len()];
-                src.gain = vec![Default::default(); Self::SOURCE_PORTS.len()];
-                src.pan = vec![Default::default(); Self::SOURCE_PORTS.len()];
-                src.stereo_mode = vec![Default::default(); Self::SOURCE_PORTS.len()];
-                src.stereo_balance = vec![Default::default(); Self::SOURCE_PORTS.len()];
-                src.stereo_width = vec![Default::default(); Self::SOURCE_PORTS.len()];
-            });
+        state.source.iter_mut().for_each(|src| {
+            src.mute = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.solo = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.gain = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.pan = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.stereo_mode = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.stereo_balance = vec![Default::default(); Self::SOURCE_PORTS.len()];
+            src.stereo_width = vec![Default::default(); Self::SOURCE_PORTS.len()];
+        });
 
         state
     }
 
-    fn parse_mixer_commands(
-        state: &mut CommandDspMixerState,
-        cmds: &[DspCmd]
-    ) {
-        cmds
-            .iter()
-            .for_each(|cmd| {
-                if let DspCmd::Mixer(c) = cmd {
-                    parse_mixer_command(state, c, Self::OUTPUT_PORTS);
-                }
-            });
+    fn parse_mixer_commands(state: &mut CommandDspMixerState, cmds: &[DspCmd]) {
+        cmds.iter().for_each(|cmd| {
+            if let DspCmd::Mixer(c) = cmd {
+                parse_mixer_command(state, c, Self::OUTPUT_PORTS);
+            }
+        });
     }
 
     fn write_mixer_state(
@@ -1941,9 +2358,10 @@ pub trait CommandDspMixerOperation : CommandDspOperation {
         sequence_number: &mut u8,
         state: CommandDspMixerState,
         old: &mut CommandDspMixerState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut new_cmds = create_mixer_commands(&state, Self::SOURCE_PORTS.len(), Self::OUTPUT_PORTS);
+        let mut new_cmds =
+            create_mixer_commands(&state, Self::SOURCE_PORTS.len(), Self::OUTPUT_PORTS);
         let old_cmds = create_mixer_commands(old, Self::SOURCE_PORTS.len(), Self::OUTPUT_PORTS);
         new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
         Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
@@ -1996,7 +2414,7 @@ pub struct CommandDspEqualizerState {
 
 fn create_equalizer_parameters(
     state: &CommandDspEqualizerState,
-    ch: usize
+    ch: usize,
 ) -> Vec<EqualizerParameter> {
     let mut params = Vec::new();
 
@@ -2046,7 +2464,7 @@ fn create_equalizer_parameters(
 fn parse_equalizer_parameter(
     state: &mut CommandDspEqualizerState,
     param: &EqualizerParameter,
-    ch: usize
+    ch: usize,
 ) {
     match param {
         EqualizerParameter::Enable(val) => state.enable[ch] = *val,
@@ -2119,7 +2537,9 @@ fn create_dynamics_parameters(
     params.push(DynamicsParameter::Enable(state.enable[ch]));
 
     params.push(DynamicsParameter::CompEnable(state.comp_enable[ch]));
-    params.push(DynamicsParameter::CompDetectMode(state.comp_detect_mode[ch]));
+    params.push(DynamicsParameter::CompDetectMode(
+        state.comp_detect_mode[ch],
+    ));
     params.push(DynamicsParameter::CompThreshold(state.comp_threshold[ch]));
     params.push(DynamicsParameter::CompRatio(state.comp_ratio[ch]));
     params.push(DynamicsParameter::CompAttack(state.comp_attack[ch]));
@@ -2183,69 +2603,95 @@ pub struct CommandDspInputState {
 fn create_input_commands(
     state: &CommandDspInputState,
     input_count: usize,
-    mic_count: usize
+    mic_count: usize,
 ) -> Vec<DspCmd> {
     let mut cmds = Vec::new();
 
-    (0..input_count)
-        .for_each(|ch| {
-            cmds.push(DspCmd::Input(InputCmd::Phase(ch, state.phase[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Pair(ch, state.pair[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Gain(ch, state.gain[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Swap(ch, state.swap[ch])));
-            cmds.push(DspCmd::Input(InputCmd::StereoMode(ch, state.stereo_mode[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Width(ch, state.width[ch])));
+    (0..input_count).for_each(|ch| {
+        cmds.push(DspCmd::Input(InputCmd::Phase(ch, state.phase[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Pair(ch, state.pair[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Gain(ch, state.gain[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Swap(ch, state.swap[ch])));
+        cmds.push(DspCmd::Input(InputCmd::StereoMode(
+            ch,
+            state.stereo_mode[ch],
+        )));
+        cmds.push(DspCmd::Input(InputCmd::Width(ch, state.width[ch])));
 
-            create_equalizer_parameters(&state.equalizer, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Equalizer(ch, param))));
+        create_equalizer_parameters(&state.equalizer, ch)
+            .into_iter()
+            .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Equalizer(ch, param))));
 
-            create_dynamics_parameters(&state.dynamics, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Dynamics(ch, param))));
+        create_dynamics_parameters(&state.dynamics, ch)
+            .into_iter()
+            .for_each(|param| cmds.push(DspCmd::Input(InputCmd::Dynamics(ch, param))));
 
-            cmds.push(DspCmd::Input(InputCmd::ReverbSend(ch, state.reverb_send[ch])));
-            cmds.push(DspCmd::Input(InputCmd::ReverbLrBalance(ch, state.reverb_balance[ch])));
-        });
+        cmds.push(DspCmd::Input(InputCmd::ReverbSend(
+            ch,
+            state.reverb_send[ch],
+        )));
+        cmds.push(DspCmd::Input(InputCmd::ReverbLrBalance(
+            ch,
+            state.reverb_balance[ch],
+        )));
+    });
 
-    (0..mic_count)
-        .for_each(|ch| {
-            cmds.push(DspCmd::Input(InputCmd::Pad(ch, state.pad[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Phantom(ch, state.phantom[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Limitter(ch, state.limitter[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Lookahead(ch, state.lookahead[ch])));
-            cmds.push(DspCmd::Input(InputCmd::Softclip(ch, state.soft_clip[ch])));
-        });
+    (0..mic_count).for_each(|ch| {
+        cmds.push(DspCmd::Input(InputCmd::Pad(ch, state.pad[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Phantom(ch, state.phantom[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Limitter(ch, state.limitter[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Lookahead(ch, state.lookahead[ch])));
+        cmds.push(DspCmd::Input(InputCmd::Softclip(ch, state.soft_clip[ch])));
+    });
 
     cmds
 }
 
-fn parse_input_command(
-    state: &mut CommandDspInputState,
-    cmd: &InputCmd
-) {
+fn parse_input_command(state: &mut CommandDspInputState, cmd: &InputCmd) {
     match cmd {
         InputCmd::Phase(ch, val) => state.phase[*ch] = *val,
         InputCmd::Pair(ch, val) => state.pair[*ch] = *val,
         InputCmd::Gain(ch, val) => state.gain[*ch] = *val,
         InputCmd::Swap(ch, val) => state.swap[*ch] = *val,
-        InputCmd::StereoMode(ch, val) =>state.stereo_mode[*ch] = *val,
+        InputCmd::StereoMode(ch, val) => state.stereo_mode[*ch] = *val,
         InputCmd::Width(ch, val) => state.width[*ch] = *val,
-        InputCmd::Equalizer(ch, param) => parse_equalizer_parameter(&mut state.equalizer, param, *ch),
+        InputCmd::Equalizer(ch, param) => {
+            parse_equalizer_parameter(&mut state.equalizer, param, *ch)
+        }
         InputCmd::Dynamics(ch, param) => parse_dynamics_parameter(&mut state.dynamics, param, *ch),
         InputCmd::ReverbSend(ch, val) => state.reverb_send[*ch] = *val,
         InputCmd::ReverbLrBalance(ch, val) => state.reverb_balance[*ch] = *val,
-        InputCmd::Pad(ch, val) => if *ch < state.pad.len() { state.pad[*ch] = *val },
-        InputCmd::Phantom(ch, val) => if *ch < state.pad.len() { state.phantom[*ch] = *val },
-        InputCmd::Limitter(ch, val) => if *ch < state.pad.len() { state.limitter[*ch] = *val },
-        InputCmd::Lookahead(ch, val) => if *ch < state.pad.len() { state.lookahead[*ch] = *val },
-        InputCmd::Softclip(ch, val) => if *ch < state.pad.len() { state.soft_clip[*ch] = *val },
+        InputCmd::Pad(ch, val) => {
+            if *ch < state.pad.len() {
+                state.pad[*ch] = *val
+            }
+        }
+        InputCmd::Phantom(ch, val) => {
+            if *ch < state.pad.len() {
+                state.phantom[*ch] = *val
+            }
+        }
+        InputCmd::Limitter(ch, val) => {
+            if *ch < state.pad.len() {
+                state.limitter[*ch] = *val
+            }
+        }
+        InputCmd::Lookahead(ch, val) => {
+            if *ch < state.pad.len() {
+                state.lookahead[*ch] = *val
+            }
+        }
+        InputCmd::Softclip(ch, val) => {
+            if *ch < state.pad.len() {
+                state.soft_clip[*ch] = *val
+            }
+        }
         _ => (),
     }
 }
 
 /// The trait for operation of input function.
-pub trait CommandDspInputOperation : CommandDspOperation {
+pub trait CommandDspInputOperation: CommandDspOperation {
     const INPUT_PORTS: &'static [TargetPort];
     const MIC_COUNT: usize;
 
@@ -2337,17 +2783,12 @@ pub trait CommandDspInputOperation : CommandDspOperation {
         }
     }
 
-    fn parse_input_commands(
-        state: &mut CommandDspInputState,
-        cmds: &[DspCmd]
-    ) {
-        cmds
-            .iter()
-            .for_each(|cmd| {
-                if let DspCmd::Input(c) = cmd {
-                    parse_input_command(state, c);
-                }
-            });
+    fn parse_input_commands(state: &mut CommandDspInputState, cmds: &[DspCmd]) {
+        cmds.iter().for_each(|cmd| {
+            if let DspCmd::Input(c) = cmd {
+                parse_input_command(state, c);
+            }
+        });
     }
 
     fn write_input_state(
@@ -2356,18 +2797,10 @@ pub trait CommandDspInputOperation : CommandDspOperation {
         sequence_number: &mut u8,
         state: CommandDspInputState,
         old: &mut CommandDspInputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut new_cmds = create_input_commands(
-            &state,
-            Self::INPUT_PORTS.len(),
-            Self::MIC_COUNT,
-        );
-        let old_cmds = create_input_commands(
-            old,
-            Self::INPUT_PORTS.len(),
-            Self::MIC_COUNT,
-        );
+        let mut new_cmds = create_input_commands(&state, Self::INPUT_PORTS.len(), Self::MIC_COUNT);
+        let old_cmds = create_input_commands(old, Self::INPUT_PORTS.len(), Self::MIC_COUNT);
         new_cmds.retain(|cmd| old_cmds.iter().find(|c| c.eq(&cmd)).is_none());
         Self::send_commands(req, node, sequence_number, &new_cmds, timeout_ms).map(|_| *old = state)
     }
@@ -2390,33 +2823,46 @@ pub struct CommandDspOutputState {
 fn create_output_commands(state: &CommandDspOutputState, output_count: usize) -> Vec<DspCmd> {
     let mut cmds = Vec::new();
 
-    (0..output_count)
-        .for_each(|ch| {
-            create_equalizer_parameters(&state.equalizer, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Equalizer(ch, param))));
+    (0..output_count).for_each(|ch| {
+        create_equalizer_parameters(&state.equalizer, ch)
+            .into_iter()
+            .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Equalizer(ch, param))));
 
-            create_dynamics_parameters(&state.dynamics, ch)
-                .into_iter()
-                .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Dynamics(ch, param))));
+        create_dynamics_parameters(&state.dynamics, ch)
+            .into_iter()
+            .for_each(|param| cmds.push(DspCmd::Output(OutputCmd::Dynamics(ch, param))));
 
-            cmds.push(DspCmd::Output(OutputCmd::ReverbSend(ch, state.reverb_send[ch])));
-            cmds.push(DspCmd::Output(OutputCmd::ReverbReturn(ch, state.reverb_return[ch])));
+        cmds.push(DspCmd::Output(OutputCmd::ReverbSend(
+            ch,
+            state.reverb_send[ch],
+        )));
+        cmds.push(DspCmd::Output(OutputCmd::ReverbReturn(
+            ch,
+            state.reverb_return[ch],
+        )));
 
-            cmds.push(DspCmd::Output(OutputCmd::MasterMonitor(ch, state.master_monitor[ch])));
-            cmds.push(DspCmd::Output(OutputCmd::MasterTalkback(ch, state.master_talkback[ch])));
-            cmds.push(DspCmd::Output(OutputCmd::MasterListenback(ch, state.master_listenback[ch])));
-        });
+        cmds.push(DspCmd::Output(OutputCmd::MasterMonitor(
+            ch,
+            state.master_monitor[ch],
+        )));
+        cmds.push(DspCmd::Output(OutputCmd::MasterTalkback(
+            ch,
+            state.master_talkback[ch],
+        )));
+        cmds.push(DspCmd::Output(OutputCmd::MasterListenback(
+            ch,
+            state.master_listenback[ch],
+        )));
+    });
 
     cmds
 }
 
-fn parse_output_command(
-    state: &mut CommandDspOutputState,
-    cmd: &OutputCmd
-) {
+fn parse_output_command(state: &mut CommandDspOutputState, cmd: &OutputCmd) {
     match cmd {
-        OutputCmd::Equalizer(ch, param) => parse_equalizer_parameter(&mut state.equalizer, param, *ch),
+        OutputCmd::Equalizer(ch, param) => {
+            parse_equalizer_parameter(&mut state.equalizer, param, *ch)
+        }
         OutputCmd::Dynamics(ch, param) => parse_dynamics_parameter(&mut state.dynamics, param, *ch),
         OutputCmd::ReverbSend(ch, val) => state.reverb_send[*ch] = *val,
         OutputCmd::ReverbReturn(ch, val) => state.reverb_return[*ch] = *val,
@@ -2428,7 +2874,7 @@ fn parse_output_command(
 }
 
 /// The trait for operation of input function.
-pub trait CommandDspOutputOperation : CommandDspOperation {
+pub trait CommandDspOutputOperation: CommandDspOperation {
     const OUTPUT_PORTS: &'static [TargetPort];
 
     const GAIN_MIN: f32 = 0.0;
@@ -2504,17 +2950,12 @@ pub trait CommandDspOutputOperation : CommandDspOperation {
         }
     }
 
-    fn parse_output_commands(
-        state: &mut CommandDspOutputState,
-        cmds: &[DspCmd]
-    ) {
-        cmds
-            .iter()
-            .for_each(|cmd| {
-                if let DspCmd::Output(c) = cmd {
-                    parse_output_command(state, c);
-                }
-            });
+    fn parse_output_commands(state: &mut CommandDspOutputState, cmds: &[DspCmd]) {
+        cmds.iter().for_each(|cmd| {
+            if let DspCmd::Output(c) = cmd {
+                parse_output_command(state, c);
+            }
+        });
     }
 
     fn write_output_state(
@@ -2523,7 +2964,7 @@ pub trait CommandDspOutputOperation : CommandDspOperation {
         sequence_number: &mut u8,
         state: CommandDspOutputState,
         old: &mut CommandDspOutputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new_cmds = create_output_commands(&state, Self::OUTPUT_PORTS.len());
         let old_cmds = create_output_commands(old, Self::OUTPUT_PORTS.len());
@@ -2545,57 +2986,175 @@ mod test {
             DspCmd::Input(InputCmd::Phase(0x59, true)),
             DspCmd::Input(InputCmd::Pair(0x0, false)),
             DspCmd::Input(InputCmd::Swap(0x24, false)),
-            DspCmd::Input(InputCmd::StereoMode(0x35, InputStereoPairMode::MonauralStereo)),
+            DspCmd::Input(InputCmd::StereoMode(
+                0x35,
+                InputStereoPairMode::MonauralStereo,
+            )),
             DspCmd::Input(InputCmd::Limitter(0xad, true)),
             DspCmd::Input(InputCmd::Lookahead(0xdd, true)),
             DspCmd::Input(InputCmd::Softclip(0xfc, false)),
             DspCmd::Input(InputCmd::Pad(0x91, true)),
             DspCmd::Input(InputCmd::Phantom(0x13, false)),
             DspCmd::Input(InputCmd::Equalizer(0x14, EqualizerParameter::Enable(false))),
-            DspCmd::Input(InputCmd::Equalizer(0x23, EqualizerParameter::HpfEnable(true))),
-            DspCmd::Input(InputCmd::Equalizer(0x32, EqualizerParameter::HpfSlope(RollOffLevel::L30))),
-            DspCmd::Input(InputCmd::Equalizer(0x41, EqualizerParameter::LfEnable(false))),
-            DspCmd::Input(InputCmd::Equalizer(0x59, EqualizerParameter::LfType(FilterType5::Shelf))),
-            DspCmd::Input(InputCmd::Equalizer(0x68, EqualizerParameter::LmfEnable(true))),
-            DspCmd::Input(InputCmd::Equalizer(0x77, EqualizerParameter::LmfType(FilterType4::T4))),
-            DspCmd::Input(InputCmd::Equalizer(0x86, EqualizerParameter::MfEnable(false))),
-            DspCmd::Input(InputCmd::Equalizer(0x95, EqualizerParameter::MfType(FilterType4::T3))),
-            DspCmd::Input(InputCmd::Equalizer(0xaf, EqualizerParameter::HmfEnable(true))),
-            DspCmd::Input(InputCmd::Equalizer(0xbe, EqualizerParameter::HmfType(FilterType4::T2))),
-            DspCmd::Input(InputCmd::Equalizer(0xcd, EqualizerParameter::HfEnable(false))),
-            DspCmd::Input(InputCmd::Equalizer(0xdc, EqualizerParameter::HfType(FilterType5::T1))),
-            DspCmd::Input(InputCmd::Equalizer(0xeb, EqualizerParameter::LpfEnable(true))),
-            DspCmd::Input(InputCmd::Equalizer(0xfa, EqualizerParameter::LpfSlope(RollOffLevel::L24))),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x23,
+                EqualizerParameter::HpfEnable(true),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x32,
+                EqualizerParameter::HpfSlope(RollOffLevel::L30),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x41,
+                EqualizerParameter::LfEnable(false),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x59,
+                EqualizerParameter::LfType(FilterType5::Shelf),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x68,
+                EqualizerParameter::LmfEnable(true),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x77,
+                EqualizerParameter::LmfType(FilterType4::T4),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x86,
+                EqualizerParameter::MfEnable(false),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x95,
+                EqualizerParameter::MfType(FilterType4::T3),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xaf,
+                EqualizerParameter::HmfEnable(true),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xbe,
+                EqualizerParameter::HmfType(FilterType4::T2),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xcd,
+                EqualizerParameter::HfEnable(false),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xdc,
+                EqualizerParameter::HfType(FilterType5::T1),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xeb,
+                EqualizerParameter::LpfEnable(true),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xfa,
+                EqualizerParameter::LpfSlope(RollOffLevel::L24),
+            )),
             DspCmd::Input(InputCmd::Dynamics(0xf0, DynamicsParameter::Enable(false))),
-            DspCmd::Input(InputCmd::Dynamics(0xe1, DynamicsParameter::CompEnable(true))),
-            DspCmd::Input(InputCmd::Dynamics(0xd2, DynamicsParameter::CompDetectMode(LevelDetectMode::Rms))),
-            DspCmd::Input(InputCmd::Dynamics(0xc3, DynamicsParameter::LevelerEnable(false))),
-            DspCmd::Input(InputCmd::Dynamics(0xb4, DynamicsParameter::LevelerMode(LevelerMode::Limit))),
+            DspCmd::Input(InputCmd::Dynamics(
+                0xe1,
+                DynamicsParameter::CompEnable(true),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0xd2,
+                DynamicsParameter::CompDetectMode(LevelDetectMode::Rms),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0xc3,
+                DynamicsParameter::LevelerEnable(false),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0xb4,
+                DynamicsParameter::LevelerMode(LevelerMode::Limit),
+            )),
             DspCmd::Mixer(MixerCmd::OutputAssign(0xa5, 0x91)),
             DspCmd::Mixer(MixerCmd::OutputMute(0x96, true)),
             DspCmd::Mixer(MixerCmd::SourceMute(0x87, 0x13, false)),
             DspCmd::Mixer(MixerCmd::SourceSolo(0x78, 0x31, true)),
-            DspCmd::Mixer(MixerCmd::SourceStereoMode(0x69, 0x11, SourceStereoPairMode::LrBalance)),
-            DspCmd::Output(OutputCmd::Equalizer(0x5a, EqualizerParameter::Enable(false))),
-            DspCmd::Output(OutputCmd::Equalizer(0x4b, EqualizerParameter::HpfEnable(true))),
-            DspCmd::Output(OutputCmd::Equalizer(0x3c, EqualizerParameter::HpfSlope(RollOffLevel::L6))),
-            DspCmd::Output(OutputCmd::Equalizer(0x2d, EqualizerParameter::LfEnable(false))),
-            DspCmd::Output(OutputCmd::Equalizer(0x1e, EqualizerParameter::LfType(FilterType5::Shelf))),
-            DspCmd::Output(OutputCmd::Equalizer(0x0f, EqualizerParameter::LmfEnable(true))),
-            DspCmd::Output(OutputCmd::Equalizer(0xf1, EqualizerParameter::LmfType(FilterType4::T4))),
-            DspCmd::Output(OutputCmd::Equalizer(0xe2, EqualizerParameter::MfEnable(false))),
-            DspCmd::Output(OutputCmd::Equalizer(0xd3, EqualizerParameter::MfType(FilterType4::T3))),
-            DspCmd::Output(OutputCmd::Equalizer(0xc4, EqualizerParameter::HmfEnable(true))),
-            DspCmd::Output(OutputCmd::Equalizer(0xb5, EqualizerParameter::HmfType(FilterType4::T2))),
-            DspCmd::Output(OutputCmd::Equalizer(0xa6, EqualizerParameter::HfEnable(false))),
-            DspCmd::Output(OutputCmd::Equalizer(0x97, EqualizerParameter::HfType(FilterType5::T1))),
-            DspCmd::Output(OutputCmd::Equalizer(0x88, EqualizerParameter::LpfEnable(true))),
-            DspCmd::Output(OutputCmd::Equalizer(0x79, EqualizerParameter::LpfSlope(RollOffLevel::L18))),
+            DspCmd::Mixer(MixerCmd::SourceStereoMode(
+                0x69,
+                0x11,
+                SourceStereoPairMode::LrBalance,
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x5a,
+                EqualizerParameter::Enable(false),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x4b,
+                EqualizerParameter::HpfEnable(true),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x3c,
+                EqualizerParameter::HpfSlope(RollOffLevel::L6),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x2d,
+                EqualizerParameter::LfEnable(false),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x1e,
+                EqualizerParameter::LfType(FilterType5::Shelf),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x0f,
+                EqualizerParameter::LmfEnable(true),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xf1,
+                EqualizerParameter::LmfType(FilterType4::T4),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xe2,
+                EqualizerParameter::MfEnable(false),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xd3,
+                EqualizerParameter::MfType(FilterType4::T3),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xc4,
+                EqualizerParameter::HmfEnable(true),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xb5,
+                EqualizerParameter::HmfType(FilterType4::T2),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xa6,
+                EqualizerParameter::HfEnable(false),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x97,
+                EqualizerParameter::HfType(FilterType5::T1),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x88,
+                EqualizerParameter::LpfEnable(true),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x79,
+                EqualizerParameter::LpfSlope(RollOffLevel::L18),
+            )),
             DspCmd::Output(OutputCmd::Dynamics(0xff, DynamicsParameter::Enable(false))),
-            DspCmd::Output(OutputCmd::Dynamics(0xee, DynamicsParameter::CompEnable(true))),
-            DspCmd::Output(OutputCmd::Dynamics(0xdd, DynamicsParameter::CompDetectMode(LevelDetectMode::Peak))),
-            DspCmd::Output(OutputCmd::Dynamics(0xcc, DynamicsParameter::LevelerEnable(false))),
-            DspCmd::Output(OutputCmd::Dynamics(0xbb, DynamicsParameter::LevelerMode(LevelerMode::Compress))),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0xee,
+                DynamicsParameter::CompEnable(true),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0xdd,
+                DynamicsParameter::CompDetectMode(LevelDetectMode::Peak),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0xcc,
+                DynamicsParameter::LevelerEnable(false),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0xbb,
+                DynamicsParameter::LevelerMode(LevelerMode::Compress),
+            )),
             DspCmd::Output(OutputCmd::MasterMonitor(0x97, true)),
             DspCmd::Output(OutputCmd::MasterTalkback(0xec, false)),
             DspCmd::Output(OutputCmd::MasterListenback(0xd5, true)),
@@ -2604,14 +3163,14 @@ mod test {
             DspCmd::Reverb(ReverbCmd::ReflectionMode(RoomShape::D)),
             DspCmd::Reserved(vec![0x69, 0xed, 0xba, 0x98, 0xec, 0x75]),
         ]
-            .iter()
-            .for_each(|cmd| {
-                let mut raw = Vec::new();
-                cmd.build(&mut raw);
-                let mut c = Vec::new();
-                assert_eq!(DspCmd::parse(&raw, &mut c), CMD_BYTE_SINGLE_LENGTH);
-                assert_eq!(&c[0], cmd);
-            });
+        .iter()
+        .for_each(|cmd| {
+            let mut raw = Vec::new();
+            cmd.build(&mut raw);
+            let mut c = Vec::new();
+            assert_eq!(DspCmd::parse(&raw, &mut c), CMD_BYTE_SINGLE_LENGTH);
+            assert_eq!(&c[0], cmd);
+        });
     }
 
     #[test]
@@ -2619,18 +3178,24 @@ mod test {
         [
             DspCmd::Monitor(MonitorCmd::Focus(FocusTarget::Output(11))),
             DspCmd::Input(InputCmd::Gain(0xe4, 0x01)),
-            DspCmd::Input(InputCmd::Dynamics(0xb1, DynamicsParameter::CompThreshold(97531))),
-            DspCmd::Output(OutputCmd::Dynamics(0x45, DynamicsParameter::CompThreshold(86420))),
+            DspCmd::Input(InputCmd::Dynamics(
+                0xb1,
+                DynamicsParameter::CompThreshold(97531),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0x45,
+                DynamicsParameter::CompThreshold(86420),
+            )),
             DspCmd::Reverb(ReverbCmd::ShelfFilterAttenuation(98765)),
         ]
-            .iter()
-            .for_each(|cmd| {
-                let mut raw = Vec::new();
-                cmd.build(&mut raw);
-                let mut c = Vec::new();
-                assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
-                assert_eq!(&c[0], cmd);
-            });
+        .iter()
+        .for_each(|cmd| {
+            let mut raw = Vec::new();
+            cmd.build(&mut raw);
+            let mut c = Vec::new();
+            assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
+            assert_eq!(&c[0], cmd);
+        });
     }
 
     #[test]
@@ -2644,9 +3209,18 @@ mod test {
             DspCmd::Input(InputCmd::Equalizer(0xf5, EqualizerParameter::HfFreq(60))),
             DspCmd::Input(InputCmd::Equalizer(0xc2, EqualizerParameter::LpfFreq(70))),
             DspCmd::Input(InputCmd::Dynamics(0x9f, DynamicsParameter::CompAttack(100))),
-            DspCmd::Input(InputCmd::Dynamics(0x8e, DynamicsParameter::CompRelease(200))),
-            DspCmd::Output(OutputCmd::Dynamics(0x7f, DynamicsParameter::LevelerMakeup(1000))),
-            DspCmd::Output(OutputCmd::Dynamics(0xf2, DynamicsParameter::LevelerReduce(2000))),
+            DspCmd::Input(InputCmd::Dynamics(
+                0x8e,
+                DynamicsParameter::CompRelease(200),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0x7f,
+                DynamicsParameter::LevelerMakeup(1000),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0xf2,
+                DynamicsParameter::LevelerReduce(2000),
+            )),
             DspCmd::Output(OutputCmd::Equalizer(0xa8, EqualizerParameter::HpfFreq(103))),
             DspCmd::Output(OutputCmd::Equalizer(0x39, EqualizerParameter::LfFreq(105))),
             DspCmd::Output(OutputCmd::Equalizer(0x5b, EqualizerParameter::LmfFreq(107))),
@@ -2654,10 +3228,22 @@ mod test {
             DspCmd::Output(OutputCmd::Equalizer(0xf7, EqualizerParameter::HmfFreq(111))),
             DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HfFreq(113))),
             DspCmd::Output(OutputCmd::Equalizer(0x29, EqualizerParameter::LpfFreq(115))),
-            DspCmd::Output(OutputCmd::Dynamics(0x1b, DynamicsParameter::CompAttack(111))),
-            DspCmd::Output(OutputCmd::Dynamics(0x49, DynamicsParameter::CompRelease(113))),
-            DspCmd::Input(InputCmd::Dynamics(0x6c, DynamicsParameter::LevelerMakeup(1111))),
-            DspCmd::Input(InputCmd::Dynamics(0x5b, DynamicsParameter::LevelerReduce(1113))),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0x1b,
+                DynamicsParameter::CompAttack(111),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0x49,
+                DynamicsParameter::CompRelease(113),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0x6c,
+                DynamicsParameter::LevelerMakeup(1111),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0x5b,
+                DynamicsParameter::LevelerReduce(1113),
+            )),
             DspCmd::Reverb(ReverbCmd::PreDelay(11111)),
             DspCmd::Reverb(ReverbCmd::ShelfFilterFreq(111113)),
             DspCmd::Reverb(ReverbCmd::DecayTime(111115)),
@@ -2669,14 +3255,14 @@ mod test {
             DspCmd::Reverb(ReverbCmd::ReflectionSize(111127)),
             DspCmd::Reserved(vec![0x66, 0x00, 0x01, 0x02, 0x80, 0x04, 0x05, 0x06, 0x07]),
         ]
-            .iter()
-            .for_each(|cmd| {
-                let mut raw = Vec::new();
-                cmd.build(&mut raw);
-                let mut c = Vec::new();
-                assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
-                assert_eq!(&c[0], cmd);
-            });
+        .iter()
+        .for_each(|cmd| {
+            let mut raw = Vec::new();
+            cmd.build(&mut raw);
+            let mut c = Vec::new();
+            assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
+            assert_eq!(&c[0], cmd);
+        });
     }
 
     #[test]
@@ -2686,18 +3272,54 @@ mod test {
             DspCmd::Monitor(MonitorCmd::ListenbackVolume(9.234567891)),
             DspCmd::Monitor(MonitorCmd::TalkbackVolume(9.345678912)),
             DspCmd::Input(InputCmd::Width(0xd3, 0.0987654321)),
-            DspCmd::Input(InputCmd::Equalizer(0xa0, EqualizerParameter::LfGain(0.123456789))),
-            DspCmd::Input(InputCmd::Equalizer(0x9f, EqualizerParameter::LfWidth(0.987654321))),
-            DspCmd::Input(InputCmd::Equalizer(0x7d, EqualizerParameter::LmfGain(0.234567891))),
-            DspCmd::Input(InputCmd::Equalizer(0x6c, EqualizerParameter::LmfWidth(0.876543219))),
-            DspCmd::Input(InputCmd::Equalizer(0x4a, EqualizerParameter::MfGain(0.345678912))),
-            DspCmd::Input(InputCmd::Equalizer(0x39, EqualizerParameter::MfWidth(0.765432198))),
-            DspCmd::Input(InputCmd::Equalizer(0x17, EqualizerParameter::HmfGain(0.456789123))),
-            DspCmd::Input(InputCmd::Equalizer(0x06, EqualizerParameter::HmfWidth(0.654321987))),
-            DspCmd::Input(InputCmd::Equalizer(0xe4, EqualizerParameter::HfGain(0.567891234))),
-            DspCmd::Input(InputCmd::Equalizer(0xd3, EqualizerParameter::HfWidth(0.543219876))),
-            DspCmd::Input(InputCmd::Dynamics(0xa0, DynamicsParameter::CompRatio(0.678912345))),
-            DspCmd::Input(InputCmd::Dynamics(0x7d, DynamicsParameter::CompGain(0.432198765))),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xa0,
+                EqualizerParameter::LfGain(0.123456789),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x9f,
+                EqualizerParameter::LfWidth(0.987654321),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x7d,
+                EqualizerParameter::LmfGain(0.234567891),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x6c,
+                EqualizerParameter::LmfWidth(0.876543219),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x4a,
+                EqualizerParameter::MfGain(0.345678912),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x39,
+                EqualizerParameter::MfWidth(0.765432198),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x17,
+                EqualizerParameter::HmfGain(0.456789123),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0x06,
+                EqualizerParameter::HmfWidth(0.654321987),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xe4,
+                EqualizerParameter::HfGain(0.567891234),
+            )),
+            DspCmd::Input(InputCmd::Equalizer(
+                0xd3,
+                EqualizerParameter::HfWidth(0.543219876),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0xa0,
+                DynamicsParameter::CompRatio(0.678912345),
+            )),
+            DspCmd::Input(InputCmd::Dynamics(
+                0x7d,
+                DynamicsParameter::CompGain(0.432198765),
+            )),
             DspCmd::Input(InputCmd::ReverbSend(0x33, 0.789123456)),
             DspCmd::Input(InputCmd::ReverbLrBalance(0xcc, 0.891234567)),
             DspCmd::Mixer(MixerCmd::OutputVolume(0x4a, 1.2345678)),
@@ -2707,31 +3329,67 @@ mod test {
             DspCmd::Mixer(MixerCmd::SourceGain(0x06, 0x11, 1.876543)),
             DspCmd::Mixer(MixerCmd::SourceStereoLrBalance(0xe5, 0x13, 1.7654321)),
             DspCmd::Mixer(MixerCmd::SourceStereoWidth(0xd4, 0x1a, 1.654321)),
-            DspCmd::Output(OutputCmd::Equalizer(0x11, EqualizerParameter::LfGain(2.123456789))),
-            DspCmd::Output(OutputCmd::Equalizer(0x5a, EqualizerParameter::LfWidth(2.987654321))),
-            DspCmd::Output(OutputCmd::Equalizer(0x98, EqualizerParameter::LmfGain(2.234567891))),
-            DspCmd::Output(OutputCmd::Equalizer(0x74, EqualizerParameter::LmfWidth(2.876543219))),
-            DspCmd::Output(OutputCmd::Equalizer(0x32, EqualizerParameter::MfGain(2.345678912))),
-            DspCmd::Output(OutputCmd::Equalizer(0x20, EqualizerParameter::MfWidth(2.765432198))),
-            DspCmd::Output(OutputCmd::Equalizer(0xc0, EqualizerParameter::HmfGain(2.456789123))),
-            DspCmd::Output(OutputCmd::Equalizer(0xf5, EqualizerParameter::HmfWidth(2.654321987))),
-            DspCmd::Output(OutputCmd::Equalizer(0x01, EqualizerParameter::HfGain(2.567891234))),
-            DspCmd::Output(OutputCmd::Equalizer(0xdb, EqualizerParameter::HfWidth(2.543219876))),
-            DspCmd::Output(OutputCmd::Dynamics(0x5e, DynamicsParameter::CompRatio(2.678912345))),
-            DspCmd::Output(OutputCmd::Dynamics(0xba, DynamicsParameter::CompGain(2.432198765))),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x11,
+                EqualizerParameter::LfGain(2.123456789),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x5a,
+                EqualizerParameter::LfWidth(2.987654321),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x98,
+                EqualizerParameter::LmfGain(2.234567891),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x74,
+                EqualizerParameter::LmfWidth(2.876543219),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x32,
+                EqualizerParameter::MfGain(2.345678912),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x20,
+                EqualizerParameter::MfWidth(2.765432198),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xc0,
+                EqualizerParameter::HmfGain(2.456789123),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xf5,
+                EqualizerParameter::HmfWidth(2.654321987),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0x01,
+                EqualizerParameter::HfGain(2.567891234),
+            )),
+            DspCmd::Output(OutputCmd::Equalizer(
+                0xdb,
+                EqualizerParameter::HfWidth(2.543219876),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0x5e,
+                DynamicsParameter::CompRatio(2.678912345),
+            )),
+            DspCmd::Output(OutputCmd::Dynamics(
+                0xba,
+                DynamicsParameter::CompGain(2.432198765),
+            )),
             DspCmd::Output(OutputCmd::ReverbSend(0x99, 2.78912345)),
             DspCmd::Output(OutputCmd::ReverbReturn(0x88, 2.321987654)),
             DspCmd::Reverb(ReverbCmd::Width(123.456)),
             DspCmd::Reverb(ReverbCmd::ReflectionLevel(234.561)),
         ]
-            .iter()
-            .for_each(|cmd| {
-                let mut raw = Vec::new();
-                cmd.build(&mut raw);
-                let mut c = Vec::new();
-                assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
-                assert_eq!(&c[0], cmd);
-            });
+        .iter()
+        .for_each(|cmd| {
+            let mut raw = Vec::new();
+            cmd.build(&mut raw);
+            let mut c = Vec::new();
+            assert_eq!(DspCmd::parse(&raw, &mut c), CMD_QUADLET_SINGLE_LENGTH);
+            assert_eq!(&c[0], cmd);
+        });
     }
 
     #[test]
@@ -2747,32 +3405,64 @@ mod test {
     #[test]
     fn message_decode_test() {
         let raw = [
-            0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f,
-            0x69, 0x00, 0x00, 0x0a, 0x00, 0x00,
-            0x69, 0x00, 0x00, 0x0b, 0x00, 0x00,
-            0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01,
-            0x62,
-            0x46, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f,
-            0x49, 0x07, 0x00, 0x02, 0x0c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x46, 0x02, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x65,
-            0x46, 0x00, 0xa0, 0x8c, 0x46, 0x00, 0xa0, 0x8c,
+            0x66, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f, 0x69, 0x00, 0x00, 0x0a, 0x00,
+            0x00, 0x69, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00,
+            0x00, 0x01, 0x62, 0x46, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3f, 0x49,
+            0x07, 0x00, 0x02, 0x0c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46, 0x02,
+            0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0x46,
+            0x00, 0xa0, 0x8c, 0x46, 0x00, 0xa0, 0x8c,
         ];
         let mut handler = CommandDspMessageHandler::default();
         handler.cache.extend_from_slice(&raw);
         let cmds = handler.decode_messages();
         assert_eq!(cmds[0], DspCmd::Monitor(MonitorCmd::Volume(1.0)));
-        assert_eq!(cmds[1], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x0a, 0x00, 0x00], vec![0x00])));
-        assert_eq!(cmds[2], DspCmd::Monitor(MonitorCmd::Reserved(vec![0x00, 0x0b, 0x00, 0x00], vec![0x00])));
-        assert_eq!(cmds[3], DspCmd::Reserved(vec![0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01]));
+        assert_eq!(
+            cmds[1],
+            DspCmd::Monitor(MonitorCmd::Reserved(
+                vec![0x00, 0x0a, 0x00, 0x00],
+                vec![0x00]
+            ))
+        );
+        assert_eq!(
+            cmds[2],
+            DspCmd::Monitor(MonitorCmd::Reserved(
+                vec![0x00, 0x0b, 0x00, 0x00],
+                vec![0x00]
+            ))
+        );
+        assert_eq!(
+            cmds[3],
+            DspCmd::Reserved(vec![0x66, 0x00, 0x07, 0x00, 0xff, 0x00, 0x00, 0x00, 0x01])
+        );
         assert_eq!(cmds[4], DspCmd::Monitor(MonitorCmd::Volume(1.0)));
-        assert_eq!(cmds[5], DspCmd::Output(OutputCmd::MasterListenback(0, false)));
-        assert_eq!(cmds[6], DspCmd::Output(OutputCmd::MasterListenback(1, false)));
-        assert_eq!(cmds[7], DspCmd::Output(OutputCmd::MasterListenback(2, false)));
-        assert_eq!(cmds[8], DspCmd::Output(OutputCmd::MasterListenback(3, false)));
-        assert_eq!(cmds[9], DspCmd::Output(OutputCmd::MasterListenback(4, false)));
-        assert_eq!(cmds[10], DspCmd::Output(OutputCmd::MasterListenback(5, false)));
-        assert_eq!(cmds[11], DspCmd::Output(OutputCmd::MasterListenback(6, false)));
+        assert_eq!(
+            cmds[5],
+            DspCmd::Output(OutputCmd::MasterListenback(0, false))
+        );
+        assert_eq!(
+            cmds[6],
+            DspCmd::Output(OutputCmd::MasterListenback(1, false))
+        );
+        assert_eq!(
+            cmds[7],
+            DspCmd::Output(OutputCmd::MasterListenback(2, false))
+        );
+        assert_eq!(
+            cmds[8],
+            DspCmd::Output(OutputCmd::MasterListenback(3, false))
+        );
+        assert_eq!(
+            cmds[9],
+            DspCmd::Output(OutputCmd::MasterListenback(4, false))
+        );
+        assert_eq!(
+            cmds[10],
+            DspCmd::Output(OutputCmd::MasterListenback(5, false))
+        );
+        assert_eq!(
+            cmds[11],
+            DspCmd::Output(OutputCmd::MasterListenback(6, false))
+        );
         assert_eq!(cmds[12], DspCmd::Input(InputCmd::Width(0, 0.0)));
         assert_eq!(cmds[13], DspCmd::Input(InputCmd::Width(1, 0.0)));
         assert_eq!(cmds.len(), 14);

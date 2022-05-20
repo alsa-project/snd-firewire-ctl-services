@@ -41,11 +41,7 @@ pub trait V3ClkOperation {
 
     const HAS_LCD: bool;
 
-    fn get_clk_rate(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
+    fn get_clk_rate(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
@@ -63,7 +59,7 @@ pub trait V3ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_RATES.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -79,11 +75,7 @@ pub trait V3ClkOperation {
         )
     }
 
-    fn get_clk_src(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        timeout_ms: u32
-    ) -> Result<usize, Error> {
+    fn get_clk_src(req: &mut FwReq, node: &mut FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         get_idx_from_val(
             OFFSET_CLK,
@@ -101,7 +93,7 @@ pub trait V3ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::CLK_SRCS.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -121,7 +113,7 @@ pub trait V3ClkOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         label: &str,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         update_clk_display(req, node, label, timeout_ms)
     }
@@ -140,7 +132,7 @@ pub trait V3PortAssignOperation: AssignOperation {
     fn get_main_assign(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
@@ -159,7 +151,7 @@ pub trait V3PortAssignOperation: AssignOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -178,7 +170,7 @@ pub trait V3PortAssignOperation: AssignOperation {
     fn get_return_assign(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<usize, Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         get_idx_from_val(
@@ -197,7 +189,7 @@ pub trait V3PortAssignOperation: AssignOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let vals: Vec<u8> = Self::ASSIGN_PORTS.iter().map(|e| e.1).collect();
         set_idx_to_val(
@@ -301,8 +293,7 @@ fn get_opt_iface_mode(
     read_quad(req, node, OFFSET_OPT, timeout_ms).map(|quad| {
         let (enabled_mask, no_adat_mask) = get_opt_iface_masks(target, is_out);
         match (quad & enabled_mask > 0, quad & no_adat_mask > 0) {
-            (false, false) |
-            (false, true) => V3OptIfaceMode::Disabled,
+            (false, false) | (false, true) => V3OptIfaceMode::Disabled,
             (true, false) => V3OptIfaceMode::Adat,
             (true, true) => V3OptIfaceMode::Spdif,
         }
@@ -356,11 +347,11 @@ pub struct AudioExpressProtocol;
 
 impl AssignOperation for AudioExpressProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01), // = Stream-1/2
-        (TargetPort::MainPair0, 0x02), // = Stream-5/6
+        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
+        (TargetPort::MainPair0, 0x02),   // = Stream-5/6
         (TargetPort::AnalogPair0, 0x06), // = Stream-3/4
-        (TargetPort::SpdifPair0, 0x07), // = Stream-7/8
-                              // Blank for Stream-9/10
+        (TargetPort::SpdifPair0, 0x07),  // = Stream-7/8
+                                         // Blank for Stream-9/10
     ];
 }
 
@@ -404,13 +395,13 @@ impl AudioExpressProtocol {
 pub struct F828mk3Protocol;
 
 const F828MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
-    (TargetPort::MainPair0, 0x00), // = Stream-11/12
-    (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
-    (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
-    (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
-    (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
-    (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
-    (TargetPort::PhonePair0, 0x06), // = Stream-1/2
+    (TargetPort::MainPair0, 0x00),     // = Stream-11/12
+    (TargetPort::AnalogPair0, 0x01),   // = Stream-3/4
+    (TargetPort::AnalogPair1, 0x02),   // = Stream-5/6
+    (TargetPort::AnalogPair2, 0x03),   // = Stream-7/8
+    (TargetPort::AnalogPair3, 0x04),   // = Stream-9/10
+    (TargetPort::SpdifPair0, 0x05),    // = Stream-13/14
+    (TargetPort::PhonePair0, 0x06),    // = Stream-1/2
     (TargetPort::OpticalAPair0, 0x07), // = Stream-15/16
     (TargetPort::OpticalAPair1, 0x08), // = Stream-17/18
     (TargetPort::OpticalAPair2, 0x09), // = Stream-19/20
@@ -660,11 +651,11 @@ pub struct H4preProtocol;
 
 impl AssignOperation for H4preProtocol {
     const ASSIGN_PORTS: &'static [(TargetPort, u8)] = &[
-        (TargetPort::PhonePair0, 0x01), // = Stream-1/2
-        (TargetPort::MainPair0, 0x02), // = Stream-5/6
+        (TargetPort::PhonePair0, 0x01),  // = Stream-1/2
+        (TargetPort::MainPair0, 0x02),   // = Stream-5/6
         (TargetPort::AnalogPair0, 0x06), // = Stream-3/4
-        (TargetPort::SpdifPair0, 0x07), // = Stream-7/8
-                              // Blank for Stream-9/10
+        (TargetPort::SpdifPair0, 0x07),  // = Stream-7/8
+                                         // Blank for Stream-9/10
     ];
 }
 
@@ -703,13 +694,13 @@ impl Audioexpress4preInputOperation for H4preProtocol {
 pub struct UltraliteMk3Protocol;
 
 const ULTRALITE_MK3_ASSIGN_PORTS: &[(TargetPort, u8)] = &[
-    (TargetPort::MainPair0, 0x00), // = Stream-1/2
+    (TargetPort::MainPair0, 0x00),   // = Stream-1/2
     (TargetPort::AnalogPair0, 0x01), // = Stream-3/4
     (TargetPort::AnalogPair1, 0x02), // = Stream-5/6
     (TargetPort::AnalogPair2, 0x03), // = Stream-7/8
     (TargetPort::AnalogPair3, 0x04), // = Stream-9/10
-    (TargetPort::SpdifPair0, 0x05), // = Stream-13/14
-    (TargetPort::PhonePair0, 0x06), // = Stream-11/12
+    (TargetPort::SpdifPair0, 0x05),  // = Stream-13/14
+    (TargetPort::PhonePair0, 0x06),  // = Stream-11/12
 ];
 
 const ULTRALITE_MK3_CLK_RATES: &[(ClkRate, u8)] = &[
