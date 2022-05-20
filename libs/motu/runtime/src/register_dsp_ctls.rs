@@ -633,7 +633,7 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
 const INPUT_NOMINAL_LEVEL_NAME: &str = "input-nominal-level";
 const INPUT_BOOST_NAME: &str = "input-boost";
 
-pub trait Traveler828mk2LineInputCtlOperation<T: Traveler828mk2LineInputOperation> {
+pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> {
     fn state(&self) -> &RegisterDspLineInputState;
     fn state_mut(&mut self) -> &mut RegisterDspLineInputState;
 
