@@ -92,7 +92,7 @@ impl CommonCtl {
 
     pub fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         elem_id: &ElemId,
@@ -103,7 +103,7 @@ impl CommonCtl {
             CLK_RATE_NAME => {
                 let config = GlobalSectionProtocol::read_clock_config(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )?;
@@ -114,7 +114,7 @@ impl CommonCtl {
             CLK_SRC_NAME => {
                 let config = GlobalSectionProtocol::read_clock_config(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )?;
@@ -122,19 +122,17 @@ impl CommonCtl {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
                     .map(|_| true)
             }
-            NICKNAME => GlobalSectionProtocol::read_nickname(
-                req,
-                &mut unit.get_node(),
-                sections,
-                timeout_ms,
-            )
-            .map(|name| {
-                let mut vals = vec![0; NICKNAME_MAX_SIZE];
-                let raw = name.as_bytes();
-                vals[..raw.len()].copy_from_slice(&raw);
-                elem_value.set_bytes(&vals);
-                true
-            }),
+            NICKNAME => {
+                GlobalSectionProtocol::read_nickname(req, &mut unit.1, sections, timeout_ms).map(
+                    |name| {
+                        let mut vals = vec![0; NICKNAME_MAX_SIZE];
+                        let raw = name.as_bytes();
+                        vals[..raw.len()].copy_from_slice(&raw);
+                        elem_value.set_bytes(&vals);
+                        true
+                    },
+                )
+            }
             _ => Ok(false),
         }
     }
@@ -178,7 +176,7 @@ impl CommonCtl {
 
     pub fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         elem_id: &ElemId,
@@ -188,10 +186,10 @@ impl CommonCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                unit.lock()?;
+                unit.0.lock()?;
                 let res = GlobalSectionProtocol::read_clock_config(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )
@@ -199,7 +197,7 @@ impl CommonCtl {
                     self.update_clock_config(&mut config, Some(val as u32), None)?;
                     GlobalSectionProtocol::write_clock_config(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         config,
                         timeout_ms,
@@ -207,15 +205,15 @@ impl CommonCtl {
                     self.curr_rate_idx = val;
                     Ok(())
                 });
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
             CLK_SRC_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                unit.lock()?;
+                unit.0.lock()?;
                 let res = GlobalSectionProtocol::read_clock_config(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )
@@ -223,7 +221,7 @@ impl CommonCtl {
                     self.update_clock_config(&mut config, None, Some(val as u32))?;
                     GlobalSectionProtocol::write_clock_config(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         config,
                         timeout_ms,
@@ -231,7 +229,7 @@ impl CommonCtl {
                     self.curr_src_idx = val;
                     Ok(())
                 });
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
@@ -249,7 +247,7 @@ impl CommonCtl {
                             .and_then(|pos| {
                                 GlobalSectionProtocol::write_nickname(
                                     req,
-                                    &mut unit.get_node(),
+                                    &mut unit.1,
                                     sections,
                                     &text[..pos],
                                     timeout_ms,
@@ -264,26 +262,22 @@ impl CommonCtl {
 
     pub fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if GeneralProtocol::has_clock_accepted(msg) {
-            let config = GlobalSectionProtocol::read_clock_config(
-                req,
-                &mut unit.get_node(),
-                sections,
-                timeout_ms,
-            )?;
+            let config =
+                GlobalSectionProtocol::read_clock_config(req, &mut unit.1, sections, timeout_ms)?;
             self.cache_clock_config(&config)?;
         }
 
         if GeneralProtocol::has_ext_status_changed(msg) {
             self.ext_src_states = GlobalSectionProtocol::read_clock_source_states(
                 req,
-                &mut unit.get_node(),
+                &mut unit.1,
                 sections,
                 timeout_ms,
             )?;
@@ -316,18 +310,13 @@ impl CommonCtl {
 
     pub fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        GlobalSectionProtocol::read_clock_source_states(
-            req,
-            &mut unit.get_node(),
-            sections,
-            timeout_ms,
-        )
-        .map(|states| self.ext_src_states = states)
+        GlobalSectionProtocol::read_clock_source_states(req, &mut unit.1, sections, timeout_ms)
+            .map(|states| self.ext_src_states = states)
     }
 
     pub fn measure_elem(
