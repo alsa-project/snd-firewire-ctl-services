@@ -86,10 +86,7 @@
 //!
 //! ```
 
-use crate::{
-    focusrite::*,
-    tcat::{extension::*, tcd22xx_spec::*},
-};
+use super::{tcat::tcd22xx_spec::*, *};
 
 /// The structure for protocol implementation specific to Saffire Pro 24.
 #[derive(Debug)]

@@ -6,11 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for mixer
 //! protocol defined by Alesis for iO FireWire series.
 
-use glib::*;
-use hinawa::FwNode;
-
 use super::*;
-use crate::*;
 
 const MONITOR_SRC_GAIN_OFFSET: usize = 0x0038;
 const MONITOR_OUT_VOL_OFFSET: usize = 0x0438;

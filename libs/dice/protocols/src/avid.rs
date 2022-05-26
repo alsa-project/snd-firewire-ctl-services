@@ -6,12 +6,13 @@
 //! The module includes structure, enumeration, and trait and its implementation for hardware
 //! specification and application protocol specific to Avid Mbox 3 Pro.
 
-use glib::{Error, FileError};
-
-use hinawa::{FwNode, FwReq};
-
-use super::tcat::extension::{appl_section::*, *};
-use super::tcat::tcd22xx_spec::*;
+use super::{
+    tcat::{
+        extension::{appl_section::*, *},
+        tcd22xx_spec::*,
+    },
+    *,
+};
 
 const USE_CASE_OFFSET: usize = 0x00;
 const MASTER_KNOB_ASSIGN_OFFSET: usize = 0x0c;

@@ -7,7 +7,6 @@
 //! defined by TC Electronic for Konnekt 8.
 
 use super::*;
-use crate::tcelectronic::{standalone::*, *};
 
 /// The structure for protocol implementation of Konnekt 8.
 #[derive(Default)]

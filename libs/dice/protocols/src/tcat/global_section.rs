@@ -7,8 +7,6 @@
 //! in general protocol defined by TCAT for ASICs of DICE.
 use super::{utils::*, *};
 
-use std::convert::TryFrom;
-
 /// The enumeration for nominal sampling rate.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClockRate {

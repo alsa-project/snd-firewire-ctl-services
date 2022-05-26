@@ -5,7 +5,7 @@
 //! The module includes structure for data of loaded program defined by TC Electronic For Konnekt
 //! series.
 
-use crate::*;
+use super::*;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct TcKonnektLoadedProgram(pub u32);

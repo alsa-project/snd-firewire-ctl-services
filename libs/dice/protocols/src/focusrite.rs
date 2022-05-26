@@ -13,12 +13,10 @@ pub mod spro24dsp;
 pub mod spro26;
 pub mod spro40;
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq};
-
-use super::tcat::extension::{appl_section::*, *};
-use super::*;
+use super::{
+    tcat::extension::{appl_section::*, *},
+    *,
+};
 
 /// The trait for software notice protocol to update hardware parameter.
 pub trait SaffireproSwNoticeOperation {

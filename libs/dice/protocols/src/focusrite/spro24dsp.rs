@@ -188,10 +188,7 @@
 //!    4 | pre filter value | 0x00000000 | 0x3f800000 | 5.0      | 0.0      |
 //!    5 | pre filter sign  | 0x00000000 | 0x3f800000 | negative | positive |
 
-use crate::{
-    focusrite::*,
-    tcat::{extension::*, tcd22xx_spec::*},
-};
+use super::{tcat::tcd22xx_spec::*, *};
 
 /// The structure for protocol implementation specific to Saffire Pro 24 DSP.
 #[derive(Debug)]

@@ -6,9 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by TC Electronic for Desktop Konnekt 6.
 
-use crate::*;
-
-use crate::tcelectronic::{fw_led::*, standalone::*, *};
+use super::tcelectronic::{fw_led::*, standalone::*, *};
 
 const DESKTOP_HW_STATE_NOTIFY_FLAG: u32 = 0x00010000;
 const DESKTOP_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;

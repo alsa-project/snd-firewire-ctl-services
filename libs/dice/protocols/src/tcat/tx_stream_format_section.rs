@@ -7,8 +7,6 @@
 //! format section in general protocol defined by TCAT for ASICs of DICE.
 use super::{utils::*, *};
 
-use std::convert::TryFrom;
-
 /// The structure to represent an entry for stream format in stream transmitted by the node.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct TxStreamFormatEntry {

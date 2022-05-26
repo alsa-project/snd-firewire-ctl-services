@@ -21,10 +21,10 @@ pub mod standalone_section;
 mod stream_format_entry;
 pub mod stream_format_section;
 
-use super::{utils::*, *};
-
-use std::cmp::Ordering;
-use std::convert::TryFrom;
+use {
+    super::{global_section::ClockRate, utils::*, *},
+    std::cmp::Ordering,
+};
 
 /// The structure to represent sections for protocol extension.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]

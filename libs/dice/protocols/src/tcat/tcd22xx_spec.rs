@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::{FwNode, FwReq};
-
-use super::extension::{
-    caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
-    router_section::*, *,
+use super::{
+    extension::{
+        caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
+        router_section::*, *,
+    },
+    *,
 };
 
 #[derive(Default, Debug)]

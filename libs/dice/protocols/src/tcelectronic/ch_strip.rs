@@ -6,7 +6,7 @@
 //! The module includes structure, trait and its implementation for data of channel strip effect in
 //! protocol defined by TC Electronic for Konnekt series. It's called as `Fabrik C`.
 
-use crate::*;
+use super::*;
 
 /// The enumeration to represent type of source.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

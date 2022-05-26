@@ -5,7 +5,6 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for external
 //! synchronization section in general protocol defined by TCAT for ASICs of DICE.
-use glib::{Error, FileError};
 
 use super::{global_section::*, *};
 
