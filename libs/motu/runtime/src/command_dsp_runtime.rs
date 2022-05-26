@@ -30,11 +30,11 @@ pub type Track16Runtime = Version3Runtime<Track16>;
 pub struct Version3Runtime<T>
 where
     for<'a> T: Default
-        + CtlModel<SndMotu>
-        + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, Vec<DspCmd>>
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + NotifyModel<(SndMotu, FwNode), Vec<DspCmd>>
         + CommandDspModel
-        + MeasureModel<SndMotu>,
+        + MeasureModel<(SndMotu, FwNode)>,
 {
     unit: (SndMotu, FwNode),
     model: T,
@@ -54,14 +54,14 @@ where
 impl<T> Drop for Version3Runtime<T>
 where
     for<'a> T: Default
-        + CtlModel<SndMotu>
-        + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, Vec<DspCmd>>
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + NotifyModel<(SndMotu, FwNode), Vec<DspCmd>>
         + CommandDspModel
-        + MeasureModel<SndMotu>,
+        + MeasureModel<(SndMotu, FwNode)>,
 {
     fn drop(&mut self) {
-        let _ = self.model.release_message_handler(&mut self.unit.0);
+        let _ = self.model.release_message_handler(&mut self.unit);
 
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -96,11 +96,11 @@ const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100
 impl<T> Version3Runtime<T>
 where
     for<'a> T: Default
-        + CtlModel<SndMotu>
-        + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, Vec<DspCmd>>
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + NotifyModel<(SndMotu, FwNode), Vec<DspCmd>>
         + CommandDspModel
-        + MeasureModel<SndMotu>,
+        + MeasureModel<(SndMotu, FwNode)>,
 {
     pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -135,7 +135,7 @@ where
         // TODO: bus reset can cause change of node ID by updating bus topology.
         let peer_node_id = self.unit.1.get_property_node_id();
         self.model.prepare_message_handler(
-            &mut self.unit.0,
+            &mut self.unit,
             move |_, tcode, _, src, _, _, _, frame| {
                 if src != peer_node_id {
                     FwRcode::AddressError
@@ -163,7 +163,7 @@ where
                 }
             },
         )?;
-        self.model.begin_messaging(&mut self.unit.0)?;
+        self.model.begin_messaging(&mut self.unit)?;
 
         // Queue Event::DspMsg at first so that initial state of control is cached.
         let mut count = 0;
@@ -181,12 +181,12 @@ where
             Err(Error::new(FileError::Io, "No message for state arrived."))?;
         }
 
-        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
-        NotifyModel::<SndMotu, u32>::get_notified_elem_list(
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        NotifyModel::<(SndMotu, FwNode), u32>::get_notified_elem_list(
             &mut self.model,
             &mut self.notified_elem_id_list,
         );
-        NotifyModel::<SndMotu, Vec<DspCmd>>::get_notified_elem_list(
+        NotifyModel::<(SndMotu, FwNode), Vec<DspCmd>>::get_notified_elem_list(
             &mut self.model,
             &mut self.cmd_notified_elem_id_list,
         );
@@ -220,7 +220,7 @@ where
                 Event::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit.0,
+                            &mut self.unit,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -244,7 +244,7 @@ where
                 }
                 Event::Notify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &msg,
                         &self.notified_elem_id_list,
                         &mut self.model,
@@ -261,7 +261,7 @@ where
                         Default::default()
                     };
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &cmds,
                         &self.cmd_notified_elem_id_list,
                         &mut self.model,
@@ -269,7 +269,7 @@ where
                 }
                 Event::Timer => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &self.measured_elem_id_list,
                         &mut self.model,
                     );
@@ -352,10 +352,14 @@ where
     }
 }
 
-pub trait CommandDspModel: NotifyModel<SndMotu, Vec<DspCmd>> {
-    fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
+pub trait CommandDspModel: NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> {
+    fn prepare_message_handler<F>(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        handler: F,
+    ) -> Result<(), Error>
     where
         F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static;
-    fn begin_messaging(&mut self, unit: &mut SndMotu) -> Result<(), Error>;
-    fn release_message_handler(&mut self, unit: &mut SndMotu) -> Result<(), Error>;
+    fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
+    fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error>;
 }

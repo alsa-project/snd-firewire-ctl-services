@@ -151,15 +151,19 @@ impl CommandDspMeterCtlOperation<Track16Protocol> for MeterCtl {
     }
 }
 
-impl CtlModel<SndMotu> for Track16 {
-    fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndMotu, FwNode)> for Track16 {
+    fn load(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.reverb_ctl
             .load(card_cntr)
@@ -199,21 +203,24 @@ impl CtlModel<SndMotu> for Track16 {
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+            .read(&mut unit.0, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.read(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -246,34 +253,44 @@ impl CtlModel<SndMotu> for Track16 {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .port_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.port_assign_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .opt_iface_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
-        {
+        } else if self.opt_iface_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            old,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.reverb_ctl.write(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -282,7 +299,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.monitor_ctl.write(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -291,7 +308,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.mixer_ctl.write(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -300,7 +317,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.input_ctl.write(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -309,7 +326,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.input_ctl.write_equalizer(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -318,7 +335,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.input_ctl.write_dynamics(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -327,7 +344,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.output_ctl.write(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -336,7 +353,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.output_ctl.write_equalizer(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -345,7 +362,7 @@ impl CtlModel<SndMotu> for Track16 {
             Ok(true)
         } else if self.output_ctl.write_dynamics(
             &mut self.sequence_number,
-            unit,
+            &mut unit.0,
             &mut self.req,
             elem_id,
             new,
@@ -358,25 +375,25 @@ impl CtlModel<SndMotu> for Track16 {
     }
 }
 
-impl NotifyModel<SndMotu, u32> for Track16 {
+impl NotifyModel<(SndMotu, FwNode), u32> for Track16 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.port_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
         if *msg & Track16Protocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
         }
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -390,7 +407,7 @@ impl NotifyModel<SndMotu, u32> for Track16 {
     }
 }
 
-impl NotifyModel<SndMotu, Vec<DspCmd>> for Track16 {
+impl NotifyModel<(SndMotu, FwNode), Vec<DspCmd>> for Track16 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.reverb_ctl.1);
         elem_id_list.extend_from_slice(&self.monitor_ctl.1);
@@ -400,7 +417,11 @@ impl NotifyModel<SndMotu, Vec<DspCmd>> for Track16 {
         elem_id_list.extend_from_slice(&self.resource_ctl.1);
     }
 
-    fn parse_notification(&mut self, _: &mut SndMotu, cmds: &Vec<DspCmd>) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        _: &mut (SndMotu, FwNode),
+        cmds: &Vec<DspCmd>,
+    ) -> Result<(), Error> {
         self.reverb_ctl.parse_commands(&cmds[..]);
         self.monitor_ctl.parse_commands(&cmds[..]);
         self.mixer_ctl.parse_commands(&cmds[..]);
@@ -412,7 +433,7 @@ impl NotifyModel<SndMotu, Vec<DspCmd>> for Track16 {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -442,18 +463,18 @@ impl NotifyModel<SndMotu, Vec<DspCmd>> for Track16 {
     }
 }
 
-impl MeasureModel<SndMotu> for Track16 {
+impl MeasureModel<(SndMotu, FwNode)> for Track16 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
-        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    fn measure_states(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(&unit.0, &mut self.meter)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -466,40 +487,44 @@ impl MeasureModel<SndMotu> for Track16 {
 }
 
 impl CommandDspModel for Track16 {
-    fn prepare_message_handler<F>(&mut self, unit: &mut SndMotu, handler: F) -> Result<(), Error>
+    fn prepare_message_handler<F>(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        handler: F,
+    ) -> Result<(), Error>
     where
         F: Fn(&FwResp, FwTcode, u64, u32, u32, u32, u32, &[u8]) -> FwRcode + 'static,
     {
         Track16Protocol::register_message_destination_address(
             &mut self.resp,
             &mut self.req,
-            &mut unit.get_node(),
+            &mut unit.1,
             TIMEOUT_MS,
         )?;
         self.resp.connect_requested2(handler);
         Ok(())
     }
 
-    fn begin_messaging(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+    fn begin_messaging(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
         Track16Protocol::begin_messaging(
             &mut self.req,
-            &mut unit.get_node(),
+            &mut unit.1,
             &mut self.sequence_number,
             TIMEOUT_MS,
         )
     }
 
-    fn release_message_handler(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
+    fn release_message_handler(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
         Track16Protocol::cancel_messaging(
             &mut self.req,
-            &mut unit.get_node(),
+            &mut unit.1,
             &mut self.sequence_number,
             TIMEOUT_MS,
         )?;
         Track16Protocol::release_message_destination_address(
             &mut self.resp,
             &mut self.req,
-            &mut unit.get_node(),
+            &mut unit.1,
             TIMEOUT_MS,
         )?;
         Ok(())
