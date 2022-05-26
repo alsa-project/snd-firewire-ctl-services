@@ -33,16 +33,20 @@ impl<T: MediaClockFrequencyOperation + Default> MediaClkFreqCtlOperation<T> for 
 #[derive(Default)]
 struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
 
-impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialModel<T> {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl<T: MediaClockFrequencyOperation + Default> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.meter_ctl
-            .load_state(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)?;
+            .load_state(card_cntr, &self.req, &unit.1, TIMEOUT_MS)?;
 
         self.input_ctl.load_params(card_cntr, &mut self.cache)?;
 
@@ -52,15 +56,14 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
         self.mixer_ctl.load_params(card_cntr, &mut self.cache)?;
 
-        self.cache
-            .download(&self.req, &unit.get_node(), TIMEOUT_MS)?;
+        self.cache.download(&self.req, &unit.1, TIMEOUT_MS)?;
 
         Ok(())
     }
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -84,15 +87,19 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self.input_ctl.write_params(
             &mut self.cache,
@@ -136,18 +143,20 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<SndUnit> for SpecialMod
     }
 }
 
-impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for SpecialModel<T> {
+impl<T: MediaClockFrequencyOperation + Default> MeasureModel<(SndUnit, FwNode)>
+    for SpecialModel<T>
+{
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         let switch = self.meter_ctl.0.switch;
         let prev_rotaries = self.meter_ctl.0.rotaries[..2].to_vec();
 
         self.meter_ctl
-            .measure_state(&self.req, &unit.get_node(), TIMEOUT_MS)?;
+            .measure_state(&self.req, &unit.1, TIMEOUT_MS)?;
 
         if switch != self.meter_ctl.0.switch {
             let mut op = MaudioSpecialLedSwitch::new(self.meter_ctl.0.switch);
@@ -197,7 +206,7 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for Specia
         if params.headphone_volumes != self.output_ctl.0.headphone_volumes {
             MaudioSpecialOutputProtocol::update_params(
                 &self.req,
-                &unit.get_node(),
+                &unit.1,
                 &params,
                 &mut self.cache,
                 &mut self.output_ctl.0,
@@ -210,7 +219,7 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for Specia
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -224,18 +233,20 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<SndUnit> for Specia
     }
 }
 
-impl<T: MediaClockFrequencyOperation + Default> NotifyModel<SndUnit, bool> for SpecialModel<T> {
+impl<T: MediaClockFrequencyOperation + Default> NotifyModel<(SndUnit, FwNode), bool>
+    for SpecialModel<T>
+{
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -568,7 +579,7 @@ impl InputCtl {
         elem_value: &ElemValue,
         count: usize,
         req: &FwReq,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: T,
@@ -581,21 +592,14 @@ impl InputCtl {
         elem_value.get_int(&mut vals);
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
-        MaudioSpecialInputProtocol::update_params(
-            req,
-            &unit.get_node(),
-            &params,
-            state,
-            curr,
-            timeout_ms,
-        )
-        .map(|_| true)
+        MaudioSpecialInputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+            .map(|_| true)
     }
 
     fn write_params(
         &mut self,
         state: &mut MaudioSpecialStateCache,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -827,7 +831,7 @@ impl OutputCtl {
         elem_value: &ElemValue,
         labels: &[&str],
         req: &FwReq,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: T,
@@ -840,15 +844,8 @@ impl OutputCtl {
         elem_value.get_int(&mut vals);
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
-        MaudioSpecialOutputProtocol::update_params(
-            req,
-            &unit.get_node(),
-            &params,
-            state,
-            curr,
-            timeout_ms,
-        )
-        .map(|_| true)
+        MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+            .map(|_| true)
     }
 
     fn write_enum<T, F>(
@@ -857,7 +854,7 @@ impl OutputCtl {
         labels: &[&str],
         item_list: &[T],
         req: &FwReq,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: F,
@@ -879,21 +876,14 @@ impl OutputCtl {
             Ok(())
         })?;
         set(&mut params, &srcs);
-        MaudioSpecialOutputProtocol::update_params(
-            req,
-            &unit.get_node(),
-            &params,
-            state,
-            curr,
-            timeout_ms,
-        )
-        .map(|_| true)
+        MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+            .map(|_| true)
     }
 
     fn write_params(
         &mut self,
         state: &mut MaudioSpecialStateCache,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1038,7 +1028,7 @@ impl AuxCtl {
         elem_value: &ElemValue,
         labels: &[&str],
         req: &FwReq,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: F,
@@ -1051,21 +1041,14 @@ impl AuxCtl {
         elem_value.get_int(&mut vals);
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
-        MaudioSpecialAuxProtocol::update_params(
-            req,
-            &unit.get_node(),
-            &params,
-            state,
-            curr,
-            timeout_ms,
-        )
-        .map(|_| true)
+        MaudioSpecialAuxProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+            .map(|_| true)
     }
 
     fn write_params(
         &mut self,
         state: &mut MaudioSpecialStateCache,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1212,7 +1195,7 @@ impl MixerCtl {
         elem_value: &ElemValue,
         labels: &[&str],
         req: &FwReq,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         state: &mut MaudioSpecialStateCache,
         timeout_ms: u32,
         set: T,
@@ -1225,21 +1208,14 @@ impl MixerCtl {
         let mut vals = vec![false; labels.len()];
         elem_value.get_bool(&mut vals);
         set(&mut params, index, &vals);
-        MaudioSpecialMixerProtocol::update_params(
-            req,
-            &unit.get_node(),
-            &params,
-            state,
-            curr,
-            timeout_ms,
-        )
-        .map(|_| true)
+        MaudioSpecialMixerProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+            .map(|_| true)
     }
 
     fn write_params(
         &mut self,
         state: &mut MaudioSpecialStateCache,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,

@@ -92,9 +92,13 @@ impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol>
     const BALANCE_NAME: &'static str = "mixer-source-balance";
 }
 
-impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for FaModel<Fa66MixerAnalogSourceProtocol> {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
@@ -105,7 +109,7 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -131,15 +135,19 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self
             .analog_in_ctl
@@ -157,9 +165,13 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
     }
 }
 
-impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for FaModel<Fa101MixerAnalogSourceProtocol> {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
@@ -170,7 +182,7 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -196,15 +208,19 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self
             .analog_in_ctl

@@ -69,9 +69,13 @@ struct ThroughCtl;
 
 impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {}
 
-impl CtlModel<SndUnit> for SaffireLeModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
@@ -104,7 +108,7 @@ impl CtlModel<SndUnit> for SaffireLeModel {
 
     fn read(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -146,20 +150,28 @@ impl CtlModel<SndUnit> for SaffireLeModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self
             .out_ctl
@@ -192,18 +204,18 @@ impl CtlModel<SndUnit> for SaffireLeModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for SaffireLeModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for SaffireLeModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -212,13 +224,13 @@ impl NotifyModel<SndUnit, bool> for SaffireLeModel {
     }
 }
 
-impl MeasureModel<SndUnit> for SaffireLeModel {
+impl MeasureModel<(SndUnit, FwNode)> for SaffireLeModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.out_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
         self.out_ctl.measure_params(unit, &self.req, TIMEOUT_MS)?;
         Ok(())
@@ -226,7 +238,7 @@ impl MeasureModel<SndUnit> for SaffireLeModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -272,7 +284,7 @@ impl MeterCtl {
     fn load_meter(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -326,13 +338,18 @@ impl MeterCtl {
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        SaffireLeMeterProtocol::read_meter(req, &unit.get_node(), &mut self.1, timeout_ms)?;
+        SaffireLeMeterProtocol::read_meter(req, &unit.1, &mut self.1, timeout_ms)?;
 
         Ok(measured_elem_id_list)
     }
 
-    fn measure_meter(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
-        SaffireLeMeterProtocol::read_meter(req, &unit.get_node(), &mut self.1, timeout_ms)
+    fn measure_meter(
+        &mut self,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        SaffireLeMeterProtocol::read_meter(req, &unit.1, &mut self.1, timeout_ms)
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -364,14 +381,14 @@ impl SpecificCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_INPUT_2_3_HIGH_GAIN, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 2, false)?;
 
-        SaffireLeSpecificProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)
+        SaffireLeSpecificProtocol::read_params(req, &unit.1, &mut self.0, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -386,7 +403,7 @@ impl SpecificCtl {
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -398,7 +415,7 @@ impl SpecificCtl {
                 elem_value.get_bool(&mut vals);
                 SaffireLeSpecificProtocol::write_analog_input_high_gains(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     &vals,
                     &mut self.0,
                     timeout_ms,
@@ -417,7 +434,7 @@ impl MixerLowRateCtl {
     fn load_src_gains(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -449,12 +466,7 @@ impl MixerLowRateCtl {
             )
             .map(|_| ())?;
 
-        SaffireLeMixerLowRateProtocol::read_src_gains(
-            req,
-            &unit.get_node(),
-            &mut self.0,
-            timeout_ms,
-        )?;
+        SaffireLeMixerLowRateProtocol::read_src_gains(req, &unit.1, &mut self.0, timeout_ms)?;
 
         Ok(())
     }
@@ -471,7 +483,7 @@ impl MixerLowRateCtl {
 
     fn write_src_gains(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -488,7 +500,7 @@ impl MixerLowRateCtl {
                 });
                 SaffireLeMixerLowRateProtocol::write_phys_src_gains(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     index,
                     &levels,
                     &mut self.0,
@@ -506,7 +518,7 @@ impl MixerLowRateCtl {
                 });
                 SaffireLeMixerLowRateProtocol::write_stream_src_gains(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     index,
                     &levels,
                     &mut self.0,
@@ -527,7 +539,7 @@ impl MixerMiddleRateCtl {
     fn load_src_gains(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -581,12 +593,7 @@ impl MixerMiddleRateCtl {
             )
             .map(|_| ())?;
 
-        SaffireLeMixerMiddleRateProtocol::read_state(
-            req,
-            &unit.get_node(),
-            &mut self.0,
-            timeout_ms,
-        )?;
+        SaffireLeMixerMiddleRateProtocol::read_state(req, &unit.1, &mut self.0, timeout_ms)?;
 
         Ok(())
     }
@@ -615,7 +622,7 @@ impl MixerMiddleRateCtl {
 
     fn write_src_gains(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -631,7 +638,7 @@ impl MixerMiddleRateCtl {
                 });
                 SaffireLeMixerMiddleRateProtocol::write_monitor_src_phys_input_gains(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     &gains,
                     &mut self.0,
                     timeout_ms,
@@ -648,7 +655,7 @@ impl MixerMiddleRateCtl {
                 });
                 SaffireLeMixerMiddleRateProtocol::write_monitor_out_src_pair_gains(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     index,
                     &levels,
                     &mut self.0,
@@ -666,7 +673,7 @@ impl MixerMiddleRateCtl {
                 });
                 SaffireLeMixerMiddleRateProtocol::write_stream_src_pair_gains(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     index,
                     &levels,
                     &mut self.0,
@@ -727,10 +734,11 @@ mod test {
         let mut card_cntr = CardCntr::new();
         let mut ctl = OutputCtl::default();
         let unit = SndUnit::default();
+        let node = FwNode::default();
         let req = FwReq::default();
 
         let error = ctl
-            .load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS)
+            .load_params(&mut card_cntr, &(unit, node), &req, TIMEOUT_MS)
             .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

@@ -108,9 +108,13 @@ impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
 #[derive(Default)]
 struct ReverbCtl(SaffireReverbParameters);
 
-impl CtlModel<SndUnit> for SaffireModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for SaffireModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
@@ -159,7 +163,7 @@ impl CtlModel<SndUnit> for SaffireModel {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -195,20 +199,28 @@ impl CtlModel<SndUnit> for SaffireModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self
             .out_ctl
@@ -254,18 +266,18 @@ impl CtlModel<SndUnit> for SaffireModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for SaffireModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for SaffireModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -274,7 +286,7 @@ impl NotifyModel<SndUnit, bool> for SaffireModel {
     }
 }
 
-impl MeasureModel<SndUnit> for SaffireModel {
+impl MeasureModel<(SndUnit, FwNode)> for SaffireModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
         elem_id_list.extend_from_slice(&self.out_ctl.0);
@@ -282,7 +294,7 @@ impl MeasureModel<SndUnit> for SaffireModel {
         elem_id_list.extend_from_slice(&self.paired_mixer_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
         self.out_ctl.measure_params(unit, &self.req, TIMEOUT_MS)?;
         Ok(())
@@ -290,7 +302,7 @@ impl MeasureModel<SndUnit> for SaffireModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -324,7 +336,7 @@ impl MeterCtl {
     fn load_meter(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -355,13 +367,18 @@ impl MeterCtl {
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        SaffireMeterProtocol::read_meter(req, &unit.get_node(), &mut self.1, timeout_ms)?;
+        SaffireMeterProtocol::read_meter(req, &unit.1, &mut self.1, timeout_ms)?;
 
         Ok(measured_elem_id_list)
     }
 
-    fn measure_meter(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
-        SaffireMeterProtocol::read_meter(req, &unit.get_node(), &mut self.1, timeout_ms)
+    fn measure_meter(
+        &mut self,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        SaffireMeterProtocol::read_meter(req, &unit.1, &mut self.1, timeout_ms)
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -411,7 +428,7 @@ impl SpecificCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -436,7 +453,7 @@ impl SpecificCtl {
             .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())?;
 
-        SaffireSpecificProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)?;
+        SaffireSpecificProtocol::read_params(req, &unit.1, &mut self.0, timeout_ms)?;
 
         Ok(())
     }
@@ -471,7 +488,7 @@ impl SpecificCtl {
         &mut self,
         separated_mixer_ctl: &mut SeparatedMixerCtl,
         paired_mixer_ctl: &mut PairedMixerCtl,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -483,7 +500,7 @@ impl SpecificCtl {
                 elem_value.get_bool(&mut vals);
                 SaffireSpecificProtocol::write_192khz_mode(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     vals[0],
                     &mut self.0,
                     timeout_ms,
@@ -502,7 +519,7 @@ impl SpecificCtl {
                     })?;
                 SaffireSpecificProtocol::write_input_pair_1_src(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     src,
                     &mut self.0,
                     timeout_ms,
@@ -521,7 +538,7 @@ impl SpecificCtl {
                     })?;
                 SaffireSpecificProtocol::write_mixer_mode(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     mode,
                     &mut self.0,
                     timeout_ms,
@@ -547,7 +564,7 @@ impl ReverbCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -599,7 +616,7 @@ impl ReverbCtl {
             false,
         )?;
 
-        SaffireReverbProtocol::read_params(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+        SaffireReverbProtocol::read_params(req, &mut unit.1, &mut self.0, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -626,7 +643,7 @@ impl ReverbCtl {
 
     fn write_params(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -638,7 +655,7 @@ impl ReverbCtl {
                 elem_value.get_int(&mut vals);
                 SaffireReverbProtocol::write_amounts(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &vals,
                     &mut self.0,
                     timeout_ms,
@@ -650,7 +667,7 @@ impl ReverbCtl {
                 elem_value.get_int(&mut vals);
                 SaffireReverbProtocol::write_room_sizes(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &vals,
                     &mut self.0,
                     timeout_ms,
@@ -662,7 +679,7 @@ impl ReverbCtl {
                 elem_value.get_int(&mut vals);
                 SaffireReverbProtocol::write_diffusions(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &vals,
                     &mut self.0,
                     timeout_ms,
@@ -672,14 +689,8 @@ impl ReverbCtl {
             REVERB_TONE_NAME => {
                 let mut vals = [0; 2];
                 elem_value.get_int(&mut vals);
-                SaffireReverbProtocol::write_tones(
-                    req,
-                    &mut unit.get_node(),
-                    &vals,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                SaffireReverbProtocol::write_tones(req, &mut unit.1, &vals, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -708,10 +719,11 @@ mod test {
         let mut card_cntr = CardCntr::new();
         let mut ctl = OutputCtl::default();
         let unit = SndUnit::default();
+        let node = FwNode::default();
         let req = FwReq::default();
 
         let error = ctl
-            .load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS)
+            .load_params(&mut card_cntr, &(unit, node), &req, TIMEOUT_MS)
             .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

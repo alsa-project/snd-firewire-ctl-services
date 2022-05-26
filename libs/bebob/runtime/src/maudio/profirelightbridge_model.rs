@@ -41,9 +41,13 @@ struct MeterCtl(PflMeterState, Vec<ElemId>);
 #[derive(Default)]
 struct InputParamsCtl(PflInputParameters);
 
-impl CtlModel<SndUnit> for PflModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for PflModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
@@ -64,7 +68,7 @@ impl CtlModel<SndUnit> for PflModel {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -89,20 +93,28 @@ impl CtlModel<SndUnit> for PflModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self
             .input_params_ctl
@@ -115,18 +127,18 @@ impl CtlModel<SndUnit> for PflModel {
     }
 }
 
-impl MeasureModel<SndUnit> for PflModel {
+impl MeasureModel<(SndUnit, FwNode)> for PflModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -134,18 +146,18 @@ impl MeasureModel<SndUnit> for PflModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for PflModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for PflModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -188,7 +200,7 @@ impl MeterCtl {
     fn load_state(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -226,8 +238,13 @@ impl MeterCtl {
         self.measure_state(unit, req, timeout_ms)
     }
 
-    fn measure_state(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
-        PflMeterProtocol::read_meter(req, &unit.get_node(), &mut self.0, timeout_ms)
+    fn measure_state(
+        &mut self,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        PflMeterProtocol::read_meter(req, &unit.1, &mut self.0, timeout_ms)
     }
 
     fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -261,7 +278,7 @@ impl InputParamsCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -274,12 +291,7 @@ impl InputParamsCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, FORCE_SMUX_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        PflInputParametersProtocol::write_input_parameters(
-            req,
-            &unit.get_node(),
-            &mut self.0,
-            timeout_ms,
-        )
+        PflInputParametersProtocol::write_input_parameters(req, &unit.1, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -302,7 +314,7 @@ impl InputParamsCtl {
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -311,7 +323,7 @@ impl InputParamsCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ADAT_MUTE_NAME => {
-                if unit.get_property_streaming() {
+                if unit.0.get_property_streaming() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
 
@@ -324,7 +336,7 @@ impl InputParamsCtl {
                 .and_then(|_| {
                     PflInputParametersProtocol::write_input_parameters(
                         req,
-                        &unit.get_node(),
+                        &unit.1,
                         &mut params,
                         timeout_ms,
                     )?;
@@ -333,7 +345,7 @@ impl InputParamsCtl {
                 })
             }
             SPDIF_MUTE_NAME => {
-                if unit.get_property_streaming() {
+                if unit.0.get_property_streaming() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
 
@@ -346,7 +358,7 @@ impl InputParamsCtl {
                 .and_then(|_| {
                     PflInputParametersProtocol::write_input_parameters(
                         req,
-                        &unit.get_node(),
+                        &unit.1,
                         &mut params,
                         timeout_ms,
                     )?;
@@ -364,7 +376,7 @@ impl InputParamsCtl {
                 .and_then(|_| {
                     PflInputParametersProtocol::write_input_parameters(
                         req,
-                        &unit.get_node(),
+                        &unit.1,
                         &mut params,
                         timeout_ms,
                     )?;
