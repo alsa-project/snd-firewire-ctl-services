@@ -2,11 +2,11 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    glib::{Error, FileError},
-    core::{card_cntr::*, elem_value_accessor::*},
-    hinawa::{SndEfw, SndUnitExt},
     alsactl::{ElemId, ElemIfaceType, ElemValue},
-    efw_protocols::{ClkSrc, hw_info::*, hw_ctl::*},
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_ctl::*, hw_info::*, ClkSrc},
+    glib::{Error, FileError},
+    hinawa::{SndEfw, SndUnitExt},
 };
 
 fn clk_src_to_str(src: &ClkSrc) -> &'static str {
@@ -39,7 +39,7 @@ impl ClkCtl {
         hwinfo: &HwInfo,
         card_cntr: &mut CardCntr,
         unit: &mut SndEfw,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         self.srcs.extend_from_slice(&hwinfo.clk_srcs);
         self.rates.extend_from_slice(&hwinfo.clk_rates);
@@ -49,23 +49,25 @@ impl ClkCtl {
         let labels: Vec<&str> = self.srcs.iter().map(|src| clk_src_to_str(src)).collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, SRC_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<String> = hwinfo.clk_rates.iter().map(|rate| rate.to_string()).collect();
+        let labels: Vec<String> = hwinfo
+            .clk_rates
+            .iter()
+            .map(|rate| rate.to_string())
+            .collect();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.notified_elem_id_list.append(&mut elem_id_list))?;
 
         Ok(())
     }
 
-    pub fn cache(
-        &mut self,
-        unit: &mut SndEfw,
-        timeout_ms: u32
-    ) -> Result<(), Error> {
+    pub fn cache(&mut self, unit: &mut SndEfw, timeout_ms: u32) -> Result<(), Error> {
         let state = unit.get_clock(timeout_ms)?;
 
         if self.srcs.iter().find(|s| state.0.eq(s)).is_none() {
@@ -88,18 +90,18 @@ impl ClkCtl {
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            SRC_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    Ok(self.srcs.iter().position(|s| self.curr_src.eq(s)).unwrap() as u32)
-                })
-                    .map(|_| true)
-            }
-            RATE_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || {
-                    Ok(self.rates.iter().position(|r| self.curr_rate.eq(r)).unwrap() as u32)
-                })
-                    .map(|_| true)
-            }
+            SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                Ok(self.srcs.iter().position(|s| self.curr_src.eq(s)).unwrap() as u32)
+            })
+            .map(|_| true),
+            RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
+                Ok(self
+                    .rates
+                    .iter()
+                    .position(|r| self.curr_rate.eq(r))
+                    .unwrap() as u32)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }

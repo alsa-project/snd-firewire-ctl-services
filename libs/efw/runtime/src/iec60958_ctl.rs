@@ -2,11 +2,11 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
+    alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual},
+    core::card_cntr::*,
+    efw_protocols::{hw_ctl::*, hw_info::*, *},
     glib::Error,
     hinawa::SndEfw,
-    alsactl::{ElemId, ElemIfaceType, ElemValueExtManual, ElemValueExt, ElemValue},
-    core::card_cntr::*,
-    efw_protocols::{hw_info::*, hw_ctl::*, *},
 };
 
 #[derive(Default)]
@@ -20,7 +20,11 @@ impl Iec60958Ctl {
     const AES0_NONAUDIO: u8 = 0x2;
 
     pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let has_spdif = hwinfo.clk_srcs.iter().find(|src| ClkSrc::Spdif.eq(src)).is_some();
+        let has_spdif = hwinfo
+            .clk_srcs
+            .iter()
+            .find(|src| ClkSrc::Spdif.eq(src))
+            .is_some();
 
         if has_spdif {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DEFAULT_NAME, 0);
@@ -42,19 +46,27 @@ impl Iec60958Ctl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             DEFAULT_NAME => {
-                let mut val = [0;24];
+                let mut val = [0; 24];
                 let flags = unit.get_flags(timeout_ms)?;
-                if flags.iter().find(|&flag| *flag == HwCtlFlag::SpdifPro).is_some() {
+                if flags
+                    .iter()
+                    .find(|&flag| *flag == HwCtlFlag::SpdifPro)
+                    .is_some()
+                {
                     val[0] |= Self::AES0_PROFESSIONAL;
                 }
-                if flags.iter().find(|&flag| *flag == HwCtlFlag::SpdifNoneAudio).is_some() {
+                if flags
+                    .iter()
+                    .find(|&flag| *flag == HwCtlFlag::SpdifNoneAudio)
+                    .is_some()
+                {
                     val[0] |= Self::AES0_NONAUDIO;
                 }
                 elem_value.set_iec60958_channel_status(&val);
                 Ok(true)
             }
             MASK_NAME => {
-                let mut val = [0;24];
+                let mut val = [0; 24];
                 val[0] = Self::AES0_PROFESSIONAL | Self::AES0_NONAUDIO;
                 elem_value.set_iec60958_channel_status(&val);
                 Ok(true)
@@ -73,7 +85,7 @@ impl Iec60958Ctl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             DEFAULT_NAME => {
-                let mut vals = [0;24];
+                let mut vals = [0; 24];
                 new.get_iec60958_channel_status(&mut vals);
 
                 let mut enable = vec![];
