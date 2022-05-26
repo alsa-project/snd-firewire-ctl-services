@@ -96,23 +96,27 @@ impl RuntimeOperation<u32> for MotuRuntime {
             0x00000f => Ok(Self::F8pre(F8preRuntime::new(
                 unit, node, card_id, version,
             )?)),
-            0x000015 => Ok(Self::F828mk3(F828mk3Runtime::new(unit, card_id, version)?)),
+            0x000015 => Ok(Self::F828mk3(F828mk3Runtime::new(
+                unit, node, card_id, version,
+            )?)),
             0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
             0x00001b => Ok(Self::TravelerMk3(TravelerMk3Runtime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
             0x000030 => Ok(Self::Ultralitemk3Hybrid(UltraliteMk3HybridRuntime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
             0x000033 => Ok(Self::AudioExpress(AudioExpressRuntime::new(
                 unit, node, card_id, version,
             )?)),
             0x000035 => Ok(Self::F828mk3Hybrid(F828mk3HybridRuntime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
-            0x000039 => Ok(Self::Track16(Track16Runtime::new(unit, card_id, version)?)),
+            0x000039 => Ok(Self::Track16(Track16Runtime::new(
+                unit, node, card_id, version,
+            )?)),
             0x000045 => Ok(Self::H4pre(H4preRuntime::new(
                 unit, node, card_id, version,
             )?)),
