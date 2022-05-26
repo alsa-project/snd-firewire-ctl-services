@@ -52,13 +52,13 @@ impl CtlModel<(SndDice, FwNode)> for ItwinModel {
         self.hw_state_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.reverb_ctl.2 = notified_elem_id_list;
                 self.reverb_ctl.3 = measured_elem_id_list;
             })?;
         self.ch_strip_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.ch_strip_ctl.2 = notified_elem_id_list;
                 self.ch_strip_ctl.3 = measured_elem_id_list;
@@ -138,17 +138,13 @@ impl CtlModel<(SndDice, FwNode)> for ItwinModel {
             Ok(true)
         } else if self
             .reverb_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.ch_strip_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .ch_strip_ctl
+            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -179,9 +175,9 @@ impl NotifyModel<(SndDice, FwNode), u32> for ItwinModel {
         self.hw_state_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.reverb_ctl
-            .parse_notification(&mut unit.0, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .parse_notification(&mut unit.0, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -225,9 +221,9 @@ impl MeasureModel<(SndDice, FwNode)> for ItwinModel {
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .measure_states(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .measure_states(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -319,7 +315,7 @@ impl KnobCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -509,9 +505,9 @@ impl ConfigCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer_stream_src(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        if self.write_mixer_stream_src(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -656,7 +652,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(&mut unit.0, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -816,7 +812,7 @@ impl HwStateCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {

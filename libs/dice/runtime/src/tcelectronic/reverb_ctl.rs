@@ -140,13 +140,12 @@ where
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(Vec<ElemId>, Vec<ElemId>), Error> {
-        let mut node = unit.get_node();
-        U::read_segment(req, &mut node, self.state_segment_mut(), timeout_ms)?;
-        U::read_segment(req, &mut node, self.meter_segment_mut(), timeout_ms)?;
+        U::read_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)?;
+        U::read_segment(req, &mut unit.1, self.meter_segment_mut(), timeout_ms)?;
 
         let mut notified_elem_id_list = Vec::new();
 
@@ -373,7 +372,7 @@ where
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -470,7 +469,7 @@ where
 
     fn state_write_elem<V, F>(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -485,13 +484,7 @@ where
             cb(&mut self.state_mut(), val);
             Ok(())
         })?;
-        U::write_segment(
-            req,
-            &mut unit.get_node(),
-            self.state_segment_mut(),
-            timeout_ms,
-        )
-        .map(|_| true)
+        U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms).map(|_| true)
     }
 
     fn read_notified_elem(
@@ -553,17 +546,12 @@ where
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if !self.state().bypass {
-            U::read_segment(
-                req,
-                &mut unit.get_node(),
-                self.meter_segment_mut(),
-                timeout_ms,
-            )
+            U::read_segment(req, &mut unit.1, self.meter_segment_mut(), timeout_ms)
         } else {
             Ok(())
         }
@@ -571,18 +559,13 @@ where
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.state_segment().has_segment_change(msg) {
-            U::read_segment(
-                req,
-                &mut unit.get_node(),
-                self.state_segment_mut(),
-                timeout_ms,
-            )
+            U::read_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)
         } else {
             Ok(())
         }

@@ -54,13 +54,13 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
 
         self.reverb_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.reverb_ctl.2 = notified_elem_id_list;
                 self.reverb_ctl.3 = measured_elem_id_list;
             })?;
         self.ch_strip_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.ch_strip_ctl.2 = notified_elem_id_list;
                 self.ch_strip_ctl.3 = measured_elem_id_list;
@@ -152,17 +152,13 @@ impl CtlModel<(SndDice, FwNode)> for Studiok48Model {
             Ok(true)
         } else if self
             .reverb_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.ch_strip_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .ch_strip_ctl
+            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .hw_state_ctl
@@ -202,9 +198,9 @@ impl NotifyModel<(SndDice, FwNode), u32> for Studiok48Model {
         self.phys_out_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.reverb_ctl
-            .parse_notification(&mut unit.0, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .parse_notification(&mut unit.0, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.hw_state_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
 
@@ -255,9 +251,9 @@ impl MeasureModel<(SndDice, FwNode)> for Studiok48Model {
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .measure_states(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .measure_states(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -681,7 +677,7 @@ impl RemoteCtl {
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
-            _ => self.write_prog(&mut unit.0, req, elem_id, new, timeout_ms),
+            _ => self.write_prog(unit, req, elem_id, new, timeout_ms),
         }
     }
 
@@ -853,9 +849,9 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_standalone_rate(&mut unit.0, req, elem_id, elem_value, timeout_ms)? {
+        if self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
-        } else if self.write_midi_sender(&mut unit.0, req, elem_id, elem_value, timeout_ms)? {
+        } else if self.write_midi_sender(unit, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -2504,7 +2500,7 @@ impl HwStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_firewire_led(&mut unit.0, req, elem_id, elem_value, timeout_ms)
+        self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)
     }
 
     fn read_notified_elem(

@@ -86,7 +86,7 @@ where
 
     fn write_hw_state(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -316,7 +316,7 @@ where
 
     fn write_mixer(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -362,13 +362,8 @@ where
                     Ok(())
                 })?;
 
-                U::write_segment(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_segment_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             MIXER_PHYS_SRC_GAIN_NAME => {
                 self.state_write_phys_src(unit, req, new, old, timeout_ms, |param, val| {
@@ -396,13 +391,8 @@ where
                     Ok(())
                 })?;
 
-                U::write_segment(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_segment_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms)
+                    .map(|_| true)
             }
             REVERB_PHYS_SRC_GAIN_NAME => {
                 self.state_write_phys_src(unit, req, new, old, timeout_ms, |param, val| {
@@ -428,7 +418,7 @@ where
 
     fn state_write<V, F>(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -440,18 +430,12 @@ where
         ElemValue: ElemValueAccessor<V>,
     {
         ElemValueAccessor::<V>::get_val(elem_value, |val| cb(self.state_mut(), val))?;
-        U::write_segment(
-            req,
-            &mut unit.get_node(),
-            self.state_segment_mut(),
-            timeout_ms,
-        )
-        .map(|_| true)
+        U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms).map(|_| true)
     }
 
     fn state_write_phys_src<V, F>(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         new: &ElemValue,
         old: &ElemValue,
@@ -482,13 +466,7 @@ where
             };
             cb(param, val)
         })?;
-        U::write_segment(
-            req,
-            &mut unit.get_node(),
-            self.state_segment_mut(),
-            timeout_ms,
-        )
-        .map(|_| true)
+        U::write_segment(req, &mut unit.1, self.state_segment_mut(), timeout_ms).map(|_| true)
     }
 
     fn read_mixer_notified_elem(
@@ -725,7 +703,7 @@ where
 
     fn write_reverb_return(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -737,24 +715,21 @@ where
                     self.reverb_return_mut().plugin_mode = val;
                     Ok(())
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             GAIN_NAME => {
                 ElemValueAccessor::<i32>::get_val(elem_value, |val| {
                     self.reverb_return_mut().return_gain = val;
                     Ok(())
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             MUTE_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     self.reverb_return_mut().return_mute = val;
                     Ok(())
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -827,7 +802,7 @@ where
 
     fn write_standalone(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -845,8 +820,7 @@ where
                         })
                         .map(|&s| *self.standalone_src_mut() = s)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms),
         }
@@ -920,7 +894,7 @@ where
 
     fn write_mixer_stream_src(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -939,8 +913,7 @@ where
                         })
                         .map(|&s| *self.mixer_stream_src_mut() = s)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1006,7 +979,7 @@ where
 
     fn write_coax_out_src(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1024,8 +997,7 @@ where
                         })
                         .map(|&s| self.coax_out_src_mut().0 = s)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1130,7 +1102,7 @@ where
 
     fn write_opt_iface_config(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1148,8 +1120,7 @@ where
                         })
                         .map(|&f| self.opt_iface_config_mut().input_format = f)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             OPT_OUT_FMT_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -1162,8 +1133,7 @@ where
                         })
                         .map(|&f| self.opt_iface_config_mut().output_format = f)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             OPT_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -1176,8 +1146,7 @@ where
                         })
                         .map(|&s| self.opt_iface_config_mut().output_source.0 = s)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1225,7 +1194,7 @@ where
 
     fn write_knob_target(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1242,8 +1211,7 @@ where
                         Ok(())
                     }
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1291,7 +1259,7 @@ where
 
     fn write_knob2_target(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1308,8 +1276,7 @@ where
                         Ok(())
                     }
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
