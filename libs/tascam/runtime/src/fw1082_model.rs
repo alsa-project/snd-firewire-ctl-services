@@ -119,14 +119,14 @@ impl SequencerCtlOperation<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
     }
 }
 
-impl MeasureModel<SndTscm> for Fw1082Model {
+impl MeasureModel<(SndTscm, FwNode)> for Fw1082Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.console_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndTscm) -> Result<(), Error> {
-        let image = unit.get_state()?;
+    fn measure_states(&mut self, unit: &mut (SndTscm, FwNode)) -> Result<(), Error> {
+        let image = unit.0.get_state()?;
         self.meter_ctl.parse_state(image)?;
         self.console_ctl.parse_states(image)?;
         Ok(())
@@ -134,7 +134,7 @@ impl MeasureModel<SndTscm> for Fw1082Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndTscm,
+        _: &(SndTscm, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -148,9 +148,13 @@ impl MeasureModel<SndTscm> for Fw1082Model {
     }
 }
 
-impl CtlModel<SndTscm> for Fw1082Model {
-    fn load(&mut self, unit: &mut SndTscm, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let image = unit.get_state()?;
+impl CtlModel<(SndTscm, FwNode)> for Fw1082Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndTscm, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        let image = unit.0.get_state()?;
         self.meter_ctl
             .load_state(card_cntr, image)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
@@ -166,14 +170,14 @@ impl CtlModel<SndTscm> for Fw1082Model {
 
     fn read(
         &mut self,
-        unit: &mut SndTscm,
+        unit: &mut (SndTscm, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.common_ctl.read_params(
-            unit,
+            &mut unit.1,
             &mut self.req,
             elem_id,
             elem_value,
@@ -181,7 +185,7 @@ impl CtlModel<SndTscm> for Fw1082Model {
         )? {
             Ok(true)
         } else if self.console_ctl.read_params(
-            unit,
+            &mut unit.1,
             &mut self.req,
             elem_id,
             elem_value,
@@ -195,7 +199,7 @@ impl CtlModel<SndTscm> for Fw1082Model {
 
     fn write(
         &mut self,
-        unit: &mut SndTscm,
+        unit: &mut (SndTscm, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -205,10 +209,13 @@ impl CtlModel<SndTscm> for Fw1082Model {
             .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .console_ctl
-            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.console_ctl.write_params(
+            &mut unit.1,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)

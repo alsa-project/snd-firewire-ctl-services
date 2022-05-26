@@ -16,7 +16,10 @@ pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082
 
 pub struct IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<T, U> + Default,
+    S: CtlModel<(SndTscm, FwNode)>
+        + MeasureModel<(SndTscm, FwNode)>
+        + SequencerCtlOperation<T, U>
+        + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     unit: (SndTscm, FwNode),
@@ -34,7 +37,10 @@ where
 
 impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<T, U> + Default,
+    S: CtlModel<(SndTscm, FwNode)>
+        + MeasureModel<(SndTscm, FwNode)>
+        + SequencerCtlOperation<T, U>
+        + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
@@ -62,7 +68,10 @@ const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<S, T, U> IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<T, U> + Default,
+    S: CtlModel<(SndTscm, FwNode)>
+        + MeasureModel<(SndTscm, FwNode)>
+        + SequencerCtlOperation<T, U>
+        + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(unit: SndTscm, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
@@ -95,7 +104,7 @@ where
 
         self.seq_cntr.open_port()?;
         self.model.initialize_sequencer(&mut self.unit.1)?;
-        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -120,7 +129,7 @@ where
                 ConsoleUnitEvent::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit.0,
+                            &mut self.unit,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -145,7 +154,7 @@ where
                 }
                 ConsoleUnitEvent::Interval => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &self.measure_elems,
                         &mut self.model,
                     );
