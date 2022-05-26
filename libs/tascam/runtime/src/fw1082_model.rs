@@ -81,13 +81,21 @@ impl IsochConsoleCtlOperation<Fw1082Protocol> for ConsoleCtl {
     }
 }
 
-impl SequencerCtlOperation<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
+impl SequencerCtlOperation<SndTascam, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
     fn state(&self) -> &SequencerState<Fw1082SurfaceState> {
         &self.seq_state
     }
 
     fn state_mut(&mut self) -> &mut SequencerState<Fw1082SurfaceState> {
         &mut self.seq_state
+    }
+
+    fn image(&self) -> &[u32] {
+        &self.image
+    }
+
+    fn image_mut(&mut self) -> &mut Vec<u32> {
+        &mut self.image
     }
 
     fn initialize_surface(

@@ -122,13 +122,21 @@ impl IsochConsoleCtlOperation<Fw1884Protocol> for ConsoleCtl {
 #[derive(Default)]
 struct SpecificCtl;
 
-impl SequencerCtlOperation<Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
+impl SequencerCtlOperation<SndTascam, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
     fn state(&self) -> &SequencerState<Fw1884SurfaceState> {
         &self.seq_state
     }
 
     fn state_mut(&mut self) -> &mut SequencerState<Fw1884SurfaceState> {
         &mut self.seq_state
+    }
+
+    fn image(&self) -> &[u32] {
+        &self.image
+    }
+
+    fn image_mut(&mut self) -> &mut Vec<u32> {
+        &mut self.image
     }
 
     fn initialize_surface(

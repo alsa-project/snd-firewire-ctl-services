@@ -17,7 +17,7 @@ use {
     alsaseq::*,
     asynch_runtime::*,
     core::{card_cntr::*, RuntimeOperation},
-    glib::{source, Error, FileError},
+    glib::{source, Error, FileError, IsA},
     hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
     hitaki::{traits::*, *},
     ieee1212_config_rom::*,
@@ -131,9 +131,17 @@ pub struct SequencerState<U> {
 
 const BOOL_TRUE: i32 = 0x7f;
 
-pub trait SequencerCtlOperation<T: MachineStateOperation + SurfaceImageOperation<U>, U> {
+pub trait SequencerCtlOperation<
+    S: IsA<TascamProtocol>,
+    T: MachineStateOperation + SurfaceImageOperation<U>,
+    U,
+>
+{
     fn state(&self) -> &SequencerState<U>;
     fn state_mut(&mut self) -> &mut SequencerState<U>;
+
+    fn image(&self) -> &[u32];
+    fn image_mut(&mut self) -> &mut Vec<u32>;
 
     fn initialize_surface(
         &mut self,
@@ -185,20 +193,26 @@ pub trait SequencerCtlOperation<T: MachineStateOperation + SurfaceImageOperation
 
     fn dispatch_surface_event(
         &mut self,
-        unit: &mut FwNode,
+        unit: &mut S,
+        node: &mut FwNode,
         seq_cntr: &mut SeqCntr,
-        image: &[u32],
         index: u32,
         before: u32,
         after: u32,
     ) -> Result<(), Error> {
-        let inputs =
-            T::decode_surface_image(&self.state().surface_state, image, index, before, after);
+        unit.read_state(self.image_mut())?;
+        let inputs = T::decode_surface_image(
+            &self.state().surface_state,
+            self.image(),
+            index,
+            before,
+            after,
+        );
         inputs.iter().try_for_each(|input| {
             let outputs = self.dispatch_machine_event(input);
             outputs.iter().try_for_each(|output| {
                 self.feedback_to_appl(seq_cntr, output)?;
-                self.feedback_to_surface(unit, output)
+                self.feedback_to_surface(node, output)
             })
         })
     }

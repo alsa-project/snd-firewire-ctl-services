@@ -18,7 +18,7 @@ pub struct IsochConsoleRuntime<S, T, U>
 where
     S: CtlModel<(SndTascam, FwNode)>
         + MeasureModel<(SndTascam, FwNode)>
-        + SequencerCtlOperation<T, U>
+        + SequencerCtlOperation<SndTascam, T, U>
         + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
@@ -39,7 +39,7 @@ impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
 where
     S: CtlModel<(SndTascam, FwNode)>
         + MeasureModel<(SndTascam, FwNode)>
-        + SequencerCtlOperation<T, U>
+        + SequencerCtlOperation<SndTascam, T, U>
         + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
@@ -70,7 +70,7 @@ impl<S, T, U> IsochConsoleRuntime<S, T, U>
 where
     S: CtlModel<(SndTascam, FwNode)>
         + MeasureModel<(SndTascam, FwNode)>
-        + SequencerCtlOperation<T, U>
+        + SequencerCtlOperation<SndTascam, T, U>
         + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
@@ -114,8 +114,6 @@ where
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
-        let mut image = vec![0u32; 64];
-
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -167,11 +165,10 @@ where
                             .dispatch_appl_event(&mut self.unit.1, &mut self.seq_cntr, &data);
                 }
                 ConsoleUnitEvent::Surface((index, before, after)) => {
-                    self.unit.0.read_state(&mut image)?;
                     let _ = self.model.dispatch_surface_event(
+                        &mut self.unit.0,
                         &mut self.unit.1,
                         &mut self.seq_cntr,
-                        &image,
                         index,
                         before,
                         after,
