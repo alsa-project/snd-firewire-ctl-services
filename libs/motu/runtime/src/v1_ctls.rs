@@ -38,7 +38,7 @@ pub trait V1ClkCtlOperation<T: V1ClkOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -46,11 +46,11 @@ pub trait V1ClkCtlOperation<T: V1ClkOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                T::get_clk_rate(req, &mut unit.1, timeout_ms).map(|idx| idx as u32)
             })
             .map(|_| true),
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_clk_src(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                T::get_clk_src(req, &mut unit.1, timeout_ms).map(|idx| idx as u32)
             })
             .map(|_| true),
             _ => Ok(false),
@@ -59,7 +59,7 @@ pub trait V1ClkCtlOperation<T: V1ClkOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -67,16 +67,16 @@ pub trait V1ClkCtlOperation<T: V1ClkOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.lock()?;
-                let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
-                let _ = unit.unlock();
+                unit.0.lock()?;
+                let res = T::set_clk_rate(req, &mut unit.1, val as usize, timeout_ms);
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
             SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.lock()?;
-                let res = T::set_clk_src(req, &mut unit.get_node(), val as usize, timeout_ms);
-                let _ = unit.unlock();
+                unit.0.lock()?;
+                let res = T::set_clk_src(req, &mut unit.1, val as usize, timeout_ms);
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
@@ -100,7 +100,7 @@ pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -108,7 +108,7 @@ pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MONITOR_INPUT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_monitor_input(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                T::get_monitor_input(req, &mut unit.1, timeout_ms).map(|idx| idx as u32)
             })
             .map(|_| true),
             _ => Ok(false),
@@ -117,7 +117,7 @@ pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
@@ -125,7 +125,7 @@ pub trait V1MonitorInputCtlOperation<T: V1MonitorInputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MONITOR_INPUT_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
-                T::set_monitor_input(req, &mut unit.get_node(), val as usize, timeout_ms)
+                T::set_monitor_input(req, &mut unit.1, val as usize, timeout_ms)
             })
             .map(|_| true),
             _ => Ok(false),

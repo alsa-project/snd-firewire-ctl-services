@@ -299,13 +299,10 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(
-            unit,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .phone_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .word_clk_ctl

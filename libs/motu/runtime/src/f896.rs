@@ -82,11 +82,11 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(&mut unit.0, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.monitor_input_ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             elem_value,
@@ -125,16 +125,13 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.monitor_input_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .monitor_input_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .word_clk_ctl
