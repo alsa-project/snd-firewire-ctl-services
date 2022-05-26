@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2022/05/06
+2022/05/21
 Takashi Sakamoto
 
 Introduction
@@ -44,16 +44,18 @@ Build dependencies
 * Cargo
 * Some crates and their dependencies
 
-  * glib crate in <https://gtk-rs.org/>
-  * hinawa crate v0.5.2 in <https://github.com/alsa-project/hinawa-rs/>
-  * alsactl/alsaseq crates v0.2.0 in <https://github.com/alsa-project/alsa-gobject-rs/>
+  * glib crate v0.10 and its dependencies `<https://gtk-rs.org/>`_
+  * hinawa crate v0.5.2 and its dependencies `<https://github.com/alsa-project/hinawa-rs/>`_
+  * hitaki crate v0.1 and its dependencies `<https://github.com/alsa-project/hitaki-rs/>`_
+  * alsactl/alsatimer/alsaseq crates v0.2 and its dependencies `<https://github.com/alsa-project/alsa-gobject-rs/>`_
 
 Runtime dependencies
 ====================
 
-* glib <https://developer.gnome.org/glib/>
-* libhinawa v2.4 or later <https://github.com/alsa-project/libhinawa>
-* alsa-gobject v0.2 or later <https://github.com/alsa-project/alsa-gobject/>
+* glib `<https://developer.gnome.org/glib/>`_
+* libhinawa v2.4 or later `<https://github.com/alsa-project/libhinawa>`_
+* libhitaki v0.1 or later `<https://github.com/alsa-project/libhitaki>`_
+* alsa-gobject v0.2 or later `<https://github.com/alsa-project/alsa-gobject/>`_
 
 How to build
 ============
@@ -195,8 +197,8 @@ your device, please contact to developer.
 Supported protocols
 ===================
 
-* IEEE 1212:2001 - IEEE Standard for a Control and Status Registers (CSR) Architecture for Microcomputer Buses https://ieeexplore.ieee.org/servlet/opac?punumber=8030
-* Protocols defined by 1394 Trading Association http://1394ta.org/specifications/
+* IEEE 1212:2001 - IEEE Standard for a Control and Status Registers (CSR) Architecture for Microcomputer Buses `<https://ieeexplore.ieee.org/servlet/opac?punumber=8030>`_
+* Protocols defined by 1394 Trading Association `<https://web.archive.org/web/20210216003030/http://1394ta.org/specifications/>`_
    * Configuration ROM for AV/C Devices 1.0 (Dec. 2000, 1394 Trade Association)
    * AV/C Digital Interface Command Set General Specification Version 4.2 (September 1, 2004. TA Document 2004006)
    * Audio and Music Data Transmission Protocol 2.3 (April 24, 2012. Document 2009013)
