@@ -118,44 +118,53 @@ impl RegisterDspMeterCtlOperation<H4preProtocol> for MeterCtl {
     }
 }
 
-impl CtlModel<SndMotu> for H4pre {
-    fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        unit.read_register_dsp_parameter(&mut self.params)?;
+impl CtlModel<(SndMotu, FwNode)> for H4pre {
+    fn load(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        unit.0.read_register_dsp_parameter(&mut self.params)?;
 
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.mixer_output_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        let _ = self
-            .mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.mixer_return_ctl
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
-            .load(card_cntr, unit, &mut self.req, &self.params, TIMEOUT_MS)
+            .load(
+                card_cntr,
+                &mut unit.0,
+                &mut self.req,
+                &self.params,
+                TIMEOUT_MS,
+            )
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         self.output_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
         self.input_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
         self.meter_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+            .read(&mut unit.0, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
@@ -179,49 +188,61 @@ impl CtlModel<SndMotu> for H4pre {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_output_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_return_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_return_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_source_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_source_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .input_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .meter_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -230,16 +251,16 @@ impl CtlModel<SndMotu> for H4pre {
     }
 }
 
-impl NotifyModel<SndMotu, u32> for H4pre {
+impl NotifyModel<(SndMotu, FwNode), u32> for H4pre {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {}
 
-    fn parse_notification(&mut self, _: &mut SndMotu, _: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndMotu, FwNode), _: &u32) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         _: &ElemId,
         _: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -247,7 +268,7 @@ impl NotifyModel<SndMotu, u32> for H4pre {
     }
 }
 
-impl NotifyModel<SndMotu, bool> for H4pre {
+impl NotifyModel<(SndMotu, FwNode), bool> for H4pre {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.1);
@@ -256,15 +277,21 @@ impl NotifyModel<SndMotu, bool> for H4pre {
         elem_id_list.extend_from_slice(&self.input_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndMotu, is_locked: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        is_locked: &bool,
+    ) -> Result<(), Error> {
         if *is_locked {
-            unit.read_register_dsp_parameter(&mut self.params).map(|_| {
-                self.phone_assign_ctl.parse_dsp_parameter(&self.params);
-                self.mixer_output_ctl.parse_dsp_parameter(&self.params);
-                self.mixer_source_ctl.parse_dsp_parameter(&self.params);
-                self.output_ctl.parse_dsp_parameter(&self.params);
-                self.input_ctl.parse_dsp_parameter(&self.params);
-            })
+            unit.0
+                .read_register_dsp_parameter(&mut self.params)
+                .map(|_| {
+                    self.phone_assign_ctl.parse_dsp_parameter(&self.params);
+                    self.mixer_output_ctl.parse_dsp_parameter(&self.params);
+                    self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+                    self.output_ctl.parse_dsp_parameter(&self.params);
+                    self.input_ctl.parse_dsp_parameter(&self.params);
+                })
         } else {
             Ok(())
         }
@@ -272,7 +299,7 @@ impl NotifyModel<SndMotu, bool> for H4pre {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -292,14 +319,14 @@ impl NotifyModel<SndMotu, bool> for H4pre {
     }
 }
 
-impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for H4pre {
+impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for H4pre {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
         // MEMO: handled by the above implementation.
     }
 
     fn parse_notification(
         &mut self,
-        _: &mut SndMotu,
+        _: &mut (SndMotu, FwNode),
         events: &Vec<RegisterDspEvent>,
     ) -> Result<(), Error> {
         events.iter().for_each(|event| {
@@ -313,7 +340,7 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for H4pre {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -333,18 +360,18 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for H4pre {
     }
 }
 
-impl MeasureModel<SndMotu> for H4pre {
+impl MeasureModel<(SndMotu, FwNode)> for H4pre {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
-        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    fn measure_states(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(&unit.0, &mut self.meter)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {

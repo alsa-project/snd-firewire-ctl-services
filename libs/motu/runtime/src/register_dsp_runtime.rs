@@ -29,11 +29,11 @@ pub type H4preRuntime = RegisterDspRuntime<H4pre>;
 pub struct RegisterDspRuntime<T>
 where
     T: Default
-        + CtlModel<SndMotu>
-        + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, bool>
-        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>
-        + MeasureModel<SndMotu>,
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + NotifyModel<(SndMotu, FwNode), bool>
+        + NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>>
+        + MeasureModel<(SndMotu, FwNode)>,
 {
     unit: (SndMotu, FwNode),
     model: T,
@@ -51,11 +51,11 @@ where
 impl<T> Drop for RegisterDspRuntime<T>
 where
     T: Default
-        + CtlModel<SndMotu>
-        + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, bool>
-        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>
-        + MeasureModel<SndMotu>,
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + NotifyModel<(SndMotu, FwNode), bool>
+        + NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>>
+        + MeasureModel<(SndMotu, FwNode)>,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -92,11 +92,11 @@ const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100
 impl<T> RegisterDspRuntime<T>
 where
     T: Default
-        + CtlModel<SndMotu>
-        + NotifyModel<SndMotu, u32>
-        + NotifyModel<SndMotu, bool>
-        + NotifyModel<SndMotu, Vec<RegisterDspEvent>>
-        + MeasureModel<SndMotu>,
+        + CtlModel<(SndMotu, FwNode)>
+        + NotifyModel<(SndMotu, FwNode), u32>
+        + NotifyModel<(SndMotu, FwNode), bool>
+        + NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>>
+        + MeasureModel<(SndMotu, FwNode)>,
 {
     pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -123,14 +123,14 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
-        NotifyModel::<SndMotu, u32>::get_notified_elem_list(
+        NotifyModel::<(SndMotu, FwNode), u32>::get_notified_elem_list(
             &mut self.model,
             &mut self.notified_elem_id_list,
         );
 
-        NotifyModel::<SndMotu, bool>::get_notified_elem_list(
+        NotifyModel::<(SndMotu, FwNode), bool>::get_notified_elem_list(
             &mut self.model,
             &mut self.notified_elem_id_list,
         );
@@ -160,7 +160,7 @@ where
                 Event::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit.0,
+                            &mut self.unit,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -184,7 +184,7 @@ where
                 }
                 Event::MessageNotify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &msg,
                         &self.notified_elem_id_list,
                         &mut self.model,
@@ -192,7 +192,7 @@ where
                 }
                 Event::LockNotify(locked) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &locked,
                         &self.notified_elem_id_list,
                         &mut self.model,
@@ -200,7 +200,7 @@ where
                 }
                 Event::ChangedNotify(events) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &events,
                         &self.notified_elem_id_list,
                         &mut self.model,
@@ -208,7 +208,7 @@ where
                 }
                 Event::Timer => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &self.measured_elem_id_list,
                         &mut self.model,
                     );
