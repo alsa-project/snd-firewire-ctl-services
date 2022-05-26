@@ -6,9 +6,7 @@
 //! The module includes protocol about port configuration defined by Echo Audio Digital Corporation
 //! for Fireworks board module.
 
-use glib::Error;
-
-use super::EfwProtocol;
+use super::*;
 
 const CATEGORY_PORT_CONF: u32 = 9;
 

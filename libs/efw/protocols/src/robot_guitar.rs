@@ -6,9 +6,7 @@
 //! The module includes protocol about robot guitar defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
-use glib::Error;
-
-use super::EfwProtocol;
+use super::*;
 
 const CATEGORY_ROBOT_GUITAR: u32 = 10;
 

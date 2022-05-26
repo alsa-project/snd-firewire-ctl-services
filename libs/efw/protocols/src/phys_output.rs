@@ -6,9 +6,7 @@
 //! The module includes protocol about physical output defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
-use glib::Error;
-
-use super::{EfwProtocol, NominalSignalLevel};
+use super::*;
 
 const CATEGORY_PHYS_OUTPUT: u32 = 4;
 

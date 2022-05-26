@@ -17,7 +17,10 @@ pub mod port_conf;
 pub mod robot_guitar;
 pub mod transport;
 
-use hinawa::SndEfwExtManual;
+use {
+    glib::{Error, FileError},
+    hinawa::SndEfwStatus,
+};
 
 /// The enumeration to express source of sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -109,7 +112,7 @@ pub trait EfwProtocol {
     ) -> Result<(), glib::Error>;
 }
 
-impl<O: SndEfwExtManual> EfwProtocol for O {
+impl<O: hinawa::SndEfwExtManual> EfwProtocol for O {
     fn transaction_sync(
         &mut self,
         category: u32,

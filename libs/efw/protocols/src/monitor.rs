@@ -6,9 +6,7 @@
 //! The module includes protocol about input monitor defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
-use glib::Error;
-
-use super::EfwProtocol;
+use super::*;
 
 const CATEGORY_MONITOR: u32 = 8;
 

@@ -6,9 +6,7 @@
 //! The module includes protocol about stream playback defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
-use glib::Error;
-
-use super::EfwProtocol;
+use super::*;
 
 const CATEGORY_PLAYBACK: u32 = 6;
 
