@@ -1,50 +1,54 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use alsactl::*;
-use glib::IsA;
-use glib::{Error, FileError};
+
+use {
+    super::*,
+    alsactl::*,
+    glib::{FileError, IsA},
+    hinawa::SndUnit,
+};
 
 pub struct CardCntr {
-    pub card: alsactl::Card,
-    entries: Vec<alsactl::ElemValue>,
+    pub card: Card,
+    entries: Vec<ElemValue>,
 }
 
-pub trait CtlModel<O: IsA<hinawa::SndUnit>> {
+pub trait CtlModel<O: IsA<SndUnit>> {
     fn load(&mut self, unit: &mut O, card_cntr: &mut CardCntr) -> Result<(), Error>;
     fn read(
         &mut self,
         unit: &mut O,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error>;
     fn write(
         &mut self,
         unit: &mut O,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error>;
 }
 
-pub trait MeasureModel<O: IsA<hinawa::SndUnit>> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
+pub trait MeasureModel<O: IsA<SndUnit>> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>);
     fn measure_states(&mut self, unit: &mut O) -> Result<(), Error>;
     fn measure_elem(
         &mut self,
         unit: &O,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error>;
 }
 
-pub trait NotifyModel<O: IsA<hinawa::SndUnit>, N> {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
+pub trait NotifyModel<O: IsA<SndUnit>, N> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>);
     fn parse_notification(&mut self, unit: &mut O, notice: &N) -> Result<(), Error>;
     fn read_notified_elem(
         &mut self,
         unit: &O,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error>;
 }
 
@@ -62,24 +66,24 @@ impl Drop for CardCntr {
 impl CardCntr {
     pub fn new() -> Self {
         CardCntr {
-            card: alsactl::Card::new(),
+            card: Card::new(),
             entries: Vec::new(),
         }
     }
 
     pub fn add_bool_elems(
         &mut self,
-        elem_id: &alsactl::ElemId,
+        elem_id: &ElemId,
         elem_count: usize,
         value_count: usize,
         unlock: bool,
-    ) -> Result<Vec<alsactl::ElemId>, Error> {
-        let elem_info = alsactl::ElemInfo::new(ElemType::Boolean)?;
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_info = ElemInfo::new(ElemType::Boolean)?;
         elem_info.set_property_value_count(value_count as u32);
 
-        let access = alsactl::ElemAccessFlag::READ
-            | alsactl::ElemAccessFlag::WRITE
-            | alsactl::ElemAccessFlag::VOLATILE;
+        let access = ElemAccessFlag::READ
+            | ElemAccessFlag::WRITE
+            | ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
         self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)
@@ -87,13 +91,13 @@ impl CardCntr {
 
     pub fn add_enum_elems<O>(
         &mut self,
-        elem_id: &alsactl::ElemId,
+        elem_id: &ElemId,
         elem_count: usize,
         value_count: usize,
         labels: &[O],
         tlv: Option<&[u32]>,
         unlock: bool,
-    ) -> Result<Vec<alsactl::ElemId>, Error>
+    ) -> Result<Vec<ElemId>, Error>
     where
         O: AsRef<str>,
     {
@@ -102,13 +106,13 @@ impl CardCntr {
             .map(|entry| entry.as_ref())
             .collect::<Vec<&str>>();
 
-        let elem_info = alsactl::ElemInfo::new(ElemType::Enumerated)?;
+        let elem_info = ElemInfo::new(ElemType::Enumerated)?;
         elem_info.set_property_value_count(value_count as u32);
         elem_info.set_enum_data(&entries)?;
 
-        let access = alsactl::ElemAccessFlag::READ
-            | alsactl::ElemAccessFlag::WRITE
-            | alsactl::ElemAccessFlag::VOLATILE;
+        let access = ElemAccessFlag::READ
+            | ElemAccessFlag::WRITE
+            | ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
         self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock)
@@ -116,20 +120,20 @@ impl CardCntr {
 
     pub fn add_bytes_elems(
         &mut self,
-        elem_id: &alsactl::ElemId,
+        elem_id: &ElemId,
         elem_count: usize,
         value_count: usize,
         tlv: Option<&[u32]>,
         unlock: bool,
-    ) -> Result<Vec<alsactl::ElemId>, Error> {
-        let elem_info = alsactl::ElemInfo::new(ElemType::Bytes)?;
+    ) -> Result<Vec<ElemId>, Error> {
+        let elem_info = ElemInfo::new(ElemType::Bytes)?;
         elem_info.set_property_value_count(value_count as u32);
 
-        let mut access = alsactl::ElemAccessFlag::READ
-            | alsactl::ElemAccessFlag::WRITE
-            | alsactl::ElemAccessFlag::VOLATILE;
+        let mut access = ElemAccessFlag::READ
+            | ElemAccessFlag::WRITE
+            | ElemAccessFlag::VOLATILE;
         if tlv != None {
-            access |= alsactl::ElemAccessFlag::TLV_READ | alsactl::ElemAccessFlag::TLV_WRITE;
+            access |= ElemAccessFlag::TLV_READ | ElemAccessFlag::TLV_WRITE;
         }
         elem_info.set_property_access(access);
 
@@ -138,7 +142,7 @@ impl CardCntr {
 
     pub fn add_int_elems(
         &mut self,
-        elem_id: &alsactl::ElemId,
+        elem_id: &ElemId,
         elem_count: usize,
         min: i32,
         max: i32,
@@ -147,15 +151,15 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
-        let elem_info = alsactl::ElemInfo::new(ElemType::Integer)?;
+        let elem_info = ElemInfo::new(ElemType::Integer)?;
         elem_info.set_property_value_count(value_count as u32);
         elem_info.set_int_data(&[min, max, step])?;
 
-        let mut access = alsactl::ElemAccessFlag::READ
-            | alsactl::ElemAccessFlag::WRITE
-            | alsactl::ElemAccessFlag::VOLATILE;
+        let mut access = ElemAccessFlag::READ
+            | ElemAccessFlag::WRITE
+            | ElemAccessFlag::VOLATILE;
         if tlv != None {
-            access |= alsactl::ElemAccessFlag::TLV_READ | alsactl::ElemAccessFlag::TLV_WRITE;
+            access |= ElemAccessFlag::TLV_READ | ElemAccessFlag::TLV_WRITE;
         }
         elem_info.set_property_access(access);
 
@@ -164,16 +168,16 @@ impl CardCntr {
 
     pub fn add_iec60958_elem(
         &mut self,
-        elem_id: &alsactl::ElemId,
+        elem_id: &ElemId,
         elem_count: usize,
         unlock: bool,
     ) -> Result<ElemId, Error> {
-        let elem_info = alsactl::ElemInfo::new(ElemType::Iec60958)?;
+        let elem_info = ElemInfo::new(ElemType::Iec60958)?;
         elem_info.set_property_value_count(1);
 
-        let access = alsactl::ElemAccessFlag::READ
-            | alsactl::ElemAccessFlag::WRITE
-            | alsactl::ElemAccessFlag::VOLATILE;
+        let access = ElemAccessFlag::READ
+            | ElemAccessFlag::WRITE
+            | ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
         let mut elem_id_list =
@@ -184,20 +188,20 @@ impl CardCntr {
 
     fn register_elems<P>(
         &mut self,
-        elem_id: &alsactl::ElemId,
+        elem_id: &ElemId,
         elem_count: usize,
         elem_info: &P,
         tlv: Option<&[u32]>,
         unlock: bool,
-    ) -> Result<Vec<alsactl::ElemId>, Error>
+    ) -> Result<Vec<ElemId>, Error>
     where
-        P: IsA<alsactl::ElemInfo>,
+        P: IsA<ElemInfo>,
     {
         // If already registered, reuse them if possible.
         let elem_id_list = self.card.get_elem_id_list()?;
         let elem_id_list = match elem_id_list.iter().position(|eid| eid.eq(elem_id)) {
             Some(_) => {
-                let elem_id_list: Vec::<alsactl::ElemId> = elem_id_list.into_iter().filter(|eid| {
+                let elem_id_list: Vec::<ElemId> = elem_id_list.into_iter().filter(|eid| {
                     eid.get_name() == elem_id.get_name() &&
                     eid.get_device_id() == elem_id.get_device_id() &&
                     eid.get_subdevice_id() == elem_id.get_subdevice_id() &&
@@ -213,11 +217,11 @@ impl CardCntr {
                 elem_id_list.iter().try_for_each(|elem_id| {
                     let einfo = self.card.get_elem_info(elem_id)?;
 
-                    if einfo.get_property_access().contains(alsactl::ElemAccessFlag::OWNER) {
+                    if einfo.get_property_access().contains(ElemAccessFlag::OWNER) {
                         // Programming error.
                         let label = format!("{} is already added by runtime.", elem_id.get_name());
                         Err(Error::new(FileError::Inval, &label))
-                    } else if einfo.get_property_access().contains(alsactl::ElemAccessFlag::LOCK) {
+                    } else if einfo.get_property_access().contains(ElemAccessFlag::LOCK) {
                         // The other process locks the element.
                         let label = format!("{} is locked by the other process.", elem_id.get_name());
                         Err(Error::new(FileError::Inval, &label))
@@ -257,7 +261,7 @@ impl CardCntr {
             .try_for_each(|elem_id| match self.card.get_elem_info(&elem_id) {
                 Ok(elem_info) => match elem_info.get_property_elem_id() {
                     Some(elem_id) => {
-                        let mut v = alsactl::ElemValue::new();
+                        let mut v = ElemValue::new();
                         self.card.read_elem_value(&elem_id, &mut v)?;
                         self.entries.push(v);
                         Ok(())
@@ -293,15 +297,15 @@ impl CardCntr {
     pub fn dispatch_elem_event<O, T>(
         &mut self,
         unit: &mut O,
-        elem_id: &alsactl::ElemId,
-        events: &alsactl::ElemEventMask,
+        elem_id: &ElemId,
+        events: &ElemEventMask,
         ctl_model: &mut T,
     ) -> Result<(), Error>
     where
-        O: IsA<hinawa::SndUnit>,
+        O: IsA<SndUnit>,
         T: CtlModel<O>,
     {
-        if events.contains(alsactl::ElemEventMask::REMOVE) {
+        if events.contains(ElemEventMask::REMOVE) {
             self.entries.retain(|v| match v.get_property_elem_id() {
                 Some(e) => e != *elem_id,
                 None => true,
@@ -309,7 +313,7 @@ impl CardCntr {
             return Ok(());
         }
 
-        if events.contains(alsactl::ElemEventMask::ADD) {
+        if events.contains(ElemEventMask::ADD) {
             for v in &mut self.entries {
                 let e = match v.get_property_elem_id() {
                     Some(e) => e,
@@ -320,7 +324,7 @@ impl CardCntr {
                     continue;
                 }
 
-                let mut val = alsactl::ElemValue::new();
+                let mut val = ElemValue::new();
 
                 if let Ok(res) = ctl_model.read(unit, &e, &mut val) {
                     if !res {
@@ -340,7 +344,7 @@ impl CardCntr {
             }
         }
 
-        if events.contains(alsactl::ElemEventMask::VALUE) {
+        if events.contains(ElemEventMask::VALUE) {
             for v in &mut self.entries {
                 let e = match v.get_property_elem_id() {
                     Some(e) => e,
@@ -351,7 +355,7 @@ impl CardCntr {
                     continue;
                 }
 
-                let mut val = alsactl::ElemValue::new();
+                let mut val = ElemValue::new();
                 if self.card.read_elem_value(&e, &mut val).is_err() {
                     continue;
                 }
@@ -383,11 +387,11 @@ impl CardCntr {
     pub fn measure_elems<O, T>(
         &mut self,
         unit: &mut O,
-        elem_id_list: &Vec<alsactl::ElemId>,
+        elem_id_list: &Vec<ElemId>,
         ctl_model: &mut T,
     ) -> Result<(), Error>
     where
-        O: IsA<hinawa::SndUnit>,
+        O: IsA<SndUnit>,
         T: CtlModel<O> + MeasureModel<O>,
     {
         let card = &self.card;
@@ -416,11 +420,11 @@ impl CardCntr {
         &mut self,
         unit: &mut O,
         notification: &N,
-        elem_id_list: &Vec<alsactl::ElemId>,
+        elem_id_list: &Vec<ElemId>,
         ctl_model: &mut T,
     ) -> Result<(), Error>
     where
-        O: IsA<hinawa::SndUnit>,
+        O: IsA<SndUnit>,
         T: CtlModel<O> + NotifyModel<O, N>,
     {
         let card = &self.card;
