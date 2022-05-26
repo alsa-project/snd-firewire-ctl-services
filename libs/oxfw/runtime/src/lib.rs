@@ -15,7 +15,7 @@ use {
     alsactl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{FwFcp, FwFcpExt, FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{FwFcp, FwFcpExt, FwNode, FwNodeExt, FwNodeExtManual, FwReq},
     hinawa::{SndUnit, SndUnitExt, SndUnitExtManual, SndUnitType},
     ieee1212_config_rom::*,
     nix::sys::signal,
@@ -33,7 +33,7 @@ enum Event {
 }
 
 pub struct OxfwRuntime {
-    unit: SndUnit,
+    unit: (SndUnit, FwNode),
     model: OxfwModel,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -91,7 +91,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(OxfwRuntime {
-            unit,
+            unit: (unit, node),
             model,
             card_cntr,
             rx,
@@ -185,22 +185,22 @@ impl<'a> OxfwRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
         let tx = self.tx.clone();
-        self.unit.connect_lock_status(move |_, locked| {
+        self.unit.0.connect_lock_status(move |_, locked| {
             let t = tx.clone();
             let _ = std::thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual
