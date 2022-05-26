@@ -141,7 +141,7 @@ mod test {
         }
 
         // The write operation should be failed as well due to locked status.
-        let data = [0;16];
+        let data = [0; 16];
         let err = proto.flash_write(256, &data, TIMEOUT);
         if let Err(e) = err {
             assert_eq!(e.kind::<SndEfwStatus>(), Some(SndEfwStatus::FlashBusy));
@@ -150,7 +150,7 @@ mod test {
         }
 
         // The read operation is always available.
-        let mut data = [0;64];
+        let mut data = [0; 64];
         proto.flash_read(0, &mut data, TIMEOUT).unwrap();
 
         // Unlock it.
@@ -161,11 +161,11 @@ mod test {
         proto.flash_erase(256, TIMEOUT).unwrap();
 
         // The write operation should be available now.
-        let data = [0;16];
+        let data = [0; 16];
         proto.flash_write(256, &data, TIMEOUT).unwrap();
 
         // The read operation is always available.
-        let mut data = [0;64];
+        let mut data = [0; 64];
         proto.flash_read(0, &mut data, TIMEOUT).unwrap();
 
         // Lock it.
@@ -181,7 +181,7 @@ mod test {
         }
 
         // The write operation should be failed as well;
-        let data = [0;16];
+        let data = [0; 16];
         let err = proto.flash_write(256, &data, TIMEOUT);
         if let Err(e) = err {
             assert_eq!(e.kind::<SndEfwStatus>(), Some(SndEfwStatus::FlashBusy));
@@ -190,7 +190,7 @@ mod test {
         }
 
         // The read operation is always available.
-        let mut data = [0;64];
+        let mut data = [0; 64];
         proto.flash_read(0, &mut data, TIMEOUT).unwrap();
     }
 
@@ -207,22 +207,24 @@ mod test {
         proto.flash_erase(256, TIMEOUT).unwrap();
 
         // Check near the boundary between first and second blocks.
-        let mut data = [0;16];
+        let mut data = [0; 16];
         proto.flash_read(248, &mut data, TIMEOUT).unwrap();
         assert_eq!(&data, &[62, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
         // Check near the boundary between second and third blocks.
-        let mut data = [0;8];
+        let mut data = [0; 8];
         proto.flash_read(504, &mut data, TIMEOUT).unwrap();
         assert_eq!(&data, &[0, 0, 128, 129, 130, 131, 132, 133]);
 
         // Update the second block.
-        let mut data = [0;BLOCK_QUADLET_COUNT];
-        data.iter_mut().enumerate().for_each(|(i, q)| *q = u32::MAX - i as u32);
+        let mut data = [0; BLOCK_QUADLET_COUNT];
+        data.iter_mut()
+            .enumerate()
+            .for_each(|(i, q)| *q = u32::MAX - i as u32);
         proto.flash_write(256, &data, TIMEOUT).unwrap();
 
         // Check near the boundary between second and third block.
-        let mut data = [0;6];
+        let mut data = [0; 6];
         proto.flash_read(504, &mut data, TIMEOUT).unwrap();
         assert_eq!(&data, &[4294967233, 4294967232, 128, 129, 130, 131]);
     }
@@ -230,7 +232,7 @@ mod test {
     struct StateMachine {
         // Here, the state machine is defined to have four blocks in which the first block is
         // immutable.
-        memory: [u8;4 * BLOCK_SIZE],
+        memory: [u8; 4 * BLOCK_SIZE],
         // At initial state, the memory is locked against erase and write operation.
         locked: bool,
     }
@@ -238,45 +240,68 @@ mod test {
     impl Default for StateMachine {
         fn default() -> Self {
             Self {
-                memory: [0;4 * BLOCK_SIZE],
+                memory: [0; 4 * BLOCK_SIZE],
                 locked: true,
             }
         }
     }
 
     impl StateMachine {
-        fn erase_block(&mut self, args: Option<&[u32]>, params: Option<&mut [u32]>)
-            -> Result<(), Error>
-        {
+        fn erase_block(
+            &mut self,
+            args: Option<&[u32]>,
+            params: Option<&mut [u32]>,
+        ) -> Result<(), Error> {
             if params != None {
-                Err(Error::new(SndEfwStatus::BadParameter, "Useless parameter is given"))?;
+                Err(Error::new(
+                    SndEfwStatus::BadParameter,
+                    "Useless parameter is given",
+                ))?;
             }
             if let Some(quads) = args {
                 if quads.len() < 1 {
-                    Err(Error::new(SndEfwStatus::BadCommand, "Argument is shorter than expected"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "Argument is shorter than expected",
+                    ))?;
                 }
                 // Align to block.
                 let pos = (quads[0] as usize) / BLOCK_SIZE * BLOCK_SIZE;
                 if pos == 0 {
-                    Err(Error::new(SndEfwStatus::BadCommand, "The first block is immutable"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "The first block is immutable",
+                    ))?;
                 }
                 if pos > self.memory.len() {
-                    Err(Error::new(SndEfwStatus::BadCommand, "The offset is out of range"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "The offset is out of range",
+                    ))?;
                 }
                 if self.locked {
-                    Err(Error::new(SndEfwStatus::FlashBusy, "The flash memory is locked"))?;
+                    Err(Error::new(
+                        SndEfwStatus::FlashBusy,
+                        "The flash memory is locked",
+                    ))?;
                 }
                 self.memory[pos..(pos + BLOCK_SIZE)].fill(0);
                 Ok(())
             } else {
-                Err(Error::new(SndEfwStatus::BadCommand, "Useless argument is given"))
+                Err(Error::new(
+                    SndEfwStatus::BadCommand,
+                    "Useless argument is given",
+                ))
             }
         }
 
         fn read_data(&self, args: Option<&[u32]>, params: Option<&mut [u32]>) -> Result<(), Error> {
             if let Some(quads) = args {
                 if quads.len() < 2 {
-                    Err(Error::new(SndEfwStatus::BadCommand, "Argument is shorter than expected"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "Argument is shorter than expected",
+                    ))?;
                 }
                 let offset = quads[0] as usize;
                 let count = quads[1] as usize;
@@ -285,17 +310,23 @@ mod test {
                     Err(Error::new(SndEfwStatus::BadCommand, &msg))?;
                 }
                 if offset + 4 * count > self.memory.len() {
-                    Err(Error::new(SndEfwStatus::BadCommand, "The offset plus count is out of range"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "The offset plus count is out of range",
+                    ))?;
                 }
 
                 if let Some(quads) = params {
                     if quads.len() < 2 + count {
-                        Err(Error::new(SndEfwStatus::BadParameter, "Parameter is shorter than expected"))?;
+                        Err(Error::new(
+                            SndEfwStatus::BadParameter,
+                            "Parameter is shorter than expected",
+                        ))?;
                     }
                     quads[0] = offset as u32;
                     quads[1] = count as u32;
 
-                    let mut quadlet = [0;4];
+                    let mut quadlet = [0; 4];
                     quads[2..].iter_mut().enumerate().for_each(|(i, d)| {
                         let pos = offset as usize + i * 4;
                         quadlet.copy_from_slice(&self.memory[pos..(pos + 4)]);
@@ -303,42 +334,67 @@ mod test {
                     });
                     Ok(())
                 } else {
-                    Err(Error::new(SndEfwStatus::BadParameter, "Parameter is required"))?
+                    Err(Error::new(
+                        SndEfwStatus::BadParameter,
+                        "Parameter is required",
+                    ))?
                 }
             } else {
                 Err(Error::new(SndEfwStatus::BadCommand, "Argument is required"))
             }
         }
 
-        fn write_data(&mut self, args: Option<&[u32]>, params: Option<&mut [u32]>) -> Result<(), Error> {
+        fn write_data(
+            &mut self,
+            args: Option<&[u32]>,
+            params: Option<&mut [u32]>,
+        ) -> Result<(), Error> {
             if params != None {
-                Err(Error::new(SndEfwStatus::BadParameter, "Useless parameter is given"))?;
+                Err(Error::new(
+                    SndEfwStatus::BadParameter,
+                    "Useless parameter is given",
+                ))?;
             }
 
             if let Some(quads) = args {
                 if quads.len() < 3 {
-                    Err(Error::new(SndEfwStatus::BadCommand, "Argument is shorter than expected"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "Argument is shorter than expected",
+                    ))?;
                 }
 
                 let offset = quads[0] as usize;
                 if offset < BLOCK_SIZE {
-                    Err(Error::new(SndEfwStatus::BadCommand, "The first block is immutable"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "The first block is immutable",
+                    ))?;
                 }
 
                 let count = quads[1] as usize;
                 let data = &quads[2..];
                 if data.len() < count {
-                    Err(Error::new(SndEfwStatus::BadCommand, "Contradiction between count and data"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "Contradiction between count and data",
+                    ))?;
                 }
                 if data.len() > BLOCK_QUADLET_COUNT {
                     let msg = "The count of data should be less than size of block";
                     Err(Error::new(SndEfwStatus::BadCommand, msg))?;
                 }
                 if offset + 4 * data.len() > self.memory.len() {
-                    Err(Error::new(SndEfwStatus::BadCommand, "The offset plus length is out of range"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadCommand,
+                        "The offset plus length is out of range",
+                    ))?;
                 }
                 if self.locked {
-                    Err(Error::new(SndEfwStatus::FlashBusy, "The flash memory is locked"))?;
+                    Err(Error::new(
+                        SndEfwStatus::FlashBusy,
+                        "The flash memory is locked",
+                    ))?;
                 }
                 data.iter().enumerate().for_each(|(i, d)| {
                     let pos = offset + i * 4;
@@ -350,47 +406,77 @@ mod test {
             }
         }
 
-        fn get_status(&self, args: Option<&[u32]>, params: Option<&mut [u32]>)
-            -> Result<(), Error>
-        {
+        fn get_status(
+            &self,
+            args: Option<&[u32]>,
+            params: Option<&mut [u32]>,
+        ) -> Result<(), Error> {
             if args != None {
-                Err(Error::new(SndEfwStatus::BadCommand, "Useless argument is given"))?;
+                Err(Error::new(
+                    SndEfwStatus::BadCommand,
+                    "Useless argument is given",
+                ))?;
             }
             if params != None {
-                Err(Error::new(SndEfwStatus::BadParameter, "Useless parameter is given"))?;
+                Err(Error::new(
+                    SndEfwStatus::BadParameter,
+                    "Useless parameter is given",
+                ))?;
             }
             if self.locked {
-                Err(Error::new(SndEfwStatus::FlashBusy, "The flash memory is locked"))?;
+                Err(Error::new(
+                    SndEfwStatus::FlashBusy,
+                    "The flash memory is locked",
+                ))?;
             }
             Ok(())
         }
 
-        fn get_session_base(&self, args: Option<&[u32]>, params: Option<&mut [u32]>)
-            -> Result<(), Error>
-        {
+        fn get_session_base(
+            &self,
+            args: Option<&[u32]>,
+            params: Option<&mut [u32]>,
+        ) -> Result<(), Error> {
             if args != None {
-                Err(Error::new(SndEfwStatus::BadCommand, "Useless argument is given"))?;
+                Err(Error::new(
+                    SndEfwStatus::BadCommand,
+                    "Useless argument is given",
+                ))?;
             }
             if let Some(quads) = params {
                 if quads.len() < 1 {
-                    Err(Error::new(SndEfwStatus::BadParameter, "Parameter is shorter than expected"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadParameter,
+                        "Parameter is shorter than expected",
+                    ))?;
                 }
                 quads[0] = BLOCK_SIZE as u32;
                 Ok(())
             } else {
-                Err(Error::new(SndEfwStatus::BadParameter, "Parameter is required"))
+                Err(Error::new(
+                    SndEfwStatus::BadParameter,
+                    "Parameter is required",
+                ))
             }
         }
 
-        fn lock_memory(&mut self, args: Option<&[u32]>, params: Option<&mut [u32]>)
-            -> Result<(), Error>
-        {
+        fn lock_memory(
+            &mut self,
+            args: Option<&[u32]>,
+            params: Option<&mut [u32]>,
+        ) -> Result<(), Error> {
             if params != None {
-                Err(Error::new(SndEfwStatus::BadCommand, "Useless parameter is given"))?;
+                Err(Error::new(
+                    SndEfwStatus::BadCommand,
+                    "Useless parameter is given",
+                ))?;
             }
             if let Some(quads) = args {
                 if quads.len() < 1 {
-                    Err(Error::new(SndEfwStatus::BadParameter, "Argument is shorter than expected"))?;
+                    Err(Error::new(
+                        SndEfwStatus::BadParameter,
+                        "Argument is shorter than expected",
+                    ))?;
                 }
                 self.locked = quads[0] > 0;
                 Ok(())

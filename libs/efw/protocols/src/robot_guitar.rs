@@ -41,7 +41,11 @@ pub trait RobotGuitarProtocol: EfwProtocol {
         })
     }
 
-    fn set_charge_state(&mut self, state: &GuitarChargeState, timeout_ms: u32) -> Result<(), Error> {
+    fn set_charge_state(
+        &mut self,
+        state: &GuitarChargeState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         let args = [
             state.manual_charge as u32,
             state.auto_charge as u32,
