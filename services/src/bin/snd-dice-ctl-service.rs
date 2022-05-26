@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use snd_firewire_ctl_services::*;
 use dice_runtime::DiceRuntime;
+use snd_firewire_ctl_services::*;
 
 struct DiceServiceCmd;
 
