@@ -56,7 +56,7 @@ impl CtlModel<(SndDice, FwNode)> for IoFwModel {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -79,7 +79,7 @@ impl CtlModel<(SndDice, FwNode)> for IoFwModel {
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -102,13 +102,8 @@ impl NotifyModel<(SndDice, FwNode), u32> for IoFwModel {
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.common_ctl.parse_notification(
-            &mut unit.0,
-            &mut self.req,
-            &self.sections,
-            *msg,
-            TIMEOUT_MS,
-        )
+        self.common_ctl
+            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(
@@ -131,7 +126,7 @@ impl MeasureModel<(SndDice, FwNode)> for IoFwModel {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
 
         if let Some(ctls) = &mut self.io_fw_ctls {
             ctls.measure_states(unit, &mut self.req, TIMEOUT_MS)?;

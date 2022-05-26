@@ -78,7 +78,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -119,7 +119,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -169,13 +169,8 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro14Model {
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(
-            &mut unit.0,
-            &mut self.req,
-            &self.sections,
-            *msg,
-            TIMEOUT_MS,
-        )?;
+        self.ctl
+            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
         self.tcd22xx_ctl.parse_notification(
             &mut unit.0,
             &mut self.req,
@@ -211,7 +206,7 @@ impl MeasureModel<(SndDice, FwNode)> for SPro14Model {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
             &mut unit.0,
             &mut self.req,

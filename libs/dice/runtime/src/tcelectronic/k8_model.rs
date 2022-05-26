@@ -60,7 +60,7 @@ impl CtlModel<(SndDice, FwNode)> for K8Model {
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -89,7 +89,7 @@ impl CtlModel<(SndDice, FwNode)> for K8Model {
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -134,13 +134,8 @@ impl NotifyModel<(SndDice, FwNode), u32> for K8Model {
     }
 
     fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(
-            &mut unit.0,
-            &mut self.req,
-            &self.sections,
-            *msg,
-            TIMEOUT_MS,
-        )?;
+        self.ctl
+            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
         self.knob_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.config_ctl
@@ -182,7 +177,7 @@ impl MeasureModel<(SndDice, FwNode)> for K8Model {
 
     fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
