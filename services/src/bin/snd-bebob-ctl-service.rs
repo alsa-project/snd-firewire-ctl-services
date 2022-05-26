@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use bebob_runtime::BebobRuntime;
-use snd_firewire_ctl_services::*;
+
+use {bebob_runtime::BebobRuntime, snd_firewire_ctl_services::*};
 
 struct BebobServiceCmd;
 
