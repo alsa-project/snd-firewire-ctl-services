@@ -35,18 +35,17 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        let mut node = unit.get_node();
         let mut state = T::create_out_group_state();
-        T::read_out_group_mute(req, &mut node, sections, &mut state, timeout_ms)?;
-        T::read_out_group_dim(req, &mut node, sections, &mut state, timeout_ms)?;
-        T::read_out_group_vols(req, &mut node, sections, &mut state, timeout_ms)?;
-        T::read_out_group_vol_mute_hwctls(req, &mut node, sections, &mut state, timeout_ms)?;
-        T::read_out_group_dim_mute_hwctls(req, &mut node, sections, &mut state, timeout_ms)?;
+        T::read_out_group_mute(req, &mut unit.1, sections, &mut state, timeout_ms)?;
+        T::read_out_group_dim(req, &mut unit.1, sections, &mut state, timeout_ms)?;
+        T::read_out_group_vols(req, &mut unit.1, sections, &mut state, timeout_ms)?;
+        T::read_out_group_vol_mute_hwctls(req, &mut unit.1, sections, &mut state, timeout_ms)?;
+        T::read_out_group_dim_mute_hwctls(req, &mut unit.1, sections, &mut state, timeout_ms)?;
 
         *self.state_mut() = state;
 
@@ -119,7 +118,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -130,7 +129,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
             MUTE_NAME => ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                 T::write_out_group_mute(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     val,
@@ -141,7 +140,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
             DIM_NAME => ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                 T::write_out_group_dim(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     val,
@@ -155,7 +154,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 let vols: Vec<i8> = vals.iter().map(|&v| (Self::LEVEL_MAX - v) as i8).collect();
                 T::write_out_group_vols(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     &vols,
@@ -169,7 +168,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 let vol_hwctls = self.state().vol_hwctls.clone();
                 T::write_out_group_vol_mute_hwctls(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     &vol_mutes,
@@ -184,7 +183,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 let vol_mutes = vec![false; T::ENTRY_COUNT];
                 T::write_out_group_vol_mute_hwctls(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     &vol_mutes,
@@ -199,7 +198,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 let mute_hwctls = self.state().mute_hwctls.clone();
                 T::write_out_group_dim_mute_hwctls(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     &dim_hwctls,
@@ -214,7 +213,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 let dim_hwctls = self.state().dim_hwctls.clone();
                 T::write_out_group_dim_mute_hwctls(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     self.state_mut(),
                     &dim_hwctls,
@@ -229,22 +228,21 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if T::has_dim_mute_change(msg) {
-            let mut node = unit.get_node();
             let state = self.state_mut();
-            T::read_out_group_mute(req, &mut node, sections, state, timeout_ms)?;
-            T::read_out_group_dim(req, &mut node, sections, state, timeout_ms)?;
+            T::read_out_group_mute(req, &mut unit.1, sections, state, timeout_ms)?;
+            T::read_out_group_dim(req, &mut unit.1, sections, state, timeout_ms)?;
         }
 
         if T::has_vol_change(msg) {
             let state = self.state_mut();
-            T::read_out_group_knob_value(req, &mut unit.get_node(), sections, state, timeout_ms)?;
+            T::read_out_group_knob_value(req, &mut unit.1, sections, state, timeout_ms)?;
 
             let vol = state.hw_knob_value;
             let hwctls = state.vol_hwctls.clone();
@@ -332,7 +330,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -342,7 +340,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
         match elem_id.get_name().as_str() {
             MIC_INPUT_LEVEL_NAME => {
                 let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
-                T::read_mic_level(req, &mut unit.get_node(), sections, &mut levels, timeout_ms)?;
+                T::read_mic_level(req, &mut unit.1, sections, &mut levels, timeout_ms)?;
                 ElemValueAccessor::<u32>::set_vals(elem_value, T::MIC_INPUT_COUNT, |idx| {
                     let pos = Self::MIC_LEVELS
                         .iter()
@@ -354,7 +352,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
             }
             LINE_INPUT_LEVEL_NAME => {
                 let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
-                T::read_line_level(req, &mut unit.get_node(), sections, &mut levels, timeout_ms)?;
+                T::read_line_level(req, &mut unit.1, sections, &mut levels, timeout_ms)?;
                 ElemValueAccessor::<u32>::set_vals(elem_value, T::MIC_INPUT_COUNT, |idx| {
                     let pos = Self::LINE_LEVELS
                         .iter()
@@ -370,7 +368,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -392,8 +390,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
                         })
                         .map(|&l| levels[i] = l)
                 })?;
-                T::write_mic_level(req, &mut unit.get_node(), sections, &levels, timeout_ms)
-                    .map(|_| true)
+                T::write_mic_level(req, &mut unit.1, sections, &levels, timeout_ms).map(|_| true)
             }
             LINE_INPUT_LEVEL_NAME => {
                 let mut vals = vec![0; T::LINE_INPUT_COUNT];
@@ -409,8 +406,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
                         })
                         .map(|&l| levels[i] = l)
                 })?;
-                T::write_line_level(req, &mut unit.get_node(), sections, &levels, timeout_ms)
-                    .map(|_| true)
+                T::write_line_level(req, &mut unit.1, sections, &levels, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
