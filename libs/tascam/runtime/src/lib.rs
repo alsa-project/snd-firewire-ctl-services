@@ -58,17 +58,18 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                     Error::new(FileError::Nxio, &label)
                 })?;
                 let unit_data = config_rom.get_unit_data()?;
+                let name = unit_data.model_name.to_owned();
                 match (unit_data.specifier_id, unit_data.version) {
                     (TASCAM_OUI, FW1884_SW_VERSION) => {
-                        let runtime = Fw1884Runtime::new(unit, unit_data.model_name, sysnum)?;
+                        let runtime = Fw1884Runtime::new(unit, node, &name, sysnum)?;
                         Ok(Self::Fw1884(runtime))
                     }
                     (TASCAM_OUI, FW1082_SW_VERSION) => {
-                        let runtime = Fw1082Runtime::new(unit, unit_data.model_name, sysnum)?;
+                        let runtime = Fw1082Runtime::new(unit, node, &name, sysnum)?;
                         Ok(Self::Fw1082(runtime))
                     }
                     (TASCAM_OUI, FW1804_SW_VERSION) => {
-                        let runtime = Fw1804Runtime::new(unit, unit_data.model_name, sysnum)?;
+                        let runtime = Fw1804Runtime::new(unit, node, &name, sysnum)?;
                         Ok(Self::Fw1804(runtime))
                     }
                     _ => Err(Error::new(FileError::Noent, "Not supported")),
@@ -129,24 +130,24 @@ pub struct SequencerState<U> {
 
 const BOOL_TRUE: i32 = 0x7f;
 
-pub trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperation<U>, U> {
+pub trait SequencerCtlOperation<T: MachineStateOperation + SurfaceImageOperation<U>, U> {
     fn state(&self) -> &SequencerState<U>;
     fn state_mut(&mut self) -> &mut SequencerState<U>;
 
     fn initialize_surface(
         &mut self,
-        node: &mut S,
+        node: &mut FwNode,
         machine_values: &[(MachineItem, ItemValue)],
     ) -> Result<(), Error>;
-    fn finalize_surface(&mut self, node: &mut S) -> Result<(), Error>;
+    fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error>;
 
     fn feedback_to_surface(
         &mut self,
-        node: &mut S,
+        node: &mut FwNode,
         event: &(MachineItem, ItemValue),
     ) -> Result<(), Error>;
 
-    fn initialize_sequencer(&mut self, node: &mut S) -> Result<(), Error> {
+    fn initialize_sequencer(&mut self, node: &mut FwNode) -> Result<(), Error> {
         self.initialize_message_map();
         T::initialize_surface_state(&mut self.state_mut().surface_state);
         T::initialize_machine(&mut self.state_mut().machine_state);
@@ -154,7 +155,7 @@ pub trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperat
         self.initialize_surface(node, &machine_values)
     }
 
-    fn finalize_sequencer(&mut self, node: &mut S) -> Result<(), Error> {
+    fn finalize_sequencer(&mut self, node: &mut FwNode) -> Result<(), Error> {
         self.finalize_surface(node)
     }
 
@@ -183,7 +184,7 @@ pub trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperat
 
     fn dispatch_surface_event(
         &mut self,
-        unit: &mut S,
+        unit: &mut FwNode,
         seq_cntr: &mut SeqCntr,
         image: &[u32],
         index: u32,
@@ -203,7 +204,7 @@ pub trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperat
 
     fn dispatch_appl_event(
         &mut self,
-        unit: &mut S,
+        unit: &mut FwNode,
         seq_cntr: &mut SeqCntr,
         data: &EventDataCtl,
     ) -> Result<(), Error> {

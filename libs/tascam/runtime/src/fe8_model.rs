@@ -14,7 +14,7 @@ pub struct Fe8Model {
 
 const TIMEOUT_MS: u32 = 50;
 
-impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
+impl SequencerCtlOperation<Fe8Protocol, Fe8SurfaceState> for Fe8Model {
     fn state(&self) -> &SequencerState<Fe8SurfaceState> {
         &self.seq_state
     }

@@ -16,10 +16,10 @@ pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082
 
 pub struct IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
-    unit: SndTscm,
+    unit: (SndTscm, FwNode),
     model: S,
     card_cntr: CardCntr,
     seq_cntr: SeqCntr,
@@ -34,11 +34,11 @@ where
 
 impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
-        let _ = self.model.finalize_sequencer(&mut self.unit);
+        let _ = self.model.finalize_sequencer(&mut self.unit.1);
         self.dispatchers.clear();
     }
 }
@@ -62,10 +62,10 @@ const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<S, T, U> IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
-    pub fn new(unit: SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndTscm, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
@@ -75,7 +75,7 @@ where
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(Self {
-            unit,
+            unit: (unit, node),
             model: Default::default(),
             card_cntr,
             seq_cntr,
@@ -94,8 +94,8 @@ where
         self.launch_system_event_dispatcher()?;
 
         self.seq_cntr.open_port()?;
-        self.model.initialize_sequencer(&mut self.unit)?;
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.initialize_sequencer(&mut self.unit.1)?;
+        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -120,7 +120,7 @@ where
                 ConsoleUnitEvent::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit,
+                            &mut self.unit.0,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -145,7 +145,7 @@ where
                 }
                 ConsoleUnitEvent::Interval => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &self.measure_elems,
                         &mut self.model,
                     );
@@ -153,12 +153,12 @@ where
                 ConsoleUnitEvent::SeqAppl(data) => {
                     let _ =
                         self.model
-                            .dispatch_appl_event(&mut self.unit, &mut self.seq_cntr, &data);
+                            .dispatch_appl_event(&mut self.unit.1, &mut self.seq_cntr, &data);
                 }
                 ConsoleUnitEvent::Surface((index, before, after)) => {
-                    let image = self.unit.get_state().map(|s| s.to_vec())?;
+                    let image = self.unit.0.get_state().map(|s| s.to_vec())?;
                     let _ = self.model.dispatch_surface_event(
-                        &mut self.unit,
+                        &mut self.unit.1,
                         &mut self.seq_cntr,
                         &image,
                         index,
@@ -177,22 +177,22 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(ConsoleUnitEvent::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.connect_control(move |_, index, before, after| {
+        self.unit.0.connect_control(move |_, index, before, after| {
             let _ = tx.send(ConsoleUnitEvent::Surface((index, before, after)));
         });
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(ConsoleUnitEvent::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let generation = node.get_property_generation();
             let _ = tx.send(ConsoleUnitEvent::BusReset(generation));
         });

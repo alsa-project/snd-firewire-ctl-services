@@ -14,7 +14,7 @@ pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;
 
 pub struct AsynchRuntime<S, T, U>
 where
-    S: AsynchCtlOperation + SequencerCtlOperation<FwNode, T, U> + Default,
+    S: AsynchCtlOperation + SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     node: FwNode,
@@ -31,7 +31,7 @@ where
 
 impl<S, T, U> Drop for AsynchRuntime<S, T, U>
 where
-    S: AsynchCtlOperation + SequencerCtlOperation<FwNode, T, U> + Default,
+    S: AsynchCtlOperation + SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
@@ -65,7 +65,7 @@ const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
 
 impl<S, T, U> AsynchRuntime<S, T, U>
 where
-    S: AsynchCtlOperation + SequencerCtlOperation<FwNode, T, U> + Default,
+    S: AsynchCtlOperation + SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(node: FwNode, name: String) -> Result<Self, Error> {

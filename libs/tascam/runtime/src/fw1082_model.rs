@@ -68,7 +68,7 @@ impl IsochConsoleCtlOperation<Fw1082Protocol> for ConsoleCtl {
     }
 }
 
-impl SequencerCtlOperation<SndTscm, Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
+impl SequencerCtlOperation<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
     fn state(&self) -> &SequencerState<Fw1082SurfaceState> {
         &self.seq_state
     }
@@ -79,7 +79,7 @@ impl SequencerCtlOperation<SndTscm, Fw1082Protocol, Fw1082SurfaceState> for Fw10
 
     fn initialize_surface(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         machine_values: &[(MachineItem, ItemValue)],
     ) -> Result<(), Error> {
         machine_values
@@ -92,28 +92,28 @@ impl SequencerCtlOperation<SndTscm, Fw1082Protocol, Fw1082SurfaceState> for Fw10
                         .find(|i| item.eq(i))
                         .is_some()
             })
-            .try_for_each(|entry| self.feedback_to_surface(unit, entry))
+            .try_for_each(|entry| self.feedback_to_surface(node, entry))
     }
 
-    fn finalize_surface(&mut self, unit: &mut SndTscm) -> Result<(), Error> {
+    fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error> {
         Fw1082Protocol::finalize_surface(
             &mut self.seq_state.surface_state,
             &mut self.req,
-            &mut unit.get_node(),
+            node,
             TIMEOUT_MS,
         )
     }
 
     fn feedback_to_surface(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         event: &(MachineItem, ItemValue),
     ) -> Result<(), Error> {
         Fw1082Protocol::feedback_to_surface(
             &mut self.seq_state.surface_state,
             event,
             &mut self.req,
-            &mut unit.get_node(),
+            node,
             TIMEOUT_MS,
         )
     }
