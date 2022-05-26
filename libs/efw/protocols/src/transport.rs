@@ -30,7 +30,7 @@ impl From<TxPacketFormat> for u32 {
 }
 
 /// Protocol about transmission for Fireworks board module.
-pub trait TransportProtocol: EfwProtocol {
+pub trait TransportProtocol: EfwProtocolExtManual {
     fn get_hw_info(&mut self, fmt: TxPacketFormat, timeout_ms: u32) -> Result<(), Error> {
         let args = [u32::from(fmt)];
         self.transaction(
@@ -43,4 +43,4 @@ pub trait TransportProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> TransportProtocol for O {}
+impl<O: EfwProtocolExtManual> TransportProtocol for O {}

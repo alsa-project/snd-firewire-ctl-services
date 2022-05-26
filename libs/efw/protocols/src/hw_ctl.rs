@@ -84,7 +84,7 @@ impl From<usize> for HwCtlFlag {
 }
 
 /// Protocol about hardware control for Fireworks board module.
-pub trait HwCtlProtocol: EfwProtocol {
+pub trait HwCtlProtocol: EfwProtocolExtManual {
     fn set_clock(
         &mut self,
         src: Option<ClkSrc>,
@@ -176,4 +176,4 @@ pub trait HwCtlProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> HwCtlProtocol for O {}
+impl<O: EfwProtocolExtManual> HwCtlProtocol for O {}

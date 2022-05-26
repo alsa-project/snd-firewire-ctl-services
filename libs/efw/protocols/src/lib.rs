@@ -19,7 +19,7 @@ pub mod transport;
 
 use {
     glib::{Error, FileError},
-    hinawa::SndEfwStatus,
+    hitaki::{EfwProtocolError, EfwProtocolExtManual},
 };
 
 /// The enumeration to express source of sampling clock.
@@ -97,38 +97,5 @@ impl From<u32> for NominalSignalLevel {
             1 => NominalSignalLevel::Medium,
             _ => NominalSignalLevel::Professional,
         }
-    }
-}
-
-/// The trait to represent protocol for Echo Audio Fireworks board module.
-pub trait EfwProtocol {
-    fn transaction(
-        &mut self,
-        category: u32,
-        command: u32,
-        args: &[u32],
-        params: &mut Vec<u32>,
-        timeout_ms: u32,
-    ) -> Result<(), glib::Error>;
-}
-
-impl<O: hinawa::SndEfwExtManual> EfwProtocol for O {
-    fn transaction(
-        &mut self,
-        category: u32,
-        command: u32,
-        args: &[u32],
-        params: &mut Vec<u32>,
-        timeout_ms: u32,
-    ) -> Result<(), glib::Error> {
-        O::transaction_sync(
-            self,
-            category,
-            command,
-            Some(args),
-            Some(params),
-            timeout_ms,
-        )
-        .map(|_| ())
     }
 }
