@@ -5,17 +5,19 @@ mod model;
 use glib::source;
 use glib::{Error, FileError};
 use nix::sys::signal;
+use std::convert::TryFrom;
 use std::sync::mpsc;
 use std::thread;
-use std::convert::TryFrom;
 
-use hinawa::{SndUnitExt, SndDg00xExt};
 use hinawa::{FwNodeExt, FwNodeExtManual};
+use hinawa::{SndDg00xExt, SndUnitExt};
 
-use alsactl::{CardExt, CardExtManual, ElemEventMask, ElemIfaceType, ElemId, ElemValue, ElemValueExtManual};
+use alsactl::{
+    CardExt, CardExtManual, ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual,
+};
 
-use core::dispatcher::*;
 use core::card_cntr::*;
+use core::dispatcher::*;
 use core::RuntimeOperation;
 
 use ieee1212_config_rom::ConfigRom;
@@ -82,22 +84,18 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
 
         let node = unit.get_node();
         let rom = node.get_config_rom()?;
-        let config_rom = ConfigRom::try_from(rom)
-            .map_err(|e| {
-                let label = format!("Malformed configuration ROM detected: {}", e);
-                Error::new(FileError::Nxio, &label)
-            })?;
-        let model_data = config_rom.get_model()
-            .ok_or({
-                let msg = "Configuration ROM is not for 1394TA standard";
-                Error::new(FileError::Nxio, &msg)
-            })?;
+        let config_rom = ConfigRom::try_from(rom).map_err(|e| {
+            let label = format!("Malformed configuration ROM detected: {}", e);
+            Error::new(FileError::Nxio, &label)
+        })?;
+        let model_data = config_rom.get_model().ok_or({
+            let msg = "Configuration ROM is not for 1394TA standard";
+            Error::new(FileError::Nxio, &msg)
+        })?;
 
         let model = match model_data.specifier_id {
-            SPECIFIER_ID_DIGI002 |
-            SPECIFIER_ID_DIGI002_RACK => Model::Digi002(Default::default()),
-            SPECIFIER_ID_DIGI003 |
-            SPECIFIER_ID_DIGI003_RACK => Model::Digi003(Default::default()),
+            SPECIFIER_ID_DIGI002 | SPECIFIER_ID_DIGI002_RACK => Model::Digi002(Default::default()),
+            SPECIFIER_ID_DIGI003 | SPECIFIER_ID_DIGI003_RACK => Model::Digi003(Default::default()),
             _ => Err(Error::new(FileError::Nxio, "Not supported."))?,
         };
 
@@ -179,7 +177,12 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                         };
                     } else {
                         let mut elem_value = ElemValue::new();
-                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                        if self
+                            .card_cntr
+                            .card
+                            .read_elem_value(&elem_id, &mut elem_value)
+                            .is_ok()
+                        {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
                             if vals[0] {
