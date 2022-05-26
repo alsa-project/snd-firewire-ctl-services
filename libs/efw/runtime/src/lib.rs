@@ -12,11 +12,9 @@ mod output_ctl;
 mod port_ctl;
 
 use {
-    alsactl::{
-        CardExt, CardExtManual, ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual,
-    },
-    core::{card_cntr::*, dispatcher::*, RuntimeOperation},
-    glib::{source, Error},
+    alsactl::*,
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    glib::{source, Error, FileError},
     hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
     nix::sys::signal,
     std::{sync::mpsc, thread, time},

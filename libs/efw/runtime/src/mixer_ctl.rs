@@ -2,12 +2,9 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
+    super::*,
     alsa_ctl_tlv_codec::items::DbInterval,
-    alsactl::{ElemId, ElemIfaceType, ElemValue},
-    core::{card_cntr::*, elem_value_accessor::*},
     efw_protocols::{hw_ctl::*, hw_info::*, monitor::*, playback::*},
-    glib::Error,
-    hinawa::SndEfw,
 };
 
 #[derive(Default)]
