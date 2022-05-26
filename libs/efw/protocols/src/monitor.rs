@@ -20,7 +20,7 @@ const CMD_SET_PAN: u32 = 6;
 const CMD_GET_PAN: u32 = 7;
 
 /// Protocol about input monitor for Fireworks board module.
-pub trait MonitorProtocol: EfwProtocol {
+pub trait MonitorProtocol: EfwProtocolExtManual {
     /// Set volume of monitor. The value of vol is unsigned fixed-point number of 8.24 format; i.e. Q24.
     /// (0x00000000..0x02000000, -144.0..+6.0 dB)
     fn set_monitor_vol(
@@ -149,4 +149,4 @@ pub trait MonitorProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> MonitorProtocol for O {}
+impl<O: EfwProtocolExtManual> MonitorProtocol for O {}

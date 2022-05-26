@@ -15,7 +15,8 @@ use {
     alsactl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     glib::{source, Error, FileError},
-    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
+    hinawa::{FwNode, FwNodeExt, FwNodeExtManual},
+    hitaki::{traits::*, SndEfw},
     nix::sys::signal,
     std::{sync::mpsc, thread, time},
 };
@@ -60,9 +61,13 @@ impl Drop for EfwRuntime {
 impl RuntimeOperation<u32> for EfwRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let unit = SndEfw::default();
-        unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
+        unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 
-        let node = unit.get_node();
+        let node = FwNode::new();
+        node.open(&format!(
+            "/dev/{}",
+            unit.get_property_node_device().unwrap()
+        ))?;
         let data = node.get_config_rom()?;
         let model = model::EfwModel::new(&data)?;
 
@@ -176,7 +181,7 @@ impl EfwRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
@@ -215,7 +220,8 @@ impl EfwRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.connect_lock_status(move |_, locked| {
+        self.unit.connect_property_is_locked_notify(move |unit| {
+            let locked = unit.get_property_is_locked();
             let t = tx.clone();
             let _ = thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual

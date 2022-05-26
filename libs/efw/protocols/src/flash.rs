@@ -21,7 +21,7 @@ const CMD_LOCK: u32 = 5;
 pub const BLOCK_QUADLET_COUNT: usize = 64;
 
 /// The trait to express protocol about operations for on-board flash memory.
-pub trait EfwFlashProtocol: EfwProtocol {
+pub trait EfwFlashProtocol: EfwProtocolExtManual {
     /// The operation to erase block range (256 bytes) in on-board flash memory.
     fn flash_erase(&mut self, offset: u32, timeout_ms: u32) -> Result<(), Error> {
         let args = [offset];
@@ -82,7 +82,7 @@ pub trait EfwFlashProtocol: EfwProtocol {
         if let Err(e) =
             self.transaction(CATEGORY_FLASH, CMD_STATUS, &[], &mut Vec::new(), timeout_ms)
         {
-            if e.kind::<SndEfwStatus>() == Some(SndEfwStatus::FlashBusy) {
+            if e.kind::<EfwProtocolError>() == Some(EfwProtocolError::FlashBusy) {
                 // It's locked.
                 Ok(true)
             } else {
@@ -115,19 +115,19 @@ pub trait EfwFlashProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> EfwFlashProtocol for O {}
+impl<O: EfwProtocolExtManual> EfwFlashProtocol for O {}
 
 #[cfg(test)]
 mod test {
     use super::*;
-
-    use hinawa::SndEfwStatus;
+    use glib::{translate::FromGlib, SignalHandlerId};
+    use std::cell::RefCell;
 
     const BLOCK_SIZE: usize = 4 * BLOCK_QUADLET_COUNT as usize;
     const TIMEOUT: u32 = 10;
 
     #[derive(Default)]
-    struct TestProtocol(StateMachine);
+    struct TestProtocol(RefCell<StateMachine>);
 
     #[test]
     fn flash_lock_test() {
@@ -139,7 +139,10 @@ mod test {
         // The erase operation should be failed due to locked status.
         let err = proto.flash_erase(256, TIMEOUT);
         if let Err(e) = err {
-            assert_eq!(e.kind::<SndEfwStatus>(), Some(SndEfwStatus::FlashBusy));
+            assert_eq!(
+                e.kind::<EfwProtocolError>(),
+                Some(EfwProtocolError::FlashBusy)
+            );
         } else {
             unreachable!();
         }
@@ -148,7 +151,10 @@ mod test {
         let data = [0; 16];
         let err = proto.flash_write(256, &data, TIMEOUT);
         if let Err(e) = err {
-            assert_eq!(e.kind::<SndEfwStatus>(), Some(SndEfwStatus::FlashBusy));
+            assert_eq!(
+                e.kind::<EfwProtocolError>(),
+                Some(EfwProtocolError::FlashBusy)
+            );
         } else {
             unreachable!();
         }
@@ -179,7 +185,10 @@ mod test {
         // The erase operation should be failed again;
         let err = proto.flash_erase(256, TIMEOUT);
         if let Err(e) = err {
-            assert_eq!(e.kind::<SndEfwStatus>(), Some(SndEfwStatus::FlashBusy));
+            assert_eq!(
+                e.kind::<EfwProtocolError>(),
+                Some(EfwProtocolError::FlashBusy)
+            );
         } else {
             unreachable!();
         }
@@ -188,7 +197,10 @@ mod test {
         let data = [0; 16];
         let err = proto.flash_write(256, &data, TIMEOUT);
         if let Err(e) = err {
-            assert_eq!(e.kind::<SndEfwStatus>(), Some(SndEfwStatus::FlashBusy));
+            assert_eq!(
+                e.kind::<EfwProtocolError>(),
+                Some(EfwProtocolError::FlashBusy)
+            );
         } else {
             unreachable!();
         }
@@ -201,10 +213,11 @@ mod test {
     #[test]
     fn flash_update_test() {
         let mut proto = TestProtocol::default();
-        let count = proto.0.memory.len() / 4;
+
+        let count = proto.0.borrow().memory.len() / 4;
         (0..count).for_each(|i| {
             let pos = i * 4;
-            proto.0.memory[pos..(pos + 4)].copy_from_slice(&(i as u32).to_be_bytes());
+            proto.0.borrow_mut().memory[pos..(pos + 4)].copy_from_slice(&(i as u32).to_be_bytes());
         });
 
         proto.flash_lock(false, TIMEOUT).unwrap();
@@ -254,12 +267,12 @@ mod test {
         fn erase_block(&mut self, args: &[u32], params: &mut Vec<u32>) -> Result<(), Error> {
             if params.len() > 0 {
                 Err(Error::new(
-                    SndEfwStatus::BadParameter,
+                    EfwProtocolError::BadParameter,
                     "Useless parameter is given",
                 ))
             } else if args.len() < 1 {
                 Err(Error::new(
-                    SndEfwStatus::BadCommand,
+                    EfwProtocolError::BadCommand,
                     "Argument is shorter than expected",
                 ))
             } else {
@@ -267,17 +280,17 @@ mod test {
                 let pos = (args[0] as usize) / BLOCK_SIZE * BLOCK_SIZE;
                 if pos == 0 {
                     Err(Error::new(
-                        SndEfwStatus::BadCommand,
+                        EfwProtocolError::BadCommand,
                         "The first block is immutable",
                     ))
                 } else if pos > self.memory.len() {
                     Err(Error::new(
-                        SndEfwStatus::BadCommand,
+                        EfwProtocolError::BadCommand,
                         "The offset is out of range",
                     ))
                 } else if self.locked {
                     Err(Error::new(
-                        SndEfwStatus::FlashBusy,
+                        EfwProtocolError::FlashBusy,
                         "The flash memory is locked",
                     ))
                 } else {
@@ -290,7 +303,7 @@ mod test {
         fn read_data(&self, args: &[u32], params: &mut Vec<u32>) -> Result<(), Error> {
             if args.len() < 2 {
                 Err(Error::new(
-                    SndEfwStatus::BadCommand,
+                    EfwProtocolError::BadCommand,
                     "Argument is shorter than expected",
                 ))
             } else {
@@ -298,16 +311,16 @@ mod test {
                 let count = args[1] as usize;
                 if count >= BLOCK_SIZE {
                     let msg = "The count of data should be less than size of block";
-                    Err(Error::new(SndEfwStatus::BadCommand, &msg))
+                    Err(Error::new(EfwProtocolError::BadCommand, &msg))
                 } else if offset + 4 * count > self.memory.len() {
                     Err(Error::new(
-                        SndEfwStatus::BadCommand,
+                        EfwProtocolError::BadCommand,
                         "The offset plus count is out of range",
                     ))
                 } else {
                     if params.len() < 2 + count {
                         Err(Error::new(
-                            SndEfwStatus::BadParameter,
+                            EfwProtocolError::BadParameter,
                             "Parameter is shorter than expected",
                         ))
                     } else {
@@ -329,19 +342,19 @@ mod test {
         fn write_data(&mut self, args: &[u32], params: &mut Vec<u32>) -> Result<(), Error> {
             if params.len() > 0 {
                 Err(Error::new(
-                    SndEfwStatus::BadParameter,
+                    EfwProtocolError::BadParameter,
                     "Useless parameter is given",
                 ))
             } else if args.len() < 3 {
                 Err(Error::new(
-                    SndEfwStatus::BadCommand,
+                    EfwProtocolError::BadCommand,
                     "Argument is shorter than expected",
                 ))
             } else {
                 let offset = args[0] as usize;
                 if offset < BLOCK_SIZE {
                     Err(Error::new(
-                        SndEfwStatus::BadCommand,
+                        EfwProtocolError::BadCommand,
                         "The first block is immutable",
                     ))
                 } else {
@@ -350,20 +363,20 @@ mod test {
 
                     if data.len() < count {
                         Err(Error::new(
-                            SndEfwStatus::BadCommand,
+                            EfwProtocolError::BadCommand,
                             "Contradiction between count and data",
                         ))
                     } else if data.len() > BLOCK_QUADLET_COUNT {
                         let msg = "The count of data should be less than size of block";
-                        Err(Error::new(SndEfwStatus::BadCommand, msg))
+                        Err(Error::new(EfwProtocolError::BadCommand, msg))
                     } else if offset + 4 * data.len() > self.memory.len() {
                         Err(Error::new(
-                            SndEfwStatus::BadCommand,
+                            EfwProtocolError::BadCommand,
                             "The offset plus length is out of range",
                         ))
                     } else if self.locked {
                         Err(Error::new(
-                            SndEfwStatus::FlashBusy,
+                            EfwProtocolError::FlashBusy,
                             "The flash memory is locked",
                         ))
                     } else {
@@ -380,17 +393,17 @@ mod test {
         fn get_status(&self, args: &[u32], params: &mut Vec<u32>) -> Result<(), Error> {
             if args.len() > 0 {
                 Err(Error::new(
-                    SndEfwStatus::BadCommand,
+                    EfwProtocolError::BadCommand,
                     "Useless argument is given",
                 ))
             } else if params.len() > 0 {
                 Err(Error::new(
-                    SndEfwStatus::BadParameter,
+                    EfwProtocolError::BadParameter,
                     "Useless parameter is given",
                 ))
             } else if self.locked {
                 Err(Error::new(
-                    SndEfwStatus::FlashBusy,
+                    EfwProtocolError::FlashBusy,
                     "The flash memory is locked",
                 ))
             } else {
@@ -401,12 +414,12 @@ mod test {
         fn get_session_base(&self, args: &[u32], params: &mut Vec<u32>) -> Result<(), Error> {
             if args.len() > 0 {
                 Err(Error::new(
-                    SndEfwStatus::BadCommand,
+                    EfwProtocolError::BadCommand,
                     "Useless argument is given",
                 ))
             } else if params.len() < 1 {
                 Err(Error::new(
-                    SndEfwStatus::BadParameter,
+                    EfwProtocolError::BadParameter,
                     "Parameter is shorter than expected",
                 ))
             } else {
@@ -418,12 +431,12 @@ mod test {
         fn lock_memory(&mut self, args: &[u32], params: &mut Vec<u32>) -> Result<(), Error> {
             if params.len() > 0 {
                 Err(Error::new(
-                    SndEfwStatus::BadCommand,
+                    EfwProtocolError::BadCommand,
                     "Useless parameter is given",
                 ))
             } else if args.len() < 1 {
                 Err(Error::new(
-                    SndEfwStatus::BadParameter,
+                    EfwProtocolError::BadParameter,
                     "Argument is shorter than expected",
                 ))
             } else {
@@ -433,9 +446,9 @@ mod test {
         }
     }
 
-    impl EfwProtocol for TestProtocol {
+    impl EfwProtocolExtManual for TestProtocol {
         fn transaction(
-            &mut self,
+            &self,
             category: u32,
             command: u32,
             args: &[u32],
@@ -444,14 +457,26 @@ mod test {
         ) -> Result<(), glib::Error> {
             assert_eq!(category, CATEGORY_FLASH);
             match command {
-                CMD_ERASE => self.0.erase_block(args, params),
-                CMD_READ => self.0.read_data(args, params),
-                CMD_WRITE => self.0.write_data(args, params),
-                CMD_STATUS => self.0.get_status(args, params),
-                CMD_SESSION_BASE => self.0.get_session_base(args, params),
-                CMD_LOCK => self.0.lock_memory(args, params),
+                CMD_ERASE => self.0.borrow_mut().erase_block(args, params),
+                CMD_READ => self.0.borrow_mut().read_data(args, params),
+                CMD_WRITE => self.0.borrow_mut().write_data(args, params),
+                CMD_STATUS => self.0.borrow_mut().get_status(args, params),
+                CMD_SESSION_BASE => self.0.borrow_mut().get_session_base(args, params),
+                CMD_LOCK => self.0.borrow_mut().lock_memory(args, params),
                 _ => unreachable!(),
             }
+        }
+
+        fn emit_responded(&self, _: u32, _: u32, _: u32, _: u32, _: EfwProtocolError, _: &[u32]) {
+            // Omitted.
+        }
+
+        fn connect_responded<F>(&self, _f: F) -> SignalHandlerId
+        where
+            F: Fn(&Self, u32, u32, u32, u32, EfwProtocolError, &[u32]) + 'static,
+        {
+            // Dummy.
+            SignalHandlerId::from_glib(0)
         }
     }
 }

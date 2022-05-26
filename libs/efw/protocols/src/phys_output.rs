@@ -18,7 +18,7 @@ const CMD_SET_NOMINAL: u32 = 8;
 const CMD_GET_NOMINAL: u32 = 9;
 
 /// Protocol about physical output for Fireworks board module.
-pub trait PhysOutputProtocol: EfwProtocol {
+pub trait PhysOutputProtocol: EfwProtocolExtManual {
     /// Set volume of output.  The value of vol is unsigned fixed-point number of 8.24 format; i.e. Q24.
     /// (0x00000000..0x02000000, -144.0..+6.0 dB)
     fn set_vol(&mut self, ch: usize, vol: i32, timeout_ms: u32) -> Result<(), Error> {
@@ -104,4 +104,4 @@ pub trait PhysOutputProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> PhysOutputProtocol for O {}
+impl<O: EfwProtocolExtManual> PhysOutputProtocol for O {}

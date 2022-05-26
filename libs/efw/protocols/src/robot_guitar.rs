@@ -22,7 +22,7 @@ pub struct GuitarChargeState {
 }
 
 /// Protocol about robot guitar for Fireworks board module.
-pub trait RobotGuitarProtocol: EfwProtocol {
+pub trait RobotGuitarProtocol: EfwProtocolExtManual {
     fn get_charge_state(&mut self, timeout_ms: u32) -> Result<GuitarChargeState, Error> {
         let mut params = vec![0; 3];
         self.transaction(
@@ -60,4 +60,4 @@ pub trait RobotGuitarProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> RobotGuitarProtocol for O {}
+impl<O: EfwProtocolExtManual> RobotGuitarProtocol for O {}

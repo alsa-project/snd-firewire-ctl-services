@@ -14,7 +14,7 @@ const CMD_SET_NOMINAL: u32 = 8;
 const CMD_GET_NOMINAL: u32 = 9;
 
 /// Protocol about physical input for Fireworks board module.
-pub trait PhysInputProtocol: EfwProtocol {
+pub trait PhysInputProtocol: EfwProtocolExtManual {
     fn set_nominal(
         &mut self,
         ch: usize,
@@ -45,4 +45,4 @@ pub trait PhysInputProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> PhysInputProtocol for O {}
+impl<O: EfwProtocolExtManual> PhysInputProtocol for O {}

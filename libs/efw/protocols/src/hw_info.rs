@@ -374,7 +374,7 @@ const HWINFO_QUADS: usize = 65;
 const METER_QUADS: usize = 110;
 
 /// Protocol about hardware information for Fireworks board module.
-pub trait HwInfoProtocol: EfwProtocol {
+pub trait HwInfoProtocol: EfwProtocolExtManual {
     /// Read hardware information.
     fn get_hw_info(&mut self, info: &mut HwInfo, timeout_ms: u32) -> Result<(), Error> {
         let mut params = vec![0; HWINFO_QUADS];
@@ -422,4 +422,4 @@ pub trait HwInfoProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> HwInfoProtocol for O {}
+impl<O: EfwProtocolExtManual> HwInfoProtocol for O {}

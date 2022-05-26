@@ -62,7 +62,7 @@ const MAP_ENTRY_COUNT: usize = 32;
 const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
 
 /// Protocol about port configuration for Fireworks board module.
-pub trait PortConfProtocol: EfwProtocol {
+pub trait PortConfProtocol: EfwProtocolExtManual {
     fn set_control_room_source(&mut self, pair: usize, timeout_ms: u32) -> Result<(), Error> {
         self.transaction(
             CATEGORY_PORT_CONF,
@@ -254,4 +254,4 @@ fn build_stream_map(
         });
 }
 
-impl<O: EfwProtocol> PortConfProtocol for O {}
+impl<O: EfwProtocolExtManual> PortConfProtocol for O {}

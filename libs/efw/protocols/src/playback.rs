@@ -18,7 +18,7 @@ const CMD_SET_SOLO: u32 = 4;
 const CMD_GET_SOLO: u32 = 5;
 
 /// Protocol about stream playback for Fireworks board module.
-pub trait PlaybackProtocol: EfwProtocol {
+pub trait PlaybackProtocol: EfwProtocolExtManual {
     /// Set volume of stream playback. The value of vol is unsigned fixed-point number of 8.24
     /// format; i.e. Q24. (0x00000000..0x02000000, -144.0..+6.0 dB)
     fn set_playback_vol(&mut self, ch: usize, vol: i32, timeout_ms: u32) -> Result<(), Error> {
@@ -99,4 +99,4 @@ pub trait PlaybackProtocol: EfwProtocol {
     }
 }
 
-impl<O: EfwProtocol> PlaybackProtocol for O {}
+impl<O: EfwProtocolExtManual> PlaybackProtocol for O {}
