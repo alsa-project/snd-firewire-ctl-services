@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::{Error, FileError};
 
-use hinawa::{SndUnit, SndUnitExt, FwFcp, FwFcpExt};
+use hinawa::{FwFcp, FwFcpExt, SndUnit, SndUnitExt};
 
 use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
 
@@ -30,24 +30,43 @@ impl CtlModel<SndUnit> for LinkFwModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.common_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .common_ctl
+            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.specific_ctl.read(&mut self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .specific_ctl
+            .read(&mut self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, _: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.common_ctl.write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .common_ctl
+            .write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.specific_ctl.write(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .specific_ctl
+            .write(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -64,10 +83,14 @@ impl NotifyModel<SndUnit, bool> for LinkFwModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.common_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.common_ctl
+            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -84,17 +107,13 @@ fn input_source_to_str(src: &LinkFwInputSource) -> &str {
 const CAPTURE_SOURCE_NAME: &str = "capture-source";
 
 impl SpecificCtl {
-    const SRCS: [LinkFwInputSource; 2] = [
-        LinkFwInputSource::Analog,
-        LinkFwInputSource::Digital,
-    ];
+    const SRCS: [LinkFwInputSource; 2] = [LinkFwInputSource::Analog, LinkFwInputSource::Digital];
 
     fn load(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::SRCS.iter()
-            .map(|s| input_source_to_str(s))
-            .collect();
+        let labels: Vec<&str> = Self::SRCS.iter().map(|s| input_source_to_str(s)).collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CAPTURE_SOURCE_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())
     }
 
@@ -109,9 +128,7 @@ impl SpecificCtl {
             CAPTURE_SOURCE_NAME => {
                 let mut src = LinkFwInputSource::default();
                 LinkFwProtocol::read_input_source(avc, &mut src, timeout_ms)?;
-                let idx = Self::SRCS.iter()
-                    .position(|src| src.eq(&src))
-                    .unwrap();
+                let idx = Self::SRCS.iter().position(|src| src.eq(&src)).unwrap();
                 elem_value.set_enum(&[idx as u32]);
                 Ok(true)
             }
@@ -130,14 +147,11 @@ impl SpecificCtl {
             CAPTURE_SOURCE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &src = Self::SRCS.iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of signal source: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                LinkFwProtocol::write_input_source(avc, src, timeout_ms)
-                    .map(|_| true)
+                let &src = Self::SRCS.iter().nth(vals[0] as usize).ok_or_else(|| {
+                    let msg = format!("Invalid value for index of signal source: {}", vals[0]);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                LinkFwProtocol::write_input_source(avc, src, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }

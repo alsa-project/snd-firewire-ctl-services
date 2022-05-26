@@ -14,21 +14,21 @@ use oxfw_protocols::tascam::*;
 use super::common_ctl::CommonCtl;
 
 #[derive(Default, Debug)]
-pub struct TascamModel{
+pub struct TascamModel {
     avc: TascamAvc,
     common_ctl: CommonCtl,
 }
 
 fn display_mode_to_str(mode: &FireoneDisplayMode) -> &str {
     match mode {
-            FireoneDisplayMode::Off => "always-off",
-            FireoneDisplayMode::AlwaysOn => "always-on",
-            FireoneDisplayMode::Breathe => "breathe",
-            FireoneDisplayMode::Metronome => "metronome",
-            FireoneDisplayMode::MidiClockRotate => "midi-clock-rotate",
-            FireoneDisplayMode::MidiClockFlash => "midi-clock-flash",
-            FireoneDisplayMode::JogSlowRotate => "jog-slow-rotate",
-            FireoneDisplayMode::JogTrack => "jog-track",
+        FireoneDisplayMode::Off => "always-off",
+        FireoneDisplayMode::AlwaysOn => "always-on",
+        FireoneDisplayMode::Breathe => "breathe",
+        FireoneDisplayMode::Metronome => "metronome",
+        FireoneDisplayMode::MidiClockRotate => "midi-clock-rotate",
+        FireoneDisplayMode::MidiClockFlash => "midi-clock-flash",
+        FireoneDisplayMode::JogSlowRotate => "jog-slow-rotate",
+        FireoneDisplayMode::JogTrack => "jog-track",
     }
 }
 
@@ -68,10 +68,8 @@ impl TascamModel {
         FireoneMidiMessageMode::Native,
         FireoneMidiMessageMode::MackieHuiEmulation,
     ];
-    const INPUT_MODES: [FireoneInputMode; 2] = [
-        FireoneInputMode::Stereo,
-        FireoneInputMode::Monaural,
-    ];
+    const INPUT_MODES: [FireoneInputMode; 2] =
+        [FireoneInputMode::Stereo, FireoneInputMode::Monaural];
 }
 
 impl CtlModel<SndUnit> for TascamModel {
@@ -80,31 +78,28 @@ impl CtlModel<SndUnit> for TascamModel {
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
-        let labels: Vec<&str> = Self::DISPLAY_MODES.iter()
+        let labels: Vec<&str> = Self::DISPLAY_MODES
+            .iter()
             .map(|m| display_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = Self::MESSAGE_MODES.iter()
+        let labels: Vec<&str> = Self::MESSAGE_MODES
+            .iter()
             .map(|m| midi_message_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MESSAGE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = Self::INPUT_MODES.iter()
+        let labels: Vec<&str> = Self::INPUT_MODES
+            .iter()
             .map(|m| input_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Card,
-            0,
-            0,
-            FIRMWARE_VERSION_NAME,
-            0,
-        );
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, FIRMWARE_VERSION_NAME, 0);
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, 1, None, false)?;
 
         Ok(())
@@ -116,14 +111,18 @@ impl CtlModel<SndUnit> for TascamModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self
+            .common_ctl
+            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             return Ok(true);
         } else {
             match elem_id.get_name().as_str() {
                 DISPLAY_MODE_NAME => {
                     let mut mode = FireoneDisplayMode::default();
                     FireoneProtocol::read_display_mode(&mut self.avc, &mut mode, FCP_TIMEOUT_MS)?;
-                    let pos = Self::DISPLAY_MODES.iter()
+                    let pos = Self::DISPLAY_MODES
+                        .iter()
                         .position(|m| m.eq(&mode))
                         .unwrap();
                     elem_value.set_enum(&[pos as u32]);
@@ -131,8 +130,13 @@ impl CtlModel<SndUnit> for TascamModel {
                 }
                 MESSAGE_MODE_NAME => {
                     let mut mode = FireoneMidiMessageMode::default();
-                    FireoneProtocol::read_midi_message_mode(&mut self.avc, &mut mode, FCP_TIMEOUT_MS)?;
-                    let pos = Self::MESSAGE_MODES.iter()
+                    FireoneProtocol::read_midi_message_mode(
+                        &mut self.avc,
+                        &mut mode,
+                        FCP_TIMEOUT_MS,
+                    )?;
+                    let pos = Self::MESSAGE_MODES
+                        .iter()
                         .position(|m| m.eq(&mode))
                         .unwrap();
                     elem_value.set_enum(&[pos as u32]);
@@ -141,15 +145,17 @@ impl CtlModel<SndUnit> for TascamModel {
                 INPUT_MODE_NAME => {
                     let mut mode = FireoneInputMode::default();
                     FireoneProtocol::read_input_mode(&mut self.avc, &mut mode, FCP_TIMEOUT_MS)?;
-                    let pos = Self::INPUT_MODES.iter()
-                        .position(|m| m.eq(&mode))
-                        .unwrap();
+                    let pos = Self::INPUT_MODES.iter().position(|m| m.eq(&mode)).unwrap();
                     elem_value.set_enum(&[pos as u32]);
                     Ok(true)
                 }
                 FIRMWARE_VERSION_NAME => {
                     let mut version = 0;
-                    FireoneProtocol::read_firmware_version(&mut self.avc, &mut version, FCP_TIMEOUT_MS)?;
+                    FireoneProtocol::read_firmware_version(
+                        &mut self.avc,
+                        &mut version,
+                        FCP_TIMEOUT_MS,
+                    )?;
                     elem_value.set_bytes(&[version]);
                     Ok(true)
                 }
@@ -165,16 +171,20 @@ impl CtlModel<SndUnit> for TascamModel {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        if self
+            .common_ctl
+            .write(unit, &self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             return Ok(true);
         } else {
             match elem_id.get_name().as_str() {
                 DISPLAY_MODE_NAME => {
                     let mut vals = [0];
                     new.get_enum(&mut vals);
-                    let &mode = Self::DISPLAY_MODES.iter()
+                    let &mode = Self::DISPLAY_MODES
+                        .iter()
                         .nth(vals[0] as usize)
-                        .ok_or_else(||{
+                        .ok_or_else(|| {
                             let msg = format!("Invalid index for display modes: {}", vals[0]);
                             Error::new(FileError::Inval, &msg)
                         })?;
@@ -184,9 +194,10 @@ impl CtlModel<SndUnit> for TascamModel {
                 MESSAGE_MODE_NAME => {
                     let mut vals = [0];
                     new.get_enum(&mut vals);
-                    let &mode = Self::MESSAGE_MODES.iter()
+                    let &mode = Self::MESSAGE_MODES
+                        .iter()
                         .nth(vals[0] as usize)
-                        .ok_or_else(||{
+                        .ok_or_else(|| {
                             let msg = format!("Invalid index for midi message modes: {}", vals[0]);
                             Error::new(FileError::Inval, &msg)
                         })?;
@@ -196,12 +207,14 @@ impl CtlModel<SndUnit> for TascamModel {
                 INPUT_MODE_NAME => {
                     let mut vals = [0];
                     new.get_enum(&mut vals);
-                    let &mode = Self::INPUT_MODES.iter()
-                        .nth(vals[0] as usize)
-                        .ok_or_else(||{
-                            let msg = format!("Invalid index for input modes: {}", vals[0]);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
+                    let &mode =
+                        Self::INPUT_MODES
+                            .iter()
+                            .nth(vals[0] as usize)
+                            .ok_or_else(|| {
+                                let msg = format!("Invalid index for input modes: {}", vals[0]);
+                                Error::new(FileError::Inval, &msg)
+                            })?;
                     FireoneProtocol::write_input_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
                         .map(|_| true)
                 }
@@ -220,9 +233,13 @@ impl NotifyModel<SndUnit, bool> for TascamModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.common_ctl.read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.common_ctl
+            .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
