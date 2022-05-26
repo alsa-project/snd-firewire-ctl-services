@@ -11,17 +11,17 @@ use crate::*;
 pub struct Ff802Protocol;
 
 // For configuration register (0x'ffff'0000'0014).
-const CFG_CLK_SRC_MASK: u32                     = 0x00001c00;
-const   CFG_CLK_SRC_ADAT_B_FLAG: u32            = 0x00001000;
-const   CFG_CLK_SRC_ADAT_A_FLAG: u32            = 0x00000c00;
-const   CFG_CLK_SRC_AESEBU_FLAG: u32            = 0x00000800;
-const   CFG_CLK_SRC_WORD_CLK_FLAG: u32          = 0x00000400;
-const   CFG_CLK_SRC_INTERNAL_FLAG: u32          = 0x00000000;
+const CFG_CLK_SRC_MASK: u32 = 0x00001c00;
+const CFG_CLK_SRC_ADAT_B_FLAG: u32 = 0x00001000;
+const CFG_CLK_SRC_ADAT_A_FLAG: u32 = 0x00000c00;
+const CFG_CLK_SRC_AESEBU_FLAG: u32 = 0x00000800;
+const CFG_CLK_SRC_WORD_CLK_FLAG: u32 = 0x00000400;
+const CFG_CLK_SRC_INTERNAL_FLAG: u32 = 0x00000000;
 const CFG_AESEBU_INPUT_FROM_OPT_IFACE_MASK: u32 = 0x00000200;
-const CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK: u32  = 0x00000100;
-const CFG_DSP_EFFECT_ON_INPUT_MASK: u32         = 0x00000040;
-const CFG_AESEBU_OUT_PRO_MASK: u32              = 0x00000020;
-const CFG_WORD_OUT_SINGLE_MASK: u32             = 0x00000010;
+const CFG_AESEBU_OUTPUT_TO_OPT_IFACE_MASK: u32 = 0x00000100;
+const CFG_DSP_EFFECT_ON_INPUT_MASK: u32 = 0x00000040;
+const CFG_AESEBU_OUT_PRO_MASK: u32 = 0x00000020;
+const CFG_WORD_OUT_SINGLE_MASK: u32 = 0x00000010;
 
 /// The enumeration to represent source of sampling clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -77,7 +77,7 @@ impl Default for Ff802SpdifIface {
 
 /// The structure to represent unique protocol for Fireface 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Ff802Config{
+pub struct Ff802Config {
     /// The low offset of destination address for MIDI messages.
     midi_tx_low_offset: FfLatterMidiTxLowOffset,
     /// The source of sampling clock.
@@ -94,7 +94,7 @@ pub struct Ff802Config{
     pub word_out_single: bool,
 }
 
-impl RmeFfLatterRegisterValueOperation for Ff802Config{
+impl RmeFfLatterRegisterValueOperation for Ff802Config {
     fn build(&self, quad: &mut u32) {
         self.midi_tx_low_offset.build(quad);
         self.clk_src.build(quad);
@@ -150,33 +150,33 @@ impl RmeFfLatterConfigOperation<Ff802Config> for Ff802Protocol {}
 
 // For status register (0x'ffff'0000'001c).
 #[allow(dead_code)]
-const STATUS_ACTIVE_CLK_RATE_MASK: u32              = 0xf0000000;
+const STATUS_ACTIVE_CLK_RATE_MASK: u32 = 0xf0000000;
 #[allow(dead_code)]
-const STATUS_ADAT_B_RATE_MASK: u32                  = 0x0f000000;
+const STATUS_ADAT_B_RATE_MASK: u32 = 0x0f000000;
 #[allow(dead_code)]
-const STATUS_ADAT_A_RATE_MASK: u32                  = 0x00f00000;
+const STATUS_ADAT_A_RATE_MASK: u32 = 0x00f00000;
 #[allow(dead_code)]
-const STATUS_SPDIF_RATE_MASK: u32                   = 0x000f0000;
+const STATUS_SPDIF_RATE_MASK: u32 = 0x000f0000;
 #[allow(dead_code)]
-const STATUS_WORD_CLK_RATE_MASK: u32                = 0x0000f000;
-const STATUS_ACTIVE_CLK_SRC_MASK: u32               = 0x00000e00;
-const   STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32    = 0x00000e00;
-const   STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG: u32      = 0x00000800;
-const   STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG: u32      = 0x00000600;
-const   STATUS_ACTIVE_CLK_SRC_AESEBU_FLAG: u32      = 0x00000400;
-const   STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32    = 0x00000200;
-const STATUS_SYNC_ADAT_B_MASK: u32                  = 0x00000080;
-const STATUS_SYNC_ADAT_A_MASK: u32                  = 0x00000040;
-const STATUS_SYNC_SPDIF_MASK: u32                   = 0x00000020;
-const STATUS_SYNC_WORD_CLK_MASK: u32                = 0x00000010;
-const STATUS_LOCK_ADAT_B_MASK: u32                  = 0x00000008;
-const STATUS_LOCK_ADAT_A_MASK: u32                  = 0x00000004;
-const STATUS_LOCK_SPDIF_MASK: u32                   = 0x00000002;
-const STATUS_LOCK_WORD_CLK_MASK: u32                = 0x00000001;
+const STATUS_WORD_CLK_RATE_MASK: u32 = 0x0000f000;
+const STATUS_ACTIVE_CLK_SRC_MASK: u32 = 0x00000e00;
+const STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32 = 0x00000e00;
+const STATUS_ACTIVE_CLK_SRC_ADAT_A_FLAG: u32 = 0x00000800;
+const STATUS_ACTIVE_CLK_SRC_ADAT_B_FLAG: u32 = 0x00000600;
+const STATUS_ACTIVE_CLK_SRC_AESEBU_FLAG: u32 = 0x00000400;
+const STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32 = 0x00000200;
+const STATUS_SYNC_ADAT_B_MASK: u32 = 0x00000080;
+const STATUS_SYNC_ADAT_A_MASK: u32 = 0x00000040;
+const STATUS_SYNC_SPDIF_MASK: u32 = 0x00000020;
+const STATUS_SYNC_WORD_CLK_MASK: u32 = 0x00000010;
+const STATUS_LOCK_ADAT_B_MASK: u32 = 0x00000008;
+const STATUS_LOCK_ADAT_A_MASK: u32 = 0x00000004;
+const STATUS_LOCK_SPDIF_MASK: u32 = 0x00000002;
+const STATUS_LOCK_WORD_CLK_MASK: u32 = 0x00000001;
 
 /// The structure to represent lock status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Ff802ExtLockStatus{
+pub struct Ff802ExtLockStatus {
     pub word_clk: bool,
     pub spdif: bool,
     pub adat_b: bool,
@@ -209,7 +209,7 @@ impl Ff802ExtLockStatus {
 
 /// The structure to represent sync status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Ff802ExtSyncStatus{
+pub struct Ff802ExtSyncStatus {
     pub word_clk: bool,
     pub spdif: bool,
     pub adat_b: bool,
@@ -242,7 +242,7 @@ impl Ff802ExtSyncStatus {
 
 /// The structure to represent sync status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Ff802ExtRateStatus{
+pub struct Ff802ExtRateStatus {
     pub word_clk: Option<ClkNominalRate>,
     pub spdif: Option<ClkNominalRate>,
     pub adat_b: Option<ClkNominalRate>,
@@ -283,7 +283,7 @@ impl Ff802ExtRateStatus {
 
 /// The structure to represent status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Ff802Status{
+pub struct Ff802Status {
     pub ext_lock: Ff802ExtLockStatus,
     pub ext_sync: Ff802ExtSyncStatus,
     pub ext_rate: Ff802ExtRateStatus,
