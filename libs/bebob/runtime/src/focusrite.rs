@@ -7,21 +7,10 @@ pub mod saffirepro26io_model;
 pub mod saffire_model;
 pub mod saffirele_model;
 
-use glib::{Error, FileError};
-
-use hinawa::FwReq;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::CardCntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use bebob_protocols::focusrite::{saffire::*, saffireproio::*, *};
-
-use crate::model::{CLK_RATE_NAME, CLK_SRC_NAME};
+use {
+    super::{common_ctls::*, *},
+    bebob_protocols::{focusrite::{saffire::*, saffireproio::*, *}, *},
+};
 
 trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOperation> {
     fn load_freq(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {

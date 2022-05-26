@@ -7,22 +7,11 @@ pub mod profirelightbridge_model;
 pub mod solo_model;
 pub mod special_model;
 
-use glib::{Error, FileError};
-
-use hinawa::{FwNode, FwReq};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use ta1394::*;
-
-use bebob_protocols::{maudio::normal::*, *};
-
-use crate::model::{IN_METER_NAME, OUT_METER_NAME};
+use {
+    super::{common_ctls::*, *},
+    bebob_protocols::{maudio::normal::*, *},
+    ta1394::*,
+};
 
 const STREAM_INPUT_METER_NAME: &str = "stream-input-meters";
 const HP_METER_NAME: &str = "headphone-meters";

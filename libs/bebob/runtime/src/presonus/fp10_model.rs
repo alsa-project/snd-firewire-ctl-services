@@ -1,19 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
-
-use hinawa::FwFcpExt;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::*;
-
-use bebob_protocols::{presonus::fp10::*, *};
-
-use crate::common_ctls::*;
-use crate::model::OUT_VOL_NAME;
+use {
+    super::*,
+    bebob_protocols::{presonus::fp10::*, *},
+};
 
 #[derive(Default)]
 pub struct Fp10Model {

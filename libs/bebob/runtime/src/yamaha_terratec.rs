@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
-
-use alsactl::{ElemId, ElemValue};
-use hinawa::{FwFcpExt, SndUnit, SndUnitExt};
-
-use core::card_cntr::*;
-
-use bebob_protocols::{yamaha_terratec::*, *};
-
-use super::common_ctls::*;
+use {
+    super::{common_ctls::*, *},
+    bebob_protocols::{yamaha_terratec::*, *},
+};
 
 #[derive(Default)]
 pub struct GoPhase24CoaxModel {

@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
-
-use hinawa::{FwFcpExt, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::*;
-
-use crate::common_ctls::*;
-
-use bebob_protocols::{digidesign::*, *};
+use {
+    super::{common_ctls::*, *},
+    bebob_protocols::{digidesign::*, *},
+};
 
 #[derive(Default)]
 pub struct Mbox2proModel {
