@@ -12,3 +12,9 @@ pub mod lacie;
 pub mod loud;
 pub mod oxford;
 pub mod tascam;
+
+use {
+    glib::{Error, FileError},
+    hinawa::{FwFcp, FwNode, FwReq, FwReqExtManual, FwTcode},
+    ta1394::{audio::*, ccm::*, general::*, *},
+};

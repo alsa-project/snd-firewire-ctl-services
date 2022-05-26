@@ -5,11 +5,7 @@
 //!
 //! The module includes protocol implementation defined by Griffin Technologies for FireWave.
 
-use glib::{Error, FileError};
-
-use hinawa::FwFcp;
-
-use ta1394::{audio::*, *};
+use super::*;
 
 /// The protocol implementation for FireWave.
 #[derive(Default, Debug)]

@@ -5,11 +5,7 @@
 //!
 //! The module includes protocol implementation defined by La Cie for FireWire Speackers.
 
-use glib::Error;
-
-use hinawa::FwFcp;
-
-use ta1394::{audio::*, *};
+use super::*;
 
 /// The protocol implementation for FireWire Speackers.
 #[derive(Default, Debug)]
