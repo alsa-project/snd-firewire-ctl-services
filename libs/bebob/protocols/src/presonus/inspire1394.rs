@@ -46,12 +46,6 @@
 //!   maximum size: 0x180000
 //! ```
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use ta1394::{general::*, *};
-
-use crate::*;
-
 use super::*;
 
 /// The protocol implementation of clock operation.

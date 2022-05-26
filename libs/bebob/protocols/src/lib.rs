@@ -21,13 +21,12 @@ pub mod stanton;
 pub mod terratec;
 pub mod yamaha_terratec;
 
-use glib::{Error, FileError};
-
-use hinawa::FwFcp;
-
-use ta1394::{amdtp::*, audio::*, ccm::*, general::*, *};
-
-use bridgeco::*;
+use {
+    self::bridgeco::{ExtendedStreamFormatSingle, *},
+    glib::{Error, FileError},
+    hinawa::{FwFcp, FwNode, FwReq, FwReqExtManual, FwTcode},
+    ta1394::{amdtp::*, audio::*, ccm::*, general::*, *},
+};
 
 /// The offset for specific purposes in DM1000/DM1100/DM1500 ASICs.
 pub const DM_APPL_OFFSET: u64 = 0xffc700000000;

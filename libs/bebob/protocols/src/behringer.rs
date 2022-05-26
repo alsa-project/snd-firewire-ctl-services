@@ -49,9 +49,6 @@
 
 use super::*;
 
-use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
-use ta1394::MUSIC_SUBUNIT_0;
-
 /// The protocol implementation for media and sampling clock of FCA 610.
 #[derive(Default)]
 pub struct Fca610ClkProtocol;

@@ -110,7 +110,7 @@
 //!   maximum size: 0x180000
 //! ```
 
-use crate::*;
+use super::*;
 
 /// The protocol implementation of media and sampling clock for Yamaha Go 44/46 and PHASE 24/X24 FW;
 pub struct GoPhase24ClkProtocol;

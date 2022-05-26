@@ -80,12 +80,7 @@
 //!   maximum size: 0x156aa8
 //! ```
 
-use crate::*;
-
 use super::*;
-
-use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
-use ta1394::MUSIC_SUBUNIT_0;
 
 /// The protocol implementation for media and sampling clock of Ensemble FireWire.
 #[derive(Default)]

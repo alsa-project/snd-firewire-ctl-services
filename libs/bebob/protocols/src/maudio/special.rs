@@ -62,9 +62,7 @@
 //!   maximum size: 0x180000
 //! ```
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use crate::*;
+use super::*;
 
 /// The protocol implementation for media clock of FireWire 1814.
 #[derive(Default)]

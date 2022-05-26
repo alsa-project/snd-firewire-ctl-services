@@ -32,9 +32,7 @@
 //!                                         +-----------------> headphone-1/2
 //! ```
 
-use ta1394::*;
-
-use crate::*;
+use super::*;
 
 /// The protocol implementation of clock operation.
 #[derive(Default)]

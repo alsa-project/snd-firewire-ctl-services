@@ -111,8 +111,6 @@
 //!   maximum size: 0x149174
 //! ```
 
-use glib::FileError;
-
 use super::*;
 
 /// The protocol implementation of media and sampling clocks for Saffire Pro 26 i/o. Write
