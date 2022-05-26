@@ -130,27 +130,21 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_output_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
         self.mixer_return_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
-            .load(
-                card_cntr,
-                &mut unit.0,
-                &mut self.req,
-                &self.params,
-                TIMEOUT_MS,
-            )
+            .load(card_cntr, unit, &mut self.req, &self.params, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         self.output_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
         self.input_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.input_ctl.1 = elem_id_list)?;
         self.meter_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
         Ok(())
     }
@@ -202,43 +196,34 @@ impl CtlModel<(SndMotu, FwNode)> for AudioExpress {
             .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.mixer_output_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .mixer_output_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_return_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .mixer_return_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_source_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .mixer_source_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .output_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .input_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .meter_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {

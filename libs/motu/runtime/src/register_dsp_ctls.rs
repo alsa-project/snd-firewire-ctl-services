@@ -37,11 +37,11 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        T::read_mixer_output_state(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::read_mixer_output_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let mut notified_elem_id_list = Vec::new();
 
@@ -104,7 +104,7 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -115,26 +115,14 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
                 let mut vals = vec![0; T::MIXER_COUNT];
                 elem_value.get_int(&mut vals);
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
-                T::write_mixer_output_volume(
-                    req,
-                    &mut unit.get_node(),
-                    &vols,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer_output_volume(req, &mut unit.1, &vols, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
                 let mut mute = vec![false; T::MIXER_COUNT];
                 elem_value.get_bool(&mut mute);
-                T::write_mixer_output_mute(
-                    req,
-                    &mut unit.get_node(),
-                    &mute,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer_output_mute(req, &mut unit.1, &mute, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             MIXER_OUTPUT_DST_NAME => {
                 let mut vals = vec![0; T::MIXER_COUNT];
@@ -152,7 +140,7 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
                 })?;
                 T::write_mixer_output_destination(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &dst,
                     self.state_mut(),
                     timeout_ms,
@@ -181,11 +169,11 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        T::read_mixer_return_enable(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::read_mixer_return_enable(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_RETURN_ENABLE_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)
@@ -203,7 +191,7 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -213,8 +201,7 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
             MIXER_RETURN_ENABLE_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_mixer_return_enable(req, &mut unit.get_node(), vals[0], timeout_ms)
-                    .map(|_| true)
+                T::write_mixer_return_enable(req, &mut unit.1, vals[0], timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -240,12 +227,12 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_mixer_monaural_source_state();
-        T::read_mixer_monaural_source_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_mixer_monaural_source_state(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
@@ -319,7 +306,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -333,7 +320,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_gain(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &gain,
                     self.state_mut(),
@@ -348,7 +335,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_pan(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &pan,
                     self.state_mut(),
@@ -362,7 +349,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_mute(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &mute,
                     self.state_mut(),
@@ -376,7 +363,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_solo(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &solo,
                     self.state_mut(),
@@ -414,14 +401,14 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         params: &SndMotuRegisterDspParameter,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_mixer_stereo_source_state();
         self.parse_dsp_parameter(params);
-        T::read_mixer_stereo_source_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_mixer_stereo_source_state(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
@@ -545,7 +532,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -559,7 +546,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_gain(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &gain,
                     self.state_mut(),
@@ -574,7 +561,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_pan(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &pan,
                     self.state_mut(),
@@ -588,7 +575,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_mute(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &mute,
                     self.state_mut(),
@@ -602,7 +589,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_mute(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &solo,
                     self.state_mut(),
@@ -617,7 +604,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_balance(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &balance,
                     self.state_mut(),
@@ -632,7 +619,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_width(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &width,
                     self.state_mut(),
@@ -670,11 +657,11 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        T::read_output_state(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::read_output_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let mut notified_elem_id_list = Vec::new();
 
@@ -725,7 +712,7 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -737,7 +724,7 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
                 elem_value.get_int(&mut vals);
                 T::write_output_master_volume(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     vals[0] as u8,
                     self.state_mut(),
                     timeout_ms,
@@ -749,7 +736,7 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
                 elem_value.get_int(&mut vals);
                 T::write_output_phone_volume(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     vals[0] as u8,
                     self.state_mut(),
                     timeout_ms,
@@ -784,12 +771,12 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_line_input_state();
-        T::read_line_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_line_input_state(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
@@ -833,7 +820,7 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -854,26 +841,14 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
                         })
                         .map(|&l| level.push(l))
                 })?;
-                T::write_line_input_level(
-                    req,
-                    &mut unit.get_node(),
-                    &level,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_line_input_level(req, &mut unit.1, &level, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             INPUT_BOOST_NAME => {
                 let mut vals = vec![false; T::LINE_INPUT_COUNT];
                 elem_value.get_bool(&mut vals);
-                T::write_line_input_boost(
-                    req,
-                    &mut unit.get_node(),
-                    &vals,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_line_input_boost(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -909,12 +884,12 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_monaural_input_state();
-        T::read_monaural_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_monaural_input_state(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
@@ -957,7 +932,7 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -968,21 +943,15 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
                 let mut vals = vec![0; T::INPUT_COUNT];
                 elem_value.get_int(&mut vals);
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                T::write_monaural_input_gain(
-                    req,
-                    &mut unit.get_node(),
-                    &gain,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_monaural_input_gain(req, &mut unit.1, &gain, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             INPUT_INVERT_NAME => {
                 let mut invert = vec![false; T::INPUT_COUNT];
                 elem_value.get_bool(&mut invert);
                 T::write_monaural_input_invert(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &invert,
                     self.state_mut(),
                     timeout_ms,
@@ -1016,12 +985,12 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_stereo_input_state();
-        T::read_stereo_input_state(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_stereo_input_state(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut notified_elem_id_list = Vec::new();
@@ -1100,7 +1069,7 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1111,21 +1080,15 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
                 let mut vals = vec![0; T::INPUT_COUNT];
                 elem_value.get_int(&mut vals);
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                T::write_stereo_input_gain(
-                    req,
-                    &mut unit.get_node(),
-                    &gain,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_stereo_input_gain(req, &mut unit.1, &gain, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             INPUT_INVERT_NAME => {
                 let mut invert = vec![false; T::INPUT_COUNT];
                 elem_value.get_bool(&mut invert);
                 T::write_stereo_input_invert(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &invert,
                     self.state_mut(),
                     timeout_ms,
@@ -1135,33 +1098,20 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
             MIC_PHANTOM_NAME => {
                 let mut phantom = vec![false; T::MIC_COUNT];
                 elem_value.get_bool(&mut phantom);
-                T::write_mic_phantom(
-                    req,
-                    &mut unit.get_node(),
-                    &phantom,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mic_phantom(req, &mut unit.1, &phantom, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             MIC_PAD_NAME => {
                 let mut pad = vec![false; T::MIC_COUNT];
                 elem_value.get_bool(&mut pad);
-                T::write_mic_pad(
-                    req,
-                    &mut unit.get_node(),
-                    &pad,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mic_pad(req, &mut unit.1, &pad, self.state_mut(), timeout_ms).map(|_| true)
             }
             INPUT_PAIRED_NAME => {
                 let mut paired = vec![false; T::INPUT_PAIR_COUNT];
                 elem_value.get_bool(&mut paired);
                 T::write_stereo_input_paired(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &paired,
                     self.state_mut(),
                     timeout_ms,
@@ -1200,14 +1150,14 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_meter_state();
 
         if T::SELECTABLE {
-            T::select_output(req, &mut unit.get_node(), 0, &mut state, timeout_ms)?;
+            T::select_output(req, &mut unit.1, 0, &mut state, timeout_ms)?;
         }
 
         *self.state_mut() = state;
@@ -1285,7 +1235,7 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1298,14 +1248,8 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
                     elem_value.get_enum(&mut vals);
                     let target = vals[0] as usize;
                     if target < T::OUTPUT_PORT_PAIRS.len() {
-                        T::select_output(
-                            req,
-                            &mut unit.get_node(),
-                            target,
-                            self.state_mut(),
-                            timeout_ms,
-                        )
-                        .map(|_| true)
+                        T::select_output(req, &mut unit.1, target, self.state_mut(), timeout_ms)
+                            .map(|_| true)
                     } else {
                         let msg = format!("Invalid index for output meter pair: {}", target);
                         Err(Error::new(FileError::Inval, &msg))
