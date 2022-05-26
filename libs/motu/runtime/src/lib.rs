@@ -33,7 +33,7 @@ use {
     self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
     core::RuntimeOperation,
     glib::{Error, FileError},
-    hinawa::{FwNodeExt, FwNodeExtManual},
+    hinawa::{FwNode, FwNodeExt, FwNodeExtManual},
     hinawa::{SndMotu, SndMotuExt, SndUnitExt},
     ieee1212_config_rom::*,
     motu_protocols::{config_rom::*, *},
@@ -79,8 +79,8 @@ impl RuntimeOperation<u32> for MotuRuntime {
         let version = unit_data.version;
 
         match unit_data.model_id {
-            0x000001 => Ok(Self::F828(F828Runtime::new(unit, card_id, version)?)),
-            0x000002 => Ok(Self::F896(F896Runtime::new(unit, card_id, version)?)),
+            0x000001 => Ok(Self::F828(F828Runtime::new(unit, node, card_id, version)?)),
+            0x000002 => Ok(Self::F896(F896Runtime::new(unit, node, card_id, version)?)),
             0x000003 => Ok(Self::F828mk2(F828mk2Runtime::new(unit, card_id, version)?)),
             0x000005 => Ok(Self::F896hd(F896hdRuntime::new(unit, card_id, version)?)),
             0x000009 => Ok(Self::Traveler(TravelerRuntime::new(
