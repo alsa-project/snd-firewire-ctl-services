@@ -33,15 +33,17 @@ const AVAIL_CLK_SRC_LABELS: [&str; 13] = [
     "Internal",
 ];
 
-impl CtlModel<SndDice> for FStudioModel {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for FStudioModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
@@ -62,12 +64,12 @@ impl CtlModel<SndDice> for FStudioModel {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -97,13 +99,13 @@ impl CtlModel<SndDice> for FStudioModel {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -133,19 +135,19 @@ impl CtlModel<SndDice> for FStudioModel {
     }
 }
 
-impl NotifyModel<SndDice, u32> for FStudioModel {
+impl NotifyModel<(SndDice, FwNode), u32> for FStudioModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
         self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
+            .parse_notification(&mut unit.0, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -153,15 +155,15 @@ impl NotifyModel<SndDice, u32> for FStudioModel {
     }
 }
 
-impl MeasureModel<SndDice> for FStudioModel {
+impl MeasureModel<(SndDice, FwNode)> for FStudioModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
@@ -169,7 +171,7 @@ impl MeasureModel<SndDice> for FStudioModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -204,11 +206,11 @@ impl MeterCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        FStudioProtocol::read_meter(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        FStudioProtocol::read_meter(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         [
             (Self::ANALOG_INPUT_NAME, self.0.analog_inputs.len()),
@@ -237,11 +239,11 @@ impl MeterCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        FStudioProtocol::read_meter(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+        FStudioProtocol::read_meter(req, &mut unit.1, &mut self.0, timeout_ms)
     }
 
     fn read_measured_elem(
@@ -362,11 +364,11 @@ impl OutputCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        FStudioProtocol::read_output_states(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        FStudioProtocol::read_output_states(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::VOL_NAME, 0);
         card_cntr.add_int_elems(
@@ -398,7 +400,7 @@ impl OutputCtl {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -432,12 +434,10 @@ impl OutputCtl {
                 Ok(true)
             }
             Self::TERMINATE_BNC_NAME => {
-                FStudioProtocol::read_bnc_terminate(req, &mut unit.get_node(), timeout_ms).map(
-                    |terminate| {
-                        elem_value.set_bool(&[terminate]);
-                        true
-                    },
-                )
+                FStudioProtocol::read_bnc_terminate(req, &mut unit.1, timeout_ms).map(|terminate| {
+                    elem_value.set_bool(&[terminate]);
+                    true
+                })
             }
             _ => Ok(false),
         }
@@ -445,7 +445,7 @@ impl OutputCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -456,26 +456,14 @@ impl OutputCtl {
                 let mut vals = vec![0; self.0.vols.len()];
                 elem_value.get_int(&mut vals);
                 let vols: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                FStudioProtocol::write_output_vols(
-                    req,
-                    &mut unit.get_node(),
-                    &mut self.0,
-                    &vols,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_output_vols(req, &mut unit.1, &mut self.0, &vols, timeout_ms)
+                    .map(|_| true)
             }
             Self::MUTE_NAME => {
                 let mut vals = self.0.mutes.clone();
                 elem_value.get_bool(&mut vals);
-                FStudioProtocol::write_output_mute(
-                    req,
-                    &mut unit.get_node(),
-                    &mut self.0,
-                    &vals,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_output_mute(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
+                    .map(|_| true)
             }
             Self::SRC_NAME => {
                 let mut vals = vec![0; self.0.srcs.len()];
@@ -492,37 +480,20 @@ impl OutputCtl {
                         })
                         .map(|&src| srcs[i] = src)
                 })?;
-                FStudioProtocol::write_output_src(
-                    req,
-                    &mut unit.get_node(),
-                    &mut self.0,
-                    &srcs,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_output_src(req, &mut unit.1, &mut self.0, &srcs, timeout_ms)
+                    .map(|_| true)
             }
             Self::LINK_NAME => {
                 let mut vals = self.0.links.clone();
                 elem_value.get_bool(&mut vals);
-                FStudioProtocol::write_output_link(
-                    req,
-                    &mut unit.get_node(),
-                    &mut self.0,
-                    &vals,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_output_link(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
+                    .map(|_| true)
             }
             Self::TERMINATE_BNC_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                FStudioProtocol::write_bnc_terminalte(
-                    req,
-                    &mut unit.get_node(),
-                    vals[0],
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_bnc_terminalte(req, &mut unit.1, vals[0], timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -582,7 +553,7 @@ impl AssignCtl {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -590,32 +561,26 @@ impl AssignCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MAIN_NAME => {
-                let target = FStudioProtocol::read_main_assign_target(
-                    req,
-                    &mut unit.get_node(),
-                    timeout_ms,
-                )?;
+                let target =
+                    FStudioProtocol::read_main_assign_target(req, &mut unit.1, timeout_ms)?;
                 let pos = Self::TARGETS.iter().position(|t| t.eq(&target)).unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
-            Self::HP_NAME => {
-                let mut node = unit.get_node();
-                ElemValueAccessor::<u32>::set_vals(elem_value, 3, |idx| {
-                    let target =
-                        FStudioProtocol::read_hp_assign_target(req, &mut node, idx, timeout_ms)?;
-                    let pos = Self::TARGETS.iter().position(|t| t.eq(&target)).unwrap();
-                    Ok(pos as u32)
-                })
-                .map(|_| true)
-            }
+            Self::HP_NAME => ElemValueAccessor::<u32>::set_vals(elem_value, 3, |idx| {
+                let target =
+                    FStudioProtocol::read_hp_assign_target(req, &mut unit.1, idx, timeout_ms)?;
+                let pos = Self::TARGETS.iter().position(|t| t.eq(&target)).unwrap();
+                Ok(pos as u32)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -630,27 +595,17 @@ impl AssignCtl {
                     let msg = format!("Invalid value for index of assignment target: {}", vals[0]);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                FStudioProtocol::write_main_assign_target(
-                    req,
-                    &mut unit.get_node(),
-                    *target,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_main_assign_target(req, &mut unit.1, *target, timeout_ms)
+                    .map(|_| true)
             }
-            Self::HP_NAME => {
-                let mut node = unit.get_node();
-                ElemValueAccessor::<u32>::get_vals(new, old, 3, |idx, val| {
-                    let target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
-                        let msg = format!("Invalid value for index of assignment target: {}", val);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
-                    FStudioProtocol::write_hp_assign_target(
-                        req, &mut node, idx, *target, timeout_ms,
-                    )
-                })
-                .map(|_| true)
-            }
+            Self::HP_NAME => ElemValueAccessor::<u32>::get_vals(new, old, 3, |idx, val| {
+                let target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid value for index of assignment target: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
+                FStudioProtocol::write_hp_assign_target(req, &mut unit.1, idx, *target, timeout_ms)
+            })
+            .map(|_| true),
             _ => Ok(false),
         }
     }
@@ -705,41 +660,45 @@ impl MixerCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
         self.phys_src_params
             .iter_mut()
             .enumerate()
             .try_for_each(|(i, params)| {
-                FStudioProtocol::read_mixer_phys_src_params(req, &mut node, params, i, timeout_ms)
+                FStudioProtocol::read_mixer_phys_src_params(req, &mut unit.1, params, i, timeout_ms)
             })?;
 
         self.stream_src_params
             .iter_mut()
             .enumerate()
             .try_for_each(|(i, params)| {
-                FStudioProtocol::read_mixer_stream_src_params(req, &mut node, params, i, timeout_ms)
+                FStudioProtocol::read_mixer_stream_src_params(
+                    req,
+                    &mut unit.1,
+                    params,
+                    i,
+                    timeout_ms,
+                )
             })?;
 
         self.phys_src_links
             .iter_mut()
             .enumerate()
             .try_for_each(|(i, links)| {
-                FStudioProtocol::read_mixer_phys_src_links(req, &mut node, links, i, timeout_ms)
+                FStudioProtocol::read_mixer_phys_src_links(req, &mut unit.1, links, i, timeout_ms)
             })?;
 
         self.stream_src_links
             .iter_mut()
             .enumerate()
             .try_for_each(|(i, links)| {
-                FStudioProtocol::read_mixer_stream_src_links(req, &mut node, links, i, timeout_ms)
+                FStudioProtocol::read_mixer_stream_src_links(req, &mut unit.1, links, i, timeout_ms)
             })?;
 
-        FStudioProtocol::read_mixer_out_params(req, &mut node, &mut self.outs, timeout_ms)?;
+        FStudioProtocol::read_mixer_out_params(req, &mut unit.1, &mut self.outs, timeout_ms)?;
 
         [
             (
@@ -865,7 +824,7 @@ impl MixerCtl {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -934,11 +893,8 @@ impl MixerCtl {
                 Ok(true)
             }
             Self::EXPANSION_MODE_NAME => {
-                let mode = FStudioProtocol::read_mixer_expansion_mode(
-                    req,
-                    &mut unit.get_node(),
-                    timeout_ms,
-                )?;
+                let mode =
+                    FStudioProtocol::read_mixer_expansion_mode(req, &mut unit.1, timeout_ms)?;
                 let pos = Self::EXPANSION_MODES
                     .iter()
                     .position(|m| m.eq(&mode))
@@ -952,7 +908,7 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -967,7 +923,7 @@ impl MixerCtl {
                 let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_phys_src_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     params,
                     index,
                     &gains,
@@ -983,7 +939,7 @@ impl MixerCtl {
                 let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_phys_src_pans(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     params,
                     index,
                     &pans,
@@ -998,7 +954,7 @@ impl MixerCtl {
                 elem_value.get_bool(&mut vals);
                 FStudioProtocol::write_mixer_phys_src_mutes(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     params,
                     index,
                     &vals,
@@ -1013,7 +969,7 @@ impl MixerCtl {
                 elem_value.get_bool(&mut vals);
                 FStudioProtocol::write_mixer_phys_src_links(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &vals,
                     index,
                     timeout_ms,
@@ -1028,7 +984,7 @@ impl MixerCtl {
                 let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_stream_src_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     params,
                     index,
                     &gains,
@@ -1044,7 +1000,7 @@ impl MixerCtl {
                 let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_stream_src_pans(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     params,
                     index,
                     &pans,
@@ -1059,7 +1015,7 @@ impl MixerCtl {
                 elem_value.get_bool(&mut vals);
                 FStudioProtocol::write_mixer_stream_src_mutes(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     params,
                     index,
                     &vals,
@@ -1074,7 +1030,7 @@ impl MixerCtl {
                 elem_value.get_bool(&mut vals);
                 FStudioProtocol::write_mixer_stream_src_links(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &vals,
                     index,
                     timeout_ms,
@@ -1087,7 +1043,7 @@ impl MixerCtl {
                 let vols: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_out_vol(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &mut self.outs,
                     &vols,
                     timeout_ms,
@@ -1099,7 +1055,7 @@ impl MixerCtl {
                 elem_value.get_bool(&mut vals);
                 FStudioProtocol::write_mixer_out_mute(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &mut self.outs,
                     &vals,
                     timeout_ms,
@@ -1116,13 +1072,8 @@ impl MixerCtl {
                         let msg = format!("Invalid value for index of expansion mode: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                FStudioProtocol::write_mixer_expansion_mode(
-                    req,
-                    &mut unit.get_node(),
-                    mode,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                FStudioProtocol::write_mixer_expansion_mode(req, &mut unit.1, mode, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

@@ -19,21 +19,23 @@ pub struct K8Model {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for K8Model {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for K8Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
@@ -53,12 +55,12 @@ impl CtlModel<SndDice> for K8Model {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -81,13 +83,13 @@ impl CtlModel<SndDice> for K8Model {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -122,7 +124,7 @@ impl CtlModel<SndDice> for K8Model {
     }
 }
 
-impl NotifyModel<SndDice, u32> for K8Model {
+impl NotifyModel<(SndDice, FwNode), u32> for K8Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
@@ -131,9 +133,14 @@ impl NotifyModel<SndDice, u32> for K8Model {
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.knob_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.config_ctl
@@ -147,7 +154,7 @@ impl NotifyModel<SndDice, u32> for K8Model {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -167,15 +174,15 @@ impl NotifyModel<SndDice, u32> for K8Model {
     }
 }
 
-impl MeasureModel<SndDice> for K8Model {
+impl MeasureModel<(SndDice, FwNode)> for K8Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.3);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
@@ -183,7 +190,7 @@ impl MeasureModel<SndDice> for K8Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -236,11 +243,11 @@ impl KnobCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_knob_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -262,16 +269,16 @@ impl KnobCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -280,13 +287,13 @@ impl KnobCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -352,11 +359,11 @@ impl ConfigCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_coax_out_src(card_cntr)?;
         self.load_standalone(card_cntr)?;
@@ -376,16 +383,16 @@ impl ConfigCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_coax_out_src(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -394,13 +401,13 @@ impl ConfigCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -467,12 +474,12 @@ impl MixerCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
-        K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.1, timeout_ms)?;
+        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+        K8Protocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)?;
 
         self.load_mixer(card_cntr)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
@@ -502,14 +509,14 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(&mut unit.0, req, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -518,7 +525,7 @@ impl MixerCtl {
                         self.0.data.enabled = val;
                         Ok(())
                     })?;
-                    K8Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    K8Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 _ => Ok(false),
@@ -528,13 +535,13 @@ impl MixerCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -554,11 +561,11 @@ impl MixerCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.1, timeout_ms)
+        K8Protocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)
     }
 
     fn read_measured_elem(
@@ -607,11 +614,11 @@ impl HwStateCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_hw_state(card_cntr)
             .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
@@ -640,14 +647,14 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -656,13 +663,13 @@ impl HwStateCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            K8Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            K8Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }

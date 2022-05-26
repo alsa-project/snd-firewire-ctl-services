@@ -20,21 +20,23 @@ pub struct IonixModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for IonixModel {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for IonixModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
@@ -48,12 +50,12 @@ impl CtlModel<SndDice> for IonixModel {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -73,13 +75,13 @@ impl CtlModel<SndDice> for IonixModel {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -99,19 +101,19 @@ impl CtlModel<SndDice> for IonixModel {
     }
 }
 
-impl NotifyModel<SndDice, u32> for IonixModel {
+impl NotifyModel<(SndDice, FwNode), u32> for IonixModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
         self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
+            .parse_notification(&mut unit.0, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -119,15 +121,15 @@ impl NotifyModel<SndDice, u32> for IonixModel {
     }
 }
 
-impl MeasureModel<SndDice> for IonixModel {
+impl MeasureModel<(SndDice, FwNode)> for IonixModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.measured_elem_list);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
@@ -135,7 +137,7 @@ impl MeasureModel<SndDice> for IonixModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -202,11 +204,11 @@ impl MeterCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        IonixProtocol::read_meters(req, &mut unit.get_node(), &mut self.meters, timeout_ms)
+        IonixProtocol::read_meters(req, &mut unit.1, &mut self.meters, timeout_ms)
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -332,7 +334,7 @@ impl MixerCtl {
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -341,11 +343,10 @@ impl MixerCtl {
         match elem_id.get_name().as_str() {
             Self::BUS_SRC_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
                     IonixProtocol::read_mixer_bus_src_gain(
                         req,
-                        &mut node,
+                        &mut unit.1,
                         mixer,
                         Self::MIXER_SRCS[idx],
                         timeout_ms,
@@ -356,11 +357,10 @@ impl MixerCtl {
             }
             Self::MAIN_SRC_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
                     IonixProtocol::read_mixer_main_src_gain(
                         req,
-                        &mut node,
+                        &mut unit.1,
                         mixer,
                         Self::MIXER_SRCS[idx],
                         timeout_ms,
@@ -371,11 +371,10 @@ impl MixerCtl {
             }
             Self::REVERB_SRC_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
                     IonixProtocol::read_mixer_reverb_src_gain(
                         req,
-                        &mut node,
+                        &mut unit.1,
                         mixer,
                         Self::MIXER_SRCS[idx],
                         timeout_ms,
@@ -390,7 +389,7 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -400,11 +399,10 @@ impl MixerCtl {
         match elem_id.get_name().as_str() {
             Self::BUS_SRC_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
                     IonixProtocol::write_mixer_bus_src_gain(
                         req,
-                        &mut node,
+                        &mut unit.1,
                         mixer,
                         Self::MIXER_SRCS[idx],
                         val as u32,
@@ -415,11 +413,10 @@ impl MixerCtl {
             }
             Self::MAIN_SRC_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
                     IonixProtocol::write_mixer_main_src_gain(
                         req,
-                        &mut node,
+                        &mut unit.1,
                         mixer,
                         Self::MIXER_SRCS[idx],
                         val as u32,
@@ -430,11 +427,10 @@ impl MixerCtl {
             }
             Self::REVERB_SRC_GAIN_NAME => {
                 let mixer = elem_id.get_index() as usize;
-                let mut node = unit.get_node();
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
                     IonixProtocol::write_mixer_reverb_src_gain(
                         req,
-                        &mut node,
+                        &mut unit.1,
                         mixer,
                         Self::MIXER_SRCS[idx],
                         val as u32,

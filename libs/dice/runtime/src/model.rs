@@ -108,46 +108,47 @@ impl DiceModel {
         })
     }
 
-    pub fn load(&mut self, unit: &mut (SndDice, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         // Replace model data when protocol extension is available.
         if let Model::Minimal(_) = &mut self.model {
             let mut req = FwReq::default();
-            if ProtocolExtension::read_extension_sections(&mut req, &mut unit.1, 100)
-                .is_ok()
-            {
+            if ProtocolExtension::read_extension_sections(&mut req, &mut unit.1, 100).is_ok() {
                 self.model = Model::Extension(ExtensionModel::default());
             } else {
                 // MEMO: workaround for old firmware. Invalidate a negative effect by failure of
                 // previous transaction.
-                let _ =
-                    GeneralProtocol::read_general_sections(&mut req, &mut unit.1, 100)?;
+                let _ = GeneralProtocol::read_general_sections(&mut req, &mut unit.1, 100)?;
             }
         }
 
         match &mut self.model {
-            Model::Minimal(m) => m.load(&mut unit.0, card_cntr),
-            Model::TcK24d(m) => m.load(&mut unit.0, card_cntr),
-            Model::TcK8(m) => m.load(&mut unit.0, card_cntr),
-            Model::TcStudiok48(m) => m.load(&mut unit.0, card_cntr),
-            Model::TcKlive(m) => m.load(&mut unit.0, card_cntr),
-            Model::TcDesktopk6(m) => m.load(&mut unit.0, card_cntr),
-            Model::TcItwin(m) => m.load(&mut unit.0, card_cntr),
-            Model::AlesisIoFw(m) => m.load(&mut unit.0, card_cntr),
-            Model::LexiconIonix(m) => m.load(&mut unit.0, card_cntr),
-            Model::PresonusFStudio(m) => m.load(&mut unit.0, card_cntr),
-            Model::Extension(m) => m.load(&mut unit.0, card_cntr),
-            Model::MaudioPfire2626(m) => m.load(&mut unit.0, card_cntr),
-            Model::MaudioPfire610(m) => m.load(&mut unit.0, card_cntr),
-            Model::AvidMbox3(m) => m.load(&mut unit.0, card_cntr),
-            Model::LoudBlackbird(m) => m.load(&mut unit.0, card_cntr),
-            Model::FocusriteSPro40(m) => m.load(&mut unit.0, card_cntr),
-            Model::FocusriteLiquidS56(m) => m.load(&mut unit.0, card_cntr),
-            Model::FocusriteSPro24(m) => m.load(&mut unit.0, card_cntr),
-            Model::FocusriteSPro24Dsp(m) => m.load(&mut unit.0, card_cntr),
-            Model::FocusriteSPro14(m) => m.load(&mut unit.0, card_cntr),
-            Model::FocusriteSPro26(m) => m.load(&mut unit.0, card_cntr),
-            Model::PresonusFStudioProject(m) => m.load(&mut unit.0, card_cntr),
-            Model::PresonusFStudioMobile(m) => m.load(&mut unit.0, card_cntr),
+            Model::Minimal(m) => m.load(unit, card_cntr),
+            Model::TcK24d(m) => m.load(unit, card_cntr),
+            Model::TcK8(m) => m.load(unit, card_cntr),
+            Model::TcStudiok48(m) => m.load(unit, card_cntr),
+            Model::TcKlive(m) => m.load(unit, card_cntr),
+            Model::TcDesktopk6(m) => m.load(unit, card_cntr),
+            Model::TcItwin(m) => m.load(unit, card_cntr),
+            Model::AlesisIoFw(m) => m.load(unit, card_cntr),
+            Model::LexiconIonix(m) => m.load(unit, card_cntr),
+            Model::PresonusFStudio(m) => m.load(unit, card_cntr),
+            Model::Extension(m) => m.load(unit, card_cntr),
+            Model::MaudioPfire2626(m) => m.load(unit, card_cntr),
+            Model::MaudioPfire610(m) => m.load(unit, card_cntr),
+            Model::AvidMbox3(m) => m.load(unit, card_cntr),
+            Model::LoudBlackbird(m) => m.load(unit, card_cntr),
+            Model::FocusriteSPro40(m) => m.load(unit, card_cntr),
+            Model::FocusriteLiquidS56(m) => m.load(unit, card_cntr),
+            Model::FocusriteSPro24(m) => m.load(unit, card_cntr),
+            Model::FocusriteSPro24Dsp(m) => m.load(unit, card_cntr),
+            Model::FocusriteSPro14(m) => m.load(unit, card_cntr),
+            Model::FocusriteSPro26(m) => m.load(unit, card_cntr),
+            Model::PresonusFStudioProject(m) => m.load(unit, card_cntr),
+            Model::PresonusFStudioMobile(m) => m.load(unit, card_cntr),
         }?;
 
         match &mut self.model {
@@ -221,36 +222,36 @@ impl DiceModel {
         events: &alsactl::ElemEventMask,
     ) -> Result<(), Error> {
         match &mut self.model {
-            Model::Minimal(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::TcK24d(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::TcK8(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::TcStudiok48(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::TcKlive(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::TcDesktopk6(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::TcItwin(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::AlesisIoFw(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::LexiconIonix(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::PresonusFStudio(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::Extension(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::MaudioPfire2626(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::MaudioPfire610(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::AvidMbox3(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::LoudBlackbird(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::FocusriteSPro40(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
+            Model::Minimal(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcK24d(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcK8(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcStudiok48(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcKlive(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcDesktopk6(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::TcItwin(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::AlesisIoFw(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::LexiconIonix(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::PresonusFStudio(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::Extension(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioPfire2626(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::MaudioPfire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::AvidMbox3(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::LoudBlackbird(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSPro40(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteLiquidS56(m) => {
-                card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m)
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
             }
-            Model::FocusriteSPro24(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
+            Model::FocusriteSPro24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::FocusriteSPro24Dsp(m) => {
-                card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m)
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
             }
-            Model::FocusriteSPro14(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
-            Model::FocusriteSPro26(m) => card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m),
+            Model::FocusriteSPro14(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSPro26(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFStudioProject(m) => {
-                card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m)
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
             }
             Model::PresonusFStudioMobile(m) => {
-                card_cntr.dispatch_elem_event(&mut unit.0, &elem_id, &events, m)
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
             }
         }
     }
@@ -263,73 +264,73 @@ impl DiceModel {
     ) -> Result<(), Error> {
         match &mut self.model {
             Model::Minimal(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::TcK24d(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::TcK8(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::TcStudiok48(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::TcKlive(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::TcDesktopk6(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::TcItwin(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::AlesisIoFw(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::LexiconIonix(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::PresonusFStudio(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::Extension(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::MaudioPfire2626(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::MaudioPfire610(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::AvidMbox3(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::LoudBlackbird(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::FocusriteSPro40(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::FocusriteLiquidS56(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::FocusriteSPro24(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::FocusriteSPro24Dsp(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::FocusriteSPro14(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::FocusriteSPro26(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::PresonusFStudioProject(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
             Model::PresonusFStudioMobile(m) => {
-                card_cntr.dispatch_notification(&mut unit.0, &msg, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(unit, &msg, &self.notified_elem_list, m)
             }
         }
     }
@@ -340,36 +341,36 @@ impl DiceModel {
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         match &mut self.model {
-            Model::Minimal(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::TcK24d(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::TcK8(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::TcStudiok48(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::TcKlive(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::TcDesktopk6(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::TcItwin(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::AlesisIoFw(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::LexiconIonix(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::PresonusFStudio(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::Extension(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::MaudioPfire2626(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::MaudioPfire610(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::AvidMbox3(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::LoudBlackbird(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::FocusriteSPro40(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
+            Model::Minimal(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcK24d(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcK8(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcStudiok48(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcKlive(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcDesktopk6(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::TcItwin(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::AlesisIoFw(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::LexiconIonix(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::PresonusFStudio(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::Extension(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::MaudioPfire2626(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::MaudioPfire610(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::AvidMbox3(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::LoudBlackbird(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::FocusriteSPro40(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteLiquidS56(m) => {
-                card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m)
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
-            Model::FocusriteSPro24(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
+            Model::FocusriteSPro24(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::FocusriteSPro24Dsp(m) => {
-                card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m)
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
-            Model::FocusriteSPro14(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
-            Model::FocusriteSPro26(m) => card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m),
+            Model::FocusriteSPro14(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
+            Model::FocusriteSPro26(m) => card_cntr.measure_elems(unit, &self.measured_elem_list, m),
             Model::PresonusFStudioProject(m) => {
-                card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m)
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
             Model::PresonusFStudioMobile(m) => {
-                card_cntr.measure_elems(&mut unit.0, &self.measured_elem_list, m)
+                card_cntr.measure_elems(unit, &self.measured_elem_list, m)
             }
         }
     }

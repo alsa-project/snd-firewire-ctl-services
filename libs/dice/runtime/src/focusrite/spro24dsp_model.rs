@@ -17,30 +17,32 @@ pub struct SPro24DspModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for SPro24DspModel {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             &caps,
@@ -50,7 +52,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )?;
 
         self.tcd22xx_ctl.cache(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -60,7 +62,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         self.out_grp_ctl
             .load(
                 card_cntr,
-                unit,
+                &mut unit.0,
                 &mut self.req,
                 &self.extension_sections,
                 TIMEOUT_MS,
@@ -82,12 +84,12 @@ impl CtlModel<SndDice> for SPro24DspModel {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -96,7 +98,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -107,7 +109,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -124,13 +126,13 @@ impl CtlModel<SndDice> for SPro24DspModel {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -140,7 +142,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -150,7 +152,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -159,7 +161,7 @@ impl CtlModel<SndDice> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.input_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -182,18 +184,23 @@ impl CtlModel<SndDice> for SPro24DspModel {
     }
 }
 
-impl NotifyModel<SndDice, u32> for SPro24DspModel {
+impl NotifyModel<(SndDice, FwNode), u32> for SPro24DspModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
         elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.parse_notification(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -201,7 +208,7 @@ impl NotifyModel<SndDice, u32> for SPro24DspModel {
             *msg,
         )?;
         self.out_grp_ctl.parse_notification(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             *msg,
@@ -212,7 +219,7 @@ impl NotifyModel<SndDice, u32> for SPro24DspModel {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -228,17 +235,17 @@ impl NotifyModel<SndDice, u32> for SPro24DspModel {
     }
 }
 
-impl MeasureModel<SndDice> for SPro24DspModel {
+impl MeasureModel<(SndDice, FwNode)> for SPro24DspModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
@@ -248,7 +255,7 @@ impl MeasureModel<SndDice> for SPro24DspModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -321,18 +328,12 @@ impl EffectCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        SPro24DspProtocol::read_effect_state(
-            req,
-            &mut unit.get_node(),
-            sections,
-            &mut self.0,
-            timeout_ms,
-        )?;
+        SPro24DspProtocol::read_effect_state(req, &mut unit.1, sections, &mut self.0, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CH_STRIP_ORDER_NAME, 0);
         let _ = card_cntr.add_enum_elems(
@@ -546,7 +547,7 @@ impl EffectCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -560,7 +561,7 @@ impl EffectCtl {
                 let eq_after_comp: Vec<bool> = vals.iter().map(|&val| val > 0).collect();
                 SPro24DspProtocol::write_eq_after_comp(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &eq_after_comp,
                     &mut self.0,
@@ -573,7 +574,7 @@ impl EffectCtl {
                 elem_value.get_bool(&mut vals);
                 SPro24DspProtocol::write_comp_enable(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &vals,
                     &mut self.0,
@@ -586,7 +587,7 @@ impl EffectCtl {
                 elem_value.get_bool(&mut vals);
                 SPro24DspProtocol::write_eq_enable(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &vals,
                     &mut self.0,
@@ -599,7 +600,7 @@ impl EffectCtl {
                 Self::convert_to_f32_array(elem_value, &mut comp.output);
                 SPro24DspProtocol::write_comp_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &comp,
                     &mut self.0,
@@ -612,7 +613,7 @@ impl EffectCtl {
                 Self::convert_to_f32_array(elem_value, &mut comp.threshold);
                 SPro24DspProtocol::write_comp_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &comp,
                     &mut self.0,
@@ -625,7 +626,7 @@ impl EffectCtl {
                 Self::convert_to_f32_array(elem_value, &mut comp.ratio);
                 SPro24DspProtocol::write_comp_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &comp,
                     &mut self.0,
@@ -638,7 +639,7 @@ impl EffectCtl {
                 Self::convert_to_f32_array(elem_value, &mut comp.attack);
                 SPro24DspProtocol::write_comp_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &comp,
                     &mut self.0,
@@ -651,7 +652,7 @@ impl EffectCtl {
                 Self::convert_to_f32_array(elem_value, &mut comp.release);
                 SPro24DspProtocol::write_comp_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &comp,
                     &mut self.0,
@@ -664,7 +665,7 @@ impl EffectCtl {
                 Self::convert_to_f32_array(elem_value, &mut eq.output);
                 SPro24DspProtocol::write_eq_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &eq,
                     &mut self.0,
@@ -679,7 +680,7 @@ impl EffectCtl {
                 reverb.size = vals[0];
                 SPro24DspProtocol::write_reverb_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &reverb,
                     &mut self.0,
@@ -694,7 +695,7 @@ impl EffectCtl {
                 reverb.air = vals[0];
                 SPro24DspProtocol::write_reverb_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &reverb,
                     &mut self.0,
@@ -709,7 +710,7 @@ impl EffectCtl {
                 reverb.enabled = vals[0];
                 SPro24DspProtocol::write_reverb_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &reverb,
                     &mut self.0,
@@ -724,7 +725,7 @@ impl EffectCtl {
                 reverb.pre_filter = vals[0];
                 SPro24DspProtocol::write_reverb_effect(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &reverb,
                     &mut self.0,

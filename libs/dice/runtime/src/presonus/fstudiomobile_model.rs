@@ -17,30 +17,32 @@ pub struct FStudioMobileModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for FStudioMobileModel {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for FStudioMobileModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             &caps,
@@ -50,7 +52,7 @@ impl CtlModel<SndDice> for FStudioMobileModel {
         )?;
 
         self.tcd22xx_ctl.cache(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -62,12 +64,12 @@ impl CtlModel<SndDice> for FStudioMobileModel {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -76,7 +78,7 @@ impl CtlModel<SndDice> for FStudioMobileModel {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -91,13 +93,13 @@ impl CtlModel<SndDice> for FStudioMobileModel {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -107,7 +109,7 @@ impl CtlModel<SndDice> for FStudioMobileModel {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -122,17 +124,22 @@ impl CtlModel<SndDice> for FStudioMobileModel {
     }
 }
 
-impl NotifyModel<SndDice, u32> for FStudioMobileModel {
+impl NotifyModel<(SndDice, FwNode), u32> for FStudioMobileModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.parse_notification(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -144,7 +151,7 @@ impl NotifyModel<SndDice, u32> for FStudioMobileModel {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -158,17 +165,17 @@ impl NotifyModel<SndDice, u32> for FStudioMobileModel {
     }
 }
 
-impl MeasureModel<SndDice> for FStudioMobileModel {
+impl MeasureModel<(SndDice, FwNode)> for FStudioMobileModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
@@ -178,7 +185,7 @@ impl MeasureModel<SndDice> for FStudioMobileModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {

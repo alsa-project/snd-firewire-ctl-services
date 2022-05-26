@@ -29,30 +29,32 @@ impl OutGroupCtlOperation<LiquidS56Protocol> for OutGroupCtl {
     }
 }
 
-impl CtlModel<SndDice> for LiquidS56Model {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for LiquidS56Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             &caps,
@@ -62,7 +64,7 @@ impl CtlModel<SndDice> for LiquidS56Model {
         )?;
 
         self.tcd22xx_ctl.cache(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -72,7 +74,7 @@ impl CtlModel<SndDice> for LiquidS56Model {
         self.out_grp_ctl
             .load(
                 card_cntr,
-                unit,
+                &mut unit.0,
                 &mut self.req,
                 &self.extension_sections,
                 TIMEOUT_MS,
@@ -85,12 +87,12 @@ impl CtlModel<SndDice> for LiquidS56Model {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -99,7 +101,7 @@ impl CtlModel<SndDice> for LiquidS56Model {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -125,13 +127,13 @@ impl CtlModel<SndDice> for LiquidS56Model {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -141,7 +143,7 @@ impl CtlModel<SndDice> for LiquidS56Model {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -151,7 +153,7 @@ impl CtlModel<SndDice> for LiquidS56Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -175,18 +177,23 @@ impl CtlModel<SndDice> for LiquidS56Model {
     }
 }
 
-impl NotifyModel<SndDice, u32> for LiquidS56Model {
+impl NotifyModel<(SndDice, FwNode), u32> for LiquidS56Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
         elem_id_list.extend_from_slice(&self.out_grp_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.parse_notification(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -194,7 +201,7 @@ impl NotifyModel<SndDice, u32> for LiquidS56Model {
             *msg,
         )?;
         self.out_grp_ctl.parse_notification(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             *msg,
@@ -205,7 +212,7 @@ impl NotifyModel<SndDice, u32> for LiquidS56Model {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -221,17 +228,17 @@ impl NotifyModel<SndDice, u32> for LiquidS56Model {
     }
 }
 
-impl MeasureModel<SndDice> for LiquidS56Model {
+impl MeasureModel<(SndDice, FwNode)> for LiquidS56Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
@@ -241,7 +248,7 @@ impl MeasureModel<SndDice> for LiquidS56Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -449,7 +456,7 @@ impl SpecificCtl {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -460,7 +467,7 @@ impl SpecificCtl {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
                 let enabled = LiquidS56Protocol::read_analog_out_0_1_pad_offset(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )?;
@@ -470,7 +477,7 @@ impl SpecificCtl {
             Self::OPT_OUT_IFACE_MODE_NAME => {
                 let mode = LiquidS56Protocol::read_opt_out_iface_mode(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )?;
@@ -485,7 +492,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
                     LiquidS56Protocol::read_mic_amp_transformer(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         timeout_ms,
@@ -497,7 +504,7 @@ impl SpecificCtl {
                 let mut levels = [AnalogInputLevel::Reserved(0); 8];
                 LiquidS56Protocol::read_analog_input_level(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &mut levels,
                     timeout_ms,
@@ -519,7 +526,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
                     let emulation_type = LiquidS56Protocol::read_mic_amp_emulation_type(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         timeout_ms,
@@ -536,7 +543,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     let harmonics = LiquidS56Protocol::read_mic_amp_harmonics(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         timeout_ms,
@@ -549,7 +556,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 2, |idx| {
                     LiquidS56Protocol::read_mic_amp_polarity(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         timeout_ms,
@@ -561,7 +568,7 @@ impl SpecificCtl {
                 let mut state = LedState::default();
                 LiquidS56Protocol::read_led_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &mut state,
                     timeout_ms,
@@ -574,7 +581,7 @@ impl SpecificCtl {
                 let mut targets = [0; 8];
                 LiquidS56Protocol::read_meter_display_targets(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &mut targets,
                     timeout_ms,
@@ -598,7 +605,7 @@ impl SpecificCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -612,7 +619,7 @@ impl SpecificCtl {
                 new.get_bool(&mut vals);
                 LiquidS56Protocol::write_analog_out_0_1_pad_offset(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     vals[0],
                     timeout_ms,
@@ -634,7 +641,7 @@ impl SpecificCtl {
                     })?;
                 LiquidS56Protocol::write_opt_out_iface_mode(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     mode,
                     timeout_ms,
@@ -645,7 +652,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
                     LiquidS56Protocol::write_mic_amp_transformer(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         val,
@@ -681,7 +688,7 @@ impl SpecificCtl {
                     })?;
                 LiquidS56Protocol::write_analog_input_level(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &levels,
                     timeout_ms,
@@ -699,7 +706,7 @@ impl SpecificCtl {
                         })?;
                     LiquidS56Protocol::write_mic_amp_emulation_type(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         emulation_type,
@@ -712,7 +719,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     LiquidS56Protocol::write_mic_amp_harmonics(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         val as u8,
@@ -725,7 +732,7 @@ impl SpecificCtl {
                 ElemValueAccessor::<bool>::get_vals(new, old, 2, |idx, val| {
                     LiquidS56Protocol::write_mic_amp_polarity(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         val,
@@ -743,14 +750,8 @@ impl SpecificCtl {
                     spdif: vals[2],
                     midi_in: vals[3],
                 };
-                LiquidS56Protocol::write_led_state(
-                    req,
-                    &mut unit.get_node(),
-                    sections,
-                    &state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                LiquidS56Protocol::write_led_state(req, &mut unit.1, sections, &state, timeout_ms)
+                    .map(|_| true)
             }
             Self::METER_DISPLAY_TARGETS_NAME => {
                 let mut vals = [0; 8];
@@ -770,7 +771,7 @@ impl SpecificCtl {
                     })?;
                 LiquidS56Protocol::write_meter_display_targets(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &targets,
                     timeout_ms,

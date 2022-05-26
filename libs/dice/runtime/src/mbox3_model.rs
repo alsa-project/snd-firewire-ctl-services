@@ -24,30 +24,32 @@ pub struct Mbox3Model {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for Mbox3Model {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for Mbox3Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
         self.extension_sections =
-            ProtocolExtension::read_extension_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             &caps,
@@ -67,7 +69,7 @@ impl CtlModel<SndDice> for Mbox3Model {
         )?;
 
         self.tcd22xx_ctl.cache(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -79,12 +81,12 @@ impl CtlModel<SndDice> for Mbox3Model {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -93,7 +95,7 @@ impl CtlModel<SndDice> for Mbox3Model {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -137,13 +139,13 @@ impl CtlModel<SndDice> for Mbox3Model {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -153,7 +155,7 @@ impl CtlModel<SndDice> for Mbox3Model {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -207,18 +209,23 @@ impl CtlModel<SndDice> for Mbox3Model {
     }
 }
 
-impl NotifyModel<SndDice, u32> for Mbox3Model {
+impl NotifyModel<(SndDice, FwNode), u32> for Mbox3Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         self.tcd22xx_ctl.get_notified_elem_list(elem_id_list);
         elem_id_list.extend_from_slice(&self.button_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.tcd22xx_ctl.parse_notification(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -237,7 +244,7 @@ impl NotifyModel<SndDice, u32> for Mbox3Model {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -253,17 +260,17 @@ impl NotifyModel<SndDice, u32> for Mbox3Model {
     }
 }
 
-impl MeasureModel<SndDice> for Mbox3Model {
+impl MeasureModel<(SndDice, FwNode)> for Mbox3Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         self.tcd22xx_ctl.get_measured_elem_list(elem_id_list);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
@@ -273,7 +280,7 @@ impl MeasureModel<SndDice> for Mbox3Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -332,7 +339,7 @@ impl StandaloneCtl {
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -343,7 +350,7 @@ impl StandaloneCtl {
             Self::USE_CASE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let usecase = Mbox3Protocol::read_standalone_use_case(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     timeout_ms,
                 )?;
@@ -357,7 +364,7 @@ impl StandaloneCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -373,7 +380,7 @@ impl StandaloneCtl {
                 })?;
                 Mbox3Protocol::write_standalone_use_case(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     usecase,
                     timeout_ms,
@@ -442,7 +449,7 @@ impl HwCtl {
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -454,7 +461,7 @@ impl HwCtl {
                 let mut assigns = MasterKnobAssigns::default();
                 Mbox3Protocol::read_master_knob_assign(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &mut assigns,
                     timeout_ms,
@@ -465,41 +472,30 @@ impl HwCtl {
                 })
             }
             Self::DIM_LED_USAGE_NAME => {
-                Mbox3Protocol::read_dim_led_usage(req, &mut unit.get_node(), sections, timeout_ms)
-                    .map(|usage| {
+                Mbox3Protocol::read_dim_led_usage(req, &mut unit.1, sections, timeout_ms).map(
+                    |usage| {
                         elem_value.set_bool(&[usage]);
                         true
-                    })
+                    },
+                )
             }
             Self::HOLD_DURATION_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                Mbox3Protocol::read_hold_duration(req, &mut unit.get_node(), sections, timeout_ms)
+                Mbox3Protocol::read_hold_duration(req, &mut unit.1, sections, timeout_ms)
                     .map(|duration| duration as i32)
             })
             .map(|_| true),
             Self::INPUT_HPF_NAME => {
                 let mut vals = [false; Self::INPUT_COUNT];
-                Mbox3Protocol::read_hpf_enable(
-                    req,
-                    &mut unit.get_node(),
-                    sections,
-                    &mut vals,
-                    timeout_ms,
-                )
-                .map(|_| {
-                    elem_value.set_bool(&vals);
-                    true
-                })
+                Mbox3Protocol::read_hpf_enable(req, &mut unit.1, sections, &mut vals, timeout_ms)
+                    .map(|_| {
+                        elem_value.set_bool(&vals);
+                        true
+                    })
             }
             Self::OUTPUT_TRIM_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::OUTPUT_COUNT, |idx| {
-                    Mbox3Protocol::read_output_trim(
-                        req,
-                        &mut unit.get_node(),
-                        sections,
-                        idx,
-                        timeout_ms,
-                    )
-                    .map(|trim| trim as i32)
+                    Mbox3Protocol::read_output_trim(req, &mut unit.1, sections, idx, timeout_ms)
+                        .map(|trim| trim as i32)
                 })
                 .map(|_| true)
             }
@@ -509,7 +505,7 @@ impl HwCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -523,7 +519,7 @@ impl HwCtl {
                 new.get_bool(&mut assign);
                 Mbox3Protocol::write_master_knob_assign(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &assign,
                     timeout_ms,
@@ -531,19 +527,13 @@ impl HwCtl {
                 .map(|_| true)
             }
             Self::DIM_LED_USAGE_NAME => ElemValueAccessor::<bool>::get_val(new, |val| {
-                Mbox3Protocol::write_dim_led_usage(
-                    req,
-                    &mut unit.get_node(),
-                    sections,
-                    val,
-                    timeout_ms,
-                )
+                Mbox3Protocol::write_dim_led_usage(req, &mut unit.1, sections, val, timeout_ms)
             })
             .map(|_| true),
             Self::HOLD_DURATION_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
                 Mbox3Protocol::write_hold_duration(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     val as u8,
                     timeout_ms,
@@ -553,20 +543,14 @@ impl HwCtl {
             Self::INPUT_HPF_NAME => {
                 let mut vals = [false; Self::INPUT_COUNT];
                 new.get_bool(&mut vals);
-                Mbox3Protocol::write_hpf_enable(
-                    req,
-                    &mut unit.get_node(),
-                    sections,
-                    vals,
-                    timeout_ms,
-                )?;
+                Mbox3Protocol::write_hpf_enable(req, &mut unit.1, sections, vals, timeout_ms)?;
                 Ok(true)
             }
             Self::OUTPUT_TRIM_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::OUTPUT_COUNT, |idx, val| {
                     Mbox3Protocol::write_output_trim(
                         req,
-                        &mut unit.get_node(),
+                        &mut unit.1,
                         sections,
                         idx,
                         val as u8,
@@ -659,7 +643,7 @@ impl ReverbCtl {
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -668,28 +652,24 @@ impl ReverbCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::TYPE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let reverb_type = Mbox3Protocol::read_reverb_type(
-                    req,
-                    &mut unit.get_node(),
-                    sections,
-                    timeout_ms,
-                )?;
+                let reverb_type =
+                    Mbox3Protocol::read_reverb_type(req, &mut unit.1, sections, timeout_ms)?;
                 let pos = Self::TYPES.iter().position(|t| reverb_type.eq(t)).unwrap();
                 Ok(pos as u32)
             })
             .map(|_| true),
             Self::VOL_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                Mbox3Protocol::read_reverb_volume(req, &mut unit.get_node(), sections, timeout_ms)
+                Mbox3Protocol::read_reverb_volume(req, &mut unit.1, sections, timeout_ms)
                     .map(|vol| vol as i32)
             })
             .map(|_| true),
             Self::DURATION_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                Mbox3Protocol::read_reverb_duration(req, &mut unit.get_node(), sections, timeout_ms)
+                Mbox3Protocol::read_reverb_duration(req, &mut unit.1, sections, timeout_ms)
                     .map(|duration| duration as i32)
             })
             .map(|_| true),
             Self::FEEDBACK_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
-                Mbox3Protocol::read_reverb_feedback(req, &mut unit.get_node(), sections, timeout_ms)
+                Mbox3Protocol::read_reverb_feedback(req, &mut unit.1, sections, timeout_ms)
                     .map(|feedback| feedback as i32)
             })
             .map(|_| true),
@@ -699,7 +679,7 @@ impl ReverbCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -715,7 +695,7 @@ impl ReverbCtl {
                 })?;
                 Mbox3Protocol::write_reverb_type(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     reverb_type,
                     timeout_ms,
@@ -725,7 +705,7 @@ impl ReverbCtl {
             Self::VOL_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
                 Mbox3Protocol::write_reverb_volume(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     val as u8,
                     timeout_ms,
@@ -735,7 +715,7 @@ impl ReverbCtl {
             Self::DURATION_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
                 Mbox3Protocol::write_reverb_duration(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     val as u8,
                     timeout_ms,
@@ -745,7 +725,7 @@ impl ReverbCtl {
             Self::FEEDBACK_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
                 Mbox3Protocol::write_reverb_feedback(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     val as u8,
                     timeout_ms,
@@ -809,7 +789,7 @@ impl ButtonCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         timeout_ms: u32,
@@ -839,7 +819,7 @@ impl ButtonCtl {
         let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         self.1.append(&mut elem_id_list);
 
-        Mbox3Protocol::read_button_led_state(req, &mut unit.get_node(), sections, timeout_ms)
+        Mbox3Protocol::read_button_led_state(req, &mut unit.1, sections, timeout_ms)
             .map(|state| self.0 = state)?;
 
         Ok(())
@@ -877,7 +857,7 @@ impl ButtonCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -897,7 +877,7 @@ impl ButtonCtl {
                     })?;
                 Mbox3Protocol::write_button_led_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &state,
                     timeout_ms,
@@ -917,7 +897,7 @@ impl ButtonCtl {
                     })?;
                 Mbox3Protocol::write_button_led_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &state,
                     timeout_ms,
@@ -937,7 +917,7 @@ impl ButtonCtl {
                     })?;
                 Mbox3Protocol::write_button_led_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sections,
                     &state,
                     timeout_ms,
@@ -951,7 +931,7 @@ impl ButtonCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         timeout_ms: u32,
@@ -1017,13 +997,7 @@ impl ButtonCtl {
         }
 
         if changed {
-            Mbox3Protocol::write_button_led_state(
-                req,
-                &mut unit.get_node(),
-                sections,
-                &self.0,
-                timeout_ms,
-            )?;
+            Mbox3Protocol::write_button_led_state(req, &mut unit.1, sections, &self.0, timeout_ms)?;
         }
 
         Ok(())
