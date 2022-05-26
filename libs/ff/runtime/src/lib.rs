@@ -2,8 +2,8 @@
 // Copyright (c) 2021 Takashi Sakamoto
 mod model;
 
-mod ff800_model;
 mod ff400_model;
+mod ff800_model;
 
 mod ff802_model;
 mod ucx_model;
@@ -11,8 +11,8 @@ mod ucx_model;
 mod former_ctls;
 mod latter_ctls;
 
-use glib::Error;
 use glib::source;
+use glib::Error;
 
 use nix::sys::signal;
 
@@ -23,9 +23,9 @@ use hinawa::{SndUnit, SndUnitExt, SndUnitExtManual};
 
 use alsactl::{CardExt, CardExtManual, ElemId, ElemIfaceType, ElemValueExtManual};
 
-use core::RuntimeOperation;
-use core::dispatcher;
 use core::card_cntr;
+use core::dispatcher;
+use core::RuntimeOperation;
 
 use model::FfModel;
 
@@ -37,7 +37,7 @@ enum Event {
     Timer,
 }
 
-pub struct FfRuntime{
+pub struct FfRuntime {
     unit: SndUnit,
     model: FfModel,
     card_cntr: card_cntr::CardCntr,
@@ -65,7 +65,15 @@ impl RuntimeOperation<u32> for FfRuntime {
 
         let timer = None;
 
-        Ok(FfRuntime{unit, model, card_cntr, rx, tx, dispatchers, timer})
+        Ok(FfRuntime {
+            unit,
+            model,
+            card_cntr,
+            rx,
+            tx,
+            dispatchers,
+            timer,
+        })
     }
 
     fn listen(&mut self) -> Result<(), Error> {
@@ -93,11 +101,18 @@ impl RuntimeOperation<u32> for FfRuntime {
                     }
                     Event::Elem(elem_id, events) => {
                         if elem_id.get_name() != Self::TIMER_NAME {
-                            let _ = self.model.dispatch_elem_event(&mut self.unit, &mut self.card_cntr,
-                                                                   &elem_id, &events);
+                            let _ = self.model.dispatch_elem_event(
+                                &mut self.unit,
+                                &mut self.card_cntr,
+                                &elem_id,
+                                &events,
+                            );
                         } else {
                             let mut elem_value = alsactl::ElemValue::new();
-                            let _ = self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value)
+                            let _ = self
+                                .card_cntr
+                                .card
+                                .read_elem_value(&elem_id, &mut elem_value)
                                 .map(|_| {
                                     let mut vals = [false];
                                     elem_value.get_bool(&mut vals);
@@ -110,7 +125,9 @@ impl RuntimeOperation<u32> for FfRuntime {
                         }
                     }
                     Event::Timer => {
-                        let _ = self.model.measure_elems(&mut self.unit, &mut self.card_cntr);
+                        let _ = self
+                            .model
+                            .measure_elems(&mut self.unit, &mut self.card_cntr);
                     }
                 }
             }
@@ -178,10 +195,12 @@ impl<'a> FfRuntime {
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
-        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
-            let elem_id: alsactl::ElemId = elem_id.clone();
-            let _ = tx.send(Event::Elem(elem_id, events));
-        });
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let elem_id: alsactl::ElemId = elem_id.clone();
+                let _ = tx.send(Event::Elem(elem_id, events));
+            });
 
         self.dispatchers.push(dispatcher);
 
