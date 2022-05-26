@@ -25,9 +25,13 @@ impl ApogeeModel {
     const FCP_TIMEOUT_MS: u32 = 100;
 }
 
-impl CtlModel<SndUnit> for ApogeeModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
 
         self.common_ctl
             .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
@@ -47,7 +51,7 @@ impl CtlModel<SndUnit> for ApogeeModel {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -90,7 +94,7 @@ impl CtlModel<SndUnit> for ApogeeModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -134,7 +138,7 @@ impl CtlModel<SndUnit> for ApogeeModel {
     }
 }
 
-impl MeasureModel<SndUnit> for ApogeeModel {
+impl MeasureModel<(SndUnit, FwNode)> for ApogeeModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.2);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
@@ -142,7 +146,7 @@ impl MeasureModel<SndUnit> for ApogeeModel {
         elem_id_list.extend_from_slice(&self.input_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .measure_state(unit, &mut self.req, TIMEOUT_MS)?;
         self.knob_ctl.measure_state(&mut self.avc, TIMEOUT_MS)?;
@@ -157,7 +161,7 @@ impl MeasureModel<SndUnit> for ApogeeModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -175,18 +179,18 @@ impl MeasureModel<SndUnit> for ApogeeModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for ApogeeModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for ApogeeModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -210,7 +214,7 @@ impl MeterCtl {
     fn load_state(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -261,11 +265,11 @@ impl MeterCtl {
 
     fn measure_state(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let node = &mut unit.get_node();
+        let node = &mut unit.1;
         DuetFwInputMeterProtocol::read_state(req, node, &mut self.0, timeout_ms)?;
         DuetFwMixerMeterProtocol::read_state(req, node, &mut self.1, timeout_ms)?;
         Ok(())
