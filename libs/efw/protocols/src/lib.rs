@@ -102,25 +102,33 @@ impl From<u32> for NominalSignalLevel {
 
 /// The trait to represent protocol for Echo Audio Fireworks board module.
 pub trait EfwProtocol {
-    fn transaction_sync(
+    fn transaction(
         &mut self,
         category: u32,
         command: u32,
-        args: Option<&[u32]>,
-        params: Option<&mut [u32]>,
+        args: &[u32],
+        params: &mut Vec<u32>,
         timeout_ms: u32,
     ) -> Result<(), glib::Error>;
 }
 
 impl<O: hinawa::SndEfwExtManual> EfwProtocol for O {
-    fn transaction_sync(
+    fn transaction(
         &mut self,
         category: u32,
         command: u32,
-        args: Option<&[u32]>,
-        params: Option<&mut [u32]>,
+        args: &[u32],
+        params: &mut Vec<u32>,
         timeout_ms: u32,
     ) -> Result<(), glib::Error> {
-        O::transaction_sync(self, category, command, args, params, timeout_ms).map(|_| ())
+        O::transaction_sync(
+            self,
+            category,
+            command,
+            Some(args),
+            Some(params),
+            timeout_ms,
+        )
+        .map(|_| ())
     }
 }

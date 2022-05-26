@@ -377,38 +377,26 @@ const METER_QUADS: usize = 110;
 pub trait HwInfoProtocol: EfwProtocol {
     /// Read hardware information.
     fn get_hw_info(&mut self, info: &mut HwInfo, timeout_ms: u32) -> Result<(), Error> {
-        let mut quads = [0; HWINFO_QUADS];
-        self.transaction_sync(
-            CATEGORY_HWINFO,
-            CMD_HWINFO,
-            None,
-            Some(&mut quads),
-            timeout_ms,
-        )
-        .and_then(|_| info.parse(&quads))
+        let mut params = vec![0; HWINFO_QUADS];
+        self.transaction(CATEGORY_HWINFO, CMD_HWINFO, &[], &mut params, timeout_ms)
+            .and_then(|_| info.parse(&params))
     }
 
     /// Read hardware meters.
     fn get_hw_meter(&mut self, meters: &mut HwMeter, timeout_ms: u32) -> Result<(), Error> {
-        let mut quads = [0; METER_QUADS];
-        self.transaction_sync(
-            CATEGORY_HWINFO,
-            CMD_METER,
-            None,
-            Some(&mut quads),
-            timeout_ms,
-        )
-        .map(|_| meters.parse(&quads))
+        let mut params = vec![0; METER_QUADS];
+        self.transaction(CATEGORY_HWINFO, CMD_METER, &[], &mut params, timeout_ms)
+            .map(|_| meters.parse(&params))
     }
 
     /// Register response address as long as HwCap::ChangeableRespAddr is supported.
     fn set_hw_resp_addr(&mut self, addr: u64, timeout_ms: u32) -> Result<(), Error> {
         let args = [(addr >> 32) as u32, (addr & 0xffffffff) as u32];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_HWINFO,
             CMD_CHANGE_RESP_ADDR,
-            Some(&args),
-            None,
+            &args,
+            &mut Vec::new(),
             timeout_ms,
         )
     }
@@ -423,11 +411,11 @@ pub trait HwInfoProtocol: EfwProtocol {
         // The first argument should be quadlet count.
         let args = [offset / 4, data.len() as u32];
         let mut params = vec![0; 2 + data.len()];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_HWINFO,
             CMD_READ_SESSION_BLOCK,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| data.copy_from_slice(&params[2..]))

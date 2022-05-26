@@ -24,12 +24,12 @@ pub struct GuitarChargeState {
 /// Protocol about robot guitar for Fireworks board module.
 pub trait RobotGuitarProtocol: EfwProtocol {
     fn get_charge_state(&mut self, timeout_ms: u32) -> Result<GuitarChargeState, Error> {
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_ROBOT_GUITAR,
             CMD_GET_CHARGE_STATE,
-            None,
-            Some(&mut params),
+            &[],
+            &mut params,
             timeout_ms,
         )
         .map(|_| GuitarChargeState {
@@ -49,12 +49,12 @@ pub trait RobotGuitarProtocol: EfwProtocol {
             state.auto_charge as u32,
             state.suspend_to_charge,
         ];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_ROBOT_GUITAR,
             CMD_SET_CHARGE_STATE,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
     }

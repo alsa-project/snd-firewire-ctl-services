@@ -92,7 +92,6 @@ pub trait HwCtlProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut args = [0; 3];
-        let mut params = [0; 3];
         let (current_src, current_rate) = self.get_clock(timeout_ms)?;
         args[0] = usize::from(match src {
             Some(s) => s,
@@ -102,25 +101,19 @@ pub trait HwCtlProtocol: EfwProtocol {
             Some(r) => r,
             None => current_rate,
         };
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_HWCTL,
             CMD_SET_CLOCK,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut vec![0; 3],
             timeout_ms,
         )
     }
 
     fn get_clock(&mut self, timeout_ms: u32) -> Result<(ClkSrc, u32), Error> {
-        let mut params = [0; 3];
-        self.transaction_sync(
-            CATEGORY_HWCTL,
-            CMD_GET_CLOCK,
-            None,
-            Some(&mut params),
-            timeout_ms,
-        )
-        .map(|_| (ClkSrc::from(params[0] as usize), params[1]))
+        let mut params = vec![0; 3];
+        self.transaction(CATEGORY_HWCTL, CMD_GET_CLOCK, &[], &mut params, timeout_ms)
+            .map(|_| (ClkSrc::from(params[0] as usize), params[1]))
     }
 
     fn set_flags(
@@ -140,34 +133,46 @@ pub trait HwCtlProtocol: EfwProtocol {
                 .iter()
                 .fold(0, |mask, flag| mask | (1 << usize::from(*flag)));
         }
-        self.transaction_sync(CATEGORY_HWCTL, CMD_SET_FLAGS, Some(&args), None, timeout_ms)
+        self.transaction(
+            CATEGORY_HWCTL,
+            CMD_SET_FLAGS,
+            &args,
+            &mut Vec::new(),
+            timeout_ms,
+        )
     }
 
     fn get_flags(&mut self, timeout_ms: u32) -> Result<Vec<HwCtlFlag>, Error> {
-        let mut params = [0];
-        self.transaction_sync(
-            CATEGORY_HWCTL,
-            CMD_GET_FLAGS,
-            None,
-            Some(&mut params),
-            timeout_ms,
-        )
-        .map(|_| {
-            (0..32)
-                .filter(|i| params[0] & (1 << i) > 0)
-                .map(|i| HwCtlFlag::from(i))
-                .collect()
-        })
+        let mut params = vec![0];
+        self.transaction(CATEGORY_HWCTL, CMD_GET_FLAGS, &[], &mut params, timeout_ms)
+            .map(|_| {
+                (0..32)
+                    .filter(|i| params[0] & (1 << i) > 0)
+                    .map(|i| HwCtlFlag::from(i))
+                    .collect()
+            })
     }
 
     /// Blink LEDs on device.
     fn blink_led(&mut self, timeout_ms: u32) -> Result<(), Error> {
-        self.transaction_sync(CATEGORY_HWCTL, CMD_BLINK_LED, None, None, timeout_ms)
+        self.transaction(
+            CATEGORY_HWCTL,
+            CMD_BLINK_LED,
+            &[],
+            &mut Vec::new(),
+            timeout_ms,
+        )
     }
 
     /// Take the device to disappear from IEEE 1394 bus, then to appear again.
     fn reconnect(&mut self, timeout_ms: u32) -> Result<(), Error> {
-        self.transaction_sync(CATEGORY_HWCTL, CMD_RECONNECT, None, None, timeout_ms)
+        self.transaction(
+            CATEGORY_HWCTL,
+            CMD_RECONNECT,
+            &[],
+            &mut Vec::new(),
+            timeout_ms,
+        )
     }
 }
 
