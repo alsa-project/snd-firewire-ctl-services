@@ -48,14 +48,17 @@ impl MediaClockFrequencyOperation for FirexonClkProtocol {
 }
 
 impl SamplingClockSourceOperation for FirexonClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x05,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x05}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x05,
+        }),
         // S/PDIF in coaxial interface.
         SignalAddr::Unit(SignalUnitAddr::Ext(0x03)),
     ];
@@ -87,7 +90,7 @@ impl AvcSelectorOperation for FirexonPhysOutputProtocol {
 /// The protocol implementation of source to monitor mixer for physical inputs
 pub struct FirexonMonitorSourceProtocol;
 
-impl AvcLevelOperation for FirexonMonitorSourceProtocol{
+impl AvcLevelOperation for FirexonMonitorSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
         (0x01, AudioCh::Each(0)), // analog-input-1
         (0x01, AudioCh::Each(1)), // analog-input-2

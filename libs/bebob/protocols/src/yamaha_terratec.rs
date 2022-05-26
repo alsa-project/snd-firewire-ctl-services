@@ -123,14 +123,14 @@ const CLK_SRC_FB_ID: u8 = 0x04;
 
 impl SamplingClockSourceOperation for GoPhase24ClkProtocol {
     // NOTE: these destination and source can not be connected actually.
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x04,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{
+        SignalAddr::Subunit(SignalSubunitAddr {
             subunit: MUSIC_SUBUNIT_0,
             plug_id: 0x03,
         }),
@@ -155,11 +155,7 @@ pub struct GoPhase24CoaxPhysInputProtocol;
 
 const INPUT_NOMINAL_LEVEL_FB_ID: u8 = 0x02;
 
-const INPUT_NOMINAL_LEVELS: [i16;3] = [
-    0xf400u16 as i16,
-    0xfd00u16 as i16,
-    0x0000u16 as i16,
-];
+const INPUT_NOMINAL_LEVELS: [i16; 3] = [0xf400u16 as i16, 0xfd00u16 as i16, 0x0000u16 as i16];
 
 impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
     // Unused.
@@ -179,11 +175,14 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
         if let FeatureCtl::Volume(data) = op.ctl {
-            INPUT_NOMINAL_LEVELS.iter()
+            INPUT_NOMINAL_LEVELS
+                .iter()
                 .position(|l| *l == data[0])
                 .ok_or_else(|| {
-                    let msg = format!("Unexpected value for value of nominal level: 0x{:04x}",
-                                      data[0]);
+                    let msg = format!(
+                        "Unexpected value for value of nominal level: 0x{:04x}",
+                        data[0]
+                    );
                     Error::new(FileError::Io, &msg)
                 })
         } else {
@@ -191,12 +190,18 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
         }
     }
 
-    fn write_selector(avc: &BebobAvc, idx: usize, val: usize, timeout_ms: u32) -> Result<(), Error> {
+    fn write_selector(
+        avc: &BebobAvc,
+        idx: usize,
+        val: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         if idx > 0 {
             let msg = format!("Invalid argument for index of selector: {}", idx);
             Err(Error::new(FileError::Inval, &msg))?;
         }
-        let v = INPUT_NOMINAL_LEVELS.iter()
+        let v = INPUT_NOMINAL_LEVELS
+            .iter()
             .nth(val)
             .ok_or_else(|| {
                 let msg = format!("Invalid argument for index of nominal level: {}", val);
@@ -218,16 +223,16 @@ pub struct GoPhase24CoaxPhysOutputProtocol;
 
 impl AvcSelectorOperation for GoPhase24CoaxPhysOutputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[
-        0x01,   // analog-output-1/2
-        0x03,   // digital-output-1/2
+        0x01, // analog-output-1/2
+        0x03, // digital-output-1/2
     ];
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[
-        0x00,   // stream-input-1/2
-        0x01,   // stream-input-3/4
-        0x02,   // analog-input-1/2
-        0x03,   // digital-input-1/2
-        0x04,   // mixer-output-1/2
-        0x05,   // stream-input-5/6
+        0x00, // stream-input-1/2
+        0x01, // stream-input-3/4
+        0x02, // analog-input-1/2
+        0x03, // digital-input-1/2
+        0x04, // mixer-output-1/2
+        0x05, // stream-input-5/6
     ];
 }
 /// The protocol implementation of physical output for optical models.
@@ -246,17 +251,17 @@ impl AvcMuteOperation for GoPhase24OptPhysOutputProtocol {}
 
 impl AvcSelectorOperation for GoPhase24OptPhysOutputProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[
-        0x01,   // analog-output-1/2
-        0x02,   // analog-output-3/4
-        0x03,   // digital-output-1/2
+        0x01, // analog-output-1/2
+        0x02, // analog-output-3/4
+        0x03, // digital-output-1/2
     ];
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[
-        0x00,   // stream-input-1/2
-        0x01,   // stream-input-3/4
-        0x02,   // analog-input-1/2
-        0x03,   // digital-input-1/2
-        0x04,   // mixer-output-1/2
-        0x05,   // stream-input-5/6
+        0x00, // stream-input-1/2
+        0x01, // stream-input-3/4
+        0x02, // analog-input-1/2
+        0x03, // digital-input-1/2
+        0x04, // mixer-output-1/2
+        0x05, // stream-input-5/6
     ];
 }
 
@@ -266,12 +271,12 @@ pub struct GoPhase24CoaxHeadphoneProtocol;
 impl AvcSelectorOperation for GoPhase24CoaxHeadphoneProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x02];
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[
-        0x00,   // stream-input-1/2
-        0x01,   // stream-input-3/4
-        0x02,   // analog-input-1/2
-        0x03,   // digital-input-1/2
-        0x04,   // mixer-output-1/2
-        0x05,   // stream-input-5/6
+        0x00, // stream-input-1/2
+        0x01, // stream-input-3/4
+        0x02, // analog-input-1/2
+        0x03, // digital-input-1/2
+        0x04, // mixer-output-1/2
+        0x05, // stream-input-5/6
     ];
 }
 
@@ -299,10 +304,7 @@ impl AvcMuteOperation for GoPhase24MixerSourceProtocol {}
 pub struct GoPhase24CoaxMixerOutputProtocol;
 
 impl AvcLevelOperation for GoPhase24CoaxMixerOutputProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x01, AudioCh::Each(0)),
-        (0x01, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x01, AudioCh::Each(0)), (0x01, AudioCh::Each(1))];
 }
 
 impl AvcMuteOperation for GoPhase24CoaxMixerOutputProtocol {}
@@ -311,10 +313,7 @@ impl AvcMuteOperation for GoPhase24CoaxMixerOutputProtocol {}
 pub struct GoPhase24OptMixerOutputProtocol;
 
 impl AvcLevelOperation for GoPhase24OptMixerOutputProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x02, AudioCh::Each(0)),
-        (0x02, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x02, AudioCh::Each(0)), (0x02, AudioCh::Each(1))];
 }
 
 impl AvcMuteOperation for GoPhase24OptMixerOutputProtocol {}

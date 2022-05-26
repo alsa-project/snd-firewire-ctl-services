@@ -45,14 +45,17 @@ impl MediaClockFrequencyOperation for FireboxClkProtocol {
 }
 
 impl SamplingClockSourceOperation for FireboxClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x05,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x06}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x06,
+        }),
         // S/PDIF in coaxial interface.
         SignalAddr::Unit(SignalUnitAddr::Ext(0x03)),
     ];
@@ -85,10 +88,7 @@ impl AvcSelectorOperation for FireboxPhysOutputProtocol {
 pub struct FireboxHeadphoneProtocol;
 
 impl AvcLevelOperation for FireboxHeadphoneProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x04, AudioCh::Each(0)),
-        (0x04, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x04, AudioCh::Each(0)), (0x04, AudioCh::Each(1))];
 }
 
 impl AvcMuteOperation for FireboxHeadphoneProtocol {}
@@ -123,9 +123,7 @@ impl AvcMuteOperation for FireboxMixerPhysSourceProtocol {}
 pub struct FireboxMixerStreamSourceProtocol;
 
 impl AvcLevelOperation for FireboxMixerStreamSourceProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x08, AudioCh::Each(0)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x08, AudioCh::Each(0))];
 }
 
 impl AvcMuteOperation for FireboxMixerStreamSourceProtocol {}
@@ -140,10 +138,7 @@ impl AvcSelectorOperation for FireboxMixerStreamSourceProtocol {
 pub struct FireboxMixerOutputProtocol;
 
 impl AvcLevelOperation for FireboxMixerOutputProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x09, AudioCh::Each(0)),
-        (0x09, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x09, AudioCh::Each(0)), (0x09, AudioCh::Each(1))];
 }
 
 impl AvcLrBalanceOperation for FireboxMixerOutputProtocol {}
@@ -163,7 +158,8 @@ impl AvcSelectorOperation for FireboxAnalogInputProtocol {
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[0x00, 0x01];
 
     fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
-        let func_block_id = Self::FUNC_BLOCK_ID_LIST.iter()
+        let func_block_id = Self::FUNC_BLOCK_ID_LIST
+            .iter()
             .nth(idx)
             .ok_or_else(|| {
                 let msg = format!("Invalid argument for index of selector: {}", idx);
@@ -188,8 +184,14 @@ impl AvcSelectorOperation for FireboxAnalogInputProtocol {
         }
     }
 
-    fn write_selector(avc: &BebobAvc, idx: usize, val: usize, timeout_ms: u32) -> Result<(), Error> {
-        let func_block_id = Self::FUNC_BLOCK_ID_LIST.iter()
+    fn write_selector(
+        avc: &BebobAvc,
+        idx: usize,
+        val: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let func_block_id = Self::FUNC_BLOCK_ID_LIST
+            .iter()
             .nth(idx)
             .ok_or_else(|| {
                 let msg = format!("Invalid argument for index of selector: {}", idx);

@@ -63,12 +63,10 @@ impl SamplingClockSourceOperation for FaClkProtocol {
         plug_id: 0x05,
     });
 
-    const SRC_LIST: &'static [SignalAddr] = &[
-        SignalAddr::Subunit(SignalSubunitAddr {
-            subunit: MUSIC_SUBUNIT_0,
-            plug_id: 0x05,
-        }),
-    ];
+    const SRC_LIST: &'static [SignalAddr] = &[SignalAddr::Subunit(SignalSubunitAddr {
+        subunit: MUSIC_SUBUNIT_0,
+        plug_id: 0x05,
+    })];
 }
 
 // NOTE: Mute function in Feature control of audio function block has no effect.

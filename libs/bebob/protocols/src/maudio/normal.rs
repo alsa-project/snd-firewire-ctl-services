@@ -189,8 +189,8 @@ use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
 use ta1394::MUSIC_SUBUNIT_0;
 
-use crate::*;
 use super::*;
+use crate::*;
 
 /// The protocol implementation for media and sampling clock of FireWire 410.
 #[derive(Default)]
@@ -963,17 +963,17 @@ pub trait MaudioNormalMixerOperation {
             .iter()
             .nth(dst_idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid index of destination ID list: {}", dst_idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+            let msg = format!("Invalid index of destination ID list: {}", dst_idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let &(src_func_block_id, src_audio_ch) = Self::SRC_FUNC_BLOCK_ID_LIST
             .iter()
             .nth(src_idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid index of source ID list: {}", src_idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+            let msg = format!("Invalid index of source ID list: {}", src_idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioProcessing::new(
             dst_func_block_id,
@@ -1003,20 +1003,20 @@ pub trait MaudioNormalMixerOperation {
             .iter()
             .nth(dst_idx)
             .ok_or_else(|| {
-                let msg = format!(
-                    "Invalid argument for index of destination ID list: {}",
-                    dst_idx
-                );
-                Error::new(FileError::Inval, &msg)
-            })?;
+            let msg = format!(
+                "Invalid argument for index of destination ID list: {}",
+                dst_idx
+            );
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let &(src_func_block_id, src_audio_ch) = Self::SRC_FUNC_BLOCK_ID_LIST
             .iter()
             .nth(src_idx)
             .ok_or_else(|| {
-                let msg = format!("Invalid argument for index of source ID list: {}", src_idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+            let msg = format!("Invalid argument for index of source ID list: {}", src_idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let val = if state { 0 } else { 0x8000u16 as i16 };
         let mut op = AudioProcessing::new(

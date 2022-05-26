@@ -38,14 +38,17 @@ impl MediaClockFrequencyOperation for Fp10ClkProtocol {
 }
 
 impl SamplingClockSourceOperation for Fp10ClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x07,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x07}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x07,
+        }),
         // S/PDIF
         SignalAddr::Unit(SignalUnitAddr::Ext(0x01)),
     ];

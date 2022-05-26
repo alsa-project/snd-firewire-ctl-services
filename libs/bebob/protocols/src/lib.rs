@@ -11,13 +11,13 @@ pub mod bridgeco;
 pub mod apogee;
 pub mod behringer;
 pub mod digidesign;
-pub mod focusrite;
 pub mod esi;
+pub mod focusrite;
 pub mod icon;
 pub mod maudio;
-pub mod stanton;
 pub mod presonus;
 pub mod roland;
+pub mod stanton;
 pub mod terratec;
 pub mod yamaha_terratec;
 
@@ -184,12 +184,10 @@ pub trait AvcLevelOperation {
     const LEVEL_STEP: i16 = 0x100;
 
     fn read_level(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of function block list: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioFeature::new(
             func_block_id,
@@ -207,12 +205,10 @@ pub trait AvcLevelOperation {
     }
 
     fn write_level(avc: &BebobAvc, idx: usize, vol: i16, timeout_ms: u32) -> Result<(), Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of function block list: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioFeature::new(
             func_block_id,
@@ -231,12 +227,10 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
     const BALANCE_STEP: i16 = 0x80;
 
     fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of function block list: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioFeature::new(
             func_block_id,
@@ -259,12 +253,10 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
         balance: i16,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of function block list: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioFeature::new(
             func_block_id,
@@ -279,12 +271,10 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
 /// The trait of mute operation for audio function blocks.
 pub trait AvcMuteOperation: AvcLevelOperation {
     fn read_mute(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<bool, Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of function block list: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioFeature::new(
             func_block_id,
@@ -302,12 +292,10 @@ pub trait AvcMuteOperation: AvcLevelOperation {
     }
 
     fn write_mute(avc: &BebobAvc, idx: usize, mute: bool, timeout_ms: u32) -> Result<(), Error> {
-        let &(func_block_id, audio_ch) = Self::ENTRIES.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of function block list: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &(func_block_id, audio_ch) = Self::ENTRIES.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of function block list: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioFeature::new(
             func_block_id,
@@ -325,13 +313,10 @@ pub trait AvcSelectorOperation {
     const INPUT_PLUG_ID_LIST: &'static [u8];
 
     fn read_selector(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<usize, Error> {
-        let &func_block_id = Self::FUNC_BLOCK_ID_LIST
-            .iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of selector: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &func_block_id = Self::FUNC_BLOCK_ID_LIST.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of selector: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
@@ -354,13 +339,10 @@ pub trait AvcSelectorOperation {
         val: usize,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let &func_block_id = Self::FUNC_BLOCK_ID_LIST
-            .iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of selector: {}", idx);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &func_block_id = Self::FUNC_BLOCK_ID_LIST.iter().nth(idx).ok_or_else(|| {
+            let msg = format!("Invalid index of selector: {}", idx);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let input_plug_id = Self::INPUT_PLUG_ID_LIST
             .iter()

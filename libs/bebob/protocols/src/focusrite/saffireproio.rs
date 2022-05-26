@@ -667,46 +667,37 @@ const MIXER_OFFSETS: [usize; 28] = [
     // level to analog-output-0
     0x0d0, // from stream-input-0
     0x0d4, // from monitor-output-0
-
     // level to analog-output-1
     0x0d8, // from stream-input-1
     0x0dc, // from monitor-output-1
-
     // level to analog-out-2
     0x0e0, // from stream-input-0
     0x0e4, // from stream-input-2
     0x0e8, // from monitor-output-0
-
     // level to analog-out-3
     0x0ec, // from stream-input-1
     0x0f0, // from stream-input-3
     0x0f4, // from monitor-output-1
-
     // level to analog-out-4
     0x0f8, // from stream-input-0
     0x0fc, // from stream-input-4
     0x100, // from monitor-output-0
-
     // level to analog-out-5
     0x104, // from stream-input-1
     0x108, // from stream-input-5
     0x10c, // from monitor-output-1
-
     // level to analog-out-6
     0x110, // from stream-input-0
     0x114, // from stream-input-6
     0x118, // from monitor-output-0
-
     // level to analog-out-7
     0x11c, // from stream-input-1
     0x120, // from stream-input-7
     0x124, // from monitor-output-1
-
     // level to analog-out-8
     0x128, // from stream-input-0
     0x12c, // from stream-input-8
     0x130, // from monitor-output-0
-
     // level to analog-out-9
     0x134, // from stream-input-1
     0x138, // from stream-input-9

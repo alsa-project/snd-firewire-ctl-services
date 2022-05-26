@@ -8,4 +8,4 @@
 
 pub mod ensemble;
 
-const APOGEE_OUI: [u8;3] = [0x00, 0x03, 0xdb];
+const APOGEE_OUI: [u8; 3] = [0x00, 0x03, 0xdb];
