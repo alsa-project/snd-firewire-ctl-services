@@ -291,7 +291,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
     fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -420,7 +420,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
     fn write_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -432,7 +432,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         func(&mut state)?;
         T::write_reverb_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -527,7 +527,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
     fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -542,7 +542,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 state.main_volume = val;
                 T::write_monitor_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sequence_number,
                     state,
                     self.state_mut(),
@@ -557,7 +557,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 state.talkback_enable = vals[0];
                 T::write_monitor_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sequence_number,
                     state,
                     self.state_mut(),
@@ -572,7 +572,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 state.listenback_enable = vals[0];
                 T::write_monitor_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sequence_number,
                     state,
                     self.state_mut(),
@@ -587,7 +587,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 state.talkback_volume = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
                 T::write_monitor_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sequence_number,
                     state,
                     self.state_mut(),
@@ -602,7 +602,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 state.listenback_volume = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
                 T::write_monitor_state(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     sequence_number,
                     state,
                     self.state_mut(),
@@ -901,7 +901,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
     fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1039,7 +1039,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
     fn write_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -1051,7 +1051,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
         func(&mut state)?;
         T::write_mixer_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -1474,7 +1474,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_bool_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1494,7 +1494,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_int_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1514,7 +1514,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_u32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1535,7 +1535,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_f32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1559,7 +1559,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_roll_off_level<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1590,7 +1590,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_filter_type_5<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1621,7 +1621,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_filter_type_4<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -1652,7 +1652,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_equalizer(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -2006,7 +2006,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_equalizer_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -2296,7 +2296,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_bool_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2316,7 +2316,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_int_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2336,7 +2336,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_u32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2357,7 +2357,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_f32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2381,7 +2381,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_level_detect_mode<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2412,7 +2412,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_leveler_mode<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -2443,7 +2443,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_dynamics(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -2567,7 +2567,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     fn write_dynamics_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -2805,7 +2805,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
     fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -2935,7 +2935,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
     fn write_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -2947,7 +2947,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
         func(&mut state)?;
         T::write_input_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -3011,7 +3011,7 @@ where
     fn write_equalizer_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -3023,7 +3023,7 @@ where
         func(&mut state.equalizer)?;
         T::write_input_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -3062,7 +3062,7 @@ where
     fn write_dynamics_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -3074,7 +3074,7 @@ where
         func(&mut state.dynamics)?;
         T::write_input_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -3181,7 +3181,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write_bool_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -3201,7 +3201,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write_int_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -3221,7 +3221,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write_f32_values<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -3245,7 +3245,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -3313,7 +3313,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     fn write_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -3325,7 +3325,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
         func(&mut state)?;
         T::write_output_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -3389,7 +3389,7 @@ where
     fn write_equalizer_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -3401,7 +3401,7 @@ where
         func(&mut state.equalizer)?;
         T::write_output_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -3440,7 +3440,7 @@ where
     fn write_dynamics_state<F>(
         &mut self,
         sequence_number: &mut u8,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         func: F,
@@ -3452,7 +3452,7 @@ where
         func(&mut state.dynamics)?;
         T::write_output_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             sequence_number,
             state,
             self.state_mut(),
@@ -3596,10 +3596,11 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
 
     fn read_dsp_meter(
         &mut self,
-        unit: &SndMotu,
+        unit: &(SndMotu, FwNode),
         meter: &mut CommandDspMeterImage,
     ) -> Result<(), Error> {
-        unit.read_command_dsp_meter(&mut meter.0)
+        unit.0
+            .read_command_dsp_meter(&mut meter.0)
             .map(|_| T::parse_dsp_meter(self.state_mut(), &meter.0))
     }
 }

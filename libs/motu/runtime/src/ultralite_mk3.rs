@@ -260,7 +260,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.reverb_ctl.write(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -269,7 +269,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.monitor_ctl.write(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -278,7 +278,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.mixer_ctl.write(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -287,7 +287,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.input_ctl.write(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -296,7 +296,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.input_ctl.write_equalizer(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -305,7 +305,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.input_ctl.write_dynamics(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -314,7 +314,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.output_ctl.write(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -323,7 +323,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.output_ctl.write_equalizer(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -332,7 +332,7 @@ impl CtlModel<(SndMotu, FwNode)> for UltraLiteMk3 {
             Ok(true)
         } else if self.output_ctl.write_dynamics(
             &mut self.sequence_number,
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -439,7 +439,7 @@ impl MeasureModel<(SndMotu, FwNode)> for UltraLiteMk3 {
     }
 
     fn measure_states(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
-        self.meter_ctl.read_dsp_meter(&unit.0, &mut self.meter)
+        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
     }
 
     fn measure_elem(
