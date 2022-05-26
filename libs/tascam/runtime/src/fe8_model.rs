@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    tascam_protocols::asynch::{fe8::*, *},
-};
+use {super::*, tascam_protocols::asynch::fe8::*};
 
 #[derive(Default)]
 pub struct Fe8Model {
@@ -55,15 +52,5 @@ impl SequencerCtlOperation<Fe8Protocol, Fe8SurfaceState> for Fe8Model {
             node,
             TIMEOUT_MS,
         )
-    }
-}
-
-impl AsynchCtlOperation for Fe8Model {
-    fn register_notification_address(&mut self, node: &mut FwNode, addr: u64) -> Result<(), Error> {
-        Fe8Protocol::register_notification_address(&mut self.req, node, addr, TIMEOUT_MS)
-    }
-
-    fn enable_notification(&mut self, node: &mut FwNode, enable: bool) -> Result<(), Error> {
-        Fe8Protocol::enable_notification(&mut self.req, node, enable, TIMEOUT_MS)
     }
 }

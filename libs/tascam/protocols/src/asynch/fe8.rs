@@ -22,8 +22,6 @@ use super::*;
 #[derive(Default)]
 pub struct Fe8Protocol;
 
-impl ExpanderOperation for Fe8Protocol {}
-
 impl MachineStateOperation for Fe8Protocol {
     const BOOL_ITEMS: &'static [MachineItem] = &[
         MachineItem::Rec(0),

@@ -6,7 +6,7 @@ use {
     core::dispatcher::*,
     nix::sys::signal::Signal,
     std::marker::PhantomData,
-    std::sync::{mpsc, Arc, Mutex},
+    std::sync::mpsc,
     tascam_protocols::asynch::{fe8::*, *},
 };
 
@@ -14,31 +14,29 @@ pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;
 
 pub struct AsynchRuntime<S, T, U>
 where
-    S: AsynchCtlOperation + SequencerCtlOperation<T, U> + Default,
+    S: SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
-    node: FwNode,
+    unit: (TascamExpander, FwNode),
     model: S,
-    resp: FwResp,
+    image: Vec<u32>,
     seq_cntr: SeqCntr,
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
     dispatchers: Vec<Dispatcher>,
-    state_cntr: Arc<Mutex<AsynchSurfaceImage>>,
     _phantom0: PhantomData<T>,
     _phantom1: PhantomData<U>,
 }
 
 impl<S, T, U> Drop for AsynchRuntime<S, T, U>
 where
-    S: AsynchCtlOperation + SequencerCtlOperation<T, U> + Default,
+    S: SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
-        let _ = self.model.enable_notification(&mut self.node, false);
-        let _ = self.model.register_notification_address(&mut self.node, 0);
-        let _ = self.model.finalize_surface(&mut self.node);
-        self.resp.release();
+        self.unit.0.unbind();
+
+        let _ = self.model.finalize_surface(&mut self.unit.1);
 
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -65,24 +63,25 @@ const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
 
 impl<S, T, U> AsynchRuntime<S, T, U>
 where
-    S: AsynchCtlOperation + SequencerCtlOperation<T, U> + Default,
+    S: SequencerCtlOperation<T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(node: FwNode, name: String) -> Result<Self, Error> {
+        let unit = TascamExpander::new();
+
         let seq_cntr = SeqCntr::new(&name)?;
 
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(Self {
-            node,
+            unit: (unit, node),
             model: Default::default(),
-            resp: Default::default(),
+            image: vec![0u32; TascamExpander::QUADLET_COUNT],
             seq_cntr,
             tx,
             rx,
             dispatchers: Default::default(),
-            state_cntr: Arc::new(Mutex::new(Default::default())),
             _phantom0: Default::default(),
             _phantom1: Default::default(),
         })
@@ -90,22 +89,19 @@ where
 
     pub fn listen(&mut self) -> Result<(), Error> {
         self.launch_node_event_dispatcher()?;
-        self.register_address_space()?;
+
+        self.unit.0.bind(&mut self.unit.1)?;
 
         self.seq_cntr.open_port()?;
 
-        self.model.initialize_sequencer(&mut self.node)?;
-
-        let mut addr = self.resp.get_property_offset();
-        addr |= (self.node.get_property_local_node_id() as u64) << 48;
-        self.model
-            .register_notification_address(&mut self.node, addr)?;
-        self.model.enable_notification(&mut self.node, true)?;
+        self.model.initialize_sequencer(&mut self.unit.1)?;
 
         Ok(())
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
+        self.unit.0.listen()?;
+
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -119,17 +115,11 @@ where
                 }
                 AsyncUnitEvent::Surface((index, before, after)) => {
                     // Handle error of mutex lock as unrecoverable one.
-                    let image = self
-                        .state_cntr
-                        .lock()
-                        .map_err(|_| {
-                            Error::new(FileError::Failed, "Unrecoverable error at mutex lock")
-                        })
-                        .map(|s| s.0.to_vec())?;
+                    self.unit.0.read_state(&mut self.image)?;
                     let _ = self.model.dispatch_surface_event(
-                        &mut self.node,
+                        &mut self.unit.1,
                         &mut self.seq_cntr,
-                        &image,
+                        &self.image,
                         index,
                         before,
                         after,
@@ -138,10 +128,12 @@ where
                 AsyncUnitEvent::SeqAppl(data) => {
                     let _ =
                         self.model
-                            .dispatch_appl_event(&mut self.node, &mut self.seq_cntr, &data);
+                            .dispatch_appl_event(&mut self.unit.1, &mut self.seq_cntr, &data);
                 }
             }
         }
+
+        self.unit.0.unlisten();
 
         Ok(())
     }
@@ -152,12 +144,12 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.node, move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(AsyncUnitEvent::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.node.connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let generation = node.get_property_generation();
             let _ = tx.send(AsyncUnitEvent::BusReset(generation));
         });
@@ -187,44 +179,13 @@ where
                     });
             });
 
+        let tx = self.tx.clone();
+        self.unit.0.connect_changed(move |_, index, before, after| {
+            let _ = tx.send(AsyncUnitEvent::Surface((index, before, after)));
+        });
+
         self.dispatchers.push(dispatcher);
 
         Ok(())
     }
-
-    fn register_address_space(&mut self) -> Result<(), Error> {
-        // Reserve local address to receive async messages from the
-        // unit within private space.
-        self.resp
-            .reserve_within_region(&self.node, 0xffffe0000000, 0xfffff0000000, 0x80)?;
-
-        let tx = self.tx.clone();
-        let state_cntr = self.state_cntr.clone();
-        let node_id = self.node.get_property_node_id();
-        self.resp
-            .connect_requested2(move |_, tcode, _, src, _, _, _, frame| {
-                if src != node_id {
-                    FwRcode::AddressError
-                } else {
-                    if let Ok(s) = &mut state_cntr.lock() {
-                        let mut events = Vec::new();
-                        let tcode = s.parse_notification(&mut events, tcode, frame);
-                        events.iter().for_each(|&ev| {
-                            let _ = tx.send(AsyncUnitEvent::Surface(ev));
-                        });
-                        tcode
-                    } else {
-                        FwRcode::DataError
-                    }
-                }
-            });
-
-        Ok(())
-    }
-}
-
-pub trait AsynchCtlOperation {
-    fn register_notification_address(&mut self, node: &mut FwNode, addr: u64) -> Result<(), Error>;
-
-    fn enable_notification(&mut self, node: &mut FwNode, enable: bool) -> Result<(), Error>;
 }

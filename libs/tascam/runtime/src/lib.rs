@@ -18,9 +18,7 @@ use {
     asynch_runtime::*,
     core::{card_cntr::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{
-        FwNode, FwNodeExt, FwNodeExtManual, FwRcode, FwReq, FwResp, FwRespExt, FwRespExtManual,
-    },
+    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
     hitaki::{traits::*, *},
     ieee1212_config_rom::*,
     isoch_console_runtime::*,
