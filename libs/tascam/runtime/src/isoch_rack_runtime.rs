@@ -11,7 +11,7 @@ use {
 pub type Fw1804Runtime = IsochRackRuntime<Fw1804Model>;
 
 pub struct IsochRackRuntime<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> {
-    unit: SndTscm,
+    unit: (SndTscm, FwNode),
     model: T,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<RackUnitEvent>,
@@ -52,7 +52,7 @@ const TIMER_NAME: &str = "meter";
 const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T> {
-    pub fn new(unit: SndTscm, _: &str, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndTscm, node: FwNode, _: &str, sysnum: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
@@ -60,7 +60,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(Self {
-            unit,
+            unit: (unit, node),
             model: Default::default(),
             card_cntr,
             tx,
@@ -75,7 +75,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -100,7 +100,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
                 RackUnitEvent::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit,
+                            &mut self.unit.0,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -125,7 +125,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
                 }
                 RackUnitEvent::Timer => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &self.measure_elems,
                         &mut self.model,
                     );
@@ -141,17 +141,17 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(RackUnitEvent::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(RackUnitEvent::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let generation = node.get_property_generation();
             let _ = tx.send(RackUnitEvent::BusReset(generation));
         });

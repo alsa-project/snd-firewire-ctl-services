@@ -107,7 +107,7 @@ impl IsochConsoleCtlOperation<Fw1884Protocol> for ConsoleCtl {
 #[derive(Default)]
 struct SpecificCtl;
 
-impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
+impl SequencerCtlOperation<Fw1884Protocol, Fw1884SurfaceState> for Fw1884Model {
     fn state(&self) -> &SequencerState<Fw1884SurfaceState> {
         &self.seq_state
     }
@@ -118,7 +118,7 @@ impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw18
 
     fn initialize_surface(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         machine_values: &[(MachineItem, ItemValue)],
     ) -> Result<(), Error> {
         machine_values
@@ -130,28 +130,28 @@ impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw18
                         .find(|i| item.eq(i))
                         .is_some()
             })
-            .try_for_each(|entry| self.feedback_to_surface(unit, entry))
+            .try_for_each(|entry| self.feedback_to_surface(node, entry))
     }
 
-    fn finalize_surface(&mut self, unit: &mut SndTscm) -> Result<(), Error> {
+    fn finalize_surface(&mut self, node: &mut FwNode) -> Result<(), Error> {
         Fw1884Protocol::finalize_surface(
             &mut self.seq_state.surface_state,
             &mut self.req,
-            &mut unit.get_node(),
+            node,
             TIMEOUT_MS,
         )
     }
 
     fn feedback_to_surface(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         event: &(MachineItem, ItemValue),
     ) -> Result<(), Error> {
         Fw1884Protocol::feedback_to_surface(
             &mut self.seq_state.surface_state,
             event,
             &mut self.req,
-            &mut unit.get_node(),
+            node,
             TIMEOUT_MS,
         )
     }
