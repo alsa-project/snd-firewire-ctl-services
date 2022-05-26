@@ -1,23 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use std::marker::PhantomData;
-use std::sync::{mpsc, Arc, Mutex};
-
-use nix::sys::signal::Signal;
-
-use glib::source;
-use glib::{Error, FileError};
-
-use hinawa::{FwNode, FwNodeExt, FwRcode, FwResp, FwRespExt, FwRespExtManual};
-
-use alsaseq::{EventCntrExt, EventCntrExtManual, EventDataCtl, EventType, UserClientExt};
-
-use core::dispatcher::*;
-
-use tascam_protocols::asynch::{fe8::*, *};
-
-use crate::{fe8_model::*, seq_cntr::*, *};
+use {
+    super::{fe8_model::*, seq_cntr::*, *},
+    core::dispatcher::*,
+    nix::sys::signal::Signal,
+    std::marker::PhantomData,
+    std::sync::{mpsc, Arc, Mutex},
+    tascam_protocols::asynch::{fe8::*, *},
+};
 
 pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;
 

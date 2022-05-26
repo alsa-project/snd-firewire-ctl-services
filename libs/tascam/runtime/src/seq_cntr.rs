@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::translate::*;
-use glib::{Error, FileError};
 
-use alsaseq::*;
+use {super::*, glib::translate::*};
 
 pub struct SeqCntr {
     pub client: alsaseq::UserClient,

@@ -1,19 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use hinawa::FwReq;
-use hinawa::{SndTscm, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use tascam_protocols::isoch::*;
+use {
+    super::*, alsa_ctl_tlv_codec::items::DbInterval, alsactl::*, core::elem_value_accessor::*,
+    tascam_protocols::isoch::*,
+};
 
 const MONITOR_ROTARY_NAME: &str = "monitor-rotary";
 const SOLO_ROTARY_NAME: &str = "solo-rotary";
