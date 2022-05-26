@@ -11,16 +11,16 @@ use crate::*;
 pub struct FfUcxProtocol;
 
 // For configuration register (0x'ffff'0000'0014).
-const CFG_CLK_SRC_MASK: u32                         = 0x00000c00;
-const   CFG_CLK_SRC_WORD_CLK_FLAG: u32              = 0x00000c00;
-const   CFG_CLK_SRC_OPT_IFACE_FLAG: u32             = 0x00000800;
-const   CFG_CLK_SRC_COAX_IFACE_FLAG: u32            = 0x00000400;
-const   CFG_CLK_SRC_INTERNAL_FLAG: u32              = 0x00000000;
-const CFG_SPDIF_OUT_TO_OPT_IFACE_MASK: u32          = 0x00000100;
-const CFG_WORD_OUT_SINGLE_MASK: u32                 = 0x00000010;
-const CFG_DSP_EFFECT_ON_INPUT_MASK: u32             = 0x00000040;
-const CFG_WORD_INPUT_TERMINATE_MASK: u32        = 0x00000008;
-const CFG_SPDIF_OUT_PRO_MASK: u32                   = 0x00000020;
+const CFG_CLK_SRC_MASK: u32 = 0x00000c00;
+const CFG_CLK_SRC_WORD_CLK_FLAG: u32 = 0x00000c00;
+const CFG_CLK_SRC_OPT_IFACE_FLAG: u32 = 0x00000800;
+const CFG_CLK_SRC_COAX_IFACE_FLAG: u32 = 0x00000400;
+const CFG_CLK_SRC_INTERNAL_FLAG: u32 = 0x00000000;
+const CFG_SPDIF_OUT_TO_OPT_IFACE_MASK: u32 = 0x00000100;
+const CFG_WORD_OUT_SINGLE_MASK: u32 = 0x00000010;
+const CFG_DSP_EFFECT_ON_INPUT_MASK: u32 = 0x00000040;
+const CFG_WORD_INPUT_TERMINATE_MASK: u32 = 0x00000008;
+const CFG_SPDIF_OUT_PRO_MASK: u32 = 0x00000020;
 
 /// The enumeration to represent source of sampling clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -60,7 +60,7 @@ impl FfUcxClkSrc {
 
 /// The structure to represent unique protocol for Fireface UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfUcxConfig{
+pub struct FfUcxConfig {
     /// The low offset of destination address for MIDI messages.
     midi_tx_low_offset: FfLatterMidiTxLowOffset,
     /// The source of sampling clock.
@@ -77,7 +77,7 @@ pub struct FfUcxConfig{
     pub spdif_out_format: SpdifFormat,
 }
 
-impl RmeFfLatterRegisterValueOperation for FfUcxConfig{
+impl RmeFfLatterRegisterValueOperation for FfUcxConfig {
     fn build(&self, quad: &mut u32) {
         self.midi_tx_low_offset.build(quad);
         self.clk_src.build(quad);
@@ -128,29 +128,29 @@ impl RmeFfLatterConfigOperation<FfUcxConfig> for FfUcxProtocol {}
 
 // For status register (0x'ffff'0000'001c).
 #[allow(dead_code)]
-const STATUS_ACTIVE_CLK_RATE_MASK: u32              = 0x0f000000;
+const STATUS_ACTIVE_CLK_RATE_MASK: u32 = 0x0f000000;
 #[allow(dead_code)]
-const STATUS_WORD_CLK_RATE_MASK: u32                = 0x00f00000;
+const STATUS_WORD_CLK_RATE_MASK: u32 = 0x00f00000;
 #[allow(dead_code)]
-const STATUS_OPT_IFACE_RATE_MASK: u32               = 0x000f0000;
+const STATUS_OPT_IFACE_RATE_MASK: u32 = 0x000f0000;
 #[allow(dead_code)]
-const STATUS_COAX_IFACE_RATE_MASK: u32              = 0x0000f000;
-const STATUS_ACTIVE_CLK_SRC_MASK: u32               = 0x00000e00;
-const   STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32    = 0x00000e00;
-const   STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32    = 0x00000600;
-const   STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG: u32   = 0x00000400;
-const   STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG: u32  = 0x00000200;
-const STATUS_OPT_OUT_IFACE_FOR_ADAT: u32            = 0x00000100;
-const STATUS_SYNC_WORD_CLK_MASK: u32                = 0x00000040;
-const STATUS_SYNC_OPT_IFACE_MASK: u32               = 0x00000020;
-const STATUS_SYNC_COAX_IFACE_MASK: u32              = 0x00000010;
-const STATUS_LOCK_WORD_CLK_MASK: u32                = 0x00000004;
-const STATUS_LOCK_OPT_IFACE_MASK: u32               = 0x00000002;
-const STATUS_LOCK_COAX_IFACE_MASK: u32              = 0x00000001;
+const STATUS_COAX_IFACE_RATE_MASK: u32 = 0x0000f000;
+const STATUS_ACTIVE_CLK_SRC_MASK: u32 = 0x00000e00;
+const STATUS_ACTIVE_CLK_SRC_INTERNAL_FLAG: u32 = 0x00000e00;
+const STATUS_ACTIVE_CLK_SRC_WORD_CLK_FLAG: u32 = 0x00000600;
+const STATUS_ACTIVE_CLK_SRC_OPT_IFACE_FLAG: u32 = 0x00000400;
+const STATUS_ACTIVE_CLK_SRC_COAX_IFACE_FLAG: u32 = 0x00000200;
+const STATUS_OPT_OUT_IFACE_FOR_ADAT: u32 = 0x00000100;
+const STATUS_SYNC_WORD_CLK_MASK: u32 = 0x00000040;
+const STATUS_SYNC_OPT_IFACE_MASK: u32 = 0x00000020;
+const STATUS_SYNC_COAX_IFACE_MASK: u32 = 0x00000010;
+const STATUS_LOCK_WORD_CLK_MASK: u32 = 0x00000004;
+const STATUS_LOCK_OPT_IFACE_MASK: u32 = 0x00000002;
+const STATUS_LOCK_COAX_IFACE_MASK: u32 = 0x00000001;
 
 /// The structure to represent lock status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfUcxExtLockStatus{
+pub struct FfUcxExtLockStatus {
     pub word_clk: bool,
     pub opt_iface: bool,
     pub coax_iface: bool,
@@ -178,7 +178,7 @@ impl FfUcxExtLockStatus {
 
 /// The structure to represent sync status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfUcxExtSyncStatus{
+pub struct FfUcxExtSyncStatus {
     pub word_clk: bool,
     pub opt_iface: bool,
     pub coax_iface: bool,
@@ -206,7 +206,7 @@ impl FfUcxExtSyncStatus {
 
 /// The structure to represent sync status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfUcxExtRateStatus{
+pub struct FfUcxExtRateStatus {
     pub word_clk: Option<ClkNominalRate>,
     pub opt_iface: Option<ClkNominalRate>,
     pub coax_iface: Option<ClkNominalRate>,
@@ -240,7 +240,7 @@ impl FfUcxExtRateStatus {
 
 /// The structure to represent status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
-pub struct FfUcxStatus{
+pub struct FfUcxStatus {
     pub ext_lock: FfUcxExtLockStatus,
     pub ext_sync: FfUcxExtSyncStatus,
     pub ext_rate: FfUcxExtRateStatus,

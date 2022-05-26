@@ -9,7 +9,7 @@
 pub mod former;
 pub mod latter;
 
-use ieee1212_config_rom::{*, entry::*};
+use ieee1212_config_rom::{entry::*, *};
 
 const RME_OUI: u32 = 0x00000a35;
 
@@ -20,20 +20,20 @@ pub trait FfConfigRom {
 
 impl<'a> FfConfigRom for ConfigRom<'a> {
     fn get_model_id(&self) -> Option<u32> {
-        self.root.iter().find_map(|entry| {
-            EntryDataAccess::<u32>::get(entry, KeyType::Vendor)
-        })
-        .filter(|vendor_id| vendor_id.eq(&RME_OUI))
-        .and_then(|_| {
-            self.root.iter().find_map(|entry| {
-                EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
+        self.root
+            .iter()
+            .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::Vendor))
+            .filter(|vendor_id| vendor_id.eq(&RME_OUI))
+            .and_then(|_| {
+                self.root
+                    .iter()
+                    .find_map(|entry| EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit))
+                    .and_then(|entries| {
+                        entries
+                            .iter()
+                            .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::Version))
+                    })
             })
-            .and_then(|entries| {
-                entries.iter().find_map(|entry| {
-                    EntryDataAccess::<u32>::get(entry, KeyType::Version)
-                })
-            })
-        })
     }
 }
 
