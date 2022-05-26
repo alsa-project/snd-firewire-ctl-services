@@ -2,12 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    alsactl::CardError,
-    alsaseq::UserClientError,
-    core::RuntimeOperation,
-    glib::FileError,
-    hinawa::{FwNodeError, SndUnitError},
-    std::str::FromStr,
+    alsactl::CardError, alsaseq::UserClientError, core::RuntimeOperation, glib::FileError,
+    hinawa::FwNodeError, hitaki::AlsaFirewireError, std::str::FromStr,
 };
 
 pub fn parse_arg_as_u32(arg: &str) -> Result<u32, String> {
@@ -69,13 +65,13 @@ Usage:
                             _ => "",
                         },
                     )
-                } else if let Some(error) = e.kind::<SndUnitError>() {
+                } else if let Some(error) = e.kind::<AlsaFirewireError>() {
                     (
                         "ALSA HwDep operation error",
                         match error {
-                            SndUnitError::Disconnected => "Sound card is disconnected",
-                            SndUnitError::Used => "ALSA Hwdep device is already used",
-                            SndUnitError::WrongClass => "Unit is not for the runtime",
+                            AlsaFirewireError::IsDisconnected => "Sound card is disconnected",
+                            AlsaFirewireError::IsUsed => "ALSA Hwdep device is already used",
+                            AlsaFirewireError::WrongClass => "Unit is not for the runtime",
                             _ => "",
                         },
                     )
