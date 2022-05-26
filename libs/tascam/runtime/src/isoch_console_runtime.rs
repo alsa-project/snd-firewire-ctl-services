@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
+use std::marker::PhantomData;
 use std::sync::mpsc;
 use std::time::Duration;
-use std::marker::PhantomData;
 
 use nix::sys::signal;
 
-use glib::Error;
 use glib::source;
+use glib::Error;
 
 use hinawa::FwNodeExt;
 use hinawa::{SndTscm, SndTscmExt, SndTscmExtManual, SndUnitExt};
 
 use alsactl::{CardExt, CardExtManual};
-use alsactl::{ElemId, ElemIfaceType, ElemEventMask, ElemValue, ElemValueExtManual};
+use alsactl::{ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 use alsaseq::{EventCntrExt, EventCntrExtManual, EventDataCtl, EventType, UserClientExt};
 
-use core::dispatcher::*;
 use core::card_cntr::*;
+use core::dispatcher::*;
 
-use tascam_protocols::{isoch::{fw1082::*, fw1884::*}};
+use tascam_protocols::isoch::{fw1082::*, fw1884::*};
 
 use crate::{fw1082_model::*, fw1884_model::*, seq_cntr::*, *};
 
@@ -28,7 +28,7 @@ pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082
 
 pub struct IsochConsoleRuntime<S, T, U>
 where
-    S:  CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     unit: SndTscm,
@@ -46,7 +46,7 @@ where
 
 impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
 where
-    S:  CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
@@ -74,7 +74,7 @@ const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<S, T, U> IsochConsoleRuntime<S, T, U>
 where
-    S:  CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
+    S: CtlModel<SndTscm> + MeasureModel<SndTscm> + SequencerCtlOperation<SndTscm, T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(unit: SndTscm, name: &str, sysnum: u32) -> Result<Self, Error> {
@@ -86,7 +86,7 @@ where
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        Ok(Self{
+        Ok(Self {
             unit,
             model: Default::default(),
             card_cntr,
@@ -135,11 +135,16 @@ where
                             &mut self.unit,
                             &elem_id,
                             &events,
-                            &mut self.model
+                            &mut self.model,
                         );
                     } else {
                         let mut elem_value = ElemValue::new();
-                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                        if self
+                            .card_cntr
+                            .card
+                            .read_elem_value(&elem_id, &mut elem_value)
+                            .is_ok()
+                        {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
                             if vals[0] {
@@ -154,15 +159,13 @@ where
                     let _ = self.card_cntr.measure_elems(
                         &mut self.unit,
                         &self.measure_elems,
-                        &mut self.model
+                        &mut self.model,
                     );
                 }
                 ConsoleUnitEvent::SeqAppl(data) => {
-                    let _ = self.model.dispatch_appl_event(
-                        &mut self.unit,
-                        &mut self.seq_cntr,
-                        &data,
-                    );
+                    let _ =
+                        self.model
+                            .dispatch_appl_event(&mut self.unit, &mut self.seq_cntr, &data);
                 }
                 ConsoleUnitEvent::Surface((index, before, after)) => {
                     let image = self.unit.get_state().map(|s| s.to_vec())?;
@@ -237,14 +240,16 @@ where
                 let _ = (0..ev_cntr.count_events())
                     .filter(|&i| {
                         // At present, controller event is handled.
-                        ev_cntr.get_event_type(i).unwrap_or(EventType::None) == EventType::Controller
-                    }).for_each(|i| {
+                        ev_cntr.get_event_type(i).unwrap_or(EventType::None)
+                            == EventType::Controller
+                    })
+                    .for_each(|i| {
                         if let Ok(ctl_data) = ev_cntr.get_ctl_data(i) {
                             let data = ConsoleUnitEvent::SeqAppl(ctl_data);
                             let _ = tx.send(data);
                         }
                     });
-        });
+            });
 
         self.dispatchers.push(dispatcher);
 

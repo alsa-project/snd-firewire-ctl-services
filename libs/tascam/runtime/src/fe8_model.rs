@@ -8,7 +8,7 @@ use tascam_protocols::asynch::{fe8::*, *};
 use crate::*;
 
 #[derive(Default)]
-pub struct Fe8Model{
+pub struct Fe8Model {
     req: FwReq,
     seq_state: SequencerState<Fe8SurfaceState>,
 }
@@ -60,11 +60,7 @@ impl SequencerCtlOperation<FwNode, Fe8Protocol, Fe8SurfaceState> for Fe8Model {
 }
 
 impl AsynchCtlOperation for Fe8Model {
-    fn register_notification_address(
-        &mut self,
-        node: &mut FwNode,
-        addr: u64,
-    ) -> Result<(), Error> {
+    fn register_notification_address(&mut self, node: &mut FwNode, addr: u64) -> Result<(), Error> {
         Fe8Protocol::register_notification_address(&mut self.req, node, addr, TIMEOUT_MS)
     }
 

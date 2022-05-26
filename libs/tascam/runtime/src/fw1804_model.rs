@@ -37,18 +37,44 @@ impl IsochMeterCtlOperation<Fw1804Protocol> for MeterCtl {
     }
 
     const INPUT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
-        "spdif-input-1", "spdif-input-2",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
     ];
     const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
-        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
-        "adat-output-1", "adat-output-2", "adat-output-3", "adat-output-4",
-        "adat-output-5", "adat-output-6", "adat-output-7", "adat-output-8",
-        "spdif-input-1", "spdif-input-2",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
+        "analog-output-5",
+        "analog-output-6",
+        "analog-output-7",
+        "analog-output-8",
+        "adat-output-1",
+        "adat-output-2",
+        "adat-output-3",
+        "adat-output-4",
+        "adat-output-5",
+        "adat-output-6",
+        "adat-output-7",
+        "adat-output-8",
+        "spdif-input-1",
+        "spdif-input-2",
     ];
 }
 
@@ -91,10 +117,12 @@ impl MeasureModel<SndTscm> for Fw1804Model {
         self.meter_ctl.parse_state(image)
     }
 
-    fn measure_elem(&mut self, _: &SndTscm, elem_id: &ElemId,
-                    elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndTscm,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else {
@@ -104,16 +132,13 @@ impl MeasureModel<SndTscm> for Fw1804Model {
 }
 
 impl CtlModel<SndTscm> for Fw1804Model {
-    fn load(
-        &mut self,
-        unit: &mut SndTscm,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndTscm, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let image = unit.get_state()?;
         self.meter_ctl.load_state(card_cntr, image)?;
         self.common_ctl.load_params(card_cntr)?;
         self.optical_ctl.load_params(card_cntr)?;
-        self.rack_ctl.load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.rack_ctl
+            .load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -125,9 +150,21 @@ impl CtlModel<SndTscm> for Fw1804Model {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.common_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.common_ctl.read_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.optical_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.optical_ctl.read_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.rack_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
@@ -143,11 +180,20 @@ impl CtlModel<SndTscm> for Fw1804Model {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        if self
+            .common_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.optical_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .optical_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.rack_ctl.write_params(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self
+            .rack_ctl
+            .write_params(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)

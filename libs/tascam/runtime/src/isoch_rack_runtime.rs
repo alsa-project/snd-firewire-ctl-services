@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use nix::sys::signal;
 
-use glib::Error;
 use glib::source;
+use glib::Error;
 
 use hinawa::FwNodeExt;
 use hinawa::{SndTscm, SndUnitExt};
@@ -14,8 +14,8 @@ use hinawa::{SndTscm, SndUnitExt};
 use alsactl::{CardExt, CardExtManual};
 use alsactl::{ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
 
-use core::dispatcher::*;
 use core::card_cntr::*;
+use core::dispatcher::*;
 
 use crate::fw1804_model::*;
 
@@ -70,7 +70,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        Ok(Self{
+        Ok(Self {
             unit,
             model: Default::default(),
             card_cntr,
@@ -114,11 +114,16 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
                             &mut self.unit,
                             &elem_id,
                             &events,
-                            &mut self.model
+                            &mut self.model,
                         );
                     } else {
                         let mut elem_value = ElemValue::new();
-                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                        if self
+                            .card_cntr
+                            .card
+                            .read_elem_value(&elem_id, &mut elem_value)
+                            .is_ok()
+                        {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
                             if vals[0] {
@@ -133,7 +138,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
                     let _ = self.card_cntr.measure_elems(
                         &mut self.unit,
                         &self.measure_elems,
-                        &mut self.model
+                        &mut self.model,
                     );
                 }
             }

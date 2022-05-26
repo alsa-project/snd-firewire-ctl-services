@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use std::sync::{mpsc, Arc, Mutex};
 use std::marker::PhantomData;
+use std::sync::{mpsc, Arc, Mutex};
 
 use nix::sys::signal::Signal;
 
-use glib::{Error, FileError};
 use glib::source;
+use glib::{Error, FileError};
 
 use hinawa::{FwNode, FwNodeExt, FwRcode, FwResp, FwRespExt, FwRespExtManual};
 
-use alsaseq::{UserClientExt, EventCntrExt, EventCntrExtManual, EventDataCtl, EventType};
+use alsaseq::{EventCntrExt, EventCntrExtManual, EventDataCtl, EventType, UserClientExt};
 
 use core::dispatcher::*;
 
@@ -83,7 +83,7 @@ where
         // Use uni-directional channel for communication to child threads.
         let (tx, rx) = mpsc::sync_channel(32);
 
-        Ok(Self{
+        Ok(Self {
             node,
             model: Default::default(),
             resp: Default::default(),
@@ -107,7 +107,8 @@ where
 
         let mut addr = self.resp.get_property_offset();
         addr |= (self.node.get_property_local_node_id() as u64) << 48;
-        self.model.register_notification_address(&mut self.node, addr)?;
+        self.model
+            .register_notification_address(&mut self.node, addr)?;
         self.model.enable_notification(&mut self.node, true)?;
 
         Ok(())
@@ -127,9 +128,13 @@ where
                 }
                 AsyncUnitEvent::Surface((index, before, after)) => {
                     // Handle error of mutex lock as unrecoverable one.
-                    let image = self.state_cntr.lock().map_err(|_| {
-                        Error::new(FileError::Failed, "Unrecoverable error at mutex lock")
-                    }).map(|s| s.0.to_vec())?;
+                    let image = self
+                        .state_cntr
+                        .lock()
+                        .map_err(|_| {
+                            Error::new(FileError::Failed, "Unrecoverable error at mutex lock")
+                        })
+                        .map(|s| s.0.to_vec())?;
                     let _ = self.model.dispatch_surface_event(
                         &mut self.node,
                         &mut self.seq_cntr,
@@ -140,11 +145,9 @@ where
                     );
                 }
                 AsyncUnitEvent::SeqAppl(data) => {
-                    let _ = self.model.dispatch_appl_event(
-                        &mut self.node,
-                        &mut self.seq_cntr,
-                        &data,
-                    );
+                    let _ =
+                        self.model
+                            .dispatch_appl_event(&mut self.node, &mut self.seq_cntr, &data);
                 }
             }
         }
@@ -179,14 +182,18 @@ where
         self.seq_cntr
             .client
             .connect_handle_event(move |_, ev_cntr| {
-                (0..ev_cntr.count_events()).filter_map(|i| {
-                    ev_cntr.get_event_type(i).ok().filter(|ev_type| {
-                        EventType::Controller.eq(ev_type)
-                    }).and_then(|_| ev_cntr.get_ctl_data(i).ok())
-                }).for_each(|ctl_data| {
-                    let data = AsyncUnitEvent::SeqAppl(ctl_data);
-                    let _ = tx.send(data);
-                });
+                (0..ev_cntr.count_events())
+                    .filter_map(|i| {
+                        ev_cntr
+                            .get_event_type(i)
+                            .ok()
+                            .filter(|ev_type| EventType::Controller.eq(ev_type))
+                            .and_then(|_| ev_cntr.get_ctl_data(i).ok())
+                    })
+                    .for_each(|ctl_data| {
+                        let data = AsyncUnitEvent::SeqAppl(ctl_data);
+                        let _ = tx.send(data);
+                    });
             });
 
         self.dispatchers.push(dispatcher);
@@ -197,38 +204,36 @@ where
     fn register_address_space(&mut self) -> Result<(), Error> {
         // Reserve local address to receive async messages from the
         // unit within private space.
-        self.resp.reserve_within_region(&self.node, 0xffffe0000000, 0xfffff0000000, 0x80)?;
+        self.resp
+            .reserve_within_region(&self.node, 0xffffe0000000, 0xfffff0000000, 0x80)?;
 
         let tx = self.tx.clone();
         let state_cntr = self.state_cntr.clone();
         let node_id = self.node.get_property_node_id();
-        self.resp.connect_requested2(move |_, tcode, _, src, _, _, _, frame| {
-            if src != node_id {
-                FwRcode::AddressError
-            } else {
-                if let Ok(s) = &mut state_cntr.lock() {
-                    let mut events = Vec::new();
-                    let tcode = s.parse_notification(&mut events, tcode, frame);
-                    events.iter().for_each(|&ev| {
-                        let _ = tx.send(AsyncUnitEvent::Surface(ev));
-                    });
-                    tcode
+        self.resp
+            .connect_requested2(move |_, tcode, _, src, _, _, _, frame| {
+                if src != node_id {
+                    FwRcode::AddressError
                 } else {
-                    FwRcode::DataError
+                    if let Ok(s) = &mut state_cntr.lock() {
+                        let mut events = Vec::new();
+                        let tcode = s.parse_notification(&mut events, tcode, frame);
+                        events.iter().for_each(|&ev| {
+                            let _ = tx.send(AsyncUnitEvent::Surface(ev));
+                        });
+                        tcode
+                    } else {
+                        FwRcode::DataError
+                    }
                 }
-            }
-        });
+            });
 
         Ok(())
     }
 }
 
 pub trait AsynchCtlOperation {
-    fn register_notification_address(
-        &mut self,
-        node: &mut FwNode,
-        addr: u64,
-    ) -> Result<(), Error>;
+    fn register_notification_address(&mut self, node: &mut FwNode, addr: u64) -> Result<(), Error>;
 
     fn enable_notification(&mut self, node: &mut FwNode, enable: bool) -> Result<(), Error>;
 }
