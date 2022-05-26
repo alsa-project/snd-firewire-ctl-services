@@ -42,7 +42,7 @@ enum Event {
 }
 
 pub struct BebobRuntime {
-    unit: SndUnit,
+    unit: (SndUnit, FwNode),
     model: BebobModel,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -101,7 +101,7 @@ impl RuntimeOperation<u32> for BebobRuntime {
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(BebobRuntime {
-            unit,
+            unit: (unit, node),
             model,
             card_cntr,
             rx,
@@ -118,13 +118,7 @@ impl RuntimeOperation<u32> for BebobRuntime {
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
-            let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Mixer,
-                0,
-                0,
-                Self::TIMER_NAME,
-                0,
-            );
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -201,17 +195,17 @@ impl<'a> BebobRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
@@ -240,7 +234,7 @@ impl<'a> BebobRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.connect_lock_status(move |_, locked| {
+        self.unit.0.connect_lock_status(move |_, locked| {
             let t = tx.clone();
             let _ = std::thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual
