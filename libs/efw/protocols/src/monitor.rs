@@ -3,7 +3,7 @@
 
 //! Protocol about input monitor.
 //!
-//! The crate includes protocol about input monitor defined by Echo Audio Digital Corporation for
+//! The module includes protocol about input monitor defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
 use glib::Error;

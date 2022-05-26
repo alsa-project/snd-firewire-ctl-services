@@ -3,7 +3,7 @@
 
 //! Protocol about stream playback.
 //!
-//! The crate includes protocol about stream playback defined by Echo Audio Digital Corporation for
+//! The module includes protocol about stream playback defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
 use glib::Error;

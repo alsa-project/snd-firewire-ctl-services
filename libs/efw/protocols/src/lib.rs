@@ -3,7 +3,7 @@
 
 //! Protocol defined by Echo Audio Digital Corporation for Fireworks board module.
 //!
-//! The crate includes protocols defined by Echo Audio Digital Corporation for Fireworks board
+//! The module includes protocols defined by Echo Audio Digital Corporation for Fireworks board
 //! module.
 
 pub mod flash;

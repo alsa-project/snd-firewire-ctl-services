@@ -3,7 +3,7 @@
 
 //! Protocol about physical output.
 //!
-//! The crate includes protocol about physical output defined by Echo Audio Digital Corporation for
+//! The module includes protocol about physical output defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
 use glib::Error;
