@@ -38,14 +38,17 @@ impl MediaClockFrequencyOperation for AureonClkProtocol {
 }
 
 impl SamplingClockSourceOperation for AureonClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x03,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x03}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x03,
+        }),
     ];
 }
 

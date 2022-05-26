@@ -48,7 +48,7 @@
 
 use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
-use ta1394::{*, general::*};
+use ta1394::{general::*, *};
 
 use crate::*;
 
@@ -63,14 +63,17 @@ impl MediaClockFrequencyOperation for Inspire1394ClkProtocol {
 }
 
 impl SamplingClockSourceOperation for Inspire1394ClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x03,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x02}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x02,
+        }),
     ];
 }
 
@@ -100,10 +103,7 @@ impl AvcMuteOperation for Inspire1394PhysInputProtocol {}
 pub struct Inspire1394PhysOutputProtocol;
 
 impl AvcLevelOperation for Inspire1394PhysOutputProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x06, AudioCh::Each(0)),
-        (0x06, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x06, AudioCh::Each(0)), (0x06, AudioCh::Each(1))];
 }
 
 impl AvcMuteOperation for Inspire1394PhysOutputProtocol {}
@@ -119,10 +119,7 @@ impl AvcSelectorOperation for Inspire1394PhysOutputProtocol {
 pub struct Inspire1394HeadphoneProtocol;
 
 impl AvcLevelOperation for Inspire1394HeadphoneProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x07, AudioCh::Each(0)),
-        (0x07, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x07, AudioCh::Each(0)), (0x07, AudioCh::Each(1))];
 }
 
 impl AvcMuteOperation for Inspire1394HeadphoneProtocol {}
@@ -149,9 +146,7 @@ impl AvcMuteOperation for Inspire1394MixerAnalogSourceProtocol {}
 pub struct Inspire1394MixerStreamSourceProtocol;
 
 impl AvcLevelOperation for Inspire1394MixerStreamSourceProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x05, AudioCh::All),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x05, AudioCh::All)];
 }
 
 impl AvcMuteOperation for Inspire1394MixerStreamSourceProtocol {}
@@ -189,8 +184,10 @@ pub trait Inspire1394MeterOperation {
             timeout_ms,
         )?;
 
-        let mut quadlet = [0u8;4];
-        meter.phys_inputs.iter_mut()
+        let mut quadlet = [0u8; 4];
+        meter
+            .phys_inputs
+            .iter_mut()
             .chain(meter.stream_inputs.iter_mut())
             .chain(meter.phys_outputs.iter_mut())
             .enumerate()
@@ -215,11 +212,7 @@ fn read_input_param(
     Ok(())
 }
 
-fn write_input_param(
-    avc: &BebobAvc,
-    param: &InputParameter,
-    timeout_ms: u32,
-) -> Result<(), Error> {
+fn write_input_param(avc: &BebobAvc, param: &InputParameter, timeout_ms: u32) -> Result<(), Error> {
     let mut op = InputParameterOperation::new(param);
     avc.control(&AvcAddr::Subunit(MUSIC_SUBUNIT_0), &mut op, timeout_ms)
 }

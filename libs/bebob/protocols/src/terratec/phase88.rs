@@ -49,14 +49,17 @@ const CLK_SRC_EXT_FB_ID: u8 = 0x08;
 const CLK_SRC_EXT_WORD_FB_ID: u8 = 0x09;
 
 impl SamplingClockSourceOperation for Phase88ClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x03,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x05}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x05,
+        }),
         // S/PDIF input in optical interface.
         SignalAddr::Unit(SignalUnitAddr::Ext(0x04)),
         // Word clock input in BNC interface.
@@ -111,8 +114,8 @@ impl AvcSelectorOperation for Phase88PhysInputProtocol {
     //  NOTE: source of analog-input-7/8
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x0a];
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[
-        0x00,   // line
-        0x01,   // mic
+        0x00, // line
+        0x01, // mic
     ];
 }
 
@@ -153,11 +156,11 @@ impl AvcMuteOperation for Phase88MixerStreamSourceProtocol {}
 impl AvcSelectorOperation for Phase88MixerStreamSourceProtocol {
     const FUNC_BLOCK_ID_LIST: &'static [u8] = &[0x07];
     const INPUT_PLUG_ID_LIST: &'static [u8] = &[
-        0x01,   // stream-input-1/2
-        0x02,   // stream-input-3/4
-        0x03,   // stream-input-5/6
-        0x04,   // stream-input-7/8
-        0x00,   // stream-input-9/10
+        0x01, // stream-input-1/2
+        0x02, // stream-input-3/4
+        0x03, // stream-input-5/6
+        0x04, // stream-input-7/8
+        0x00, // stream-input-9/10
     ];
 }
 
@@ -166,36 +169,33 @@ impl AvcSelectorOperation for Phase88MixerStreamSourceProtocol {
 pub struct Phase88MixerOutputProtocol;
 
 impl AvcLevelOperation for Phase88MixerOutputProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x00, AudioCh::Each(0)),
-        (0x01, AudioCh::Each(1)),
-    ];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x00, AudioCh::Each(0)), (0x01, AudioCh::Each(1))];
 }
 
 impl AvcMuteOperation for Phase88MixerOutputProtocol {}
 
-const MIXER_OUT_SELECTOR_FB_ID_LIST: [u8;1] = [0x06];
+const MIXER_OUT_SELECTOR_FB_ID_LIST: [u8; 1] = [0x06];
 
-const MIXER_OUT_SELECTOR_ID_LIST: [u8;6] = [
-    0x01,   // analog-output-1/2
-    0x02,   // analog-output-3/4
-    0x03,   // analog-output-5/6
-    0x04,   // analog-output-7/8
-    0x00,   // digital-output-1/2
-    0x05,   // no destination
+const MIXER_OUT_SELECTOR_ID_LIST: [u8; 6] = [
+    0x01, // analog-output-1/2
+    0x02, // analog-output-3/4
+    0x03, // analog-output-5/6
+    0x04, // analog-output-7/8
+    0x00, // digital-output-1/2
+    0x05, // no destination
 ];
 
-const PHYS_OUTPUT_SELECTOR_FB_ID_LIST: [u8;5] = [
-    0x01,   // analog-output-1/2
-    0x02,   // analog-output-3/4
-    0x03,   // analog-output-5/6
-    0x04,   // analog-output-7/8
-    0x05,   // digital-output-1/2
+const PHYS_OUTPUT_SELECTOR_FB_ID_LIST: [u8; 5] = [
+    0x01, // analog-output-1/2
+    0x02, // analog-output-3/4
+    0x03, // analog-output-5/6
+    0x04, // analog-output-7/8
+    0x05, // digital-output-1/2
 ];
 
 // NOTE: "mixer-output-1/2", "stream-input" corresponds to the channel
 #[allow(dead_code)]
-const PHYS_OUTPUT_SELECTOR_ID_LIST: [u8;2] = [0x00, 0x01];
+const PHYS_OUTPUT_SELECTOR_ID_LIST: [u8; 2] = [0x00, 0x01];
 
 // NOTE: destination of mixer output.
 impl AvcSelectorOperation for Phase88MixerOutputProtocol {
@@ -212,17 +212,26 @@ impl AvcSelectorOperation for Phase88MixerOutputProtocol {
         let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, 0xff);
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
 
-        MIXER_OUT_SELECTOR_ID_LIST.iter()
+        MIXER_OUT_SELECTOR_ID_LIST
+            .iter()
             .position(|&input_plug_id| input_plug_id == op.input_plug_id)
             .ok_or_else(|| {
-                let msg = format!("Unexpected value for index of input plug number: {}",
-                                  op.input_plug_id);
+                let msg = format!(
+                    "Unexpected value for index of input plug number: {}",
+                    op.input_plug_id
+                );
                 Error::new(FileError::Io, &msg)
             })
     }
 
-    fn write_selector(avc: &BebobAvc, idx: usize, val: usize, timeout_ms: u32) -> Result<(), Error> {
-        let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST.iter()
+    fn write_selector(
+        avc: &BebobAvc,
+        idx: usize,
+        val: usize,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let func_block_id = MIXER_OUT_SELECTOR_FB_ID_LIST
+            .iter()
             .nth(idx)
             .ok_or_else(|| {
                 let msg = format!("Invalid argument for index of selector: {}", idx);
@@ -230,7 +239,8 @@ impl AvcSelectorOperation for Phase88MixerOutputProtocol {
             })
             .map(|func_block_id| *func_block_id)?;
 
-        let input_plug_id = MIXER_OUT_SELECTOR_ID_LIST.iter()
+        let input_plug_id = MIXER_OUT_SELECTOR_ID_LIST
+            .iter()
             .nth(val)
             .ok_or_else(|| {
                 let msg = format!("Invalid argument for index of input plug number: {}", val);
@@ -241,7 +251,8 @@ impl AvcSelectorOperation for Phase88MixerOutputProtocol {
         let mut op = AudioSelector::new(func_block_id, CtlAttr::Current, input_plug_id);
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
 
-        PHYS_OUTPUT_SELECTOR_FB_ID_LIST.iter()
+        PHYS_OUTPUT_SELECTOR_FB_ID_LIST
+            .iter()
             .enumerate()
             .try_for_each(|(i, &func_block_id)| {
                 let plug_id_idx = if input_plug_id == 0x05 {

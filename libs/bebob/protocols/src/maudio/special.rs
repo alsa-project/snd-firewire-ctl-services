@@ -319,17 +319,12 @@ pub struct MaudioSpecialStateCache(pub [u8; CACHE_SIZE]);
 
 impl Default for MaudioSpecialStateCache {
     fn default() -> Self {
-        Self ( [0; CACHE_SIZE] )
+        Self([0; CACHE_SIZE])
     }
 }
 
 impl MaudioSpecialStateCache {
-    pub fn download(
-        &mut self,
-        req: &FwReq,
-        node: &FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    pub fn download(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
         (0..CACHE_SIZE).step_by(4).try_for_each(|pos| {
             req.transaction_sync(
                 node,
@@ -394,49 +389,44 @@ impl Default for MaudioSpecialInputParameters {
 
 impl MaudioSpecialParameterOperation for MaudioSpecialInputParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        self.stream_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = STREAM_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.stream_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = STREAM_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.analog_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = ANALOG_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.analog_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = ANALOG_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.spdif_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = SPDIF_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.spdif_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = SPDIF_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.adat_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = ADAT_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.adat_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = ADAT_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.analog_balances.iter()
+        self.analog_balances
+            .iter()
             .enumerate()
             .for_each(|(i, &gain)| {
                 let pos = ANALOG_INPUT_BALANCE_POS + i * 2;
                 cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
             });
 
-        self.spdif_balances.iter()
+        self.spdif_balances
+            .iter()
             .enumerate()
             .for_each(|(i, &gain)| {
                 let pos = SPDIF_INPUT_BALANCE_POS + i * 2;
                 cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
             });
 
-        self.adat_balances.iter()
+        self.adat_balances
+            .iter()
             .enumerate()
             .for_each(|(i, &gain)| {
                 let pos = ADAT_INPUT_BALANCE_POS + i * 2;
@@ -448,7 +438,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialInputParameters {
 #[derive(Default)]
 pub struct MaudioSpecialInputProtocol;
 
-impl MaudioSpecialInputProtocol{
+impl MaudioSpecialInputProtocol {
     pub const GAIN_MIN: i16 = i16::MIN;
     pub const GAIN_MAX: i16 = 0;
     pub const GAIN_STEP: i16 = 0x100;
@@ -512,26 +502,29 @@ impl Default for MaudioSpecialOutputParameters {
 
 impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        self.analog_volumes.iter()
+        self.analog_volumes
+            .iter()
             .enumerate()
             .for_each(|(i, &vol)| {
                 let pos = ANALOG_OUTPUT_VOLUME_POS + i * 2;
                 cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
             });
 
-        self.headphone_volumes.iter()
+        self.headphone_volumes
+            .iter()
             .enumerate()
             .for_each(|(i, &vol)| {
                 let pos = HEADPHONE_VOLUME_POS + i * 2;
                 cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
             });
 
-        let mut quadlet = [0; 4] ;
+        let mut quadlet = [0; 4];
         let pos = HEADPHONE_PAIR_SOURCE_POS;
         quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.headphone_pair_sources.iter()
+        self.headphone_pair_sources
+            .iter()
             .enumerate()
             .for_each(|(i, &src)| {
                 let shift = i * 16;
@@ -552,7 +545,8 @@ impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
         quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.analog_pair_sources.iter()
+        self.analog_pair_sources
+            .iter()
             .enumerate()
             .for_each(|(i, &src)| {
                 let shift = i;
@@ -573,7 +567,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
 #[derive(Default)]
 pub struct MaudioSpecialOutputProtocol;
 
-impl MaudioSpecialOutputProtocol{
+impl MaudioSpecialOutputProtocol {
     pub const VOLUME_MIN: i16 = i16::MIN;
     pub const VOLUME_MAX: i16 = 0;
     pub const VOLUME_STEP: i16 = 0x100;
@@ -612,49 +606,42 @@ impl Default for MaudioSpecialAuxParameters {
     }
 }
 
-impl MaudioSpecialParameterOperation for MaudioSpecialAuxParameters{
+impl MaudioSpecialParameterOperation for MaudioSpecialAuxParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        self.output_volumes.iter()
+        self.output_volumes
+            .iter()
             .enumerate()
             .for_each(|(i, &vol)| {
                 let pos = AUX_OUTPUT_VOLUME_POS + i * 2;
                 cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
             });
 
-        self.stream_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = AUX_STREAM_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.stream_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = AUX_STREAM_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.analog_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = AUX_ANALOG_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.analog_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = AUX_ANALOG_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.spdif_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = AUX_SPDIF_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.spdif_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = AUX_SPDIF_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
 
-        self.adat_gains.iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = AUX_ADAT_INPUT_GAIN_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        self.adat_gains.iter().enumerate().for_each(|(i, &gain)| {
+            let pos = AUX_ADAT_INPUT_GAIN_POS + i * 2;
+            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+        });
     }
 }
 
 #[derive(Default)]
 pub struct MaudioSpecialAuxProtocol;
 
-impl MaudioSpecialAuxProtocol{
+impl MaudioSpecialAuxProtocol {
     pub const GAIN_MIN: i16 = i16::MIN;
     pub const GAIN_MAX: i16 = 0;
     pub const GAIN_STEP: i16 = 0x100;
@@ -664,7 +651,7 @@ impl MaudioSpecialAuxProtocol{
     pub const VOLUME_STEP: i16 = 0x100;
 }
 
-impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol{}
+impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol {}
 
 /// The structure for aux parameters.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -686,7 +673,7 @@ impl Default for MaudioSpecialMixerParameters {
     }
 }
 
-impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters{
+impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
         let mut quadlet = [0; 4];
 
@@ -694,19 +681,19 @@ impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters{
         quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.analog_pairs.iter().enumerate()
-            .for_each(|(i, pairs)| {
-                pairs.iter().enumerate()
-                    .for_each(|(j, &enabled)| {
-                        let flag = 1u32 << (i * 4 + j);
-                        val &= !flag;
-                        if enabled {
-                            val |= flag;
-                        }
-                    });
+        self.analog_pairs.iter().enumerate().for_each(|(i, pairs)| {
+            pairs.iter().enumerate().for_each(|(j, &enabled)| {
+                let flag = 1u32 << (i * 4 + j);
+                val &= !flag;
+                if enabled {
+                    val |= flag;
+                }
             });
+        });
 
-        self.spdif_pairs.iter().enumerate()
+        self.spdif_pairs
+            .iter()
+            .enumerate()
             .for_each(|(i, &enabled)| {
                 let flag = 1u32 << (16 + i);
                 val &= !flag;
@@ -715,17 +702,15 @@ impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters{
                 }
             });
 
-        self.adat_pairs.iter().enumerate()
-            .for_each(|(i, pairs)| {
-                pairs.iter().enumerate()
-                    .for_each(|(j, &enabled)| {
-                        let flag = 1u32 << (8 + i * 4 + j);
-                        val &= !flag;
-                        if enabled {
-                            val |= flag;
-                        }
-                    });
+        self.adat_pairs.iter().enumerate().for_each(|(i, pairs)| {
+            pairs.iter().enumerate().for_each(|(j, &enabled)| {
+                let flag = 1u32 << (8 + i * 4 + j);
+                val &= !flag;
+                if enabled {
+                    val |= flag;
+                }
             });
+        });
 
         cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
 
@@ -733,18 +718,16 @@ impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters{
         quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.stream_pairs.iter().enumerate()
-            .for_each(|(i, pairs)| {
-                pairs.iter().enumerate()
-                    .for_each(|(j, &enabled)| {
-                        let flag = 1u32 << (i * 2 + j);
+        self.stream_pairs.iter().enumerate().for_each(|(i, pairs)| {
+            pairs.iter().enumerate().for_each(|(j, &enabled)| {
+                let flag = 1u32 << (i * 2 + j);
 
-                        val &= !flag;
-                        if enabled {
-                            val |= flag;
-                        }
-                    });
+                val &= !flag;
+                if enabled {
+                    val |= flag;
+                }
             });
+        });
 
         cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
     }
@@ -773,24 +756,23 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
         let mut new = [0; CACHE_SIZE];
         new.copy_from_slice(&cache.0);
         params.write_to_cache(&mut new);
-        (0..CACHE_SIZE).step_by(4)
-            .try_for_each(|pos| {
-                if new[pos..(pos + 4)] != cache.0[pos..(pos + 4)] {
-                    req.transaction_sync(
-                        node,
-                        FwTcode::WriteQuadletRequest,
-                        DM_APPL_PARAM_OFFSET + pos as u64,
-                        4,
-                        &mut new[pos..(pos + 4)],
-                        timeout_ms,
-                    )
-                    .map(|_| {
-                        cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]);
-                        *old = *params;
-                    })
-                } else {
-                    Ok(())
-                }
-            })
+        (0..CACHE_SIZE).step_by(4).try_for_each(|pos| {
+            if new[pos..(pos + 4)] != cache.0[pos..(pos + 4)] {
+                req.transaction_sync(
+                    node,
+                    FwTcode::WriteQuadletRequest,
+                    DM_APPL_PARAM_OFFSET + pos as u64,
+                    4,
+                    &mut new[pos..(pos + 4)],
+                    timeout_ms,
+                )
+                .map(|_| {
+                    cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]);
+                    *old = *params;
+                })
+            } else {
+                Ok(())
+            }
+        })
     }
 }

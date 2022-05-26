@@ -61,16 +61,22 @@ impl MediaClockFrequencyOperation for Mbox2proClkProtocol {
 }
 
 impl SamplingClockSourceOperation for Mbox2proClkProtocol {
-    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr{
+    const DST: SignalAddr = SignalAddr::Subunit(SignalSubunitAddr {
         subunit: MUSIC_SUBUNIT_0,
         plug_id: 0x01,
     });
 
     const SRC_LIST: &'static [SignalAddr] = &[
         // Internal.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x01}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x01,
+        }),
         // Internal with S/PDIF output.
-        SignalAddr::Subunit(SignalSubunitAddr{subunit: MUSIC_SUBUNIT_0, plug_id: 0x07}),
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: MUSIC_SUBUNIT_0,
+            plug_id: 0x07,
+        }),
         // S/PDIF input in coaxial interface.
         SignalAddr::Unit(SignalUnitAddr::Ext(0x03)),
         // Word clock input in BNC interface.
@@ -87,7 +93,7 @@ pub struct Mbox2proIoProtocol;
 impl Mbox2proIoProtocol {
     // This takes the unit to process audio signal from stream-input-1/2.
     pub fn init(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        let mut frame = [0;12];
+        let mut frame = [0; 12];
         frame[0] = 1;
         req.transaction_sync(
             node,

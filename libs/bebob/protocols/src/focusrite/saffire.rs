@@ -565,7 +565,6 @@ impl SaffireMixerOperation for SaffirePairedMixerProtocol {
         0x58, // to phys-output-2/3
         0x5c, // to phys-output-4/5
         0x60, // to phys-output-6/7
-
         // level from phys-input-0/1
         0x64, // to phys-output-8/9
         0x68, // to phys-output-0/1
@@ -578,7 +577,6 @@ impl SaffireMixerOperation for SaffirePairedMixerProtocol {
         0x80, // to phys-output-2/3
         0x84, // to phys-output-4/5
         0x88, // to phys-output-6/7
-
         // level from reverb-output-0/1
         0x8c, // to phys-output-8/9
         0x90, // to phys-output-0/1
@@ -1723,23 +1721,8 @@ impl SaffireCompressorProtocol {
 
     const OFFSETS: [usize; 16] = [
         // ch 0.
-        0x0c00,
-        0x0c04,
-        0x0c08,
-        0x0c0c,
-        0x0c10,
-        0x0c14,
-        0x0c18,
-        0x0c1c,
-        // ch 1.
-        0x0c28,
-        0x0c2c,
-        0x0c30,
-        0x0c34,
-        0x0c38,
-        0x0c3c,
-        0x0c40,
-        0x0c48,
+        0x0c00, 0x0c04, 0x0c08, 0x0c0c, 0x0c10, 0x0c14, 0x0c18, 0x0c1c, // ch 1.
+        0x0c28, 0x0c2c, 0x0c30, 0x0c34, 0x0c38, 0x0c3c, 0x0c40, 0x0c48,
     ];
 
     pub fn read_params(
@@ -1875,76 +1858,15 @@ pub struct SaffireEqualizerProtocol;
 
 impl SaffireEqualizerProtocol {
     const OFFSETS: [usize; 62] = [
-        0x0800,
-        0x0804,
-        0x0808,
-        0x080c,
-        0x0810,
-        0x0814,
-        // ch 0 band 0.
-        0x0828,
-        0x082c,
-        0x0830,
-        0x0834,
-        0x0840,
-        0x0844,
-        0x0850,
-        // ch 0 band 1.
-        0x08c8,
-        0x08cc,
-        0x08d0,
-        0x08d4,
-        0x08e0,
-        0x08e4,
-        0x08f0,
-        // ch 0 band 2.
-        0x0968,
-        0x096c,
-        0x0970,
-        0x0974,
-        0x0980,
-        0x0984,
-        0x0990,
-        // ch 0 band 3.
-        0x0a08,
-        0x0a0c,
-        0x0a10,
-        0x0a14,
-        0x0a20,
-        0x0a24,
-        0x0a30,
-        // ch 1 band 0.
-        0x0878,
-        0x087c,
-        0x0880,
-        0x0884,
-        0x0890,
-        0x0894,
-        0x08a0,
-        // ch 1 band 1.
-        0x0918,
-        0x091c,
-        0x0920,
-        0x0924,
-        0x0930,
-        0x0934,
-        0x0940,
-        // ch 1 band 2.
-        0x09b8,
-        0x09bc,
-        0x09c0,
-        0x09c4,
-        0x09d0,
-        0x09d4,
-        0x09e0,
-        // ch 1 band 3.
-        0x0a58,
-        0x0a5c,
-        0x0a60,
-        0x0a64,
-        0x0a70,
-        0x0a74,
-        0x0a80,
+        0x0800, 0x0804, 0x0808, 0x080c, 0x0810, 0x0814, // ch 0 band 0.
+        0x0828, 0x082c, 0x0830, 0x0834, 0x0840, 0x0844, 0x0850, // ch 0 band 1.
+        0x08c8, 0x08cc, 0x08d0, 0x08d4, 0x08e0, 0x08e4, 0x08f0, // ch 0 band 2.
+        0x0968, 0x096c, 0x0970, 0x0974, 0x0980, 0x0984, 0x0990, // ch 0 band 3.
+        0x0a08, 0x0a0c, 0x0a10, 0x0a14, 0x0a20, 0x0a24, 0x0a30, // ch 1 band 0.
+        0x0878, 0x087c, 0x0880, 0x0884, 0x0890, 0x0894, 0x08a0, // ch 1 band 1.
+        0x0918, 0x091c, 0x0920, 0x0924, 0x0930, 0x0934, 0x0940, // ch 1 band 2.
+        0x09b8, 0x09bc, 0x09c0, 0x09c4, 0x09d0, 0x09d4, 0x09e0, // ch 1 band 3.
+        0x0a58, 0x0a5c, 0x0a60, 0x0a64, 0x0a70, 0x0a74, 0x0a80,
     ];
 
     pub fn read_params(
