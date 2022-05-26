@@ -13,7 +13,7 @@ pub mod output;
 use glib::Error;
 use hinawa::{FwNode, FwReq};
 
-use super::{*, tcat::*};
+use super::{tcat::*, *};
 
 use meter::*;
 use mixer::*;
@@ -64,7 +64,7 @@ fn alesis_read_block(
     node: &mut FwNode,
     offset: usize,
     frame: &mut [u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::read(req, node, BASE_OFFSET + offset, frame, timeout_ms)
 }
@@ -74,7 +74,7 @@ fn alesis_write_block(
     node: &mut FwNode,
     offset: usize,
     frame: &mut [u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::write(req, node, BASE_OFFSET + offset, frame, timeout_ms)
 }
@@ -84,19 +84,16 @@ fn alesis_read_flags(
     node: &mut FwNode,
     offset: usize,
     flags: &mut [bool],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
-    let mut raw = [0;4];
-    alesis_read_block(req, node, offset, &mut raw, timeout_ms)
-        .map(|_| {
-            let mut val = 0u32;
-            val.parse_quadlet(&raw[..]);
-            flags.iter_mut()
-                .enumerate()
-                .for_each(|(i, flag)| {
-                    *flag = val & (1 << i) > 0;
-                });
-        })
+    let mut raw = [0; 4];
+    alesis_read_block(req, node, offset, &mut raw, timeout_ms).map(|_| {
+        let mut val = 0u32;
+        val.parse_quadlet(&raw[..]);
+        flags.iter_mut().enumerate().for_each(|(i, flag)| {
+            *flag = val & (1 << i) > 0;
+        });
+    })
 }
 
 fn alesis_write_flags(
@@ -104,13 +101,14 @@ fn alesis_write_flags(
     node: &mut FwNode,
     offset: usize,
     flags: &[bool],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
-    let val = flags.iter()
+    let val = flags
+        .iter()
         .enumerate()
         .filter(|(_, &flag)| flag)
         .fold(0 as u32, |val, (i, _)| val | (1 << i));
-    let mut raw = [0;4];
+    let mut raw = [0; 4];
     val.build_quadlet(&mut raw[..]);
     alesis_write_block(req, node, offset, &mut raw, timeout_ms)
 }

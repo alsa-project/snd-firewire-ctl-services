@@ -92,19 +92,19 @@
 //!
 //! In the above case, the content should be aligned to big-endian order.
 
-pub mod global_section;
-pub mod tx_stream_format_section;
-pub mod rx_stream_format_section;
 pub mod ext_sync_section;
+pub mod global_section;
+pub mod rx_stream_format_section;
+pub mod tx_stream_format_section;
 
 pub mod extension;
 pub mod tcd22xx_spec;
 
 pub mod config_rom;
 
-use glib::{Error, error::ErrorDomain, Quark};
+use glib::{error::ErrorDomain, Error, Quark};
 
-use hinawa::{FwNode, FwTcode, FwReq, FwReqExtManual};
+use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
 
 mod utils;
 
@@ -119,17 +119,17 @@ impl Section {
     pub const SIZE: usize = 8;
 }
 
-impl From <&[u8]> for Section {
+impl From<&[u8]> for Section {
     fn from(data: &[u8]) -> Self {
         assert!(data.len() >= Self::SIZE);
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&data[..4]);
         let offset = 4 * u32::from_be_bytes(quadlet) as usize;
 
         quadlet.copy_from_slice(&data[4..8]);
         let size = 4 * u32::from_be_bytes(quadlet) as usize;
 
-        Section{offset, size}
+        Section { offset, size }
     }
 }
 
@@ -150,7 +150,7 @@ impl GeneralSections {
 
 impl From<&[u8]> for GeneralSections {
     fn from(raw: &[u8]) -> Self {
-        GeneralSections{
+        GeneralSections {
             global: Section::from(&raw[..8]),
             tx_stream_format: Section::from(&raw[8..16]),
             rx_stream_format: Section::from(&raw[16..24]),
@@ -221,7 +221,7 @@ impl GeneralProtocol {
         node: &mut FwNode,
         offset: usize,
         mut frames: &mut [u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut addr = BASE_ADDR + offset as u64;
 
@@ -247,7 +247,7 @@ impl GeneralProtocol {
         node: &mut FwNode,
         offset: usize,
         mut frames: &mut [u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut addr = BASE_ADDR + (offset as u64);
 
@@ -271,7 +271,7 @@ impl GeneralProtocol {
     pub fn read_general_sections(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<GeneralSections, Error> {
         let mut data = [0; GeneralSections::SIZE];
         GeneralProtocol::read(req, node, 0, &mut data, timeout_ms)

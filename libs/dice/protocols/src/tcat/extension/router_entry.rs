@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use super::{*, caps_section::*};
+use super::{caps_section::*, *};
 
 impl From<u8> for DstBlkId {
     fn from(val: u8) -> Self {
@@ -153,7 +153,7 @@ impl RouterEntry {
     fn parse(&mut self, raw: &[u8]) {
         self.dst = raw[Self::DST_OFFSET].into();
         self.src = raw[Self::SRC_OFFSET].into();
-        let mut doublet = [0;2];
+        let mut doublet = [0; 2];
         doublet.copy_from_slice(&raw[..Self::SRC_OFFSET]);
         self.peak = u16::from_be_bytes(doublet);
     }
@@ -165,26 +165,25 @@ pub fn read_router_entries(
     caps: &ExtensionCaps,
     offset: usize,
     entry_count: usize,
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<Vec<RouterEntry>, Error> {
     if entry_count > caps.router.maximum_entry_count as usize {
-        let msg = format!("Invalid entries to read: {} but greater than {}",
-                          entry_count, caps.router.maximum_entry_count);
+        let msg = format!(
+            "Invalid entries to read: {} but greater than {}",
+            entry_count, caps.router.maximum_entry_count
+        );
         Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
     }
 
-    let mut raw = vec![0;entry_count * RouterEntry::SIZE];
-    extension_read(req, node, offset, &mut raw, timeout_ms)
-        .map(|_| {
-            let mut entries = vec![RouterEntry::default();entry_count];
-            entries.iter_mut()
-                .enumerate()
-                .for_each(|(i, entry)| {
-                    let pos = i * 4;
-                    entry.parse(&raw[pos..(pos + 4)]);
-                });
-            entries
-        })
+    let mut raw = vec![0; entry_count * RouterEntry::SIZE];
+    extension_read(req, node, offset, &mut raw, timeout_ms).map(|_| {
+        let mut entries = vec![RouterEntry::default(); entry_count];
+        entries.iter_mut().enumerate().for_each(|(i, entry)| {
+            let pos = i * 4;
+            entry.parse(&raw[pos..(pos + 4)]);
+        });
+        entries
+    })
 }
 
 pub fn write_router_entries(
@@ -193,31 +192,32 @@ pub fn write_router_entries(
     caps: &ExtensionCaps,
     offset: usize,
     entries: &[RouterEntry],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     if entries.len() > caps.router.maximum_entry_count as usize {
-        let msg = format!("Invalid number of entries to read: {} but greater than {}",
-                          entries.len(), caps.router.maximum_entry_count * 4);
+        let msg = format!(
+            "Invalid number of entries to read: {} but greater than {}",
+            entries.len(),
+            caps.router.maximum_entry_count * 4
+        );
         Err(Error::new(ProtocolExtensionError::RouterEntry, &msg))?
     }
 
-    let mut data = [0;4];
+    let mut data = [0; 4];
     data.copy_from_slice(&(entries.len() as u32).to_be_bytes());
     extension_write(req, node, offset, &mut data, timeout_ms)?;
 
-    let mut raw = vec![0;entries.len() * RouterEntry::SIZE];
-    entries.iter()
-        .enumerate()
-        .for_each(|(i, entry)| {
-            let pos = i * 4;
-            entry.build(&mut raw[pos..(pos + 4)]);
-        });
+    let mut raw = vec![0; entries.len() * RouterEntry::SIZE];
+    entries.iter().enumerate().for_each(|(i, entry)| {
+        let pos = i * 4;
+        entry.build(&mut raw[pos..(pos + 4)]);
+    });
     extension_write(req, node, offset + 4, &mut raw, timeout_ms)
 }
 
 #[cfg(test)]
 mod test {
-    use super::{DstBlk, SrcBlk, DstBlkId, SrcBlkId};
+    use super::{DstBlk, DstBlkId, SrcBlk, SrcBlkId};
 
     #[test]
     fn dst_blk_from() {

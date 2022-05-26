@@ -188,7 +188,10 @@
 //!    4 | pre filter value | 0x00000000 | 0x3f800000 | 5.0      | 0.0      |
 //!    5 | pre filter sign  | 0x00000000 | 0x3f800000 | negative | positive |
 
-use crate::{focusrite::*, tcat::{extension::*, tcd22xx_spec::*}};
+use crate::{
+    focusrite::*,
+    tcat::{extension::*, tcd22xx_spec::*},
+};
 
 /// The structure for protocol implementation specific to Saffire Pro 24 DSP.
 #[derive(Debug)]
@@ -196,33 +199,100 @@ pub struct SPro24DspProtocol;
 
 impl Tcd22xxSpecOperation for SPro24DspProtocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins0, offset: 2, count: 2, label: Some("Mic")},
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 2, label: Some("Line")},
-        Input{id: SrcBlkId::Ins0, offset: 8, count: 2, label: Some("Ch-strip")},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 2,
+            count: 2,
+            label: Some("Mic"),
+        },
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 0,
+            count: 2,
+            label: Some("Line"),
+        },
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 8,
+            count: 2,
+            label: Some("Ch-strip"),
+        },
         // Input{id: SrcBlkId::Ins0, offset: 4, count: 2, label: Some("Ch-strip")}, at 88.2/96.0 kHz.
-        Input{id: SrcBlkId::Ins0, offset: 14, count: 2, label: Some("Reverb")},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 14,
+            count: 2,
+            label: Some("Reverb"),
+        },
         // Input{id: SrcBlkId::Ins0, offset: 6, count: 2, label: Some("Reverb")}, at 88.2/96.0 kHz.
-        Input{id: SrcBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF-coax")},
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 6,
+            count: 2,
+            label: Some("S/PDIF-coax"),
+        },
         // NOTE: share the same optical interface.
-        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Aes, offset: 4, count: 2, label: Some("S/PDIF-opt")},
+        Input {
+            id: SrcBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 4,
+            count: 2,
+            label: Some("S/PDIF-opt"),
+        },
     ];
 
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 6, label: None},
-        Output{id: DstBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF-coax")},
-        Output{id: DstBlkId::Ins0, offset: 8, count: 2, label: Some("Ch-strip")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 6,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 6,
+            count: 2,
+            label: Some("S/PDIF-coax"),
+        },
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 8,
+            count: 2,
+            label: Some("Ch-strip"),
+        },
         // Output{id: DstBlkId::Ins0, offset: 4, count: 2, label: Some("Ch-strip")}, at 88.2/96.0 kHz.
-        Output{id: DstBlkId::Ins0, offset: 14, count: 2, label: Some("Reverb")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 14,
+            count: 2,
+            label: Some("Reverb"),
+        },
         // Output{id: DstBlkId::Ins0, offset: 6, count: 2, label: Some("Reverb")}, at 88.2/96.0 kHz.
     ];
 
     // NOTE: The first 4 entries in router section are used to display hardware metering.
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins0, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 3},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 2,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 3,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 1,
+        },
     ];
 }
 
@@ -246,11 +316,11 @@ impl SaffireproInputOperation for SPro24DspProtocol {
 
 // When VRM mode is enabled, write 0x00000001 to the offset
 #[allow(dead_code)]
-const DSP_ENABLE_OFFSET: usize = 0x0070;      // sw notice: 0x1c.
+const DSP_ENABLE_OFFSET: usize = 0x0070; // sw notice: 0x1c.
 const CH_STRIP_FLAG_OFFSET: usize = 0x0078;
-const   CH_STRIP_FLAG_EQ_ENABLE: u16 = 0x0001;
-const   CH_STRIP_FLAG_COMP_ENABLE: u16 = 0x0002;
-const   CH_STRIP_FLAG_EQ_AFTER_COMP: u16 = 0x0004;
+const CH_STRIP_FLAG_EQ_ENABLE: u16 = 0x0001;
+const CH_STRIP_FLAG_COMP_ENABLE: u16 = 0x0002;
+const CH_STRIP_FLAG_EQ_AFTER_COMP: u16 = 0x0004;
 
 const CH_STRIP_FLAG_SW_NOTICE: u32 = 0x00000005;
 
@@ -350,96 +420,99 @@ const COEF_BLOCK_REVERB: usize = 3;
 
 impl QuadletConvert for Spro24DspCompressorState {
     fn parse(&mut self, quads: &[f32]) {
-        (0..2)
-            .for_each(|ch| {
-                let base_offset = (COEF_BLOCK_COMP + ch) * COEF_BLOCK_SIZE;
+        (0..2).for_each(|ch| {
+            let base_offset = (COEF_BLOCK_COMP + ch) * COEF_BLOCK_SIZE;
 
-                let pos = (base_offset + COMP_OUTPUT_OFFSET) / 4;
-                self.output[ch] = quads[pos];
+            let pos = (base_offset + COMP_OUTPUT_OFFSET) / 4;
+            self.output[ch] = quads[pos];
 
-                let pos = (base_offset + COMP_THRESHOLD_OFFSET) / 4;
-                self.threshold[ch] = quads[pos];
+            let pos = (base_offset + COMP_THRESHOLD_OFFSET) / 4;
+            self.threshold[ch] = quads[pos];
 
-                let pos = (base_offset + COMP_RATIO_OFFSET) / 4;
-                self.ratio[ch] = quads[pos];
+            let pos = (base_offset + COMP_RATIO_OFFSET) / 4;
+            self.ratio[ch] = quads[pos];
 
-                let pos = (base_offset + COMP_ATTACK_OFFSET) / 4;
-                self.attack[ch] = quads[pos];
+            let pos = (base_offset + COMP_ATTACK_OFFSET) / 4;
+            self.attack[ch] = quads[pos];
 
-                let pos = (base_offset + COMP_RELEASE_OFFSET) / 4;
-                self.release[ch] = quads[pos];
-            });
+            let pos = (base_offset + COMP_RELEASE_OFFSET) / 4;
+            self.release[ch] = quads[pos];
+        });
     }
 
     fn build(&self, quads: &mut [f32]) {
-        (0..COEF_BLOCK_COUNT)
-            .for_each(|i| {
-                let ch = i % 2;
-                let base_offset = i * COEF_BLOCK_SIZE;
+        (0..COEF_BLOCK_COUNT).for_each(|i| {
+            let ch = i % 2;
+            let base_offset = i * COEF_BLOCK_SIZE;
 
-                let pos = (base_offset + COMP_OUTPUT_OFFSET) / 4;
-                quads[pos] = self.output[ch];
+            let pos = (base_offset + COMP_OUTPUT_OFFSET) / 4;
+            quads[pos] = self.output[ch];
 
-                let pos = (base_offset + COMP_THRESHOLD_OFFSET) / 4;
-                quads[pos] = self.threshold[ch];
+            let pos = (base_offset + COMP_THRESHOLD_OFFSET) / 4;
+            quads[pos] = self.threshold[ch];
 
-                let pos = (base_offset + COMP_RATIO_OFFSET) / 4;
-                quads[pos] = self.ratio[ch];
+            let pos = (base_offset + COMP_RATIO_OFFSET) / 4;
+            quads[pos] = self.ratio[ch];
 
-                let pos = (base_offset + COMP_ATTACK_OFFSET) / 4;
-                quads[pos] = self.attack[ch];
+            let pos = (base_offset + COMP_ATTACK_OFFSET) / 4;
+            quads[pos] = self.attack[ch];
 
-                let pos = (base_offset + COMP_RELEASE_OFFSET) / 4;
-                quads[pos] = self.release[ch];
-            });
+            let pos = (base_offset + COMP_RELEASE_OFFSET) / 4;
+            quads[pos] = self.release[ch];
+        });
     }
 }
 
 impl QuadletConvert for Spro24DspEqualizerState {
     fn parse(&mut self, quads: &[f32]) {
-        (0..2)
-            .for_each(|ch| {
-                let base_offset = (COEF_BLOCK_EQ + ch) * COEF_BLOCK_SIZE;
+        (0..2).for_each(|ch| {
+            let base_offset = (COEF_BLOCK_EQ + ch) * COEF_BLOCK_SIZE;
 
-                let pos = (base_offset + EQ_OUTPUT_OFFSET) / 4;
-                self.output[ch] = quads[pos];
+            let pos = (base_offset + EQ_OUTPUT_OFFSET) / 4;
+            self.output[ch] = quads[pos];
 
-                let pos = (base_offset + EQ_LOW_FREQ_OFFSET) / 4;
-                self.low_coef[ch].0.copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+            let pos = (base_offset + EQ_LOW_FREQ_OFFSET) / 4;
+            self.low_coef[ch]
+                .0
+                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
 
-                let pos = (base_offset + EQ_LOW_MIDDLE_FREQ_OFFSET) / 4;
-                self.low_middle_coef[ch].0.copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+            let pos = (base_offset + EQ_LOW_MIDDLE_FREQ_OFFSET) / 4;
+            self.low_middle_coef[ch]
+                .0
+                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
 
-                let pos = (base_offset + EQ_HIGH_MIDDLE_FREQ_OFFSET) / 4;
-                self.high_middle_coef[ch].0.copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+            let pos = (base_offset + EQ_HIGH_MIDDLE_FREQ_OFFSET) / 4;
+            self.high_middle_coef[ch]
+                .0
+                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
 
-                let pos = (base_offset + EQ_HIGH_FREQ_OFFSET) / 4;
-                self.high_coef[ch].0.copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
-
-            });
+            let pos = (base_offset + EQ_HIGH_FREQ_OFFSET) / 4;
+            self.high_coef[ch]
+                .0
+                .copy_from_slice(&quads[pos..(pos + EQ_COEF_COUNT)]);
+        });
     }
 
     fn build(&self, quads: &mut [f32]) {
-        (0..COEF_BLOCK_COUNT)
-            .for_each(|i| {
-                let ch = i % 2;
-                let base_offset = (COEF_BLOCK_EQ + ch) * COEF_BLOCK_SIZE;
+        (0..COEF_BLOCK_COUNT).for_each(|i| {
+            let ch = i % 2;
+            let base_offset = (COEF_BLOCK_EQ + ch) * COEF_BLOCK_SIZE;
 
-                let pos = (base_offset + EQ_OUTPUT_OFFSET) / 4;
-                quads[pos] = self.output[ch];
+            let pos = (base_offset + EQ_OUTPUT_OFFSET) / 4;
+            quads[pos] = self.output[ch];
 
-                let pos = (base_offset + EQ_LOW_FREQ_OFFSET) / 4;
-                quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.low_coef[ch].0);
+            let pos = (base_offset + EQ_LOW_FREQ_OFFSET) / 4;
+            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.low_coef[ch].0);
 
-                let pos = (base_offset + EQ_LOW_MIDDLE_FREQ_OFFSET) / 4;
-                quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.low_middle_coef[ch].0);
+            let pos = (base_offset + EQ_LOW_MIDDLE_FREQ_OFFSET) / 4;
+            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.low_middle_coef[ch].0);
 
-                let pos = (base_offset + EQ_HIGH_MIDDLE_FREQ_OFFSET) / 4;
-                quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.high_middle_coef[ch].0);
+            let pos = (base_offset + EQ_HIGH_MIDDLE_FREQ_OFFSET) / 4;
+            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.high_middle_coef[ch].0);
 
-                let pos = (base_offset + EQ_HIGH_FREQ_OFFSET) / 4;
-                quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.high_coef[ch].0);
-            });
+            let pos = (base_offset + EQ_HIGH_FREQ_OFFSET) / 4;
+            quads[pos..(pos + EQ_COEF_COUNT)].copy_from_slice(&self.high_coef[ch].0);
+        });
     }
 }
 
@@ -466,35 +539,34 @@ impl QuadletConvert for Spro24DspReverbState {
     }
 
     fn build(&self, quads: &mut [f32]) {
-        (0..COEF_BLOCK_COUNT)
-            .for_each(|i| {
-                let base_offset = i * COEF_BLOCK_SIZE;
+        (0..COEF_BLOCK_COUNT).for_each(|i| {
+            let base_offset = i * COEF_BLOCK_SIZE;
 
-                let pos = (base_offset + REVERB_SIZE_OFFSET) / 4;
-                quads[pos] = self.size;
+            let pos = (base_offset + REVERB_SIZE_OFFSET) / 4;
+            quads[pos] = self.size;
 
-                let pos = (base_offset + REVERB_AIR_OFFSET) / 4;
-                quads[pos] = self.air;
+            let pos = (base_offset + REVERB_AIR_OFFSET) / 4;
+            quads[pos] = self.air;
 
-                let enable_pos = (base_offset + REVERB_ENABLE_OFFSET) / 4;
-                let disable_pos = (base_offset + REVERB_DISABLE_OFFSET) / 4;
-                if self.enabled {
-                    quads[enable_pos] = 1.0;
-                    quads[disable_pos] = 0.0
-                } else {
-                    quads[enable_pos] = 0.0;
-                    quads[disable_pos] = 1.0
-                }
+            let enable_pos = (base_offset + REVERB_ENABLE_OFFSET) / 4;
+            let disable_pos = (base_offset + REVERB_DISABLE_OFFSET) / 4;
+            if self.enabled {
+                quads[enable_pos] = 1.0;
+                quads[disable_pos] = 0.0
+            } else {
+                quads[enable_pos] = 0.0;
+                quads[disable_pos] = 1.0
+            }
 
-                let mut val = self.pre_filter;
-                let pos = (base_offset + REVERB_PRE_FILTER_SIGN_OFFSET) / 4;
-                quads[pos] = if val > 0.0 { 1.0 } else { 0.0 };
+            let mut val = self.pre_filter;
+            let pos = (base_offset + REVERB_PRE_FILTER_SIGN_OFFSET) / 4;
+            quads[pos] = if val > 0.0 { 1.0 } else { 0.0 };
 
-                if val < 0.0 {
-                    val *= -1.0;
-                }
-                let pos = (base_offset + REVERB_PRE_FILTER_VALUE_OFFSET) / 4;
-                quads[pos] = val;
+            if val < 0.0 {
+                val *= -1.0;
+            }
+            let pos = (base_offset + REVERB_PRE_FILTER_VALUE_OFFSET) / 4;
+            quads[pos] = val;
         });
     }
 }
@@ -543,7 +615,7 @@ impl SPro24DspProtocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -552,28 +624,20 @@ impl SPro24DspProtocol {
             sections,
             CH_STRIP_FLAG_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(raw);
-                (0..2)
-                    .for_each(|i| {
-                        let flags = (val >> (i * 16)) as u16;
-                        state.eq_after_comp[i] = flags & CH_STRIP_FLAG_EQ_AFTER_COMP > 0;
-                        state.comp_enable[i] = flags & CH_STRIP_FLAG_COMP_ENABLE > 0;
-                        state.eq_enable[i] = flags & CH_STRIP_FLAG_EQ_ENABLE > 0;
-                    });
-            })?;
+        .map(|_| {
+            let val = u32::from_be_bytes(raw);
+            (0..2).for_each(|i| {
+                let flags = (val >> (i * 16)) as u16;
+                state.eq_after_comp[i] = flags & CH_STRIP_FLAG_EQ_AFTER_COMP > 0;
+                state.comp_enable[i] = flags & CH_STRIP_FLAG_COMP_ENABLE > 0;
+                state.eq_enable[i] = flags & CH_STRIP_FLAG_EQ_ENABLE > 0;
+            });
+        })?;
 
         let mut raw = vec![0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            COEF_OFFSET,
-            &mut raw,
-            timeout_ms
-        )
+        ApplSectionProtocol::read_appl_data(req, node, sections, COEF_OFFSET, &mut raw, timeout_ms)
             .map(|_| {
                 let mut quad = [0; 4];
                 let quads: Vec<f32> = (0..raw.len())
@@ -596,7 +660,7 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         eq_after_comp: &[bool],
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_flags(
             req,
@@ -605,9 +669,9 @@ impl SPro24DspProtocol {
             eq_after_comp,
             &state.comp_enable,
             &state.eq_enable,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| state.eq_after_comp.copy_from_slice(eq_after_comp))
+        .map(|_| state.eq_after_comp.copy_from_slice(eq_after_comp))
     }
 
     pub fn write_comp_enable(
@@ -616,7 +680,7 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         comp_enable: &[bool],
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_flags(
             req,
@@ -625,9 +689,9 @@ impl SPro24DspProtocol {
             &state.eq_after_comp,
             comp_enable,
             &state.eq_enable,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| state.comp_enable.copy_from_slice(comp_enable))
+        .map(|_| state.comp_enable.copy_from_slice(comp_enable))
     }
 
     pub fn write_eq_enable(
@@ -636,7 +700,7 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         eq_enable: &[bool],
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_flags(
             req,
@@ -645,9 +709,9 @@ impl SPro24DspProtocol {
             &state.eq_after_comp,
             &state.comp_enable,
             eq_enable,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| state.eq_enable.copy_from_slice(eq_enable))
+        .map(|_| state.eq_enable.copy_from_slice(eq_enable))
     }
 
     fn write_flags(
@@ -657,27 +721,26 @@ impl SPro24DspProtocol {
         eq_after_comp: &[bool],
         comp_enable: &[bool],
         eq_enable: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(eq_after_comp.len(), 2);
         assert_eq!(comp_enable.len(), 2);
         assert_eq!(eq_enable.len(), 2);
 
-        let val = (0..2)
-            .fold(0u32, |mut val, i| {
-                let shift = i * 16;
+        let val = (0..2).fold(0u32, |mut val, i| {
+            let shift = i * 16;
 
-                if eq_after_comp[i] {
-                    val |= (CH_STRIP_FLAG_EQ_AFTER_COMP as u32) << shift;
-                }
-                if comp_enable[i] {
-                    val |= (CH_STRIP_FLAG_COMP_ENABLE as u32) << shift;
-                }
-                if eq_enable[i] {
-                    val |= (CH_STRIP_FLAG_EQ_ENABLE as u32) << shift;
-                }
-                val
-            });
+            if eq_after_comp[i] {
+                val |= (CH_STRIP_FLAG_EQ_AFTER_COMP as u32) << shift;
+            }
+            if comp_enable[i] {
+                val |= (CH_STRIP_FLAG_COMP_ENABLE as u32) << shift;
+            }
+            if eq_enable[i] {
+                val |= (CH_STRIP_FLAG_EQ_ENABLE as u32) << shift;
+            }
+            val
+        });
 
         ApplSectionProtocol::write_appl_data(
             req,
@@ -685,7 +748,7 @@ impl SPro24DspProtocol {
             sections,
             CH_STRIP_FLAG_OFFSET,
             &mut val.to_be_bytes(),
-            timeout_ms
+            timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, CH_STRIP_FLAG_SW_NOTICE, timeout_ms)
     }
@@ -696,7 +759,7 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         comp: &Spro24DspCompressorState,
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_effect(req, node, sections, comp, &state.comp, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, COMP_CH0_SW_NOTICE, timeout_ms)?;
@@ -711,17 +774,41 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         eq: &Spro24DspEqualizerState,
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_effect(req, node, sections, eq, &state.eq, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH0_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_OUTPUT_CH1_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH0_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_LOW_FREQ_CH1_SW_NOTICE, timeout_ms)?;
-        Self::write_sw_notice(req, node, sections, EQ_LOW_MIDDLE_FREQ_CH0_SW_NOTICE, timeout_ms)?;
-        Self::write_sw_notice(req, node, sections, EQ_LOW_MIDDLE_FREQ_CH1_SW_NOTICE, timeout_ms)?;
-        Self::write_sw_notice(req, node, sections, EQ_HIGH_MIDDLE_FREQ_CH0_SW_NOTICE, timeout_ms)?;
-        Self::write_sw_notice(req, node, sections, EQ_HIGH_MIDDLE_FREQ_CH1_SW_NOTICE, timeout_ms)?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_LOW_MIDDLE_FREQ_CH0_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_LOW_MIDDLE_FREQ_CH1_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_HIGH_MIDDLE_FREQ_CH0_SW_NOTICE,
+            timeout_ms,
+        )?;
+        Self::write_sw_notice(
+            req,
+            node,
+            sections,
+            EQ_HIGH_MIDDLE_FREQ_CH1_SW_NOTICE,
+            timeout_ms,
+        )?;
         Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH0_SW_NOTICE, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, EQ_HIGH_FREQ_CH1_SW_NOTICE, timeout_ms)?;
         state.eq = *eq;
@@ -734,7 +821,7 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         reverb: &Spro24DspReverbState,
         state: &mut Spro24DspEffectState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_effect(req, node, sections, reverb, &state.reverb, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, REVERB_SW_NOTICE, timeout_ms)?;
@@ -748,7 +835,7 @@ impl SPro24DspProtocol {
         sections: &ExtensionSections,
         new: &T,
         old: &T,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut new_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
         let mut old_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
@@ -768,7 +855,7 @@ impl SPro24DspProtocol {
                     sections,
                     pos,
                     &mut val.to_be_bytes(),
-                    timeout_ms
+                    timeout_ms,
                 )
             })
     }
@@ -828,7 +915,12 @@ mod test {
 
     #[test]
     fn reverb_state() {
-        let orig = Spro24DspReverbState { size: 0.04, air: 0.14, enabled: false, pre_filter: -0.1 };
+        let orig = Spro24DspReverbState {
+            size: 0.04,
+            air: 0.14,
+            enabled: false,
+            pre_filter: -0.1,
+        };
         let mut new_quads = [0.0; COEF_BLOCK_SIZE * COEF_BLOCK_COUNT];
         orig.build(&mut new_quads);
 

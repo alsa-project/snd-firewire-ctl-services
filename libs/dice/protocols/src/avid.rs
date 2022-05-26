@@ -8,9 +8,9 @@
 
 use glib::{Error, FileError};
 
-use hinawa::{FwReq, FwNode};
+use hinawa::{FwNode, FwReq};
 
-use super::tcat::extension::{*, appl_section::*};
+use super::tcat::extension::{appl_section::*, *};
 use super::tcat::tcd22xx_spec::*;
 
 const USE_CASE_OFFSET: usize = 0x00;
@@ -34,24 +34,76 @@ const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
 #[derive(Default)]
 pub struct Mbox3Protocol;
 
-impl Tcd22xxSpecOperation for  Mbox3Protocol {
+impl Tcd22xxSpecOperation for Mbox3Protocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 6, label: None},
-        Input{id: SrcBlkId::Ins1, offset: 0, count: 2, label: Some("Reverb")},
-        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 0,
+            count: 6,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Ins1,
+            offset: 0,
+            count: 2,
+            label: Some("Reverb"),
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 6, label: None},
-        Output{id: DstBlkId::Ins1, offset: 0, count: 4, label: Some("Headphone")},
-        Output{id: DstBlkId::Ins1, offset: 4, count: 2, label: Some("Reverb")},
-        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
-        Output{id: DstBlkId::Reserved(0x08), offset: 0, count: 2, label: Some("ControlRoom")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 6,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Ins1,
+            offset: 0,
+            count: 4,
+            label: Some("Headphone"),
+        },
+        Output {
+            id: DstBlkId::Ins1,
+            offset: 4,
+            count: 2,
+            label: Some("Reverb"),
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Reserved(0x08),
+            offset: 0,
+            count: 2,
+            label: Some("ControlRoom"),
+        },
     ];
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 3},
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 1,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 2,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 3,
+        },
     ];
 }
 
@@ -100,7 +152,7 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<StandaloneUseCase, Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -109,9 +161,9 @@ impl Mbox3Protocol {
             sections,
             USE_CASE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(data).into())
+        .map(|_| u32::from_be_bytes(data).into())
     }
 
     pub fn write_standalone_use_case(
@@ -119,7 +171,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         use_case: StandaloneUseCase,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = u32::from(use_case).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -128,13 +180,13 @@ impl Mbox3Protocol {
             sections,
             USE_CASE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 }
 
 /// The alternative type to represent assignment map for master knob.
-pub type MasterKnobAssigns = [bool;6];
+pub type MasterKnobAssigns = [bool; 6];
 
 /// The enumeration to represent LED state of mute button.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -299,7 +351,7 @@ impl From<&SpkrLedState> for u32 {
 }
 
 /// The structure to represent status of buttons.
-#[derive(Default, Debug, Copy, Clone,  Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ButtonLedState {
     pub mute: MuteLedState,
     pub mono: MonoLedState,
@@ -310,9 +362,9 @@ impl ButtonLedState {
     const SIZE: usize = 8;
 }
 
-impl From<[u8;ButtonLedState::SIZE]> for ButtonLedState {
-    fn from(raw: [u8;ButtonLedState::SIZE]) -> Self {
-        let mut quadlet = [0;4];
+impl From<[u8; ButtonLedState::SIZE]> for ButtonLedState {
+    fn from(raw: [u8; ButtonLedState::SIZE]) -> Self {
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&raw[..4]);
         let val = u32::from_be_bytes(quadlet);
         let mute = MuteLedState::from(val);
@@ -322,19 +374,18 @@ impl From<[u8;ButtonLedState::SIZE]> for ButtonLedState {
         let mono = MonoLedState::from(val);
         let spkr = SpkrLedState::from(val);
 
-        ButtonLedState{mute, mono, spkr}
+        ButtonLedState { mute, mono, spkr }
     }
 }
 
-impl From<&ButtonLedState> for [u8;ButtonLedState::SIZE] {
+impl From<&ButtonLedState> for [u8; ButtonLedState::SIZE] {
     fn from(state: &ButtonLedState) -> Self {
-        let mut data = [0;ButtonLedState::SIZE];
+        let mut data = [0; ButtonLedState::SIZE];
 
         let val = u32::from(&state.mute);
         data[..4].copy_from_slice(&val.to_be_bytes());
 
-        let val = u32::from(&state.mono) |
-                  u32::from(&state.spkr);
+        let val = u32::from(&state.mono) | u32::from(&state.spkr);
         data[4..].copy_from_slice(&val.to_be_bytes());
 
         data
@@ -342,9 +393,12 @@ impl From<&ButtonLedState> for [u8;ButtonLedState::SIZE] {
 }
 
 const OUT_TRIM_OFFSETS: [usize; 6] = [
-    OUT_0_TRIM_OFFSET, OUT_1_TRIM_OFFSET,
-    OUT_2_TRIM_OFFSET, OUT_3_TRIM_OFFSET,
-    OUT_4_TRIM_OFFSET, OUT_5_TRIM_OFFSET,
+    OUT_0_TRIM_OFFSET,
+    OUT_1_TRIM_OFFSET,
+    OUT_2_TRIM_OFFSET,
+    OUT_3_TRIM_OFFSET,
+    OUT_4_TRIM_OFFSET,
+    OUT_5_TRIM_OFFSET,
 ];
 
 impl Mbox3Protocol {
@@ -353,24 +407,25 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         assigns: &mut MasterKnobAssigns,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut data = [0;4];
+        let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
             node,
             sections,
             MASTER_KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(data);
-                assigns.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, assigned)| *assigned = val & (1 << i) > 0);
-                ()
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(data);
+            assigns
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, assigned)| *assigned = val & (1 << i) > 0);
+            ()
+        })
     }
 
     pub fn write_master_knob_assign(
@@ -378,10 +433,11 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         assigns: &MasterKnobAssigns,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut data = [0;4];
-        let val: u32 = assigns.iter()
+        let mut data = [0; 4];
+        let val: u32 = assigns
+            .iter()
             .enumerate()
             .filter(|&(_, &assigned)| assigned)
             .fold(0, |val, (i, _)| val | (1 << i));
@@ -392,7 +448,7 @@ impl Mbox3Protocol {
             sections,
             MASTER_KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -400,18 +456,18 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<ButtonLedState, Error> {
-        let mut data = [0;ButtonLedState::SIZE];
+        let mut data = [0; ButtonLedState::SIZE];
         ApplSectionProtocol::read_appl_data(
             req,
             node,
             sections,
             BUTTON_LED_STATE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| ButtonLedState::from(data))
+        .map(|_| ButtonLedState::from(data))
     }
 
     pub fn write_button_led_state(
@@ -419,16 +475,16 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &ButtonLedState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut data = Into::<[u8;ButtonLedState::SIZE]>::into(state);
+        let mut data = Into::<[u8; ButtonLedState::SIZE]>::into(state);
         ApplSectionProtocol::write_appl_data(
             req,
             node,
             sections,
             BUTTON_LED_STATE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -436,18 +492,18 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let mut data = [0;4];
+        let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
             node,
             sections,
             DIM_LED_USAGE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(data) > 0)
+        .map(|_| u32::from_be_bytes(data) > 0)
     }
 
     pub fn write_dim_led_usage(
@@ -455,7 +511,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         usage: bool,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = (usage as u32).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -464,7 +520,7 @@ impl Mbox3Protocol {
             sections,
             DIM_LED_USAGE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -472,18 +528,18 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u8, Error> {
-        let mut data = [0;4];
+        let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
             node,
             sections,
             BUTTON_HOLD_DURATION_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(data) as u8)
+        .map(|_| u32::from_be_bytes(data) as u8)
     }
 
     pub fn write_hold_duration(
@@ -491,7 +547,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         duration: u8,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = (duration as u32).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -500,7 +556,7 @@ impl Mbox3Protocol {
             sections,
             BUTTON_HOLD_DURATION_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -508,45 +564,46 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        inputs: &mut [bool;4],
-        timeout_ms: u32
+        inputs: &mut [bool; 4],
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut data = [0;4];
+        let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
             node,
             sections,
             HPF_ENABLE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(data);
-                inputs
-                    .iter_mut()
-                    .enumerate()
-                    .for_each(|(i, v)| *v = val & (1 << i) > 0);
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(data);
+            inputs
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, v)| *v = val & (1 << i) > 0);
+        })
     }
 
     pub fn write_hpf_enable(
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        inputs: [bool;4],
-        timeout_ms: u32
+        inputs: [bool; 4],
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let val = inputs
             .iter()
             .enumerate()
-            .filter(|(_, &v)| v).fold(0 as u32, |val, (i, _)| val | (1 << i));
+            .filter(|(_, &v)| v)
+            .fold(0 as u32, |val, (i, _)| val | (1 << i));
         ApplSectionProtocol::write_appl_data(
             req,
             node,
             sections,
             HPF_ENABLE_OFFSET,
             &mut val.to_be_bytes().clone(),
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -555,24 +612,18 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         idx: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u8, Error> {
-        let &offset = OUT_TRIM_OFFSETS.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of output: {} greater than {}",
-                                  idx, OUT_TRIM_OFFSETS.len());
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &offset = OUT_TRIM_OFFSETS.iter().nth(idx).ok_or_else(|| {
+            let msg = format!(
+                "Invalid index of output: {} greater than {}",
+                idx,
+                OUT_TRIM_OFFSETS.len()
+            );
+            Error::new(FileError::Inval, &msg)
+        })?;
         let mut data = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut data,
-            timeout_ms
-        )
+        ApplSectionProtocol::read_appl_data(req, node, sections, offset, &mut data, timeout_ms)
             .map(|_| u32::from_be_bytes(data) as u8)
     }
 
@@ -582,25 +633,19 @@ impl Mbox3Protocol {
         sections: &ExtensionSections,
         idx: usize,
         trim: u8,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let &offset = OUT_TRIM_OFFSETS.iter()
-            .nth(idx)
-            .ok_or_else(|| {
-                let msg = format!("Invalid index of output: {} greater than {}",
-                                  idx, OUT_TRIM_OFFSETS.len());
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &offset = OUT_TRIM_OFFSETS.iter().nth(idx).ok_or_else(|| {
+            let msg = format!(
+                "Invalid index of output: {} greater than {}",
+                idx,
+                OUT_TRIM_OFFSETS.len()
+            );
+            Error::new(FileError::Inval, &msg)
+        })?;
         let mut data = [0; 4];
         data.copy_from_slice(&(trim as u32).to_be_bytes());
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut data,
-            timeout_ms
-        )
+        ApplSectionProtocol::write_appl_data(req, node, sections, offset, &mut data, timeout_ms)
     }
 }
 
@@ -669,7 +714,7 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<ReverbType, Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -678,8 +723,9 @@ impl Mbox3Protocol {
             sections,
             REVERB_TYPE_OFFSET,
             &mut data,
-            timeout_ms)
-            .map(|_| ReverbType::from(u32::from_be_bytes(data)))
+            timeout_ms,
+        )
+        .map(|_| ReverbType::from(u32::from_be_bytes(data)))
     }
 
     pub fn write_reverb_type(
@@ -687,7 +733,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         reverb_type: ReverbType,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = u32::from(reverb_type).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -696,7 +742,7 @@ impl Mbox3Protocol {
             sections,
             REVERB_TYPE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -704,18 +750,18 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u8, Error> {
-        let mut data = [0;4];
+        let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
             node,
             sections,
             REVERB_VOLUME_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(data) as u8)
+        .map(|_| u32::from_be_bytes(data) as u8)
     }
 
     pub fn write_reverb_volume(
@@ -723,7 +769,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         volume: u8,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = (volume as u32).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -732,7 +778,7 @@ impl Mbox3Protocol {
             sections,
             REVERB_VOLUME_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -740,7 +786,7 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u8, Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -749,9 +795,9 @@ impl Mbox3Protocol {
             sections,
             REVERB_DURATION_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(data) as u8)
+        .map(|_| u32::from_be_bytes(data) as u8)
     }
 
     pub fn write_reverb_duration(
@@ -759,7 +805,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         duration: u8,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = (duration as u32).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -768,7 +814,7 @@ impl Mbox3Protocol {
             sections,
             REVERB_DURATION_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -776,7 +822,7 @@ impl Mbox3Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u8, Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -785,9 +831,9 @@ impl Mbox3Protocol {
             sections,
             REVERB_FEEDBACK_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(data) as u8)
+        .map(|_| u32::from_be_bytes(data) as u8)
     }
 
     pub fn write_reverb_feedback(
@@ -795,7 +841,7 @@ impl Mbox3Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         feedback: u8,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = (feedback as u32).to_be_bytes().clone();
         ApplSectionProtocol::write_appl_data(
@@ -804,7 +850,7 @@ impl Mbox3Protocol {
             sections,
             REVERB_FEEDBACK_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 }

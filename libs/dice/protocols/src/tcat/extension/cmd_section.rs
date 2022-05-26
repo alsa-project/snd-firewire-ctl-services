@@ -5,7 +5,7 @@
 //!
 //! The module includes structure, enumeration, and trait and its implementation for command
 //! section in protocol extension defined by TCAT for ASICs of DICE.
-use super::{*, caps_section::*};
+use super::{caps_section::*, *};
 
 use crate::tcat::global_section::ClockRate;
 
@@ -39,18 +39,14 @@ impl std::fmt::Display for RateMode {
 impl From<ClockRate> for RateMode {
     fn from(rate: ClockRate) -> Self {
         match rate {
-            ClockRate::R32000 |
-            ClockRate::R44100 |
-            ClockRate::R48000 |
-            ClockRate::AnyLow |
-            ClockRate::None |
-            ClockRate::Reserved(_) => RateMode::Low,
-            ClockRate::R88200 |
-            ClockRate::R96000 |
-            ClockRate::AnyMid => RateMode::Middle,
-            ClockRate::R176400 |
-            ClockRate::R192000 |
-            ClockRate::AnyHigh => RateMode::High,
+            ClockRate::R32000
+            | ClockRate::R44100
+            | ClockRate::R48000
+            | ClockRate::AnyLow
+            | ClockRate::None
+            | ClockRate::Reserved(_) => RateMode::Low,
+            ClockRate::R88200 | ClockRate::R96000 | ClockRate::AnyMid => RateMode::Middle,
+            ClockRate::R176400 | ClockRate::R192000 | ClockRate::AnyHigh => RateMode::High,
         }
     }
 }
@@ -59,8 +55,7 @@ impl TryFrom<u32> for RateMode {
     type Error = Error;
 
     fn try_from(rate: u32) -> Result<Self, Self::Error> {
-        ClockRate::try_from(rate)
-            .map(|clock_rate| RateMode::from(clock_rate))
+        ClockRate::try_from(rate).map(|clock_rate| RateMode::from(clock_rate))
     }
 }
 
@@ -104,40 +99,55 @@ impl CmdSectionProtocol {
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         opcode: Opcode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u32, Error> {
         if let Opcode::LoadRouter(_) = opcode {
             if caps.mixer.is_readonly {
-                Err(Error::new(ProtocolExtensionError::Cmd, "Router configuration is immutable"))?
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Router configuration is immutable",
+                ))?
             }
         } else if let Opcode::LoadStreamConfig(_) = opcode {
             if !caps.general.dynamic_stream_format {
-                Err(Error::new(ProtocolExtensionError::Cmd, "Stream format configuration is immutable"))?
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Stream format configuration is immutable",
+                ))?
             }
         } else if let Opcode::LoadRouterStreamConfig(_) = opcode {
             if caps.mixer.is_readonly && !caps.general.dynamic_stream_format {
-                Err(Error::new(ProtocolExtensionError::Cmd, "Any configuration is immutable"))?
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Any configuration is immutable",
+                ))?
             }
         } else if opcode == Opcode::LoadConfigFromFlash {
             if !caps.general.storage_avail {
-                Err(Error::new(ProtocolExtensionError::Cmd, "Storage is not available"))?
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Storage is not available",
+                ))?
             }
         } else if opcode == Opcode::StoreConfigToFlash {
             if !caps.general.storage_avail {
-                Err(Error::new(ProtocolExtensionError::Cmd, "Storage is not available"))?
+                Err(Error::new(
+                    ProtocolExtensionError::Cmd,
+                    "Storage is not available",
+                ))?
             }
         }
 
-        let mut data = [0;4];
+        let mut data = [0; 4];
         data[2..4].copy_from_slice(&u16::from(opcode).to_be_bytes());
         data[1] = match opcode {
-            Opcode::LoadRouter(r) |
-            Opcode::LoadStreamConfig(r) |
-            Opcode::LoadRouterStreamConfig(r) => match r {
+            Opcode::LoadRouter(r)
+            | Opcode::LoadStreamConfig(r)
+            | Opcode::LoadRouterStreamConfig(r) => match r {
                 RateMode::Low => 1,
                 RateMode::Middle => 2,
                 RateMode::High => 4,
-            }
+            },
             _ => 0,
         };
         data[0] = Self::EXECUTE;
@@ -146,21 +156,15 @@ impl CmdSectionProtocol {
             node,
             sections.cmd.offset + Self::OPCODE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
+        .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
 
         let mut count = 0;
         while count < 10 {
             std::thread::sleep(std::time::Duration::from_millis(50));
 
-            extension_read(
-                req,
-                node,
-                sections.cmd.offset,
-                &mut data,
-                timeout_ms
-            )
+            extension_read(req, node, sections.cmd.offset, &mut data, timeout_ms)
                 .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
 
             if (data[0] & Self::EXECUTE) != Self::EXECUTE {
@@ -169,14 +173,17 @@ impl CmdSectionProtocol {
                     node,
                     sections.cmd.offset + Self::RETURN_OFFSET,
                     &mut data,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
+                .map_err(|e| Error::new(ProtocolExtensionError::Cmd, &e.to_string()))?;
                 return Ok(u32::from_be_bytes(data));
             }
             count += 1;
         }
 
-        Err(Error::new(ProtocolExtensionError::Cmd, "Operation timeout."))
+        Err(Error::new(
+            ProtocolExtensionError::Cmd,
+            "Operation timeout.",
+        ))
     }
 }

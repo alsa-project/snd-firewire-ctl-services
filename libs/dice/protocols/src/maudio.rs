@@ -8,11 +8,11 @@
 
 use glib::Error;
 
-use hinawa::{FwReq, FwNode};
+use hinawa::{FwNode, FwReq};
 
+use super::tcat::extension::{appl_section::*, *};
 use super::tcat::global_section::*;
 use super::tcat::tcd22xx_spec::*;
-use super::tcat::extension::{*, appl_section::*};
 
 const KNOB_ASSIGN_OFFSET: usize = 0x00;
 const STANDALONE_MODE_OFFSET: usize = 0x04;
@@ -22,12 +22,12 @@ pub struct Pfire2626Protocol;
 
 impl PfireClkSpec for Pfire2626Protocol {
     const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
-            ClockSource::Aes1,
-            ClockSource::Aes4,
-            ClockSource::Adat,
-            ClockSource::Tdif,
-            ClockSource::WordClock,
-            ClockSource::Internal,
+        ClockSource::Aes1,
+        ClockSource::Aes4,
+        ClockSource::Adat,
+        ClockSource::Tdif,
+        ClockSource::WordClock,
+        ClockSource::Internal,
     ];
 }
 
@@ -38,26 +38,90 @@ impl PfireSpecificOperation for Pfire2626Protocol {
 
 impl Tcd22xxSpecOperation for Pfire2626Protocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins1, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
-        Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: None},
+        Input {
+            id: SrcBlkId::Ins1,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Adat,
+            offset: 8,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
-        Output{id: DstBlkId::Aes, offset: 0, count: 2, label: None},
+        Output {
+            id: DstBlkId::Ins1,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Adat,
+            offset: 8,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
     ];
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 4},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 5},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 6},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 7},
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 1,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 2,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 3,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 4,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 5,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 6,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 7,
+        },
     ];
 }
 
@@ -65,10 +129,7 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
 pub struct Pfire610Protocol;
 
 impl PfireClkSpec for Pfire610Protocol {
-    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[
-            ClockSource::Aes1,
-            ClockSource::Internal,
-    ];
+    const AVAIL_CLK_SRCS: &'static [ClockSource] = &[ClockSource::Aes1, ClockSource::Internal];
 }
 
 impl PfireSpecificOperation for Pfire610Protocol {
@@ -79,9 +140,13 @@ impl PfireSpecificOperation for Pfire610Protocol {
 /// The trait to represent available rate and source of sampling clock.
 pub trait PfireClkSpec {
     const AVAIL_CLK_RATES: [ClockRate; 7] = [
-        ClockRate::R32000, ClockRate::R44100, ClockRate::R48000,
-        ClockRate::R88200, ClockRate::R96000,
-        ClockRate::R176400, ClockRate::R192000,
+        ClockRate::R32000,
+        ClockRate::R44100,
+        ClockRate::R48000,
+        ClockRate::R88200,
+        ClockRate::R96000,
+        ClockRate::R176400,
+        ClockRate::R192000,
     ];
 
     const AVAIL_CLK_SRCS: &'static [ClockSource];
@@ -90,29 +155,55 @@ pub trait PfireClkSpec {
 // NOTE: the second rx stream is firstly available at higher sampling rate.
 impl Tcd22xxSpecOperation for Pfire610Protocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 4, label: None},
-        Input{id: SrcBlkId::Aes,  offset: 0, count: 2, label: None},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 0,
+            count: 4,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Aes,  offset: 0, count: 2, label: None},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
     ];
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 1,
+        },
     ];
 }
 
 /// The enumeration for mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum OptIfaceMode{
+pub enum OptIfaceMode {
     Spdif,
     Adat,
 }
 
 /// The enumeration for mode of standalone converter.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum StandaloneConverterMode{
+pub enum StandaloneConverterMode {
     AdDa,
     AdOnly,
 }
@@ -133,7 +224,7 @@ pub trait PfireSpecificOperation {
         node: &mut FwNode,
         sections: &ExtensionSections,
         targets: &mut [bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -142,14 +233,15 @@ pub trait PfireSpecificOperation {
             sections,
             KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
-                targets.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, v)| *v = val & (1 << i) > 0)
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
+            targets
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, v)| *v = val & (1 << i) > 0)
+        })
     }
 
     fn write_knob_assign(
@@ -157,7 +249,7 @@ pub trait PfireSpecificOperation {
         node: &mut FwNode,
         sections: &ExtensionSections,
         targets: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -166,18 +258,16 @@ pub trait PfireSpecificOperation {
             sections,
             KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )?;
         let mut val = u32::from_be_bytes(data) & KNOB_ASSIGN_MASK;
 
-        targets.iter()
-            .enumerate()
-            .for_each(|(i, knob)| {
-                val &= !(1 << i);
-                if *knob {
-                    val |= 1 << i;
-                }
-            });
+        targets.iter().enumerate().for_each(|(i, knob)| {
+            val &= !(1 << i);
+            if *knob {
+                val |= 1 << i;
+            }
+        });
         data.copy_from_slice(&val.to_be_bytes());
 
         ApplSectionProtocol::write_appl_data(
@@ -186,7 +276,7 @@ pub trait PfireSpecificOperation {
             sections,
             KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -194,7 +284,7 @@ pub trait PfireSpecificOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<OptIfaceMode, Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -203,16 +293,16 @@ pub trait PfireSpecificOperation {
             sections,
             KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(data);
-                if val & OPT_IFACE_B_IS_SPDIF_FLAG > 0 {
-                    OptIfaceMode::Spdif
-                } else {
-                    OptIfaceMode::Adat
-                }
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(data);
+            if val & OPT_IFACE_B_IS_SPDIF_FLAG > 0 {
+                OptIfaceMode::Spdif
+            } else {
+                OptIfaceMode::Adat
+            }
+        })
     }
 
     fn write_opt_iface_b_mode(
@@ -220,7 +310,7 @@ pub trait PfireSpecificOperation {
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: OptIfaceMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -229,7 +319,7 @@ pub trait PfireSpecificOperation {
             sections,
             KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )?;
         let mut val = u32::from_be_bytes(data);
 
@@ -245,7 +335,7 @@ pub trait PfireSpecificOperation {
             sections,
             KNOB_ASSIGN_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 
@@ -253,7 +343,7 @@ pub trait PfireSpecificOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<StandaloneConverterMode, Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -262,16 +352,16 @@ pub trait PfireSpecificOperation {
             sections,
             STANDALONE_MODE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(data);
-                if val & STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
-                    StandaloneConverterMode::AdOnly
-                } else {
-                    StandaloneConverterMode::AdDa
-                }
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(data);
+            if val & STANDALONE_CONVERTER_IS_AD_ONLY_FLAG > 0 {
+                StandaloneConverterMode::AdOnly
+            } else {
+                StandaloneConverterMode::AdDa
+            }
+        })
     }
 
     fn write_standalone_converter_mode(
@@ -279,7 +369,7 @@ pub trait PfireSpecificOperation {
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: StandaloneConverterMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut data = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -288,7 +378,7 @@ pub trait PfireSpecificOperation {
             sections,
             STANDALONE_MODE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )?;
         let mut val = u32::from_be_bytes(data);
 
@@ -304,7 +394,7 @@ pub trait PfireSpecificOperation {
             sections,
             STANDALONE_MODE_OFFSET,
             &mut data,
-            timeout_ms
+            timeout_ms,
         )
     }
 }

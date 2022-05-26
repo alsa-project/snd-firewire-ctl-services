@@ -20,7 +20,7 @@ const HP34_SRC_OFFSET: usize = 0x0570;
 
 /// The enumeration to represent nominal level of signal.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum NominalSignalLevel{
+pub enum NominalSignalLevel {
     /// -10dBV.
     Consumer,
     /// +4dBu.
@@ -54,7 +54,7 @@ impl From<NominalSignalLevel> for u32 {
 
 /// The enumeration to represent source of 6/7 channels of digital B input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum DigitalB67Src{
+pub enum DigitalB67Src {
     Spdif12,
     Adat67,
 }
@@ -86,7 +86,7 @@ impl From<DigitalB67Src> for u32 {
 
 /// The enumeration to represent pair of mixer output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum MixerOutPair{
+pub enum MixerOutPair {
     Mixer01,
     Mixer23,
     Mixer45,
@@ -130,26 +130,24 @@ pub trait IofwOutputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         levels: &mut [NominalSignalLevel],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut flags = vec![false; Self::ANALOG_OUTPUT_COUNT];
-        alesis_read_flags(req, node, OUT_LEVEL_OFFSET, &mut flags[..], timeout_ms)
-            .map(|_| {
-                levels.iter_mut()
-                    .zip(flags.iter())
-                    .for_each(|(l, &f)| *l = NominalSignalLevel::from(f as u32))
-            })
+        alesis_read_flags(req, node, OUT_LEVEL_OFFSET, &mut flags[..], timeout_ms).map(|_| {
+            levels
+                .iter_mut()
+                .zip(flags.iter())
+                .for_each(|(l, &f)| *l = NominalSignalLevel::from(f as u32))
+        })
     }
 
     fn write_out_levels(
         req: &mut FwReq,
         node: &mut FwNode,
         levels: &[NominalSignalLevel],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut flags: Vec<bool> = levels.iter()
-            .map(|l| u32::from(*l) > 0)
-            .collect();
+        let mut flags: Vec<bool> = levels.iter().map(|l| u32::from(*l) > 0).collect();
         alesis_write_flags(req, node, OUT_LEVEL_OFFSET, &mut flags, timeout_ms)
     }
 
@@ -157,29 +155,41 @@ pub trait IofwOutputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         src: &mut DigitalB67Src,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        alesis_read_block(req, node, MIXER_DIGITAL_B_67_SRC_OFFSET, &mut raw, timeout_ms)
-            .map(|_| src.parse_quadlet(&raw))
+        alesis_read_block(
+            req,
+            node,
+            MIXER_DIGITAL_B_67_SRC_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )
+        .map(|_| src.parse_quadlet(&raw))
     }
 
     fn write_mixer_digital_b_67_src(
         req: &mut FwReq,
         node: &mut FwNode,
         src: &DigitalB67Src,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         src.build_quadlet(&mut raw);
-        alesis_write_block(req, node, MIXER_DIGITAL_B_67_SRC_OFFSET, &mut raw, timeout_ms)
+        alesis_write_block(
+            req,
+            node,
+            MIXER_DIGITAL_B_67_SRC_OFFSET,
+            &mut raw,
+            timeout_ms,
+        )
     }
 
     fn read_spdif_out_src(
         req: &mut FwReq,
         node: &mut FwNode,
         src: &mut MixerOutPair,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         alesis_read_block(req, node, SPDIF_OUT_SRC_OFFSET, &mut raw, timeout_ms)
@@ -190,7 +200,7 @@ pub trait IofwOutputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         src: &MixerOutPair,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         src.build_quadlet(&mut raw);
@@ -201,7 +211,7 @@ pub trait IofwOutputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         src: &mut MixerOutPair,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         alesis_read_block(req, node, HP34_SRC_OFFSET, &mut raw, timeout_ms)
@@ -212,7 +222,7 @@ pub trait IofwOutputOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         src: &MixerOutPair,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         src.build_quadlet(&mut raw);

@@ -20,7 +20,7 @@ fn presonus_read(
     node: &mut FwNode,
     offset: usize,
     raw: &mut [u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::read(req, node, OFFSET + offset, raw, timeout_ms)
 }
@@ -30,17 +30,17 @@ fn presonus_write(
     node: &mut FwNode,
     offset: usize,
     raw: &mut [u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::write(req, node, OFFSET + offset, raw, timeout_ms)
 }
 
 /// The structure for hardware meter.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct FStudioMeter{
-    pub analog_inputs: [u8;8],
-    pub stream_inputs: [u8;18],
-    pub mixer_outputs: [u8;18],
+pub struct FStudioMeter {
+    pub analog_inputs: [u8; 8],
+    pub stream_inputs: [u8; 18],
+    pub mixer_outputs: [u8; 18],
 }
 
 const METER_OFFSET: usize = 0x13e8;
@@ -51,18 +51,17 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         meter: &mut FStudioMeter,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = vec![0; METER_SIZE];
         presonus_read(req, node, METER_OFFSET, &mut raw, timeout_ms).map(|_| {
             let mut quadlet = [0; 4];
-            (0..(METER_SIZE / 4))
-                .for_each(|i| {
-                    let pos = i * 4;
-                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                    let val = u32::from_be_bytes(quadlet);
-                    raw[pos..(pos + 4)].copy_from_slice(&val.to_le_bytes());
-                });
+            (0..(METER_SIZE / 4)).for_each(|i| {
+                let pos = i * 4;
+                quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                let val = u32::from_be_bytes(quadlet);
+                raw[pos..(pos + 4)].copy_from_slice(&val.to_le_bytes());
+            });
             meter.analog_inputs.copy_from_slice(&raw[8..16]);
             meter.stream_inputs.copy_from_slice(&raw[16..34]);
             meter.mixer_outputs.copy_from_slice(&raw[40..58]);
@@ -72,7 +71,7 @@ impl FStudioProtocol {
 
 /// The enumeration to represent source of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum OutputSrc{
+pub enum OutputSrc {
     Analog(usize),
     Adat0(usize),
     Spdif(usize),
@@ -119,11 +118,11 @@ impl From<OutputSrc> for u32 {
 
 /// The structure to represent state of outputs for FireStudio.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct OutputState{
-    pub vols: [u8;18],
-    pub mutes: [bool;18],
-    pub srcs: [OutputSrc;18],
-    pub links: [bool;9],
+pub struct OutputState {
+    pub vols: [u8; 18],
+    pub mutes: [bool; 18],
+    pub srcs: [OutputSrc; 18],
+    pub links: [bool; 9],
 }
 
 const PARAMS_OFFSET: usize = 0x0f68;
@@ -136,7 +135,7 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         states: &mut OutputState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = vec![0; 4 * states.vols.len() * 3];
         presonus_read(req, node, PARAMS_OFFSET, &mut raw, timeout_ms)?;
@@ -148,27 +147,25 @@ impl FStudioProtocol {
                 u32::from_be_bytes(quadlet)
             })
             .collect();
-        states.vols.iter_mut()
-            .enumerate()
-            .for_each(|(i, vol)| {
-                let pos = i * 3;
-                *vol = quads[pos] as u8;
-            });
-        states.mutes.iter_mut()
-            .enumerate()
-            .for_each(|(i, mute)| {
-                let pos = 2 + i * 3;
-                *mute = quads[pos] > 0;
-            });
+        states.vols.iter_mut().enumerate().for_each(|(i, vol)| {
+            let pos = i * 3;
+            *vol = quads[pos] as u8;
+        });
+        states.mutes.iter_mut().enumerate().for_each(|(i, mute)| {
+            let pos = 2 + i * 3;
+            *mute = quads[pos] > 0;
+        });
 
-        let mut raw = vec![0;4 * states.srcs.len()];
+        let mut raw = vec![0; 4 * states.srcs.len()];
         presonus_read(req, node, SRC_OFFSET, &mut raw, timeout_ms)
             .map(|_| states.srcs.parse_quadlet_block(&raw))?;
 
-        let mut raw = [0;4];
+        let mut raw = [0; 4];
         presonus_read(req, node, LINK_OFFSET, &mut raw, timeout_ms)?;
         let val = u32::from_be_bytes(raw);
-        states.links.iter_mut()
+        states
+            .links
+            .iter_mut()
             .enumerate()
             .for_each(|(i, link)| *link = val & (1 << i) > 0);
 
@@ -180,12 +177,14 @@ impl FStudioProtocol {
         node: &mut FwNode,
         states: &mut OutputState,
         vols: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(vols.len(), states.vols.len());
 
         let mut raw = [0; 4];
-        states.vols.iter_mut()
+        states
+            .vols
+            .iter_mut()
             .zip(vols.iter())
             .enumerate()
             .filter(|(_, (old, new))| !new.eq(old))
@@ -202,12 +201,14 @@ impl FStudioProtocol {
         node: &mut FwNode,
         states: &mut OutputState,
         mutes: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(mutes.len(), states.mutes.len());
 
         let mut raw = [0; 4];
-        states.mutes.iter_mut()
+        states
+            .mutes
+            .iter_mut()
             .zip(mutes.iter())
             .enumerate()
             .filter(|(_, (old, new))| !new.eq(old))
@@ -224,12 +225,14 @@ impl FStudioProtocol {
         node: &mut FwNode,
         states: &mut OutputState,
         srcs: &[OutputSrc],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(srcs.len(), states.srcs.len());
 
         let mut raw = [0; 4];
-        states.srcs.iter_mut()
+        states
+            .srcs
+            .iter_mut()
             .zip(srcs.iter())
             .enumerate()
             .filter(|(_, (old, new))| !new.eq(old))
@@ -246,11 +249,12 @@ impl FStudioProtocol {
         node: &mut FwNode,
         states: &mut OutputState,
         links: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert_eq!(links.len(), states.links.len());
 
-        let val: u32 = links.iter()
+        let val: u32 = links
+            .iter()
             .enumerate()
             .filter(|(_, &link)| link)
             .fold(0u32, |val, (i, _)| val | (1 << i));
@@ -264,7 +268,7 @@ impl FStudioProtocol {
     pub fn read_bnc_terminate(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         let mut raw = [0; 4];
         presonus_read(req, node, BNC_TERMINATE_OFFSET, &mut raw, timeout_ms)
@@ -275,7 +279,7 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         terminate: bool,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         terminate.build_quadlet(&mut raw);
@@ -348,7 +352,7 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         offset: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<AssignTarget, Error> {
         let mut raw = [0; 4];
         presonus_read(req, node, offset, &mut raw, timeout_ms)
@@ -360,7 +364,7 @@ impl FStudioProtocol {
         node: &mut FwNode,
         offset: usize,
         target: AssignTarget,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         target.build_quadlet(&mut raw);
@@ -370,7 +374,7 @@ impl FStudioProtocol {
     pub fn read_main_assign_target(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<AssignTarget, Error> {
         Self::read_assign_target(req, node, MAIN_OFFSET, timeout_ms)
     }
@@ -379,7 +383,7 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         hp: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<AssignTarget, Error> {
         let offset = match hp {
             0 => HP01_OFFSET,
@@ -394,10 +398,8 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         target: AssignTarget,
-        timeout_ms: u32
-    )
-        -> Result<(), Error>
-    {
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         Self::write_assign_target(req, node, MAIN_OFFSET, target, timeout_ms)
     }
 
@@ -406,7 +408,7 @@ impl FStudioProtocol {
         node: &mut FwNode,
         hp: usize,
         target: AssignTarget,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let offset = match hp {
             0 => HP01_OFFSET,
@@ -451,17 +453,17 @@ impl From<ExpansionMode> for u32 {
 
 /// The structure to represent params of mixer sources.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct SrcParams{
-    pub gains: [u8;18],
-    pub pans: [u8;18],
-    pub mutes: [bool;18],
+pub struct SrcParams {
+    pub gains: [u8; 18],
+    pub pans: [u8; 18],
+    pub mutes: [bool; 18],
 }
 
 /// The structure to represent params of mixer outputs.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct OutParams{
-    pub vols: [u8;MIXER_COUNT],
-    pub mutes: [bool;MIXER_COUNT],
+pub struct OutParams {
+    pub vols: [u8; MIXER_COUNT],
+    pub mutes: [bool; MIXER_COUNT],
 }
 
 /// The number of mixers.
@@ -480,39 +482,32 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         offset: usize,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < MIXER_COUNT);
 
         let quad_count = 3 * (8 + 8 + 2);
-        let mut raw = vec![0;quad_count * 4];
+        let mut raw = vec![0; quad_count * 4];
         let pos = ch * quad_count * 4;
-        presonus_read(req, node, offset + pos, &mut raw, timeout_ms)
-            .map(|_| {
-                let mut quads = vec![0u32;quad_count];
-                quads.parse_quadlet_block(&raw);
+        presonus_read(req, node, offset + pos, &mut raw, timeout_ms).map(|_| {
+            let mut quads = vec![0u32; quad_count];
+            quads.parse_quadlet_block(&raw);
 
-                params.gains.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, gain)| {
-                        let pos = i * 3;
-                        *gain = quads[pos] as u8;
-                    });
+            params.gains.iter_mut().enumerate().for_each(|(i, gain)| {
+                let pos = i * 3;
+                *gain = quads[pos] as u8;
+            });
 
-                params.pans.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, pan)| {
-                        let pos = 1 + i * 3;
-                        *pan = quads[pos] as u8;
-                    });
+            params.pans.iter_mut().enumerate().for_each(|(i, pan)| {
+                let pos = 1 + i * 3;
+                *pan = quads[pos] as u8;
+            });
 
-                params.mutes.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, mute)| {
-                        let pos = 2 + i * 3;
-                        *mute = quads[pos] > 0;
-                    });
-            })
+            params.mutes.iter_mut().enumerate().for_each(|(i, mute)| {
+                let pos = 2 + i * 3;
+                *mute = quads[pos] > 0;
+            });
+        })
     }
 
     pub fn read_mixer_phys_src_params(
@@ -520,7 +515,7 @@ impl FStudioProtocol {
         node: &mut FwNode,
         params: &mut SrcParams,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::read_mixer_src_params(req, node, params, PHYS_SRC_PARAMS_OFFSET, ch, timeout_ms)
     }
@@ -530,9 +525,9 @@ impl FStudioProtocol {
         node: &mut FwNode,
         params: &mut SrcParams,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::read_mixer_src_params(req,  node, params, STREAM_SRC_PARAMS_OFFSET, ch, timeout_ms)
+        Self::read_mixer_src_params(req, node, params, STREAM_SRC_PARAMS_OFFSET, ch, timeout_ms)
     }
 
     pub fn write_mixer_src_gains(
@@ -542,13 +537,15 @@ impl FStudioProtocol {
         offset: usize,
         ch: usize,
         gains: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < MIXER_COUNT);
         assert_eq!(params.gains.len(), gains.len());
 
         let mut raw = [0; 4];
-        params.gains.iter_mut()
+        params
+            .gains
+            .iter_mut()
             .zip(gains.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -567,13 +564,15 @@ impl FStudioProtocol {
         offset: usize,
         ch: usize,
         pans: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < MIXER_COUNT);
         assert_eq!(params.pans.len(), pans.len());
 
         let mut raw = [0; 4];
-        params.pans.iter_mut()
+        params
+            .pans
+            .iter_mut()
             .zip(pans.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -581,8 +580,7 @@ impl FStudioProtocol {
                 (*new as u32).build_quadlet(&mut raw);
                 let mut pos = ch * 3 * (8 + 8 + 2) * 4;
                 pos += (i * 3 + 1) * 4;
-                presonus_write(req, node, offset + pos, &mut raw, timeout_ms)
-                    .map(|_| *old = *new)
+                presonus_write(req, node, offset + pos, &mut raw, timeout_ms).map(|_| *old = *new)
             })
     }
 
@@ -593,13 +591,15 @@ impl FStudioProtocol {
         offset: usize,
         ch: usize,
         mutes: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < MIXER_COUNT);
         assert_eq!(params.mutes.len(), mutes.len());
 
-        let mut raw = [0;4];
-        params.mutes.iter_mut()
+        let mut raw = [0; 4];
+        params
+            .mutes
+            .iter_mut()
             .zip(mutes.iter())
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
@@ -607,8 +607,7 @@ impl FStudioProtocol {
                 (*new as u32).build_quadlet(&mut raw);
                 let mut pos = ch * 3 * (8 + 8 + 2) * 4;
                 pos += (i * 3 + 2) * 4;
-                presonus_write(req, node, offset + pos, &mut raw, timeout_ms)
-                    .map(|_| *old = *new)
+                presonus_write(req, node, offset + pos, &mut raw, timeout_ms).map(|_| *old = *new)
             })
     }
     pub fn write_mixer_phys_src_gains(
@@ -617,9 +616,17 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         ch: usize,
         gains: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(req, node, params, PHYS_SRC_PARAMS_OFFSET, ch, gains, timeout_ms)
+        Self::write_mixer_src_gains(
+            req,
+            node,
+            params,
+            PHYS_SRC_PARAMS_OFFSET,
+            ch,
+            gains,
+            timeout_ms,
+        )
     }
 
     pub fn write_mixer_phys_src_pans(
@@ -628,9 +635,17 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         ch: usize,
         pans: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_mixer_src_pans(req, node, params, PHYS_SRC_PARAMS_OFFSET, ch, pans, timeout_ms)
+        Self::write_mixer_src_pans(
+            req,
+            node,
+            params,
+            PHYS_SRC_PARAMS_OFFSET,
+            ch,
+            pans,
+            timeout_ms,
+        )
     }
 
     pub fn write_mixer_phys_src_mutes(
@@ -639,9 +654,17 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         ch: usize,
         mutes: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_mixer_src_mutes(req, node, params, PHYS_SRC_PARAMS_OFFSET, ch, mutes, timeout_ms)
+        Self::write_mixer_src_mutes(
+            req,
+            node,
+            params,
+            PHYS_SRC_PARAMS_OFFSET,
+            ch,
+            mutes,
+            timeout_ms,
+        )
     }
 
     pub fn write_mixer_stream_src_gains(
@@ -650,9 +673,17 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         ch: usize,
         gains: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_mixer_src_gains(req, node, params, STREAM_SRC_PARAMS_OFFSET, ch, gains, timeout_ms)
+        Self::write_mixer_src_gains(
+            req,
+            node,
+            params,
+            STREAM_SRC_PARAMS_OFFSET,
+            ch,
+            gains,
+            timeout_ms,
+        )
     }
 
     pub fn write_mixer_stream_src_pans(
@@ -661,9 +692,17 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         ch: usize,
         pans: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_mixer_src_pans(req, node, params, STREAM_SRC_PARAMS_OFFSET, ch, pans, timeout_ms)
+        Self::write_mixer_src_pans(
+            req,
+            node,
+            params,
+            STREAM_SRC_PARAMS_OFFSET,
+            ch,
+            pans,
+            timeout_ms,
+        )
     }
 
     pub fn write_mixer_stream_src_mutes(
@@ -672,37 +711,40 @@ impl FStudioProtocol {
         params: &mut SrcParams,
         ch: usize,
         mutes: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        Self::write_mixer_src_mutes(req, node, params, STREAM_SRC_PARAMS_OFFSET, ch, mutes, timeout_ms)
+        Self::write_mixer_src_mutes(
+            req,
+            node,
+            params,
+            STREAM_SRC_PARAMS_OFFSET,
+            ch,
+            mutes,
+            timeout_ms,
+        )
     }
 
     pub fn read_mixer_out_params(
         req: &mut FwReq,
         node: &mut FwNode,
         params: &mut OutParams,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = vec![0; 3 * MIXER_COUNT * 4];
-        presonus_read(req, node, OUT_PARAMS_OFFSET, &mut raw, timeout_ms)
-            .map(|_| {
-                let mut quads = vec![0u32; 3 * MIXER_COUNT];
-                quads.parse_quadlet_block(&raw);
+        presonus_read(req, node, OUT_PARAMS_OFFSET, &mut raw, timeout_ms).map(|_| {
+            let mut quads = vec![0u32; 3 * MIXER_COUNT];
+            quads.parse_quadlet_block(&raw);
 
-                params.vols.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, vol)| {
-                        let pos = i * 3;
-                        *vol = quads[pos] as u8;
-                    });
+            params.vols.iter_mut().enumerate().for_each(|(i, vol)| {
+                let pos = i * 3;
+                *vol = quads[pos] as u8;
+            });
 
-                params.mutes.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, mute)| {
-                        let pos = i * 3 + 2;
-                        *mute = quads[pos] > 0;
-                    });
-            })
+            params.mutes.iter_mut().enumerate().for_each(|(i, mute)| {
+                let pos = i * 3 + 2;
+                *mute = quads[pos] > 0;
+            });
+        })
     }
 
     pub fn write_mixer_out_vol(
@@ -710,10 +752,12 @@ impl FStudioProtocol {
         node: &mut FwNode,
         params: &mut OutParams,
         vols: &[u8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        params.vols.iter_mut()
+        params
+            .vols
+            .iter_mut()
             .zip(vols.iter())
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
@@ -730,10 +774,12 @@ impl FStudioProtocol {
         node: &mut FwNode,
         params: &mut OutParams,
         mutes: &[bool],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        params.mutes.iter_mut()
+        params
+            .mutes
+            .iter_mut()
             .zip(mutes.iter())
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
@@ -748,7 +794,7 @@ impl FStudioProtocol {
     pub fn read_mixer_expansion_mode(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<ExpansionMode, Error> {
         let mut raw = [0; 4];
         presonus_read(req, node, EXPANSION_MODE_OFFSET, &mut raw, timeout_ms)
@@ -759,7 +805,7 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         mode: ExpansionMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         mode.build_quadlet(&mut raw);
@@ -773,20 +819,20 @@ impl FStudioProtocol {
         ch: usize,
         shift: usize,
         mask: u32,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < MIXER_COUNT);
         assert_eq!(links.len(), 9);
 
         let mut raw = [0; 4];
         let offset = ch * 4;
-        presonus_read(req, node, SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)
-            .map(|_| {
-                let val = u32::from_be_bytes(raw) & mask;
-                links.iter_mut()
-                    .enumerate()
-                    .for_each(|(i, link)| *link = val & (1 << (i + shift)) > 0);
-            })
+        presonus_read(req, node, SRC_LINK_OFFSET + offset, &mut raw, timeout_ms).map(|_| {
+            let val = u32::from_be_bytes(raw) & mask;
+            links
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, link)| *link = val & (1 << (i + shift)) > 0);
+        })
     }
 
     pub fn write_mixer_src_links(
@@ -796,14 +842,15 @@ impl FStudioProtocol {
         ch: usize,
         shift: usize,
         mask: u32,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         let offset = ch * 4;
         presonus_read(req, node, SRC_LINK_OFFSET + offset, &mut raw, timeout_ms)?;
 
         let mut val = u32::from_be_bytes(raw) & !mask;
-        links.iter()
+        links
+            .iter()
             .enumerate()
             .filter(|(_, &link)| link)
             .for_each(|(i, _)| val |= 1 << (i + shift));
@@ -816,8 +863,8 @@ impl FStudioProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         links: &mut [bool],
-        ch:usize,
-        timeout_ms: u32
+        ch: usize,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::read_mixer_src_links(req, node, links, ch, 0, 0x0000ffff, timeout_ms)
     }
@@ -827,7 +874,7 @@ impl FStudioProtocol {
         node: &mut FwNode,
         links: &mut [bool],
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::read_mixer_src_links(req, node, links, ch, 16, 0xffff0000, timeout_ms)
     }
@@ -837,7 +884,7 @@ impl FStudioProtocol {
         node: &mut FwNode,
         links: &[bool],
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_mixer_src_links(req, node, links, ch, 0, 0x0000ffff, timeout_ms)
     }
@@ -847,7 +894,7 @@ impl FStudioProtocol {
         node: &mut FwNode,
         links: &[bool],
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         Self::write_mixer_src_links(req, node, links, ch, 16, 0xffff0000, timeout_ms)
     }
