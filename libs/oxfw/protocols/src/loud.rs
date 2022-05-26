@@ -6,11 +6,7 @@
 //! The module includes protocol implementation defined by Loud Technologies for
 //! Tapco Link.FireWire 4x6.
 
-use glib::Error;
-
-use hinawa::FwFcp;
-
-use ta1394::{ccm::*, *};
+use super::*;
 
 /// The enumeration for source of capture.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

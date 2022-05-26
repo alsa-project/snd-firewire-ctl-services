@@ -3,9 +3,7 @@
 
 //! Protocol defined by Oxford Semiconductor, Inc for its FW970/971 ASICs.
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+use super::*;
 
 #[derive(Default, Debug)]
 pub struct OxfordProtocol;

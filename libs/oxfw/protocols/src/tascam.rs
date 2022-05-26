@@ -5,13 +5,7 @@
 //!
 //! The module includes protocol implementation defined by TASCAM for FireOne.
 
-use glib::Error;
-
-use hinawa::FwFcp;
-
-use ta1394::general::VendorDependent;
-use ta1394::{AvcAddr, AvcCmdType, AvcRespCode, Ta1394Avc, Ta1394AvcError};
-use ta1394::{AvcControl, AvcOp, AvcStatus};
+use super::*;
 
 const TEAC_OUI: [u8; 3] = [0x00, 0x02, 0x2e];
 
