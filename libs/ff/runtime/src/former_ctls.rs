@@ -19,14 +19,19 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
     fn state(&self) -> &FormerOutputVolumeState;
     fn state_mut(&mut self) -> &mut FormerOutputVolumeState;
 
-    const VOL_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
+    const VOL_TLV: DbInterval = DbInterval {
+        min: -9000,
+        max: 600,
+        linear: false,
+        mute_avail: false,
+    };
 
     fn load(
         &mut self,
         unit: &mut SndUnit,
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut state = T::create_output_volume_state();
         state.0.iter_mut().for_each(|vol| *vol = T::VOL_ZERO);
@@ -42,7 +47,7 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
             T::VOL_STEP,
             self.state().0.len(),
             Some(&Vec::<u32>::from(&Self::VOL_TLV)),
-            true
+            true,
         )?;
 
         Ok(())
@@ -53,7 +58,7 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
             VOL_NAME => {
                 elem_value.set_int(&self.state().0);
                 Ok(true)
-            },
+            }
             _ => Ok(false),
         }
     }
@@ -64,15 +69,21 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
         req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
                 let mut vals = self.state().0.to_vec();
                 new.get_int(&mut vals);
-                T::write_output_vols(req, &mut unit.get_node(), self.state_mut(), &vals, timeout_ms)
-                    .map(|_| true)
-            },
+                T::write_output_vols(
+                    req,
+                    &mut unit.get_node(),
+                    self.state_mut(),
+                    &vals,
+                    timeout_ms,
+                )
+                .map(|_| true)
+            }
             _ => Ok(false),
         }
     }
@@ -87,35 +98,45 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
     fn state(&self) -> &FormerMixerState;
     fn state_mut(&mut self) -> &mut FormerMixerState;
 
-    const GAIN_TLV: DbInterval = DbInterval{min: -9000, max: 600, linear: false, mute_avail: false};
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -9000,
+        max: 600,
+        linear: false,
+        mute_avail: false,
+    };
 
     fn load(
         &mut self,
         unit: &SndUnit,
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut state = T::create_mixer_state();
 
-        state.0.iter_mut()
-            .enumerate()
-            .for_each(|(i, mixer)| {
-                mixer.analog_gains.iter_mut()
-                    .for_each(|gain| *gain = T::GAIN_MIN);
-                mixer.spdif_gains.iter_mut()
-                    .for_each(|gain| *gain = T::GAIN_MIN);
-                mixer.adat_gains.iter_mut()
-                    .for_each(|gain| *gain = T::GAIN_MIN);
-                mixer.stream_gains.iter_mut()
-                    .nth(i)
-                    .map(|gain| *gain = T::GAIN_ZERO);
-            });
+        state.0.iter_mut().enumerate().for_each(|(i, mixer)| {
+            mixer
+                .analog_gains
+                .iter_mut()
+                .for_each(|gain| *gain = T::GAIN_MIN);
+            mixer
+                .spdif_gains
+                .iter_mut()
+                .for_each(|gain| *gain = T::GAIN_MIN);
+            mixer
+                .adat_gains
+                .iter_mut()
+                .for_each(|gain| *gain = T::GAIN_MIN);
+            mixer
+                .stream_gains
+                .iter_mut()
+                .nth(i)
+                .map(|gain| *gain = T::GAIN_ZERO);
+        });
 
-        (0..T::DST_COUNT)
-            .try_for_each(|i| {
-                T::init_mixer_src_gains(req, &mut unit.get_node(), &mut state, i, timeout_ms)
-            })?;
+        (0..T::DST_COUNT).try_for_each(|i| {
+            T::init_mixer_src_gains(req, &mut unit.get_node(), &mut state, i, timeout_ms)
+        })?;
         *self.state_mut() = state;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ANALOG_SRC_GAIN_NAME, 0);
@@ -127,7 +148,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             T::GAIN_STEP,
             T::ANALOG_INPUT_COUNT,
             Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true
+            true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, SPDIF_SRC_GAIN_NAME, 0);
@@ -139,7 +160,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             T::GAIN_STEP,
             T::SPDIF_INPUT_COUNT,
             Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true
+            true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ADAT_SRC_GAIN_NAME, 0);
@@ -151,7 +172,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             T::GAIN_STEP,
             T::ADAT_INPUT_COUNT,
             Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true
+            true,
         )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, STREAM_SRC_GAIN_NAME, 0);
@@ -163,7 +184,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             T::GAIN_STEP,
             T::STREAM_INPUT_COUNT,
             Some(&Vec::<u32>::from(&Self::GAIN_TLV)),
-            true
+            true,
         )?;
 
         Ok(())
@@ -201,7 +222,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
         req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ANALOG_SRC_GAIN_NAME => {
@@ -214,9 +235,9 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                     self.state_mut(),
                     index,
                     &gains,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -228,9 +249,9 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                     self.state_mut(),
                     index,
                     &gains,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -242,9 +263,9 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                     self.state_mut(),
                     index,
                     &gains,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -256,9 +277,9 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                     self.state_mut(),
                     index,
                     &gains,
-                    timeout_ms
+                    timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -278,14 +299,19 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
     fn meter(&self) -> &FormerMeterState;
     fn meter_mut(&mut self) -> &mut FormerMeterState;
 
-    const LEVEL_TLV: DbInterval = DbInterval{min: -9003, max: 600, linear: false, mute_avail: false};
+    const LEVEL_TLV: DbInterval = DbInterval {
+        min: -9003,
+        max: 600,
+        linear: false,
+        mute_avail: false,
+    };
 
     fn load(
         &mut self,
         unit: &mut SndUnit,
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut meter = T::create_meter_state();
         T::read_meter(req, &mut unit.get_node(), &mut meter, timeout_ms)?;
@@ -301,10 +327,12 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
             (ANALOG_OUTPUT_NAME, T::ANALOG_OUTPUT_COUNT),
             (SPDIF_OUTPUT_NAME, T::SPDIF_OUTPUT_COUNT),
             (ADAT_OUTPUT_NAME, T::ADAT_OUTPUT_COUNT),
-        ].iter()
-            .try_for_each(|&(name, count)| {
-                let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
-                card_cntr.add_int_elems(
+        ]
+        .iter()
+        .try_for_each(|&(name, count)| {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, name, 0);
+            card_cntr
+                .add_int_elems(
                     &elem_id,
                     1,
                     T::LEVEL_MIN,
@@ -312,18 +340,18 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
                     T::LEVEL_STEP,
                     count,
                     Some(&Vec::<u32>::from(&Self::LEVEL_TLV)),
-                    false
+                    false,
                 )
-                    .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
-            })
-                .map(|_| measured_elem_id_list)
+                .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))
+        })
+        .map(|_| measured_elem_id_list)
     }
 
     fn measure_states(
         &mut self,
         unit: &SndUnit,
         req: &mut FwReq,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         T::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
     }
