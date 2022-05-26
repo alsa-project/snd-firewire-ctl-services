@@ -3,7 +3,7 @@
 
 //! Protocol about port configuration.
 //!
-//! The crate includes protocol about port configuration defined by Echo Audio Digital Corporation
+//! The module includes protocol about port configuration defined by Echo Audio Digital Corporation
 //! for Fireworks board module.
 
 use glib::Error;

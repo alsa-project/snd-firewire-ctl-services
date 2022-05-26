@@ -3,7 +3,7 @@
 
 //! Protocol about hardware information.
 //!
-//! The crate includes protocol about hardware information defined by Echo Audio Digital Corporation
+//! The module includes protocol about hardware information defined by Echo Audio Digital Corporation
 //! for Fireworks board module.
 //!
 //! ## Table for capabilities retrieved from each Fireworks model

@@ -3,7 +3,7 @@
 
 //! Protocol about robot guitar.
 //!
-//! The crate includes protocol about robot guitar defined by Echo Audio Digital Corporation for
+//! The module includes protocol about robot guitar defined by Echo Audio Digital Corporation for
 //! Fireworks board module.
 
 use glib::Error;

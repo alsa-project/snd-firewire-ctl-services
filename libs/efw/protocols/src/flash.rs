@@ -3,7 +3,7 @@
 
 //! Protocol about operations for on-board flash memory.
 //!
-//! The crate includes protocol about operations for on-board flash memory defined by Echo Audio
+//! The module includes protocol about operations for on-board flash memory defined by Echo Audio
 //! Digital Corporation for Fireworks board module.
 
 use glib::{Error, FileError};
