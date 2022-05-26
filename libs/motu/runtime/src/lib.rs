@@ -34,7 +34,7 @@ use {
     core::RuntimeOperation,
     glib::{Error, FileError},
     hinawa::{FwNode, FwNodeExt, FwNodeExtManual},
-    hinawa::{SndMotu, SndMotuExt, SndUnitExt},
+    hitaki::{traits::*, *},
     ieee1212_config_rom::*,
     motu_protocols::{config_rom::*, *},
     std::convert::TryFrom,
@@ -60,10 +60,14 @@ pub enum MotuRuntime {
 
 impl RuntimeOperation<u32> for MotuRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
+        let cdev = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndMotu::new();
-        unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
+        unit.open(&cdev, 0)?;
 
-        let node = unit.get_node();
+        let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let node = FwNode::new();
+        node.open(&cdev)?;
+
         let data = node.get_config_rom()?;
         let unit_data = ConfigRom::try_from(data)
             .map_err(|e| {

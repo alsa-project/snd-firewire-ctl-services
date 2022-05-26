@@ -130,7 +130,7 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 

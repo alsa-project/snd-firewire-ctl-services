@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait for hardware mixer function expressed
 //! in registers.
 
-use {super::*, hinawa::SndMotuRegisterDspParameter};
+use {super::*, hitaki::SndMotuRegisterDspParameter};
 
 const EV_TYPE_MIXER_SRC_GAIN: u8 = 0x02;
 const EV_TYPE_MIXER_SRC_PAN: u8 = 0x03;

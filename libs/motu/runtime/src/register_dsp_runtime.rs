@@ -11,7 +11,6 @@ pub use {
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*},
     glib::source,
     hinawa::FwReq,
-    hinawa::{SndMotu, SndMotuExt, SndMotuExtManual, SndMotuRegisterDspParameter, SndUnitExt},
     motu_protocols::{register_dsp::*, version_2::*, version_3::*},
     nix::sys::signal::Signal,
     std::sync::mpsc,
@@ -243,7 +242,7 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
@@ -278,12 +277,13 @@ where
         });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_lock_status(move |_, locked| {
-            let _ = tx.send(Event::LockNotify(locked));
+        self.unit.0.connect_property_is_locked_notify(move |unit| {
+            let is_locked = unit.get_property_is_locked();
+            let _ = tx.send(Event::LockNotify(is_locked));
         });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_register_dsp_changed(move |_, events| {
+        self.unit.0.connect_changed(move |_, events| {
             let events = events
                 .iter()
                 .map(|&event| RegisterDspEvent::from(event))

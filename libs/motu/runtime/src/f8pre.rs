@@ -251,13 +251,11 @@ impl NotifyModel<(SndMotu, FwNode), bool> for F8pre {
         is_locked: &bool,
     ) -> Result<(), Error> {
         if *is_locked {
-            unit.0
-                .read_register_dsp_parameter(&mut self.params)
-                .map(|_| {
-                    self.mixer_output_ctl.parse_dsp_parameter(&self.params);
-                    self.mixer_source_ctl.parse_dsp_parameter(&self.params);
-                    self.output_ctl.parse_dsp_parameter(&self.params);
-                })
+            unit.0.read_parameter(&mut self.params).map(|_| {
+                self.mixer_output_ctl.parse_dsp_parameter(&self.params);
+                self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+                self.output_ctl.parse_dsp_parameter(&self.params);
+            })
         } else {
             Ok(())
         }
