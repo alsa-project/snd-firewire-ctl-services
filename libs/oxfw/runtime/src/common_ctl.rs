@@ -219,7 +219,7 @@ impl<'a> CommonCtl {
 
     pub fn write<O>(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         avc: &O,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -231,9 +231,9 @@ impl<'a> CommonCtl {
         match elem_id.get_name().as_str() {
             Self::CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    unit.lock()?;
+                    unit.0.lock()?;
                     let res = self.write_freq(avc, val as usize, timeout_ms);
-                    let _ = unit.unlock();
+                    let _ = unit.0.unlock();
                     res
                 })?;
                 Ok(true)

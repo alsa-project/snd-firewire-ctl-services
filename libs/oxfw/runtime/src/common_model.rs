@@ -13,9 +13,13 @@ impl<'a> CommonModel {
     const FCP_TIMEOUT_MS: u32 = 100;
 }
 
-impl CtlModel<SndUnit> for CommonModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for CommonModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
 
         self.common_ctl
             .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
@@ -25,7 +29,7 @@ impl CtlModel<SndUnit> for CommonModel {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -41,7 +45,7 @@ impl CtlModel<SndUnit> for CommonModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -57,18 +61,18 @@ impl CtlModel<SndUnit> for CommonModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for CommonModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for CommonModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
