@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use alsactl::CardError;
-use alsaseq::UserClientError;
-use glib::FileError;
-use hinawa::{FwNodeError, SndUnitError};
 
-use core::RuntimeOperation;
-
-use std::str::FromStr;
+use {
+    alsactl::CardError,
+    alsaseq::UserClientError,
+    core::RuntimeOperation,
+    glib::FileError,
+    hinawa::{FwNodeError, SndUnitError},
+    std::str::FromStr,
+};
 
 pub fn parse_arg_as_u32(arg: &str) -> Result<u32, String> {
     u32::from_str(arg).map_err(|e| {
