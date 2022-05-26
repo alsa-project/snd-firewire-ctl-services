@@ -42,7 +42,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
         self.extension_sections =
             ProtocolExtension::read_extension_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             &caps,
@@ -52,7 +52,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
         )?;
 
         self.tcd22xx_ctl.cache(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -98,7 +98,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -142,7 +142,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro24DspModel {
         )? {
             Ok(true)
         } else if self.tcd22xx_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -195,7 +195,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro24DspModel {
         self.ctl
             .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
         self.tcd22xx_ctl.parse_notification(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
@@ -240,7 +240,7 @@ impl MeasureModel<(SndDice, FwNode)> for SPro24DspModel {
         self.ctl
             .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.tcd22xx_ctl.measure_states(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,

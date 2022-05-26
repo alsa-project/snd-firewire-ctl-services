@@ -981,7 +981,7 @@ where
 {
     fn load(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         caps: &ClockCaps,
@@ -989,13 +989,11 @@ where
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
         self.tcd22xx_ctl_mut().caps =
-            CapsSectionProtocol::read_caps(req, &mut node, sections, timeout_ms)?;
+            CapsSectionProtocol::read_caps(req, &mut unit.1, sections, timeout_ms)?;
 
-        self.load_meter(&mut node, req, sections, timeout_ms, card_cntr)?;
-        self.load_router(&mut node, req, sections, caps, timeout_ms, card_cntr)?;
+        self.load_meter(&mut unit.1, req, sections, timeout_ms, card_cntr)?;
+        self.load_router(&mut unit.1, req, sections, caps, timeout_ms, card_cntr)?;
         self.load_mixer(card_cntr)?;
         self.load_standalone(caps, src_labels, card_cntr)?;
 
@@ -1004,20 +1002,19 @@ where
 
     fn cache(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         extension_sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut node = unit.get_node();
         let config =
-            GlobalSectionProtocol::read_clock_config(req, &mut node, &sections, timeout_ms)?;
+            GlobalSectionProtocol::read_clock_config(req, &mut unit.1, &sections, timeout_ms)?;
         let rate_mode = RateMode::from(config.rate);
 
         let ctls = self.tcd22xx_ctl_mut();
         T::cache(
-            &mut node,
+            &mut unit.1,
             req,
             extension_sections,
             &ctls.caps,
@@ -1029,7 +1026,7 @@ where
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -1041,7 +1038,7 @@ where
         } else if self.read_mixer(elem_id, elem_value)? {
             Ok(true)
         } else if self.read_standalone(
-            &mut unit.get_node(),
+            &mut unit.1,
             req,
             sections,
             elem_id,
@@ -1056,7 +1053,7 @@ where
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         elem_id: &ElemId,
@@ -1064,13 +1061,11 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let mut node = unit.get_node();
-
-        if self.write_router(&mut node, req, sections, elem_id, old, new, timeout_ms)? {
+        if self.write_router(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_mixer(&mut node, req, sections, elem_id, old, new, timeout_ms)? {
+        } else if self.write_mixer(&mut unit.1, req, sections, elem_id, old, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(&mut node, req, sections, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(&mut unit.1, req, sections, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1083,12 +1078,12 @@ where
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &ExtensionSections,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.measure_states_meter(&mut unit.get_node(), req, sections, timeout_ms)
+        self.measure_states_meter(&mut unit.1, req, sections, timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1102,7 +1097,7 @@ where
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         extension_sections: &ExtensionSections,
