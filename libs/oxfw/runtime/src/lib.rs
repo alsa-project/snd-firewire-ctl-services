@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-mod model;
-mod tascam_model;
 mod apogee_model;
+mod common_model;
 mod griffin_model;
 mod lacie_model;
 mod loud_model;
-mod common_model;
+mod model;
+mod tascam_model;
 
 mod common_ctl;
 
-use glib::{Error, FileError};
 use glib::source;
+use glib::{Error, FileError};
 
 use nix::sys::signal;
 use std::sync::mpsc;
 
-use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
+use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
 
-use core::RuntimeOperation;
-use core::dispatcher;
 use core::card_cntr;
+use core::dispatcher;
+use core::RuntimeOperation;
 
 use ieee1212_config_rom::ConfigRom;
 use ta1394::config_rom::Ta1394ConfigRom;
@@ -76,18 +76,18 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
 
         let node = unit.get_node();
         let raw = node.get_config_rom()?;
-        let config_rom = ConfigRom::try_from(raw)
-            .map_err(|e| {
-                let label = format!("Malformed configuration ROM detected: {}", e);
-                Error::new(FileError::Nxio, &label)
-            })?;
+        let config_rom = ConfigRom::try_from(raw).map_err(|e| {
+            let label = format!("Malformed configuration ROM detected: {}", e);
+            Error::new(FileError::Nxio, &label)
+        })?;
 
-        let (vendor, model) = config_rom.get_vendor()
-            .and_then(|vendor| {
-                config_rom.get_model()
-                    .map(|model| (vendor, model))
-            })
-            .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
+        let (vendor, model) = config_rom
+            .get_vendor()
+            .and_then(|vendor| config_rom.get_model().map(|model| (vendor, model)))
+            .ok_or(Error::new(
+                FileError::Nxio,
+                "Configuration ROM is not for 1394TA standard",
+            ))?;
 
         let model = OxfwModel::new(vendor.vendor_id, model.model_id)?;
 
@@ -115,8 +115,13 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
-                                                       Self::TIMER_NAME, 0);
+            let elem_id = alsactl::ElemId::new_by_name(
+                alsactl::ElemIfaceType::Mixer,
+                0,
+                0,
+                Self::TIMER_NAME,
+                0,
+            );
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -138,11 +143,20 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
                 }
                 Event::Elem((elem_id, events)) => {
                     if elem_id.get_name() != Self::TIMER_NAME {
-                        let _ = self.model.dispatch_elem_event(&mut self.unit, &mut self.card_cntr,
-                                                               &elem_id, &events);
+                        let _ = self.model.dispatch_elem_event(
+                            &mut self.unit,
+                            &mut self.card_cntr,
+                            &elem_id,
+                            &events,
+                        );
                     } else {
                         let mut elem_value = alsactl::ElemValue::new();
-                        if self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value).is_ok() {
+                        if self
+                            .card_cntr
+                            .card
+                            .read_elem_value(&elem_id, &mut elem_value)
+                            .is_ok()
+                        {
                             let mut vals = [false];
                             elem_value.get_bool(&mut vals);
                             if vals[0] {
@@ -154,10 +168,16 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
                     }
                 }
                 Event::Timer => {
-                    let _ = self.model.measure_elems(&mut self.unit, &mut self.card_cntr);
+                    let _ = self
+                        .model
+                        .measure_elems(&mut self.unit, &mut self.card_cntr);
                 }
                 Event::StreamLock(locked) => {
-                    let _ = self.model.dispatch_notification(&mut self.unit, &mut self.card_cntr, locked);
+                    let _ = self.model.dispatch_notification(
+                        &mut self.unit,
+                        &mut self.card_cntr,
+                        locked,
+                    );
                 }
             }
         }
@@ -221,9 +241,11 @@ impl<'a> OxfwRuntime {
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
-        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
-            let _ = tx.send(Event::Elem((elem_id.clone(), events)));
-        });
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let _ = tx.send(Event::Elem((elem_id.clone(), events)));
+            });
 
         self.dispatchers.push(dispatcher);
 
