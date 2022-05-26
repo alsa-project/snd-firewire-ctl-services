@@ -8,6 +8,7 @@ use {
     glib::{source, IsA, MainContext, MainLoop, Source},
     hinawa::{FwNode, FwNodeExt},
     hinawa::{SndUnit, SndUnitExt},
+    hitaki::{AlsaFirewire, AlsaFirewireExt},
     nix::sys::signal,
     std::{sync::Arc, thread, time::Duration},
 };
@@ -95,6 +96,20 @@ impl Dispatcher {
     {
         let src = client.create_source()?;
         self.attach_src_to_ctx(&src);
+        Ok(())
+    }
+
+    pub fn attach_alsa_firewire<U, F>(&mut self, unit: &U, disconnect_cb: F) -> Result<(), Error>
+    where
+        U: IsA<AlsaFirewire>,
+        F: Fn(&U) + Send + 'static,
+    {
+        let src = unit.create_source()?;
+
+        unit.connect_property_is_disconnected_notify(disconnect_cb);
+
+        self.attach_src_to_ctx(&src);
+
         Ok(())
     }
 
