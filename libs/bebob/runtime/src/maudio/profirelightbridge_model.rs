@@ -13,7 +13,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use bebob_protocols::{*, maudio::pfl::*};
+use bebob_protocols::{maudio::pfl::*, *};
 
 use crate::common_ctls::*;
 use crate::model::OUT_METER_NAME;
@@ -57,25 +57,38 @@ impl CtlModel<SndUnit> for PflModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load_state(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.meter_ctl
+            .load_state(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.input_params_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.input_params_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
@@ -86,14 +99,27 @@ impl CtlModel<SndUnit> for PflModel {
         }
     }
 
-    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.input_params_ctl.write_params(unit, &self.req, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self
+            .input_params_ctl
+            .write_params(unit, &self.req, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -110,9 +136,12 @@ impl MeasureModel<SndUnit> for PflModel {
         self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         self.meter_ctl.read_state(elem_id, elem_value)
     }
 }
@@ -126,10 +155,14 @@ impl NotifyModel<SndUnit, bool> for PflModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -205,12 +238,7 @@ impl MeterCtl {
         self.measure_state(unit, req, timeout_ms)
     }
 
-    fn measure_state(
-        &mut self,
-        unit: &SndUnit,
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn measure_state(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
         PflMeterProtocol::read_meter(req, &unit.get_node(), &mut self.0, timeout_ms)
     }
 

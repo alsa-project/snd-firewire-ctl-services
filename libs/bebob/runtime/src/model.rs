@@ -3,31 +3,31 @@
 
 use glib::{Error, FileError};
 
-use core::card_cntr;
 use card_cntr::{CtlModel, MeasureModel, NotifyModel};
+use core::card_cntr;
 
 use super::apogee::ensemble_model::EnsembleModel;
-use super::maudio::ozonic_model::OzonicModel;
-use super::maudio::solo_model::SoloModel;
-use super::maudio::audiophile_model::AudiophileModel;
-use super::maudio::fw410_model::Fw410Model;
-use super::maudio::profirelightbridge_model::PflModel;
-use super::maudio::special_model::*;
 use super::behringer::*;
 use super::digidesign::Mbox2proModel;
-use super::focusrite::saffirepro26io_model::*;
-use super::focusrite::saffirepro10io_model::*;
+use super::esi::Quatafire610Model;
 use super::focusrite::saffire_model::*;
 use super::focusrite::saffirele_model::*;
-use super::stanton::ScratchampModel;
-use super::esi::Quatafire610Model;
+use super::focusrite::saffirepro10io_model::*;
+use super::focusrite::saffirepro26io_model::*;
 use super::icon::FirexonModel;
-use super::presonus::fp10_model::*;
+use super::maudio::audiophile_model::AudiophileModel;
+use super::maudio::fw410_model::Fw410Model;
+use super::maudio::ozonic_model::OzonicModel;
+use super::maudio::profirelightbridge_model::PflModel;
+use super::maudio::solo_model::SoloModel;
+use super::maudio::special_model::*;
 use super::presonus::firebox_model::*;
+use super::presonus::fp10_model::*;
 use super::presonus::inspire1394_model::*;
+use super::roland::*;
+use super::stanton::ScratchampModel;
 use super::terratec::aureon_model::*;
 use super::terratec::phase88_model::*;
-use super::roland::*;
 use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
 
 pub struct BebobModel {
@@ -109,7 +109,7 @@ impl BebobModel {
             }
         };
 
-        let model = BebobModel{
+        let model = BebobModel {
             ctl_model,
             measure_elem_list: Vec::new(),
             notified_elem_list: Vec::new(),
@@ -118,9 +118,11 @@ impl BebobModel {
         Ok(model)
     }
 
-    pub fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn load(
+        &mut self,
+        unit: &mut hinawa::SndUnit,
+        card_cntr: &mut card_cntr::CardCntr,
+    ) -> Result<(), Error> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.load(unit, card_cntr),
             Model::BehringerFca610(m) => m.load(unit, card_cntr),
@@ -154,8 +156,12 @@ impl BebobModel {
 
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            Model::FocusriteSaffirePro26io(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
-            Model::FocusriteSaffirePro10io(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
+            Model::FocusriteSaffirePro26io(m) => {
+                m.get_measure_elem_list(&mut self.measure_elem_list)
+            }
+            Model::FocusriteSaffirePro10io(m) => {
+                m.get_measure_elem_list(&mut self.measure_elem_list)
+            }
             Model::FocusriteSaffire(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::FocusriteSaffireLe(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
             Model::MaudioOzonic(m) => m.get_measure_elem_list(&mut self.measure_elem_list),
@@ -174,8 +180,12 @@ impl BebobModel {
             Model::BehringerFca610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::DigidesignMbox2pro(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::EsiQuatafire610(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            Model::FocusriteSaffirePro26io(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
-            Model::FocusriteSaffirePro10io(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
+            Model::FocusriteSaffirePro26io(m) => {
+                m.get_notified_elem_list(&mut self.notified_elem_list)
+            }
+            Model::FocusriteSaffirePro10io(m) => {
+                m.get_notified_elem_list(&mut self.notified_elem_list)
+            }
             Model::FocusriteSaffire(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::FocusriteSaffireLe(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
             Model::IconFirexon(m) => m.get_notified_elem_list(&mut self.notified_elem_list),
@@ -201,19 +211,30 @@ impl BebobModel {
         Ok(())
     }
 
-    pub fn dispatch_elem_event(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr,
-                               elem_id: &alsactl::ElemId, events: &alsactl::ElemEventMask)
-        -> Result<(), Error>
-    {
+    pub fn dispatch_elem_event(
+        &mut self,
+        unit: &mut hinawa::SndUnit,
+        card_cntr: &mut card_cntr::CardCntr,
+        elem_id: &alsactl::ElemId,
+        events: &alsactl::ElemEventMask,
+    ) -> Result<(), Error> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::BehringerFca610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::DigidesignMbox2pro(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::DigidesignMbox2pro(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
             Model::EsiQuatafire610(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::FocusriteSaffirePro26io(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::FocusriteSaffirePro10io(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSaffirePro26io(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
+            Model::FocusriteSaffirePro10io(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
             Model::FocusriteSaffire(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::FocusriteSaffireLe(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::FocusriteSaffireLe(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
             Model::IconFirexon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioOzonic(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::MaudioSolo(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
@@ -224,10 +245,14 @@ impl BebobModel {
             Model::MaudioProjectMix(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFp10(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::PresonusFirebox(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::PresonusInspire1394(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::PresonusInspire1394(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
             Model::RolandFa101(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::RolandFa66(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
-            Model::StantonScratchamp(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
+            Model::StantonScratchamp(m) => {
+                card_cntr.dispatch_elem_event(unit, &elem_id, &events, m)
+            }
             Model::TerratecAureon(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TerratecPhase24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
             Model::TerratecPhaseX24(m) => card_cntr.dispatch_elem_event(unit, &elem_id, &events, m),
@@ -237,15 +262,23 @@ impl BebobModel {
         }
     }
 
-    pub fn measure_elems(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr)
-        -> Result<(), Error>
-    {
+    pub fn measure_elems(
+        &mut self,
+        unit: &mut hinawa::SndUnit,
+        card_cntr: &mut card_cntr::CardCntr,
+    ) -> Result<(), Error> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            Model::FocusriteSaffirePro26io(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            Model::FocusriteSaffirePro10io(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::FocusriteSaffirePro26io(m) => {
+                card_cntr.measure_elems(unit, &self.measure_elem_list, m)
+            }
+            Model::FocusriteSaffirePro10io(m) => {
+                card_cntr.measure_elems(unit, &self.measure_elem_list, m)
+            }
             Model::FocusriteSaffire(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            Model::FocusriteSaffireLe(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::FocusriteSaffireLe(m) => {
+                card_cntr.measure_elems(unit, &self.measure_elem_list, m)
+            }
             Model::MaudioOzonic(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioSolo(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioAudiophile(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
@@ -253,40 +286,95 @@ impl BebobModel {
             Model::MaudioPfl(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioFw1814(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
             Model::MaudioProjectMix(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
-            Model::PresonusInspire1394(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            Model::PresonusInspire1394(m) => {
+                card_cntr.measure_elems(unit, &self.measure_elem_list, m)
+            }
             _ => Ok(()),
         }
     }
 
-    pub fn dispatch_stream_lock(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut card_cntr::CardCntr, notice: bool)
-        -> Result<(), Error>
-    {
+    pub fn dispatch_stream_lock(
+        &mut self,
+        unit: &mut hinawa::SndUnit,
+        card_cntr: &mut card_cntr::CardCntr,
+        notice: bool,
+    ) -> Result<(), Error> {
         match &mut self.ctl_model {
-            Model::ApogeeEnsemble(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::BehringerFca610(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::DigidesignMbox2pro(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::EsiQuatafire610(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::FocusriteSaffirePro26io(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::FocusriteSaffirePro10io(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::FocusriteSaffire(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::FocusriteSaffireLe(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::IconFirexon(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioOzonic(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioSolo(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioAudiophile(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioFw410(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioPfl(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioFw1814(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::MaudioProjectMix(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::PresonusFirebox(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::PresonusInspire1394(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::StantonScratchamp(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::TerratecAureon(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::TerratecPhase88(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::TerratecPhase24(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::TerratecPhaseX24(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::YamahaGo44(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
-            Model::YamahaGo46(m) => card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m),
+            Model::ApogeeEnsemble(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::BehringerFca610(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::DigidesignMbox2pro(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::EsiQuatafire610(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::FocusriteSaffirePro26io(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::FocusriteSaffirePro10io(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::FocusriteSaffire(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::FocusriteSaffireLe(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::IconFirexon(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioOzonic(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioSolo(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioAudiophile(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioFw410(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioPfl(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioFw1814(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::MaudioProjectMix(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::PresonusFirebox(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::PresonusInspire1394(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::StantonScratchamp(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::TerratecAureon(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::TerratecPhase88(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::TerratecPhase24(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::TerratecPhaseX24(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::YamahaGo44(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
+            Model::YamahaGo46(m) => {
+                card_cntr.dispatch_notification(unit, &notice, &self.notified_elem_list, m)
+            }
             _ => Ok(()),
         }
     }

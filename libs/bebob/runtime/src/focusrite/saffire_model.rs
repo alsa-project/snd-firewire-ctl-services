@@ -10,11 +10,14 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, focusrite::{*, saffire::*}};
+use bebob_protocols::{
+    focusrite::{saffire::*, *},
+    *,
+};
 
+use super::*;
 use crate::common_ctls::*;
 use crate::model::IN_METER_NAME;
-use super::*;
 
 #[derive(Default)]
 pub struct SaffireModel {
@@ -61,7 +64,10 @@ impl AsMut<SaffireOutputParameters> for OutputCtl {
 
 impl SaffireOutputCtlOperation<SaffireOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "analog-output-7/8",
+        "analog-output-1/2",
+        "analog-output-3/4",
+        "analog-output-5/6",
+        "analog-output-7/8",
         "digital-output-1/2",
     ];
 }
@@ -119,36 +125,50 @@ impl SaffireMixerCtlOperation<SaffirePairedMixerProtocol> for PairedMixerCtl {
 struct ReverbCtl(SaffireReverbParameters);
 
 impl CtlModel<SndUnit> for SaffireModel {
-    fn load(
-        &mut self,
-        unit: &mut SndUnit,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load_meter(card_cntr, unit, &self.req, TIMEOUT_MS)
+        self.meter_ctl
+            .load_meter(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
-        self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+        self.out_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
-        self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.specific_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.separated_mixer_ctl.load_src_levels(card_cntr, self.specific_ctl.0.mixer_mode, unit,
-                                                 &self.req, TIMEOUT_MS)
+        self.separated_mixer_ctl
+            .load_src_levels(
+                card_cntr,
+                self.specific_ctl.0.mixer_mode,
+                unit,
+                &self.req,
+                TIMEOUT_MS,
+            )
             .map(|measured_elem_id_list| self.separated_mixer_ctl.0 = measured_elem_id_list)?;
 
-        self.paired_mixer_ctl.load_src_levels(card_cntr, self.specific_ctl.0.mixer_mode, unit,
-                                              &self.req, TIMEOUT_MS)
+        self.paired_mixer_ctl
+            .load_src_levels(
+                card_cntr,
+                self.specific_ctl.0.mixer_mode,
+                unit,
+                &self.req,
+                TIMEOUT_MS,
+            )
             .map(|measured_elem_id_list| self.paired_mixer_ctl.0 = measured_elem_id_list)?;
 
-        self.reverb_ctl.load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.reverb_ctl
+            .load_params(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -159,9 +179,15 @@ impl CtlModel<SndUnit> for SaffireModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
@@ -169,7 +195,10 @@ impl CtlModel<SndUnit> for SaffireModel {
             Ok(true)
         } else if self.specific_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.separated_mixer_ctl.read_src_levels(elem_id, elem_value)? {
+        } else if self
+            .separated_mixer_ctl
+            .read_src_levels(elem_id, elem_value)?
+        {
             Ok(true)
         } else if self.paired_mixer_ctl.read_src_levels(elem_id, elem_value)? {
             Ok(true)
@@ -187,23 +216,53 @@ impl CtlModel<SndUnit> for SaffireModel {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .out_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.specific_ctl.write_params(&mut self.separated_mixer_ctl,
-                                                 &mut self.paired_mixer_ctl, unit, &self.req,
-                                                 elem_id, new, TIMEOUT_MS)? {
+        } else if self.specific_ctl.write_params(
+            &mut self.separated_mixer_ctl,
+            &mut self.paired_mixer_ctl,
+            unit,
+            &self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.separated_mixer_ctl.write_src_levels(self.specific_ctl.0.mixer_mode, unit,
-                                                            &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self.separated_mixer_ctl.write_src_levels(
+            self.specific_ctl.0.mixer_mode,
+            unit,
+            &self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.paired_mixer_ctl.write_src_levels(self.specific_ctl.0.mixer_mode, unit,
-                                                         &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self.paired_mixer_ctl.write_src_levels(
+            self.specific_ctl.0.mixer_mode,
+            unit,
+            &self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.reverb_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .reverb_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -220,10 +279,14 @@ impl NotifyModel<SndUnit, bool> for SaffireModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -241,14 +304,20 @@ impl MeasureModel<SndUnit> for SaffireModel {
         Ok(())
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.separated_mixer_ctl.read_src_levels(elem_id, elem_value)? {
+        } else if self
+            .separated_mixer_ctl
+            .read_src_levels(elem_id, elem_value)?
+        {
             Ok(true)
         } else if self.paired_mixer_ctl.read_src_levels(elem_id, elem_value)? {
             Ok(true)
@@ -262,8 +331,10 @@ impl MeterCtl {
     const METER_DIG_INPUT_DETECT_NAME: &'static str = "digital-input-detection";
 
     const PHYS_INPUT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
     ];
 
     fn load_meter(
@@ -273,7 +344,6 @@ impl MeterCtl {
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-
         let mut measured_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, IN_METER_NAME, 0);
@@ -362,21 +432,24 @@ impl SpecificCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MODE_192_KHZ_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, true)
-            .map(|_| ())?;
+        card_cntr.add_bool_elems(&elem_id, 1, 1, true).map(|_| ())?;
 
-        let labels: Vec<&str> = Self::INPUT_PAIR_1_SRCS.iter()
+        let labels: Vec<&str> = Self::INPUT_PAIR_1_SRCS
+            .iter()
             .map(|src| input_pair_1_src_to_str(src))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PAIR_1_SRC_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())?;
 
-        let labels: Vec<&str> = Self::MIXER_MODES.iter()
+        let labels: Vec<&str> = Self::MIXER_MODES
+            .iter()
             .map(|mode| mixer_mode_to_str(mode))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MODE_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|_| ())?;
 
         SaffireSpecificProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)?;
@@ -384,25 +457,23 @@ impl SpecificCtl {
         Ok(())
     }
 
-    fn read_params(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MODE_192_KHZ_NAME => {
                 elem_value.set_bool(&[self.0.mode_192khz]);
                 Ok(true)
             }
             INPUT_PAIR_1_SRC_NAME => {
-                let pos = Self::INPUT_PAIR_1_SRCS.iter()
+                let pos = Self::INPUT_PAIR_1_SRCS
+                    .iter()
                     .position(|s| s.eq(&self.0.input_pair_1_src))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             MIXER_MODE_NAME => {
-                let pos = Self::MIXER_MODES.iter()
+                let pos = Self::MIXER_MODES
+                    .iter()
                     .position(|m| m.eq(&self.0.mixer_mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -433,12 +504,13 @@ impl SpecificCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             INPUT_PAIR_1_SRC_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &src = Self::INPUT_PAIR_1_SRCS.iter()
+                let &src = Self::INPUT_PAIR_1_SRCS
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index for source of input pair 1: {}", vals[0]);
@@ -451,12 +523,13 @@ impl SpecificCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIXER_MODE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &mode = Self::MIXER_MODES.iter()
+                let &mode = Self::MIXER_MODES
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index for mode of mixer: {}", vals[0]);
@@ -545,11 +618,7 @@ impl ReverbCtl {
         SaffireReverbProtocol::read_params(req, &mut unit.get_node(), &mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             REVERB_AMOUNT_NAME => {
                 elem_value.set_int(&self.0.amounts);
@@ -588,8 +657,9 @@ impl ReverbCtl {
                     &mut unit.get_node(),
                     &vals,
                     &mut self.0,
-                    timeout_ms
-                ).map(|_| true)
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             REVERB_ROOM_SIZE_NAME => {
                 let mut vals = [0; 2];
@@ -599,8 +669,9 @@ impl ReverbCtl {
                     &mut unit.get_node(),
                     &vals,
                     &mut self.0,
-                    timeout_ms
-                ).map(|_| true)
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             REVERB_DIFFUSION_NAME => {
                 let mut vals = [0; 2];
@@ -610,8 +681,9 @@ impl ReverbCtl {
                     &mut unit.get_node(),
                     &vals,
                     &mut self.0,
-                    timeout_ms
-                ).map(|_| true)
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             REVERB_TONE_NAME => {
                 let mut vals = [0; 2];
@@ -621,8 +693,9 @@ impl ReverbCtl {
                     &mut unit.get_node(),
                     &vals,
                     &mut self.0,
-                    timeout_ms
-                ).map(|_| true)
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -653,7 +726,9 @@ mod test {
         let unit = SndUnit::default();
         let req = FwReq::default();
 
-        let error = ctl.load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS).unwrap_err();
+        let error = ctl
+            .load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS)
+            .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

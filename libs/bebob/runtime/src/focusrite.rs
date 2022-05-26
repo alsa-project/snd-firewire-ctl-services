@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-pub mod saffirepro26io_model;
 pub mod saffirepro10io_model;
+pub mod saffirepro26io_model;
 
 pub mod saffire_model;
 pub mod saffirele_model;
@@ -19,7 +19,7 @@ use alsa_ctl_tlv_codec::items::DbInterval;
 use core::card_cntr::CardCntr;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use bebob_protocols::focusrite::{*, saffire::*, saffireproio::*};
+use bebob_protocols::focusrite::{saffire::*, saffireproio::*, *};
 
 use crate::model::{CLK_RATE_NAME, CLK_SRC_NAME};
 
@@ -85,7 +85,8 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
     fn load_src(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
         let mut elem_id_list = Vec::new();
 
-        let labels: Vec<&str> = T::SRC_LIST.iter()
+        let labels: Vec<&str> = T::SRC_LIST
+            .iter()
             .map(|s| sampling_clk_src_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_SRC_NAME, 0);
@@ -142,7 +143,7 @@ const DIM_LED_NAME: &str = "dim-led";
 const EFFECTIVE_CLOCK_SRC_NAME: &str = "effective-clock-source";
 
 trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
-AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
+    AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
 {
     fn load_state(
         &mut self,
@@ -154,18 +155,22 @@ AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
         let mut measured_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MONITOR_KNOB_VALUE_NAME, 0);
-        card_cntr.add_int_elems(&elem_id, 1, 0, u8::MIN as i32, 1, 1, None, false)
+        card_cntr
+            .add_int_elems(&elem_id, 1, 0, u8::MIN as i32, 1, 1, None, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_LED_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, false)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_LED_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, 1, false)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = T::SRC_LIST.iter()
+        let labels: Vec<&str> = T::SRC_LIST
+            .iter()
             .map(|s| sampling_clk_src_to_str(s))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, EFFECTIVE_CLOCK_SRC_NAME, 0);
@@ -178,20 +183,11 @@ AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
         Ok(measured_elem_id_list)
     }
 
-    fn measure_state(
-        &mut self,
-        unit: &SndUnit,
-        req: &FwReq,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn measure_state(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
         T::read_state(req, &unit.get_node(), self.as_mut(), timeout_ms)
     }
 
-    fn read_state(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MONITOR_KNOB_VALUE_NAME => {
                 elem_value.set_int(&[self.as_ref().monitor_knob as i32]);
@@ -206,7 +202,8 @@ AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
                 Ok(true)
             }
             EFFECTIVE_CLOCK_SRC_NAME => {
-                let pos = T::SRC_LIST.iter()
+                let pos = T::SRC_LIST
+                    .iter()
                     .position(|s| s.eq(&self.as_ref().effective_clk_srcs))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -231,7 +228,7 @@ const LEVEL_TLV: DbInterval = DbInterval {
 };
 
 trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
-AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
+    AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
 {
     const OUTPUT_LABELS: &'static [&'static str];
 
@@ -297,7 +294,12 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
         Ok(measure_elem_id_list)
     }
 
-    fn measure_params(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
+    fn measure_params(
+        &mut self,
+        unit: &SndUnit,
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
         T::read_output_parameters(req, &unit.get_node(), self.as_mut(), false, timeout_ms)
     }
 
@@ -308,9 +310,7 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
                 Ok(true)
             }
             OUT_VOL_NAME => {
-                let vals: Vec<i32> = self.as_ref().vols.iter()
-                    .map(|&val| val as i32)
-                    .collect();
+                let vals: Vec<i32> = self.as_ref().vols.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
@@ -349,8 +349,7 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
                 let mut vals = vec![Default::default(); self.as_ref().vols.len()];
                 elem_value.get_int(&mut vals);
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
-                T::write_vols(req, &unit.get_node(), &vols, self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_vols(req, &unit.get_node(), &vols, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_HWCTL_NAME => {
                 let mut vals = self.as_ref().hwctls.clone();
@@ -361,14 +360,12 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
             OUT_DIM_NAME => {
                 let mut vals = self.as_ref().dims.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_dims(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_dims(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_PAD_NAME => {
                 let mut vals = self.as_ref().pads.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_pads(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_pads(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -376,7 +373,7 @@ AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
 }
 
 trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
-AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
+    AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
 {
     const PHYS_INPUT_GAIN_NAME: &'static str;
     const REVERB_RETURN_GAIN_NAME: &'static str;
@@ -396,13 +393,8 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
 
         let mut measured_elem_id_list = Vec::new();
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            Self::PHYS_INPUT_GAIN_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::PHYS_INPUT_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -416,13 +408,8 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
             )
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            Self::REVERB_RETURN_GAIN_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::REVERB_RETURN_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -436,13 +423,8 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
             )
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            Self::STREAM_SRC_GAIN_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::STREAM_SRC_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -467,11 +449,7 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
         T::write_mixer_state(req, &unit.get_node(), self.as_mut(), timeout_ms)
     }
 
-    fn read_src_levels(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_src_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         let name = elem_id.get_name();
 
         if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
@@ -498,7 +476,10 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
 
         if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
-                Err(Error::new(FileError::Inval, "Not available at current mixer mode"))
+                Err(Error::new(
+                    FileError::Inval,
+                    "Not available at current mixer mode",
+                ))
             } else {
                 let mut vals = vec![0i32; T::PHYS_INPUT_COUNT];
                 elem_value.get_int(&mut vals);
@@ -507,13 +488,22 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
                     levels
                 });
                 let index = elem_id.get_index() as usize;
-                T::write_phys_inputs(req, &unit.get_node(), index, &levels, self.as_mut(),
-                                     timeout_ms)
-                    .map(|_| true)
+                T::write_phys_inputs(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    self.as_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
         } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
-                Err(Error::new(FileError::Inval, "Not available at current mixer mode"))
+                Err(Error::new(
+                    FileError::Inval,
+                    "Not available at current mixer mode",
+                ))
             } else {
                 let mut vals = vec![0i32; T::REVERB_RETURN_COUNT];
                 elem_value.get_int(&mut vals);
@@ -522,13 +512,22 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
                     levels
                 });
                 let index = elem_id.get_index() as usize;
-                T::write_reverb_returns(req, &unit.get_node(), index, &levels, self.as_mut(),
-                                        timeout_ms)
-                    .map(|_| true)
+                T::write_reverb_returns(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    self.as_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
         } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
-                Err(Error::new(FileError::Inval, "Not available at current mixer mode"))
+                Err(Error::new(
+                    FileError::Inval,
+                    "Not available at current mixer mode",
+                ))
             } else {
                 let mut vals = vec![0i32; T::STREAM_INPUT_COUNT];
                 elem_value.get_int(&mut vals);
@@ -537,9 +536,15 @@ AsRef<SaffireMixerState> + AsMut<SaffireMixerState>
                     levels
                 });
                 let index = elem_id.get_index() as usize;
-                T::write_stream_inputs(req, &unit.get_node(), index, &levels, self.as_mut(),
-                                       timeout_ms)
-                    .map(|_| true)
+                T::write_stream_inputs(
+                    req,
+                    &unit.get_node(),
+                    index,
+                    &levels,
+                    self.as_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
         } else {
             Ok(false)
@@ -553,18 +558,18 @@ fn read_mixer_src_levels(
     levels_list: &[Vec<i16>],
 ) -> Result<bool, Error> {
     let index = elem_id.get_index() as usize;
-    levels_list.iter()
+    levels_list
+        .iter()
         .nth(index)
         .ok_or_else(|| {
             let msg = format!("Invalid index of source level list {}", index);
             Error::new(FileError::Inval, &msg)
         })
         .map(|levels| {
-            let vals: Vec<i32> = levels.iter()
-                .fold(Vec::new(), |mut vals, &level| {
-                    vals.push(level as i32);
-                    vals
-                });
+            let vals: Vec<i32> = levels.iter().fold(Vec::new(), |mut vals, &level| {
+                vals.push(level as i32);
+                vals
+            });
             elem_value.set_int(&vals);
             true
         })
@@ -575,25 +580,11 @@ const AC3_THROUGH_NAME: &str = "AC3-through";
 
 trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
     fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Card,
-            0,
-            0,
-            MIDI_THROUGH_NAME,
-            0,
-        );
-        card_cntr
-            .add_bool_elems(&elem_id, 1, 1, false)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIDI_THROUGH_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Card,
-            0,
-            0,
-            AC3_THROUGH_NAME,
-            0,
-        );
-        card_cntr
-            .add_bool_elems(&elem_id, 1, 1, false)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, AC3_THROUGH_NAME, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
 
         Ok(())
     }
@@ -635,14 +626,12 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
             MIDI_THROUGH_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_midi_through(req, &unit.get_node(), vals[0], timeout_ms)
-                    .map(|_| true)
+                T::write_midi_through(req, &unit.get_node(), vals[0], timeout_ms).map(|_| true)
             }
             AC3_THROUGH_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_ac3_through(req, &unit.get_node(), vals[0], timeout_ms)
-                    .map(|_| true)
+                T::write_ac3_through(req, &unit.get_node(), vals[0], timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -654,7 +643,7 @@ const PRO_MONITOR_SPDIF_INPUT_NAME: &str = "monitor:spdif-input";
 const PRO_MONITOR_ADAT_INPUT_NAME: &str = "monitor:adat-input";
 
 trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
-AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
+    AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
 {
     fn load_params(
         &mut self,
@@ -665,13 +654,8 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
     ) -> Result<(), Error> {
         *self.as_mut() = T::create_params();
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            PRO_MONITOR_ANALOG_INPUT_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MONITOR_ANALOG_INPUT_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -685,13 +669,8 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
             )
             .map(|_| ())?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            PRO_MONITOR_SPDIF_INPUT_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MONITOR_SPDIF_INPUT_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -706,13 +685,8 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
             .map(|_| ())?;
 
         if let Some(adat_inputs) = self.as_ref().adat_inputs {
-            let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Mixer,
-                0,
-                0,
-                PRO_MONITOR_ADAT_INPUT_NAME,
-                0,
-            );
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MONITOR_ADAT_INPUT_NAME, 0);
             card_cntr
                 .add_int_elems(
                     &elem_id,
@@ -730,15 +704,12 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
         T::read_params(req, &unit.get_node(), self.as_mut(), timeout_ms)
     }
 
-    fn read_params(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRO_MONITOR_ANALOG_INPUT_NAME => {
                 let idx = elem_id.get_index() as usize;
-                let vals: Vec<i32> = self.as_ref().analog_inputs[idx].iter()
+                let vals: Vec<i32> = self.as_ref().analog_inputs[idx]
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -746,7 +717,8 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.get_index() as usize;
-                let vals: Vec<i32> = self.as_ref().spdif_inputs[idx].iter()
+                let vals: Vec<i32> = self.as_ref().spdif_inputs[idx]
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -755,9 +727,7 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if let Some(adat_inputs) = self.as_ref().adat_inputs {
                     let idx = elem_id.get_index() as usize;
-                    let vals: Vec<i32> = adat_inputs[idx].iter()
-                        .map(|&val| val as i32)
-                        .collect();
+                    let vals: Vec<i32> = adat_inputs[idx].iter().map(|&val| val as i32).collect();
                     elem_value.set_int(&vals);
                     Ok(true)
                 } else {
@@ -781,9 +751,7 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
                 let idx = elem_id.get_index() as usize;
                 let mut vals = vec![0; self.as_ref().analog_inputs[idx].len()];
                 elem_value.get_int(&mut vals);
-                let levels: Vec<i16> = vals.iter()
-                    .map(|&level| level as i16)
-                    .collect();
+                let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 T::write_analog_inputs(
                     req,
                     &unit.get_node(),
@@ -792,15 +760,13 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
                     self.as_mut(),
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.get_index() as usize;
                 let mut vals = vec![0; self.as_ref().spdif_inputs[idx].len()];
                 elem_value.get_int(&mut vals);
-                let levels: Vec<i16> = vals.iter()
-                    .map(|&level| level as i16)
-                    .collect();
+                let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 T::write_spdif_inputs(
                     req,
                     &unit.get_node(),
@@ -809,15 +775,13 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
                     self.as_mut(),
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if T::HAS_ADAT {
                     let mut vals = vec![0; 16];
                     elem_value.get_int(&mut vals);
-                    let levels: Vec<i16> = vals.iter()
-                        .map(|&level| level as i16)
-                        .collect();
+                    let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                     let idx = elem_id.get_index() as usize;
                     T::write_adat_inputs(
                         req,
@@ -827,7 +791,7 @@ AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
                         self.as_mut(),
                         timeout_ms,
                     )
-                        .map(|_| true)
+                    .map(|_| true)
                 } else {
                     Ok(false)
                 }
@@ -852,13 +816,8 @@ impl SaffireProioMixerCtl {
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            PRO_MIXER_MONITOR_SRC_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MIXER_MONITOR_SRC_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -892,13 +851,7 @@ impl SaffireProioMixerCtl {
             )
             .map(|_| ())?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            PRO_MIXER_STREAM_SRC_NAME,
-            0,
-        );
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MIXER_STREAM_SRC_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -915,28 +868,33 @@ impl SaffireProioMixerCtl {
         SaffireProioMixerProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRO_MIXER_MONITOR_SRC_NAME => {
-                let vals: Vec<i32> = self.0.monitor_sources.iter()
+                let vals: Vec<i32> = self
+                    .0
+                    .monitor_sources
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
-                let vals: Vec<i32> = self.0.stream_source_pair0.iter()
+                let vals: Vec<i32> = self
+                    .0
+                    .stream_source_pair0
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             PRO_MIXER_STREAM_SRC_NAME => {
-                let vals: Vec<i32> = self.0.stream_sources.iter()
+                let vals: Vec<i32> = self
+                    .0
+                    .stream_sources
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -958,9 +916,7 @@ impl SaffireProioMixerCtl {
             PRO_MIXER_MONITOR_SRC_NAME => {
                 let mut vals = vec![0; self.0.monitor_sources.len()];
                 elem_value.get_int(&mut vals);
-                let levels: Vec<i16> = vals.iter()
-                    .map(|&level| level as i16)
-                    .collect();
+                let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_monitor_sources(
                     req,
                     &unit.get_node(),
@@ -968,14 +924,12 @@ impl SaffireProioMixerCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
                 let mut vals = vec![0; self.0.stream_source_pair0.len()];
                 elem_value.get_int(&mut vals);
-                let levels: Vec<i16> = vals.iter()
-                    .map(|&level| level as i16)
-                    .collect();
+                let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_source_pair0(
                     req,
                     &unit.get_node(),
@@ -983,14 +937,12 @@ impl SaffireProioMixerCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_NAME => {
                 let mut vals = vec![0; self.0.stream_sources.len()];
                 elem_value.get_int(&mut vals);
-                let levels: Vec<i16> = vals.iter()
-                    .map(|&level| level as i16)
-                    .collect();
+                let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_sources(
                     req,
                     &unit.get_node(),
@@ -998,7 +950,7 @@ impl SaffireProioMixerCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -1020,7 +972,7 @@ fn standalone_mode_to_str(mode: &SaffireProioStandaloneMode) -> &str {
 }
 
 trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
-AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
+    AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
 {
     const STANDALONE_MODES: [SaffireProioStandaloneMode; 2] = [
         SaffireProioStandaloneMode::Mix,
@@ -1047,7 +999,8 @@ AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
             card_cntr.add_bool_elems(&elem_id, 1, 2, true)?;
         }
 
-        let labels: Vec<&str> = Self::STANDALONE_MODES.iter()
+        let labels: Vec<&str> = Self::STANDALONE_MODES
+            .iter()
             .map(|m| standalone_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, STANDALONE_MODE_NAME, 0);
@@ -1060,14 +1013,10 @@ AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         *self.as_mut() = T::create_params();
-        T::read_params(req, &unit.get_node(), self.as_mut(),timeout_ms)
+        T::read_params(req, &unit.get_node(), self.as_mut(), timeout_ms)
     }
 
-    fn read_params(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             HEAD_ROOM_NAME => {
                 elem_value.set_bool(&[self.as_ref().head_room]);
@@ -1082,7 +1031,8 @@ AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
                 Ok(true)
             }
             STANDALONE_MODE_NAME => {
-                let pos = Self::STANDALONE_MODES.iter()
+                let pos = Self::STANDALONE_MODES
+                    .iter()
                     .position(|m| m.eq(&self.as_ref().standalone_mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -1130,7 +1080,8 @@ AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
             STANDALONE_MODE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &mode = Self::STANDALONE_MODES.iter()
+                let &mode = Self::STANDALONE_MODES
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index of standalone mode: {}", vals[0]);
@@ -1148,8 +1099,14 @@ AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
             DIRECT_MONITORING_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_direct_monitoring(req, &unit.get_node(), vals[0], self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_direct_monitoring(
+                    req,
+                    &unit.get_node(),
+                    vals[0],
+                    self.as_mut(),
+                    timeout_ms,
+                )
+                .map(|_| true)
             }
             _ => Ok(false),
         }

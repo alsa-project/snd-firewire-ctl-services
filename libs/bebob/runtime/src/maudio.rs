@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-pub mod ozonic_model;
-pub mod solo_model;
 pub mod audiophile_model;
 pub mod fw410_model;
+pub mod ozonic_model;
 pub mod profirelightbridge_model;
+pub mod solo_model;
 pub mod special_model;
 
 use glib::{Error, FileError};
@@ -20,7 +20,7 @@ use core::elem_value_accessor::*;
 
 use ta1394::*;
 
-use bebob_protocols::{*, maudio::normal::*};
+use bebob_protocols::{maudio::normal::*, *};
 
 use crate::model::{IN_METER_NAME, OUT_METER_NAME};
 

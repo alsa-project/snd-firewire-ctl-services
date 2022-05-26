@@ -10,7 +10,7 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, terratec::aureon::*};
+use bebob_protocols::{terratec::aureon::*, *};
 
 use crate::common_ctls::*;
 
@@ -47,7 +47,10 @@ impl AvcSelectorCtlOperation<AureonMonitorSourceProtocol> for MonitorSourceCtl {
     const SELECTOR_NAME: &'static str = "monitor-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["monitor-source-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &[
-        "analog-input-1/2", "analog-input-3/4", "analog-input-5/6", "digital-input-1/2"
+        "analog-input-1/2",
+        "analog-input-3/4",
+        "analog-input-5/6",
+        "digital-input-1/2",
     ];
 }
 
@@ -78,8 +81,14 @@ impl AvcSelectorCtlOperation<AureonSpdifOutputProtocol> for SpdifOutputCtl {
 impl AvcLevelCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
     const LEVEL_NAME: &'static str = "mixer-output-volume";
     const PORT_LABELS: &'static [&'static str] = &[
-        "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
-        "mixer-output-5", "mixer-output-6", "mixer-output-7", "mixer-output-8",
+        "mixer-output-1",
+        "mixer-output-2",
+        "mixer-output-3",
+        "mixer-output-4",
+        "mixer-output-5",
+        "mixer-output-6",
+        "mixer-output-7",
+        "mixer-output-8",
     ];
 }
 
@@ -88,14 +97,11 @@ impl AvcMuteCtlOperation<AureonMixerOutputProtocol> for MixerOutputCtl {
 }
 
 impl CtlModel<SndUnit> for AureonModel {
-    fn load(
-        &mut self,
-        unit: &mut SndUnit,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_in_ctl.load_level(card_cntr)?;
@@ -115,21 +121,47 @@ impl CtlModel<SndUnit> for AureonModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_in_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mon_src_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mon_src_ctl
+            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mon_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mon_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mon_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mon_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.spdif_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.spdif_out_ctl.read_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -143,21 +175,45 @@ impl CtlModel<SndUnit> for AureonModel {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.phys_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_in_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mon_src_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mon_src_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mon_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mon_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mon_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mon_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.spdif_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .spdif_out_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -174,10 +230,14 @@ impl NotifyModel<SndUnit, bool> for AureonModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 

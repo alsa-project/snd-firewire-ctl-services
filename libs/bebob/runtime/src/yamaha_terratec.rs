@@ -3,12 +3,12 @@
 
 use glib::Error;
 
-use hinawa::{SndUnit, SndUnitExt, FwFcpExt};
 use alsactl::{ElemId, ElemValue};
+use hinawa::{FwFcpExt, SndUnit, SndUnitExt};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, yamaha_terratec::*};
+use bebob_protocols::{yamaha_terratec::*, *};
 
 use super::common_ctls::*;
 
@@ -49,11 +49,16 @@ struct MixerSourceCtl;
 impl AvcLevelCtlOperation<GoPhase24MixerSourceProtocol> for MixerSourceCtl {
     const LEVEL_NAME: &'static str = "mixer-source-gain";
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2",
-        "digital-input-1", "digital-input-2",
-        "stream-input-1", "stream-input-2",
-        "stream-input-3", "stream-input-4",
-        "stream-input-5", "stream-input-6",
+        "analog-input-1",
+        "analog-input-2",
+        "digital-input-1",
+        "digital-input-2",
+        "stream-input-1",
+        "stream-input-2",
+        "stream-input-3",
+        "stream-input-4",
+        "stream-input-5",
+        "stream-input-6",
     ];
 }
 
@@ -108,7 +113,10 @@ struct OptPhysOutputCtl;
 impl AvcLevelCtlOperation<GoPhase24OptPhysOutputProtocol> for OptPhysOutputCtl {
     const LEVEL_NAME: &'static str = "phy-output-volume";
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
     ];
 }
 
@@ -161,10 +169,12 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_in_ctl.load_selector(card_cntr)?;
@@ -178,53 +188,114 @@ impl CtlModel<SndUnit> for GoPhase24CoaxModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_in_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_in_ctl
+            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.hp_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .hp_ctl
+            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_src_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_src_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_in_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.hp_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
+        } else if self
+            .phys_in_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .phys_out_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .hp_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_src_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_src_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -240,10 +311,14 @@ impl NotifyModel<SndUnit, bool> for GoPhase24CoaxModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -251,10 +326,12 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_out_ctl.load_level(card_cntr)?;
@@ -268,53 +345,114 @@ impl CtlModel<SndUnit> for GoPhase24OptModel {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_src_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_src_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
+        } else if self
+            .phys_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .phys_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .phys_out_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_src_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_src_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
         } else {
             Ok(false)
         }
@@ -330,10 +468,14 @@ impl NotifyModel<SndUnit, bool> for GoPhase24OptModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 

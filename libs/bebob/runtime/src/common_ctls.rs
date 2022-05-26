@@ -260,19 +260,25 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLevelOperation + AvcLrBalanceOperation>
     }
 }
 
-pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>: AvcLevelCtlOperation<T>
+pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>:
+    AvcLevelCtlOperation<T>
 {
     const MUTE_NAME: &'static str;
 
     fn load_mute(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, T::ENTRIES.len(), true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, T::ENTRIES.len(), true)
             .map(|_| ())
     }
 
-    fn read_mute(&self, avc: &BebobAvc, elem_id: &ElemId, elem_value: &mut ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn read_mute(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
         if elem_id.get_name().as_str() == Self::MUTE_NAME {
             ElemValueAccessor::<bool>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
                 T::read_mute(avc, idx, timeout_ms)
@@ -283,9 +289,14 @@ pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>: AvcLevel
         }
     }
 
-    fn write_mute(&self, avc: &BebobAvc, elem_id: &ElemId, old: &ElemValue, new: &ElemValue, timeout_ms: u32)
-        -> Result<bool, Error>
-    {
+    fn write_mute(
+        &self,
+        avc: &BebobAvc,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
         if elem_id.get_name().as_str() == Self::MUTE_NAME {
             ElemValueAccessor::<bool>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
                 T::write_mute(avc, idx, val, timeout_ms)

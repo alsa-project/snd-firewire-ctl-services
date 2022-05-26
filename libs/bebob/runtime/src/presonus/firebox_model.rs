@@ -11,7 +11,7 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue};
 use core::card_cntr::*;
 use core::elem_value_accessor::*;
 
-use bebob_protocols::{*, presonus::firebox::*};
+use bebob_protocols::{presonus::firebox::*, *};
 
 use crate::common_ctls::*;
 use crate::model::OUT_VOL_NAME;
@@ -45,8 +45,12 @@ struct PhysOutputCtl;
 impl AvcLevelCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     const LEVEL_NAME: &'static str = OUT_VOL_NAME;
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
-        "analog-output-5", "analog-output-6",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
+        "analog-output-5",
+        "analog-output-6",
     ];
 }
 
@@ -57,7 +61,10 @@ impl AvcMuteCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
 impl AvcSelectorCtlOperation<FireboxPhysOutputProtocol> for PhysOutputCtl {
     const SELECTOR_NAME: &'static str = "output-source";
     const SELECTOR_LABELS: &'static [&'static str] = &[
-        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "analog-output-7/8",
+        "analog-output-1/2",
+        "analog-output-3/4",
+        "analog-output-5/6",
+        "analog-output-7/8",
     ];
     const ITEM_LABELS: &'static [&'static str] = &["stream-input", "mixer-output-1/2"];
 }
@@ -78,8 +85,11 @@ impl AvcSelectorCtlOperation<FireboxHeadphoneProtocol> for HeadphoneCtl {
     const SELECTOR_NAME: &'static str = "headphone-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["headphone-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &[
-        "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
-        "mixer-output-1/2"
+        "stream-input-1/2",
+        "stream-input-3/4",
+        "stream-input-5/6",
+        "stream-input-7/8",
+        "mixer-output-1/2",
     ];
 }
 
@@ -89,8 +99,12 @@ struct MixerPhysSrcCtl;
 impl AvcLevelCtlOperation<FireboxMixerPhysSourceProtocol> for MixerPhysSrcCtl {
     const LEVEL_NAME: &'static str = "mixer-phys-source-gain";
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "digital-input-1", "digital-input-2",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "digital-input-1",
+        "digital-input-2",
     ];
 }
 
@@ -118,7 +132,10 @@ impl AvcSelectorCtlOperation<FireboxMixerStreamSourceProtocol> for MixerStreamSr
     const SELECTOR_NAME: &'static str = "mixer-stream-source";
     const SELECTOR_LABELS: &'static [&'static str] = &["mixer-stream-source-1/2"];
     const ITEM_LABELS: &'static [&'static str] = &[
-        "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
+        "stream-input-1/2",
+        "stream-input-3/4",
+        "stream-input-5/6",
+        "stream-input-7/8",
     ];
 }
 
@@ -146,17 +163,15 @@ impl SwitchCtlOperation<FireboxAnalogInputProtocol> for AnalogInputCtl {
 }
 
 impl CtlModel<SndUnit> for FireboxModel {
-    fn load(
-        &mut self,
-        unit: &mut SndUnit,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_out_ctl.load_level(card_cntr)?;
@@ -187,41 +202,109 @@ impl CtlModel<SndUnit> for FireboxModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.headphone_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .headphone_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.headphone_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .headphone_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.headphone_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.headphone_ctl.read_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_phys_src_ctl.read_level(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_phys_src_ctl.read_balance(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_phys_src_ctl.read_mute(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_stream_src_ctl.read_level(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_stream_src_ctl.read_mute(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.read_selector(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_stream_src_ctl.read_selector(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_out_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .read_mute(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.read_switch(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .read_switch(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -235,41 +318,113 @@ impl CtlModel<SndUnit> for FireboxModel {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_out_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_out_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.headphone_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .headphone_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.headphone_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .headphone_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.headphone_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .headphone_ctl
+            .write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_phys_src_ctl.write_level(
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_phys_src_ctl.write_balance(
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_phys_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_phys_src_ctl.write_mute(
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_stream_src_ctl.write_level(
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_stream_src_ctl.write_mute(
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_stream_src_ctl.write_selector(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self.mixer_stream_src_ctl.write_selector(
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_out_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_out_ctl.write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_out_ctl
+            .write_mute(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.write_switch(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .write_switch(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -286,10 +441,14 @@ impl NotifyModel<SndUnit, bool> for FireboxModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -300,7 +459,8 @@ trait SwitchCtlOperation<T: AvcSelectorOperation> {
 
     fn load_switch(&self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::SWITCH_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
+        card_cntr
+            .add_bool_elems(&elem_id, 1, Self::CH_COUNT, true)
             .map(|_| ())
     }
 
@@ -313,8 +473,7 @@ trait SwitchCtlOperation<T: AvcSelectorOperation> {
     ) -> Result<bool, Error> {
         if elem_id.get_name().as_str() == Self::SWITCH_NAME {
             ElemValueAccessor::<bool>::set_vals(elem_value, Self::CH_COUNT, |idx| {
-                T::read_selector(avc, idx, timeout_ms)
-                    .map(|val| val > 0)
+                T::read_selector(avc, idx, timeout_ms).map(|val| val > 0)
             })
             .map(|_| true)
         } else {
