@@ -150,51 +150,54 @@ impl RegisterDspMeterCtlOperation<H4preProtocol> for MeterCtl {
     }
 }
 
-impl CtlModel<SndMotu> for Traveler {
-    fn load(&mut self, unit: &mut SndMotu, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndMotu, FwNode)> for Traveler {
+    fn load(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
         self.phone_assign_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.word_clk_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_output_ctl.1 = elem_id_list)?;
-        let _ = self
-            .mixer_return_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.mixer_return_ctl
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)?;
         self.mixer_source_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mixer_source_ctl.1 = elem_id_list)?;
         self.output_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.output_ctl.1 = elem_id_list)?;
         self.line_input_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.line_input_ctl.1 = elem_id_list)?;
         self.mic_input_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.mic_input_ctl.1 = elem_id_list)?;
         self.meter_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|elem_id_list| self.meter_ctl.1 = elem_id_list)?;
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+            .read(&mut unit.0, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
@@ -224,54 +227,66 @@ impl CtlModel<SndMotu> for Traveler {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .opt_iface_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .phone_assign_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.phone_assign_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .mixer_output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_output_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_return_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_return_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self
-            .mixer_source_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
-        {
+        } else if self.mixer_source_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .output_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .line_input_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -281,7 +296,7 @@ impl CtlModel<SndMotu> for Traveler {
             Ok(true)
         } else if self
             .meter_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -290,7 +305,7 @@ impl CtlModel<SndMotu> for Traveler {
     }
 }
 
-impl NotifyModel<SndMotu, u32> for Traveler {
+impl NotifyModel<(SndMotu, FwNode), u32> for Traveler {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.mic_input_ctl.1);
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
@@ -298,24 +313,26 @@ impl NotifyModel<SndMotu, u32> for Traveler {
         elem_id_list.extend_from_slice(&self.opt_iface_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndMotu, msg: &u32) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
         if *msg & TravelerProtocol::NOTIFY_MIC_PARAM_MASK > 0 {
             self.mic_input_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
         if *msg & TravelerProtocol::NOTIFY_PORT_CHANGE > 0 {
             self.phone_assign_ctl
-                .cache(unit, &mut self.req, TIMEOUT_MS)?;
-            self.word_clk_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            self.word_clk_ctl
+                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
         }
         if *msg & TravelerProtocol::NOTIFY_FORMAT_CHANGE > 0 {
-            self.opt_iface_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.opt_iface_ctl
+                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
         }
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -333,7 +350,7 @@ impl NotifyModel<SndMotu, u32> for Traveler {
     }
 }
 
-impl NotifyModel<SndMotu, bool> for Traveler {
+impl NotifyModel<(SndMotu, FwNode), bool> for Traveler {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.phone_assign_ctl.1);
         elem_id_list.extend_from_slice(&self.mixer_output_ctl.1);
@@ -342,15 +359,21 @@ impl NotifyModel<SndMotu, bool> for Traveler {
         elem_id_list.extend_from_slice(&self.line_input_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndMotu, is_locked: &bool) -> Result<(), Error> {
+    fn parse_notification(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        is_locked: &bool,
+    ) -> Result<(), Error> {
         if *is_locked {
-            unit.read_register_dsp_parameter(&mut self.params).map(|_| {
-                self.phone_assign_ctl.parse_dsp_parameter(&self.params);
-                self.mixer_output_ctl.parse_dsp_parameter(&self.params);
-                self.mixer_source_ctl.parse_dsp_parameter(&self.params);
-                self.output_ctl.parse_dsp_parameter(&self.params);
-                self.line_input_ctl.parse_dsp_parameter(&self.params);
-            })
+            unit.0
+                .read_register_dsp_parameter(&mut self.params)
+                .map(|_| {
+                    self.phone_assign_ctl.parse_dsp_parameter(&self.params);
+                    self.mixer_output_ctl.parse_dsp_parameter(&self.params);
+                    self.mixer_source_ctl.parse_dsp_parameter(&self.params);
+                    self.output_ctl.parse_dsp_parameter(&self.params);
+                    self.line_input_ctl.parse_dsp_parameter(&self.params);
+                })
         } else {
             Ok(())
         }
@@ -358,7 +381,7 @@ impl NotifyModel<SndMotu, bool> for Traveler {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -378,14 +401,14 @@ impl NotifyModel<SndMotu, bool> for Traveler {
     }
 }
 
-impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for Traveler {
+impl NotifyModel<(SndMotu, FwNode), Vec<RegisterDspEvent>> for Traveler {
     fn get_notified_elem_list(&mut self, _: &mut Vec<ElemId>) {
         // MEMO: handled by the above implementation.
     }
 
     fn parse_notification(
         &mut self,
-        _: &mut SndMotu,
+        _: &mut (SndMotu, FwNode),
         events: &Vec<RegisterDspEvent>,
     ) -> Result<(), Error> {
         events.iter().for_each(|event| {
@@ -399,7 +422,7 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for Traveler {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -419,18 +442,18 @@ impl NotifyModel<SndMotu, Vec<RegisterDspEvent>> for Traveler {
     }
 }
 
-impl MeasureModel<SndMotu> for Traveler {
+impl MeasureModel<(SndMotu, FwNode)> for Traveler {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndMotu) -> Result<(), Error> {
-        self.meter_ctl.read_dsp_meter(unit, &mut self.meter)
+    fn measure_states(&mut self, unit: &mut (SndMotu, FwNode)) -> Result<(), Error> {
+        self.meter_ctl.read_dsp_meter(&unit.0, &mut self.meter)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndMotu,
+        _: &(SndMotu, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -456,7 +479,7 @@ impl MicInputCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -486,8 +509,13 @@ impl MicInputCtl {
         Ok(notified_elem_id_list)
     }
 
-    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
-        TravelerProtocol::read_mic_input_state(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+    fn cache(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        TravelerProtocol::read_mic_input_state(req, &mut unit.1, &mut self.0, timeout_ms)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -507,7 +535,7 @@ impl MicInputCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -518,26 +546,14 @@ impl MicInputCtl {
                 let mut vals = [0; TravelerProtocol::MIC_INPUT_COUNT];
                 elem_value.get_int(&mut vals);
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
-                TravelerProtocol::write_mic_gain(
-                    req,
-                    &mut unit.get_node(),
-                    &gain,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                TravelerProtocol::write_mic_gain(req, &mut unit.1, &gain, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             MIC_PAD_NAME => {
                 let mut pad = [false; TravelerProtocol::MIC_INPUT_COUNT];
                 elem_value.get_bool(&mut pad);
-                TravelerProtocol::write_mic_pad(
-                    req,
-                    &mut unit.get_node(),
-                    &pad,
-                    &mut self.0,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                TravelerProtocol::write_mic_pad(req, &mut unit.1, &pad, &mut self.0, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
