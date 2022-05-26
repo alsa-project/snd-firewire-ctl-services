@@ -81,15 +81,21 @@ impl RuntimeOperation<u32> for MotuRuntime {
         match unit_data.model_id {
             0x000001 => Ok(Self::F828(F828Runtime::new(unit, node, card_id, version)?)),
             0x000002 => Ok(Self::F896(F896Runtime::new(unit, node, card_id, version)?)),
-            0x000003 => Ok(Self::F828mk2(F828mk2Runtime::new(unit, card_id, version)?)),
-            0x000005 => Ok(Self::F896hd(F896hdRuntime::new(unit, card_id, version)?)),
+            0x000003 => Ok(Self::F828mk2(F828mk2Runtime::new(
+                unit, node, card_id, version,
+            )?)),
+            0x000005 => Ok(Self::F896hd(F896hdRuntime::new(
+                unit, node, card_id, version,
+            )?)),
             0x000009 => Ok(Self::Traveler(TravelerRuntime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
             0x00000d => Ok(Self::Ultralite(UltraliteRuntime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
-            0x00000f => Ok(Self::F8pre(F8preRuntime::new(unit, card_id, version)?)),
+            0x00000f => Ok(Self::F8pre(F8preRuntime::new(
+                unit, node, card_id, version,
+            )?)),
             0x000015 => Ok(Self::F828mk3(F828mk3Runtime::new(unit, card_id, version)?)),
             0x000019 => Ok(Self::Ultralitemk3(UltraliteMk3Runtime::new(
                 unit, card_id, version,
@@ -101,13 +107,15 @@ impl RuntimeOperation<u32> for MotuRuntime {
                 unit, card_id, version,
             )?)),
             0x000033 => Ok(Self::AudioExpress(AudioExpressRuntime::new(
-                unit, card_id, version,
+                unit, node, card_id, version,
             )?)),
             0x000035 => Ok(Self::F828mk3Hybrid(F828mk3HybridRuntime::new(
                 unit, card_id, version,
             )?)),
             0x000039 => Ok(Self::Track16(Track16Runtime::new(unit, card_id, version)?)),
-            0x000045 => Ok(Self::H4pre(H4preRuntime::new(unit, card_id, version)?)),
+            0x000045 => Ok(Self::H4pre(H4preRuntime::new(
+                unit, node, card_id, version,
+            )?)),
             _ => {
                 let label = format!("Unsupported model ID: 0x{:06x}", unit_data.model_id);
                 Err(Error::new(FileError::Noent, &label))
