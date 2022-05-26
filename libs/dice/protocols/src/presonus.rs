@@ -10,3 +10,5 @@ pub mod fstudio;
 
 pub mod fstudiomobile;
 pub mod fstudioproject;
+
+use super::*;

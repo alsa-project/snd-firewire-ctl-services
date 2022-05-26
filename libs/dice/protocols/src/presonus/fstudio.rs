@@ -3,11 +3,7 @@
 
 //! Protocol implementation for PreSonus FireStudio.
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq};
-
-use crate::{tcat::*, *};
+use super::{tcat::*, *};
 
 /// The structure for protocol implementation specific to FireStudio.
 #[derive(Default)]

@@ -6,13 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Liquid Saffire 56.
 
-use hinawa::FwReq;
-
-use crate::tcat::extension::*;
-use crate::tcat::tcd22xx_spec::*;
-use crate::*;
-
-use super::*;
+use super::{tcat::tcd22xx_spec::*, *};
 
 const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
 const IO_FLAGS_OFFSET: usize = 0x005c;

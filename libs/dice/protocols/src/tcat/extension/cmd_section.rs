@@ -7,10 +7,6 @@
 //! section in protocol extension defined by TCAT for ASICs of DICE.
 use super::{caps_section::*, *};
 
-use crate::tcat::global_section::ClockRate;
-
-use std::convert::TryFrom;
-
 /// The enumeration to represent the mode of sampling transfer frequency.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RateMode {

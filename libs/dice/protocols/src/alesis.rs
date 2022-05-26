@@ -10,14 +10,10 @@ pub mod meter;
 pub mod mixer;
 pub mod output;
 
-use glib::Error;
-use hinawa::{FwNode, FwReq};
-
-use super::{tcat::*, *};
-
-use meter::*;
-use mixer::*;
-use output::*;
+use {
+    self::{meter::*, mixer::*, output::*},
+    super::{tcat::*, *},
+};
 
 /// The structure for protocol implementation specific to iO 14 FireWire.
 #[derive(Default)]

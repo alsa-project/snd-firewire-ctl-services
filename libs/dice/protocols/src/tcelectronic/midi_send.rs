@@ -6,7 +6,7 @@
 //! The module includes structure, trait and its implementation for data of MIDI sender in protocol
 //! defined by TC Electronic for Konnekt series.
 
-use crate::*;
+use super::*;
 
 /// The structure to represent channel and control code of MIDI event.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]

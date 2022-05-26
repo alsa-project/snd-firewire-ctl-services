@@ -6,9 +6,6 @@
 //! The module includes structure, enumeration, and trait and its implementation for meter
 //! protocol defined by Alesis for iO FireWire series.
 
-use glib::Error;
-use hinawa::FwNode;
-
 use super::*;
 
 /// The structure to represent hardware meters. 0..0x007fff00 with 0x100 step (-90.0..0.0 dB)

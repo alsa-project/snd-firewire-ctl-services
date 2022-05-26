@@ -6,13 +6,14 @@
 //! The modules includes structure, enumeration, and trait and its implementation for hardware
 //! specification and application protocol specific to M-Audio ProFire series.
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq};
-
-use super::tcat::extension::{appl_section::*, *};
-use super::tcat::global_section::*;
-use super::tcat::tcd22xx_spec::*;
+use super::{
+    tcat::{
+        extension::{appl_section::*, *},
+        global_section::*,
+        tcd22xx_spec::*,
+    },
+    *,
+};
 
 const KNOB_ASSIGN_OFFSET: usize = 0x00;
 const STANDALONE_MODE_OFFSET: usize = 0x04;

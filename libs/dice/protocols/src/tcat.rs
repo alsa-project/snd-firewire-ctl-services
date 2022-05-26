@@ -102,9 +102,12 @@ pub mod tcd22xx_spec;
 
 pub mod config_rom;
 
-use glib::{error::ErrorDomain, Error, Quark};
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+use {
+    super::*,
+    glib::{error::ErrorDomain, Quark},
+    hinawa::{FwReqExtManual, FwTcode},
+    std::convert::TryFrom,
+};
 
 mod utils;
 

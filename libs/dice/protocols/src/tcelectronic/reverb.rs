@@ -6,7 +6,7 @@
 //! The module includes structure, trait and its implementation for data of reverb effect in
 //! protocol defined by TC Electronic for Konnekt series. It's called as `Fabrik R`.
 
-use crate::*;
+use super::*;
 
 /// The enumeration to represent algorithm of reverb effect.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

@@ -3,8 +3,7 @@
 
 //! Protocol implementation for PreSonus FireStudio Project.
 
-use crate::tcat::extension::*;
-use crate::tcat::tcd22xx_spec::*;
+use super::tcat::{extension::*, tcd22xx_spec::*};
 
 /// The structure for protocol implementation of PreSonus FireStudio Project.
 #[derive(Default)]

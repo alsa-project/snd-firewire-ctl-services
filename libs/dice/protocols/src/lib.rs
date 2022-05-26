@@ -16,6 +16,11 @@ pub mod presonus;
 pub mod tcat;
 pub mod tcelectronic;
 
+use {
+    glib::{Error, FileError},
+    hinawa::{FwNode, FwReq},
+};
+
 const QUADLET_SIZE: usize = 4;
 
 /// The trait to represent utility for conversion between quadlet-aligned byte array and computed value.

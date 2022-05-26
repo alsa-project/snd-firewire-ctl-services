@@ -7,7 +7,6 @@
 //! defined by TC Electronic for Konnekt 24d.
 
 use super::*;
-use crate::tcelectronic::{ch_strip::*, prog::*, reverb::*, standalone::*, *};
 
 /// The structure for protocol implementation of Konnekt 24d.
 #[derive(Default)]

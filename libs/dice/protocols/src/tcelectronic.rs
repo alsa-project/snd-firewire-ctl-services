@@ -19,11 +19,7 @@ pub mod prog;
 pub mod reverb;
 pub mod standalone;
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq};
-
-use super::tcat::*;
+use super::{tcat::*, *};
 
 const BASE_OFFSET: usize = 0x00a01000;
 

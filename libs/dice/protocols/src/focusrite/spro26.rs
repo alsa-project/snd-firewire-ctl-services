@@ -6,10 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for protocol
 //! defined by Focusrite for Saffire Pro 26.
 
-use crate::tcat::extension::*;
-use crate::tcat::tcd22xx_spec::*;
-
-use super::*;
+use super::{tcat::tcd22xx_spec::*, *};
 
 /// The structure for protocol implementation specific to Saffire Pro 26.
 #[derive(Default)]

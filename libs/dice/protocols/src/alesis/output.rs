@@ -6,12 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementation for output
 //! protocol defined by Alesis for iO FireWire series.
 
-use glib::Error;
-use hinawa::FwNode;
-
 use super::*;
-
-use crate::*;
 
 const OUT_LEVEL_OFFSET: usize = 0x0564;
 const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;

@@ -7,7 +7,6 @@
 //! defined by TC Electronic for Studio Konnekt 48.
 
 use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
-use crate::*;
 
 /// The structure for protocol implementation of Studio Konnekt 48.
 #[derive(Default)]

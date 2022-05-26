@@ -11,10 +11,7 @@ pub mod k24d;
 pub mod k8;
 pub mod klive;
 
-use super::fw_led::*;
-use super::*;
-
-use crate::*;
+use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 
 const SHELL_KNOB_NOTIFY_FLAG: u32 = 0x00010000;
 const SHELL_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;

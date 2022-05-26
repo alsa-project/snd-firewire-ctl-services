@@ -6,9 +6,11 @@
 //! The module includes structure, enumeration, and trait and its implementation for current
 //! configuration section in protocol extension defined by TCAT for ASICs of DICE.
 
-use super::router_entry::*;
-use super::stream_format_entry::*;
-use super::{caps_section::*, cmd_section::*, *};
+use super::{
+    router_entry::*,
+    stream_format_entry::*,
+    {caps_section::*, cmd_section::*, *},
+};
 
 /// The structure of protocol implementation of current configuration section.
 #[derive(Default)]
