@@ -13,9 +13,9 @@ use core::elem_value_accessor::ElemValueAccessor;
 
 use alsa_ctl_tlv_codec::items::DbInterval;
 
-use bebob_protocols::{*, apogee::ensemble::*};
+use bebob_protocols::{apogee::ensemble::*, *};
 
-use crate::model::{IN_METER_NAME, OUT_METER_NAME, HP_SRC_NAME, OUT_SRC_NAME};
+use crate::model::{HP_SRC_NAME, IN_METER_NAME, OUT_METER_NAME, OUT_SRC_NAME};
 
 use crate::common_ctls::*;
 
@@ -41,59 +41,76 @@ struct ClkCtl(Vec<ElemId>);
 impl MediaClkFreqCtlOperation<EnsembleClkProtocol> for ClkCtl {}
 
 impl SamplingClkSrcCtlOperation<EnsembleClkProtocol> for ClkCtl {
-    const SRC_LABELS: &'static [&'static str] = &[
-        "Internal",
-        "S/PDIF-coax",
-        "Optical",
-        "Word Clock",
-    ];
+    const SRC_LABELS: &'static [&'static str] =
+        &["Internal", "S/PDIF-coax", "Optical", "Word Clock"];
 }
 
 fn input_output_copy_from_meter(model: &mut EnsembleModel) {
     let m = &model.meter_ctl.0;
     model.input_ctl.0.gains.copy_from_slice(&m.knob_input_vals);
     model.output_ctl.0.vol = m.knob_output_vals[0];
-    model.output_ctl.0.headphone_vols.copy_from_slice(&m.knob_output_vals[1..]);
+    model
+        .output_ctl
+        .0
+        .headphone_vols
+        .copy_from_slice(&m.knob_output_vals[1..]);
 }
 
 impl CtlModel<SndUnit> for EnsembleModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr)
-        -> Result<(), Error>
-    {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load_state(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)
+        self.meter_ctl
+            .load_state(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)
             .map(|_| input_output_copy_from_meter(self))?;
 
-        self.convert_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.convert_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.display_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.display_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.input_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.input_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.output_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.route_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.route_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.mixer_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
-        self.stream_ctl.load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.stream_ctl
+            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
 
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
@@ -116,26 +133,57 @@ impl CtlModel<SndUnit> for EnsembleModel {
         }
     }
 
-    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.convert_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .convert_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.display_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .display_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.input_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .input_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.output_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .output_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.route_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .route_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_ctl.write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_ctl
+            .write_params(&mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.stream_ctl.write_params(unit, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .stream_ctl
+            .write_params(unit, &mut self.avc, elem_id, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(true)
@@ -151,13 +199,17 @@ impl MeasureModel<SndUnit> for EnsembleModel {
     }
 
     fn measure_states(&mut self, _: &mut SndUnit) -> Result<(), Error> {
-        self.meter_ctl.measure_state(&mut self.avc, FCP_TIMEOUT_MS)
+        self.meter_ctl
+            .measure_state(&mut self.avc, FCP_TIMEOUT_MS)
             .map(|_| input_output_copy_from_meter(self))
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read_params(elem_id, elem_value)? {
@@ -179,10 +231,14 @@ impl NotifyModel<SndUnit, bool> for EnsembleModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -210,22 +266,51 @@ fn knob_output_target_to_str(target: &KnobOutputTarget) -> &str {
 }
 
 impl MeterCtl {
-    const METER_TLV: DbInterval = DbInterval{min: -4800, max: 0, linear: false, mute_avail: false};
+    const METER_TLV: DbInterval = DbInterval {
+        min: -4800,
+        max: 0,
+        linear: false,
+        mute_avail: false,
+    };
 
     const IN_METER_LABELS: [&'static str; 18] = [
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "spdif-input-1", "spdif-input-2",
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
     ];
 
     const OUT_METER_LABELS: [&'static str; 16] = [
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
-        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
-        "spdif-output-1", "spdif-output-2",
-        "adat-output-1", "adat-output-2", "adat-output-3", "adat-output-4",
-        "adat-output-5", "adat-output-6",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
+        "analog-output-5",
+        "analog-output-6",
+        "analog-output-7",
+        "analog-output-8",
+        "spdif-output-1",
+        "spdif-output-2",
+        "adat-output-1",
+        "adat-output-2",
+        "adat-output-3",
+        "adat-output-4",
+        "adat-output-5",
+        "adat-output-6",
         //"adat-output-7", "adat-output-8",
     ];
 
@@ -252,14 +337,17 @@ impl MeterCtl {
         avc: &mut BebobAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::KNOB_INPUT_TARGETS.iter()
+        let labels: Vec<&str> = Self::KNOB_INPUT_TARGETS
+            .iter()
             .map(|t| knob_input_target_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB_IN_TARGET_NAME, 0);
-        card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
+        card_cntr
+            .add_enum_elems(&elem_id, 1, 1, &labels, None, true)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = Self::KNOB_OUTPUT_TARGETS.iter()
+        let labels: Vec<&str> = Self::KNOB_OUTPUT_TARGETS
+            .iter()
             .map(|t| knob_output_target_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, KNOB_OUT_TARGET_NAME, 0);
@@ -302,21 +390,19 @@ impl MeterCtl {
         EnsembleMeterProtocol::measure_meter(avc, &mut self.0, timeout_ms)
     }
 
-    fn read_state(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             KNOB_IN_TARGET_NAME => {
-                let idx = Self::KNOB_INPUT_TARGETS.iter()
+                let idx = Self::KNOB_INPUT_TARGETS
+                    .iter()
                     .position(|t| t.eq(&self.0.knob_input_target))
                     .unwrap();
                 elem_value.set_enum(&[idx as u32]);
                 Ok(true)
             }
             KNOB_OUT_TARGET_NAME => {
-                let idx = Self::KNOB_OUTPUT_TARGETS.iter()
+                let idx = Self::KNOB_OUTPUT_TARGETS
+                    .iter()
                     .position(|t| t.eq(&self.0.knob_output_target))
                     .unwrap();
                 elem_value.set_enum(&[idx as u32]);
@@ -393,7 +479,7 @@ impl ConvertCtl {
         FormatConvertTarget::SpdifCoaxialInputPair0,
         FormatConvertTarget::SpdifCoaxialOutputPair0,
         FormatConvertTarget::SpdifOpticalOutputPair0,
-     ];
+    ];
 
     const RATE_CONVERT_TARGETS: [RateConvertTarget; 5] = [
         RateConvertTarget::Disabled,
@@ -418,19 +504,22 @@ impl ConvertCtl {
         avc: &mut BebobAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::FORMAT_CONVERT_TARGETS.iter()
+        let labels: Vec<&str> = Self::FORMAT_CONVERT_TARGETS
+            .iter()
             .map(|t| format_convert_target_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, FORMAT_CONVERT_TARGET_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = Self::RATE_CONVERT_TARGETS.iter()
+        let labels: Vec<&str> = Self::RATE_CONVERT_TARGETS
+            .iter()
             .map(|t| rate_convert_target_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_CONVERT_TARGET_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        let labels: Vec<&str> = Self::RATE_CONVERT_RATES.iter()
+        let labels: Vec<&str> = Self::RATE_CONVERT_RATES
+            .iter()
             .map(|r| rate_convert_rate_to_str(r))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, RATE_CONVERT_RATE_NAME, 0);
@@ -442,28 +531,27 @@ impl ConvertCtl {
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             FORMAT_CONVERT_TARGET_NAME => {
-                let pos = Self::FORMAT_CONVERT_TARGETS.iter()
+                let pos = Self::FORMAT_CONVERT_TARGETS
+                    .iter()
                     .position(|t| t.eq(&self.0.format_target))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             RATE_CONVERT_TARGET_NAME => {
-                let pos = Self::RATE_CONVERT_TARGETS.iter()
+                let pos = Self::RATE_CONVERT_TARGETS
+                    .iter()
                     .position(|t| t.eq(&self.0.rate_target))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             RATE_CONVERT_RATE_NAME => {
-                let pos = Self::RATE_CONVERT_RATES.iter()
+                let pos = Self::RATE_CONVERT_RATES
+                    .iter()
                     .position(|t| t.eq(&self.0.converted_rate))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -488,11 +576,11 @@ impl ConvertCtl {
             FORMAT_CONVERT_TARGET_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &target = Self::FORMAT_CONVERT_TARGETS.iter()
+                let &target = Self::FORMAT_CONVERT_TARGETS
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of format convert target: {}",
-                                          vals[0]);
+                        let msg = format!("Invalid index of format convert target: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -511,11 +599,11 @@ impl ConvertCtl {
             RATE_CONVERT_TARGET_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &target = Self::RATE_CONVERT_TARGETS.iter()
+                let &target = Self::RATE_CONVERT_TARGETS
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of rate convert target: {}",
-                                          vals[0]);
+                        let msg = format!("Invalid index of rate convert target: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -526,11 +614,11 @@ impl ConvertCtl {
             RATE_CONVERT_RATE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &converted_rate = Self::RATE_CONVERT_RATES.iter()
+                let &converted_rate = Self::RATE_CONVERT_RATES
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of rate convert target: {}",
-                                          vals[0]);
+                        let msg = format!("Invalid index of rate convert target: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -559,10 +647,8 @@ const DISPLAY_TARGET_NAME: &str = "display-target";
 const DISPLAY_OVERHOLD_NAME: &str = "display-overhold";
 
 impl DisplayCtl {
-    const DISPLAY_METER_TARGETS: [DisplayMeterTarget; 2] = [
-        DisplayMeterTarget::Output,
-        DisplayMeterTarget::Input,
-    ];
+    const DISPLAY_METER_TARGETS: [DisplayMeterTarget; 2] =
+        [DisplayMeterTarget::Output, DisplayMeterTarget::Input];
 
     fn load_params(
         &mut self,
@@ -576,7 +662,8 @@ impl DisplayCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_ILLUMINATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        let labels: Vec<&str> = Self::DISPLAY_METER_TARGETS.iter()
+        let labels: Vec<&str> = Self::DISPLAY_METER_TARGETS
+            .iter()
             .map(|t| display_meter_target_to_str(t))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_TARGET_NAME, 0);
@@ -588,11 +675,7 @@ impl DisplayCtl {
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             DISPLAY_ENABLE_NAME => {
                 elem_value.set_bool(&[self.0.enabled]);
@@ -603,7 +686,8 @@ impl DisplayCtl {
                 Ok(true)
             }
             DISPLAY_TARGET_NAME => {
-                let pos = Self::DISPLAY_METER_TARGETS.iter()
+                let pos = Self::DISPLAY_METER_TARGETS
+                    .iter()
                     .position(|t| t.eq(&self.0.target))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -644,7 +728,8 @@ impl DisplayCtl {
             DISPLAY_TARGET_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &target = Self::DISPLAY_METER_TARGETS.iter()
+                let &target = Self::DISPLAY_METER_TARGETS
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index of display meter mode: {}", vals[0]);
@@ -693,10 +778,7 @@ fn opt_iface_mode_to_str(mode: &OptIfaceMode) -> &str {
     }
 }
 
-const OPT_IFACE_MODES: [OptIfaceMode; 2] = [
-    OptIfaceMode::Spdif,
-    OptIfaceMode::Adat,
-];
+const OPT_IFACE_MODES: [OptIfaceMode; 2] = [OptIfaceMode::Spdif, OptIfaceMode::Adat];
 
 impl InputCtl {
     const INPUT_LABELS: &'static [&'static str] = &[
@@ -720,11 +802,13 @@ impl InputCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_LIMIT_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_LABELS.len(), true)?;
 
-        let labels: Vec<&str> = Self::NOMINAL_LEVELS.iter()
+        let labels: Vec<&str> = Self::NOMINAL_LEVELS
+            .iter()
             .map(|l| input_nominal_level_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::INPUT_LABELS.len(), &labels, None, true)?;
+        let _ =
+            card_cntr.add_enum_elems(&elem_id, 1, Self::INPUT_LABELS.len(), &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_GAIN_NAME, 0);
         card_cntr
@@ -746,7 +830,8 @@ impl InputCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIC_POLARITY_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::MIC_LABELS.len(), true)?;
 
-        let labels: Vec<&str> = OPT_IFACE_MODES.iter()
+        let labels: Vec<&str> = OPT_IFACE_MODES
+            .iter()
             .map(|m| opt_iface_mode_to_str(m))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_OPT_IFACE_MODE_NAME, 0);
@@ -755,11 +840,7 @@ impl InputCtl {
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_LIMIT_NAME => {
                 elem_value.set_bool(&self.0.limits);
@@ -767,7 +848,8 @@ impl InputCtl {
             }
             INPUT_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
-                    let pos = Self::NOMINAL_LEVELS.iter()
+                    let pos = Self::NOMINAL_LEVELS
+                        .iter()
                         .position(|l| l.eq(&self.0.levels[idx]))
                         .unwrap();
                     Ok(pos as u32)
@@ -775,9 +857,7 @@ impl InputCtl {
                 .map(|_| true)
             }
             MIC_GAIN_NAME => {
-                let vals: Vec<i32> = self.0.gains.iter()
-                    .map(|&val| val as i32)
-                    .collect();
+                let vals: Vec<i32> = self.0.gains.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
@@ -790,7 +870,8 @@ impl InputCtl {
                 Ok(true)
             }
             INPUT_OPT_IFACE_MODE_NAME => {
-                let pos = OPT_IFACE_MODES.iter()
+                let pos = OPT_IFACE_MODES
+                    .iter()
                     .position(|m| m.eq(&self.0.opt_iface_mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -818,10 +899,13 @@ impl InputCtl {
                 let mut vals = [0; Self::INPUT_LABELS.len()];
                 elem_value.get_enum(&mut vals);
                 let mut params = self.0.clone();
-                params.levels.iter_mut()
+                params
+                    .levels
+                    .iter_mut()
                     .zip(vals.iter())
                     .try_for_each(|(level, &val)| {
-                        Self::NOMINAL_LEVELS.iter()
+                        Self::NOMINAL_LEVELS
+                            .iter()
                             .nth(val as usize)
                             .ok_or_else(|| {
                                 let msg = format!("Invalid index of input nominal level: {}", val);
@@ -836,7 +920,9 @@ impl InputCtl {
                 let mut vals = [0; Self::MIC_LABELS.len()];
                 elem_value.get_int(&mut vals);
                 let mut params = self.0.clone();
-                params.gains.iter_mut()
+                params
+                    .gains
+                    .iter_mut()
                     .enumerate()
                     .for_each(|(i, gain)| *gain = vals[i] as u8);
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -857,7 +943,8 @@ impl InputCtl {
             INPUT_OPT_IFACE_MODE_NAME => {
                 let mut vals = [0];
                 elem_value.set_enum(&mut vals);
-                let &mode = OPT_IFACE_MODES.iter()
+                let &mode = OPT_IFACE_MODES
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index of optical iface mode: {}", vals[0]);
@@ -907,11 +994,13 @@ impl<'a> OutputCtl {
         avc: &mut BebobAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::NOMINAL_LEVELS.iter()
+        let labels: Vec<&str> = Self::NOMINAL_LEVELS
+            .iter()
             .map(|l| output_nominal_level_to_str(l))
             .collect();
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_LEVEL_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::OUT_LABELS.len(), &labels, None, true)?;
+        let _ =
+            card_cntr.add_enum_elems(&elem_id, 1, Self::OUT_LABELS.len(), &labels, None, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_VOL_NAME, 0);
         card_cntr
@@ -941,24 +1030,23 @@ impl<'a> OutputCtl {
             )
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        let labels: Vec<&str> = OPT_IFACE_MODES.iter()
+        let labels: Vec<&str> = OPT_IFACE_MODES
+            .iter()
             .map(|m| opt_iface_mode_to_str(m))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_OPT_IFACE_MODE_NAME, 0);
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUTPUT_LEVEL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, Self::OUT_LABELS.len(), |i| {
-                    let pos = Self::NOMINAL_LEVELS.iter()
+                    let pos = Self::NOMINAL_LEVELS
+                        .iter()
                         .position(|l| l.eq(&self.0.levels[i]))
                         .unwrap();
                     Ok(pos as u32)
@@ -970,14 +1058,18 @@ impl<'a> OutputCtl {
                 Ok(true)
             }
             HP_VOL_NAME => {
-                let vals: Vec<i32> = self.0.headphone_vols.iter()
+                let vals: Vec<i32> = self
+                    .0
+                    .headphone_vols
+                    .iter()
                     .map(|&vol| vol as i32)
                     .collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             OUTPUT_OPT_IFACE_MODE_NAME => {
-                let pos = OPT_IFACE_MODES.iter()
+                let pos = OPT_IFACE_MODES
+                    .iter()
                     .position(|m| m.eq(&self.0.opt_iface_mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -999,14 +1091,19 @@ impl<'a> OutputCtl {
                 let mut vals = [0; Self::OUT_LABELS.len()];
                 elem_value.get_enum(&mut vals);
                 let mut params = self.0.clone();
-                params.levels.iter_mut()
+                params
+                    .levels
+                    .iter_mut()
                     .zip(vals.iter())
                     .try_for_each(|(level, &val)| {
-                        Self::NOMINAL_LEVELS.iter()
+                        Self::NOMINAL_LEVELS
+                            .iter()
                             .nth(val as usize)
                             .ok_or_else(|| {
-                                let msg = format!("Invalid value for index of input nominal level: {}",
-                                                  val);
+                                let msg = format!(
+                                    "Invalid value for index of input nominal level: {}",
+                                    val
+                                );
                                 Error::new(FileError::Inval, &msg)
                             })
                             .map(|&l| *level = l)
@@ -1026,7 +1123,9 @@ impl<'a> OutputCtl {
                 let mut vals = [0; Self::HP_LABELS.len()];
                 elem_value.get_int(&mut vals);
                 let mut params = self.0.clone();
-                params.headphone_vols.iter_mut()
+                params
+                    .headphone_vols
+                    .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(vol, &val)| *vol = val as u8);
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -1036,11 +1135,14 @@ impl<'a> OutputCtl {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
                 let mut params = self.0.clone();
-                let &mode = OPT_IFACE_MODES.iter()
+                let &mode = OPT_IFACE_MODES
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of input nominal level: {}",
-                                          vals[0]);
+                        let msg = format!(
+                            "Invalid value for index of input nominal level: {}",
+                            vals[0]
+                        );
                         Error::new(FileError::Inval, &msg)
                     })?;
                 params.opt_iface_mode = mode;
@@ -1059,45 +1161,111 @@ struct RouteCtl(EnsembleSourceParameters);
 
 impl RouteCtl {
     const OUTPUT_LABELS: [&'static str; 18] = [
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
-        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
-        "spdif-output-1", "spdif-output-2",
-        "adat-output-1", "adat-output-2", "adat-output-3", "adat-output-4",
-        "adat-output-5", "adat-output-6", "adat-output-7", "adat-output-8",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
+        "analog-output-5",
+        "analog-output-6",
+        "analog-output-7",
+        "analog-output-8",
+        "spdif-output-1",
+        "spdif-output-2",
+        "adat-output-1",
+        "adat-output-2",
+        "adat-output-3",
+        "adat-output-4",
+        "adat-output-5",
+        "adat-output-6",
+        "adat-output-7",
+        "adat-output-8",
     ];
 
     const CAPTURE_LABELS: [&'static str; 18] = [
-        "stream-output-1", "stream-output-2", "stream-output-3", "stream-output-4",
-        "stream-output-5", "stream-output-6", "stream-output-7", "stream-output-8",
-        "stream-output-9", "stream-output-10", "stream-output-11", "stream-output-12",
-        "stream-output-13", "stream-output-14", "stream-output-15", "stream-output-16",
-        "stream-output-17", "stream-output-18",
+        "stream-output-1",
+        "stream-output-2",
+        "stream-output-3",
+        "stream-output-4",
+        "stream-output-5",
+        "stream-output-6",
+        "stream-output-7",
+        "stream-output-8",
+        "stream-output-9",
+        "stream-output-10",
+        "stream-output-11",
+        "stream-output-12",
+        "stream-output-13",
+        "stream-output-14",
+        "stream-output-15",
+        "stream-output-16",
+        "stream-output-17",
+        "stream-output-18",
     ];
 
-    const HEADPHONE_LABELS: [&'static str; 2] = [
-        "headpone-3/4", "headpone-1/2",
-    ];
+    const HEADPHONE_LABELS: [&'static str; 2] = ["headpone-3/4", "headpone-1/2"];
 
     const OUTPUT_SOURCE_LABELS: [&'static str; 40] = [
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
-        "stream-input-5", "stream-input-6", "stream-input-7", "stream-input-8",
-        "stream-input-9", "stream-input-10", "stream-input-11", "stream-input-12",
-        "stream-input-13", "stream-input-14", "stream-input-15", "stream-input-16",
-        "stream-input-17", "stream-input-18",
-        "spdif-input-1", "spdif-input-2",
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
-        "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "stream-input-1",
+        "stream-input-2",
+        "stream-input-3",
+        "stream-input-4",
+        "stream-input-5",
+        "stream-input-6",
+        "stream-input-7",
+        "stream-input-8",
+        "stream-input-9",
+        "stream-input-10",
+        "stream-input-11",
+        "stream-input-12",
+        "stream-input-13",
+        "stream-input-14",
+        "stream-input-15",
+        "stream-input-16",
+        "stream-input-17",
+        "stream-input-18",
+        "spdif-input-1",
+        "spdif-input-2",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
+        "mixer-output-1",
+        "mixer-output-2",
+        "mixer-output-3",
+        "mixer-output-4",
     ];
 
     const CAPTURE_SOURCE_LABELS: [&'static str; 18] = [
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "spdif-input-1", "spdif-input-2",
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
     ];
 
     const HEADPHONE_SOURCE_LABELS: [&'static str; 6] = [
@@ -1116,42 +1284,65 @@ impl RouteCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::OUTPUT_LABELS.len(),
-                                         &Self::OUTPUT_SOURCE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(
+            &elem_id,
+            1,
+            Self::OUTPUT_LABELS.len(),
+            &Self::OUTPUT_SOURCE_LABELS,
+            None,
+            true,
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, CAPTURE_SOURCE_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::CAPTURE_LABELS.len(),
-                                         &Self::CAPTURE_SOURCE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(
+            &elem_id,
+            1,
+            Self::CAPTURE_LABELS.len(),
+            &Self::CAPTURE_SOURCE_LABELS,
+            None,
+            true,
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, HP_SRC_NAME, 0);
-        let _ = card_cntr.add_enum_elems(&elem_id, 1, Self::HEADPHONE_LABELS.len(),
-                                         &Self::HEADPHONE_SOURCE_LABELS, None, true)?;
+        let _ = card_cntr.add_enum_elems(
+            &elem_id,
+            1,
+            Self::HEADPHONE_LABELS.len(),
+            &Self::HEADPHONE_SOURCE_LABELS,
+            None,
+            true,
+        )?;
 
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_SRC_NAME => {
-                let vals: Vec<u32> = self.0.output_sources.iter()
+                let vals: Vec<u32> = self
+                    .0
+                    .output_sources
+                    .iter()
                     .map(|&val| val as u32)
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
             CAPTURE_SOURCE_NAME => {
-                let vals: Vec<u32> = self.0.capture_sources.iter()
+                let vals: Vec<u32> = self
+                    .0
+                    .capture_sources
+                    .iter()
                     .map(|&val| val as u32)
                     .collect();
                 elem_value.set_enum(&vals);
                 Ok(true)
             }
             HP_SRC_NAME => {
-                let vals: Vec<u32> = self.0.headphone_sources.iter()
+                let vals: Vec<u32> = self
+                    .0
+                    .headphone_sources
+                    .iter()
                     .map(|&val| val as u32)
                     .collect();
                 elem_value.set_enum(&vals);
@@ -1173,7 +1364,9 @@ impl RouteCtl {
                 let mut vals = [0; Self::OUTPUT_LABELS.len()];
                 elem_value.get_enum(&mut vals);
                 let mut params = self.0.clone();
-                params.output_sources.iter_mut()
+                params
+                    .output_sources
+                    .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(src, &val)| *src = val as usize);
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -1183,7 +1376,9 @@ impl RouteCtl {
                 let mut vals = [0; Self::CAPTURE_LABELS.len()];
                 elem_value.get_enum(&mut vals);
                 let mut params = self.0.clone();
-                params.capture_sources.iter_mut()
+                params
+                    .capture_sources
+                    .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(src, &val)| *src = val as usize);
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -1193,7 +1388,9 @@ impl RouteCtl {
                 let mut vals = [0; Self::HEADPHONE_LABELS.len()];
                 elem_value.get_enum(&mut vals);
                 let mut params = self.0.clone();
-                params.headphone_sources.iter_mut()
+                params
+                    .headphone_sources
+                    .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(src, &val)| *src = val as usize);
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -1211,23 +1408,57 @@ const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
 
 impl MixerCtl {
     const MIXER_LABELS: [&'static str; 4] = [
-        "mixer-output-1", "mixer-output-2", "mixer-output-3", "mixer-output-4",
+        "mixer-output-1",
+        "mixer-output-2",
+        "mixer-output-3",
+        "mixer-output-4",
     ];
 
     const MIXER_SRC_LABELS: [&'static str; 36] = [
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
-        "stream-input-5", "stream-input-6", "stream-input-7", "stream-input-8",
-        "stream-input-9", "stream-input-10", "stream-input-11", "stream-input-12",
-        "stream-input-13", "stream-input-14", "stream-input-15", "stream-input-16",
-        "stream-input-17", "stream-input-18",
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
-        "spdif-input-1", "spdif-input-2",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "stream-input-1",
+        "stream-input-2",
+        "stream-input-3",
+        "stream-input-4",
+        "stream-input-5",
+        "stream-input-6",
+        "stream-input-7",
+        "stream-input-8",
+        "stream-input-9",
+        "stream-input-10",
+        "stream-input-11",
+        "stream-input-12",
+        "stream-input-13",
+        "stream-input-14",
+        "stream-input-15",
+        "stream-input-16",
+        "stream-input-17",
+        "stream-input-18",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
     ];
 
-    const GAIN_TLV: DbInterval = DbInterval { min: -4800, max: 0, linear: false, mute_avail: true };
+    const GAIN_TLV: DbInterval = DbInterval {
+        min: -4800,
+        max: 0,
+        linear: false,
+        mute_avail: true,
+    };
 
     fn load_params(
         &mut self,
@@ -1236,30 +1467,26 @@ impl MixerCtl {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
-        let _ = card_cntr
-            .add_int_elems(
-                &elem_id,
-                Self::MIXER_LABELS.len(),
-                EnsembleMixerParameters::GAIN_MIN as i32,
-                EnsembleMixerParameters::GAIN_MAX as i32,
-                EnsembleMixerParameters::GAIN_STEP as i32,
-                Self::MIXER_SRC_LABELS.len(),
-                Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
-                true,
-            )?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            Self::MIXER_LABELS.len(),
+            EnsembleMixerParameters::GAIN_MIN as i32,
+            EnsembleMixerParameters::GAIN_MAX as i32,
+            EnsembleMixerParameters::GAIN_STEP as i32,
+            Self::MIXER_SRC_LABELS.len(),
+            Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
+            true,
+        )?;
 
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let vals: Vec<i32> = self.0.src_gains[index].iter()
+                let vals: Vec<i32> = self.0.src_gains[index]
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&vals);
@@ -1284,7 +1511,8 @@ impl MixerCtl {
                 let index = elem_id.get_index() as usize;
 
                 let mut params = self.0.clone();
-                params.src_gains[index].iter_mut()
+                params.src_gains[index]
+                    .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(gain, &val)| *gain = val as i16);
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -1321,29 +1549,22 @@ impl StreamCtl {
         avc: &mut BebobAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::STREAM_MODES.iter()
+        let labels: Vec<&str> = Self::STREAM_MODES
+            .iter()
             .map(|m| stream_mode_to_str(m))
             .collect();
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Card,
-            0,
-            0,
-            STREAM_MODE_NAME,
-            0,
-        );
+        let elem_id =
+            alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, STREAM_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
         avc.init_params(&mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &mut self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             STREAM_MODE_NAME => {
-                let pos = Self::STREAM_MODES.iter()
+                let pos = Self::STREAM_MODES
+                    .iter()
                     .position(|m| m.eq(&self.0.mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -1365,7 +1586,8 @@ impl StreamCtl {
             STREAM_MODE_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &mode = Self::STREAM_MODES.iter()
+                let &mode = Self::STREAM_MODES
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index of mode of stream: {}", vals[0]);

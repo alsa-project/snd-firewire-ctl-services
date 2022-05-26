@@ -10,7 +10,7 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, maudio::normal::*};
+use bebob_protocols::{maudio::normal::*, *};
 
 use crate::common_ctls::*;
 
@@ -67,7 +67,10 @@ struct PhysInputCtl;
 impl AvcLevelCtlOperation<OzonicPhysInputProtocol> for PhysInputCtl {
     const LEVEL_NAME: &'static str = "phys-input-gain";
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
     ];
 }
 
@@ -81,7 +84,10 @@ struct StreamInputCtl;
 impl AvcLevelCtlOperation<OzonicStreamInputProtocol> for StreamInputCtl {
     const LEVEL_NAME: &'static str = "stream-input-gain";
     const PORT_LABELS: &'static [&'static str] = &[
-        "stream-input-1", "stream-input-2", "stream-input-3", "stream-input-4",
+        "stream-input-1",
+        "stream-input-2",
+        "stream-input-3",
+        "stream-input-4",
     ];
 }
 
@@ -92,7 +98,10 @@ impl MaudioNormalMixerCtlOperation<OzonicMixerProtocol> for MixerCtl {
     const MIXER_NAME: &'static str = "mixer-source";
     const DST_LABELS: &'static [&'static str] = &["mixer-1/2", "mixer-3/4"];
     const SRC_LABELS: &'static [&'static str] = &[
-        "analog-input-1/2", "digital-input-1/2", "stream-input-1/2", "stream-input-3/4",
+        "analog-input-1/2",
+        "digital-input-1/2",
+        "stream-input-1/2",
+        "stream-input-3/4",
     ];
 }
 
@@ -100,60 +109,111 @@ impl CtlModel<SndUnit> for OzonicModel {
     fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load_meter(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)
+        self.meter_ctl
+            .load_meter(card_cntr, &self.req, &unit.get_node(), TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
         self.phys_input_ctl.load_level(card_cntr)?;
         self.phys_input_ctl.load_balance(card_cntr)?;
         self.stream_input_ctl.load_level(card_cntr)?;
 
-        self.mixer_ctl.load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
+        self.mixer_ctl
+            .load_src_state(card_cntr, &self.avc, TIMEOUT_MS)?;
 
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
-        } else if self.phys_input_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_input_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_input_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.phys_input_ctl.read_balance(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.stream_input_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self.stream_input_ctl.read_level(
+            &self.avc,
+            elem_id,
+            elem_value,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.mixer_ctl.read_src_state(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .mixer_ctl
+            .read_src_state(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
         }
     }
 
-    fn write(&mut self, unit: &mut SndUnit, elem_id: &ElemId, old: &ElemValue, new: &ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+    fn write(
+        &mut self,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.phys_input_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_input_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.phys_input_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .phys_input_ctl
+            .write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.stream_input_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
-             Ok(true)
-        } else if self.mixer_ctl.write_src_state(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .stream_input_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
+            Ok(true)
+        } else if self
+            .mixer_ctl
+            .write_src_state(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -167,12 +227,16 @@ impl MeasureModel<SndUnit> for OzonicModel {
     }
 
     fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
-        self.meter_ctl.measure_meter(&self.req, &unit.get_node(), &self.avc, TIMEOUT_MS)
+        self.meter_ctl
+            .measure_meter(&self.req, &unit.get_node(), &self.avc, TIMEOUT_MS)
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         self.meter_ctl.read_meter(elem_id, elem_value)
     }
 }
@@ -186,10 +250,14 @@ impl NotifyModel<SndUnit, bool> for OzonicModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 

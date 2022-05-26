@@ -10,7 +10,7 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, focusrite::saffireproio::*};
+use bebob_protocols::{focusrite::saffireproio::*, *};
 
 use super::*;
 
@@ -70,7 +70,10 @@ impl AsMut<SaffireOutputParameters> for OutputCtl {
 
 impl SaffireOutputCtlOperation<SaffireProioOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6", "analog-output-7/8",
+        "analog-output-1/2",
+        "analog-output-3/4",
+        "analog-output-5/6",
+        "analog-output-7/8",
     ];
 }
 
@@ -114,32 +117,35 @@ impl AsMut<SaffireProioSpecificParameters> for SpecificCtl {
 impl SaffireProioSpecificCtlOperation<SaffirePro10ioSpecificProtocol> for SpecificCtl {}
 
 impl CtlModel<SndUnit> for SaffirePro10ioModel {
-    fn load(
-        &mut self,
-        unit: &mut SndUnit,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load_state(card_cntr, unit, &self.req, TIMEOUT_MS)
+        self.meter_ctl
+            .load_state(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
-        self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+        self.out_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
         self.through_ctl.load_params(card_cntr)?;
 
-        self.monitor_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.monitor_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.mixer_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.mixer_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.specific_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
         Ok(())
     }
@@ -150,15 +156,24 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        if self
+            .clk_ctl
+            .read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.through_ctl.read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self
+            .through_ctl
+            .read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.monitor_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
@@ -178,19 +193,40 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.req, elem_id, new, TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.req, elem_id, new, TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.req, elem_id, new, TIMEOUT_MS * 3)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.req, elem_id, new, TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .out_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.through_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .through_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.monitor_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .monitor_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .specific_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -207,10 +243,14 @@ impl NotifyModel<SndUnit, bool> for SaffirePro10ioModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, unit: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        unit: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)
     }
 }
 
@@ -223,9 +263,12 @@ impl MeasureModel<SndUnit> for SaffirePro10ioModel {
         self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         self.meter_ctl.read_state(elem_id, elem_value)
     }
 }
@@ -242,7 +285,9 @@ mod test {
         let unit = SndUnit::default();
         let req = FwReq::default();
 
-        let error = ctl.load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS).unwrap_err();
+        let error = ctl
+            .load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS)
+            .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

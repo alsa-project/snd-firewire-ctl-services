@@ -10,10 +10,16 @@ use alsactl::{ElemId, ElemValue, ElemValueExt, ElemValueExtManual};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, focusrite::{*, saffire::*}};
+use bebob_protocols::{
+    focusrite::{saffire::*, *},
+    *,
+};
 
-use crate::{common_ctls::*, model::{IN_METER_NAME, OUT_METER_NAME}};
 use super::*;
+use crate::{
+    common_ctls::*,
+    model::{IN_METER_NAME, OUT_METER_NAME},
+};
 
 #[derive(Default)]
 pub struct SaffireLeModel {
@@ -64,7 +70,9 @@ struct SpecificCtl(SaffireLeSpecificParameters);
 
 impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1/2", "analog-output-3/4", "analog-output-5/6",
+        "analog-output-1/2",
+        "analog-output-3/4",
+        "analog-output-5/6",
     ];
 }
 
@@ -80,29 +88,32 @@ struct ThroughCtl;
 impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {}
 
 impl CtlModel<SndUnit> for SaffireLeModel {
-    fn load(
-        &mut self,
-        unit: &mut SndUnit,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.as_ref().bind(&unit.get_node())?;
 
-        self.clk_ctl.load_freq(card_cntr)
+        self.clk_ctl
+            .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.clk_ctl.load_src(card_cntr)
+        self.clk_ctl
+            .load_src(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl.load_meter(card_cntr, unit, &self.req, FCP_TIMEOUT_MS)
+        self.meter_ctl
+            .load_meter(card_cntr, unit, &self.req, FCP_TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
-        self.out_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+        self.out_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
-        self.specific_ctl.load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.specific_ctl
+            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
-        self.mixer_low_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
-        self.mixer_middle_rate_ctl.load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.mixer_low_rate_ctl
+            .load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
+        self.mixer_middle_rate_ctl
+            .load_src_gains(card_cntr, unit, &self.req, TIMEOUT_MS)?;
 
         self.through_ctl.load_params(card_cntr)?;
 
@@ -115,9 +126,15 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.clk_ctl.read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .clk_ctl
+            .read_src(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
@@ -125,11 +142,20 @@ impl CtlModel<SndUnit> for SaffireLeModel {
             Ok(true)
         } else if self.specific_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
-        } else if self.mixer_low_rate_ctl.read_src_gains(elem_id, elem_value)? {
+        } else if self
+            .mixer_low_rate_ctl
+            .read_src_gains(elem_id, elem_value)?
+        {
             Ok(true)
-        } else if self.mixer_middle_rate_ctl.read_src_gains(elem_id, elem_value)? {
+        } else if self
+            .mixer_middle_rate_ctl
+            .read_src_gains(elem_id, elem_value)?
+        {
             Ok(true)
-        } else if self.through_ctl.read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self
+            .through_ctl
+            .read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -143,19 +169,40 @@ impl CtlModel<SndUnit> for SaffireLeModel {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.clk_ctl.write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        } else if self
+            .clk_ctl
+            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.out_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .out_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.specific_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .specific_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_low_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_low_rate_ctl
+            .write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.mixer_middle_rate_ctl.write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .mixer_middle_rate_ctl
+            .write_src_gains(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.through_ctl.write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .through_ctl
+            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -172,10 +219,14 @@ impl NotifyModel<SndUnit, bool> for SaffireLeModel {
         Ok(())
     }
 
-    fn read_notified_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
+    fn read_notified_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        self.clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
     }
 }
 
@@ -191,9 +242,12 @@ impl MeasureModel<SndUnit> for SaffireLeModel {
         Ok(())
     }
 
-    fn measure_elem(&mut self, _: &SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    fn measure_elem(
+        &mut self,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         if self.meter_ctl.read_meter(elem_id, elem_value)? {
             Ok(true)
         } else if self.out_ctl.read_params(elem_id, elem_value)? {
@@ -209,17 +263,28 @@ const METER_DIG_INPUT_DETECT_NAME: &str = "digital-input-detection";
 
 impl MeterCtl {
     const PHYS_INPUT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "digital-input-1", "digital-input-2",
-
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "digital-input-1",
+        "digital-input-2",
     ];
     const STREAM_INPUT_LABELS: &'static [&'static str] = &[
-        "stream-input-1/2", "stream-input-3/4", "stream-input-5/6", "stream-input-7/8",
+        "stream-input-1/2",
+        "stream-input-3/4",
+        "stream-input-5/6",
+        "stream-input-7/8",
     ];
     const PHYS_OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
-        "analog-output-5", "analog-output-6",
-        "digital-output-1", "digital-output-2",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
+        "analog-output-5",
+        "analog-output-6",
+        "digital-output-1",
+        "digital-output-2",
     ];
 
     fn load_meter(
@@ -245,13 +310,7 @@ impl MeterCtl {
             )
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            METER_STREAM_INPUT_NAME,
-            0,
-        );
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, METER_STREAM_INPUT_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -279,13 +338,8 @@ impl MeterCtl {
             )
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Card,
-            0,
-            0,
-            METER_DIG_INPUT_DETECT_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Card, 0, 0, METER_DIG_INPUT_DETECT_NAME, 0);
         card_cntr
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
@@ -332,24 +386,13 @@ impl SpecificCtl {
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Card,
-            0,
-            0,
-            ANALOG_INPUT_2_3_HIGH_GAIN,
-            0,
-        );
-        card_cntr
-            .add_bool_elems(&elem_id, 1, 2, false)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, ANALOG_INPUT_2_3_HIGH_GAIN, 0);
+        card_cntr.add_bool_elems(&elem_id, 1, 2, false)?;
 
         SaffireLeSpecificProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)
     }
 
-    fn read_params(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ANALOG_INPUT_2_3_HIGH_GAIN => {
                 elem_value.set_bool(&self.0.analog_input_2_3_high_gains);
@@ -378,7 +421,7 @@ impl SpecificCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -424,21 +467,19 @@ impl MixerLowRateCtl {
             )
             .map(|_| ())?;
 
-
-        SaffireLeMixerLowRateProtocol::read_src_gains(req, &unit.get_node(), &mut self.0, timeout_ms)?;
+        SaffireLeMixerLowRateProtocol::read_src_gains(
+            req,
+            &unit.get_node(),
+            &mut self.0,
+            timeout_ms,
+        )?;
 
         Ok(())
     }
 
-    fn read_src_gains(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_src_gains(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            PHYS_SRC_GAIN_NAME => {
-                read_mixer_src_gains(elem_value, elem_id, &self.0.phys_src_gains)
-            }
+            PHYS_SRC_GAIN_NAME => read_mixer_src_gains(elem_value, elem_id, &self.0.phys_src_gains),
             STREAM_SRC_GAIN_NAME => {
                 read_mixer_src_gains(elem_value, elem_id, &self.0.stream_src_gains)
             }
@@ -471,7 +512,7 @@ impl MixerLowRateCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -489,7 +530,7 @@ impl MixerLowRateCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -528,13 +569,8 @@ impl MixerMiddleRateCtl {
             )
             .map(|_| ())?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            MIDDLE_MONITOR_SRC_GAIN_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIDDLE_MONITOR_SRC_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -548,13 +584,8 @@ impl MixerMiddleRateCtl {
             )
             .map(|_| ())?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer,
-            0,
-            0,
-            MIDDLE_STREAM_SRC_GAIN_NAME,
-            0,
-        );
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIDDLE_STREAM_SRC_GAIN_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
@@ -568,20 +599,23 @@ impl MixerMiddleRateCtl {
             )
             .map(|_| ())?;
 
-
-        SaffireLeMixerMiddleRateProtocol::read_state(req, &unit.get_node(), &mut self.0, timeout_ms)?;
+        SaffireLeMixerMiddleRateProtocol::read_state(
+            req,
+            &unit.get_node(),
+            &mut self.0,
+            timeout_ms,
+        )?;
 
         Ok(())
     }
 
-    fn read_src_gains(
-        &self,
-        elem_id: &ElemId,
-        elem_value: &mut ElemValue,
-    ) -> Result<bool, Error> {
+    fn read_src_gains(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME => {
-                let gains: Vec<i32> = self.0.monitor_src_phys_input_gains.iter()
+                let gains: Vec<i32> = self
+                    .0
+                    .monitor_src_phys_input_gains
+                    .iter()
                     .map(|&val| val as i32)
                     .collect();
                 elem_value.set_int(&gains);
@@ -620,7 +654,7 @@ impl MixerMiddleRateCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIDDLE_MONITOR_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -638,7 +672,7 @@ impl MixerMiddleRateCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             MIDDLE_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -656,7 +690,7 @@ impl MixerMiddleRateCtl {
                     &mut self.0,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -668,21 +702,22 @@ fn read_mixer_src_gains<T>(
     elem_id: &ElemId,
     levels_list: &[T],
 ) -> Result<bool, Error>
-where T: AsRef<[i16]>,
+where
+    T: AsRef<[i16]>,
 {
     let index = elem_id.get_index() as usize;
-    levels_list.iter()
+    levels_list
+        .iter()
         .nth(index)
         .ok_or_else(|| {
             let msg = format!("Invalid index of source level list {}", index);
             Error::new(FileError::Inval, &msg)
         })
         .map(|levels| {
-            let vals: Vec<i32> = levels.as_ref().iter()
-                .fold(Vec::new(), |mut vals, &level| {
-                    vals.push(level as i32);
-                    vals
-                });
+            let vals: Vec<i32> = levels.as_ref().iter().fold(Vec::new(), |mut vals, &level| {
+                vals.push(level as i32);
+                vals
+            });
             elem_value.set_int(&vals);
             true
         })
@@ -712,7 +747,9 @@ mod test {
         let unit = SndUnit::default();
         let req = FwReq::default();
 
-        let error = ctl.load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS).unwrap_err();
+        let error = ctl
+            .load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS)
+            .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }

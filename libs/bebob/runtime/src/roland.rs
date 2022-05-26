@@ -10,10 +10,10 @@ use alsactl::{ElemId, ElemValue};
 
 use core::card_cntr::*;
 
-use bebob_protocols::{*, roland::*};
+use bebob_protocols::{roland::*, *};
 
-use crate::common_ctls::*;
 use super::model::CLK_RATE_NAME;
+use crate::common_ctls::*;
 
 pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;
 pub type Fa101Model = FaModel<Fa101MixerAnalogSourceProtocol>;
@@ -42,7 +42,10 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
         _: u32,
     ) -> Result<bool, Error> {
         if elem_id.get_name().as_str() == CLK_RATE_NAME {
-            Err(Error::new(FileError::Nxio, "Sampling rate is immutable from software"))
+            Err(Error::new(
+                FileError::Nxio,
+                "Sampling rate is immutable from software",
+            ))
         } else {
             Ok(false)
         }
@@ -52,30 +55,49 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
 #[derive(Default)]
 struct MixerAnalogSourceCtl<O: AvcLevelOperation + Default>(O);
 
-impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol> {
+impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol>
+    for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol>
+{
     const LEVEL_NAME: &'static str = "mixer-source-gain";
 
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
     ];
 }
 
-impl AvcLrBalanceCtlOperation<Fa66MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol> {
+impl AvcLrBalanceCtlOperation<Fa66MixerAnalogSourceProtocol>
+    for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol>
+{
     const BALANCE_NAME: &'static str = "mixer-source-balance";
 }
 
-impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol> {
+impl AvcLevelCtlOperation<Fa101MixerAnalogSourceProtocol>
+    for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol>
+{
     const LEVEL_NAME: &'static str = "mixer-source-gain";
 
     const PORT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "analog-input-9", "analog-input-10",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "analog-input-9",
+        "analog-input-10",
     ];
 }
 
-impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol> for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol> {
+impl AvcLrBalanceCtlOperation<Fa101MixerAnalogSourceProtocol>
+    for MixerAnalogSourceCtl<Fa101MixerAnalogSourceProtocol>
+{
     const BALANCE_NAME: &'static str = "mixer-source-balance";
 }
 
@@ -90,14 +112,26 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -111,11 +145,20 @@ impl CtlModel<SndUnit> for FaModel<Fa66MixerAnalogSourceProtocol> {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -134,14 +177,26 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
         Ok(())
     }
 
-    fn read(&mut self, _: &mut SndUnit, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
-        if self.clk_ctl.read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+    fn read(
+        &mut self,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
+        if self
+            .clk_ctl
+            .read_freq(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .read_level(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .read_balance(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -155,11 +210,20 @@ impl CtlModel<SndUnit> for FaModel<Fa101MixerAnalogSourceProtocol> {
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.clk_ctl.write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)? {
+        if self
+            .clk_ctl
+            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .write_level(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.analog_in_ctl.write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)? {
+        } else if self
+            .analog_in_ctl
+            .write_balance(&self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
