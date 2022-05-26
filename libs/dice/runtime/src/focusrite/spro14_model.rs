@@ -60,7 +60,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
 
         let _ = self.out_grp_ctl.load(
             card_cntr,
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             TIMEOUT_MS,
@@ -98,7 +98,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.input_ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -139,7 +139,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -148,7 +148,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro14Model {
         )? {
             Ok(true)
         } else if self.input_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             elem_id,

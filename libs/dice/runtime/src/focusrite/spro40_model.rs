@@ -74,7 +74,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
         self.out_grp_ctl
             .load(
                 card_cntr,
-                &mut unit.0,
+                unit,
                 &mut self.req,
                 &self.extension_sections,
                 TIMEOUT_MS,
@@ -153,7 +153,7 @@ impl CtlModel<(SndDice, FwNode)> for SPro40Model {
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             elem_id,
@@ -195,7 +195,7 @@ impl NotifyModel<(SndDice, FwNode), u32> for SPro40Model {
             *msg,
         )?;
         self.out_grp_ctl.parse_notification(
-            &mut unit.0,
+            unit,
             &mut self.req,
             &self.extension_sections,
             *msg,
