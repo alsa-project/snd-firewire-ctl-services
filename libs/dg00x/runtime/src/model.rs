@@ -36,14 +36,14 @@ pub struct Dg00xMeterCtl(Option<ClockRate>, Vec<ElemId>);
 #[derive(Default)]
 pub struct Dg00xMonitorCtl(Dg00xMonitorState, Vec<ElemId>);
 
-impl<S, T, U, V> CtlModel<SndDg00x> for Dg00xModel<S, T, U, V>
+impl<S, T, U, V> CtlModel<(SndDg00x, FwNode)> for Dg00xModel<S, T, U, V>
 where
     S: Dg00xCommonCtlOperation<V>,
     T: Dg00xMeterCtlOperation<V>,
     U: Dg00xMonitorCtlOperation<V>,
     V: Dg00xCommonOperation + Dg00xMonitorOperation,
 {
-    fn load(&mut self, unit: &mut SndDg00x, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut (SndDg00x, FwNode), card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.common_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl
@@ -55,7 +55,7 @@ where
 
     fn read(
         &mut self,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -75,7 +75,7 @@ where
 
     fn write(
         &mut self,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -96,7 +96,7 @@ where
     }
 }
 
-impl<S, T, U, V> MeasureModel<SndDg00x> for Dg00xModel<S, T, U, V>
+impl<S, T, U, V> MeasureModel<(SndDg00x, FwNode)> for Dg00xModel<S, T, U, V>
 where
     S: Dg00xCommonCtlOperation<V>,
     T: Dg00xMeterCtlOperation<V>,
@@ -107,14 +107,14 @@ where
         elem_id_list.extend_from_slice(&self.meter_ctl.meter().1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDg00x, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndDg00x,
+        _: &(SndDg00x, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -126,7 +126,7 @@ where
     }
 }
 
-impl<S, T, U, V> NotifyModel<SndDg00x, bool> for Dg00xModel<S, T, U, V>
+impl<S, T, U, V> NotifyModel<(SndDg00x, FwNode), bool> for Dg00xModel<S, T, U, V>
 where
     S: Dg00xCommonCtlOperation<V>,
     T: Dg00xMeterCtlOperation<V>,
@@ -138,7 +138,7 @@ where
         elem_id_list.extend_from_slice(&self.monitor_ctl.state().1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, unit: &mut (SndDg00x, FwNode), &locked: &bool) -> Result<(), Error> {
         self.common_ctl
             .handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
         self.monitor_ctl
@@ -148,7 +148,7 @@ where
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDg00x,
+        _: &(SndDg00x, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -286,7 +286,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -317,7 +317,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
 
         self.state_mut().1 = notified_elem_id_list;
 
-        T::read_media_clock_rate(req, &mut unit.get_node(), timeout_ms)
+        T::read_media_clock_rate(req, &mut unit.1, timeout_ms)
             .map(|src| self.state_mut().0 = src)?;
 
         Ok(())
@@ -325,7 +325,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -333,7 +333,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_SRC_NAME => {
-                let src = T::read_sampling_clock_source(req, &mut unit.get_node(), timeout_ms)?;
+                let src = T::read_sampling_clock_source(req, &mut unit.1, timeout_ms)?;
                 let pos = T::SAMPLING_CLOCK_SOURCES
                     .iter()
                     .position(|s| s.eq(&src))
@@ -342,7 +342,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                 Ok(true)
             }
             OPT_IFACE_NAME => {
-                let mode = T::read_optical_interface_mode(req, &mut unit.get_node(), timeout_ms)?;
+                let mode = T::read_optical_interface_mode(req, &mut unit.1, timeout_ms)?;
                 let pos = Self::OPTICAL_INTERFACE_MODES
                     .iter()
                     .position(|r| r.eq(&mode))
@@ -356,7 +356,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -364,7 +364,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_SRC_NAME => {
-                if unit.get_property_streaming() {
+                if unit.0.get_property_streaming() {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
@@ -378,12 +378,12 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                                 format!("Invalid index for sampling clock sources: {}", vals[0]);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    T::write_sampling_clock_source(req, &mut unit.get_node(), src, timeout_ms)
+                    T::write_sampling_clock_source(req, &mut unit.1, src, timeout_ms)
                         .map(|_| true)
                 }
             }
             CLK_LOCAL_RATE_NAME => {
-                if unit.get_property_streaming() {
+                if unit.0.get_property_streaming() {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
@@ -398,7 +398,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                                     format!("Invalid index for media clock rates: {}", vals[0]);
                                 Error::new(FileError::Inval, &msg)
                             })?;
-                    T::write_media_clock_rate(req, &mut unit.get_node(), rate, timeout_ms).map(
+                    T::write_media_clock_rate(req, &mut unit.1, rate, timeout_ms).map(
                         |_| {
                             self.state_mut().0 = rate;
                             true
@@ -407,7 +407,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                 }
             }
             OPT_IFACE_NAME => {
-                if unit.get_property_streaming() {
+                if unit.0.get_property_streaming() {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
@@ -421,7 +421,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                                 format!("Invalid index for optical interface mode: {}", vals[0]);
                             Error::new(FileError::Inval, &msg)
                         })?;
-                    T::write_optical_interface_mode(req, &mut unit.get_node(), mode, timeout_ms)
+                    T::write_optical_interface_mode(req, &mut unit.1, mode, timeout_ms)
                         .map(|_| true)
                 }
             }
@@ -432,12 +432,12 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
     fn handle_lock_notification(
         &mut self,
         locked: bool,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if locked {
-            T::read_media_clock_rate(req, &mut unit.get_node(), timeout_ms)
+            T::read_media_clock_rate(req, &mut unit.1, timeout_ms)
                 .map(|rate| self.state_mut().0 = rate)
         } else {
             Ok(())
@@ -488,7 +488,7 @@ pub trait Dg00xMeterCtlOperation<T: Dg00xCommonOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -512,11 +512,11 @@ pub trait Dg00xMeterCtlOperation<T: Dg00xCommonOperation> {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_external_clock_source_rate(req, &mut unit.get_node(), timeout_ms)
+        T::read_external_clock_source_rate(req, &mut unit.1, timeout_ms)
             .map(|rate| self.meter_mut().0 = rate)
     }
 
@@ -574,7 +574,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -606,12 +606,12 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
 
         T::read_monitor_state(
             req,
-            &mut unit.get_node(),
+            &mut unit.1,
             &mut self.state_mut().0,
             timeout_ms,
         )?;
 
-        if !unit.get_property_streaming() {
+        if !unit.0.get_property_streaming() {
             self.state_mut().0.enabled = false;
         }
 
@@ -621,7 +621,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
     fn handle_streaming_event(
         &mut self,
         locked: bool,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -636,7 +636,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
             // streaming.
             T::write_monitor_state(
                 req,
-                &mut unit.get_node(),
+                &mut unit.1,
                 &mut self.state_mut().0,
                 timeout_ms,
             )
@@ -662,7 +662,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndDg00x,
+        unit: &mut (SndDg00x, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -671,13 +671,13 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MONITOR_ENABLE_NAME => {
-                if !unit.get_property_streaming() {
+                if !unit.0.get_property_streaming() {
                     let msg = "Monitor function is configurable during packet streaming.";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
                     let mut vals = [false];
                     new.get_bool(&mut vals);
-                    T::write_monitor_enable(req, &mut unit.get_node(), vals[0], timeout_ms).map(
+                    T::write_monitor_enable(req, &mut unit.1, vals[0], timeout_ms).map(
                         |_| {
                             self.state_mut().0.enabled = vals[0];
                             true
@@ -690,7 +690,6 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
                     let msg = "Monitor is disabled.";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let mut node = unit.get_node();
                     let dst = elem_id.get_index() as usize;
                     ElemValueAccessor::<i32>::get_vals(
                         new,
@@ -698,7 +697,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
                         Self::SRC_LABELS.len(),
                         |src, val| {
                             T::write_monitor_source_gain(
-                                req, &mut node, dst, src, val as u8, timeout_ms,
+                                req, &mut unit.1, dst, src, val as u8, timeout_ms,
                             )
                         },
                     )

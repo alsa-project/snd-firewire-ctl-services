@@ -8,7 +8,7 @@ use {
     glib::{
         source, {Error, FileError},
     },
-    hinawa::{FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
     hinawa::{SndDg00x, SndDg00xExt, SndUnitExt},
     ieee1212_config_rom::ConfigRom,
     model::*,
@@ -32,7 +32,7 @@ enum Model {
 }
 
 pub struct Dg00xRuntime {
-    unit: SndDg00x,
+    unit: (SndDg00x, FwNode),
     model: Model,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -100,7 +100,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         let timer = None;
 
         Ok(Dg00xRuntime {
-            unit,
+            unit: (unit, node),
             model,
             card_cntr,
             rx,
@@ -235,17 +235,17 @@ impl<'a> Dg00xRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
@@ -273,7 +273,7 @@ impl<'a> Dg00xRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.connect_lock_status(move |_, locked| {
+        self.unit.0.connect_lock_status(move |_, locked| {
             let t = tx.clone();
             let _ = thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual
