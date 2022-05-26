@@ -2,28 +2,20 @@
 // Copyright (c) 2020 Takashi Sakamoto
 mod model;
 
-use glib::source;
-use glib::{Error, FileError};
-use nix::sys::signal;
-use std::convert::TryFrom;
-use std::sync::mpsc;
-use std::thread;
-
-use hinawa::{FwNodeExt, FwNodeExtManual};
-use hinawa::{SndDg00xExt, SndUnitExt};
-
-use alsactl::{
-    CardExt, CardExtManual, ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual,
+use {
+    alsactl::*,
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    glib::{
+        source, {Error, FileError},
+    },
+    hinawa::{FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{SndDg00x, SndDg00xExt, SndUnitExt},
+    ieee1212_config_rom::ConfigRom,
+    model::*,
+    nix::sys::signal,
+    std::{convert::TryFrom, sync::mpsc, thread},
+    ta1394::config_rom::Ta1394ConfigRom,
 };
-
-use core::card_cntr::*;
-use core::dispatcher::*;
-use core::RuntimeOperation;
-
-use ieee1212_config_rom::ConfigRom;
-use ta1394::config_rom::Ta1394ConfigRom;
-
-use model::*;
 
 enum Event {
     Shutdown,
@@ -40,7 +32,7 @@ enum Model {
 }
 
 pub struct Dg00xRuntime {
-    unit: hinawa::SndDg00x,
+    unit: SndDg00x,
     model: Model,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -76,7 +68,7 @@ const SPECIFIER_ID_DIGI003_RACK: u32 = 0x0000ab;
 
 impl RuntimeOperation<u32> for Dg00xRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
-        let unit = hinawa::SndDg00x::new();
+        let unit = SndDg00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
         let card_cntr = CardCntr::new();

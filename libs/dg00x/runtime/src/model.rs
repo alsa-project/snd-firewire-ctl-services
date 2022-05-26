@@ -1,21 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use core::card_cntr::*;
-
-use hinawa::FwReq;
-use hinawa::{SndDg00x, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::elem_value_accessor::*;
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use dg00x_protocols::*;
-
-use std::marker::PhantomData;
+use {
+    super::*, alsa_ctl_tlv_codec::items::DbInterval, dg00x_protocols::*, std::marker::PhantomData,
+};
 
 const TIMEOUT_MS: u32 = 100;
 
