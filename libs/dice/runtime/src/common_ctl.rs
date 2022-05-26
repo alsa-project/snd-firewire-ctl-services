@@ -5,13 +5,13 @@ use glib::{Error, FileError};
 use alsactl::{ElemId, ElemIfaceType};
 use alsactl::{ElemValue, ElemValueExt, ElemValueExtManual};
 
-use hinawa::{SndDice, SndUnitExt};
 use hinawa::FwReq;
+use hinawa::{SndDice, SndUnitExt};
 
 use core::card_cntr::*;
 use core::elem_value_accessor::ElemValueAccessor;
 
-use dice_protocols::tcat::{*, global_section::*};
+use dice_protocols::tcat::{global_section::*, *};
 
 #[derive(Default)]
 pub struct CommonCtl {
@@ -25,7 +25,7 @@ pub struct CommonCtl {
     pub measured_elem_list: Vec<ElemId>,
 }
 
-const CLK_RATE_NAME: & str = "clock-rate";
+const CLK_RATE_NAME: &str = "clock-rate";
 const CLK_SRC_NAME: &str = "clock-source";
 const NICKNAME: &str = "nickname";
 const LOCKED_CLK_SRC_NAME: &str = "locked-clock-source";
@@ -36,20 +36,20 @@ impl CommonCtl {
         &mut self,
         card_cntr: &mut CardCntr,
         caps: &ClockCaps,
-        src_labels: &ClockSourceLabels
+        src_labels: &ClockSourceLabels,
     ) -> Result<(), Error> {
         self.rates = caps.get_rate_entries();
         self.srcs = caps.get_src_entries(src_labels);
 
-        let labels = self.rates.iter()
-            .map(|r| r.to_string())
-            .collect::<Vec<_>>();
+        let labels = self.rates.iter().map(|r| r.to_string()).collect::<Vec<_>>();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CLK_RATE_NAME, 0);
         let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         self.notified_elem_list.append(&mut elem_id_list);
 
-        let labels = self.srcs.iter()
+        let labels = self
+            .srcs
+            .iter()
             .map(|s| s.get_label(&src_labels, false).unwrap())
             .collect::<Vec<_>>();
 
@@ -61,7 +61,9 @@ impl CommonCtl {
         let _ = card_cntr.add_bytes_elems(&elem_id, 1, NICKNAME_MAX_SIZE, None, true)?;
 
         self.ext_srcs = ExtSourceStates::get_entries(caps, src_labels);
-        let labels = self.ext_srcs.iter()
+        let labels = self
+            .ext_srcs
+            .iter()
             .map(|s| s.get_label(src_labels, true).unwrap())
             .collect::<Vec<_>>();
 
@@ -76,16 +78,18 @@ impl CommonCtl {
         Ok(())
     }
 
-    fn cache_clock_config(&mut self, config: &ClockConfig)
-        -> Result<(), Error>
-    {
-        self.rates.iter().position(|&r| r == config.rate)
+    fn cache_clock_config(&mut self, config: &ClockConfig) -> Result<(), Error> {
+        self.rates
+            .iter()
+            .position(|&r| r == config.rate)
             .ok_or_else(|| {
                 let msg = format!("Unexpected value read for clock rate: {}", config.rate);
                 Error::new(FileError::Io, &msg)
             })
             .map(|pos| self.curr_rate_idx = pos as u32)?;
-        self.srcs.iter().position(|&s| s == config.src)
+        self.srcs
+            .iter()
+            .position(|&s| s == config.src)
             .ok_or_else(|| {
                 let msg = format!("Unexpected value read for clock source: {}", config.src);
                 Error::new(FileError::Io, &msg)
@@ -100,7 +104,7 @@ impl CommonCtl {
         sections: &GeneralSections,
         elem_id: &ElemId,
         elem_value: &ElemValue,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
@@ -108,38 +112,36 @@ impl CommonCtl {
                     req,
                     &mut unit.get_node(),
                     sections,
-                    timeout_ms
+                    timeout_ms,
                 )?;
                 self.cache_clock_config(&config)?;
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
-                .map(|_| true)
+                    .map(|_| true)
             }
             CLK_SRC_NAME => {
                 let config = GlobalSectionProtocol::read_clock_config(
                     req,
                     &mut unit.get_node(),
                     sections,
-                    timeout_ms
+                    timeout_ms,
                 )?;
                 self.cache_clock_config(&config)?;
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
-                .map(|_| true)
+                    .map(|_| true)
             }
-            NICKNAME => {
-                GlobalSectionProtocol::read_nickname(
-                    req,
-                    &mut unit.get_node(),
-                    sections,
-                    timeout_ms
-                )
-                    .map(|name| {
-                        let mut vals = vec![0;NICKNAME_MAX_SIZE];
-                        let raw = name.as_bytes();
-                        vals[..raw.len()].copy_from_slice(&raw);
-                        elem_value.set_bytes(&vals);
-                        true
-                    })
-            }
+            NICKNAME => GlobalSectionProtocol::read_nickname(
+                req,
+                &mut unit.get_node(),
+                sections,
+                timeout_ms,
+            )
+            .map(|name| {
+                let mut vals = vec![0; NICKNAME_MAX_SIZE];
+                let raw = name.as_bytes();
+                vals[..raw.len()].copy_from_slice(&raw);
+                elem_value.set_bytes(&vals);
+                true
+            }),
             _ => Ok(false),
         }
     }
@@ -148,24 +150,32 @@ impl CommonCtl {
         &mut self,
         config: &mut ClockConfig,
         rate: Option<u32>,
-        src: Option<u32>
+        src: Option<u32>,
     ) -> Result<(), Error> {
         if let Some(pos) = rate {
-            self.rates.iter()
+            self.rates
+                .iter()
                 .nth(pos as usize)
                 .ok_or_else(|| {
-                    let msg = format!("Invalid value for index of rate: {} greater than {}",
-                                      pos, self.rates.len());
+                    let msg = format!(
+                        "Invalid value for index of rate: {} greater than {}",
+                        pos,
+                        self.rates.len()
+                    );
                     Error::new(FileError::Inval, &msg)
                 })
                 .map(|&r| config.rate = r)?;
         }
         if let Some(pos) = src {
-            self.srcs.iter()
+            self.srcs
+                .iter()
                 .nth(pos as usize)
                 .ok_or_else(|| {
-                    let msg = format!("Invalid value for index of source: {} greater than {}",
-                                      pos, self.srcs.len());
+                    let msg = format!(
+                        "Invalid value for index of source: {} greater than {}",
+                        pos,
+                        self.srcs.len()
+                    );
                     Error::new(FileError::Inval, &msg)
                 })
                 .map(|&s| config.src = s)?;
@@ -181,63 +191,59 @@ impl CommonCtl {
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            CLK_RATE_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    unit.lock()?;
-                    let res = GlobalSectionProtocol::read_clock_config(
+            CLK_RATE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
+                unit.lock()?;
+                let res = GlobalSectionProtocol::read_clock_config(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    timeout_ms,
+                )
+                .and_then(|mut config| {
+                    self.update_clock_config(&mut config, Some(val as u32), None)?;
+                    GlobalSectionProtocol::write_clock_config(
                         req,
                         &mut unit.get_node(),
                         sections,
-                        timeout_ms
-                    )
-                        .and_then(|mut config| {
-                            self.update_clock_config(&mut config, Some(val as u32), None)?;
-                            GlobalSectionProtocol::write_clock_config(
-                                req,
-                                &mut unit.get_node(),
-                                sections,
-                                config,
-                                timeout_ms
-                            )?;
-                            self.curr_rate_idx = val;
-                            Ok(())
-                        });
-                    let _ = unit.unlock();
-                    res
-                })
-                .map(|_| true)
-            }
-            CLK_SRC_NAME => {
-                ElemValueAccessor::<u32>::get_val(new, |val| {
-                    unit.lock()?;
-                    let res = GlobalSectionProtocol::read_clock_config(
+                        config,
+                        timeout_ms,
+                    )?;
+                    self.curr_rate_idx = val;
+                    Ok(())
+                });
+                let _ = unit.unlock();
+                res
+            })
+            .map(|_| true),
+            CLK_SRC_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
+                unit.lock()?;
+                let res = GlobalSectionProtocol::read_clock_config(
+                    req,
+                    &mut unit.get_node(),
+                    sections,
+                    timeout_ms,
+                )
+                .and_then(|mut config| {
+                    self.update_clock_config(&mut config, None, Some(val as u32))?;
+                    GlobalSectionProtocol::write_clock_config(
                         req,
                         &mut unit.get_node(),
                         sections,
-                        timeout_ms
-                    )
-                        .and_then(|mut config| {
-                            self.update_clock_config(&mut config, None, Some(val as u32))?;
-                            GlobalSectionProtocol::write_clock_config(
-                                req,
-                                &mut unit.get_node(),
-                                sections,
-                                config,
-                                timeout_ms
-                            )?;
-                            self.curr_src_idx = val;
-                            Ok(())
-                        });
-                    let _ = unit.unlock();
-                    res
-                })
-                .map(|_| true)
-            }
+                        config,
+                        timeout_ms,
+                    )?;
+                    self.curr_src_idx = val;
+                    Ok(())
+                });
+                let _ = unit.unlock();
+                res
+            })
+            .map(|_| true),
             NICKNAME => {
-                let mut vals = vec![0;NICKNAME_MAX_SIZE];
+                let mut vals = vec![0; NICKNAME_MAX_SIZE];
                 new.get_bytes(&mut vals);
                 std::str::from_utf8(&vals)
                     .map_err(|e| {
@@ -253,7 +259,8 @@ impl CommonCtl {
                                     &mut unit.get_node(),
                                     sections,
                                     &text[..pos],
-                                    timeout_ms)
+                                    timeout_ms,
+                                )
                             })
                     })
                     .map(|_| true)
@@ -268,14 +275,14 @@ impl CommonCtl {
         req: &mut FwReq,
         sections: &GeneralSections,
         msg: u32,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         if GeneralProtocol::has_clock_accepted(msg) {
             let config = GlobalSectionProtocol::read_clock_config(
                 req,
                 &mut unit.get_node(),
                 sections,
-                timeout_ms
+                timeout_ms,
             )?;
             self.cache_clock_config(&config)?;
         }
@@ -285,7 +292,7 @@ impl CommonCtl {
                 req,
                 &mut unit.get_node(),
                 sections,
-                timeout_ms
+                timeout_ms,
             )?;
         }
 
@@ -295,17 +302,15 @@ impl CommonCtl {
     pub fn read_notified_elem(
         &mut self,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
-                .map(|_| true)
+                    .map(|_| true)
             }
-            CLK_SRC_NAME => {
-                ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
-                .map(|_| true)
-            }
+            CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_src_idx))
+                .map(|_| true),
             LOCKED_CLK_SRC_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.ext_srcs.len(), |idx| {
                     Ok(self.ext_srcs[idx].is_locked(&self.ext_src_states))
@@ -321,21 +326,21 @@ impl CommonCtl {
         unit: &mut SndDice,
         req: &mut FwReq,
         sections: &GeneralSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         GlobalSectionProtocol::read_clock_source_states(
             req,
             &mut unit.get_node(),
             sections,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|states| self.ext_src_states = states)
+        .map(|states| self.ext_src_states = states)
     }
 
     pub fn measure_elem(
         &mut self,
         elem_id: &ElemId,
-        elem_value: &ElemValue
+        elem_value: &ElemValue,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             SLIPPED_CLK_SRC_NAME => {

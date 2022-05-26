@@ -2,14 +2,14 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
-    glib::Error,
+    crate::{common_ctl::*, focusrite::*, tcd22xx_ctl::*},
     alsactl::{ElemId, ElemValue},
+    core::card_cntr::*,
+    dice_protocols::focusrite::spro24::*,
+    dice_protocols::tcat::{extension::*, global_section::*, *},
+    glib::Error,
     hinawa::FwReq,
     hinawa::{SndDice, SndUnitExt},
-    core::card_cntr::*,
-    dice_protocols::tcat::{extension::*, global_section::*, *},
-    dice_protocols::focusrite::spro24::*,
-    crate::{common_ctl::*, focusrite::*, tcd22xx_ctl::*},
 };
 
 #[derive(Default)]
@@ -29,30 +29,24 @@ impl CtlModel<SndDice> for SPro24Model {
     fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let mut node = unit.get_node();
 
-        self.sections = GeneralProtocol::read_general_sections(
-            &mut self.req,
-            &mut node,
-            TIMEOUT_MS
-        )?;
+        self.sections =
+            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
             &mut node,
             &self.sections,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
             &mut node,
             &self.sections,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
         self.ctl.load(card_cntr, &caps, &src_labels)?;
 
-        self.extension_sections = ProtocolExtension::read_extension_sections(
-            &mut self.req,
-            &mut node,
-            TIMEOUT_MS
-        )?;
+        self.extension_sections =
+            ProtocolExtension::read_extension_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
         self.tcd22xx_ctl.load(
             unit,
             &mut self.req,
@@ -60,7 +54,7 @@ impl CtlModel<SndDice> for SPro24Model {
             &caps,
             &src_labels,
             TIMEOUT_MS,
-            card_cntr
+            card_cntr,
         )?;
 
         self.tcd22xx_ctl.cache(
@@ -68,7 +62,7 @@ impl CtlModel<SndDice> for SPro24Model {
             &mut self.req,
             &self.sections,
             &self.extension_sections,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
 
         let _ = self.out_grp_ctl.load(
@@ -76,7 +70,7 @@ impl CtlModel<SndDice> for SPro24Model {
             unit,
             &mut self.req,
             &self.extension_sections,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
 
         self.input_ctl.load(card_cntr)?;
@@ -88,9 +82,16 @@ impl CtlModel<SndDice> for SPro24Model {
         &mut self,
         unit: &mut SndDice,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.read(unit, &mut self.req, &self.sections, elem_id, elem_value, TIMEOUT_MS)? {
+        if self.ctl.read(
+            unit,
+            &mut self.req,
+            &self.sections,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.tcd22xx_ctl.read(
             unit,
@@ -98,7 +99,7 @@ impl CtlModel<SndDice> for SPro24Model {
             &self.extension_sections,
             elem_id,
             elem_value,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.out_grp_ctl.read(elem_id, elem_value)? {
@@ -109,7 +110,7 @@ impl CtlModel<SndDice> for SPro24Model {
             &self.extension_sections,
             elem_id,
             elem_value,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else {
@@ -122,9 +123,17 @@ impl CtlModel<SndDice> for SPro24Model {
         unit: &mut SndDice,
         elem_id: &ElemId,
         old: &ElemValue,
-        new: &ElemValue
+        new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.ctl.write(unit, &mut self.req, &self.sections, elem_id, old, new, TIMEOUT_MS)? {
+        if self.ctl.write(
+            unit,
+            &mut self.req,
+            &self.sections,
+            elem_id,
+            old,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self.tcd22xx_ctl.write(
             unit,
@@ -133,7 +142,7 @@ impl CtlModel<SndDice> for SPro24Model {
             elem_id,
             old,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.out_grp_ctl.write(
@@ -142,7 +151,7 @@ impl CtlModel<SndDice> for SPro24Model {
             &self.extension_sections,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else if self.input_ctl.write(
@@ -151,7 +160,7 @@ impl CtlModel<SndDice> for SPro24Model {
             &self.extension_sections,
             elem_id,
             new,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )? {
             Ok(true)
         } else {
@@ -168,21 +177,22 @@ impl NotifyModel<SndDice, u32> for SPro24Model {
     }
 
     fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl.parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+        self.ctl
+            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
         self.tcd22xx_ctl.parse_notification(
             unit,
             &mut self.req,
             &self.sections,
             &self.extension_sections,
             TIMEOUT_MS,
-            *msg
+            *msg,
         )?;
         self.out_grp_ctl.parse_notification(
             unit,
             &mut self.req,
             &self.extension_sections,
             *msg,
-            TIMEOUT_MS
+            TIMEOUT_MS,
         )?;
         Ok(())
     }
@@ -191,7 +201,7 @@ impl NotifyModel<SndDice, u32> for SPro24Model {
         &mut self,
         _: &SndDice,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read_notified_elem(elem_id, elem_value)? {
             Ok(true)
@@ -212,8 +222,14 @@ impl MeasureModel<SndDice> for SPro24Model {
     }
 
     fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
-        self.ctl.measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
-        self.tcd22xx_ctl.measure_states(unit, &mut self.req, &self.extension_sections, TIMEOUT_MS)?;
+        self.ctl
+            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+        self.tcd22xx_ctl.measure_states(
+            unit,
+            &mut self.req,
+            &self.extension_sections,
+            TIMEOUT_MS,
+        )?;
         Ok(())
     }
 
@@ -221,7 +237,7 @@ impl MeasureModel<SndDice> for SPro24Model {
         &mut self,
         _: &SndDice,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.measure_elem(elem_id, elem_value)? {
             Ok(true)

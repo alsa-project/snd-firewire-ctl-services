@@ -3,21 +3,21 @@
 mod model;
 
 mod common_ctl;
-mod minimal_model;
-mod tcelectronic;
 mod io_fw_model;
 mod ionix_model;
+mod minimal_model;
 mod presonus;
+mod tcelectronic;
 
-mod tcd22xx_ctl;
-mod extension_model;
-mod pfire_model;
-mod mbox3_model;
 mod blackbird_model;
+mod extension_model;
 mod focusrite;
+mod mbox3_model;
+mod pfire_model;
+mod tcd22xx_ctl;
 
-use glib::Error;
 use glib::source;
+use glib::Error;
 
 use nix::sys::signal;
 
@@ -28,9 +28,9 @@ use hinawa::{SndDice, SndDiceExt, SndUnitExt};
 
 use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
 
-use core::RuntimeOperation;
-use core::dispatcher;
 use core::card_cntr;
+use core::dispatcher;
+use core::RuntimeOperation;
 
 use model::DiceModel;
 
@@ -43,7 +43,7 @@ enum Event {
     Timer,
 }
 
-pub struct DiceRuntime{
+pub struct DiceRuntime {
     unit: SndDice,
     model: DiceModel,
     card_cntr: card_cntr::CardCntr,
@@ -71,7 +71,15 @@ impl RuntimeOperation<u32> for DiceRuntime {
 
         let timer = None;
 
-        Ok(DiceRuntime{unit, model, card_cntr, rx, tx, dispatchers, timer})
+        Ok(DiceRuntime {
+            unit,
+            model,
+            card_cntr,
+            rx,
+            tx,
+            dispatchers,
+            timer,
+        })
     }
 
     fn listen(&mut self) -> Result<(), Error> {
@@ -81,8 +89,13 @@ impl RuntimeOperation<u32> for DiceRuntime {
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measured_elem_list.len() > 0 {
-            let elem_id = alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0,
-                                                       Self::TIMER_NAME, 0);
+            let elem_id = alsactl::ElemId::new_by_name(
+                alsactl::ElemIfaceType::Mixer,
+                0,
+                0,
+                Self::TIMER_NAME,
+                0,
+            );
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -100,11 +113,18 @@ impl RuntimeOperation<u32> for DiceRuntime {
                     }
                     Event::Elem(elem_id, events) => {
                         if elem_id.get_name() != Self::TIMER_NAME {
-                            let _ = self.model.dispatch_elem_event(&mut self.unit, &mut self.card_cntr,
-                                                                   &elem_id, &events);
+                            let _ = self.model.dispatch_elem_event(
+                                &mut self.unit,
+                                &mut self.card_cntr,
+                                &elem_id,
+                                &events,
+                            );
                         } else {
                             let mut elem_value = alsactl::ElemValue::new();
-                            let _ = self.card_cntr.card.read_elem_value(&elem_id, &mut elem_value)
+                            let _ = self
+                                .card_cntr
+                                .card
+                                .read_elem_value(&elem_id, &mut elem_value)
                                 .map(|_| {
                                     let mut vals = [false];
                                     elem_value.get_bool(&mut vals);
@@ -117,10 +137,14 @@ impl RuntimeOperation<u32> for DiceRuntime {
                         }
                     }
                     Event::Notify(msg) => {
-                        let _ = self.model.dispatch_msg(&mut self.unit, &mut self.card_cntr, msg);
+                        let _ = self
+                            .model
+                            .dispatch_msg(&mut self.unit, &mut self.card_cntr, msg);
                     }
                     Event::Timer => {
-                        let _ = self.model.measure_elems(&mut self.unit, &mut self.card_cntr);
+                        let _ = self
+                            .model
+                            .measure_elems(&mut self.unit, &mut self.card_cntr);
                     }
                 }
             }
@@ -193,10 +217,12 @@ impl DiceRuntime {
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_card(&self.card_cntr.card, |_| {})?;
-        self.card_cntr.card.connect_handle_elem_event(move |_, elem_id, events| {
-            let elem_id: alsactl::ElemId = elem_id.clone();
-            let _ = tx.send(Event::Elem(elem_id, events));
-        });
+        self.card_cntr
+            .card
+            .connect_handle_elem_event(move |_, elem_id, events| {
+                let elem_id: alsactl::ElemId = elem_id.clone();
+                let _ = tx.send(Event::Elem(elem_id, events));
+            });
 
         self.dispatchers.push(dispatcher);
 
