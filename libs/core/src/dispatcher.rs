@@ -5,15 +5,15 @@ use std::thread;
 use std::time::Duration;
 
 use glib::Error;
-use glib::{source, MainContext, MainLoop, Source};
 use glib::IsA;
+use glib::{source, MainContext, MainLoop, Source};
 
 use nix::sys::signal;
 
 use alsactl::CardExt;
 use alsaseq::UserClientExt;
-use hinawa::SndUnitExt;
 use hinawa::FwNodeExt;
+use hinawa::SndUnitExt;
 
 pub struct Dispatcher {
     name: String,
@@ -56,7 +56,7 @@ impl Dispatcher {
         }
 
         let th = Some(th);
-        Ok(Dispatcher{name, th, ev_loop})
+        Ok(Dispatcher { name, th, ev_loop })
     }
 
     pub fn stop(&mut self) {
