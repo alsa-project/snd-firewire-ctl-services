@@ -1,17 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType};
-use alsactl::{ElemValue, ElemValueExt, ElemValueExtManual};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use dice_protocols::tcat::{global_section::*, *};
+use {
+    super::*,
+    dice_protocols::tcat::{global_section::*, *},
+};
 
 #[derive(Default)]
 pub struct CommonCtl {

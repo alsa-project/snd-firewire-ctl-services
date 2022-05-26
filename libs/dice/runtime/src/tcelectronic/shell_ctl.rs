@@ -1,23 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use dice_protocols::tcelectronic::shell::*;
-use dice_protocols::tcelectronic::*;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use super::fw_led_ctl::*;
-use super::standalone_ctl::*;
+use {super::*, dice_protocols::tcelectronic::shell::*};
 
 fn analog_jack_state_to_str(state: &ShellAnalogJackState) -> &'static str {
     match state {

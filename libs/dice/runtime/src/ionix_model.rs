@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::Error;
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use dice_protocols::lexicon::*;
-use dice_protocols::tcat::{global_section::*, *};
-
-use crate::common_ctl::*;
+use {
+    super::{common_ctl::*, *},
+    dice_protocols::{
+        lexicon::*,
+        tcat::{global_section::*, *},
+    },
+};
 
 #[derive(Default)]
 pub struct IonixModel {

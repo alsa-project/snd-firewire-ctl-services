@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use alsactl::{ElemId, ElemValue};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-
-use dice_protocols::tcat::extension::*;
-use dice_protocols::tcat::tcd22xx_spec::*;
-use dice_protocols::tcat::{global_section::*, *};
-
-use super::common_ctl::*;
-use super::tcd22xx_ctl::*;
+use {
+    super::{common_ctl::*, tcd22xx_ctl::*, *},
+    dice_protocols::tcat::{
+        extension::*,
+        tcd22xx_spec::*,
+        {global_section::*, *},
+    },
+};
 
 #[derive(Default)]
 pub struct ExtensionModel {

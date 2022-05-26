@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use hinawa::{FwNode, FwReq};
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use dice_protocols::tcat::extension::peak_section::*;
-use dice_protocols::tcat::extension::{caps_section::*, cmd_section::*, mixer_section::*, *};
-use dice_protocols::tcat::extension::{current_config_section::*, standalone_section::*};
-use dice_protocols::tcat::tcd22xx_spec::*;
-use dice_protocols::tcat::{global_section::*, *};
+use {
+    super::*,
+    dice_protocols::tcat::{
+        extension::{
+            peak_section::*,
+            {caps_section::*, cmd_section::*, mixer_section::*, *},
+            {current_config_section::*, standalone_section::*},
+        },
+        tcd22xx_spec::*,
+        {global_section::*, *},
+    },
+};
 
 #[derive(Default, Debug)]
 pub struct Tcd22xxCtl {

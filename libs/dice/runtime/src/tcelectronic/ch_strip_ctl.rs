@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::Error;
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use dice_protocols::tcelectronic::{ch_strip::*, *};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
+use super::*;
 
 const SRC_TYPE_NAME: &str = "ch-strip-source-type";
 const DEESSER_BYPASS_NAME: &str = "deesser-bypass";
