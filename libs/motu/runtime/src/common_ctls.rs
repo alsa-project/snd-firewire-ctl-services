@@ -17,7 +17,7 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -31,9 +31,13 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::get_phone_assign(req, &mut unit.get_node(), timeout_ms)
-            .map(|val| *self.state_mut() = val)
+    fn cache(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_phone_assign(req, &mut unit.1, timeout_ms).map(|val| *self.state_mut() = val)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -48,7 +52,7 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -56,7 +60,7 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PHONE_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_phone_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                T::set_phone_assign(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| *self.state_mut() = val as usize)
             })
             .map(|_| true),
@@ -86,7 +90,7 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -100,8 +104,13 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
         card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)
     }
 
-    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::get_word_out(req, &mut unit.get_node(), timeout_ms).map(|mode| *self.state_mut() = mode)
+    fn cache(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_word_out(req, &mut unit.1, timeout_ms).map(|mode| *self.state_mut() = mode)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -120,7 +129,7 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -132,7 +141,7 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
                     let msg = format!("Invalid argument for index of word clock speed: {}", val);
                     Error::new(FileError::Inval, &msg)
                 })?;
-                T::set_word_out(req, &mut unit.get_node(), mode, timeout_ms)
+                T::set_word_out(req, &mut unit.1, mode, timeout_ms)
                     .map(|_| *self.state_mut() = mode)
             })
             .map(|_| true),
@@ -167,7 +176,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -175,8 +184,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             AESEBU_RATE_CONVERT_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_aesebu_rate_convert_mode(req, &mut unit.get_node(), timeout_ms)
-                    .map(|val| val as u32)
+                T::get_aesebu_rate_convert_mode(req, &mut unit.1, timeout_ms).map(|val| val as u32)
             })
             .map(|_| true),
             _ => Ok(false),
@@ -185,7 +193,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -193,7 +201,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             AESEBU_RATE_CONVERT_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_aesebu_rate_convert_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                T::set_aesebu_rate_convert_mode(req, &mut unit.1, val as usize, timeout_ms)
             })
             .map(|_| true),
             _ => Ok(false),
@@ -244,7 +252,7 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -283,23 +291,26 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
         Ok(notified_elem_id_list)
     }
 
-    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::get_level_meters_aesebu_mode(req, &mut unit.get_node(), timeout_ms).map(|idx| {
+    fn cache(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_level_meters_aesebu_mode(req, &mut unit.1, timeout_ms).map(|idx| {
             self.state_mut().0 = idx;
         })?;
 
-        T::get_level_meters_programmable_mode(req, &mut unit.get_node(), timeout_ms).map(
-            |idx| {
-                self.state_mut().1 = idx;
-            },
-        )?;
+        T::get_level_meters_programmable_mode(req, &mut unit.1, timeout_ms).map(|idx| {
+            self.state_mut().1 = idx;
+        })?;
 
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -307,12 +318,12 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PEAK_HOLD_TIME_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_level_meters_peak_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
+                T::get_level_meters_peak_hold_time_mode(req, &mut unit.1, timeout_ms)
                     .map(|val| val as u32)
             })
             .map(|_| true),
             CLIP_HOLD_TIME_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_level_meters_clip_hold_time_mode(req, &mut unit.get_node(), timeout_ms)
+                T::get_level_meters_clip_hold_time_mode(req, &mut unit.1, timeout_ms)
                     .map(|val| val as u32)
             })
             .map(|_| true),
@@ -336,7 +347,7 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -344,36 +355,21 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PEAK_HOLD_TIME_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_level_meters_peak_hold_time_mode(
-                    req,
-                    &mut unit.get_node(),
-                    val as usize,
-                    timeout_ms,
-                )
+                T::set_level_meters_peak_hold_time_mode(req, &mut unit.1, val as usize, timeout_ms)
             })
             .map(|_| true),
             CLIP_HOLD_TIME_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_level_meters_clip_hold_time_mode(
-                    req,
-                    &mut unit.get_node(),
-                    val as usize,
-                    timeout_ms,
-                )
+                T::set_level_meters_clip_hold_time_mode(req, &mut unit.1, val as usize, timeout_ms)
             })
             .map(|_| true),
             AESEBU_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_level_meters_aesebu_mode(req, &mut unit.get_node(), val as usize, timeout_ms)
+                T::set_level_meters_aesebu_mode(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| self.state_mut().0 = val as usize)
             })
             .map(|_| true),
             PROGRAMMABLE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_level_meters_programmable_mode(
-                    req,
-                    &mut unit.get_node(),
-                    val as usize,
-                    timeout_ms,
-                )
-                .map(|_| self.state_mut().1 = val as usize)
+                T::set_level_meters_programmable_mode(req, &mut unit.1, val as usize, timeout_ms)
+                    .map(|_| self.state_mut().1 = val as usize)
             })
             .map(|_| true),
             _ => Ok(false),

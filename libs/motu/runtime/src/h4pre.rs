@@ -128,7 +128,7 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
 
         self.clk_ctls.load(card_cntr)?;
         self.phone_assign_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.mixer_output_ctl.1.append(&mut elem_id_list))?;
         self.mixer_output_ctl
             .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
@@ -198,13 +198,10 @@ impl CtlModel<(SndMotu, FwNode)> for H4pre {
             .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.phone_assign_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .phone_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.mixer_output_ctl.write(
             &mut unit.0,

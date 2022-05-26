@@ -177,10 +177,10 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.word_clk_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.reverb_ctl
             .load(card_cntr)
@@ -299,17 +299,14 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk3Hybrid {
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.phone_assign_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .phone_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.reverb_ctl.write(
@@ -411,9 +408,8 @@ impl NotifyModel<(SndMotu, FwNode), u32> for F828mk3Hybrid {
             self.port_assign_ctl
                 .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
-            self.word_clk_ctl
-                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
+            self.word_clk_ctl.cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
         // TODO: what kind of event is preferable for NOTIFY_FOOTSWITCH_MASK?
         Ok(())
