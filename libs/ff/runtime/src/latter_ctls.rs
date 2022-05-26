@@ -30,13 +30,13 @@ pub trait FfLatterMeterCtlOperation<T: RmeFfLatterMeterOperation> {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_meter_state();
-        T::read_meter(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_meter(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.meter_mut() = state;
 
         let mut measured_elem_id_list = Vec::new();
@@ -73,11 +73,11 @@ pub trait FfLatterMeterCtlOperation<T: RmeFfLatterMeterOperation> {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
+        T::read_meter(req, &mut unit.1, self.meter_mut(), timeout_ms)
     }
 
     fn read_measured_elem(
@@ -165,12 +165,12 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
 
     fn load_input(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        T::init_input(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::init_input(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_STEREO_LINK_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::PHYS_INPUT_COUNT / 2, true)?;
@@ -255,7 +255,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
 
     fn write_input(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -265,14 +265,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
             INPUT_STEREO_LINK_NAME => {
                 let mut state = self.state().input.clone();
                 elem_value.get_bool(&mut state.stereo_links);
-                T::write_input(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_LINE_GAIN_NAME => {
                 let mut state = self.state().input.clone();
@@ -283,14 +276,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_input(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
                 let mut state = self.state().input.clone();
@@ -306,50 +292,22 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
                         })
                         .map(|&l| state.line_levels[i] = l)
                 })?;
-                T::write_input(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_MIC_POWER_NAME => {
                 let mut state = self.state().input.clone();
                 elem_value.get_bool(&mut state.mic_powers);
-                T::write_input(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_MIC_INST_NAME => {
                 let mut state = self.state().input.clone();
                 elem_value.get_bool(&mut state.mic_insts);
-                T::write_input(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_INVERT_PHASE_NAME => {
                 let mut state = self.state().input.clone();
                 elem_value.get_bool(&mut state.invert_phases);
-                T::write_input(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -387,7 +345,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
 
     fn load_output(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
@@ -397,7 +355,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
             .vols
             .iter_mut()
             .for_each(|vol| *vol = T::PHYS_OUTPUT_VOL_MAX as i16);
-        T::init_output(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::init_output(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(
@@ -491,7 +449,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
 
     fn write_output(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -507,14 +465,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_output(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             STEREO_BALANCE_NAME => {
                 let mut state = self.state().output.clone();
@@ -525,38 +476,17 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_output(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             STEREO_LINK_NAME => {
                 let mut state = self.state().output.clone();
                 elem_value.get_bool(&mut state.stereo_links);
-                T::write_output(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INVERT_PHASE_NAME => {
                 let mut state = self.state().output.clone();
                 elem_value.get_bool(&mut state.invert_phases);
-                T::write_output(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             LINE_LEVEL_NAME => {
                 let mut state = self.state().output.clone();
@@ -572,14 +502,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                         })
                         .map(|&l| state.line_levels[i] = l)
                 })?;
-                T::write_output(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -611,7 +534,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
 
     fn load_mixer(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
@@ -628,7 +551,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .map(|gain| *gain = T::MIXER_INPUT_GAIN_ZERO as u16);
             });
 
-        T::init_mixers(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::init_mixers(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_LINE_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
@@ -752,7 +675,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
 
     fn write_mixer(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
@@ -769,15 +692,8 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    index,
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
+                    .map(|_| true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -789,15 +705,8 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    index,
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
+                    .map(|_| true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -809,15 +718,8 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    index,
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
+                    .map(|_| true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -829,15 +731,8 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    index,
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
+                    .map(|_| true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
@@ -849,15 +744,8 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_mixer(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    index,
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -940,12 +828,12 @@ where
 
     fn load_ch_strip(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        T::init_ch_strip(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::init_ch_strip(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::HPF_ACTIVATE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CH_COUNT, true)?;
@@ -1483,7 +1371,7 @@ where
 
     fn write_ch_strip(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1746,7 +1634,7 @@ where
 
     fn update_hpf<F>(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -1756,18 +1644,12 @@ where
     {
         let mut state = T::ch_strip(self.state()).hpf.clone();
         cb(&mut state)?;
-        T::write_ch_strip_hpf(
-            req,
-            &mut unit.get_node(),
-            self.state_mut(),
-            state,
-            timeout_ms,
-        )
+        T::write_ch_strip_hpf(req, &mut unit.1, self.state_mut(), state, timeout_ms)
     }
 
     fn update_eq<F>(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -1777,18 +1659,12 @@ where
     {
         let mut state = T::ch_strip(self.state()).eq.clone();
         cb(&mut state)?;
-        T::write_ch_strip_eq(
-            req,
-            &mut unit.get_node(),
-            self.state_mut(),
-            state,
-            timeout_ms,
-        )
+        T::write_ch_strip_eq(req, &mut unit.1, self.state_mut(), state, timeout_ms)
     }
 
     fn update_dynamics<F>(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -1798,18 +1674,12 @@ where
     {
         let mut state = T::ch_strip(self.state()).dynamics.clone();
         cb(&mut state)?;
-        T::write_ch_strip_dynamics(
-            req,
-            &mut unit.get_node(),
-            self.state_mut(),
-            state,
-            timeout_ms,
-        )
+        T::write_ch_strip_dynamics(req, &mut unit.1, self.state_mut(), state, timeout_ms)
     }
 
     fn update_autolevel<F>(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -1819,13 +1689,7 @@ where
     {
         let mut state = T::ch_strip(self.state()).autolevel.clone();
         cb(&mut state)?;
-        T::write_ch_strip_autolevel(
-            req,
-            &mut unit.get_node(),
-            self.state_mut(),
-            state,
-            timeout_ms,
-        )
+        T::write_ch_strip_autolevel(req, &mut unit.1, self.state_mut(), state, timeout_ms)
     }
 }
 
@@ -2028,12 +1892,12 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
 
     fn load_fx(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        T::init_fx(req, &mut unit.get_node(), self.state_mut(), timeout_ms)?;
+        T::init_fx(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         [
             (LINE_SRC_GAIN_NAME, T::LINE_INPUT_COUNT),
@@ -2500,7 +2364,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
 
     fn write_fx(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -2516,14 +2380,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             MIC_SRC_GAIN_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2534,14 +2392,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             SPDIF_SRC_GAIN_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2552,14 +2404,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             ADAT_SRC_GAIN_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2570,14 +2416,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_input_gains(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2588,14 +2428,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as u16);
-                T::write_fx_input_gains(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             LINE_OUT_VOL_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2606,14 +2440,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             HP_OUT_VOL_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2624,14 +2452,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             SPDIF_OUT_VOL_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2642,14 +2464,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             ADAT_OUT_VOL_NAME => {
                 let mut state = self.state().fx.clone();
@@ -2660,14 +2476,8 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                     .iter_mut()
                     .zip(vals.iter())
                     .for_each(|(d, s)| *d = *s as i16);
-                T::write_fx_output_volumes(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    state,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
+                    .map(|_| true)
             }
             REVERB_ACTIVATE_NAME => {
                 let mut vals = [false];
@@ -2889,7 +2699,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
 
     fn update_reverb<F>(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -2899,18 +2709,12 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     {
         let mut state = self.state().fx.reverb.clone();
         cb(&mut state)?;
-        T::write_fx_reverb(
-            req,
-            &mut unit.get_node(),
-            self.state_mut(),
-            &state,
-            timeout_ms,
-        )
+        T::write_fx_reverb(req, &mut unit.1, self.state_mut(), &state, timeout_ms)
     }
 
     fn update_echo<F>(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -2920,13 +2724,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     {
         let mut state = self.state().fx.echo.clone();
         cb(&mut state)?;
-        T::write_fx_echo(
-            req,
-            &mut unit.get_node(),
-            self.state_mut(),
-            &state,
-            timeout_ms,
-        )
+        T::write_fx_echo(req, &mut unit.1, self.state_mut(), &state, timeout_ms)
     }
 }
 
@@ -2956,7 +2754,7 @@ where
 {
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
@@ -3000,7 +2798,7 @@ where
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,

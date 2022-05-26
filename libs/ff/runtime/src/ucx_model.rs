@@ -20,8 +20,12 @@ pub struct UcxModel {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndUnit> for UcxModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for UcxModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.cfg_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.status_ctl
@@ -36,7 +40,7 @@ impl CtlModel<SndUnit> for UcxModel {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -51,7 +55,7 @@ impl CtlModel<SndUnit> for UcxModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -72,13 +76,13 @@ impl CtlModel<SndUnit> for UcxModel {
     }
 }
 
-impl MeasureModel<SndUnit> for UcxModel {
+impl MeasureModel<(SndUnit, FwNode)> for UcxModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.status_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl
@@ -88,7 +92,7 @@ impl MeasureModel<SndUnit> for UcxModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -139,7 +143,7 @@ fn clk_src_to_string(src: &FfUcxClkSrc) -> String {
 }
 
 fn update_cfg<F>(
-    unit: &mut SndUnit,
+    unit: &mut (SndUnit, FwNode),
     req: &mut FwReq,
     cfg: &mut FfUcxConfig,
     timeout_ms: u32,
@@ -150,7 +154,7 @@ where
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    FfUcxProtocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
+    FfUcxProtocol::write_cfg(req, &mut unit.1, &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 #[derive(Default, Debug)]
@@ -190,12 +194,12 @@ impl CfgCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        FfUcxProtocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
+        FfUcxProtocol::write_cfg(req, &mut unit.1, &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS
             .iter()
@@ -276,7 +280,7 @@ impl CfgCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -382,12 +386,12 @@ impl StatusCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        FfUcxProtocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+        FfUcxProtocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)?;
 
         [EXT_SRC_LOCK_NAME, EXT_SRC_SYNC_NAME]
             .iter()
@@ -430,11 +434,11 @@ impl StatusCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        FfUcxProtocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
+        FfUcxProtocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {

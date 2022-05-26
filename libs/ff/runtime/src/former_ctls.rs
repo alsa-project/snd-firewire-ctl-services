@@ -18,14 +18,14 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut state = T::create_output_volume_state();
         state.0.iter_mut().for_each(|vol| *vol = T::VOL_ZERO);
-        T::init_output_vols(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::init_output_vols(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
@@ -55,7 +55,7 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
@@ -65,14 +65,8 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
             VOL_NAME => {
                 let mut vals = self.state().0.to_vec();
                 new.get_int(&mut vals);
-                T::write_output_vols(
-                    req,
-                    &mut unit.get_node(),
-                    self.state_mut(),
-                    &vals,
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_output_vols(req, &mut unit.1, self.state_mut(), &vals, timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -97,7 +91,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
 
     fn load(
         &mut self,
-        unit: &SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
@@ -125,7 +119,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
         });
 
         (0..T::DST_COUNT).try_for_each(|i| {
-            T::init_mixer_src_gains(req, &mut unit.get_node(), &mut state, i, timeout_ms)
+            T::init_mixer_src_gains(req, &mut unit.1, &mut state, i, timeout_ms)
         })?;
         *self.state_mut() = state;
 
@@ -208,7 +202,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
 
     fn write(
         &mut self,
-        unit: &SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         new: &ElemValue,
@@ -221,7 +215,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                 new.get_int(&mut gains);
                 T::write_mixer_analog_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     self.state_mut(),
                     index,
                     &gains,
@@ -235,7 +229,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                 new.get_int(&mut gains);
                 T::write_mixer_spdif_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     self.state_mut(),
                     index,
                     &gains,
@@ -249,7 +243,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                 new.get_int(&mut gains);
                 T::write_mixer_adat_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     self.state_mut(),
                     index,
                     &gains,
@@ -263,7 +257,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
                 new.get_int(&mut gains);
                 T::write_mixer_stream_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     self.state_mut(),
                     index,
                     &gains,
@@ -298,13 +292,13 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut meter = T::create_meter_state();
-        T::read_meter(req, &mut unit.get_node(), &mut meter, timeout_ms)?;
+        T::read_meter(req, &mut unit.1, &mut meter, timeout_ms)?;
         *self.meter_mut() = meter;
 
         let mut measured_elem_id_list = Vec::new();
@@ -339,11 +333,11 @@ pub trait FormerMeterCtlOperation<T: RmeFfFormerMeterOperation> {
 
     fn measure_states(
         &mut self,
-        unit: &SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
+        T::read_meter(req, &mut unit.1, self.meter_mut(), timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
