@@ -10,8 +10,6 @@ pub mod fw1082;
 pub mod fw1804;
 pub mod fw1884;
 
-use glib::{Error, FileError};
-
 use super::*;
 
 /// The enumeration for source of sampling clock.

@@ -66,9 +66,10 @@ pub mod isoch;
 
 pub mod config_rom;
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+use {
+    glib::{Error, FileError},
+    hinawa::*,
+};
 
 const BASE_OFFSET: u64 = 0xffff00000000;
 const HW_INFO_REGISTER_OFFSET: u64 = 0x00;

@@ -17,7 +17,7 @@
 //!   Hardware: 0x00030000
 //! ```
 
-use crate::{isoch::*, *};
+use super::*;
 
 /// The protocol implementation of FW-1884.
 #[derive(Default)]

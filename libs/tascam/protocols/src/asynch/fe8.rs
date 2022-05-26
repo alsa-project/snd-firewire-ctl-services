@@ -17,7 +17,7 @@
 //!   Hardware: 0x00020000
 //! ```
 
-use crate::{asynch::*, *};
+use super::*;
 
 #[derive(Default)]
 pub struct Fe8Protocol;
