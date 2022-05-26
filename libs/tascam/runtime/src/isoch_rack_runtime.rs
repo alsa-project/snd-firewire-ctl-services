@@ -10,7 +10,9 @@ use {
 
 pub type Fw1804Runtime = IsochRackRuntime<Fw1804Model>;
 
-pub struct IsochRackRuntime<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> {
+pub struct IsochRackRuntime<
+    T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default,
+> {
     unit: (SndTscm, FwNode),
     model: T,
     card_cntr: CardCntr,
@@ -21,7 +23,9 @@ pub struct IsochRackRuntime<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Defau
     measure_elems: Vec<ElemId>,
 }
 
-impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> Drop for IsochRackRuntime<T> {
+impl<T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default> Drop
+    for IsochRackRuntime<T>
+{
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -51,7 +55,9 @@ const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
 const TIMER_NAME: &str = "meter";
 const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T> {
+impl<T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default>
+    IsochRackRuntime<T>
+{
     pub fn new(unit: SndTscm, node: FwNode, _: &str, sysnum: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
@@ -75,7 +81,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -100,7 +106,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
                 RackUnitEvent::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit.0,
+                            &mut self.unit,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -125,7 +131,7 @@ impl<T: CtlModel<SndTscm> + MeasureModel<SndTscm> + Default> IsochRackRuntime<T>
                 }
                 RackUnitEvent::Timer => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &self.measure_elems,
                         &mut self.model,
                     );

@@ -368,7 +368,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
 
     fn read_params(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -376,7 +376,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_SRC_NAME => {
-                let src = T::get_sampling_clock_source(req, &mut unit.get_node(), timeout_ms)?;
+                let src = T::get_sampling_clock_source(req, node, timeout_ms)?;
                 let pos = T::SAMPLING_CLOCK_SOURCES
                     .iter()
                     .position(|s| s.eq(&src))
@@ -385,31 +385,25 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 Ok(true)
             }
             CLK_RATE_NAME => {
-                let rate = T::get_media_clock_rate(req, &mut unit.get_node(), timeout_ms)?;
+                let rate = T::get_media_clock_rate(req, node, timeout_ms)?;
                 let pos = Self::CLOCK_RATES.iter().position(|r| r.eq(&rate)).unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             SIGNAL_DETECTION_THRESHOLD_NAME => {
-                let value = T::get_analog_input_threshold_for_signal_detection(
-                    req,
-                    &mut unit.get_node(),
-                    timeout_ms,
-                )?;
+                let value =
+                    T::get_analog_input_threshold_for_signal_detection(req, node, timeout_ms)?;
                 elem_value.set_int(&[value as i32]);
                 Ok(true)
             }
             OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
-                let value = T::get_analog_input_threshold_for_over_level_detection(
-                    req,
-                    &mut unit.get_node(),
-                    timeout_ms,
-                )?;
+                let value =
+                    T::get_analog_input_threshold_for_over_level_detection(req, node, timeout_ms)?;
                 elem_value.set_int(&[value as i32]);
                 Ok(true)
             }
             COAX_OUT_SRC_NAME => {
-                let src = T::get_coaxial_output_source(req, &mut unit.get_node(), timeout_ms)?;
+                let src = T::get_coaxial_output_source(req, node, timeout_ms)?;
                 let pos = Self::COAXIAL_OUTPUT_SOURCES
                     .iter()
                     .position(|s| s.eq(&src))
@@ -423,7 +417,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
 
     fn write_params(
         &mut self,
-        unit: &mut SndTscm,
+        unit: &mut (SndTscm, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -440,9 +434,9 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                         let msg = format!("Invalid value for index of clock sources: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                unit.lock()?;
-                let res = T::set_sampling_clock_source(req, &mut unit.get_node(), src, timeout_ms);
-                let _ = unit.unlock();
+                unit.0.lock()?;
+                let res = T::set_sampling_clock_source(req, &mut unit.1, src, timeout_ms);
+                let _ = unit.0.unlock();
                 res.map(|_| true)
             }
             CLK_RATE_NAME => {
@@ -455,9 +449,9 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                         let msg = format!("Invalid value for index of clock rates: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                unit.lock()?;
-                let res = T::set_media_clock_rate(req, &mut unit.get_node(), rate, timeout_ms);
-                let _ = unit.unlock();
+                unit.0.lock()?;
+                let res = T::set_media_clock_rate(req, &mut unit.1, rate, timeout_ms);
+                let _ = unit.0.unlock();
                 res.map(|_| true)
             }
             SIGNAL_DETECTION_THRESHOLD_NAME => {
@@ -465,7 +459,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 elem_value.get_int(&mut vals);
                 T::set_analog_input_threshold_for_signal_detection(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     vals[0] as u16,
                     timeout_ms,
                 )
@@ -476,7 +470,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 elem_value.get_int(&mut vals);
                 T::set_analog_input_threshold_for_over_level_detection(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     vals[0] as u16,
                     timeout_ms,
                 )
@@ -492,8 +486,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                         let msg = format!("Invalid value for index of clock rates: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::set_coaxial_output_source(req, &mut unit.get_node(), src, timeout_ms)
-                    .map(|_| true)
+                T::set_coaxial_output_source(req, &mut unit.1, src, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -545,7 +538,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
 
     fn read_params(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -553,7 +546,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OPT_OUT_SRC_NAME => {
-                let src = T::get_opt_output_source(req, &mut unit.get_node(), timeout_ms)?;
+                let src = T::get_opt_output_source(req, node, timeout_ms)?;
                 let pos = Self::OPTICAL_OUTPUT_SOURCES
                     .iter()
                     .position(|s| s.eq(&src))
@@ -562,7 +555,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
                 Ok(true)
             }
             SPDIF_IN_SRC_NAME => {
-                let src = T::get_spdif_capture_source(req, &mut unit.get_node(), timeout_ms)?;
+                let src = T::get_spdif_capture_source(req, node, timeout_ms)?;
                 let pos = Self::SPDIF_INPUT_SOURCES
                     .iter()
                     .position(|s| s.eq(&src))
@@ -576,7 +569,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
 
     fn write_params(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -593,7 +586,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
                         let msg = format!("Invalid index for optical output sources: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::set_opt_output_source(req, &mut unit.get_node(), src, timeout_ms).map(|_| true)
+                T::set_opt_output_source(req, node, src, timeout_ms).map(|_| true)
             }
             SPDIF_IN_SRC_NAME => {
                 let mut vals = [0];
@@ -605,8 +598,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
                         let msg = format!("Invalid index for spdif input sources: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::set_spdif_capture_source(req, &mut unit.get_node(), src, timeout_ms)
-                    .map(|_| true)
+                T::set_spdif_capture_source(req, node, src, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -656,7 +648,7 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
 
     fn read_params(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -664,7 +656,7 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MASTER_FADER_ASSIGN_NAME => {
-                let enabled = T::get_master_fader_assign(req, &mut unit.get_node(), timeout_ms)?;
+                let enabled = T::get_master_fader_assign(req, node, timeout_ms)?;
                 elem_value.set_bool(&[enabled]);
                 Ok(true)
             }
@@ -674,7 +666,7 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
 
     fn write_params(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -684,8 +676,7 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
             MASTER_FADER_ASSIGN_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::set_master_fader_assign(req, &mut unit.get_node(), vals[0], timeout_ms)
-                    .map(|_| true)
+                T::set_master_fader_assign(req, node, vals[0], timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -709,7 +700,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -742,7 +733,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, T::CHANNEL_COUNT, true)?;
 
-        T::init_input_state(req, &mut unit.get_node(), self.state_mut(), timeout_ms)
+        T::init_input_state(req, node, self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -771,7 +762,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
 
     fn write_params(
         &mut self,
-        unit: &mut SndTscm,
+        node: &mut FwNode,
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -784,14 +775,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
                 old,
                 Self::INPUT_LABELS.len(),
                 |idx, val| {
-                    T::set_input_gain(
-                        req,
-                        &mut unit.get_node(),
-                        idx,
-                        val as i16,
-                        self.state_mut(),
-                        timeout_ms,
-                    )
+                    T::set_input_gain(req, node, idx, val as i16, self.state_mut(), timeout_ms)
                 },
             )
             .map(|_| true),
@@ -800,14 +784,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
                 old,
                 Self::INPUT_LABELS.len(),
                 |idx, val| {
-                    T::set_input_balance(
-                        req,
-                        &mut unit.get_node(),
-                        idx,
-                        val as u8,
-                        self.state_mut(),
-                        timeout_ms,
-                    )
+                    T::set_input_balance(req, node, idx, val as u8, self.state_mut(), timeout_ms)
                 },
             )
             .map(|_| true),
@@ -815,16 +792,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
                 new,
                 old,
                 Self::INPUT_LABELS.len(),
-                |idx, val| {
-                    T::set_input_mute(
-                        req,
-                        &mut unit.get_node(),
-                        idx,
-                        val,
-                        self.state_mut(),
-                        timeout_ms,
-                    )
-                },
+                |idx, val| T::set_input_mute(req, node, idx, val, self.state_mut(), timeout_ms),
             )
             .map(|_| true),
             _ => Ok(false),
