@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 use glib::translate::*;
+use glib::{Error, FileError};
 
 use alsaseq::*;
 
@@ -39,11 +39,10 @@ impl SeqCntr {
         let mut info = alsaseq::PortInfo::new();
         let attr_flags = alsaseq::PortAttrFlag::MIDI_GENERIC | alsaseq::PortAttrFlag::HARDWARE;
         info.set_property_attrs(attr_flags);
-        let cap_flags =
-            alsaseq::PortCapFlag::READ |
-            alsaseq::PortCapFlag::SUBS_READ |
-            alsaseq::PortCapFlag::WRITE |
-            alsaseq::PortCapFlag::SUBS_WRITE;
+        let cap_flags = alsaseq::PortCapFlag::READ
+            | alsaseq::PortCapFlag::SUBS_READ
+            | alsaseq::PortCapFlag::WRITE
+            | alsaseq::PortCapFlag::SUBS_WRITE;
         info.set_property_caps(cap_flags);
         info.set_property_name(Some(&Self::SEQ_PORT_NAME));
         self.client.create_port(&mut info)?;
@@ -66,8 +65,10 @@ impl SeqCntr {
         self.ev_cntr.set_ctl_data(0, &data)?;
 
         // Multicast to subscribers and dispatch immediately.
-        self.ev_cntr.set_queue_id(0, alsaseq::SpecificAddress::Subscribers.to_glib() as u8)?;
-        self.ev_cntr.set_event_type(0, alsaseq::EventType::Controller)?;
+        self.ev_cntr
+            .set_queue_id(0, alsaseq::SpecificAddress::Subscribers.to_glib() as u8)?;
+        self.ev_cntr
+            .set_event_type(0, alsaseq::EventType::Controller)?;
 
         self.client.schedule_event(&self.ev_cntr, 1)
     }

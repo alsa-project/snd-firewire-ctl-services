@@ -9,7 +9,10 @@ use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual
 
 use core::card_cntr::*;
 
-use tascam_protocols::{isoch::{fw1884::*, *}, *};
+use tascam_protocols::{
+    isoch::{fw1884::*, *},
+    *,
+};
 
 use crate::{isoch_ctls::*, *};
 
@@ -39,18 +42,44 @@ impl IsochMeterCtlOperation<Fw1884Protocol> for MeterCtl {
     }
 
     const INPUT_LABELS: &'static [&'static str] = &[
-        "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4",
-        "analog-input-5", "analog-input-6", "analog-input-7", "analog-input-8",
-        "adat-input-1", "adat-input-2", "adat-input-3", "adat-input-4",
-        "adat-input-5", "adat-input-6", "adat-input-7", "adat-input-8",
-        "spdif-input-1", "spdif-input-2",
+        "analog-input-1",
+        "analog-input-2",
+        "analog-input-3",
+        "analog-input-4",
+        "analog-input-5",
+        "analog-input-6",
+        "analog-input-7",
+        "analog-input-8",
+        "adat-input-1",
+        "adat-input-2",
+        "adat-input-3",
+        "adat-input-4",
+        "adat-input-5",
+        "adat-input-6",
+        "adat-input-7",
+        "adat-input-8",
+        "spdif-input-1",
+        "spdif-input-2",
     ];
     const OUTPUT_LABELS: &'static [&'static str] = &[
-        "analog-output-1", "analog-output-2", "analog-output-3", "analog-output-4",
-        "analog-output-5", "analog-output-6", "analog-output-7", "analog-output-8",
-        "adat-output-1", "adat-output-2", "adat-output-3", "adat-output-4",
-        "adat-output-5", "adat-output-6", "adat-output-7", "adat-output-8",
-        "spdif-input-1", "spdif-input-2",
+        "analog-output-1",
+        "analog-output-2",
+        "analog-output-3",
+        "analog-output-4",
+        "analog-output-5",
+        "analog-output-6",
+        "analog-output-7",
+        "analog-output-8",
+        "adat-output-1",
+        "adat-output-2",
+        "adat-output-3",
+        "adat-output-4",
+        "adat-output-5",
+        "adat-output-6",
+        "adat-output-7",
+        "adat-output-8",
+        "spdif-input-1",
+        "spdif-input-2",
     ];
 }
 
@@ -101,10 +130,16 @@ impl SequencerCtlOperation<SndTscm, Fw1884Protocol, Fw1884SurfaceState> for Fw18
         unit: &mut SndTscm,
         machine_values: &[(MachineItem, ItemValue)],
     ) -> Result<(), Error> {
-        machine_values.iter().filter(|(item, _)| {
-            MachineItem::Bank.eq(item) ||
-            Fw1884Protocol::TRANSPORT_ITEMS.iter().find(|i| item.eq(i)).is_some()
-        }).try_for_each(|entry| self.feedback_to_surface(unit, entry))
+        machine_values
+            .iter()
+            .filter(|(item, _)| {
+                MachineItem::Bank.eq(item)
+                    || Fw1884Protocol::TRANSPORT_ITEMS
+                        .iter()
+                        .find(|i| item.eq(i))
+                        .is_some()
+            })
+            .try_for_each(|entry| self.feedback_to_surface(unit, entry))
     }
 
     fn finalize_surface(&mut self, unit: &mut SndTscm) -> Result<(), Error> {
@@ -161,19 +196,17 @@ impl MeasureModel<SndTscm> for Fw1884Model {
 }
 
 impl CtlModel<SndTscm> for Fw1884Model {
-    fn load(
-        &mut self,
-        unit: &mut SndTscm,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    fn load(&mut self, unit: &mut SndTscm, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let image = unit.get_state()?;
-        self.meter_ctl.load_state(card_cntr, image)
+        self.meter_ctl
+            .load_state(card_cntr, image)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         self.common_ctl.load_params(card_cntr)?;
         self.optical_ctl.load_params(card_cntr)?;
 
-        self.console_ctl.load_params(card_cntr, image)
+        self.console_ctl
+            .load_params(card_cntr, image)
             .map(|mut elem_id_list| self.console_ctl.1.append(&mut elem_id_list))?;
 
         self.specific_ctl.load_params(card_cntr)?;
@@ -189,13 +222,37 @@ impl CtlModel<SndTscm> for Fw1884Model {
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
-        } else if self.common_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.common_ctl.read_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.optical_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.optical_ctl.read_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.console_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.console_ctl.read_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
-        } else if self.specific_ctl.read_params(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self.specific_ctl.read_params(
+            unit,
+            &mut self.req,
+            elem_id,
+            elem_value,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else {
             Ok(false)
@@ -209,13 +266,25 @@ impl CtlModel<SndTscm> for Fw1884Model {
         _: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        if self
+            .common_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.optical_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .optical_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.console_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .console_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.specific_ctl.write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        } else if self
+            .specific_ctl
+            .write_params(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -241,10 +310,12 @@ impl SpecificCtl {
     ];
 
     fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let labels: Vec<&str> = Self::MONITOR_ROTARY_ASSIGNS.iter()
+        let labels: Vec<&str> = Self::MONITOR_ROTARY_ASSIGNS
+            .iter()
             .map(|a| monitor_knob_target_to_str(a))
             .collect();
-        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ROTARY_ASSIGN_NAME, 0);
+        let elem_id =
+            ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_ROTARY_ASSIGN_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, false)?;
         Ok(())
     }
@@ -259,12 +330,10 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MONITOR_ROTARY_ASSIGN_NAME => {
-                let target = Fw1884Protocol::get_monitor_knob_target(
-                    req,
-                    &mut unit.get_node(),
-                    timeout_ms,
-                )?;
-                let pos = Self::MONITOR_ROTARY_ASSIGNS.iter()
+                let target =
+                    Fw1884Protocol::get_monitor_knob_target(req, &mut unit.get_node(), timeout_ms)?;
+                let pos = Self::MONITOR_ROTARY_ASSIGNS
+                    .iter()
                     .position(|a| target.eq(a))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
@@ -286,7 +355,8 @@ impl SpecificCtl {
             MONITOR_ROTARY_ASSIGN_NAME => {
                 let mut vals = [0];
                 elem_value.get_enum(&mut vals);
-                let &target = Self::MONITOR_ROTARY_ASSIGNS.iter()
+                let &target = Self::MONITOR_ROTARY_ASSIGNS
+                    .iter()
                     .nth(vals[0] as usize)
                     .ok_or_else(|| {
                         let msg = format!("Invalid index for monitor rotary targets: {}", vals[0]);
@@ -298,7 +368,7 @@ impl SpecificCtl {
                     target,
                     timeout_ms,
                 )
-                    .map(|_| true)
+                .map(|_| true)
             }
             _ => Ok(false),
         }

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+mod asynch_runtime;
 mod isoch_console_runtime;
 mod isoch_rack_runtime;
-mod asynch_runtime;
 
-mod fw1082_model;
-mod fw1884_model;
-mod fw1804_model;
 mod fe8_model;
+mod fw1082_model;
+mod fw1804_model;
+mod fw1884_model;
 
 mod isoch_ctls;
 
@@ -28,9 +28,9 @@ use tascam_protocols::{config_rom::*, *};
 
 use seq_cntr::*;
 
+use asynch_runtime::*;
 use isoch_console_runtime::*;
 use isoch_rack_runtime::*;
-use asynch_runtime::*;
 
 use std::convert::TryFrom;
 
@@ -57,11 +57,10 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
 
                 let node = unit.get_node();
                 let data = node.get_config_rom()?;
-                let config_rom = ConfigRom::try_from(data)
-                    .map_err(|e| {
-                        let label = format!("Malformed configuration ROM detected: {}", e.to_string());
-                        Error::new(FileError::Nxio, &label)
-                    })?;
+                let config_rom = ConfigRom::try_from(data).map_err(|e| {
+                    let label = format!("Malformed configuration ROM detected: {}", e.to_string());
+                    Error::new(FileError::Nxio, &label)
+                })?;
                 let unit_data = config_rom.get_unit_data()?;
                 match (unit_data.specifier_id, unit_data.version) {
                     (TASCAM_OUI, FW1884_SW_VERSION) => {
@@ -85,11 +84,10 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                 node.open(&devnode)?;
 
                 let data = node.get_config_rom()?;
-                let config_rom = ConfigRom::try_from(data)
-                    .map_err(|e| {
-                        let label = format!("Malformed configuration ROM detected: {}", e.to_string());
-                        Error::new(FileError::Nxio, &label)
-                    })?;
+                let config_rom = ConfigRom::try_from(data).map_err(|e| {
+                    let label = format!("Malformed configuration ROM detected: {}", e.to_string());
+                    Error::new(FileError::Nxio, &label)
+                })?;
                 let unit_data = config_rom.get_unit_data()?;
                 match (unit_data.specifier_id, unit_data.version) {
                     (TASCAM_OUI, FE8_SW_VERSION) => {
@@ -230,15 +228,10 @@ pub trait SequencerCtlOperation<S, T: MachineStateOperation + SurfaceImageOperat
         }
 
         let index = data.get_param();
-        let &machine_item = self
-            .state()
-            .map
-            .iter()
-            .nth(index as usize)
-            .ok_or_else(|| {
-                let msg = format!("Unsupported control number: {}", index);
-                Error::new(FileError::Inval, &msg)
-            })?;
+        let &machine_item = self.state().map.iter().nth(index as usize).ok_or_else(|| {
+            let msg = format!("Unsupported control number: {}", index);
+            Error::new(FileError::Inval, &msg)
+        })?;
 
         let value = data.get_value();
         let item_value = if T::BOOL_ITEMS.iter().find(|i| machine_item.eq(i)).is_some() {
