@@ -54,18 +54,19 @@ pub trait IofwMeterOperation {
         req: &mut FwReq,
         node: &mut FwNode,
         state: &mut IofwMeterState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = vec![0; METER_SIZE];
-        alesis_read_block(req, node, METER_OFFSET, &mut raw, timeout_ms)
-            .map(|_| {
-                let count = state.analog_inputs.len();
-                state.analog_inputs.parse_quadlet_block(&raw[..(count * 4)]);
-                state.stream_inputs.parse_quadlet_block(&raw[32..64]);
-                state.digital_a_inputs.parse_quadlet_block(&raw[64..96]);
-                let length = state.digital_b_inputs.len() * 4;
-                state.digital_b_inputs.parse_quadlet_block(&raw[(128 - length)..128]);
-                state.mixer_outputs.parse_quadlet_block(&raw[128..160]);
-            })
+        alesis_read_block(req, node, METER_OFFSET, &mut raw, timeout_ms).map(|_| {
+            let count = state.analog_inputs.len();
+            state.analog_inputs.parse_quadlet_block(&raw[..(count * 4)]);
+            state.stream_inputs.parse_quadlet_block(&raw[32..64]);
+            state.digital_a_inputs.parse_quadlet_block(&raw[64..96]);
+            let length = state.digital_b_inputs.len() * 4;
+            state
+                .digital_b_inputs
+                .parse_quadlet_block(&raw[(128 - length)..128]);
+            state.mixer_outputs.parse_quadlet_block(&raw[128..160]);
+        })
     }
 }

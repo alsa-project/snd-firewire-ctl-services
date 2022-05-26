@@ -7,7 +7,7 @@
 //! synchronization section in general protocol defined by TCAT for ASICs of DICE.
 use glib::{Error, FileError};
 
-use super::{*, global_section::*};
+use super::{global_section::*, *};
 
 pub struct ExtSyncBlock(Vec<u8>);
 
@@ -23,26 +23,27 @@ impl ExtSyncBlock {
     const ADAT_USER_DATA_UNAVAIL: u32 = 0x10;
 
     pub fn get_sync_src(&self) -> ClockSource {
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&self.0[Self::SYNC_SRC_OFFSET..(Self::SYNC_SRC_OFFSET + 4)]);
         ClockSource::from(u32::from_be_bytes(quadlet) as u8)
     }
 
     pub fn get_sync_src_locked(&self) -> bool {
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&self.0[Self::SYNC_LOCKED_OFFSET..(Self::SYNC_LOCKED_OFFSET + 4)]);
         u32::from_be_bytes(quadlet) > 0
     }
 
     pub fn get_sync_src_rate(&self) -> ClockRate {
-        let mut quadlet = [0;4];
+        let mut quadlet = [0; 4];
         quadlet.copy_from_slice(&self.0[Self::SYNC_RATE_OFFSET..(Self::SYNC_RATE_OFFSET + 4)]);
         ClockRate::from(u32::from_be_bytes(quadlet) as u8)
     }
 
     pub fn get_sync_src_adat_user_data(&self) -> Option<u8> {
-        let mut quadlet = [0;4];
-        quadlet.copy_from_slice(&self.0[Self::SYNC_ADAT_DATA_BITS..(Self::SYNC_ADAT_DATA_BITS+ 4)]);
+        let mut quadlet = [0; 4];
+        quadlet
+            .copy_from_slice(&self.0[Self::SYNC_ADAT_DATA_BITS..(Self::SYNC_ADAT_DATA_BITS + 4)]);
         let val = u32::from_be_bytes(quadlet);
         if val & Self::ADAT_USER_DATA_UNAVAIL > 0 {
             None
@@ -61,14 +62,17 @@ impl ExtSyncSectionProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &GeneralSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<ExtSyncBlock, Error> {
         if sections.ext_sync.size < ExtSyncBlock::SIZE {
-            let msg = format!("Ext sync section has {} less size than {} expected",
-                              sections.ext_sync.size, ExtSyncBlock::SIZE);
+            let msg = format!(
+                "Ext sync section has {} less size than {} expected",
+                sections.ext_sync.size,
+                ExtSyncBlock::SIZE
+            );
             Err(Error::new(FileError::Nxio, &msg))
         } else {
-            let mut data = vec![0;sections.ext_sync.size];
+            let mut data = vec![0; sections.ext_sync.size];
             GeneralProtocol::read(req, node, sections.ext_sync.offset, &mut data, timeout_ms)
                 .map(|_| ExtSyncBlock(data))
         }

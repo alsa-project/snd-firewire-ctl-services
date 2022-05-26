@@ -29,52 +29,190 @@ pub struct LiquidS56Protocol;
 
 impl Tcd22xxSpecOperation for LiquidS56Protocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 2, label: None},
-        Input{id: SrcBlkId::Ins1, offset: 0, count: 6, label: None},
-        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: Some("S/PDIF-coax")},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Ins1,
+            offset: 0,
+            count: 6,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: Some("S/PDIF-coax"),
+        },
         // NOTE: share the same optical interface.
-        Input{id: SrcBlkId::Adat, offset: 8, count: 8, label: None},
-        Input{id: SrcBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF-opt")},
+        Input {
+            id: SrcBlkId::Adat,
+            offset: 8,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 6,
+            count: 2,
+            label: Some("S/PDIF-opt"),
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 2, label: None},
-        Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Aes, offset: 0, count: 2, label: Some("S/PDIF-coax")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Ins1,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: Some("S/PDIF-coax"),
+        },
         // NOTE: share the same optical interface.
-        Output{id: DstBlkId::Adat, offset: 8, count: 8, label: None},
-        Output{id: DstBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF-opt")},
+        Output {
+            id: DstBlkId::Adat,
+            offset: 8,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 6,
+            count: 2,
+            label: Some("S/PDIF-opt"),
+        },
     ];
     // NOTE: The 8 entries are selected by unique protocol from the first 26 entries in router
     // section are used to display hardware metering.
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 4},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 5},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 6},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 7},
-        SrcBlk{id: SrcBlkId::Aes, ch: 0},
-        SrcBlk{id: SrcBlkId::Aes, ch: 1},
-        SrcBlk{id: SrcBlkId::Adat, ch: 0},
-        SrcBlk{id: SrcBlkId::Adat, ch: 1},
-        SrcBlk{id: SrcBlkId::Adat, ch: 2},
-        SrcBlk{id: SrcBlkId::Adat, ch: 3},
-        SrcBlk{id: SrcBlkId::Adat, ch: 4},
-        SrcBlk{id: SrcBlkId::Adat, ch: 5},
-        SrcBlk{id: SrcBlkId::Adat, ch: 6},
-        SrcBlk{id: SrcBlkId::Adat, ch: 7},
-        SrcBlk{id: SrcBlkId::Adat, ch: 8},
-        SrcBlk{id: SrcBlkId::Adat, ch: 9},
-        SrcBlk{id: SrcBlkId::Adat, ch: 10},
-        SrcBlk{id: SrcBlkId::Adat, ch: 11},
-        SrcBlk{id: SrcBlkId::Adat, ch: 12},
-        SrcBlk{id: SrcBlkId::Adat, ch: 13},
-        SrcBlk{id: SrcBlkId::Adat, ch: 14},
-        SrcBlk{id: SrcBlkId::Adat, ch: 15},
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 1,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 2,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 3,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 4,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 5,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 6,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 7,
+        },
+        SrcBlk {
+            id: SrcBlkId::Aes,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Aes,
+            ch: 1,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 1,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 2,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 3,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 4,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 5,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 6,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 7,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 8,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 9,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 10,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 11,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 12,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 13,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 14,
+        },
+        SrcBlk {
+            id: SrcBlkId::Adat,
+            ch: 15,
+        },
     ];
 }
 
@@ -111,7 +249,7 @@ pub enum OptOutIfaceMode {
 
 /// The enumeration to represent emulation type of mic pre amp.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum MicAmpEmulationType{
+pub enum MicAmpEmulationType {
     Flat,
     Trany1h,
     Silver2,
@@ -198,7 +336,7 @@ impl From<AnalogInputLevel> for u8 {
 
 /// The enumeration to represent target of meter display.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct LedState{
+pub struct LedState {
     pub adat1: bool,
     pub adat2: bool,
     pub spdif: bool,
@@ -207,7 +345,7 @@ pub struct LedState{
 
 impl LedState {
     fn parse(&mut self, raw: &[u8]) {
-        assert_eq!(raw.len() ,4);
+        assert_eq!(raw.len(), 4);
 
         let mut val = 0u32;
         val.parse_quadlet(&raw);
@@ -227,7 +365,7 @@ impl LedState {
     }
 
     fn build(&self, raw: &mut [u8]) {
-        assert_eq!(raw.len() ,4);
+        assert_eq!(raw.len(), 4);
 
         let mut val = 0u32;
         if self.adat1 {
@@ -252,8 +390,8 @@ impl LiquidS56Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
-    ) ->Result<bool, Error> {
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
@@ -261,9 +399,9 @@ impl LiquidS56Protocol {
             sections,
             ANALOG_OUT_0_1_PAD_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(raw) > 0)
+        .map(|_| u32::from_be_bytes(raw) > 0)
     }
 
     pub fn write_analog_out_0_1_pad_offset(
@@ -271,7 +409,7 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         enable: bool,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         enable.build_quadlet(&mut raw);
@@ -281,7 +419,7 @@ impl LiquidS56Protocol {
             sections,
             ANALOG_OUT_0_1_PAD_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, DIM_MUTE_SW_NOTICE, timeout_ms)
     }
@@ -290,7 +428,7 @@ impl LiquidS56Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<OptOutIfaceMode, Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -299,18 +437,18 @@ impl LiquidS56Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(raw);
-                if val & 0x00000001 > 0 {
-                    OptOutIfaceMode::Spdif
-                } else if val & 0x00000002 > 0 {
-                    OptOutIfaceMode::AesEbu
-                } else {
-                    OptOutIfaceMode::Adat
-                }
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(raw);
+            if val & 0x00000001 > 0 {
+                OptOutIfaceMode::Spdif
+            } else if val & 0x00000002 > 0 {
+                OptOutIfaceMode::AesEbu
+            } else {
+                OptOutIfaceMode::Adat
+            }
+        })
     }
 
     pub fn write_opt_out_iface_mode(
@@ -318,7 +456,7 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: OptOutIfaceMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -327,7 +465,7 @@ impl LiquidS56Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
 
         let mut val = u32::from_be_bytes(raw);
@@ -345,7 +483,7 @@ impl LiquidS56Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
     }
@@ -355,7 +493,7 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -364,9 +502,9 @@ impl LiquidS56Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(raw) & (1 << (ch + 4)) > 0)
+        .map(|_| u32::from_be_bytes(raw) & (1 << (ch + 4)) > 0)
     }
 
     pub fn write_mic_amp_transformer(
@@ -375,7 +513,7 @@ impl LiquidS56Protocol {
         sections: &ExtensionSections,
         ch: usize,
         state: bool,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -384,7 +522,7 @@ impl LiquidS56Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
 
         let mut val = u32::from_be_bytes(raw);
@@ -401,7 +539,7 @@ impl LiquidS56Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
         let sw_notice = if ch == 0 {
             MIC_AMP_1_EMULATION_SW_NOTICE
@@ -416,20 +554,13 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<MicAmpEmulationType, Error> {
         assert!(ch < 2);
 
         let mut raw = [0; 4];
         let offset = EMULATION_TYPE_OFFSET + ch * 4;
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut raw,
-            timeout_ms
-        )
+        ApplSectionProtocol::read_appl_data(req, node, sections, offset, &mut raw, timeout_ms)
             .map(|_| MicAmpEmulationType::from(u32::from_be_bytes(raw)))
     }
 
@@ -439,21 +570,14 @@ impl LiquidS56Protocol {
         sections: &ExtensionSections,
         ch: usize,
         emulation_type: MicAmpEmulationType,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < 2);
 
         let mut raw = [0; 4];
         emulation_type.build_quadlet(&mut raw);
         let offset = EMULATION_TYPE_OFFSET + ch * 4;
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut raw,
-            timeout_ms
-        )?;
+        ApplSectionProtocol::write_appl_data(req, node, sections, offset, &mut raw, timeout_ms)?;
 
         let sw_notice = if ch == 0 {
             MIC_AMP_1_EMULATION_SW_NOTICE
@@ -469,20 +593,13 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<u8, Error> {
         assert!(ch < 2);
 
         let mut raw = [0; 4];
         let offset = HARMONICS_OFFSET + ch * 4;
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut raw,
-            timeout_ms
-        )
+        ApplSectionProtocol::read_appl_data(req, node, sections, offset, &mut raw, timeout_ms)
             .map(|_| u32::from_be_bytes(raw) as u8)
     }
 
@@ -492,21 +609,14 @@ impl LiquidS56Protocol {
         sections: &ExtensionSections,
         ch: usize,
         harmonics: u8,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < 2);
 
         let mut raw = [0; 4];
         (harmonics as u32).build_quadlet(&mut raw);
         let offset = HARMONICS_OFFSET + ch * 4;
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut raw,
-            timeout_ms
-        )?;
+        ApplSectionProtocol::write_appl_data(req, node, sections, offset, &mut raw, timeout_ms)?;
 
         let sw_notice = if ch == 0 {
             MIC_AMP_1_HARMONICS_SW_NOTICE
@@ -521,20 +631,13 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         ch: usize,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<bool, Error> {
         assert!(ch < 2);
 
         let mut raw = [0; 4];
         let offset = POLARITY_OFFSET + ch * 4;
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut raw,
-            timeout_ms
-        )
+        ApplSectionProtocol::read_appl_data(req, node, sections, offset, &mut raw, timeout_ms)
             .map(|_| u32::from_be_bytes(raw) > 0)
     }
 
@@ -544,21 +647,14 @@ impl LiquidS56Protocol {
         sections: &ExtensionSections,
         ch: usize,
         inverted: bool,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         assert!(ch < 2);
 
         let mut raw = [0; 4];
         inverted.build_quadlet(&mut raw);
         let offset = POLARITY_OFFSET + ch * 4;
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            offset,
-            &mut raw,
-            timeout_ms
-        )?;
+        ApplSectionProtocol::write_appl_data(req, node, sections, offset, &mut raw, timeout_ms)?;
         Self::write_sw_notice(req, node, sections, MIC_AMP_POLARITY_SW_NOTICE, timeout_ms)
     }
 
@@ -566,8 +662,8 @@ impl LiquidS56Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        levels: &mut [AnalogInputLevel;8],
-        timeout_ms: u32
+        levels: &mut [AnalogInputLevel; 8],
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 8];
         ApplSectionProtocol::read_appl_data(
@@ -576,18 +672,20 @@ impl LiquidS56Protocol {
             sections,
             ANALOG_INPUT_LEVEL_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let mut quads = [0u32;2];
-                quads.parse_quadlet_block(&raw);
-                levels[..4].iter_mut()
-                    .zip(quads[0].to_ne_bytes().iter())
-                    .for_each(|(level, &val)| *level = AnalogInputLevel::from(val));
-                levels[4..].iter_mut()
-                    .zip(quads[1].to_ne_bytes().iter())
-                    .for_each(|(level, &val)| *level = AnalogInputLevel::from(val));
-            })
+        .map(|_| {
+            let mut quads = [0u32; 2];
+            quads.parse_quadlet_block(&raw);
+            levels[..4]
+                .iter_mut()
+                .zip(quads[0].to_ne_bytes().iter())
+                .for_each(|(level, &val)| *level = AnalogInputLevel::from(val));
+            levels[4..]
+                .iter_mut()
+                .zip(quads[1].to_ne_bytes().iter())
+                .for_each(|(level, &val)| *level = AnalogInputLevel::from(val));
+        })
     }
 
     pub fn write_analog_input_level(
@@ -595,13 +693,15 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         levels: &[AnalogInputLevel; 8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quads = [0u32; 2];
-        levels[..4].iter()
+        levels[..4]
+            .iter()
             .enumerate()
             .for_each(|(i, &level)| quads[0] |= (u8::from(level) as u32) << (i * 8));
-        levels[4..].iter()
+        levels[4..]
+            .iter()
             .enumerate()
             .for_each(|(i, &level)| quads[1] |= (u8::from(level) as u32) << (i * 8));
         let mut raw = [0; 8];
@@ -612,7 +712,7 @@ impl LiquidS56Protocol {
             sections,
             ANALOG_INPUT_LEVEL_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, INPUT_LEVEL_SW_NOTICE, timeout_ms)
     }
@@ -622,17 +722,10 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &mut LedState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
-        ApplSectionProtocol::read_appl_data(
-            req,
-            node,
-            sections,
-            LED_OFFSET,
-            &mut raw,
-            timeout_ms
-        )
+        ApplSectionProtocol::read_appl_data(req, node, sections, LED_OFFSET, &mut raw, timeout_ms)
             .map(|_| state.parse(&raw))
     }
 
@@ -641,18 +734,11 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         state: &LedState,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         state.build(&mut raw);
-        ApplSectionProtocol::write_appl_data(
-            req,
-            node,
-            sections,
-            LED_OFFSET,
-            &mut raw,
-            timeout_ms
-        )
+        ApplSectionProtocol::write_appl_data(req, node, sections, LED_OFFSET, &mut raw, timeout_ms)
     }
 
     /// The target of meter display represent index of router entry.
@@ -661,7 +747,7 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         targets: &mut [usize; 8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 8];
         ApplSectionProtocol::read_appl_data(
@@ -670,19 +756,21 @@ impl LiquidS56Protocol {
             sections,
             METER_DISPLAY_TARGET_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let mut quads = [0u32; 2];
-                quads[0].parse_quadlet(&raw[..4]);
-                quads[1].parse_quadlet(&raw[4..]);
-                targets[..4].iter_mut()
-                    .zip(quads[0].to_ne_bytes().iter())
-                    .for_each(|(target, &val)| *target = val as usize);
-                targets[4..].iter_mut()
-                    .zip(quads[1].to_ne_bytes().iter())
-                    .for_each(|(target, &val)| *target = val as usize);
-            })
+        .map(|_| {
+            let mut quads = [0u32; 2];
+            quads[0].parse_quadlet(&raw[..4]);
+            quads[1].parse_quadlet(&raw[4..]);
+            targets[..4]
+                .iter_mut()
+                .zip(quads[0].to_ne_bytes().iter())
+                .for_each(|(target, &val)| *target = val as usize);
+            targets[4..]
+                .iter_mut()
+                .zip(quads[1].to_ne_bytes().iter())
+                .for_each(|(target, &val)| *target = val as usize);
+        })
     }
 
     pub fn write_meter_display_targets(
@@ -690,16 +778,18 @@ impl LiquidS56Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         targets: &[usize; 8],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut quads = [0u32; 2];
-        targets[..4].iter()
+        targets[..4]
+            .iter()
             .enumerate()
             .for_each(|(i, &target)| quads[0] |= (target as u32) << (i * 8));
-        targets[4..].iter()
+        targets[4..]
+            .iter()
             .enumerate()
             .for_each(|(i, &target)| quads[1] |= (target as u32) << (i * 8));
-        let mut raw = [0;8];
+        let mut raw = [0; 8];
         quads.build_quadlet_block(&mut raw);
         ApplSectionProtocol::write_appl_data(
             req,
@@ -707,7 +797,7 @@ impl LiquidS56Protocol {
             sections,
             METER_DISPLAY_TARGET_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
     }
 }

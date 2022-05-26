@@ -22,30 +22,99 @@ pub struct SPro40Protocol;
 
 impl Tcd22xxSpecOperation for SPro40Protocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins1, offset: 0, count: 6, label: None},
-        Input{id: SrcBlkId::Aes, offset: 0, count: 2, label: Some("S/PDIF-coax")},
+        Input {
+            id: SrcBlkId::Ins1,
+            offset: 0,
+            count: 6,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: Some("S/PDIF-coax"),
+        },
         // NOTE: share the same optical interface.
-        Input{id: SrcBlkId::Adat, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Aes, offset: 4, count: 2, label: Some("S/PDIF-opt")},
+        Input {
+            id: SrcBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 4,
+            count: 2,
+            label: Some("S/PDIF-opt"),
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 2, label: None},
-        Output{id: DstBlkId::Ins1, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Aes, offset: 0, count: 2, label: Some("S/PDIF-coax")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 2,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Ins1,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 0,
+            count: 2,
+            label: Some("S/PDIF-coax"),
+        },
         // NOTE: share the same optical interface.
-        Output{id: DstBlkId::Adat, offset: 0, count: 8, label: None},
-        Output{id: DstBlkId::Aes, offset: 4, count: 2, label: Some("S/PDIF-opt")},
+        Output {
+            id: DstBlkId::Adat,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 4,
+            count: 2,
+            label: Some("S/PDIF-opt"),
+        },
     ];
     // NOTE: The first 8 entries in router section are used to display hardware metering.
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins1, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 1},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 2},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 3},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 4},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 5},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 6},
-        SrcBlk{id: SrcBlkId::Ins1, ch: 7},
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 1,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 2,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 3,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 4,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 5,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 6,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins1,
+            ch: 7,
+        },
     ];
 }
 
@@ -86,8 +155,8 @@ impl SPro40Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
-    ) ->Result<bool, Error> {
+        timeout_ms: u32,
+    ) -> Result<bool, Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
             req,
@@ -95,9 +164,9 @@ impl SPro40Protocol {
             sections,
             ANALOG_OUT_0_1_PAD_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| u32::from_be_bytes(raw) > 0)
+        .map(|_| u32::from_be_bytes(raw) > 0)
     }
 
     pub fn write_analog_out_0_1_pad(
@@ -105,7 +174,7 @@ impl SPro40Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         enable: bool,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         enable.build_quadlet(&mut raw);
@@ -115,7 +184,7 @@ impl SPro40Protocol {
             sections,
             ANALOG_OUT_0_1_PAD_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, OUT_PAD_SW_NOTICE, timeout_ms)
     }
@@ -124,7 +193,7 @@ impl SPro40Protocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<OptOutIfaceMode, Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -133,16 +202,16 @@ impl SPro40Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )
-            .map(|_| {
-                let val = u32::from_be_bytes(raw);
-                if val & 0x00000001 > 0 {
-                    OptOutIfaceMode::Spdif
-                } else {
-                    OptOutIfaceMode::Adat
-                }
-            })
+        .map(|_| {
+            let val = u32::from_be_bytes(raw);
+            if val & 0x00000001 > 0 {
+                OptOutIfaceMode::Spdif
+            } else {
+                OptOutIfaceMode::Adat
+            }
+        })
     }
 
     pub fn write_opt_out_iface_mode(
@@ -150,7 +219,7 @@ impl SPro40Protocol {
         node: &mut FwNode,
         sections: &ExtensionSections,
         mode: OptOutIfaceMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut raw = [0; 4];
         ApplSectionProtocol::read_appl_data(
@@ -159,7 +228,7 @@ impl SPro40Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
 
         let mut val = u32::from_be_bytes(raw);
@@ -175,7 +244,7 @@ impl SPro40Protocol {
             sections,
             IO_FLAGS_OFFSET,
             &mut raw,
-            timeout_ms
+            timeout_ms,
         )?;
         Self::write_sw_notice(req, node, sections, IO_FLAG_SW_NOTICE, timeout_ms)
     }

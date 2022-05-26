@@ -8,5 +8,5 @@
 
 pub mod fstudio;
 
-pub mod fstudioproject;
 pub mod fstudiomobile;
+pub mod fstudioproject;

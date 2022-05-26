@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementaion to parse
 //! configuration ROM according to specification defined by TCAT for ASICs of DICE.
 
-use ieee1212_config_rom::{*, entry::*};
+use ieee1212_config_rom::{entry::*, *};
 
 /// The structure to represent identifier in bus information block of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
@@ -55,7 +55,7 @@ impl<'a> DiceConfigRom<'a> for ConfigRom<'a> {
         if self.bus_info.len() < 12 {
             None
         } else {
-            let mut quadlet = [0;4];
+            let mut quadlet = [0; 4];
 
             quadlet.copy_from_slice(&self.bus_info[8..12]);
             let val = u32::from_be_bytes(quadlet);
@@ -67,40 +67,52 @@ impl<'a> DiceConfigRom<'a> for ConfigRom<'a> {
             let product_id = ((val & Self::PRODUCT_ID_MASK) >> Self::PRODUCT_ID_SHIFT) as u16;
             let serial = (val & Self::SERIAL_MASK) >> Self::SERIAL_SHIFT;
 
-            Some(Identifier{vendor_id, category, product_id, serial})
+            Some(Identifier {
+                vendor_id,
+                category,
+                product_id,
+                serial,
+            })
         }
     }
 
     fn get_root_data(&'a self) -> Option<RootData<'a>> {
-        detect_desc_text(&self.root, KeyType::Vendor)
-            .and_then(|(vendor_id, vendor_name)| {
-                detect_desc_text(&self.root, KeyType::Model)
-                    .map(|(product_id, product_name)| {
-                        RootData{vendor_id, vendor_name, product_id, product_name}
-                    })
+        detect_desc_text(&self.root, KeyType::Vendor).and_then(|(vendor_id, vendor_name)| {
+            detect_desc_text(&self.root, KeyType::Model).map(|(product_id, product_name)| {
+                RootData {
+                    vendor_id,
+                    vendor_name,
+                    product_id,
+                    product_name,
+                }
             })
+        })
     }
 
     fn get_unit_data(&'a self) -> Option<UnitData<'a>> {
-        self.root.iter().find_map(|entry| {
-            EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit)
-        })
-        .and_then(|entries| {
-            entries.iter().find_map(|entry| {
-                EntryDataAccess::<u32>::get(entry, KeyType::SpecifierId)
+        self.root
+            .iter()
+            .find_map(|entry| EntryDataAccess::<&[Entry]>::get(entry, KeyType::Unit))
+            .and_then(|entries| {
+                entries
+                    .iter()
+                    .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::SpecifierId))
+                    .and_then(|specifier_id| {
+                        entries
+                            .iter()
+                            .find_map(|entry| EntryDataAccess::<u32>::get(entry, KeyType::Version))
+                            .and_then(|version| {
+                                detect_desc_text(entries, KeyType::Model).map(
+                                    |(model_id, model_name)| UnitData {
+                                        model_id,
+                                        model_name,
+                                        specifier_id,
+                                        version,
+                                    },
+                                )
+                            })
+                    })
             })
-            .and_then(|specifier_id| {
-                entries.iter().find_map(|entry| {
-                    EntryDataAccess::<u32>::get(entry, KeyType::Version)
-                })
-                .and_then(|version| {
-                    detect_desc_text(entries, KeyType::Model)
-                        .map(|(model_id, model_name)| {
-                            UnitData{model_id, model_name, specifier_id, version}
-                        })
-                })
-            })
-        })
     }
 }
 
@@ -108,14 +120,11 @@ fn detect_desc_text<'a>(entries: &'a [Entry], key_type: KeyType) -> Option<(u32,
     let mut peekable = entries.iter().peekable();
 
     while let Some(entry) = peekable.next() {
-        let result = EntryDataAccess::<u32>::get(entry, key_type)
-            .and_then(|value| {
-                peekable.peek()
-                    .and_then(|&next| {
-                        EntryDataAccess::<&str>::get(next, KeyType::Descriptor)
-                            .map(|name| (value, name))
-                    })
-            });
+        let result = EntryDataAccess::<u32>::get(entry, key_type).and_then(|value| {
+            peekable.peek().and_then(|&next| {
+                EntryDataAccess::<&str>::get(next, KeyType::Descriptor).map(|name| (value, name))
+            })
+        });
 
         if result.is_some() {
             return result;

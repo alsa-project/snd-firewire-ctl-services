@@ -10,17 +10,43 @@ use crate::tcat::tcd22xx_spec::*;
 #[derive(Default)]
 pub struct FStudioMobileProtocol;
 
-impl Tcd22xxSpecOperation for  FStudioMobileProtocol {
+impl Tcd22xxSpecOperation for FStudioMobileProtocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 8, label: None},
-        Input{id: SrcBlkId::Aes,  offset: 2, count: 2, label: Some("S/PDIF")},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 0,
+            count: 8,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 2,
+            count: 2,
+            label: Some("S/PDIF"),
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 4, label: None},
-        Output{id: DstBlkId::Aes,  offset: 2, count: 2, label: Some("S/PDIF")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 4,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 2,
+            count: 2,
+            label: Some("S/PDIF"),
+        },
     ];
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 1,
+        },
     ];
 }

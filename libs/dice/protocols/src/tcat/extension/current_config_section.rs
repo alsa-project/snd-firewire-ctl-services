@@ -6,9 +6,9 @@
 //! The module includes structure, enumeration, and trait and its implementation for current
 //! configuration section in protocol extension defined by TCAT for ASICs of DICE.
 
-use super::{*, cmd_section::*, caps_section::*};
 use super::router_entry::*;
 use super::stream_format_entry::*;
+use super::{caps_section::*, cmd_section::*, *};
 
 /// The structure of protocol implementation of current configuration section.
 #[derive(Default)]
@@ -28,7 +28,7 @@ impl CurrentConfigSectionProtocol {
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         mode: RateMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<Vec<RouterEntry>, Error> {
         let offset = match mode {
             RateMode::Low => Self::LOW_ROUTER_CONFIG_OFFSET,
@@ -36,28 +36,17 @@ impl CurrentConfigSectionProtocol {
             RateMode::High => Self::HIGH_ROUTER_CONFIG_OFFSET,
         };
 
-        let mut data = [0;4];
+        let mut data = [0; 4];
         let offset = sections.current_config.offset + offset;
-        extension_read(
-            req,
-            node,
-            offset,
-            &mut data,
-            timeout_ms
-        )
+        extension_read(req, node, offset, &mut data, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))?;
 
-        let entry_count = std::cmp::min(u32::from_be_bytes(data) as usize,
-                                        caps.router.maximum_entry_count as usize);
+        let entry_count = std::cmp::min(
+            u32::from_be_bytes(data) as usize,
+            caps.router.maximum_entry_count as usize,
+        );
 
-        read_router_entries(
-            req,
-            node,
-            caps,
-            offset + 4,
-            entry_count,
-            timeout_ms
-        )
+        read_router_entries(req, node, caps, offset + 4, entry_count, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))
     }
 
@@ -67,7 +56,7 @@ impl CurrentConfigSectionProtocol {
         sections: &ExtensionSections,
         caps: &ExtensionCaps,
         mode: RateMode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(Vec<FormatEntry>, Vec<FormatEntry>), Error> {
         let offset = match mode {
             RateMode::Low => Self::LOW_STREAM_CONFIG_OFFSET,
@@ -75,13 +64,7 @@ impl CurrentConfigSectionProtocol {
             RateMode::High => Self::HIGH_STREAM_CONFIG_OFFSET,
         };
         let offset = sections.current_config.offset + offset;
-        read_stream_format_entries(
-            req,
-            node,
-            caps,
-            offset,
-            timeout_ms
-        )
+        read_stream_format_entries(req, node, caps, offset, timeout_ms)
             .map_err(|e| Error::new(ProtocolExtensionError::CurrentConfig, &e.to_string()))
     }
 }

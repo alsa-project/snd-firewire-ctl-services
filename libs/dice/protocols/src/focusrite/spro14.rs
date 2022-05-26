@@ -78,7 +78,10 @@
 //!
 //! ```
 
-use crate::{focusrite::*, tcat::{extension::*, tcd22xx_spec::*}};
+use crate::{
+    focusrite::*,
+    tcat::{extension::*, tcd22xx_spec::*},
+};
 
 /// The structure for protocol implementation specific to Saffire Pro 14.
 #[derive(Debug)]
@@ -86,17 +89,43 @@ pub struct SPro14Protocol;
 
 impl Tcd22xxSpecOperation for SPro14Protocol {
     const INPUTS: &'static [Input] = &[
-        Input{id: SrcBlkId::Ins0, offset: 0, count: 4, label: None},
-        Input{id: SrcBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF")},
+        Input {
+            id: SrcBlkId::Ins0,
+            offset: 0,
+            count: 4,
+            label: None,
+        },
+        Input {
+            id: SrcBlkId::Aes,
+            offset: 6,
+            count: 2,
+            label: Some("S/PDIF"),
+        },
     ];
     const OUTPUTS: &'static [Output] = &[
-        Output{id: DstBlkId::Ins0, offset: 0, count: 4, label: None},
-        Output{id: DstBlkId::Aes, offset: 6, count: 2, label: Some("S/PDIF")},
+        Output {
+            id: DstBlkId::Ins0,
+            offset: 0,
+            count: 4,
+            label: None,
+        },
+        Output {
+            id: DstBlkId::Aes,
+            offset: 6,
+            count: 2,
+            label: Some("S/PDIF"),
+        },
     ];
     // NOTE: The first 2 entries in router section are used to display signal detection.
     const FIXED: &'static [SrcBlk] = &[
-        SrcBlk{id: SrcBlkId::Ins0, ch: 0},
-        SrcBlk{id: SrcBlkId::Ins0, ch: 1},
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 0,
+        },
+        SrcBlk {
+            id: SrcBlkId::Ins0,
+            ch: 1,
+        },
     ];
 }
 

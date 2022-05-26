@@ -7,28 +7,28 @@
 //! extension defined by TC Applied Technologies (TCAT) for ASICs of Digital Interface Communication
 //! Engine (DICE).
 
+pub mod appl_section;
 pub mod caps_section;
 pub mod cmd_section;
+pub mod current_config_section;
 pub mod mixer_section;
+pub mod peak_section;
 #[doc(hidden)]
 mod router_entry;
-pub mod peak_section;
 pub mod router_section;
+pub mod standalone_section;
 #[doc(hidden)]
 mod stream_format_entry;
 pub mod stream_format_section;
-pub mod current_config_section;
-pub mod appl_section;
-pub mod standalone_section;
 
-use super::{*, utils::*};
+use super::{utils::*, *};
 
-use std::convert::TryFrom;
 use std::cmp::Ordering;
+use std::convert::TryFrom;
 
 /// The structure to represent sections for protocol extension.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ExtensionSections{
+pub struct ExtensionSections {
     pub caps: Section,
     pub cmd: Section,
     pub mixer: Section,
@@ -47,7 +47,7 @@ impl ExtensionSections {
 
 impl From<&[u8]> for ExtensionSections {
     fn from(raw: &[u8]) -> Self {
-        ExtensionSections{
+        ExtensionSections {
             caps: Section::from(&raw[..8]),
             cmd: Section::from(&raw[8..16]),
             mixer: Section::from(&raw[16..24]),
@@ -146,7 +146,7 @@ fn extension_read(
     node: &mut FwNode,
     offset: usize,
     frames: &mut [u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::read(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
 }
@@ -156,7 +156,7 @@ fn extension_write(
     node: &mut FwNode,
     offset: usize,
     frames: &mut [u8],
-    timeout_ms: u32
+    timeout_ms: u32,
 ) -> Result<(), Error> {
     GeneralProtocol::write(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
 }
@@ -169,7 +169,7 @@ impl ProtocolExtension {
     pub fn read_extension_sections(
         req: &mut FwReq,
         node: &mut FwNode,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<ExtensionSections, Error> {
         let mut data = [0; ExtensionSections::SIZE];
         extension_read(req, node, 0, &mut data, timeout_ms)
@@ -243,11 +243,11 @@ pub struct RouterEntry {
 
 /// The structure to represent entry of stream format.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
-pub struct FormatEntry{
+pub struct FormatEntry {
     pub pcm_count: u8,
     pub midi_count: u8,
     pub labels: Vec<String>,
-    pub enable_ac3: [bool;AC3_CHANNELS],
+    pub enable_ac3: [bool; AC3_CHANNELS],
 }
 
 /// The number of channels in stream format for AC3 channels.
@@ -255,8 +255,8 @@ pub const AC3_CHANNELS: usize = 32;
 
 #[cfg(test)]
 mod test {
-    use super::Section;
     use super::ExtensionSections;
+    use super::Section;
 
     #[test]
     fn section_from() {
@@ -268,16 +268,43 @@ mod test {
             0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
             0x00, 0x00,
         ];
-        let space = ExtensionSections{
-            caps: Section{offset: 0x44, size: 0x40},
-            cmd: Section{offset: 0x3c, size: 0x38},
-            mixer: Section{offset: 0x34, size: 0x30},
-            peak: Section{offset: 0x2c, size: 0x28},
-            router: Section{offset: 0x24, size: 0x20},
-            stream_format: Section{offset: 0x1c, size: 0x18},
-            current_config: Section{offset: 0x14, size: 0x10},
-            standalone: Section{offset: 0x0c, size: 0x08},
-            application: Section{offset: 0x04, size: 0x00},
+        let space = ExtensionSections {
+            caps: Section {
+                offset: 0x44,
+                size: 0x40,
+            },
+            cmd: Section {
+                offset: 0x3c,
+                size: 0x38,
+            },
+            mixer: Section {
+                offset: 0x34,
+                size: 0x30,
+            },
+            peak: Section {
+                offset: 0x2c,
+                size: 0x28,
+            },
+            router: Section {
+                offset: 0x24,
+                size: 0x20,
+            },
+            stream_format: Section {
+                offset: 0x1c,
+                size: 0x18,
+            },
+            current_config: Section {
+                offset: 0x14,
+                size: 0x10,
+            },
+            standalone: Section {
+                offset: 0x0c,
+                size: 0x08,
+            },
+            application: Section {
+                offset: 0x04,
+                size: 0x00,
+            },
         };
         assert_eq!(space, ExtensionSections::from(&raw[..]));
     }

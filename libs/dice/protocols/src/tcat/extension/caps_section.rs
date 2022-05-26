@@ -30,11 +30,11 @@ impl RouterCaps {
 
 impl From<&[u8]> for RouterCaps {
     fn from(raw: &[u8]) -> Self {
-        let mut doublet = [0;2];
+        let mut doublet = [0; 2];
         doublet.copy_from_slice(&raw[..2]);
         RouterCaps {
             is_exposed: raw[Self::IS_EXPOSED_OFFSET] & Self::IS_EXPOSED_FLAG > 0,
-            is_readonly: raw[Self::IS_READONLY_OFFSET] & Self::IS_READONLY_FLAG  > 0,
+            is_readonly: raw[Self::IS_READONLY_OFFSET] & Self::IS_READONLY_FLAG > 0,
             is_storable: raw[Self::IS_STORABLE_OFFSET] & Self::IS_STORABLE_FLAG > 0,
             maximum_entry_count: u16::from_be_bytes(doublet),
         }
@@ -79,8 +79,8 @@ impl From<&[u8]> for MixerCaps {
             is_exposed: raw[Self::IS_EXPOSED_OFFSET] & Self::IS_EXPOSED_FLAG > 0,
             is_readonly: raw[Self::IS_READONLY_OFFSET] & Self::IS_READONLY_FLAG > 0,
             is_storable: raw[Self::IS_STORABLE_OFFSET] & Self::IS_STORABLE_FLAG > 0,
-            input_device_id:
-                (raw[Self::INPUT_DEVICE_ID_OFFSET] >> Self::INPUT_DEVICE_ID_SHIFT) & Self::INPUT_DEVICE_ID_MASK,
+            input_device_id: (raw[Self::INPUT_DEVICE_ID_OFFSET] >> Self::INPUT_DEVICE_ID_SHIFT)
+                & Self::INPUT_DEVICE_ID_MASK,
             output_device_id: raw[Self::OUTPUT_DEVICE_ID_OFFSET] & Self::OUTPUT_DEVICE_ID_MASK,
             input_count: raw[Self::INPUT_COUNT_OFFSET],
             output_count: raw[Self::OUTPUT_COUNT_OFFSET],
@@ -97,7 +97,7 @@ pub enum AsicType {
     Reserved(u8),
 }
 
-impl Default<> for AsicType {
+impl Default for AsicType {
     fn default() -> Self {
         AsicType::Reserved(0xff)
     }
@@ -150,20 +150,18 @@ impl GeneralCaps {
 impl From<&[u8]> for GeneralCaps {
     fn from(raw: &[u8]) -> Self {
         GeneralCaps {
-            dynamic_stream_format:
-                raw[Self::DYNAMIC_STREAM_CONF_OFFSET] & Self::DYNAMIC_STREAM_CONF_FLAG > 0,
-            storage_avail:
-                raw[Self::STORAGE_AVAIL_OFFSET] & Self::STORAGE_AVAIL_FLAG > 0,
-            peak_avail:
-                raw[Self::PEAK_AVAIL_OFFSET] & Self::PEAK_AVAIL_FLAG > 0,
-            max_tx_streams:
-                (raw[Self::MAX_TX_STREAMS_OFFSET] >> Self::MAX_TX_STREAMS_SHIFT) & Self::MAX_TX_STREAMS_MASK,
-            max_rx_streams:
-                raw[Self::MAX_RX_STREAMS_OFFSET] & Self::MAX_RX_STREAMS_MASK,
-            stream_format_is_storable:
-                raw[Self::STREAM_CONF_IS_STORABLE_OFFSET] & Self::STREAM_CONF_IS_STORABLE_FLAG > 0,
-            asic_type:
-                AsicType::from(raw[Self::ASIC_TYPE_OFFSET]),
+            dynamic_stream_format: raw[Self::DYNAMIC_STREAM_CONF_OFFSET]
+                & Self::DYNAMIC_STREAM_CONF_FLAG
+                > 0,
+            storage_avail: raw[Self::STORAGE_AVAIL_OFFSET] & Self::STORAGE_AVAIL_FLAG > 0,
+            peak_avail: raw[Self::PEAK_AVAIL_OFFSET] & Self::PEAK_AVAIL_FLAG > 0,
+            max_tx_streams: (raw[Self::MAX_TX_STREAMS_OFFSET] >> Self::MAX_TX_STREAMS_SHIFT)
+                & Self::MAX_TX_STREAMS_MASK,
+            max_rx_streams: raw[Self::MAX_RX_STREAMS_OFFSET] & Self::MAX_RX_STREAMS_MASK,
+            stream_format_is_storable: raw[Self::STREAM_CONF_IS_STORABLE_OFFSET]
+                & Self::STREAM_CONF_IS_STORABLE_FLAG
+                > 0,
+            asic_type: AsicType::from(raw[Self::ASIC_TYPE_OFFSET]),
         }
     }
 }
@@ -182,7 +180,7 @@ impl ExtensionCaps {
 
 impl From<&[u8]> for ExtensionCaps {
     fn from(raw: &[u8]) -> Self {
-        ExtensionCaps{
+        ExtensionCaps {
             router: RouterCaps::from(&raw[..RouterCaps::SIZE]),
             mixer: MixerCaps::from(&raw[RouterCaps::SIZE..(RouterCaps::SIZE + MixerCaps::SIZE)]),
             general: GeneralCaps::from(&raw[(RouterCaps::SIZE + MixerCaps::SIZE)..]),
@@ -199,7 +197,7 @@ impl CapsSectionProtocol {
         req: &mut FwReq,
         node: &mut FwNode,
         sections: &ExtensionSections,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<ExtensionCaps, Error> {
         let mut data = [0; ExtensionCaps::SIZE];
         extension_read(req, node, sections.caps.offset, &mut data, timeout_ms)
@@ -210,19 +208,21 @@ impl CapsSectionProtocol {
 
 #[cfg(test)]
 mod test {
-    use super::{ExtensionCaps, RouterCaps, MixerCaps, GeneralCaps, AsicType};
+    use super::{AsicType, ExtensionCaps, GeneralCaps, MixerCaps, RouterCaps};
 
     #[test]
     fn caps_from() {
-        let raw = [0xff, 0x00, 0x00, 0x07, 0x23, 0x12, 0x0c, 0xe7, 0x00, 0x00, 0x1b, 0xa3];
-        let caps = ExtensionCaps{
-            router: RouterCaps{
+        let raw = [
+            0xff, 0x00, 0x00, 0x07, 0x23, 0x12, 0x0c, 0xe7, 0x00, 0x00, 0x1b, 0xa3,
+        ];
+        let caps = ExtensionCaps {
+            router: RouterCaps {
                 is_exposed: true,
                 is_readonly: true,
                 is_storable: true,
                 maximum_entry_count: 0xff00,
             },
-            mixer: MixerCaps{
+            mixer: MixerCaps {
                 is_exposed: true,
                 is_readonly: true,
                 is_storable: true,
@@ -231,7 +231,7 @@ mod test {
                 input_count: 0x12,
                 output_count: 0x23,
             },
-            general: GeneralCaps{
+            general: GeneralCaps {
                 dynamic_stream_format: true,
                 storage_avail: true,
                 peak_avail: false,
