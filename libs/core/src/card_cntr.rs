@@ -29,24 +29,33 @@ pub trait CtlModel<O: IsA<hinawa::SndUnit>> {
 pub trait MeasureModel<O: IsA<hinawa::SndUnit>> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
     fn measure_states(&mut self, unit: &mut O) -> Result<(), Error>;
-    fn measure_elem(&mut self, unit: &O, elem_id: &alsactl::ElemId,
-                    elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>;
+    fn measure_elem(
+        &mut self,
+        unit: &O,
+        elem_id: &alsactl::ElemId,
+        elem_value: &mut alsactl::ElemValue,
+    ) -> Result<bool, Error>;
 }
 
 pub trait NotifyModel<O: IsA<hinawa::SndUnit>, N> {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
     fn parse_notification(&mut self, unit: &mut O, notice: &N) -> Result<(), Error>;
-    fn read_notified_elem(&mut self, unit: &O, elem_id: &alsactl::ElemId,
-                          elem_value: &mut alsactl::ElemValue)
-        -> Result<bool, Error>;
+    fn read_notified_elem(
+        &mut self,
+        unit: &O,
+        elem_id: &alsactl::ElemId,
+        elem_value: &mut alsactl::ElemValue,
+    ) -> Result<bool, Error>;
 }
 
 impl Drop for CardCntr {
     fn drop(&mut self) {
-        self.entries.iter().filter_map(|v| v.get_property_elem_id()).for_each(|elem_id| {
-            let _ = self.card.remove_elems(&elem_id);
-        });
+        self.entries
+            .iter()
+            .filter_map(|v| v.get_property_elem_id())
+            .for_each(|elem_id| {
+                let _ = self.card.remove_elems(&elem_id);
+            });
     }
 }
 
@@ -85,9 +94,13 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<alsactl::ElemId>, Error>
-        where O: AsRef<str>
+    where
+        O: AsRef<str>,
     {
-        let entries = labels.iter().map(|entry| entry.as_ref()).collect::<Vec<&str>>();
+        let entries = labels
+            .iter()
+            .map(|entry| entry.as_ref())
+            .collect::<Vec<&str>>();
 
         let elem_info = alsactl::ElemInfo::new(ElemType::Enumerated)?;
         elem_info.set_property_value_count(value_count as u32);
@@ -153,18 +166,18 @@ impl CardCntr {
         &mut self,
         elem_id: &alsactl::ElemId,
         elem_count: usize,
-        unlock: bool) -> Result<ElemId, Error>
-    {
+        unlock: bool,
+    ) -> Result<ElemId, Error> {
         let elem_info = alsactl::ElemInfo::new(ElemType::Iec60958)?;
         elem_info.set_property_value_count(1);
 
-        let access =
-            alsactl::ElemAccessFlag::READ |
-            alsactl::ElemAccessFlag::WRITE |
-            alsactl::ElemAccessFlag::VOLATILE;
+        let access = alsactl::ElemAccessFlag::READ
+            | alsactl::ElemAccessFlag::WRITE
+            | alsactl::ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
-        let mut elem_id_list = self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)?;
+        let mut elem_id_list =
+            self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)?;
 
         Ok(elem_id_list.remove(0))
     }
@@ -239,8 +252,9 @@ impl CardCntr {
             }
         };
 
-        elem_id_list.iter().try_for_each(|elem_id| {
-            match self.card.get_elem_info(&elem_id) {
+        elem_id_list
+            .iter()
+            .try_for_each(|elem_id| match self.card.get_elem_info(&elem_id) {
                 Ok(elem_info) => match elem_info.get_property_elem_id() {
                     Some(elem_id) => {
                         let mut v = alsactl::ElemValue::new();
@@ -258,17 +272,16 @@ impl CardCntr {
                     let _ = self.card.remove_elems(&elem_id_list[0]);
                     Err(err)
                 }
-            }
-        })?;
+            })?;
 
         if let Some(cntr) = tlv {
-            elem_id_list.iter().try_for_each(|elem_id| {
-                self.card.write_elem_tlv(&elem_id, &cntr)
-            })?;
+            elem_id_list
+                .iter()
+                .try_for_each(|elem_id| self.card.write_elem_tlv(&elem_id, &cntr))?;
         }
 
         if unlock {
-            elem_id_list.iter().for_each(|elem_id|{
+            elem_id_list.iter().for_each(|elem_id| {
                 // Ignore any errors.
                 let _ = self.card.lock_elem(&elem_id, false);
             });
@@ -383,18 +396,19 @@ impl CardCntr {
         ctl_model.measure_states(unit)?;
 
         elem_id_list.iter().try_for_each(|elem_id| {
-            entries.iter_mut().filter(|elem_value| {
-                match elem_value.get_property_elem_id() {
+            entries
+                .iter_mut()
+                .filter(|elem_value| match elem_value.get_property_elem_id() {
                     Some(eid) => eid == *elem_id,
                     None => false,
-                }
-            }).try_for_each(|elem_value| {
-                if ctl_model.measure_elem(unit, elem_id, elem_value)? {
-                    card.write_elem_value(elem_id, elem_value)?;
-                }
+                })
+                .try_for_each(|elem_value| {
+                    if ctl_model.measure_elem(unit, elem_id, elem_value)? {
+                        card.write_elem_value(elem_id, elem_value)?;
+                    }
 
-                Ok(())
-            })
+                    Ok(())
+                })
         })
     }
 
@@ -415,18 +429,19 @@ impl CardCntr {
         ctl_model.parse_notification(unit, notification)?;
 
         elem_id_list.iter().try_for_each(|elem_id| {
-            entries.iter_mut().filter(|elem_value| {
-                match elem_value.get_property_elem_id() {
+            entries
+                .iter_mut()
+                .filter(|elem_value| match elem_value.get_property_elem_id() {
                     Some(eid) => eid == *elem_id,
                     None => false,
-                }
-            }).try_for_each(|elem_value| {
-                if ctl_model.read_notified_elem(unit, elem_id, elem_value)? {
-                    card.write_elem_value(elem_id, elem_value)?;
-                }
+                })
+                .try_for_each(|elem_value| {
+                    if ctl_model.read_notified_elem(unit, elem_id, elem_value)? {
+                        card.write_elem_value(elem_id, elem_value)?;
+                    }
 
-                Ok(())
-            })
+                    Ok(())
+                })
         })
     }
 }

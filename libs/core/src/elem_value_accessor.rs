@@ -5,17 +5,18 @@ use glib::IsA;
 
 use alsactl::{ElemValueExt, ElemValueExtManual};
 
-pub trait ElemValueAccessor<T> : IsA<alsactl::ElemValue>
-    where T: Copy + Clone + Default + Eq + PartialEq
+pub trait ElemValueAccessor<T>: IsA<alsactl::ElemValue>
+where
+    T: Copy + Clone + Default + Eq + PartialEq,
 {
     fn set(&self, vals: &[T]);
     fn get(&self, vals: &mut [T]);
 
-    fn set_vals<F>(&self, len: usize, mut cb: F)
-        -> Result<(), Error>
-        where F: FnMut(usize) -> Result<T, Error>
+    fn set_vals<F>(&self, len: usize, mut cb: F) -> Result<(), Error>
+    where
+        F: FnMut(usize) -> Result<T, Error>,
     {
-        let mut vals = vec![Default::default();len];
+        let mut vals = vec![Default::default(); len];
         vals.iter_mut().enumerate().try_for_each(|(ch, v)| {
             *v = cb(ch)?;
             Ok(())
@@ -24,14 +25,17 @@ pub trait ElemValueAccessor<T> : IsA<alsactl::ElemValue>
         Ok(())
     }
 
-    fn get_vals<F>(&self, old: &Self, len: usize, mut cb: F)
-        -> Result<(), Error>
-        where F: FnMut(usize, T) -> Result<(), Error>
+    fn get_vals<F>(&self, old: &Self, len: usize, mut cb: F) -> Result<(), Error>
+    where
+        F: FnMut(usize, T) -> Result<(), Error>,
     {
-        let mut vals = vec![Default::default();len * 2];
+        let mut vals = vec![Default::default(); len * 2];
         self.get(&mut vals[..len]);
         old.get(&mut vals[len..]);
-        vals[..len].iter().zip(vals[len..].iter()).enumerate()
+        vals[..len]
+            .iter()
+            .zip(vals[len..].iter())
+            .enumerate()
             .filter(|(_, (n, o))| *n != *o)
             .try_for_each(|(ch, (v, _))| {
                 cb(ch, *v)?;
@@ -41,7 +45,8 @@ pub trait ElemValueAccessor<T> : IsA<alsactl::ElemValue>
     }
 
     fn set_val<F>(&self, mut cb: F) -> Result<(), Error>
-        where F: FnMut() -> Result<T, Error>
+    where
+        F: FnMut() -> Result<T, Error>,
     {
         let mut vals = [Default::default()];
         vals[0] = cb()?;
@@ -50,7 +55,8 @@ pub trait ElemValueAccessor<T> : IsA<alsactl::ElemValue>
     }
 
     fn get_val<F>(&self, mut cb: F) -> Result<(), Error>
-        where F: FnMut(T) -> Result<(), Error>
+    where
+        F: FnMut(T) -> Result<(), Error>,
     {
         let mut vals = [Default::default()];
         self.get(&mut vals);
