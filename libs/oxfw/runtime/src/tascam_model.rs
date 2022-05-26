@@ -1,17 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwFcpExt;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::*;
-
-use oxfw_protocols::tascam::*;
-
-use super::common_ctl::CommonCtl;
+use {
+    super::{common_ctl::*, *},
+    oxfw_protocols::tascam::*,
+};
 
 #[derive(Default, Debug)]
 pub struct TascamModel {

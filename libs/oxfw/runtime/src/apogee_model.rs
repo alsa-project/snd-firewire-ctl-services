@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::{FwFcp, FwFcpExt, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use oxfw_protocols::apogee::*;
-
-use super::common_ctl::CommonCtl;
+use {
+    super::{common_ctl::*, *},
+    oxfw_protocols::apogee::*,
+};
 
 #[derive(Default, Debug)]
 pub struct ApogeeModel {
@@ -33,8 +25,8 @@ impl ApogeeModel {
     const FCP_TIMEOUT_MS: u32 = 100;
 }
 
-impl CtlModel<hinawa::SndUnit> for ApogeeModel {
-    fn load(&mut self, unit: &mut hinawa::SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<SndUnit> for ApogeeModel {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.bind(&unit.get_node())?;
 
         self.common_ctl
@@ -55,9 +47,9 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
 
     fn read(
         &mut self,
-        _: &mut hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self
             .common_ctl
@@ -98,10 +90,10 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
 
     fn write(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        old: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        old: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .common_ctl
@@ -142,15 +134,15 @@ impl CtlModel<hinawa::SndUnit> for ApogeeModel {
     }
 }
 
-impl MeasureModel<hinawa::SndUnit> for ApogeeModel {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl MeasureModel<SndUnit> for ApogeeModel {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.2);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.2);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut hinawa::SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
         self.meter_ctl
             .measure_state(unit, &mut self.req, TIMEOUT_MS)?;
         self.knob_ctl.measure_state(&mut self.avc, TIMEOUT_MS)?;
@@ -165,9 +157,9 @@ impl MeasureModel<hinawa::SndUnit> for ApogeeModel {
 
     fn measure_elem(
         &mut self,
-        _: &hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.meter_ctl.read_state(elem_id, elem_value)? {
             Ok(true)
@@ -183,20 +175,20 @@ impl MeasureModel<hinawa::SndUnit> for ApogeeModel {
     }
 }
 
-impl NotifyModel<hinawa::SndUnit, bool> for ApogeeModel {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl NotifyModel<SndUnit, bool> for ApogeeModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         self.common_ctl
             .read(&self.avc, elem_id, elem_value, Self::FCP_TIMEOUT_MS)

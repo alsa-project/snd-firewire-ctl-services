@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use card_cntr::{CtlModel, MeasureModel, NotifyModel};
-use core::card_cntr;
-
-use super::apogee_model::ApogeeModel;
-use super::common_model::CommonModel;
-use super::griffin_model::GriffinModel;
-use super::lacie_model::LacieModel;
-use super::loud_model::LinkFwModel;
-use super::tascam_model::TascamModel;
+use super::{
+    apogee_model::*, common_model::*, griffin_model::*, lacie_model::*, loud_model::*,
+    tascam_model::*, *,
+};
 
 enum OxfwCtlModel {
     Fireone(TascamModel),
@@ -48,11 +42,7 @@ impl OxfwModel {
         Ok(model)
     }
 
-    pub fn load(
-        &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
-    ) -> Result<(), Error> {
+    pub fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
             OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
@@ -81,8 +71,8 @@ impl OxfwModel {
 
     pub fn dispatch_elem_event(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndUnit,
+        card_cntr: &mut CardCntr,
         elem_id: &alsactl::ElemId,
         events: &alsactl::ElemEventMask,
     ) -> Result<(), Error> {
@@ -98,8 +88,8 @@ impl OxfwModel {
 
     pub fn measure_elems(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndUnit,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {
             OxfwCtlModel::Duet(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
@@ -109,8 +99,8 @@ impl OxfwModel {
 
     pub fn dispatch_notification(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndUnit,
+        card_cntr: &mut CardCntr,
         locked: bool,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {
