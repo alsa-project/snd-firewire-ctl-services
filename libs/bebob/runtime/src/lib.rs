@@ -18,43 +18,37 @@ mod stanton;
 mod terratec;
 mod yamaha_terratec;
 
-use nix::sys::signal;
-use std::convert::TryFrom;
-use std::sync::mpsc;
-
-use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
-
-use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
-
-use glib::source;
-use glib::{Error, FileError};
-
-use core::card_cntr;
-use core::dispatcher;
-use core::RuntimeOperation;
-
-use ieee1212_config_rom::ConfigRom;
-use ta1394::config_rom::Ta1394ConfigRom;
-
-use model::BebobModel;
+use {
+    alsa_ctl_tlv_codec::items::DbInterval,
+    alsactl::*,
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    glib::{source, Error, FileError},
+    hinawa::{FwFcpExt, FwNode, FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{SndUnit, SndUnitExt, SndUnitExtManual, SndUnitType},
+    ieee1212_config_rom::ConfigRom,
+    model::*,
+    nix::sys::signal,
+    std::{convert::TryFrom, sync::mpsc},
+    ta1394::config_rom::*,
+};
 
 enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
-    Elem(alsactl::ElemId, alsactl::ElemEventMask),
+    Elem(ElemId, ElemEventMask),
     Timer,
     StreamLock(bool),
 }
 
 pub struct BebobRuntime {
-    unit: hinawa::SndUnit,
+    unit: SndUnit,
     model: BebobModel,
-    card_cntr: card_cntr::CardCntr,
+    card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    timer: Option<dispatcher::Dispatcher>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
 }
 
 impl Drop for BebobRuntime {
@@ -74,10 +68,10 @@ impl Drop for BebobRuntime {
 
 impl RuntimeOperation<u32> for BebobRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
-        let unit = hinawa::SndUnit::new();
+        let unit = SndUnit::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
-        if unit.get_property_type() != hinawa::SndUnitType::Bebob {
+        if unit.get_property_type() != SndUnitType::Bebob {
             let label = "ALSA bebob driver is not bound to the unit.";
             return Err(Error::new(FileError::Inval, label));
         }
@@ -100,7 +94,7 @@ impl RuntimeOperation<u32> for BebobRuntime {
 
         let model = BebobModel::new(vendor.vendor_id, model.model_id, model.model_name)?;
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
         // Use uni-directional channel for communication to child threads.
@@ -124,8 +118,8 @@ impl RuntimeOperation<u32> for BebobRuntime {
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer,
+            let elem_id = ElemId::new_by_name(
+                ElemIfaceType::Mixer,
                 0,
                 0,
                 Self::TIMER_NAME,
@@ -159,7 +153,7 @@ impl RuntimeOperation<u32> for BebobRuntime {
                             &events,
                         );
                     } else {
-                        let mut elem_value = alsactl::ElemValue::new();
+                        let mut elem_value = ElemValue::new();
                         if self
                             .card_cntr
                             .card
@@ -204,7 +198,7 @@ impl<'a> BebobRuntime {
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -228,7 +222,7 @@ impl<'a> BebobRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -241,7 +235,7 @@ impl<'a> BebobRuntime {
         self.card_cntr
             .card
             .connect_handle_elem_event(move |_, elem_id, events| {
-                let elem_id: alsactl::ElemId = elem_id.clone();
+                let elem_id: ElemId = elem_id.clone();
                 let _ = tx.send(Event::Elem(elem_id, events));
             });
 
@@ -263,7 +257,7 @@ impl<'a> BebobRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);

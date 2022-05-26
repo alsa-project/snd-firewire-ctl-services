@@ -1,22 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use hinawa::{FwFcpExt, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use bebob_protocols::{maudio::pfl::*, *};
-
-use crate::common_ctls::*;
-use crate::model::OUT_METER_NAME;
+use {
+    super::*,
+    bebob_protocols::{maudio::pfl::*, *},
+};
 
 #[derive(Default)]
 pub struct PflModel {

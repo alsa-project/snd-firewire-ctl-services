@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
-
-use hinawa::{FwFcpExt, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::*;
-
-use bebob_protocols::{focusrite::saffireproio::*, *};
-
 use super::*;
 
 #[derive(Default)]

@@ -1,34 +1,32 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use card_cntr::{CtlModel, MeasureModel, NotifyModel};
-use core::card_cntr;
-
-use super::apogee::ensemble_model::EnsembleModel;
-use super::behringer::*;
-use super::digidesign::Mbox2proModel;
-use super::esi::Quatafire610Model;
-use super::focusrite::saffire_model::*;
-use super::focusrite::saffirele_model::*;
-use super::focusrite::saffirepro10io_model::*;
-use super::focusrite::saffirepro26io_model::*;
-use super::icon::FirexonModel;
-use super::maudio::audiophile_model::AudiophileModel;
-use super::maudio::fw410_model::Fw410Model;
-use super::maudio::ozonic_model::OzonicModel;
-use super::maudio::profirelightbridge_model::PflModel;
-use super::maudio::solo_model::SoloModel;
-use super::maudio::special_model::*;
-use super::presonus::firebox_model::*;
-use super::presonus::fp10_model::*;
-use super::presonus::inspire1394_model::*;
-use super::roland::*;
-use super::stanton::ScratchampModel;
-use super::terratec::aureon_model::*;
-use super::terratec::phase88_model::*;
-use super::yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel};
+use super::{
+    apogee::ensemble_model::EnsembleModel,
+    behringer::*,
+    digidesign::Mbox2proModel,
+    esi::Quatafire610Model,
+    focusrite::saffire_model::*,
+    focusrite::saffirele_model::*,
+    focusrite::saffirepro10io_model::*,
+    focusrite::saffirepro26io_model::*,
+    icon::FirexonModel,
+    maudio::audiophile_model::AudiophileModel,
+    maudio::fw410_model::Fw410Model,
+    maudio::ozonic_model::OzonicModel,
+    maudio::profirelightbridge_model::PflModel,
+    maudio::solo_model::SoloModel,
+    maudio::special_model::*,
+    presonus::firebox_model::*,
+    presonus::fp10_model::*,
+    presonus::inspire1394_model::*,
+    roland::*,
+    stanton::ScratchampModel,
+    terratec::aureon_model::*,
+    terratec::phase88_model::*,
+    yamaha_terratec::{GoPhase24CoaxModel, GoPhase24OptModel},
+    *,
+};
 
 pub struct BebobModel {
     ctl_model: Model,
@@ -118,11 +116,7 @@ impl BebobModel {
         Ok(model)
     }
 
-    pub fn load(
-        &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
-    ) -> Result<(), Error> {
+    pub fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => m.load(unit, card_cntr),
             Model::BehringerFca610(m) => m.load(unit, card_cntr),
@@ -213,8 +207,8 @@ impl BebobModel {
 
     pub fn dispatch_elem_event(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndUnit,
+        card_cntr: &mut CardCntr,
         elem_id: &alsactl::ElemId,
         events: &alsactl::ElemEventMask,
     ) -> Result<(), Error> {
@@ -264,8 +258,8 @@ impl BebobModel {
 
     pub fn measure_elems(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndUnit,
+        card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {
             Model::ApogeeEnsemble(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
@@ -295,8 +289,8 @@ impl BebobModel {
 
     pub fn dispatch_stream_lock(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
+        unit: &mut SndUnit,
+        card_cntr: &mut CardCntr,
         notice: bool,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {

@@ -1,23 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use hinawa::{FwFcpExt, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::*;
-
-use bebob_protocols::{
-    focusrite::{saffire::*, *},
-    *,
-};
-
 use super::*;
-use crate::common_ctls::*;
-use crate::model::IN_METER_NAME;
 
 #[derive(Default)]
 pub struct SaffireModel {

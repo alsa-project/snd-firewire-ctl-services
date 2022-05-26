@@ -1,19 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::Error;
-
-use hinawa::FwFcpExt;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::*;
-
-use bebob_protocols::{stanton::*, *};
-
-use super::common_ctls::*;
-use super::model::OUT_VOL_NAME;
+use {
+    super::{common_ctls::*, *},
+    bebob_protocols::{stanton::*, *},
+};
 
 const FCP_TIMEOUT_MS: u32 = 100;
 

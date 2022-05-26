@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
-
-use core::card_cntr::CardCntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use bebob_protocols::*;
-
-use super::model::{CLK_RATE_NAME, CLK_SRC_NAME};
+use {super::*, bebob_protocols::*};
 
 pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
     fn load_freq(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {

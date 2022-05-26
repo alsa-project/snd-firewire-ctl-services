@@ -1,19 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use hinawa::FwFcpExt;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::*;
-
-use bebob_protocols::{roland::*, *};
-
-use super::model::CLK_RATE_NAME;
-use crate::common_ctls::*;
+use {
+    super::{common_ctls::*, *},
+    bebob_protocols::{roland::*, *},
+};
 
 pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;
 pub type Fa101Model = FaModel<Fa101MixerAnalogSourceProtocol>;

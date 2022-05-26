@@ -1,24 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError};
-
-use hinawa::{FwFcpExt, FwNode, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use ta1394::*;
-
-use bebob_protocols::{maudio::special::*, *};
-
-use crate::common_ctls::*;
-use crate::model::{HP_SRC_NAME, OUT_SRC_NAME, OUT_VOL_NAME};
+use {
+    super::*,
+    bebob_protocols::{maudio::special::*, *},
+};
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;

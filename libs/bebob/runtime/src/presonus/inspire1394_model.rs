@@ -1,22 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
-
-use hinawa::{FwFcpExt, FwReq};
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use bebob_protocols::{presonus::inspire1394::*, *};
-
-use crate::common_ctls::*;
-use crate::model::{IN_METER_NAME, OUT_METER_NAME};
+use {
+    super::*,
+    bebob_protocols::{presonus::inspire1394::*, *},
+};
 
 #[derive(Default)]
 pub struct Inspire1394Model {

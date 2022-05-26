@@ -1,20 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::Error;
-
-use hinawa::FwFcpExt;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use bebob_protocols::{presonus::firebox::*, *};
-
-use crate::common_ctls::*;
-use crate::model::OUT_VOL_NAME;
+use {
+    super::*,
+    bebob_protocols::{presonus::firebox::*, *},
+};
 
 #[derive(Default)]
 pub struct FireboxModel {
