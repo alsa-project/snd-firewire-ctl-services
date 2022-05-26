@@ -16,7 +16,7 @@ use {
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
     hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hinawa::{SndUnit, SndUnitExt, SndUnitExtManual},
+    hitaki::*,
     model::*,
     nix::sys::signal,
     std::sync::mpsc,
@@ -44,11 +44,13 @@ impl RuntimeOperation<u32> for FfRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let unit = SndUnit::new();
         let path = format!("/dev/snd/hwC{}D0", card_id);
-        unit.open(&path)?;
+        unit.open(&path, 0)?;
 
-        let node = unit.get_node();
+        let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let node = FwNode::new();
+        node.open(&cdev)?;
+
         let rom = node.get_config_rom()?;
-
         let model = FfModel::new(&rom)?;
 
         let card_cntr = CardCntr::new();
@@ -160,7 +162,7 @@ impl<'a> FfRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
