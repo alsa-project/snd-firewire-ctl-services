@@ -19,8 +19,10 @@ use std::marker::PhantomData;
 
 const TIMEOUT_MS: u32 = 100;
 
-pub type Digi002Model = Dg00xModel<Digi002CommonCtl, Digi002MeterCtl, Digi002MonitorCtl, Digi002Protocol>;
-pub type Digi003Model = Dg00xModel<Digi003CommonCtl, Digi003MeterCtl, Digi003MonitorCtl, Digi003Protocol>;
+pub type Digi002Model =
+    Dg00xModel<Digi002CommonCtl, Digi002MeterCtl, Digi002MonitorCtl, Digi002Protocol>;
+pub type Digi003Model =
+    Dg00xModel<Digi003CommonCtl, Digi003MeterCtl, Digi003MonitorCtl, Digi003Protocol>;
 
 #[derive(Default)]
 pub struct Dg00xModel<S, T, U, V>
@@ -36,7 +38,6 @@ where
     monitor_ctl: U,
     _phantom: PhantomData<V>,
 }
-
 
 #[derive(Default)]
 pub struct Dg00xCommonCtl(ClockRate, Vec<ElemId>);
@@ -54,14 +55,13 @@ where
     U: Dg00xMonitorCtlOperation<V>,
     V: Dg00xCommonOperation + Dg00xMonitorOperation,
 {
-    fn load(
-        &mut self,
-        unit: &mut SndDg00x,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.common_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.meter_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
-        self.monitor_ctl.load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+    fn load(&mut self, unit: &mut SndDg00x, card_cntr: &mut CardCntr) -> Result<(), Error> {
+        self.common_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.meter_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
+        self.monitor_ctl
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -71,7 +71,10 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)? {
+        if self
+            .common_ctl
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.meter_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -89,9 +92,15 @@ where
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self.common_ctl.write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)? {
+        if self
+            .common_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.monitor_ctl.write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self
+            .monitor_ctl
+            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -111,7 +120,8 @@ where
     }
 
     fn measure_states(&mut self, unit: &mut SndDg00x) -> Result<(), Error> {
-        self.meter_ctl.measure_states(unit, &mut self.req, TIMEOUT_MS)
+        self.meter_ctl
+            .measure_states(unit, &mut self.req, TIMEOUT_MS)
     }
 
     fn measure_elem(
@@ -141,8 +151,10 @@ where
     }
 
     fn parse_notification(&mut self, unit: &mut SndDg00x, &locked: &bool) -> Result<(), Error> {
-        self.common_ctl.handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
-        self.monitor_ctl.handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
+        self.common_ctl
+            .handle_lock_notification(locked, unit, &mut self.req, TIMEOUT_MS)?;
+        self.monitor_ctl
+            .handle_streaming_event(locked, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -389,18 +401,21 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                 } else {
                     let mut vals = [0];
                     elem_value.get_enum(&mut vals);
-                    let &rate = Self::CLOCK_RATES
-                        .iter()
-                        .nth(vals[0] as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for media clock rates: {}",
-                                              vals[0]);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
-                    T::write_media_clock_rate(req, &mut unit.get_node(), rate, timeout_ms).map(|_| {
-                        self.state_mut().0 = rate;
-                        true
-                    })
+                    let &rate =
+                        Self::CLOCK_RATES
+                            .iter()
+                            .nth(vals[0] as usize)
+                            .ok_or_else(|| {
+                                let msg =
+                                    format!("Invalid index for media clock rates: {}", vals[0]);
+                                Error::new(FileError::Inval, &msg)
+                            })?;
+                    T::write_media_clock_rate(req, &mut unit.get_node(), rate, timeout_ms).map(
+                        |_| {
+                            self.state_mut().0 = rate;
+                            true
+                        },
+                    )
                 }
             }
             OPT_IFACE_NAME => {
@@ -414,7 +429,8 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                         .iter()
                         .nth(vals[0] as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid index for optical interface mode: {}", vals[0]);
+                            let msg =
+                                format!("Invalid index for optical interface mode: {}", vals[0]);
                             Error::new(FileError::Inval, &msg)
                         })?;
                     T::write_optical_interface_mode(req, &mut unit.get_node(), mode, timeout_ms)
@@ -600,7 +616,12 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
 
         self.state_mut().1 = measured_elem_id_list;
 
-        T::read_monitor_state(req, &mut unit.get_node(), &mut self.state_mut().0, timeout_ms)?;
+        T::read_monitor_state(
+            req,
+            &mut unit.get_node(),
+            &mut self.state_mut().0,
+            timeout_ms,
+        )?;
 
         if !unit.get_property_streaming() {
             self.state_mut().0.enabled = false;
@@ -625,7 +646,12 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
         } else {
             // Attempt to update the registers with cached value at the beginning of packet
             // streaming.
-            T::write_monitor_state(req, &mut unit.get_node(), &mut self.state_mut().0, timeout_ms)
+            T::write_monitor_state(
+                req,
+                &mut unit.get_node(),
+                &mut self.state_mut().0,
+                timeout_ms,
+            )
         }
     }
 
