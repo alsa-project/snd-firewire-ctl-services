@@ -159,7 +159,7 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
     ) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.port_assign_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
@@ -209,18 +209,15 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(&mut unit.0, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.port_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
-        } else if self.opt_iface_ctl.read(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            elem_value,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .opt_iface_ctl
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.phone_assign_ctl.read(elem_id, elem_value)? {
             Ok(true)
@@ -260,25 +257,18 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self.port_assign_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .port_assign_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.opt_iface_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            old,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .opt_iface_ctl
+            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self
             .phone_assign_ctl
@@ -381,7 +371,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for Track16 {
     fn parse_notification(&mut self, unit: &mut (SndMotu, FwNode), msg: &u32) -> Result<(), Error> {
         if *msg & Track16Protocol::NOTIFY_PORT_CHANGE > 0 {
             self.port_assign_ctl
-                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
             self.phone_assign_ctl
                 .cache(unit, &mut self.req, TIMEOUT_MS)?;
         }

@@ -32,7 +32,7 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -40,15 +40,14 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|val| val as u32)
+                T::get_clk_rate(req, &mut unit.1, timeout_ms).map(|val| val as u32)
             })
             .map(|_| true),
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mut node = unit.get_node();
-                let val = T::get_clk_src(req, &mut node, timeout_ms)?;
+                let val = T::get_clk_src(req, &mut unit.1, timeout_ms)?;
                 if T::HAS_LCD {
                     let label = clk_src_to_str(&T::CLK_SRCS[val].0);
-                    let _ = T::update_clk_display(req, &mut node, &label, timeout_ms);
+                    let _ = T::update_clk_display(req, &mut unit.1, &label, timeout_ms);
                 }
                 Ok(val as u32)
             })
@@ -59,7 +58,7 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -67,25 +66,24 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.lock()?;
-                let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
-                let _ = unit.unlock();
+                unit.0.lock()?;
+                let res = T::set_clk_rate(req, &mut unit.1, val as usize, timeout_ms);
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
             SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let prev_src = T::get_clk_src(req, &mut unit.get_node(), timeout_ms)?;
-                unit.lock()?;
-                let mut node = unit.get_node();
-                let mut res = T::set_clk_src(req, &mut node, val as usize, timeout_ms);
+                let prev_src = T::get_clk_src(req, &mut unit.1, timeout_ms)?;
+                unit.0.lock()?;
+                let mut res = T::set_clk_src(req, &mut unit.1, val as usize, timeout_ms);
                 if res.is_ok() && T::HAS_LCD {
                     let label = clk_src_to_str(&T::CLK_SRCS[val as usize].0);
-                    res = T::update_clk_display(req, &mut node, &label, timeout_ms);
+                    res = T::update_clk_display(req, &mut unit.1, &label, timeout_ms);
                     if res.is_err() {
-                        let _ = T::set_clk_src(req, &mut node, prev_src, timeout_ms);
+                        let _ = T::set_clk_src(req, &mut unit.1, prev_src, timeout_ms);
                     }
                 }
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
@@ -107,7 +105,7 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -133,11 +131,14 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
         Ok(notified_elem_id_list)
     }
 
-    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::get_main_assign(req, &mut unit.get_node(), timeout_ms)
-            .map(|idx| self.state_mut().0 = idx)?;
-        T::get_return_assign(req, &mut unit.get_node(), timeout_ms)
-            .map(|idx| self.state_mut().1 = idx)?;
+    fn cache(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_main_assign(req, &mut unit.1, timeout_ms).map(|idx| self.state_mut().0 = idx)?;
+        T::get_return_assign(req, &mut unit.1, timeout_ms).map(|idx| self.state_mut().1 = idx)?;
         Ok(())
     }
 
@@ -157,7 +158,7 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -165,12 +166,12 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MAIN_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_main_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                T::set_main_assign(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| self.state_mut().0 = val as usize)
             })
             .map(|_| true),
             RETURN_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                T::set_return_assign(req, &mut unit.get_node(), val as usize, timeout_ms)
+                T::set_return_assign(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| self.state_mut().1 = val as usize)
             })
             .map(|_| true),
@@ -205,7 +206,7 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
 
     fn read(
         &self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -214,25 +215,15 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
         match elem_id.get_name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, T::TARGETS.len(), |idx| {
-                    T::get_opt_input_iface_mode(
-                        req,
-                        &mut unit.get_node(),
-                        T::TARGETS[idx],
-                        timeout_ms,
-                    )
-                    .map(|mode| T::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
+                    T::get_opt_input_iface_mode(req, &mut unit.1, T::TARGETS[idx], timeout_ms)
+                        .map(|mode| T::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
                 })
                 .map(|_| true)
             }
             OPT_IFACE_OUT_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, T::TARGETS.len(), |idx| {
-                    T::get_opt_output_iface_mode(
-                        req,
-                        &mut unit.get_node(),
-                        T::TARGETS[idx],
-                        timeout_ms,
-                    )
-                    .map(|mode| T::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
+                    T::get_opt_output_iface_mode(req, &mut unit.1, T::TARGETS[idx], timeout_ms)
+                        .map(|mode| T::MODES.iter().position(|m| m.eq(&mode)).unwrap() as u32)
                 })
                 .map(|_| true)
             }
@@ -242,7 +233,7 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
 
     fn write(
         &self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -251,7 +242,7 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
-                unit.lock()?;
+                unit.0.lock()?;
                 let res =
                     ElemValueAccessor::<u32>::get_vals(new, old, T::TARGETS.len(), |idx, val| {
                         let &mode = T::MODES.iter().nth(val as usize).ok_or_else(|| {
@@ -260,17 +251,17 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
                         })?;
                         T::set_opt_input_iface_mode(
                             req,
-                            &mut unit.get_node(),
+                            &mut unit.1,
                             T::TARGETS[idx],
                             mode,
                             timeout_ms,
                         )
                     });
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res.and(Ok(true))
             }
             OPT_IFACE_OUT_MODE_NAME => {
-                unit.lock()?;
+                unit.0.lock()?;
                 let res =
                     ElemValueAccessor::<u32>::get_vals(new, old, T::TARGETS.len(), |idx, val| {
                         let &mode = T::MODES.iter().nth(val as usize).ok_or_else(|| {
@@ -279,13 +270,13 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
                         })?;
                         T::set_opt_output_iface_mode(
                             req,
-                            &mut unit.get_node(),
+                            &mut unit.1,
                             T::TARGETS[idx],
                             mode,
                             timeout_ms,
                         )
                     });
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res.and(Ok(true))
             }
             _ => Ok(false),
