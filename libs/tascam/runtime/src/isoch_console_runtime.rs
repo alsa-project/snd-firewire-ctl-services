@@ -16,13 +16,13 @@ pub type Fw1082Runtime = IsochConsoleRuntime<Fw1082Model, Fw1082Protocol, Fw1082
 
 pub struct IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<(SndTscm, FwNode)>
-        + MeasureModel<(SndTscm, FwNode)>
+    S: CtlModel<(SndTascam, FwNode)>
+        + MeasureModel<(SndTascam, FwNode)>
         + SequencerCtlOperation<T, U>
         + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
-    unit: (SndTscm, FwNode),
+    unit: (SndTascam, FwNode),
     model: S,
     card_cntr: CardCntr,
     seq_cntr: SeqCntr,
@@ -37,8 +37,8 @@ where
 
 impl<S, T, U> Drop for IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<(SndTscm, FwNode)>
-        + MeasureModel<(SndTscm, FwNode)>
+    S: CtlModel<(SndTascam, FwNode)>
+        + MeasureModel<(SndTascam, FwNode)>
         + SequencerCtlOperation<T, U>
         + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
@@ -68,13 +68,13 @@ const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
 impl<S, T, U> IsochConsoleRuntime<S, T, U>
 where
-    S: CtlModel<(SndTscm, FwNode)>
-        + MeasureModel<(SndTscm, FwNode)>
+    S: CtlModel<(SndTascam, FwNode)>
+        + MeasureModel<(SndTascam, FwNode)>
         + SequencerCtlOperation<T, U>
         + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
-    pub fn new(unit: SndTscm, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndTascam, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
@@ -114,6 +114,8 @@ where
     }
 
     pub fn run(&mut self) -> Result<(), Error> {
+        let mut image = vec![0u32; 64];
+
         loop {
             let ev = match self.rx.recv() {
                 Ok(ev) => ev,
@@ -165,7 +167,7 @@ where
                             .dispatch_appl_event(&mut self.unit.1, &mut self.seq_cntr, &data);
                 }
                 ConsoleUnitEvent::Surface((index, before, after)) => {
-                    let image = self.unit.0.get_state().map(|s| s.to_vec())?;
+                    self.unit.0.read_state(&mut image)?;
                     let _ = self.model.dispatch_surface_event(
                         &mut self.unit.1,
                         &mut self.seq_cntr,
@@ -186,12 +188,12 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(ConsoleUnitEvent::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.0.connect_control(move |_, index, before, after| {
+        self.unit.0.connect_changed(move |_, index, before, after| {
             let _ = tx.send(ConsoleUnitEvent::Surface((index, before, after)));
         });
 

@@ -7,13 +7,26 @@ use {
     tascam_protocols::isoch::{fw1082::*, *},
 };
 
-#[derive(Default)]
 pub struct Fw1082Model {
     req: FwReq,
+    image: Vec<u32>,
     meter_ctl: MeterCtl,
     common_ctl: CommonCtl,
     console_ctl: ConsoleCtl,
     seq_state: SequencerState<Fw1082SurfaceState>,
+}
+
+impl Default for Fw1082Model {
+    fn default() -> Self {
+        Self {
+            req: Default::default(),
+            image: vec![0u32; 64],
+            meter_ctl: Default::default(),
+            common_ctl: Default::default(),
+            console_ctl: Default::default(),
+            seq_state: Default::default(),
+        }
+    }
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -119,22 +132,22 @@ impl SequencerCtlOperation<Fw1082Protocol, Fw1082SurfaceState> for Fw1082Model {
     }
 }
 
-impl MeasureModel<(SndTscm, FwNode)> for Fw1082Model {
+impl MeasureModel<(SndTascam, FwNode)> for Fw1082Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.console_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut (SndTscm, FwNode)) -> Result<(), Error> {
-        let image = unit.0.get_state()?;
-        self.meter_ctl.parse_state(image)?;
-        self.console_ctl.parse_states(image)?;
+    fn measure_states(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error> {
+        unit.0.read_state(&mut self.image)?;
+        self.meter_ctl.parse_state(&self.image)?;
+        self.console_ctl.parse_states(&self.image)?;
         Ok(())
     }
 
     fn measure_elem(
         &mut self,
-        _: &(SndTscm, FwNode),
+        _: &(SndTascam, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -148,21 +161,21 @@ impl MeasureModel<(SndTscm, FwNode)> for Fw1082Model {
     }
 }
 
-impl CtlModel<(SndTscm, FwNode)> for Fw1082Model {
+impl CtlModel<(SndTascam, FwNode)> for Fw1082Model {
     fn load(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let image = unit.0.get_state()?;
+        unit.0.read_state(&mut self.image)?;
         self.meter_ctl
-            .load_state(card_cntr, image)
+            .load_state(card_cntr, &self.image)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         self.common_ctl.load_params(card_cntr)?;
 
         self.console_ctl
-            .load_params(card_cntr, image)
+            .load_params(card_cntr, &self.image)
             .map(|mut elem_id_list| self.console_ctl.1.append(&mut elem_id_list))?;
 
         Ok(())
@@ -170,7 +183,7 @@ impl CtlModel<(SndTscm, FwNode)> for Fw1082Model {
 
     fn read(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -199,7 +212,7 @@ impl CtlModel<(SndTscm, FwNode)> for Fw1082Model {
 
     fn write(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,

@@ -21,7 +21,7 @@ use {
     hinawa::{
         FwNode, FwNodeExt, FwNodeExtManual, FwRcode, FwReq, FwResp, FwRespExt, FwRespExtManual,
     },
-    hinawa::{SndTscm, SndTscmExt, SndTscmExtManual, SndUnitExt},
+    hitaki::{traits::*, *},
     ieee1212_config_rom::*,
     isoch_console_runtime::*,
     isoch_rack_runtime::*,
@@ -47,11 +47,14 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
     fn new((subsystem, sysnum): (String, u32)) -> Result<Self, Error> {
         match subsystem.as_str() {
             "snd" => {
-                let unit = SndTscm::new();
+                let unit = SndTascam::new();
                 let devnode = format!("/dev/snd/hwC{}D0", sysnum);
-                unit.open(&devnode)?;
+                unit.open(&devnode, 0)?;
 
-                let node = unit.get_node();
+                let devnode = format!("/dev/{}", unit.get_property_node_device().unwrap());
+                let node = FwNode::new();
+                node.open(&devnode)?;
+
                 let data = node.get_config_rom()?;
                 let config_rom = ConfigRom::try_from(data).map_err(|e| {
                     let label = format!("Malformed configuration ROM detected: {}", e.to_string());
