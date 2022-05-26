@@ -5,7 +5,6 @@ use {
     super::*,
     alsactl::*,
     glib::{FileError, IsA},
-    hinawa::SndUnit,
 };
 
 pub struct CardCntr {
@@ -13,7 +12,7 @@ pub struct CardCntr {
     entries: Vec<ElemValue>,
 }
 
-pub trait CtlModel<O: IsA<SndUnit>> {
+pub trait CtlModel<O: Sized> {
     fn load(&mut self, unit: &mut O, card_cntr: &mut CardCntr) -> Result<(), Error>;
     fn read(
         &mut self,
@@ -30,8 +29,8 @@ pub trait CtlModel<O: IsA<SndUnit>> {
     ) -> Result<bool, Error>;
 }
 
-pub trait MeasureModel<O: IsA<SndUnit>> {
-    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>);
+pub trait MeasureModel<O: Sized> {
+    fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
     fn measure_states(&mut self, unit: &mut O) -> Result<(), Error>;
     fn measure_elem(
         &mut self,
@@ -41,8 +40,8 @@ pub trait MeasureModel<O: IsA<SndUnit>> {
     ) -> Result<bool, Error>;
 }
 
-pub trait NotifyModel<O: IsA<SndUnit>, N> {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>);
+pub trait NotifyModel<O: Sized, N> {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>);
     fn parse_notification(&mut self, unit: &mut O, notice: &N) -> Result<(), Error>;
     fn read_notified_elem(
         &mut self,
@@ -302,7 +301,7 @@ impl CardCntr {
         ctl_model: &mut T,
     ) -> Result<(), Error>
     where
-        O: IsA<SndUnit>,
+        O: Sized,
         T: CtlModel<O>,
     {
         if events.contains(ElemEventMask::REMOVE) {
@@ -391,7 +390,7 @@ impl CardCntr {
         ctl_model: &mut T,
     ) -> Result<(), Error>
     where
-        O: IsA<SndUnit>,
+        O: Sized,
         T: CtlModel<O> + MeasureModel<O>,
     {
         let card = &self.card;
@@ -424,7 +423,7 @@ impl CardCntr {
         ctl_model: &mut T,
     ) -> Result<(), Error>
     where
-        O: IsA<SndUnit>,
+        O: Sized,
         T: CtlModel<O> + NotifyModel<O, N>,
     {
         let card = &self.card;
