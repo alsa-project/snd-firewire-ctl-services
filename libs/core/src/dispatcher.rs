@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
 
-use glib::Error;
-use glib::IsA;
-use glib::{source, MainContext, MainLoop, Source};
-
-use nix::sys::signal;
-
-use alsactl::CardExt;
-use alsaseq::UserClientExt;
-use hinawa::FwNodeExt;
-use hinawa::SndUnitExt;
+use {
+    super::*,
+    alsactl::{Card, CardExt},
+    alsaseq::{UserClient, UserClientExt},
+    glib::{source, IsA, MainContext, MainLoop, Source},
+    hinawa::{FwNode, FwNodeExt},
+    hinawa::{SndUnit, SndUnitExt},
+    nix::sys::signal,
+    std::{sync::Arc, thread, time::Duration},
+};
 
 pub struct Dispatcher {
     name: String,
@@ -80,7 +77,7 @@ impl Dispatcher {
 
     pub fn attach_snd_card<C, F>(&mut self, card: &C, disconnect_cb: F) -> Result<(), Error>
     where
-        C: IsA<alsactl::Card>,
+        C: IsA<Card>,
         F: Fn(&C) + 'static,
     {
         let src = card.create_source()?;
@@ -94,7 +91,7 @@ impl Dispatcher {
 
     pub fn attach_snd_seq<U>(&mut self, client: &U) -> Result<(), Error>
     where
-        U: IsA<alsaseq::UserClient>,
+        U: IsA<UserClient>,
     {
         let src = client.create_source()?;
         self.attach_src_to_ctx(&src);
@@ -103,7 +100,7 @@ impl Dispatcher {
 
     pub fn attach_snd_unit<U, F>(&mut self, unit: &U, disconnect_cb: F) -> Result<(), Error>
     where
-        U: IsA<hinawa::SndUnit>,
+        U: IsA<SndUnit>,
         F: Fn(&U) + Send + 'static,
     {
         let src = unit.create_source()?;
@@ -117,7 +114,7 @@ impl Dispatcher {
 
     pub fn attach_fw_node<N, F>(&mut self, node: &N, disconnect_cb: F) -> Result<(), Error>
     where
-        N: IsA<hinawa::FwNode>,
+        N: IsA<FwNode>,
         F: Fn(&N) + Send + Sync + 'static,
     {
         let src = node.create_source()?;

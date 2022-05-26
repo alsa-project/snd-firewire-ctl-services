@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
-use glib::IsA;
 
-use alsactl::{ElemValueExt, ElemValueExtManual};
+use {
+    super::*,
+    alsactl::{ElemValue, ElemValueExt, ElemValueExtManual},
+    glib::IsA,
+};
 
-pub trait ElemValueAccessor<T>: IsA<alsactl::ElemValue>
+pub trait ElemValueAccessor<T>: IsA<ElemValue>
 where
     T: Copy + Clone + Default + Eq + PartialEq,
 {
@@ -64,7 +66,7 @@ where
     }
 }
 
-impl ElemValueAccessor<bool> for alsactl::ElemValue {
+impl ElemValueAccessor<bool> for ElemValue {
     fn set(&self, vals: &[bool]) {
         self.set_bool(vals);
     }
@@ -74,7 +76,7 @@ impl ElemValueAccessor<bool> for alsactl::ElemValue {
     }
 }
 
-impl ElemValueAccessor<u8> for alsactl::ElemValue {
+impl ElemValueAccessor<u8> for ElemValue {
     fn set(&self, vals: &[u8]) {
         self.set_bytes(vals);
     }
@@ -84,7 +86,7 @@ impl ElemValueAccessor<u8> for alsactl::ElemValue {
     }
 }
 
-impl ElemValueAccessor<i32> for alsactl::ElemValue {
+impl ElemValueAccessor<i32> for ElemValue {
     fn set(&self, vals: &[i32]) {
         self.set_int(vals);
     }
@@ -94,7 +96,7 @@ impl ElemValueAccessor<i32> for alsactl::ElemValue {
     }
 }
 
-impl ElemValueAccessor<u32> for alsactl::ElemValue {
+impl ElemValueAccessor<u32> for ElemValue {
     fn set(&self, vals: &[u32]) {
         self.set_enum(vals);
     }
@@ -104,7 +106,7 @@ impl ElemValueAccessor<u32> for alsactl::ElemValue {
     }
 }
 
-impl ElemValueAccessor<i64> for alsactl::ElemValue {
+impl ElemValueAccessor<i64> for ElemValue {
     fn set(&self, vals: &[i64]) {
         self.set_int64(vals);
     }
