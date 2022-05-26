@@ -1,29 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use dice_protocols::tcat::{global_section::*, *};
-use dice_protocols::tcelectronic::ch_strip::*;
-use dice_protocols::tcelectronic::fw_led::*;
-use dice_protocols::tcelectronic::prog::*;
-use dice_protocols::tcelectronic::reverb::*;
-use dice_protocols::tcelectronic::standalone::*;
-use dice_protocols::tcelectronic::{
-    shell::{k24d::*, *},
-    *,
+use {
+    super::{shell_ctl::*, *},
+    dice_protocols::tcelectronic::shell::{k24d::*, *},
 };
-
-use super::prog_ctl::*;
-use super::{ch_strip_ctl::*, fw_led_ctl::*, reverb_ctl::*, shell_ctl::*, standalone_ctl::*};
-use crate::common_ctl::*;
 
 #[derive(Default)]
 pub struct K24dModel {

@@ -1,39 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::{FwNodeExtManual, FwReq};
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-
-use dice_protocols::tcat::{config_rom::*, extension::*, *};
-use ieee1212_config_rom::*;
-
-use std::convert::TryFrom;
-
-use super::blackbird_model::*;
-use super::extension_model::ExtensionModel;
-use super::focusrite::liquids56_model::*;
-use super::focusrite::spro14_model::*;
-use super::focusrite::spro24_model::*;
-use super::focusrite::spro24dsp_model::*;
-use super::focusrite::spro26_model::*;
-use super::focusrite::spro40_model::*;
-use super::io_fw_model::*;
-use super::ionix_model::*;
-use super::mbox3_model::*;
-use super::minimal_model::MinimalModel;
-use super::pfire_model::*;
-use super::presonus::fstudio_model::*;
-use super::presonus::fstudiomobile_model::*;
-use super::presonus::fstudioproject_model::*;
-use super::tcelectronic::desktopk6_model::*;
-use super::tcelectronic::itwin_model::*;
-use super::tcelectronic::k24d_model::*;
-use super::tcelectronic::k8_model::*;
-use super::tcelectronic::klive_model::*;
-use super::tcelectronic::studiok48_model::*;
+use {
+    super::{
+        blackbird_model::*, extension_model::*, focusrite::liquids56_model::*,
+        focusrite::spro14_model::*, focusrite::spro24_model::*, focusrite::spro24dsp_model::*,
+        focusrite::spro26_model::*, focusrite::spro40_model::*, io_fw_model::*, ionix_model::*,
+        mbox3_model::*, minimal_model::*, pfire_model::*, presonus::fstudio_model::*,
+        presonus::fstudiomobile_model::*, presonus::fstudioproject_model::*,
+        tcelectronic::desktopk6_model::*, tcelectronic::itwin_model::*,
+        tcelectronic::k24d_model::*, tcelectronic::k8_model::*, tcelectronic::klive_model::*,
+        tcelectronic::studiok48_model::*, *,
+    },
+    dice_protocols::tcat::{config_rom::*, extension::*, *},
+    ieee1212_config_rom::*,
+    std::convert::TryFrom,
+};
 
 enum Model {
     Minimal(MinimalModel),

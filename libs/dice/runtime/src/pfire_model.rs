@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use dice_protocols::maudio::*;
-use dice_protocols::tcat::extension::*;
-use dice_protocols::tcat::{global_section::*, *};
-
-use super::common_ctl::*;
-use super::tcd22xx_ctl::*;
+use {
+    super::{common_ctl::*, tcd22xx_ctl::*, *},
+    dice_protocols::{
+        maudio::*,
+        tcat::{extension::*, global_section::*, *},
+    },
+};
 
 const TIMEOUT_MS: u32 = 20;
 

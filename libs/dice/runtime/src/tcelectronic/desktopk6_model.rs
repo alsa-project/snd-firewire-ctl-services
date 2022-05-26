@@ -1,22 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use dice_protocols::tcat::{global_section::*, *};
-use dice_protocols::tcelectronic::{desktop::*, fw_led::*, standalone::*, *};
-
-use super::{fw_led_ctl::*, standalone_ctl::*};
-use crate::common_ctl::*;
+use {super::*, dice_protocols::tcelectronic::desktop::*};
 
 #[derive(Default)]
 pub struct Desktopk6Model {

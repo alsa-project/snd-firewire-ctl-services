@@ -1,22 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::Error;
 
-use alsactl::{ElemId, ElemValue};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use core::card_cntr::*;
-
-use dice_protocols::focusrite::spro26::*;
-use dice_protocols::tcat::extension::*;
-use dice_protocols::tcat::{global_section::*, *};
-
-use crate::common_ctl::*;
-use crate::tcd22xx_ctl::*;
-
-use super::*;
+use {super::*, dice_protocols::focusrite::spro26::*};
 
 #[derive(Default)]
 pub struct SPro26Model {

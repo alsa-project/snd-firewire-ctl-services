@@ -1,28 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use hinawa::FwReq;
-use hinawa::{SndDice, SndUnitExt};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use dice_protocols::tcat::{global_section::*, *};
-use dice_protocols::tcelectronic::{ch_strip::*, reverb::*, studio::*, *};
-use dice_protocols::tcelectronic::{fw_led::*, midi_send::*, prog::*, standalone::*};
-
-use super::ch_strip_ctl::*;
-use super::fw_led_ctl::*;
-use super::midi_send_ctl::*;
-use super::prog_ctl::*;
-use super::reverb_ctl::*;
-use super::standalone_ctl::*;
-use crate::common_ctl::*;
+use {super::*, dice_protocols::tcelectronic::studio::*};
 
 #[derive(Default)]
 pub struct Studiok48Model {
