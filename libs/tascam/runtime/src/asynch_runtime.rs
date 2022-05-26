@@ -14,12 +14,11 @@ pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;
 
 pub struct AsynchRuntime<S, T, U>
 where
-    S: SequencerCtlOperation<T, U> + Default,
+    S: SequencerCtlOperation<TascamExpander, T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     unit: (TascamExpander, FwNode),
     model: S,
-    image: Vec<u32>,
     seq_cntr: SeqCntr,
     rx: mpsc::Receiver<AsyncUnitEvent>,
     tx: mpsc::SyncSender<AsyncUnitEvent>,
@@ -30,7 +29,7 @@ where
 
 impl<S, T, U> Drop for AsynchRuntime<S, T, U>
 where
-    S: SequencerCtlOperation<T, U> + Default,
+    S: SequencerCtlOperation<TascamExpander, T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     fn drop(&mut self) {
@@ -63,7 +62,7 @@ const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
 
 impl<S, T, U> AsynchRuntime<S, T, U>
 where
-    S: SequencerCtlOperation<T, U> + Default,
+    S: SequencerCtlOperation<TascamExpander, T, U> + Default,
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(node: FwNode, name: String) -> Result<Self, Error> {
@@ -77,7 +76,6 @@ where
         Ok(Self {
             unit: (unit, node),
             model: Default::default(),
-            image: vec![0u32; TascamExpander::QUADLET_COUNT],
             seq_cntr,
             tx,
             rx,
@@ -114,12 +112,10 @@ where
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 AsyncUnitEvent::Surface((index, before, after)) => {
-                    // Handle error of mutex lock as unrecoverable one.
-                    self.unit.0.read_state(&mut self.image)?;
                     let _ = self.model.dispatch_surface_event(
+                        &mut self.unit.0,
                         &mut self.unit.1,
                         &mut self.seq_cntr,
-                        &self.image,
                         index,
                         before,
                         after,
