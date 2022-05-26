@@ -38,7 +38,7 @@ enum Event {
 }
 
 pub struct DiceRuntime {
-    unit: SndDice,
+    unit: (SndDice, FwNode),
     model: DiceModel,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -53,7 +53,8 @@ impl RuntimeOperation<u32> for DiceRuntime {
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path)?;
 
-        let model = DiceModel::new(&unit)?;
+        let node = unit.get_node();
+        let model = DiceModel::new(&node)?;
 
         let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
@@ -66,7 +67,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
         let timer = None;
 
         Ok(DiceRuntime {
-            unit,
+            unit: (unit, node),
             model,
             card_cntr,
             rx,
@@ -169,22 +170,22 @@ impl DiceRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
         let tx = self.tx.clone();
-        self.unit.connect_notified(move |_, msg| {
+        self.unit.0.connect_notified(move |_, msg| {
             let _ = tx.send(Event::Notify(msg));
         });
 
