@@ -15,7 +15,7 @@ use {
     alsactl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     glib::{source, Error, FileError},
-    hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
+    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
     nix::sys::signal,
     std::{sync::mpsc, thread, time},
 };
@@ -30,6 +30,7 @@ enum Event {
 }
 
 pub struct EfwRuntime {
+    node: FwNode,
     unit: SndEfw,
     model: model::EfwModel,
     card_cntr: CardCntr,
@@ -72,6 +73,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(EfwRuntime {
+            node,
             unit,
             model,
             card_cntr,
@@ -179,12 +181,12 @@ impl EfwRuntime {
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.node, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.node.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
