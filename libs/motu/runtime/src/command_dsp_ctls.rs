@@ -3600,7 +3600,7 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
         meter: &mut CommandDspMeterImage,
     ) -> Result<(), Error> {
         unit.0
-            .read_command_dsp_meter(&mut meter.0)
+            .read_float_meter(&mut meter.0)
             .map(|_| T::parse_dsp_meter(self.state_mut(), &meter.0))
     }
 }

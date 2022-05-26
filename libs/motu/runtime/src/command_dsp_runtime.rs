@@ -10,7 +10,6 @@ pub use {
     core::{card_cntr::*, dispatcher::*},
     glib::source,
     hinawa::{FwRcode, FwResp, FwRespExtManual, FwTcode},
-    hinawa::{SndMotu, SndMotuExt, SndUnitExt},
     motu_protocols::{command_dsp::*, version_3::*},
     nix::sys::signal::Signal,
     std::{
@@ -196,7 +195,7 @@ where
 
         // This is supported by ALSA firewire-motu driver in Linux kernel v5.16 or later.
         let mut image = [0f32; 400];
-        let result = self.unit.0.read_command_dsp_meter(&mut image);
+        let result = self.unit.0.read_float_meter(&mut image);
         if result.is_ok() && self.measured_elem_id_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -284,7 +283,7 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 

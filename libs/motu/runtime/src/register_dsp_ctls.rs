@@ -1267,7 +1267,7 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
         unit: &SndMotu,
         image: &mut RegisterDspMeterImage,
     ) -> Result<(), Error> {
-        unit.read_register_dsp_meter(&mut image.0)
+        unit.read_byte_meter(&mut image.0)
             .map(|_| T::parse_dsp_meter(self.state_mut(), &image.0))
     }
 }
