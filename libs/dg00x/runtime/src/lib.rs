@@ -9,7 +9,7 @@ use {
         source, {Error, FileError},
     },
     hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hinawa::{SndDg00x, SndDg00xExt, SndUnitExt},
+    hitaki::*,
     ieee1212_config_rom::ConfigRom,
     model::*,
     nix::sys::signal,
@@ -32,7 +32,7 @@ enum Model {
 }
 
 pub struct Dg00xRuntime {
-    unit: (SndDg00x, FwNode),
+    unit: (SndDigi00x, FwNode),
     model: Model,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -68,13 +68,15 @@ const SPECIFIER_ID_DIGI003_RACK: u32 = 0x0000ab;
 
 impl RuntimeOperation<u32> for Dg00xRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
-        let unit = SndDg00x::new();
-        unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
+        let unit = SndDigi00x::new();
+        unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 
         let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
-        let node = unit.get_node();
+        let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let node = FwNode::new();
+        node.open(&cdev)?;
         let rom = node.get_config_rom()?;
         let config_rom = ConfigRom::try_from(rom).map_err(|e| {
             let label = format!("Malformed configuration ROM detected: {}", e);
@@ -235,7 +237,7 @@ impl<'a> Dg00xRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
@@ -273,7 +275,8 @@ impl<'a> Dg00xRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_lock_status(move |_, locked| {
+        self.unit.0.connect_property_is_locked_notify(move |unit| {
+            let locked = unit.get_property_is_locked();
             let t = tx.clone();
             let _ = thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual
