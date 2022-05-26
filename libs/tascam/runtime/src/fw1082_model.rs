@@ -1,17 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use hinawa::FwReq;
-use hinawa::{SndTscm, SndTscmExtManual};
-
-use alsactl::{ElemId, ElemValue};
-
-use core::card_cntr::*;
-
-use tascam_protocols::isoch::{fw1082::*, *};
-
-use crate::{isoch_ctls::*, *};
+use {
+    super::{isoch_ctls::*, *},
+    alsactl::*,
+    tascam_protocols::isoch::{fw1082::*, *},
+};
 
 #[derive(Default)]
 pub struct Fw1082Model {

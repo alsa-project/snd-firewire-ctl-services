@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use hinawa::FwReq;
-
-use tascam_protocols::asynch::{fe8::*, *};
-
-use crate::*;
+use {
+    super::*,
+    tascam_protocols::asynch::{fe8::*, *},
+};
 
 #[derive(Default)]
 pub struct Fe8Model {

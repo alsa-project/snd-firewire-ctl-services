@@ -1,20 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwReq;
-use hinawa::{SndTscm, SndTscmExtManual, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::*;
-
-use tascam_protocols::{
-    isoch::{fw1884::*, *},
-    *,
+use {
+    super::{isoch_ctls::*, *},
+    alsactl::*,
+    tascam_protocols::isoch::{fw1884::*, *},
 };
-
-use crate::{isoch_ctls::*, *};
 
 #[derive(Default)]
 pub struct Fw1884Model {

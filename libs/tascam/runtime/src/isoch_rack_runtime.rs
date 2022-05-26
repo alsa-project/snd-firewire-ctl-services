@@ -1,23 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use std::sync::mpsc;
-use std::time::Duration;
-
-use nix::sys::signal;
-
-use glib::source;
-use glib::Error;
-
-use hinawa::FwNodeExt;
-use hinawa::{SndTscm, SndUnitExt};
-
-use alsactl::{CardExt, CardExtManual};
-use alsactl::{ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual};
-
-use core::card_cntr::*;
-use core::dispatcher::*;
-
-use crate::fw1804_model::*;
+use {
+    super::{fw1804_model::*, *},
+    alsactl::*,
+    core::dispatcher::*,
+    nix::sys::signal,
+    std::{sync::mpsc, time::Duration},
+};
 
 pub type Fw1804Runtime = IsochRackRuntime<Fw1804Model>;
 
