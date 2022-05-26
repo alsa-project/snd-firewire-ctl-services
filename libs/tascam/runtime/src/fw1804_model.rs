@@ -7,13 +7,26 @@ use {
     tascam_protocols::isoch::{fw1804::*, *},
 };
 
-#[derive(Default)]
 pub struct Fw1804Model {
     req: FwReq,
+    image: Vec<u32>,
     meter_ctl: MeterCtl,
     common_ctl: CommonCtl,
     optical_ctl: OpticalCtl,
     rack_ctl: RackCtl,
+}
+
+impl Default for Fw1804Model {
+    fn default() -> Self {
+        Self {
+            req: Default::default(),
+            image: vec![0u32; 64],
+            meter_ctl: Default::default(),
+            common_ctl: Default::default(),
+            optical_ctl: Default::default(),
+            rack_ctl: Default::default(),
+        }
+    }
 }
 
 const TIMEOUT_MS: u32 = 50;
@@ -101,19 +114,19 @@ impl IsochRackCtlOperation<Fw1804Protocol> for RackCtl {
     }
 }
 
-impl MeasureModel<(SndTscm, FwNode)> for Fw1804Model {
+impl MeasureModel<(SndTascam, FwNode)> for Fw1804Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut (SndTscm, FwNode)) -> Result<(), Error> {
-        let image = unit.0.get_state()?;
-        self.meter_ctl.parse_state(image)
+    fn measure_states(&mut self, unit: &mut (SndTascam, FwNode)) -> Result<(), Error> {
+        unit.0.read_state(&mut self.image)?;
+        self.meter_ctl.parse_state(&self.image)
     }
 
     fn measure_elem(
         &mut self,
-        _: &(SndTscm, FwNode),
+        _: &(SndTascam, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -125,14 +138,14 @@ impl MeasureModel<(SndTscm, FwNode)> for Fw1804Model {
     }
 }
 
-impl CtlModel<(SndTscm, FwNode)> for Fw1804Model {
+impl CtlModel<(SndTascam, FwNode)> for Fw1804Model {
     fn load(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        let image = unit.0.get_state()?;
-        self.meter_ctl.load_state(card_cntr, image)?;
+        unit.0.read_state(&mut self.image)?;
+        self.meter_ctl.load_state(card_cntr, &self.image)?;
         self.common_ctl.load_params(card_cntr)?;
         self.optical_ctl.load_params(card_cntr)?;
         self.rack_ctl
@@ -142,7 +155,7 @@ impl CtlModel<(SndTscm, FwNode)> for Fw1804Model {
 
     fn read(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -173,7 +186,7 @@ impl CtlModel<(SndTscm, FwNode)> for Fw1804Model {
 
     fn write(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,

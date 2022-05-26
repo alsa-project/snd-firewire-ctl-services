@@ -417,7 +417,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
 
     fn write_params(
         &mut self,
-        unit: &mut (SndTscm, FwNode),
+        unit: &mut (SndTascam, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,

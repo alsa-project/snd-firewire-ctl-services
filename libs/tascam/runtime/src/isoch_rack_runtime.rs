@@ -11,9 +11,9 @@ use {
 pub type Fw1804Runtime = IsochRackRuntime<Fw1804Model>;
 
 pub struct IsochRackRuntime<
-    T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default,
+    T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Default,
 > {
-    unit: (SndTscm, FwNode),
+    unit: (SndTascam, FwNode),
     model: T,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<RackUnitEvent>,
@@ -23,7 +23,7 @@ pub struct IsochRackRuntime<
     measure_elems: Vec<ElemId>,
 }
 
-impl<T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default> Drop
+impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Default> Drop
     for IsochRackRuntime<T>
 {
     fn drop(&mut self) {
@@ -55,10 +55,10 @@ const TIMER_DISPATCHER_NAME: &str = "interval timer dispatcher";
 const TIMER_NAME: &str = "meter";
 const TIMER_INTERVAL: Duration = Duration::from_millis(50);
 
-impl<T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default>
+impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Default>
     IsochRackRuntime<T>
 {
-    pub fn new(unit: SndTscm, node: FwNode, _: &str, sysnum: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndTascam, node: FwNode, _: &str, sysnum: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(sysnum, 0)?;
 
@@ -147,7 +147,7 @@ impl<T: CtlModel<(SndTscm, FwNode)> + MeasureModel<(SndTscm, FwNode)> + Default>
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(RackUnitEvent::Disconnected);
         })?;
 
