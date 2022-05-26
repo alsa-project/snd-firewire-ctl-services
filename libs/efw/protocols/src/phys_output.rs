@@ -23,12 +23,12 @@ pub trait PhysOutputProtocol: EfwProtocol {
     /// (0x00000000..0x02000000, -144.0..+6.0 dB)
     fn set_vol(&mut self, ch: usize, vol: i32, timeout_ms: u32) -> Result<(), Error> {
         let args = [ch as u32, vol as u32];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_OUTPUT,
             CMD_SET_VOL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
     }
@@ -37,12 +37,12 @@ pub trait PhysOutputProtocol: EfwProtocol {
     /// (0x00000000..0x02000000, -144.0..+6.0 dB)
     fn get_vol(&mut self, ch: usize, timeout_ms: u32) -> Result<i32, Error> {
         let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_OUTPUT,
             CMD_GET_VOL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[1] as i32)
@@ -50,24 +50,24 @@ pub trait PhysOutputProtocol: EfwProtocol {
 
     fn set_mute(&mut self, ch: usize, mute: bool, timeout_ms: u32) -> Result<(), Error> {
         let args = [ch as u32, mute as u32];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_OUTPUT,
             CMD_SET_MUTE,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
     }
 
     fn get_mute(&mut self, ch: usize, timeout_ms: u32) -> Result<bool, Error> {
         let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_OUTPUT,
             CMD_GET_MUTE,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[1] > 0)
@@ -80,24 +80,24 @@ pub trait PhysOutputProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [ch as u32, u32::from(level)];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_OUTPUT,
             CMD_SET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
     }
 
     fn get_nominal(&mut self, ch: usize, timeout_ms: u32) -> Result<NominalSignalLevel, Error> {
         let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_OUTPUT,
             CMD_GET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| NominalSignalLevel::from(params[1]))

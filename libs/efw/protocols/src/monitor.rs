@@ -31,12 +31,11 @@ pub trait MonitorProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [src as u32, dst as u32, vol as u32];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_SET_VOL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut vec![0; 3],
             timeout_ms,
         )
     }
@@ -45,12 +44,12 @@ pub trait MonitorProtocol: EfwProtocol {
     /// (0x00000000..0x02000000, -144.0..+6.0 dB)
     fn get_monitor_vol(&mut self, dst: usize, src: usize, timeout_ms: u32) -> Result<i32, Error> {
         let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_GET_VOL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[2] as i32)
@@ -64,24 +63,24 @@ pub trait MonitorProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [src as u32, dst as u32, mute as u32];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_SET_MUTE,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
     }
 
     fn get_monitor_mute(&mut self, dst: usize, src: usize, timeout_ms: u32) -> Result<bool, Error> {
         let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_GET_MUTE,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[2] > 0)
@@ -95,24 +94,23 @@ pub trait MonitorProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [src as u32, dst as u32, solo as u32];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_SET_SOLO,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut vec![0; 3],
             timeout_ms,
         )
     }
 
     fn get_monitor_solo(&mut self, dst: usize, src: usize, timeout_ms: u32) -> Result<bool, Error> {
         let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_GET_SOLO,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[2] > 0)
@@ -127,12 +125,11 @@ pub trait MonitorProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [src as u32, dst as u32, pan as u32];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_SET_PAN,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut vec![0; 3],
             timeout_ms,
         )
     }
@@ -140,12 +137,12 @@ pub trait MonitorProtocol: EfwProtocol {
     /// Get L/R balance of monitor. (0..255, left to right)
     fn get_monitor_pan(&mut self, dst: usize, src: usize, timeout_ms: u32) -> Result<u8, Error> {
         let args = [src as u32, dst as u32, 0];
-        let mut params = [0; 3];
-        self.transaction_sync(
+        let mut params = vec![0; 3];
+        self.transaction(
             CATEGORY_MONITOR,
             CMD_GET_PAN,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[2] as u8)

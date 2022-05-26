@@ -22,24 +22,23 @@ pub trait PhysInputProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [ch as u32, u32::from(level)];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_PHYS_INPUT,
             CMD_SET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut vec![0; 2],
             timeout_ms,
         )
     }
 
     fn get_nominal(&mut self, ch: usize, timeout_ms: u32) -> Result<NominalSignalLevel, Error> {
         let args = [ch as u32, 0];
-        let mut params = [0; 2];
-        self.transaction_sync(
+        let mut params = vec![0; 2];
+        self.transaction(
             CATEGORY_PHYS_INPUT,
             CMD_GET_NOMINAL,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| NominalSignalLevel::from(params[1]))

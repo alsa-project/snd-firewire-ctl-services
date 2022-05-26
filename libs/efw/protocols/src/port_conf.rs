@@ -64,22 +64,22 @@ const MAP_ENTRY_DISABLE: u32 = 0xffffffff;
 /// Protocol about port configuration for Fireworks board module.
 pub trait PortConfProtocol: EfwProtocol {
     fn set_control_room_source(&mut self, pair: usize, timeout_ms: u32) -> Result<(), Error> {
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_SET_MIRROR,
-            Some(&[(pair * 2) as u32]),
-            None,
+            &[(pair * 2) as u32],
+            &mut Vec::new(),
             timeout_ms,
         )
     }
 
     fn get_control_room_source(&mut self, timeout_ms: u32) -> Result<usize, Error> {
-        let mut params = [0];
-        self.transaction_sync(
+        let mut params = vec![0];
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_GET_MIRROR,
-            None,
-            Some(&mut params),
+            &[],
+            &mut params,
             timeout_ms,
         )
         .map(|_| (params[0] / 2) as usize)
@@ -87,44 +87,44 @@ pub trait PortConfProtocol: EfwProtocol {
 
     fn set_digital_mode(&mut self, mode: DigitalMode, timeout_ms: u32) -> Result<(), Error> {
         let args = [u32::from(mode)];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_SET_DIG_MODE,
-            Some(&args),
-            None,
+            &args,
+            &mut Vec::new(),
             timeout_ms,
         )
     }
 
     fn get_digital_mode(&mut self, timeout_ms: u32) -> Result<DigitalMode, Error> {
-        let mut params = [0];
-        self.transaction_sync(
+        let mut params = vec![0];
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_GET_DIG_MODE,
-            None,
-            Some(&mut params),
+            &[],
+            &mut params,
             timeout_ms,
         )
         .map(|_| DigitalMode::from(params[0]))
     }
 
     fn set_phantom_powering(&mut self, state: bool, timeout_ms: u32) -> Result<(), Error> {
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_SET_PHANTOM,
-            Some(&[state as u32]),
-            None,
+            &[state as u32],
+            &mut Vec::new(),
             timeout_ms,
         )
     }
 
     fn get_phantom_powering(&mut self, timeout_ms: u32) -> Result<bool, Error> {
-        let mut params = [0];
-        self.transaction_sync(
+        let mut params = vec![0];
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_GET_PHANTOM,
-            None,
-            Some(&mut params),
+            &[],
+            &mut params,
             timeout_ms,
         )
         .map(|_| params[0] > 0)
@@ -148,11 +148,11 @@ pub trait PortConfProtocol: EfwProtocol {
             rx_stream_map,
             tx_stream_map,
         );
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_SET_STREAM_MAP,
-            Some(&args),
-            None,
+            &args,
+            &mut Vec::new(),
             timeout_ms,
         )
     }
@@ -167,12 +167,12 @@ pub trait PortConfProtocol: EfwProtocol {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [rate];
-        let mut params = [0; MAP_SIZE];
-        self.transaction_sync(
+        let mut params = vec![0; MAP_SIZE];
+        self.transaction(
             CATEGORY_PORT_CONF,
             CMD_GET_STREAM_MAP,
-            Some(&args),
-            Some(&mut params),
+            &args,
+            &mut params,
             timeout_ms,
         )
         .map(|_| {

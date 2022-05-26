@@ -33,11 +33,11 @@ impl From<TxPacketFormat> for u32 {
 pub trait TransportProtocol: EfwProtocol {
     fn get_hw_info(&mut self, fmt: TxPacketFormat, timeout_ms: u32) -> Result<(), Error> {
         let args = [u32::from(fmt)];
-        self.transaction_sync(
+        self.transaction(
             CATEGORY_TRANSPORT,
             CMD_SET_TRANSMIT_MODE,
-            Some(&args),
-            None,
+            &args,
+            &mut Vec::new(),
             timeout_ms,
         )
     }
