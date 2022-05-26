@@ -11,23 +11,16 @@ mod ucx_model;
 mod former_ctls;
 mod latter_ctls;
 
-use glib::source;
-use glib::Error;
-
-use nix::sys::signal;
-
-use std::sync::mpsc;
-
-use hinawa::FwNodeExt;
-use hinawa::{SndUnit, SndUnitExt, SndUnitExtManual};
-
-use alsactl::{CardExt, CardExtManual, ElemId, ElemIfaceType, ElemValueExtManual};
-
-use core::card_cntr;
-use core::dispatcher;
-use core::RuntimeOperation;
-
-use model::FfModel;
+use {
+    alsactl::*,
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    glib::{source, Error, FileError},
+    hinawa::{FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{SndUnit, SndUnitExt, SndUnitExtManual},
+    model::*,
+    nix::sys::signal,
+    std::sync::mpsc,
+};
 
 enum Event {
     Shutdown,
@@ -40,11 +33,11 @@ enum Event {
 pub struct FfRuntime {
     unit: SndUnit,
     model: FfModel,
-    card_cntr: card_cntr::CardCntr,
+    card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    timer: Option<dispatcher::Dispatcher>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
 }
 
 impl RuntimeOperation<u32> for FfRuntime {
@@ -55,7 +48,7 @@ impl RuntimeOperation<u32> for FfRuntime {
 
         let model = FfModel::new(&unit)?;
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
         // Use uni-directional channel for communication to child threads.
@@ -161,7 +154,7 @@ impl<'a> FfRuntime {
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -185,7 +178,7 @@ impl<'a> FfRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -208,7 +201,7 @@ impl<'a> FfRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);

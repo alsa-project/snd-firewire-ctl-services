@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwReq;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use super::model::*;
-
-use ff_protocols::{
-    former::{ff800::*, *},
-    *,
+use {
+    super::{former_ctls::*, *},
+    ff_protocols::{
+        former::{ff800::*, *},
+        *,
+    },
 };
-
-use super::former_ctls::*;
 
 #[derive(Default, Debug)]
 pub struct Ff800Model {

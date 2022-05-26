@@ -1,22 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwNodeExtManual;
-use hinawa::{SndUnit, SndUnitExt};
-
-use core::card_cntr::*;
-
-use ieee1212_config_rom::*;
-
-use ff_protocols::{former::*, latter::*, *};
-
-use super::ff400_model::*;
-use super::ff800_model::*;
-use super::ff802_model::*;
-use super::ucx_model::*;
-
-use std::convert::TryFrom;
+use {
+    super::{ff400_model::*, ff800_model::*, ff802_model::*, ucx_model::*, *},
+    ff_protocols::{former::*, latter::*, *},
+    ieee1212_config_rom::*,
+    std::convert::TryFrom,
+};
 
 pub enum Model {
     Ff800(Ff800Model),
