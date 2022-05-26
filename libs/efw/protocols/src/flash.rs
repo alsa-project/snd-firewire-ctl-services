@@ -6,11 +6,7 @@
 //! The module includes protocol about operations for on-board flash memory defined by Echo Audio
 //! Digital Corporation for Fireworks board module.
 
-use glib::{Error, FileError};
-
-use hinawa::SndEfwStatus;
-
-use super::EfwProtocol;
+use super::*;
 
 const CATEGORY_FLASH: u32 = 1;
 

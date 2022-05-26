@@ -27,9 +27,7 @@
 //! RobotGuitar        |       |      |           |           |          |     |     |     |  *  |
 //! GuitarCharging     |       |      |           |           |          |     |     |     |  *  |
 
-use glib::{Error, FileError};
-
-use super::{ClkSrc, EfwProtocol};
+use super::*;
 
 const CATEGORY_HWINFO: u32 = 0;
 

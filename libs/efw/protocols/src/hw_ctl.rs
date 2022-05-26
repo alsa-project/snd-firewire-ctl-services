@@ -6,9 +6,7 @@
 //! The module includes protocol about hardware control defined by Echo Audio Digital Corporation
 //! for Fireworks board module.
 
-use glib::Error;
-
-use super::{ClkSrc, EfwProtocol};
+use super::*;
 
 const CATEGORY_HWCTL: u32 = 3;
 
