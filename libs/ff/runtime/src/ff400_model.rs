@@ -23,8 +23,12 @@ pub struct Ff400Model {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndUnit> for Ff400Model {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for Ff400Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.meter_ctl
             .load(unit, &mut self.req, card_cntr, TIMEOUT_MS)
             .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
@@ -48,7 +52,7 @@ impl CtlModel<SndUnit> for Ff400Model {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -67,7 +71,7 @@ impl CtlModel<SndUnit> for Ff400Model {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -98,13 +102,13 @@ impl CtlModel<SndUnit> for Ff400Model {
     }
 }
 
-impl MeasureModel<SndUnit> for Ff400Model {
+impl MeasureModel<(SndUnit, FwNode)> for Ff400Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.status_ctl
@@ -114,7 +118,7 @@ impl MeasureModel<SndUnit> for Ff400Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -198,12 +202,12 @@ impl InputGainCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ff400Protocol::init_input_gains(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+        Ff400Protocol::init_input_gains(req, &mut unit.1, &mut self.status, timeout_ms)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MIC_GAIN_NAME, 0);
         card_cntr.add_int_elems(
@@ -250,7 +254,7 @@ impl InputGainCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -263,7 +267,7 @@ impl InputGainCtl {
                 let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
                 Ff400Protocol::write_input_mic_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &mut self.status,
                     &gains,
                     timeout_ms,
@@ -276,7 +280,7 @@ impl InputGainCtl {
                 let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
                 Ff400Protocol::write_input_line_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     &mut self.status,
                     &gains,
                     timeout_ms,
@@ -300,7 +304,7 @@ fn clk_src_to_string(src: &Ff400ClkSrc) -> String {
 }
 
 fn update_cfg<F>(
-    unit: &mut SndUnit,
+    unit: &mut (SndUnit, FwNode),
     req: &mut FwReq,
     cfg: &mut Ff400Config,
     timeout_ms: u32,
@@ -311,7 +315,7 @@ where
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    Ff400Protocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
+    Ff400Protocol::write_cfg(req, &mut unit.1, &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 #[derive(Default, Debug)]
@@ -349,12 +353,12 @@ impl StatusCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ff400Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+        Ff400Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS
             .iter()
@@ -391,11 +395,11 @@ impl StatusCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ff400Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
+        Ff400Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -495,14 +499,14 @@ impl CfgCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         status: &Ff400Status,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         self.0.init(&status);
-        Ff400Protocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
+        Ff400Protocol::write_cfg(req, &mut unit.1, &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS
             .iter()
@@ -704,7 +708,7 @@ impl CfgCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,

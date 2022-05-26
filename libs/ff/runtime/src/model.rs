@@ -21,9 +21,7 @@ pub struct FfModel {
 }
 
 impl FfModel {
-    pub fn new(unit: &SndUnit) -> Result<FfModel, Error> {
-        let node = unit.get_node();
-        let raw = node.get_config_rom()?;
+    pub fn new(raw: &[u8]) -> Result<FfModel, Error> {
         let config_rom = ConfigRom::try_from(&raw[..]).map_err(|e| {
             let msg = format!("Malformed configuration ROM detected: {}", e);
             Error::new(FileError::Nxio, &msg)
@@ -48,7 +46,11 @@ impl FfModel {
         })
     }
 
-    pub fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         match &mut self.model {
             Model::Ff800(m) => m.load(unit, card_cntr),
             Model::Ff400(m) => m.load(unit, card_cntr),
@@ -68,7 +70,7 @@ impl FfModel {
 
     pub fn dispatch_elem_event(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
         elem_id: &alsactl::ElemId,
         events: &alsactl::ElemEventMask,
@@ -83,7 +85,7 @@ impl FfModel {
 
     pub fn measure_elems(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         match &mut self.model {

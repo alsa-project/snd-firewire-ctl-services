@@ -21,8 +21,12 @@ pub struct Ff800Model {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndUnit> for Ff800Model {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for Ff800Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.status_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.cfg_ctl.load(
@@ -45,7 +49,7 @@ impl CtlModel<SndUnit> for Ff800Model {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -62,7 +66,7 @@ impl CtlModel<SndUnit> for Ff800Model {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -88,13 +92,13 @@ impl CtlModel<SndUnit> for Ff800Model {
     }
 }
 
-impl MeasureModel<SndUnit> for Ff800Model {
+impl MeasureModel<(SndUnit, FwNode)> for Ff800Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.status_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl
@@ -104,7 +108,7 @@ impl MeasureModel<SndUnit> for Ff800Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -158,7 +162,7 @@ impl FormerMixerCtlOperation<Ff800Protocol> for MixerCtl {
 }
 
 fn update_cfg<F>(
-    unit: &mut SndUnit,
+    unit: &mut (SndUnit, FwNode),
     req: &mut FwReq,
     cfg: &mut Ff800Config,
     timeout_ms: u32,
@@ -169,7 +173,7 @@ where
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    Ff800Protocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
+    Ff800Protocol::write_cfg(req, &mut unit.1, &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 fn clk_src_to_string(src: &Ff800ClkSrc) -> String {
@@ -229,12 +233,12 @@ impl StatusCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        Ff800Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+        Ff800Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)?;
 
         let labels: Vec<String> = CfgCtl::CLK_SRCS
             .iter()
@@ -271,11 +275,11 @@ impl StatusCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ff800Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
+        Ff800Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
@@ -392,14 +396,14 @@ impl CfgCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         status: &Ff800Status,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         self.0.init(&status);
-        Ff800Protocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
+        Ff800Protocol::write_cfg(req, &mut unit.1, &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS
             .iter()
@@ -583,7 +587,7 @@ impl CfgCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,

@@ -20,8 +20,12 @@ pub struct Ff802Model {
 
 const TIMEOUT_MS: u32 = 100;
 
-impl CtlModel<SndUnit> for Ff802Model {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+impl CtlModel<(SndUnit, FwNode)> for Ff802Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.cfg_ctl
             .load(unit, &mut self.req, TIMEOUT_MS, card_cntr)?;
         self.status_ctl
@@ -36,7 +40,7 @@ impl CtlModel<SndUnit> for Ff802Model {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -51,7 +55,7 @@ impl CtlModel<SndUnit> for Ff802Model {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -72,13 +76,13 @@ impl CtlModel<SndUnit> for Ff802Model {
     }
 }
 
-impl MeasureModel<SndUnit> for Ff802Model {
+impl MeasureModel<(SndUnit, FwNode)> for Ff802Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.status_ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.status_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.meter_ctl
@@ -88,7 +92,7 @@ impl MeasureModel<SndUnit> for Ff802Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -148,7 +152,7 @@ fn ff802_spdif_iface_to_string(iface: &Ff802SpdifIface) -> String {
 }
 
 fn update_cfg<F>(
-    unit: &mut SndUnit,
+    unit: &mut (SndUnit, FwNode),
     req: &mut FwReq,
     cfg: &mut Ff802Config,
     timeout_ms: u32,
@@ -159,7 +163,7 @@ where
 {
     let mut cache = cfg.clone();
     cb(&mut cache)?;
-    Ff802Protocol::write_cfg(req, &mut unit.get_node(), &cache, timeout_ms).map(|_| *cfg = cache)
+    Ff802Protocol::write_cfg(req, &mut unit.1, &cache, timeout_ms).map(|_| *cfg = cache)
 }
 
 #[derive(Default, Debug)]
@@ -202,12 +206,12 @@ impl CfgCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        Ff802Protocol::write_cfg(req, &mut unit.get_node(), &self.0, timeout_ms)?;
+        Ff802Protocol::write_cfg(req, &mut unit.1, &self.0, timeout_ms)?;
 
         let labels: Vec<String> = Self::CLK_SRCS
             .iter()
@@ -295,7 +299,7 @@ impl CfgCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -411,12 +415,12 @@ impl StatusCtl {
 
     fn load(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        Ff802Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)?;
+        Ff802Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)?;
 
         [EXT_SRC_LOCK_NAME, EXT_SRC_SYNC_NAME]
             .iter()
@@ -459,11 +463,11 @@ impl StatusCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Ff802Protocol::read_status(req, &mut unit.get_node(), &mut self.status, timeout_ms)
+        Ff802Protocol::read_status(req, &mut unit.1, &mut self.status, timeout_ms)
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {

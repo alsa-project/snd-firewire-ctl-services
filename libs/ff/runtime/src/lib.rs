@@ -15,7 +15,7 @@ use {
     alsactl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
     hinawa::{SndUnit, SndUnitExt, SndUnitExtManual},
     model::*,
     nix::sys::signal,
@@ -31,7 +31,7 @@ enum Event {
 }
 
 pub struct FfRuntime {
-    unit: SndUnit,
+    unit: (SndUnit, FwNode),
     model: FfModel,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -46,7 +46,10 @@ impl RuntimeOperation<u32> for FfRuntime {
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path)?;
 
-        let model = FfModel::new(&unit)?;
+        let node = unit.get_node();
+        let rom = node.get_config_rom()?;
+
+        let model = FfModel::new(&rom)?;
 
         let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
@@ -59,7 +62,7 @@ impl RuntimeOperation<u32> for FfRuntime {
         let timer = None;
 
         Ok(FfRuntime {
-            unit,
+            unit: (unit, node),
             model,
             card_cntr,
             rx,
@@ -157,17 +160,17 @@ impl<'a> FfRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
