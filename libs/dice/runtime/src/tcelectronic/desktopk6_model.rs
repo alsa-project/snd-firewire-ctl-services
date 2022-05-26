@@ -17,21 +17,23 @@ pub struct Desktopk6Model {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for Desktopk6Model {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for Desktopk6Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
@@ -53,12 +55,12 @@ impl CtlModel<SndDice> for Desktopk6Model {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -83,13 +85,13 @@ impl CtlModel<SndDice> for Desktopk6Model {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -124,16 +126,21 @@ impl CtlModel<SndDice> for Desktopk6Model {
     }
 }
 
-impl NotifyModel<SndDice, u32> for Desktopk6Model {
+impl NotifyModel<(SndDice, FwNode), u32> for Desktopk6Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.hw_state_ctl.1);
         elem_id_list.extend_from_slice(&self.panel_ctl.1);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
 
         self.hw_state_ctl
             .parse_notification(unit, &mut self.req, TIMEOUT_MS, *msg)?;
@@ -147,7 +154,7 @@ impl NotifyModel<SndDice, u32> for Desktopk6Model {
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -163,15 +170,15 @@ impl NotifyModel<SndDice, u32> for Desktopk6Model {
     }
 }
 
-impl MeasureModel<SndDice> for Desktopk6Model {
+impl MeasureModel<(SndDice, FwNode)> for Desktopk6Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.meter_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
@@ -179,7 +186,7 @@ impl MeasureModel<SndDice> for Desktopk6Model {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -247,11 +254,11 @@ impl HwStateCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         let labels: Vec<&str> = Self::METER_TARGETS
             .iter()
@@ -376,7 +383,7 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -394,7 +401,7 @@ impl HwStateCtl {
                         })
                         .map(|&target| self.0.data.meter_target = target)
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_OUT_MONAURAL_NAME => {
@@ -402,7 +409,7 @@ impl HwStateCtl {
                     self.0.data.mixer_output_monaural = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             KNOB_ASSIGN_TO_HP_NAME => {
@@ -410,7 +417,7 @@ impl HwStateCtl {
                     self.0.data.knob_assign_to_hp = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_OUTPUT_DIM_ENABLE_NAME => {
@@ -418,7 +425,7 @@ impl HwStateCtl {
                     self.0.data.mixer_output_dim_enabled = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_OUTPUT_DIM_LEVEL_NAME => {
@@ -426,7 +433,7 @@ impl HwStateCtl {
                     self.0.data.mixer_output_dim_volume = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             SCENE_NAME => {
@@ -440,7 +447,7 @@ impl HwStateCtl {
                         })
                         .map(|&scene| self.0.data.input_scene = scene)
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             REVERB_TO_MAIN_NAME => {
@@ -448,7 +455,7 @@ impl HwStateCtl {
                     self.0.data.reverb_to_master = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             REVERB_TO_HP_NAME => {
@@ -456,7 +463,7 @@ impl HwStateCtl {
                     self.0.data.reverb_to_hp = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             KNOB_BACKLIGHT_NAME => {
@@ -464,7 +471,7 @@ impl HwStateCtl {
                     self.0.data.master_knob_backlight = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_0_PHANTOM_NAME => {
@@ -472,7 +479,7 @@ impl HwStateCtl {
                     self.0.data.mic_0_phantom = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_0_BOOST_NAME => {
@@ -480,7 +487,7 @@ impl HwStateCtl {
                     self.0.data.mic_0_boost = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -489,13 +496,13 @@ impl HwStateCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         msg: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -523,11 +530,11 @@ impl ConfigCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_standalone_rate(card_cntr)?;
 
@@ -540,24 +547,24 @@ impl ConfigCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms)
+        self.write_standalone_rate(&mut unit.0, req, elem_id, elem_value, timeout_ms)
     }
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         msg: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -607,11 +614,11 @@ impl MixerCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_MIC_INST_SRC_LEVEL_NAME, 0);
@@ -820,7 +827,7 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
@@ -833,7 +840,7 @@ impl MixerCtl {
                     self.0.data.mic_inst_level[idx] = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_MIC_INST_SRC_BALANCE_NAME => {
@@ -841,7 +848,7 @@ impl MixerCtl {
                     self.0.data.mic_inst_pan[idx] = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_MIC_INST_SRC_SEND_NAME => {
@@ -849,7 +856,7 @@ impl MixerCtl {
                     self.0.data.mic_inst_send[idx] = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_DUAL_INST_SRC_LEVEL_NAME => {
@@ -857,7 +864,7 @@ impl MixerCtl {
                     self.0.data.dual_inst_level[idx] = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_DUAL_INST_SRC_BALANCE_NAME => {
@@ -865,7 +872,7 @@ impl MixerCtl {
                     self.0.data.dual_inst_pan[idx] = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_DUAL_INST_SRC_SEND_NAME => {
@@ -873,7 +880,7 @@ impl MixerCtl {
                     self.0.data.dual_inst_send[idx] = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_STEREO_IN_SRC_LEVEL_NAME => {
@@ -881,7 +888,7 @@ impl MixerCtl {
                     self.0.data.stereo_in_level = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_STEREO_IN_SRC_BALANCE_NAME => {
@@ -889,7 +896,7 @@ impl MixerCtl {
                     self.0.data.stereo_in_pan = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIXER_STEREO_IN_SRC_SEND_NAME => {
@@ -897,7 +904,7 @@ impl MixerCtl {
                     self.0.data.stereo_in_send = val;
                     Ok(())
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             HP_SRC_NAME => {
@@ -912,7 +919,7 @@ impl MixerCtl {
                         })
                         .map(|&s| self.0.data.hp_src = s)
                 })?;
-                Desktopk6Protocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -956,11 +963,11 @@ impl PanelCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_firewire_led(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -1070,13 +1077,13 @@ impl PanelCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)? {
+        if self.write_firewire_led(&mut unit.0, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -1085,13 +1092,8 @@ impl PanelCtl {
                         self.0.data.reverb_led_on = val;
                         Ok(())
                     })?;
-                    Desktopk6Protocol::write_segment(
-                        req,
-                        &mut unit.get_node(),
-                        &mut self.0,
-                        timeout_ms,
-                    )
-                    .map(|_| true)
+                    Desktopk6Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
+                        .map(|_| true)
                 }
                 _ => Ok(false),
             }
@@ -1100,13 +1102,13 @@ impl PanelCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         msg: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -1134,7 +1136,7 @@ impl MeterCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -1181,11 +1183,11 @@ impl MeterCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        Desktopk6Protocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+        Desktopk6Protocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {

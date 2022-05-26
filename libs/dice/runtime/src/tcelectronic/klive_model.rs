@@ -21,21 +21,23 @@ pub struct KliveModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for KliveModel {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for KliveModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
@@ -50,13 +52,13 @@ impl CtlModel<SndDice> for KliveModel {
         self.hw_state_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.reverb_ctl.2 = notified_elem_id_list;
                 self.reverb_ctl.3 = measured_elem_id_list;
             })?;
         self.ch_strip_ctl
-            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
                 self.ch_strip_ctl.2 = notified_elem_id_list;
                 self.ch_strip_ctl.3 = measured_elem_id_list;
@@ -67,12 +69,12 @@ impl CtlModel<SndDice> for KliveModel {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -99,13 +101,13 @@ impl CtlModel<SndDice> for KliveModel {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -131,13 +133,17 @@ impl CtlModel<SndDice> for KliveModel {
             Ok(true)
         } else if self
             .reverb_ctl
-            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
-        } else if self
-            .ch_strip_ctl
-            .write(unit, &mut self.req, elem_id, old, new, TIMEOUT_MS)?
-        {
+        } else if self.ch_strip_ctl.write(
+            &mut unit.0,
+            &mut self.req,
+            elem_id,
+            old,
+            new,
+            TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .hw_state_ctl
@@ -150,7 +156,7 @@ impl CtlModel<SndDice> for KliveModel {
     }
 }
 
-impl NotifyModel<SndDice, u32> for KliveModel {
+impl NotifyModel<(SndDice, FwNode), u32> for KliveModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.notified_elem_list);
         elem_id_list.extend_from_slice(&self.knob_ctl.1);
@@ -161,9 +167,14 @@ impl NotifyModel<SndDice, u32> for KliveModel {
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.2);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)?;
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )?;
         self.knob_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.config_ctl
@@ -173,15 +184,15 @@ impl NotifyModel<SndDice, u32> for KliveModel {
         self.hw_state_ctl
             .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
         self.reverb_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(&mut unit.0, &mut self.req, *msg, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .parse_notification(unit, &mut self.req, *msg, TIMEOUT_MS)?;
+            .parse_notification(&mut unit.0, &mut self.req, *msg, TIMEOUT_MS)?;
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -205,7 +216,7 @@ impl NotifyModel<SndDice, u32> for KliveModel {
     }
 }
 
-impl MeasureModel<SndDice> for KliveModel {
+impl MeasureModel<(SndDice, FwNode)> for KliveModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.ctl.measured_elem_list);
         elem_id_list.extend_from_slice(&self.mixer_ctl.3);
@@ -213,21 +224,21 @@ impl MeasureModel<SndDice> for KliveModel {
         elem_id_list.extend_from_slice(&self.ch_strip_ctl.3);
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
         self.mixer_ctl
             .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
         self.reverb_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
         self.ch_strip_ctl
-            .measure_states(unit, &mut self.req, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -320,11 +331,11 @@ impl KnobCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_knob_target(card_cntr)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -367,18 +378,18 @@ impl KnobCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_prog(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_prog(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -393,7 +404,7 @@ impl KnobCtl {
                             })
                             .map(|&i| self.0.data.out_impedance[idx] = i)
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 _ => Ok(false),
@@ -403,13 +414,13 @@ impl KnobCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -522,11 +533,11 @@ impl ConfigCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_mixer_stream_src(card_cntr)?;
         self.load_coax_out_src(card_cntr)?;
@@ -565,22 +576,22 @@ impl ConfigCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer_stream_src(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_mixer_stream_src(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_coax_out_src(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_coax_out_src(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_opt_iface_config(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_opt_iface_config(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_midi_sender(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_midi_sender(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -595,7 +606,7 @@ impl ConfigCtl {
                             })
                             .map(|&s| self.0.data.out_01_src = s)
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 OUT_23_SRC_NAME => {
@@ -609,7 +620,7 @@ impl ConfigCtl {
                             })
                             .map(|&s| self.0.data.out_23_src = s)
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 _ => Ok(false),
@@ -619,13 +630,13 @@ impl ConfigCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -754,12 +765,12 @@ impl MixerCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
-        KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.1, timeout_ms)?;
+        KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
+        KliveProtocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)?;
 
         self.load_mixer(card_cntr)
             .map(|(notified_elem_id_list, measured_elem_id_list)| {
@@ -841,16 +852,16 @@ impl MixerCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(&mut unit.0, req, elem_id, old, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_reverb_return(unit, req, elem_id, new, timeout_ms)? {
+        } else if self.write_reverb_return(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -859,7 +870,7 @@ impl MixerCtl {
                         self.0.data.enabled = val;
                         Ok(())
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 USE_CH_STRIP_AS_PLUGIN_NAME => {
@@ -867,7 +878,7 @@ impl MixerCtl {
                         self.0.data.use_ch_strip_as_plugin = val;
                         Ok(())
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 CH_STRIP_SRC_NAME => {
@@ -882,7 +893,7 @@ impl MixerCtl {
                             })
                             .map(|&s| self.0.data.ch_strip_src = s)
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 CH_STRIP_MODE_NAME => {
@@ -897,7 +908,7 @@ impl MixerCtl {
                             })
                             .map(|&m| self.0.data.ch_strip_mode = m)
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 USE_REVERB_AT_MID_RATE => {
@@ -905,7 +916,7 @@ impl MixerCtl {
                         self.0.data.use_reverb_at_mid_rate = val;
                         Ok(())
                     })?;
-                    KliveProtocol::write_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+                    KliveProtocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                         .map(|_| true)
                 }
                 _ => Ok(false),
@@ -915,13 +926,13 @@ impl MixerCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }
@@ -941,11 +952,11 @@ impl MixerCtl {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.1, timeout_ms)
+        KliveProtocol::read_segment(req, &mut unit.1, &mut self.1, timeout_ms)
     }
 
     fn read_measured_elem(
@@ -994,11 +1005,11 @@ impl HwStateCtl {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)?;
+        KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)?;
 
         self.load_hw_state(card_cntr)
             .map(|mut notified_elem_id_list| self.1.append(&mut notified_elem_id_list))?;
@@ -1016,14 +1027,14 @@ impl HwStateCtl {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(&mut unit.0, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -1032,13 +1043,13 @@ impl HwStateCtl {
 
     fn parse_notification(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         msg: u32,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         if self.0.has_segment_change(msg) {
-            KliveProtocol::read_segment(req, &mut unit.get_node(), &mut self.0, timeout_ms)
+            KliveProtocol::read_segment(req, &mut unit.1, &mut self.0, timeout_ms)
         } else {
             Ok(())
         }

@@ -19,21 +19,23 @@ pub struct IoFwModel {
 
 const TIMEOUT_MS: u32 = 20;
 
-impl CtlModel<SndDice> for IoFwModel {
-    fn load(&mut self, unit: &mut SndDice, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
+impl CtlModel<(SndDice, FwNode)> for IoFwModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndDice, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         self.sections =
-            GeneralProtocol::read_general_sections(&mut self.req, &mut node, TIMEOUT_MS)?;
+            GeneralProtocol::read_general_sections(&mut self.req, &mut unit.1, TIMEOUT_MS)?;
         let caps = GlobalSectionProtocol::read_clock_caps(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
         let src_labels = GlobalSectionProtocol::read_clock_source_labels(
             &mut self.req,
-            &mut node,
+            &mut unit.1,
             &self.sections,
             TIMEOUT_MS,
         )?;
@@ -49,12 +51,12 @@ impl CtlModel<SndDice> for IoFwModel {
 
     fn read(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.read(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -71,13 +73,13 @@ impl CtlModel<SndDice> for IoFwModel {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
         if self.common_ctl.write(
-            unit,
+            &mut unit.0,
             &mut self.req,
             &self.sections,
             elem_id,
@@ -94,19 +96,24 @@ impl CtlModel<SndDice> for IoFwModel {
     }
 }
 
-impl NotifyModel<SndDice, u32> for IoFwModel {
+impl NotifyModel<(SndDice, FwNode), u32> for IoFwModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, unit: &mut SndDice, msg: &u32) -> Result<(), Error> {
-        self.common_ctl
-            .parse_notification(unit, &mut self.req, &self.sections, *msg, TIMEOUT_MS)
+    fn parse_notification(&mut self, unit: &mut (SndDice, FwNode), msg: &u32) -> Result<(), Error> {
+        self.common_ctl.parse_notification(
+            &mut unit.0,
+            &mut self.req,
+            &self.sections,
+            *msg,
+            TIMEOUT_MS,
+        )
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -114,7 +121,7 @@ impl NotifyModel<SndDice, u32> for IoFwModel {
     }
 }
 
-impl MeasureModel<SndDice> for IoFwModel {
+impl MeasureModel<(SndDice, FwNode)> for IoFwModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.measured_elem_list);
         if let Some(ctls) = &self.io_fw_ctls {
@@ -122,9 +129,9 @@ impl MeasureModel<SndDice> for IoFwModel {
         }
     }
 
-    fn measure_states(&mut self, unit: &mut SndDice) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndDice, FwNode)) -> Result<(), Error> {
         self.common_ctl
-            .measure_states(unit, &mut self.req, &self.sections, TIMEOUT_MS)?;
+            .measure_states(&mut unit.0, &mut self.req, &self.sections, TIMEOUT_MS)?;
 
         if let Some(ctls) = &mut self.io_fw_ctls {
             ctls.measure_states(unit, &mut self.req, TIMEOUT_MS)?;
@@ -135,7 +142,7 @@ impl MeasureModel<SndDice> for IoFwModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndDice,
+        _: &(SndDice, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -156,18 +163,20 @@ enum IofwCtls {
 
 impl IofwCtls {
     fn new(
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         sections: &GeneralSections,
         timeout_ms: u32,
     ) -> Result<Self, Error> {
-        let mut node = unit.get_node();
         let config =
-            GlobalSectionProtocol::read_clock_config(req, &mut node, sections, timeout_ms)?;
+            GlobalSectionProtocol::read_clock_config(req, &mut unit.1, sections, timeout_ms)?;
         match config.rate {
             ClockRate::R32000 | ClockRate::R44100 | ClockRate::R48000 | ClockRate::AnyLow => {
                 let entries = TxStreamFormatSectionProtocol::read_entries(
-                    req, &mut node, sections, timeout_ms,
+                    req,
+                    &mut unit.1,
+                    sections,
+                    timeout_ms,
                 )?;
                 if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 16 {
                     Ok(Self::Io26(
@@ -190,7 +199,10 @@ impl IofwCtls {
             }
             ClockRate::R88200 | ClockRate::R96000 | ClockRate::AnyMid => {
                 let entries = TxStreamFormatSectionProtocol::read_entries(
-                    req, &mut node, sections, timeout_ms,
+                    req,
+                    &mut unit.1,
+                    sections,
+                    timeout_ms,
                 )?;
                 if entries.len() == 2 && entries[0].pcm == 10 && entries[1].pcm == 4 {
                     Ok(Self::Io26(
@@ -213,7 +225,7 @@ impl IofwCtls {
             }
             ClockRate::R176400 | ClockRate::R192000 | ClockRate::AnyHigh => {
                 let nickname =
-                    GlobalSectionProtocol::read_nickname(req, &mut node, sections, timeout_ms)?;
+                    GlobalSectionProtocol::read_nickname(req, &mut unit.1, sections, timeout_ms)?;
                 match nickname.as_str() {
                     "iO 26" => Ok(Self::Io26(
                         Default::default(),
@@ -241,7 +253,7 @@ impl IofwCtls {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -269,7 +281,7 @@ impl IofwCtls {
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -299,7 +311,7 @@ impl IofwCtls {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -342,7 +354,7 @@ impl IofwCtls {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -431,12 +443,12 @@ trait MeterCtlOperation<T: IofwMeterOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_meter_state();
-        T::read_meter(req, &mut unit.get_node(), &mut state, timeout_ms)?;
+        T::read_meter(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.meter_mut() = state;
 
         let mut measured_elem_id_list = Vec::new();
@@ -504,11 +516,11 @@ trait MeterCtlOperation<T: IofwMeterOperation> {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_meter(req, &mut unit.get_node(), self.meter_mut(), timeout_ms)
+        T::read_meter(req, &mut unit.1, self.meter_mut(), timeout_ms)
     }
 
     fn read_measured_elem(
@@ -596,16 +608,15 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
         let mut state = T::create_mixer_state();
-        let mut node = unit.get_node();
-        T::read_mixer_src_gains(req, &mut node, &mut state, timeout_ms)?;
-        T::read_mixer_src_mutes(req, &mut node, &mut state, timeout_ms)?;
-        T::read_mixer_out_vols(req, &mut node, &mut state, timeout_ms)?;
-        T::read_mixer_out_mutes(req, &mut node, &mut state, timeout_ms)?;
+        T::read_mixer_src_gains(req, &mut unit.1, &mut state, timeout_ms)?;
+        T::read_mixer_src_mutes(req, &mut unit.1, &mut state, timeout_ms)?;
+        T::read_mixer_out_vols(req, &mut unit.1, &mut state, timeout_ms)?;
+        T::read_mixer_out_mutes(req, &mut unit.1, &mut state, timeout_ms)?;
         *self.state_mut() = state;
 
         let mut measured_elem_id_list = Vec::new();
@@ -726,7 +737,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -755,7 +766,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
 
                 T::write_mixer_src_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &gains,
                     self.state_mut(),
@@ -785,7 +796,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
 
                 T::write_mixer_src_mutes(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &mutes,
                     self.state_mut(),
@@ -801,7 +812,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
 
                 T::write_mixer_src_gains(
                     req,
-                    &mut unit.get_node(),
+                    &mut unit.1,
                     mixer,
                     &gains,
                     self.state_mut(),
@@ -812,26 +823,14 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
             OUTPUT_VOL_NAME => {
                 let mut vals = self.state().out_vols.clone();
                 elem_value.get_int(&mut vals);
-                T::write_mixer_out_vols(
-                    req,
-                    &mut unit.get_node(),
-                    &vals,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer_out_vols(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             OUTPUT_MUTE_NAME => {
                 let mut vals = self.state().out_mutes.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_mixer_out_mutes(
-                    req,
-                    &mut unit.get_node(),
-                    &vals,
-                    self.state_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_mixer_out_mutes(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }
@@ -839,14 +838,12 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
 
     fn measure_states(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut node = unit.get_node();
-
         let old = self.state().knobs.mix_blend as i32;
-        T::read_knob_state(req, &mut node, self.state_mut(), timeout_ms)?;
+        T::read_knob_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let new = self.state().knobs.mix_blend as i32;
         if new != old {
@@ -855,7 +852,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
             let mut new = self.state().out_vols.clone();
             new[0] = val;
             new[1] = val;
-            T::write_mixer_out_vols(req, &mut node, &new, self.state_mut(), timeout_ms)?;
+            T::write_mixer_out_vols(req, &mut unit.1, &new, self.state_mut(), timeout_ms)?;
         }
 
         Ok(())
@@ -966,7 +963,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
 
     fn read(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -975,7 +972,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
         match elem_id.get_name().as_str() {
             OUT_LEVEL_NAME => {
                 let mut levels = vec![NominalSignalLevel::default(); T::ANALOG_OUTPUT_COUNT];
-                T::read_out_levels(req, &mut unit.get_node(), &mut levels, timeout_ms)?;
+                T::read_out_levels(req, &mut unit.1, &mut levels, timeout_ms)?;
                 let vals: Vec<u32> = levels
                     .iter()
                     .map(|level| Self::OUT_LEVELS.iter().position(|l| l.eq(level)).unwrap() as u32)
@@ -985,7 +982,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
             }
             DIGITAL_B_67_SRC_NAME => {
                 let mut src = DigitalB67Src::default();
-                T::read_mixer_digital_b_67_src(req, &mut unit.get_node(), &mut src, timeout_ms)?;
+                T::read_mixer_digital_b_67_src(req, &mut unit.1, &mut src, timeout_ms)?;
                 let pos = Self::DIGITAL_B_67_SRCS
                     .iter()
                     .position(|s| s.eq(&src))
@@ -995,7 +992,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
             }
             SPDIF_OUT_SRC_NAME => {
                 let mut pair = MixerOutPair::default();
-                T::read_spdif_out_src(req, &mut unit.get_node(), &mut pair, timeout_ms)?;
+                T::read_spdif_out_src(req, &mut unit.1, &mut pair, timeout_ms)?;
                 let pos = Self::MIXER_OUT_PAIRS
                     .iter()
                     .position(|p| p.eq(&pair))
@@ -1005,7 +1002,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
             }
             HP23_SRC_NAME => {
                 let mut pair = MixerOutPair::default();
-                T::read_hp23_out_src(req, &mut unit.get_node(), &mut pair, timeout_ms)?;
+                T::read_hp23_out_src(req, &mut unit.1, &mut pair, timeout_ms)?;
                 let pos = Self::MIXER_OUT_PAIRS
                     .iter()
                     .position(|p| p.eq(&pair))
@@ -1019,7 +1016,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
 
     fn write(
         &self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1031,7 +1028,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
                 elem_value.get_enum(&mut vals);
                 let levels: Vec<NominalSignalLevel> =
                     vals.iter().map(|v| NominalSignalLevel::from(*v)).collect();
-                T::write_out_levels(req, &mut unit.get_node(), &levels, timeout_ms).map(|_| true)
+                T::write_out_levels(req, &mut unit.1, &levels, timeout_ms).map(|_| true)
             }
             DIGITAL_B_67_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 let src = Self::DIGITAL_B_67_SRCS
@@ -1041,7 +1038,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
                         let msg = format!("Invalid index of source of digital B 7/8: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::write_mixer_digital_b_67_src(req, &mut unit.get_node(), src, timeout_ms)
+                T::write_mixer_digital_b_67_src(req, &mut unit.1, src, timeout_ms)
             })
             .map(|_| true),
             SPDIF_OUT_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -1052,7 +1049,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
                         let msg = format!("Invalid index of pair of mixer output: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::write_spdif_out_src(req, &mut unit.get_node(), src, timeout_ms)
+                T::write_spdif_out_src(req, &mut unit.1, src, timeout_ms)
             })
             .map(|_| true),
             HP23_SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -1063,7 +1060,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
                         let msg = format!("Invalid index of pair of mixer output: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::write_hp23_out_src(req, &mut unit.get_node(), src, timeout_ms)
+                T::write_hp23_out_src(req, &mut unit.1, src, timeout_ms)
             })
             .map(|_| true),
             _ => Ok(false),
