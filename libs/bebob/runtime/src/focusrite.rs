@@ -25,7 +25,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
 
     fn read_freq(
         &self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -33,7 +33,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::read_clk_freq(req, &unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                T::read_clk_freq(req, &unit.1, timeout_ms).map(|idx| idx as u32)
             })
             .map(|_| true),
             _ => Ok(false),
@@ -42,7 +42,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
 
     fn write_freq(
         &self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -50,12 +50,12 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_RATE_NAME => {
-                unit.lock()?;
+                unit.0.lock()?;
                 let res = ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    T::write_clk_freq(req, &unit.get_node(), val as usize, timeout_ms)
+                    T::write_clk_freq(req, &unit.1, val as usize, timeout_ms)
                 })
                 .map(|_| true);
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res
             }
             _ => Ok(false),
@@ -91,7 +91,7 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
 
     fn read_src(
         &self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -99,7 +99,7 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::read_clk_src(req, &unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                T::read_clk_src(req, &unit.1, timeout_ms).map(|idx| idx as u32)
             })
             .map(|_| true),
             _ => Ok(false),
@@ -108,7 +108,7 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
 
     fn write_src(
         &self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -116,12 +116,12 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_SRC_NAME => {
-                unit.lock()?;
+                unit.0.lock()?;
                 let res = ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                    T::write_clk_src(req, &unit.get_node(), val as usize, timeout_ms)
+                    T::write_clk_src(req, &unit.1, val as usize, timeout_ms)
                 })
                 .map(|_| true);
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res
             }
             _ => Ok(false),
@@ -140,7 +140,7 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
     fn load_state(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -175,8 +175,13 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
         Ok(measured_elem_id_list)
     }
 
-    fn measure_state(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::read_state(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    fn measure_state(
+        &mut self,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::read_state(req, &unit.1, self.as_mut(), timeout_ms)
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -227,7 +232,7 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -281,18 +286,18 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
                 .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
         }
 
-        T::read_output_parameters(req, &unit.get_node(), self.as_mut(), true, timeout_ms)?;
+        T::read_output_parameters(req, &unit.1, self.as_mut(), true, timeout_ms)?;
 
         Ok(measure_elem_id_list)
     }
 
     fn measure_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_output_parameters(req, &unit.get_node(), self.as_mut(), false, timeout_ms)
+        T::read_output_parameters(req, &unit.1, self.as_mut(), false, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -324,7 +329,7 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -334,30 +339,28 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
             OUT_MUTE_NAME => {
                 let mut vals = self.as_ref().mutes.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_mutes(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_mutes(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_VOL_NAME => {
                 let mut vals = vec![Default::default(); self.as_ref().vols.len()];
                 elem_value.get_int(&mut vals);
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
-                T::write_vols(req, &unit.get_node(), &vols, self.as_mut(), timeout_ms).map(|_| true)
+                T::write_vols(req, &unit.1, &vols, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_HWCTL_NAME => {
                 let mut vals = self.as_ref().hwctls.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_hwctls(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_hwctls(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_DIM_NAME => {
                 let mut vals = self.as_ref().dims.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_dims(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms).map(|_| true)
+                T::write_dims(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_PAD_NAME => {
                 let mut vals = self.as_ref().pads.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_pads(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms).map(|_| true)
+                T::write_pads(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -377,7 +380,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
         &mut self,
         card_cntr: &mut CardCntr,
         mixer_mode: SaffireMixerMode,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -431,14 +434,19 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
             .map(|mut elem_id_list| measured_elem_id_list.append(&mut elem_id_list))?;
 
         if Self::MIXER_MODE == mixer_mode {
-            T::read_mixer_state(req, &unit.get_node(), self.as_mut(), timeout_ms)?;
+            T::read_mixer_state(req, &unit.1, self.as_mut(), timeout_ms)?;
         }
 
         Ok(measured_elem_id_list)
     }
 
-    fn write_state(&mut self, unit: &SndUnit, req: &FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::write_mixer_state(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    fn write_state(
+        &mut self,
+        unit: &(SndUnit, FwNode),
+        req: &FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::write_mixer_state(req, &unit.1, self.as_mut(), timeout_ms)
     }
 
     fn read_src_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -458,7 +466,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
     fn write_src_levels(
         &mut self,
         mixer_mode: SaffireMixerMode,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -480,15 +488,8 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     levels
                 });
                 let index = elem_id.get_index() as usize;
-                T::write_phys_inputs(
-                    req,
-                    &unit.get_node(),
-                    index,
-                    &levels,
-                    self.as_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_phys_inputs(req, &unit.1, index, &levels, self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
         } else if name.as_str() == Self::REVERB_RETURN_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
@@ -504,15 +505,8 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     levels
                 });
                 let index = elem_id.get_index() as usize;
-                T::write_reverb_returns(
-                    req,
-                    &unit.get_node(),
-                    index,
-                    &levels,
-                    self.as_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_reverb_returns(req, &unit.1, index, &levels, self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
         } else if name.as_str() == Self::STREAM_SRC_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
@@ -528,15 +522,8 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     levels
                 });
                 let index = elem_id.get_index() as usize;
-                T::write_stream_inputs(
-                    req,
-                    &unit.get_node(),
-                    index,
-                    &levels,
-                    self.as_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_stream_inputs(req, &unit.1, index, &levels, self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
         } else {
             Ok(false)
@@ -583,7 +570,7 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
 
     fn read_params(
         &self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -592,13 +579,13 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
         match elem_id.get_name().as_str() {
             MIDI_THROUGH_NAME => {
                 let mut val = false;
-                T::read_midi_through(req, &unit.get_node(), &mut val, timeout_ms)?;
+                T::read_midi_through(req, &unit.1, &mut val, timeout_ms)?;
                 elem_value.set_bool(&[val]);
                 Ok(true)
             }
             AC3_THROUGH_NAME => {
                 let mut val = false;
-                T::read_ac3_through(req, &unit.get_node(), &mut val, timeout_ms)?;
+                T::read_ac3_through(req, &unit.1, &mut val, timeout_ms)?;
                 elem_value.set_bool(&[val]);
                 Ok(true)
             }
@@ -608,7 +595,7 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -618,12 +605,12 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
             MIDI_THROUGH_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_midi_through(req, &unit.get_node(), vals[0], timeout_ms).map(|_| true)
+                T::write_midi_through(req, &unit.1, vals[0], timeout_ms).map(|_| true)
             }
             AC3_THROUGH_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_ac3_through(req, &unit.get_node(), vals[0], timeout_ms).map(|_| true)
+                T::write_ac3_through(req, &unit.1, vals[0], timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -640,7 +627,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -693,7 +680,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                 .map(|_| ())?;
         }
 
-        T::read_params(req, &unit.get_node(), self.as_mut(), timeout_ms)
+        T::read_params(req, &unit.1, self.as_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -732,7 +719,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -744,30 +731,16 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                 let mut vals = vec![0; self.as_ref().analog_inputs[idx].len()];
                 elem_value.get_int(&mut vals);
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
-                T::write_analog_inputs(
-                    req,
-                    &unit.get_node(),
-                    idx,
-                    &levels,
-                    self.as_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_analog_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.get_index() as usize;
                 let mut vals = vec![0; self.as_ref().spdif_inputs[idx].len()];
                 elem_value.get_int(&mut vals);
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
-                T::write_spdif_inputs(
-                    req,
-                    &unit.get_node(),
-                    idx,
-                    &levels,
-                    self.as_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_spdif_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if T::HAS_ADAT {
@@ -775,15 +748,8 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                     elem_value.get_int(&mut vals);
                     let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                     let idx = elem_id.get_index() as usize;
-                    T::write_adat_inputs(
-                        req,
-                        &unit.get_node(),
-                        idx,
-                        &levels,
-                        self.as_mut(),
-                        timeout_ms,
-                    )
-                    .map(|_| true)
+                    T::write_adat_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
+                        .map(|_| true)
                 } else {
                     Ok(false)
                 }
@@ -804,7 +770,7 @@ impl SaffireProioMixerCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -857,7 +823,7 @@ impl SaffireProioMixerCtl {
             )
             .map(|_| ())?;
 
-        SaffireProioMixerProtocol::read_params(req, &unit.get_node(), &mut self.0, timeout_ms)
+        SaffireProioMixerProtocol::read_params(req, &unit.1, &mut self.0, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -898,7 +864,7 @@ impl SaffireProioMixerCtl {
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -911,7 +877,7 @@ impl SaffireProioMixerCtl {
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_monitor_sources(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     &levels,
                     &mut self.0,
                     timeout_ms,
@@ -924,7 +890,7 @@ impl SaffireProioMixerCtl {
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_source_pair0(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     &levels,
                     &mut self.0,
                     timeout_ms,
@@ -937,7 +903,7 @@ impl SaffireProioMixerCtl {
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_sources(
                     req,
-                    &unit.get_node(),
+                    &unit.1,
                     &levels,
                     &mut self.0,
                     timeout_ms,
@@ -974,7 +940,7 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -1005,7 +971,7 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
         *self.as_mut() = T::create_params();
-        T::read_params(req, &unit.get_node(), self.as_mut(), timeout_ms)
+        T::read_params(req, &unit.1, self.as_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1044,7 +1010,7 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         req: &FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1054,20 +1020,18 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
             HEAD_ROOM_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_head_room(req, &unit.get_node(), vals[0], self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_head_room(req, &unit.1, vals[0], self.as_mut(), timeout_ms).map(|_| true)
             }
             PHANTOM_POWERING_NAME => {
                 let mut vals = self.as_ref().phantom_powerings.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_phantom_powerings(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
+                T::write_phantom_powerings(req, &unit.1, &vals, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             INSERT_SWAP_NAME => {
                 let mut vals = self.as_ref().insert_swaps.clone();
                 elem_value.get_bool(&mut vals);
-                T::write_insert_swaps(req, &unit.get_node(), &vals, self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_insert_swaps(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             STANDALONE_MODE_NAME => {
                 let mut vals = [0];
@@ -1079,26 +1043,19 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
                         let msg = format!("Invalid index of standalone mode: {}", vals[0]);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::write_standalone_mode(req, &unit.get_node(), mode, self.as_mut(), timeout_ms)
+                T::write_standalone_mode(req, &unit.1, mode, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             ADAT_ENABLE_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_adat_enable(req, &unit.get_node(), vals[0], self.as_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_adat_enable(req, &unit.1, vals[0], self.as_mut(), timeout_ms).map(|_| true)
             }
             DIRECT_MONITORING_NAME => {
                 let mut vals = [false];
                 elem_value.get_bool(&mut vals);
-                T::write_direct_monitoring(
-                    req,
-                    &unit.get_node(),
-                    vals[0],
-                    self.as_mut(),
-                    timeout_ms,
-                )
-                .map(|_| true)
+                T::write_direct_monitoring(req, &unit.1, vals[0], self.as_mut(), timeout_ms)
+                    .map(|_| true)
             }
             _ => Ok(false),
         }

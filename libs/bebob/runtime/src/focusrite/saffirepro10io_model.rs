@@ -105,9 +105,13 @@ impl AsMut<SaffireProioSpecificParameters> for SpecificCtl {
 
 impl SaffireProioSpecificCtlOperation<SaffirePro10ioSpecificProtocol> for SpecificCtl {}
 
-impl CtlModel<SndUnit> for SaffirePro10ioModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for SaffirePro10ioModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
@@ -141,7 +145,7 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
 
     fn read(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -177,7 +181,7 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         _: &ElemValue,
         new: &ElemValue,
@@ -223,18 +227,18 @@ impl CtlModel<SndUnit> for SaffirePro10ioModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for SaffirePro10ioModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for SaffirePro10ioModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -243,18 +247,18 @@ impl NotifyModel<SndUnit, bool> for SaffirePro10ioModel {
     }
 }
 
-impl MeasureModel<SndUnit> for SaffirePro10ioModel {
+impl MeasureModel<(SndUnit, FwNode)> for SaffirePro10ioModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_state(unit, &self.req, TIMEOUT_MS)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -272,10 +276,11 @@ mod test {
         let mut card_cntr = CardCntr::new();
         let mut ctl = OutputCtl::default();
         let unit = SndUnit::default();
+        let node = FwNode::default();
         let req = FwReq::default();
 
         let error = ctl
-            .load_params(&mut card_cntr, &unit, &req, TIMEOUT_MS)
+            .load_params(&mut card_cntr, &(unit, node), &req, TIMEOUT_MS)
             .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }

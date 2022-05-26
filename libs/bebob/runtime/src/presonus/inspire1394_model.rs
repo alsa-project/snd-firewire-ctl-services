@@ -148,9 +148,13 @@ impl AvcMuteCtlOperation<Inspire1394MixerStreamSourceProtocol> for MixerStreamSo
     const MUTE_NAME: &'static str = "mixer-stream-source-mute";
 }
 
-impl CtlModel<SndUnit> for Inspire1394Model {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for Inspire1394Model {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
@@ -195,7 +199,7 @@ impl CtlModel<SndUnit> for Inspire1394Model {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -318,20 +322,28 @@ impl CtlModel<SndUnit> for Inspire1394Model {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS,
+        )? {
             Ok(true)
         } else if self
             .phys_in_ctl
@@ -450,18 +462,18 @@ impl CtlModel<SndUnit> for Inspire1394Model {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for Inspire1394Model {
+impl NotifyModel<(SndUnit, FwNode), bool> for Inspire1394Model {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -470,18 +482,18 @@ impl NotifyModel<SndUnit, bool> for Inspire1394Model {
     }
 }
 
-impl MeasureModel<SndUnit> for Inspire1394Model {
+impl MeasureModel<(SndUnit, FwNode)> for Inspire1394Model {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.0);
     }
 
-    fn measure_states(&mut self, unit: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_meter(&self.req, unit, TIMEOUT_MS)
     }
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -505,10 +517,10 @@ trait MeterCtlOperation<T: Inspire1394MeterOperation>:
         &mut self,
         card_cntr: &mut CardCntr,
         req: &FwReq,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        T::read_meter(req, &unit.get_node(), self.as_mut(), timeout_ms)?;
+        T::read_meter(req, &unit.1, self.as_mut(), timeout_ms)?;
 
         let mut measured_elem_id_list = Vec::new();
 
@@ -557,8 +569,13 @@ trait MeterCtlOperation<T: Inspire1394MeterOperation>:
         Ok(measured_elem_id_list)
     }
 
-    fn measure_meter(&mut self, req: &FwReq, unit: &SndUnit, timeout_ms: u32) -> Result<(), Error> {
-        T::read_meter(req, &unit.get_node(), self.as_mut(), timeout_ms)
+    fn measure_meter(
+        &mut self,
+        req: &FwReq,
+        unit: &(SndUnit, FwNode),
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::read_meter(req, &unit.1, self.as_mut(), timeout_ms)
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {

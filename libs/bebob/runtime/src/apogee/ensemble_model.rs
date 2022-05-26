@@ -43,9 +43,13 @@ fn input_output_copy_from_meter(model: &mut EnsembleModel) {
         .copy_from_slice(&m.knob_output_vals[1..]);
 }
 
-impl CtlModel<SndUnit> for EnsembleModel {
-    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.get_node())?;
+impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
@@ -85,7 +89,7 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
     fn read(
         &mut self,
-        _: &mut SndUnit,
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -122,20 +126,28 @@ impl CtlModel<SndUnit> for EnsembleModel {
 
     fn write(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
     ) -> Result<bool, Error> {
-        if self
-            .clk_ctl
-            .write_freq(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        if self.clk_ctl.write_freq(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
-        } else if self
-            .clk_ctl
-            .write_src(unit, &self.avc, elem_id, old, new, FCP_TIMEOUT_MS * 3)?
-        {
+        } else if self.clk_ctl.write_src(
+            &mut unit.0,
+            &self.avc,
+            elem_id,
+            old,
+            new,
+            FCP_TIMEOUT_MS * 3,
+        )? {
             Ok(true)
         } else if self
             .convert_ctl
@@ -178,14 +190,14 @@ impl CtlModel<SndUnit> for EnsembleModel {
     }
 }
 
-impl MeasureModel<SndUnit> for EnsembleModel {
+impl MeasureModel<(SndUnit, FwNode)> for EnsembleModel {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.input_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
     }
 
-    fn measure_states(&mut self, _: &mut SndUnit) -> Result<(), Error> {
+    fn measure_states(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl
             .measure_state(&mut self.avc, FCP_TIMEOUT_MS)
             .map(|_| input_output_copy_from_meter(self))
@@ -193,7 +205,7 @@ impl MeasureModel<SndUnit> for EnsembleModel {
 
     fn measure_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -209,18 +221,18 @@ impl MeasureModel<SndUnit> for EnsembleModel {
     }
 }
 
-impl NotifyModel<SndUnit, bool> for EnsembleModel {
+impl NotifyModel<(SndUnit, FwNode), bool> for EnsembleModel {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
 
-    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut (SndUnit, FwNode), _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &SndUnit,
+        _: &(SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -1563,7 +1575,7 @@ impl StreamCtl {
 
     fn write_params(
         &mut self,
-        unit: &SndUnit,
+        unit: &(SndUnit, FwNode),
         avc: &mut BebobAvc,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -1582,9 +1594,9 @@ impl StreamCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.mode = mode;
-                unit.lock()?;
+                unit.0.lock()?;
                 let res = avc.update_params(&params, &mut self.0, timeout_ms);
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res.map(|_| true)
             }
             _ => Ok(false),
