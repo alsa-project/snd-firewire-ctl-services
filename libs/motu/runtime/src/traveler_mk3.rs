@@ -177,10 +177,10 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.word_clk_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.word_clk_ctl.1.append(&mut elem_id_list))?;
         self.reverb_ctl
             .load(card_cntr)
@@ -300,7 +300,7 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
         )? {
             Ok(true)
         } else if self.phone_assign_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -309,7 +309,7 @@ impl CtlModel<(SndMotu, FwNode)> for TravelerMk3 {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.reverb_ctl.write(

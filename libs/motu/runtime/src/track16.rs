@@ -163,7 +163,7 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
             .map(|mut elem_id_list| self.port_assign_ctl.1.append(&mut elem_id_list))?;
         self.opt_iface_ctl.load(card_cntr)?;
         self.phone_assign_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.phone_assign_ctl.1.append(&mut elem_id_list))?;
         self.reverb_ctl
             .load(card_cntr)
@@ -281,7 +281,7 @@ impl CtlModel<(SndMotu, FwNode)> for Track16 {
         )? {
             Ok(true)
         } else if self.phone_assign_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
@@ -386,7 +386,7 @@ impl NotifyModel<(SndMotu, FwNode), u32> for Track16 {
             self.port_assign_ctl
                 .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
             self.phone_assign_ctl
-                .cache(&mut unit.0, &mut self.req, TIMEOUT_MS)?;
+                .cache(unit, &mut self.req, TIMEOUT_MS)?;
         }
         Ok(())
     }

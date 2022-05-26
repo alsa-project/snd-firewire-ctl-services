@@ -66,11 +66,11 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
         self.monitor_input_ctl.load(card_cntr)?;
         let _ = self
             .word_clk_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         self.aesebu_rate_convert_ctl.load(card_cntr)?;
         let _ = self
             .level_meters_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)?;
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -96,7 +96,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
         } else if self.word_clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             elem_value,
@@ -104,7 +104,7 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
         )? {
             Ok(true)
         } else if self.level_meters_ctl.read(
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             elem_value,
@@ -138,24 +138,21 @@ impl CtlModel<(SndMotu, FwNode)> for F896 {
             Ok(true)
         } else if self
             .word_clk_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.aesebu_rate_convert_ctl.write(
-            &mut unit.0,
+            unit,
             &mut self.req,
             elem_id,
             new,
             TIMEOUT_MS,
         )? {
             Ok(true)
-        } else if self.level_meters_ctl.write(
-            &mut unit.0,
-            &mut self.req,
-            elem_id,
-            new,
-            TIMEOUT_MS,
-        )? {
+        } else if self
+            .level_meters_ctl
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
