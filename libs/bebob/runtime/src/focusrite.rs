@@ -9,7 +9,10 @@ pub mod saffirele_model;
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{focusrite::{saffire::*, saffireproio::*, *}, *},
+    bebob_protocols::{
+        focusrite::{saffire::*, saffireproio::*, *},
+        *,
+    },
 };
 
 trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOperation> {
