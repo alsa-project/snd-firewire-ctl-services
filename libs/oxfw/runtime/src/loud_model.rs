@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::{FwFcp, FwFcpExt, SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::{CardCntr, CtlModel, NotifyModel};
-
-use super::common_ctl::CommonCtl;
-use oxfw_protocols::loud::*;
+use {super::common_ctl::CommonCtl, super::*, oxfw_protocols::loud::*};
 
 #[derive(Default, Debug)]
 pub struct LinkFwModel {

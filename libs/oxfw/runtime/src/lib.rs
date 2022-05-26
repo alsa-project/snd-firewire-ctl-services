@@ -10,43 +10,36 @@ mod tascam_model;
 
 mod common_ctl;
 
-use glib::source;
-use glib::{Error, FileError};
-
-use nix::sys::signal;
-use std::sync::mpsc;
-
-use alsactl::{CardExt, CardExtManual, ElemValueExtManual};
-use hinawa::{FwNodeExt, FwNodeExtManual, SndUnitExt, SndUnitExtManual};
-
-use core::card_cntr;
-use core::dispatcher;
-use core::RuntimeOperation;
-
-use ieee1212_config_rom::ConfigRom;
-use ta1394::config_rom::Ta1394ConfigRom;
-
-use model::OxfwModel;
-
-use std::convert::TryFrom;
+use {
+    self::model::*,
+    alsactl::*,
+    core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    glib::{source, Error, FileError},
+    hinawa::{FwFcp, FwFcpExt, FwNodeExt, FwNodeExtManual, FwReq},
+    hinawa::{SndUnit, SndUnitExt, SndUnitExtManual, SndUnitType},
+    ieee1212_config_rom::*,
+    nix::sys::signal,
+    std::{convert::TryFrom, sync::mpsc},
+    ta1394::config_rom::*,
+};
 
 enum Event {
     Shutdown,
     Disconnected,
     BusReset(u32),
-    Elem((alsactl::ElemId, alsactl::ElemEventMask)),
+    Elem((ElemId, ElemEventMask)),
     Timer,
     StreamLock(bool),
 }
 
 pub struct OxfwRuntime {
-    unit: hinawa::SndUnit,
+    unit: SndUnit,
     model: OxfwModel,
-    card_cntr: card_cntr::CardCntr,
+    card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
     tx: mpsc::SyncSender<Event>,
-    dispatchers: Vec<dispatcher::Dispatcher>,
-    timer: Option<dispatcher::Dispatcher>,
+    dispatchers: Vec<Dispatcher>,
+    timer: Option<Dispatcher>,
 }
 
 impl Drop for OxfwRuntime {
@@ -66,10 +59,10 @@ impl Drop for OxfwRuntime {
 
 impl<'a> RuntimeOperation<u32> for OxfwRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
-        let unit = hinawa::SndUnit::new();
+        let unit = SndUnit::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
 
-        if unit.get_property_type() != hinawa::SndUnitType::Oxfw {
+        if unit.get_property_type() != SndUnitType::Oxfw {
             let label = "ALSA oxfw driver is not bound to the unit.";
             return Err(Error::new(FileError::Inval, label));
         }
@@ -91,7 +84,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
 
         let model = OxfwModel::new(vendor.vendor_id, model.model_id)?;
 
-        let card_cntr = card_cntr::CardCntr::new();
+        let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
         // Use uni-directional channel for communication to child threads.
@@ -115,13 +108,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
         self.model.load(&mut self.unit, &mut self.card_cntr)?;
 
         if self.model.measure_elem_list.len() > 0 {
-            let elem_id = alsactl::ElemId::new_by_name(
-                alsactl::ElemIfaceType::Mixer,
-                0,
-                0,
-                Self::TIMER_NAME,
-                0,
-            );
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -150,7 +137,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
                             &events,
                         );
                     } else {
-                        let mut elem_value = alsactl::ElemValue::new();
+                        let mut elem_value = ElemValue::new();
                         if self
                             .card_cntr
                             .card
@@ -195,7 +182,7 @@ impl<'a> OxfwRuntime {
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::NODE_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_snd_unit(&self.unit, move |_| {
@@ -231,7 +218,7 @@ impl<'a> OxfwRuntime {
 
     fn launch_system_event_dispatcher(&mut self) -> Result<(), Error> {
         let name = Self::SYSTEM_DISPATCHER_NAME.to_string();
-        let mut dispatcher = dispatcher::Dispatcher::run(name)?;
+        let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
         dispatcher.attach_signal_handler(signal::Signal::SIGINT, move || {
@@ -253,7 +240,7 @@ impl<'a> OxfwRuntime {
     }
 
     fn start_interval_timer(&mut self) -> Result<(), Error> {
-        let mut dispatcher = dispatcher::Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
+        let mut dispatcher = Dispatcher::run(Self::TIMER_DISPATCHER_NAME.to_string())?;
         let tx = self.tx.clone();
         dispatcher.attach_interval_handler(Self::TIMER_INTERVAL, move || {
             let _ = tx.send(Event::Timer);

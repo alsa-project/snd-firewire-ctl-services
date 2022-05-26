@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::SndUnitExt;
-
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use ta1394::amdtp::*;
-use ta1394::general::*;
-use ta1394::stream_format::*;
-use ta1394::*;
+use {
+    super::*,
+    ta1394::{amdtp::*, general::*, stream_format::*, *},
+};
 
 #[derive(Default, Debug)]
 pub struct CommonCtl {
@@ -18,7 +12,7 @@ pub struct CommonCtl {
     input_fmt_entries: Vec<CompoundAm824Stream>,
     supported_rates: Vec<u32>,
     assumed: bool,
-    pub notified_elem_list: Vec<alsactl::ElemId>,
+    pub notified_elem_list: Vec<ElemId>,
 }
 
 impl<'a> CommonCtl {
@@ -29,7 +23,7 @@ impl<'a> CommonCtl {
     pub fn load<O>(
         &mut self,
         avc: &O,
-        card_cntr: &mut card_cntr::CardCntr,
+        card_cntr: &mut CardCntr,
         timeout_ms: u32,
     ) -> Result<(), Error>
     where
@@ -76,13 +70,7 @@ impl<'a> CommonCtl {
             .map(|rate| rate.to_string())
             .collect::<Vec<String>>();
 
-        let elem_id = alsactl::ElemId::new_by_name(
-            alsactl::ElemIfaceType::Card,
-            0,
-            0,
-            Self::CLK_RATE_NAME,
-            0,
-        );
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, Self::CLK_RATE_NAME, 0);
         let mut elem_id_list = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
         self.notified_elem_list.append(&mut elem_id_list);
 
@@ -113,8 +101,8 @@ impl<'a> CommonCtl {
     pub fn read<O>(
         &mut self,
         avc: &O,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
@@ -231,10 +219,10 @@ impl<'a> CommonCtl {
 
     pub fn write<O>(
         &mut self,
-        unit: &hinawa::SndUnit,
+        unit: &SndUnit,
         avc: &O,
-        elem_id: &alsactl::ElemId,
-        elem_value: &alsactl::ElemValue,
+        elem_id: &ElemId,
+        elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where

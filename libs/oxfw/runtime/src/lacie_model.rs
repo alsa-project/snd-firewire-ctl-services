@@ -1,17 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use hinawa::{FwFcpExt, SndUnitExt};
-
-use alsactl::CardExtManual;
-
-use core::card_cntr;
-use core::elem_value_accessor::ElemValueAccessor;
-
-use oxfw_protocols::lacie::*;
-
-use super::common_ctl::CommonCtl;
+use {
+    super::{common_ctl::*, *},
+    oxfw_protocols::lacie::*,
+};
 
 #[derive(Default, Debug)]
 pub struct LacieModel {
@@ -25,12 +18,8 @@ const FCP_TIMEOUT_MS: u32 = 100;
 const VOL_NAME: &str = "PCM Playback Volume";
 const MUTE_NAME: &str = "PCM Playback Switch";
 
-impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
-    fn load(
-        &mut self,
-        unit: &mut hinawa::SndUnit,
-        card_cntr: &mut card_cntr::CardCntr,
-    ) -> Result<(), Error> {
+impl CtlModel<SndUnit> for LacieModel {
+    fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.avc.bind(&unit.get_node())?;
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
@@ -42,8 +31,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
             .find(|elem_id| elem_id.get_name().as_str() == VOL_NAME)
             .is_none();
         if self.voluntary {
-            let elem_id =
-                alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
             let _ = card_cntr.add_int_elems(
                 &elem_id,
                 1,
@@ -55,8 +43,7 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
                 true,
             )?;
 
-            let elem_id =
-                alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MUTE_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
         }
 
@@ -65,9 +52,9 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
 
     fn read(
         &mut self,
-        _: &mut hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        _: &mut SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         if self
             .common_ctl
@@ -97,10 +84,10 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
 
     fn write(
         &mut self,
-        unit: &mut hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        _: &alsactl::ElemValue,
-        new: &alsactl::ElemValue,
+        unit: &mut SndUnit,
+        elem_id: &ElemId,
+        _: &ElemValue,
+        new: &ElemValue,
     ) -> Result<bool, Error> {
         if self
             .common_ctl
@@ -125,20 +112,20 @@ impl card_cntr::CtlModel<hinawa::SndUnit> for LacieModel {
     }
 }
 
-impl card_cntr::NotifyModel<hinawa::SndUnit, bool> for LacieModel {
-    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<alsactl::ElemId>) {
+impl NotifyModel<SndUnit, bool> for LacieModel {
+    fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.common_ctl.notified_elem_list);
     }
 
-    fn parse_notification(&mut self, _: &mut hinawa::SndUnit, _: &bool) -> Result<(), Error> {
+    fn parse_notification(&mut self, _: &mut SndUnit, _: &bool) -> Result<(), Error> {
         Ok(())
     }
 
     fn read_notified_elem(
         &mut self,
-        _: &hinawa::SndUnit,
-        elem_id: &alsactl::ElemId,
-        elem_value: &mut alsactl::ElemValue,
+        _: &SndUnit,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         self.common_ctl
             .read(&self.avc, elem_id, elem_value, FCP_TIMEOUT_MS)
