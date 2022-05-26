@@ -42,14 +42,18 @@ impl OxfwModel {
         Ok(model)
     }
 
-    pub fn load(&mut self, unit: &mut SndUnit, card_cntr: &mut CardCntr) -> Result<(), Error> {
+    pub fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
         match &mut self.ctl_model {
-            OxfwCtlModel::Fireone(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Duet(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Firewave(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Speaker(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::TapcoLinkFw(m) => m.load(unit, card_cntr),
-            OxfwCtlModel::Common(m) => m.load(unit, card_cntr),
+            OxfwCtlModel::Fireone(m) => m.load(&mut unit.0, card_cntr),
+            OxfwCtlModel::Duet(m) => m.load(&mut unit.0, card_cntr),
+            OxfwCtlModel::Firewave(m) => m.load(&mut unit.0, card_cntr),
+            OxfwCtlModel::Speaker(m) => m.load(&mut unit.0, card_cntr),
+            OxfwCtlModel::TapcoLinkFw(m) => m.load(&mut unit.0, card_cntr),
+            OxfwCtlModel::Common(m) => m.load(&mut unit.0, card_cntr),
         }?;
 
         match &mut self.ctl_model {
@@ -71,56 +75,68 @@ impl OxfwModel {
 
     pub fn dispatch_elem_event(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
         elem_id: &alsactl::ElemId,
         events: &alsactl::ElemEventMask,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {
-            OxfwCtlModel::Fireone(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
-            OxfwCtlModel::Duet(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
-            OxfwCtlModel::Firewave(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
-            OxfwCtlModel::Speaker(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
-            OxfwCtlModel::TapcoLinkFw(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
-            OxfwCtlModel::Common(m) => card_cntr.dispatch_elem_event(unit, elem_id, events, m),
+            OxfwCtlModel::Fireone(m) => {
+                card_cntr.dispatch_elem_event(&mut unit.0, elem_id, events, m)
+            }
+            OxfwCtlModel::Duet(m) => card_cntr.dispatch_elem_event(&mut unit.0, elem_id, events, m),
+            OxfwCtlModel::Firewave(m) => {
+                card_cntr.dispatch_elem_event(&mut unit.0, elem_id, events, m)
+            }
+            OxfwCtlModel::Speaker(m) => {
+                card_cntr.dispatch_elem_event(&mut unit.0, elem_id, events, m)
+            }
+            OxfwCtlModel::TapcoLinkFw(m) => {
+                card_cntr.dispatch_elem_event(&mut unit.0, elem_id, events, m)
+            }
+            OxfwCtlModel::Common(m) => {
+                card_cntr.dispatch_elem_event(&mut unit.0, elem_id, events, m)
+            }
         }
     }
 
     pub fn measure_elems(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {
-            OxfwCtlModel::Duet(m) => card_cntr.measure_elems(unit, &self.measure_elem_list, m),
+            OxfwCtlModel::Duet(m) => {
+                card_cntr.measure_elems(&mut unit.0, &self.measure_elem_list, m)
+            }
             _ => Ok(()),
         }
     }
 
     pub fn dispatch_notification(
         &mut self,
-        unit: &mut SndUnit,
+        unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
         locked: bool,
     ) -> Result<(), Error> {
         match &mut self.ctl_model {
             OxfwCtlModel::Fireone(m) => {
-                card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(&mut unit.0, &locked, &self.notified_elem_list, m)
             }
             OxfwCtlModel::Duet(m) => {
-                card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(&mut unit.0, &locked, &self.notified_elem_list, m)
             }
             OxfwCtlModel::Firewave(m) => {
-                card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(&mut unit.0, &locked, &self.notified_elem_list, m)
             }
             OxfwCtlModel::Speaker(m) => {
-                card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(&mut unit.0, &locked, &self.notified_elem_list, m)
             }
             OxfwCtlModel::TapcoLinkFw(m) => {
-                card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(&mut unit.0, &locked, &self.notified_elem_list, m)
             }
             OxfwCtlModel::Common(m) => {
-                card_cntr.dispatch_notification(unit, &locked, &self.notified_elem_list, m)
+                card_cntr.dispatch_notification(&mut unit.0, &locked, &self.notified_elem_list, m)
             }
         }
     }
