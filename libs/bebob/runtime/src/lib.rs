@@ -24,7 +24,7 @@ use {
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
     hinawa::{FwFcpExt, FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hinawa::{SndUnit, SndUnitExt, SndUnitExtManual, SndUnitType},
+    hitaki::*,
     ieee1212_config_rom::ConfigRom,
     model::*,
     nix::sys::signal,
@@ -68,15 +68,19 @@ impl Drop for BebobRuntime {
 
 impl RuntimeOperation<u32> for BebobRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
+        let path = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndUnit::new();
-        unit.open(&format!("/dev/snd/hwC{}D0", card_id))?;
+        unit.open(&path, 0)?;
 
-        if unit.get_property_type() != SndUnitType::Bebob {
+        if unit.get_property_unit_type() != AlsaFirewireType::Bebob {
             let label = "ALSA bebob driver is not bound to the unit.";
             return Err(Error::new(FileError::Inval, label));
         }
 
-        let node = unit.get_node();
+        let path = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let node = FwNode::new();
+        node.open(&path)?;
+
         let raw = node.get_config_rom()?;
 
         let config_rom = ConfigRom::try_from(raw).map_err(|e| {
@@ -195,7 +199,7 @@ impl<'a> BebobRuntime {
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
+        dispatcher.attach_alsa_firewire(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
@@ -234,14 +238,15 @@ impl<'a> BebobRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_lock_status(move |_, locked| {
+        self.unit.0.connect_property_is_locked_notify(move |unit| {
+            let is_locked = unit.get_property_is_locked();
             let t = tx.clone();
             let _ = std::thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual
                 // packet streaming. Here, wait for 500 msec to catch the actual packet
                 // streaming.
                 std::thread::sleep(std::time::Duration::from_millis(500));
-                let _ = t.send(Event::StreamLock(locked));
+                let _ = t.send(Event::StreamLock(is_locked));
             });
         });
 

@@ -323,7 +323,7 @@ impl InputParamsCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ADAT_MUTE_NAME => {
-                if unit.0.get_property_streaming() {
+                if unit.0.get_property_is_locked() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
 
@@ -345,7 +345,7 @@ impl InputParamsCtl {
                 })
             }
             SPDIF_MUTE_NAME => {
-                if unit.0.get_property_streaming() {
+                if unit.0.get_property_is_locked() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
 
