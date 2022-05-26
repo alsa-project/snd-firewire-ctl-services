@@ -11,3 +11,5 @@ const PRESONUS_OUI: [u8; 3] = [0x00, 0x0a, 0x92];
 pub mod firebox;
 pub mod fp10;
 pub mod inspire1394;
+
+use super::*;

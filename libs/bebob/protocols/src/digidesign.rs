@@ -48,8 +48,6 @@
 //!   maximum size: 0x180000
 //! ```
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
 use super::*;
 
 /// The protocol implementation of operation for media clock and sampling clock.

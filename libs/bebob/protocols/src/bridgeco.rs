@@ -6,16 +6,7 @@
 //! The module includes structure, enumeration, trait and its implementation for AV/C command
 //! extensions defined by BridgeCo. AG for BeBoB solution.
 
-use glib::{Error, FileError};
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use ta1394::general::{PlugInfo, SubunitInfo};
-use ta1394::stream_format::{AmStream, StreamFormat, SupportStatus};
-use ta1394::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
-use ta1394::{AvcControl, AvcOp, AvcStatus};
-
-use crate::*;
+use {super::*, ta1394::stream_format::*};
 
 //
 // Bco Extended Plug Info command

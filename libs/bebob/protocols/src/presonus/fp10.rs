@@ -27,7 +27,7 @@
 //! stream-input-9/10 ----------------> digital-output-1/2
 //! ```
 
-use crate::*;
+use super::*;
 
 /// The protocol implementation for media and sampling clock of Firepod/FP10.
 #[derive(Default)]

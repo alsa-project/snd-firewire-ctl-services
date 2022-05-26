@@ -184,13 +184,7 @@
 //!   maximum size: 0x180000
 //! ```
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
-use ta1394::MUSIC_SUBUNIT_0;
-
 use super::*;
-use crate::*;
 
 /// The protocol implementation for media and sampling clock of FireWire 410.
 #[derive(Default)]

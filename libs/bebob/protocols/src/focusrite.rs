@@ -35,11 +35,7 @@
 pub mod saffire;
 pub mod saffireproio;
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use ta1394::{general::*, *};
+use super::*;
 
 /// OUI registerd to IEEE for Focusrite Audio Engineering Ltd.
 pub const FOCUSRITE_OUI: [u8; 3] = [0x00, 0x13, 0x0e];

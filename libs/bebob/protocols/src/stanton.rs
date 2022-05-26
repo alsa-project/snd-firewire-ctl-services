@@ -44,9 +44,6 @@
 
 use super::*;
 
-use ta1394::ccm::{SignalAddr, SignalSubunitAddr};
-use ta1394::MUSIC_SUBUNIT_0;
-
 /// The protocol implementation for media and sampling clock of Scratchamp.
 #[derive(Default)]
 pub struct ScratchampClkProtocol;

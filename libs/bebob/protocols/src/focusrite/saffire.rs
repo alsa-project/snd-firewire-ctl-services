@@ -115,7 +115,6 @@
 //! ```
 
 use super::*;
-use crate::*;
 
 /// The protocol implementation of media and sampling clocks for Saffire. 192.0 kHz is available
 /// when configured by the other operation.

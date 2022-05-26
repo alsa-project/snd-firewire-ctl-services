@@ -72,12 +72,7 @@
 //!   maximum size: 0x12fb24
 //! ```
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use ta1394::ccm::{SignalAddr, SignalSubunitAddr, SignalUnitAddr};
-use ta1394::MUSIC_SUBUNIT_0;
-
-use crate::*;
+use super::*;
 
 /// The protocol implementation for media and sampling clock of ProFire Lightbridge.
 #[derive(Default)]
