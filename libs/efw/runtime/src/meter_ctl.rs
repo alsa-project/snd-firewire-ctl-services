@@ -2,11 +2,11 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    glib::{Error, FileError},
-    hinawa::SndEfw,
-    alsactl::{ElemId, ElemIfaceType, ElemValueExt, ElemValueExtManual, ElemValue},
+    alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual},
     core::card_cntr::*,
     efw_protocols::hw_info::*,
+    glib::{Error, FileError},
+    hinawa::SndEfw,
 };
 
 #[derive(Default)]
@@ -52,27 +52,46 @@ impl MeterCtl {
         }
 
         if self.midi_outputs > 0 {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, MIDI_OUT_DETECT_NAME, 0);
-            let elem_id_list =
-                card_cntr.add_bool_elems(&elem_id, 1, self.midi_outputs, false)?;
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Rawmidi, 0, 0, MIDI_OUT_DETECT_NAME, 0);
+            let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, self.midi_outputs, false)?;
             self.measure_elems.extend_from_slice(&elem_id_list);
         }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METERS_NAME, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
-            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-            hwinfo.mixer_captures, None, false)?;
+        let elem_id_list = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            hwinfo.mixer_captures,
+            None,
+            false,
+        )?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_METERS_NAME, 0);
-        let elem_id_list = card_cntr.add_int_elems(&elem_id, 1,
-            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-            hwinfo.mixer_playbacks, None, false)?;
+        let elem_id_list = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            hwinfo.mixer_playbacks,
+            None,
+            false,
+        )?;
         self.measure_elems.extend_from_slice(&elem_id_list);
 
-        let has_robot_guitar = hwinfo.caps.iter().find(|&e| *e == HwCap::RobotGuitar).is_some();
+        let has_robot_guitar = hwinfo
+            .caps
+            .iter()
+            .find(|&e| *e == HwCap::RobotGuitar)
+            .is_some();
         if has_robot_guitar {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, GUITAR_STEREO_CONNECT_NAME, 0);
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Card, 0, 0, GUITAR_STEREO_CONNECT_NAME, 0);
             let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
             self.measure_elems.extend_from_slice(&elem_id_list);
 
@@ -81,9 +100,14 @@ impl MeterCtl {
             self.measure_elems.extend_from_slice(&elem_id_list);
         }
 
-        let has_guitar_charge = hwinfo.caps.iter().find(|&e| *e == HwCap::GuitarCharging).is_some();
+        let has_guitar_charge = hwinfo
+            .caps
+            .iter()
+            .find(|&e| *e == HwCap::GuitarCharging)
+            .is_some();
         if has_guitar_charge {
-            let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, GUITAR_CHARGE_STATE_NAME, 0);
+            let elem_id =
+                ElemId::new_by_name(ElemIfaceType::Card, 0, 0, GUITAR_CHARGE_STATE_NAME, 0);
             let elem_id_list = card_cntr.add_bool_elems(&elem_id, 1, 1, false)?;
             self.measure_elems.extend_from_slice(&elem_id_list);
         }
@@ -101,9 +125,11 @@ impl MeterCtl {
         }
     }
 
-    pub fn measure_elem(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue)
-        -> Result<bool, Error>
-    {
+    pub fn measure_elem(
+        &mut self,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_DETECT_NAME => {
                 if let Some(meters) = &self.meters {

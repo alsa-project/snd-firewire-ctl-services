@@ -12,20 +12,14 @@ mod output_ctl;
 mod port_ctl;
 
 use {
-    glib::{source, Error},
-    nix::sys::signal,
-    std::{sync::mpsc, time, thread},
-    hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
-    core::{card_cntr::*, dispatcher::*, RuntimeOperation},
     alsactl::{
-        CardExt,
-        CardExtManual,
-        ElemEventMask,
-        ElemId,
-        ElemIfaceType,
-        ElemValue,
-        ElemValueExtManual,
+        CardExt, CardExtManual, ElemEventMask, ElemId, ElemIfaceType, ElemValue, ElemValueExtManual,
     },
+    core::{card_cntr::*, dispatcher::*, RuntimeOperation},
+    glib::{source, Error},
+    hinawa::{FwNodeExt, FwNodeExtManual, SndEfw, SndEfwExt, SndUnitExt},
+    nix::sys::signal,
+    std::{sync::mpsc, thread, time},
 };
 
 enum Event {
@@ -101,9 +95,11 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, Self::TIMER_NAME, 0);
         let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        self.model.get_measure_elem_list(&mut self.measured_elem_id_list);
+        self.model
+            .get_measure_elem_list(&mut self.measured_elem_id_list);
 
-        self.model.get_notified_elem_list(&mut self.notified_elem_id_list);
+        self.model
+            .get_notified_elem_list(&mut self.notified_elem_id_list);
 
         Ok(())
     }

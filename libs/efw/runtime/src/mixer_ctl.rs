@@ -2,12 +2,12 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
+    alsa_ctl_tlv_codec::items::DbInterval,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
+    core::{card_cntr::*, elem_value_accessor::*},
+    efw_protocols::{hw_ctl::*, hw_info::*, monitor::*, playback::*},
     glib::Error,
     hinawa::SndEfw,
-    alsactl::{ElemId, ElemIfaceType, ElemValue},
-    alsa_ctl_tlv_codec::items::DbInterval,
-    core::{card_cntr::*, elem_value_accessor::*},
-    efw_protocols::{hw_info::*, hw_ctl::*, playback::*, monitor::*},
 };
 
 #[derive(Default)]
@@ -33,37 +33,57 @@ impl MixerCtl {
     const COEF_MIN: i32 = 0x00000000;
     const COEF_MAX: i32 = 0x02000000;
     const COEF_STEP: i32 = 0x00000001;
-    const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 600, linear: false, mute_avail: false};
+    const COEF_TLV: DbInterval = DbInterval {
+        min: -14400,
+        max: 600,
+        linear: false,
+        mute_avail: false,
+    };
 
     const PAN_MIN: i32 = 0;
     const PAN_MAX: i32 = 255;
     const PAN_STEP: i32 = 1;
 
-    pub fn load(
-        &mut self,
-        hwinfo: &HwInfo,
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
+    pub fn load(&mut self, hwinfo: &HwInfo, card_cntr: &mut CardCntr) -> Result<(), Error> {
         self.playbacks = hwinfo.mixer_playbacks;
         self.captures = hwinfo.mixer_captures;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1,
-            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-            self.playbacks, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            self.playbacks,
+            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
+            true,
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
 
-        if hwinfo.caps.iter().find(|cap| HwCap::ControlRoom.eq(cap)).is_none() {
+        if hwinfo
+            .caps
+            .iter()
+            .find(|cap| HwCap::ControlRoom.eq(cap))
+            .is_none()
+        {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PLAYBACK_SOLO_NAME, 0);
             let _ = card_cntr.add_bool_elems(&elem_id, 1, self.playbacks, true)?;
         }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_GAIN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, self.playbacks,
-            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-            self.captures, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            self.playbacks,
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            self.captures,
+            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
+            true,
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, self.playbacks, self.captures, true)?;
@@ -72,9 +92,16 @@ impl MixerCtl {
         let _ = card_cntr.add_bool_elems(&elem_id, self.playbacks, self.captures, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MONITOR_PAN_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, self.playbacks,
-            Self::PAN_MIN, Self::PAN_MAX, Self::PAN_STEP,
-            self.captures, None, true)?;
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            self.playbacks,
+            Self::PAN_MIN,
+            Self::PAN_MAX,
+            Self::PAN_STEP,
+            self.captures,
+            None,
+            true,
+        )?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, ENABLE_MIXER, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -145,10 +172,13 @@ impl MixerCtl {
                 })?;
                 Ok(true)
             }
-            ENABLE_MIXER=> {
+            ENABLE_MIXER => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     let flags = unit.get_flags(timeout_ms)?;
-                    Ok(flags.iter().find(|&flag| *flag == HwCtlFlag::MixerEnabled).is_some())
+                    Ok(flags
+                        .iter()
+                        .find(|&flag| *flag == HwCtlFlag::MixerEnabled)
+                        .is_some())
                 })?;
                 Ok(true)
             }
@@ -211,7 +241,7 @@ impl MixerCtl {
                 })?;
                 Ok(true)
             }
-            ENABLE_MIXER=> {
+            ENABLE_MIXER => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     if val {
                         let flags = [HwCtlFlag::MixerEnabled];

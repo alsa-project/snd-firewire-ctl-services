@@ -2,12 +2,12 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    glib::{Error, FileError},
-    hinawa::SndEfw,
-    alsactl::{ElemId, ElemIfaceType, ElemValue},
     alsa_ctl_tlv_codec::items::DbInterval,
+    alsactl::{ElemId, ElemIfaceType, ElemValue},
     core::{card_cntr::*, elem_value_accessor::*},
     efw_protocols::{hw_info::*, phys_output::*, *},
+    glib::{Error, FileError},
+    hinawa::SndEfw,
 };
 
 #[derive(Default)]
@@ -24,10 +24,15 @@ impl OutputCtl {
     const COEF_MIN: i32 = 0x00000000;
     const COEF_MAX: i32 = 0x02000000;
     const COEF_STEP: i32 = 0x00000001;
-    const COEF_TLV: DbInterval = DbInterval{min: -14400, max: 600, linear: false, mute_avail: false};
+    const COEF_TLV: DbInterval = DbInterval {
+        min: -14400,
+        max: 600,
+        linear: false,
+        mute_avail: false,
+    };
 
     const OUT_NOMINAL_LABELS: [&'static str; 2] = ["+4dBu", "-10dBV"];
-    const OUT_NOMINAL_LEVELS: [NominalSignalLevel;2] = [
+    const OUT_NOMINAL_LEVELS: [NominalSignalLevel; 2] = [
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
     ];
@@ -41,21 +46,36 @@ impl OutputCtl {
             }
         });
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
-        let _ = card_cntr.add_int_elems(&elem_id, 1,
-            Self::COEF_MIN, Self::COEF_MAX, Self::COEF_STEP,
-            self.phys_outputs, Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)), true)?;
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_VOL_NAME, 0);
+        let _ = card_cntr.add_int_elems(
+            &elem_id,
+            1,
+            Self::COEF_MIN,
+            Self::COEF_MAX,
+            Self::COEF_STEP,
+            self.phys_outputs,
+            Some(&Into::<Vec<u32>>::into(Self::COEF_TLV)),
+            true,
+        )?;
 
-        let elem_id = ElemId::new_by_name(
-            ElemIfaceType::Mixer, 0, 0, OUT_MUTE_NAME, 0);
+        let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_MUTE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, self.phys_outputs, true)?;
 
-        if hwinfo.caps.iter().find(|&cap| *cap == HwCap::NominalOutput).is_some() {
-            let elem_id = ElemId::new_by_name(
-                ElemIfaceType::Mixer, 0, 0, OUT_NOMINAL_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1,
-                self.phys_outputs, &Self::OUT_NOMINAL_LABELS, None, true)?;
+        if hwinfo
+            .caps
+            .iter()
+            .find(|&cap| *cap == HwCap::NominalOutput)
+            .is_some()
+        {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_NOMINAL_NAME, 0);
+            let _ = card_cntr.add_enum_elems(
+                &elem_id,
+                1,
+                self.phys_outputs,
+                &Self::OUT_NOMINAL_LABELS,
+                None,
+                true,
+            )?;
         }
 
         Ok(())

@@ -2,24 +2,24 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    glib::{Error, FileError},
-    hinawa::SndEfw,
     alsactl::{ElemId, ElemIfaceType, ElemValue},
     core::{card_cntr::*, elem_value_accessor::*},
     efw_protocols::{hw_info::*, phys_input::*, *},
+    glib::{Error, FileError},
+    hinawa::SndEfw,
 };
 
 #[derive(Default)]
 pub struct InputCtl {
     phys_inputs: usize,
-    cache: Option<Vec::<NominalSignalLevel>>,
+    cache: Option<Vec<NominalSignalLevel>>,
 }
 
 const IN_NOMINAL_NAME: &str = "input-nominal";
 
 impl InputCtl {
-    const IN_NOMINAL_LABELS: [&'static str;2] = ["+4dBu", "-10dBV"];
-    const IN_NOMINAL_LEVELS: [NominalSignalLevel;2] = [
+    const IN_NOMINAL_LABELS: [&'static str; 2] = ["+4dBu", "-10dBV"];
+    const IN_NOMINAL_LEVELS: [NominalSignalLevel; 2] = [
         NominalSignalLevel::Professional,
         NominalSignalLevel::Consumer,
     ];
@@ -29,23 +29,41 @@ impl InputCtl {
         unit: &mut SndEfw,
         hwinfo: &HwInfo,
         card_cntr: &mut CardCntr,
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
-        self.phys_inputs = hwinfo.phys_inputs.iter().fold(0, |accm, entry| accm + entry.group_count);
+        self.phys_inputs = hwinfo
+            .phys_inputs
+            .iter()
+            .fold(0, |accm, entry| accm + entry.group_count);
 
-        if hwinfo.caps.iter().find(|&cap| *cap == HwCap::NominalInput).is_some() {
-            let elem_id = ElemId::new_by_name( ElemIfaceType::Mixer, 0, 0, IN_NOMINAL_NAME, 0);
-            let _ = card_cntr.add_enum_elems(&elem_id, 1,
-                self.phys_inputs, &Self::IN_NOMINAL_LABELS, None, true)?;
+        if hwinfo
+            .caps
+            .iter()
+            .find(|&cap| *cap == HwCap::NominalInput)
+            .is_some()
+        {
+            let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, IN_NOMINAL_NAME, 0);
+            let _ = card_cntr.add_enum_elems(
+                &elem_id,
+                1,
+                self.phys_inputs,
+                &Self::IN_NOMINAL_LABELS,
+                None,
+                true,
+            )?;
 
             // FPGA models return invalid state of nominal level.
-            let has_fpga = hwinfo.caps.iter().find(|&cap| *cap == HwCap::Fpga).is_some();
+            let has_fpga = hwinfo
+                .caps
+                .iter()
+                .find(|&cap| *cap == HwCap::Fpga)
+                .is_some();
             if has_fpga {
-                let cache = vec![NominalSignalLevel::Professional;self.phys_inputs];
-                cache.iter().enumerate()
-                    .try_for_each( |(i, &level)| {
-                        unit.set_nominal(i, level, timeout_ms)
-                    })?;
+                let cache = vec![NominalSignalLevel::Professional; self.phys_inputs];
+                cache
+                    .iter()
+                    .enumerate()
+                    .try_for_each(|(i, &level)| unit.set_nominal(i, level, timeout_ms))?;
                 self.cache = Some(cache);
             }
         }
@@ -69,7 +87,8 @@ impl InputCtl {
                     } else {
                         // For models with DSP.
                         let level = unit.get_nominal(idx, timeout_ms)?;
-                        if let Some(pos) = Self::IN_NOMINAL_LEVELS.iter().position(|&l| l == level) {
+                        if let Some(pos) = Self::IN_NOMINAL_LEVELS.iter().position(|&l| l == level)
+                        {
                             Ok(pos as u32)
                         } else {
                             unreachable!();

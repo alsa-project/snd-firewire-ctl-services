@@ -2,24 +2,17 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    glib::{Error, FileError},
-    core::card_cntr::*,
-    hinawa::SndEfw,
-    alsactl::{ElemId, ElemValue},
-    ieee1212_config_rom::ConfigRom,
-    ta1394::config_rom::Ta1394ConfigRom,
-    efw_protocols::hw_info::*,
     super::{
-       clk_ctl,
-       mixer_ctl,
-       output_ctl,
-       input_ctl,
-       port_ctl,
-       meter_ctl,
-       guitar_ctl,
-       iec60958_ctl,
+        clk_ctl, guitar_ctl, iec60958_ctl, input_ctl, meter_ctl, mixer_ctl, output_ctl, port_ctl,
     },
+    alsactl::{ElemId, ElemValue},
+    core::card_cntr::*,
+    efw_protocols::hw_info::*,
+    glib::{Error, FileError},
+    hinawa::SndEfw,
+    ieee1212_config_rom::ConfigRom,
     std::convert::TryFrom,
+    ta1394::config_rom::Ta1394ConfigRom,
 };
 
 const TIMEOUT_MS: u32 = 100;
@@ -38,18 +31,18 @@ pub struct EfwModel {
 
 impl EfwModel {
     pub fn new(raw: &[u8]) -> Result<Self, Error> {
-        let config_rom = ConfigRom::try_from(raw)
-            .map_err(|e| {
-                let label = format!("Malformed configuration ROM detected: {}", e);
-                Error::new(FileError::Nxio, &label)
-            })?;
+        let config_rom = ConfigRom::try_from(raw).map_err(|e| {
+            let label = format!("Malformed configuration ROM detected: {}", e);
+            Error::new(FileError::Nxio, &label)
+        })?;
 
-        let (vendor, model) = config_rom.get_vendor()
-            .and_then(|vendor| {
-                config_rom.get_model()
-                    .map(|model| (vendor, model))
-            })
-            .ok_or(Error::new(FileError::Nxio, "Configuration ROM is not for 1394TA standard"))?;
+        let (vendor, model) = config_rom
+            .get_vendor()
+            .and_then(|vendor| config_rom.get_model().map(|model| (vendor, model)))
+            .ok_or(Error::new(
+                FileError::Nxio,
+                "Configuration ROM is not for 1394TA standard",
+            ))?;
 
         match (vendor.vendor_id, model.model_id) {
             // Mackie/Loud Onyx 400F.
@@ -92,29 +85,42 @@ impl CtlModel<SndEfw> for EfwModel {
         self.mixer_ctl.load(&hwinfo, card_cntr)?;
         self.output_ctl.load(&hwinfo, card_cntr)?;
         self.input_ctl.load(unit, &hwinfo, card_cntr, TIMEOUT_MS)?;
-        self.port_ctl.load(&hwinfo, card_cntr, unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
+        self.port_ctl
+            .load(&hwinfo, card_cntr, unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
         self.meter_ctl.load(&hwinfo, card_cntr)?;
         self.guitar_ctl.load(&hwinfo, card_cntr)?;
         self.iec60958_ctl.load(&hwinfo, card_cntr)?;
         Ok(())
     }
 
-    fn read(&mut self, unit: &mut SndEfw, elem_id: &ElemId,
-            elem_value: &mut ElemValue)
-        -> Result<bool, Error> {
+    fn read(
+        &mut self,
+        unit: &mut SndEfw,
+        elem_id: &ElemId,
+        elem_value: &mut ElemValue,
+    ) -> Result<bool, Error> {
         if self.clk_ctl.read(elem_id, elem_value)? {
             Ok(true)
         } else if self.mixer_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.output_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self
+            .output_ctl
+            .read(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else if self.input_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
         } else if self.port_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.guitar_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self
+            .guitar_ctl
+            .read(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
-        } else if self.iec60958_ctl.read(unit, elem_id, elem_value, TIMEOUT_MS)? {
+        } else if self
+            .iec60958_ctl
+            .read(unit, elem_id, elem_value, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -140,7 +146,10 @@ impl CtlModel<SndEfw> for EfwModel {
             Ok(true)
         } else if self.guitar_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
             Ok(true)
-        } else if self.iec60958_ctl.write(unit, elem_id, old, new, TIMEOUT_MS)? {
+        } else if self
+            .iec60958_ctl
+            .write(unit, elem_id, old, new, TIMEOUT_MS)?
+        {
             Ok(true)
         } else {
             Ok(false)
@@ -161,7 +170,7 @@ impl MeasureModel<SndEfw> for EfwModel {
         &mut self,
         _: &SndEfw,
         elem_id: &ElemId,
-        elem_value: &mut ElemValue
+        elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
         self.meter_ctl.measure_elem(elem_id, elem_value)
     }
@@ -176,7 +185,8 @@ impl NotifyModel<SndEfw, bool> for EfwModel {
     fn parse_notification(&mut self, unit: &mut SndEfw, &locked: &bool) -> Result<(), Error> {
         if locked {
             self.clk_ctl.cache(unit, TIMEOUT_MS)?;
-            self.port_ctl.cache(unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
+            self.port_ctl
+                .cache(unit, self.clk_ctl.curr_rate, TIMEOUT_MS)?;
         }
         Ok(())
     }
