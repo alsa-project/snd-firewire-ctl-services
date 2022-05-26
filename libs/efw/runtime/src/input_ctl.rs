@@ -2,11 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    alsactl::{ElemId, ElemIfaceType, ElemValue},
-    core::{card_cntr::*, elem_value_accessor::*},
+    super::*,
     efw_protocols::{hw_info::*, phys_input::*, *},
-    glib::{Error, FileError},
-    hinawa::SndEfw,
 };
 
 #[derive(Default)]

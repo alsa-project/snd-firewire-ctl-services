@@ -2,11 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    alsactl::{ElemId, ElemIfaceType, ElemValue},
-    core::{card_cntr::*, elem_value_accessor::*},
+    super::*,
     efw_protocols::{hw_ctl::*, hw_info::*, ClkSrc},
-    glib::{Error, FileError},
-    hinawa::{SndEfw, SndUnitExt},
 };
 
 fn clk_src_to_str(src: &ClkSrc) -> &'static str {

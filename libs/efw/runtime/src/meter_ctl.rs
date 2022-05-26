@@ -1,13 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual},
-    core::card_cntr::*,
-    efw_protocols::hw_info::*,
-    glib::{Error, FileError},
-    hinawa::SndEfw,
-};
+use {super::*, efw_protocols::hw_info::*};
 
 #[derive(Default)]
 pub struct MeterCtl {

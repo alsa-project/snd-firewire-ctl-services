@@ -2,11 +2,8 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual},
-    core::{card_cntr::*, elem_value_accessor::*},
+    super::*,
     efw_protocols::{hw_info::*, port_conf::*},
-    glib::{Error, FileError},
-    hinawa::SndEfw,
 };
 
 fn phys_group_type_to_str(phys_group_type: &PhysGroupType) -> &'static str {
