@@ -8,9 +8,7 @@
 
 pub mod fe8;
 
-use hinawa::{FwRcode, FwTcode};
-
-use crate::*;
+use super::*;
 
 const ENABLE_NOTIFICATION: u64 = 0x0310;
 const ADDR_HIGH_OFFSET: u64 = 0x0314;

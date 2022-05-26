@@ -7,9 +7,10 @@
 //! 1394 Trading Association. This module includes the parse of unit directory in the
 //! configuration ROM.
 
-use glib::{Error, FileError};
-
-use ieee1212_config_rom::{entry::*, *};
+use {
+    super::*,
+    ieee1212_config_rom::{entry::*, *},
+};
 
 /// The structure for data in unit directory of configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
