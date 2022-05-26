@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwReq;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use ff_protocols::{
-    latter::{ff802::*, *},
-    *,
+use {
+    super::{latter_ctls::*, *},
+    ff_protocols::{
+        latter::{ff802::*, *},
+        *,
+    },
 };
-
-use super::model::*;
-
-use super::latter_ctls::*;
 
 #[derive(Default, Debug)]
 pub struct Ff802Model {

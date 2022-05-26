@@ -1,19 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwReq;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-
-use ff_protocols::{latter::*, *};
-
-use super::model::*;
+use {
+    super::*,
+    alsa_ctl_tlv_codec::items::DbInterval,
+    ff_protocols::{latter::*, *},
+};
 
 const LINE_INPUT_METER: &str = "meter:line-input";
 const MIC_INPUT_METER: &str = "meter:mic-input";

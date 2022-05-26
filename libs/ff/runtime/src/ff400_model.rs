@@ -1,25 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use hinawa::FwReq;
-use hinawa::{SndUnit, SndUnitExt};
-
-use alsactl::{ElemId, ElemIfaceType, ElemValue, ElemValueExt, ElemValueExtManual};
-
-use alsa_ctl_tlv_codec::items::DbInterval;
-
-use core::card_cntr::*;
-use core::elem_value_accessor::*;
-
-use ff_protocols::{
-    former::{ff400::*, *},
-    *,
+use {
+    super::{former_ctls::*, *},
+    alsa_ctl_tlv_codec::items::DbInterval,
+    ff_protocols::{
+        former::{ff400::*, *},
+        *,
+    },
 };
-
-use super::former_ctls::*;
-
-use super::model::*;
 
 #[derive(Default, Debug)]
 pub struct Ff400Model {
