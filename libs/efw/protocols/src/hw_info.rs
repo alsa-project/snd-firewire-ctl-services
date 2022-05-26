@@ -27,7 +27,6 @@
 //! RobotGuitar        |       |      |           |           |          |     |     |     |  *  |
 //! GuitarCharging     |       |      |           |           |          |     |     |     |  *  |
 
-
 use glib::{Error, FileError};
 
 use super::{ClkSrc, EfwProtocol};

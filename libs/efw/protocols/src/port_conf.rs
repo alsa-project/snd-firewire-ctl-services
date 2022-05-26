@@ -148,7 +148,7 @@ pub trait PortConfProtocol: EfwProtocol {
             phys_output_pair_count,
             phys_input_pair_count,
             rx_stream_map,
-            tx_stream_map
+            tx_stream_map,
         );
         self.transaction_sync(
             CATEGORY_PORT_CONF,
@@ -166,7 +166,7 @@ pub trait PortConfProtocol: EfwProtocol {
         phys_input_pair_count: usize,
         rx_stream_map: &mut [Option<usize>],
         tx_stream_map: &mut [Option<usize>],
-        timeout_ms: u32
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let args = [rate];
         let mut params = [0; MAP_SIZE];
@@ -213,7 +213,7 @@ fn build_stream_map(
     phys_output_pair_count: usize,
     phys_input_pair_count: usize,
     rx_stream_map: &[Option<usize>],
-    tx_stream_map: &[Option<usize>]
+    tx_stream_map: &[Option<usize>],
 ) {
     assert_eq!(quads.len(), MAP_SIZE);
     assert!(rx_stream_map.len() < MAP_ENTRY_COUNT);
