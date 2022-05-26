@@ -36,7 +36,7 @@ where
         + CommandDspModel
         + MeasureModel<SndMotu>,
 {
-    unit: SndMotu,
+    unit: (SndMotu, FwNode),
     model: T,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -61,7 +61,7 @@ where
         + MeasureModel<SndMotu>,
 {
     fn drop(&mut self) {
-        let _ = self.model.release_message_handler(&mut self.unit);
+        let _ = self.model.release_message_handler(&mut self.unit.0);
 
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
         for dispatcher in &mut self.dispatchers {
@@ -102,7 +102,7 @@ where
         + CommandDspModel
         + MeasureModel<SndMotu>,
 {
-    pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
@@ -111,7 +111,7 @@ where
         let (tx, rx) = mpsc::sync_channel(256);
 
         Ok(Self {
-            unit,
+            unit: (unit, node),
             model: Default::default(),
             card_cntr,
             rx,
@@ -130,13 +130,12 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        let node = self.unit.get_node();
         let tx = self.tx.clone();
         let handler = self.msg_handler.clone();
         // TODO: bus reset can cause change of node ID by updating bus topology.
-        let peer_node_id = node.get_property_node_id();
+        let peer_node_id = self.unit.1.get_property_node_id();
         self.model.prepare_message_handler(
-            &mut self.unit,
+            &mut self.unit.0,
             move |_, tcode, _, src, _, _, _, frame| {
                 if src != peer_node_id {
                     FwRcode::AddressError
@@ -164,7 +163,7 @@ where
                 }
             },
         )?;
-        self.model.begin_messaging(&mut self.unit)?;
+        self.model.begin_messaging(&mut self.unit.0)?;
 
         // Queue Event::DspMsg at first so that initial state of control is cached.
         let mut count = 0;
@@ -182,7 +181,7 @@ where
             Err(Error::new(FileError::Io, "No message for state arrived."))?;
         }
 
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
         NotifyModel::<SndMotu, u32>::get_notified_elem_list(
             &mut self.model,
             &mut self.notified_elem_id_list,
@@ -197,7 +196,7 @@ where
 
         // This is supported by ALSA firewire-motu driver in Linux kernel v5.16 or later.
         let mut image = [0f32; 400];
-        let result = self.unit.read_command_dsp_meter(&mut image);
+        let result = self.unit.0.read_command_dsp_meter(&mut image);
         if result.is_ok() && self.measured_elem_id_list.len() > 0 {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, TIMER_NAME, 0);
             let _ = self.card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
@@ -221,7 +220,7 @@ where
                 Event::Elem((elem_id, events)) => {
                     if elem_id.get_name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
-                            &mut self.unit,
+                            &mut self.unit.0,
                             &elem_id,
                             &events,
                             &mut self.model,
@@ -245,7 +244,7 @@ where
                 }
                 Event::Notify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &msg,
                         &self.notified_elem_id_list,
                         &mut self.model,
@@ -262,7 +261,7 @@ where
                         Default::default()
                     };
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &cmds,
                         &self.cmd_notified_elem_id_list,
                         &mut self.model,
@@ -270,7 +269,7 @@ where
                 }
                 Event::Timer => {
                     let _ = self.card_cntr.measure_elems(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &self.measured_elem_id_list,
                         &mut self.model,
                     );
@@ -285,22 +284,22 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.connect_notified(move |_, msg| {
+        self.unit.0.connect_notified(move |_, msg| {
             let _ = tx.send(Event::Notify(msg));
         });
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
