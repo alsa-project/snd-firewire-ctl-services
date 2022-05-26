@@ -18,7 +18,7 @@ pub struct Version1Runtime<T>
 where
     T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
 {
-    unit: SndMotu,
+    unit: (SndMotu, FwNode),
     model: T,
     card_cntr: CardCntr,
     rx: mpsc::Receiver<Event>,
@@ -62,7 +62,7 @@ impl<T> Version1Runtime<T>
 where
     T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
 {
-    pub fn new(unit: SndMotu, card_id: u32, version: u32) -> Result<Self, Error> {
+    pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
         card_cntr.card.open(card_id, 0)?;
 
@@ -70,7 +70,7 @@ where
         let (tx, rx) = mpsc::sync_channel(32);
 
         Ok(Self {
-            unit,
+            unit: (unit, node),
             model: Default::default(),
             card_cntr,
             rx,
@@ -85,7 +85,7 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&mut self.unit, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
         self.model
             .get_notified_elem_list(&mut self.notified_elem_id_list);
 
@@ -106,7 +106,7 @@ where
                 }
                 Event::Elem((elem_id, events)) => {
                     let _ = self.card_cntr.dispatch_elem_event(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &elem_id,
                         &events,
                         &mut self.model,
@@ -114,7 +114,7 @@ where
                 }
                 Event::Notify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit,
+                        &mut self.unit.0,
                         &msg,
                         &self.notified_elem_id_list,
                         &mut self.model,
@@ -130,22 +130,22 @@ where
         let mut dispatcher = Dispatcher::run(name)?;
 
         let tx = self.tx.clone();
-        dispatcher.attach_snd_unit(&self.unit, move |_| {
+        dispatcher.attach_snd_unit(&self.unit.0, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.connect_notified(move |_, msg| {
+        self.unit.0.connect_notified(move |_, msg| {
             let _ = tx.send(Event::Notify(msg));
         });
 
         let tx = self.tx.clone();
-        dispatcher.attach_fw_node(&self.unit.get_node(), move |_| {
+        dispatcher.attach_fw_node(&self.unit.1, move |_| {
             let _ = tx.send(Event::Disconnected);
         })?;
 
         let tx = self.tx.clone();
-        self.unit.get_node().connect_bus_update(move |node| {
+        self.unit.1.connect_bus_update(move |node| {
             let _ = tx.send(Event::BusReset(node.get_property_generation()));
         });
 
