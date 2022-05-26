@@ -16,7 +16,7 @@ pub type F896Runtime = Version1Runtime<F896>;
 
 pub struct Version1Runtime<T>
 where
-    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
+    T: CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
 {
     unit: (SndMotu, FwNode),
     model: T,
@@ -31,7 +31,7 @@ where
 
 impl<T> Drop for Version1Runtime<T>
 where
-    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
+    T: CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
 {
     fn drop(&mut self) {
         // At first, stop event loop in all of dispatchers to avoid queueing new events.
@@ -60,7 +60,7 @@ const SYSTEM_DISPATCHER_NAME: &str = "system event dispatcher";
 
 impl<T> Version1Runtime<T>
 where
-    T: CtlModel<SndMotu> + NotifyModel<SndMotu, u32> + Default,
+    T: CtlModel<(SndMotu, FwNode)> + NotifyModel<(SndMotu, FwNode), u32> + Default,
 {
     pub fn new(unit: SndMotu, node: FwNode, card_id: u32, version: u32) -> Result<Self, Error> {
         let card_cntr = CardCntr::new();
@@ -85,7 +85,7 @@ where
         self.launch_node_event_dispatcher()?;
         self.launch_system_event_dispatcher()?;
 
-        self.model.load(&mut self.unit.0, &mut self.card_cntr)?;
+        self.model.load(&mut self.unit, &mut self.card_cntr)?;
         self.model
             .get_notified_elem_list(&mut self.notified_elem_id_list);
 
@@ -106,7 +106,7 @@ where
                 }
                 Event::Elem((elem_id, events)) => {
                     let _ = self.card_cntr.dispatch_elem_event(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &elem_id,
                         &events,
                         &mut self.model,
@@ -114,7 +114,7 @@ where
                 }
                 Event::Notify(msg) => {
                     let _ = self.card_cntr.dispatch_notification(
-                        &mut self.unit.0,
+                        &mut self.unit,
                         &msg,
                         &self.notified_elem_id_list,
                         &mut self.model,
