@@ -5,9 +5,10 @@ use {ff_runtime::FfRuntime, snd_firewire_ctl_services::*};
 
 struct FfServiceCmd;
 
-impl<'a> ServiceCmd<'a, u32, FfRuntime> for FfServiceCmd {
-    const CMD_NAME: &'a str = "snd-fireface-ctl-service";
-    const ARGS: &'a [(&'a str, &'a str)] = &[("CARD_ID", "The numeric ID of sound card")];
+impl ServiceCmd<u32, FfRuntime> for FfServiceCmd {
+    const CMD_NAME: &'static str = "snd-fireface-ctl-service";
+    const ARGS: &'static [(&'static str, &'static str)] =
+        &[("CARD_ID", "The numeric ID of sound card")];
 
     fn parse_args(args: &[String]) -> Result<u32, String> {
         parse_arg_as_u32(&args[0])

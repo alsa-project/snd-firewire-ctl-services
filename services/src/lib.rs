@@ -19,12 +19,12 @@ pub fn parse_arg_as_u32(arg: &str) -> Result<u32, String> {
     })
 }
 
-pub trait ServiceCmd<'a, T, R>: Sized
+pub trait ServiceCmd<T, R>: Sized
 where
     R: RuntimeOperation<T>,
 {
-    const CMD_NAME: &'a str;
-    const ARGS: &'a [(&'a str, &'a str)];
+    const CMD_NAME: &'static str;
+    const ARGS: &'static [(&'static str, &'static str)];
     fn parse_args(args: &[String]) -> Result<T, String>;
 
     fn print_help() {
