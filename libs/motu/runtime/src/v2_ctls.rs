@@ -33,7 +33,7 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
 
     fn read(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
@@ -41,15 +41,14 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                T::get_clk_rate(req, &mut unit.get_node(), timeout_ms).map(|idx| idx as u32)
+                T::get_clk_rate(req, &mut unit.1, timeout_ms).map(|idx| idx as u32)
             })
             .map(|_| true),
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
-                let mut node = unit.get_node();
-                T::get_clk_src(req, &mut node, timeout_ms).and_then(|idx| {
+                T::get_clk_src(req, &mut unit.1, timeout_ms).and_then(|idx| {
                     if T::HAS_LCD {
                         let label = clk_src_to_str(&T::CLK_SRCS[idx].0);
-                        T::update_clk_display(req, &mut node, &label, timeout_ms)?;
+                        T::update_clk_display(req, &mut unit.1, &label, timeout_ms)?;
                     }
                     Ok(idx as u32)
                 })
@@ -61,7 +60,7 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -69,25 +68,24 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.lock()?;
-                let res = T::set_clk_rate(req, &mut unit.get_node(), val as usize, timeout_ms);
-                let _ = unit.unlock();
+                unit.0.lock()?;
+                let res = T::set_clk_rate(req, &mut unit.1, val as usize, timeout_ms);
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
             SRC_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                let mut node = unit.get_node();
-                let prev_src = T::get_clk_src(req, &mut node, timeout_ms)?;
-                unit.lock()?;
-                let mut res = T::set_clk_src(req, &mut node, val as usize, timeout_ms);
+                let prev_src = T::get_clk_src(req, &mut unit.1, timeout_ms)?;
+                unit.0.lock()?;
+                let mut res = T::set_clk_src(req, &mut unit.1, val as usize, timeout_ms);
                 if res.is_ok() && T::HAS_LCD {
                     let label = clk_src_to_str(&T::CLK_SRCS[val as usize].0);
-                    res = T::update_clk_display(req, &mut node, &label, timeout_ms);
+                    res = T::update_clk_display(req, &mut unit.1, &label, timeout_ms);
                     if res.is_err() {
-                        let _ = T::set_clk_src(req, &mut node, prev_src, timeout_ms);
+                        let _ = T::set_clk_src(req, &mut unit.1, prev_src, timeout_ms);
                     }
                 }
-                let _ = unit.unlock();
+                let _ = unit.0.unlock();
                 res
             })
             .map(|_| true),
@@ -114,7 +112,7 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
     fn load(
         &mut self,
         card_cntr: &mut CardCntr,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
@@ -140,11 +138,15 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
         Ok(notified_elem_id_list)
     }
 
-    fn cache(&mut self, unit: &mut SndMotu, req: &mut FwReq, timeout_ms: u32) -> Result<(), Error> {
-        T::get_opt_in_iface_mode(req, &mut unit.get_node(), timeout_ms)
+    fn cache(
+        &mut self,
+        unit: &mut (SndMotu, FwNode),
+        req: &mut FwReq,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        T::get_opt_in_iface_mode(req, &mut unit.1, timeout_ms)
             .map(|val| self.state_mut().0 = val)?;
-        T::get_opt_out_iface_mode(req, &mut unit.get_node(), timeout_ms)
-            .map(|val| self.state_mut().1 = val)
+        T::get_opt_out_iface_mode(req, &mut unit.1, timeout_ms).map(|val| self.state_mut().1 = val)
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -163,7 +165,7 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
 
     fn write(
         &mut self,
-        unit: &mut SndMotu,
+        unit: &mut (SndMotu, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -171,24 +173,22 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.lock()?;
-                let res =
-                    T::set_opt_in_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                unit.0.lock()?;
+                let res = T::set_opt_in_iface_mode(req, &mut unit.1, val as usize, timeout_ms);
                 if res.is_ok() {
                     self.state_mut().0 = val as usize;
                 }
-                unit.unlock()?;
+                unit.0.unlock()?;
                 res
             })
             .map(|_| true),
             OPT_OUT_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
-                unit.lock()?;
-                let res =
-                    T::set_opt_out_iface_mode(req, &mut unit.get_node(), val as usize, timeout_ms);
+                unit.0.lock()?;
+                let res = T::set_opt_out_iface_mode(req, &mut unit.1, val as usize, timeout_ms);
                 if res.is_ok() {
                     self.state_mut().1 = val as usize;
                 }
-                unit.unlock()?;
+                unit.0.unlock()?;
                 res
             })
             .map(|_| true),

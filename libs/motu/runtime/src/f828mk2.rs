@@ -154,7 +154,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
     ) -> Result<(), Error> {
         self.clk_ctls.load(card_cntr)?;
         self.opt_iface_ctl
-            .load(card_cntr, &mut unit.0, &mut self.req, TIMEOUT_MS)
+            .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
             .map(|mut elem_id_list| self.opt_iface_ctl.1.append(&mut elem_id_list))?;
         self.phone_assign_ctl
             .load(card_cntr, unit, &mut self.req, TIMEOUT_MS)
@@ -190,7 +190,7 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .read(&mut unit.0, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
+            .read(unit, &mut self.req, elem_id, elem_value, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self.opt_iface_ctl.read(elem_id, elem_value)? {
@@ -225,12 +225,12 @@ impl CtlModel<(SndMotu, FwNode)> for F828mk2 {
     ) -> Result<bool, Error> {
         if self
             .clk_ctls
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
             .opt_iface_ctl
-            .write(&mut unit.0, &mut self.req, elem_id, new, TIMEOUT_MS)?
+            .write(unit, &mut self.req, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
