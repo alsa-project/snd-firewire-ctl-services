@@ -548,7 +548,7 @@ impl ConfigCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        self.write_standalone_rate(&mut unit.0, req, elem_id, elem_value, timeout_ms)
+        self.write_standalone_rate(unit, req, elem_id, elem_value, timeout_ms)
     }
 
     fn parse_notification(
@@ -1078,7 +1078,7 @@ impl PanelCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_firewire_led(&mut unit.0, req, elem_id, elem_value, timeout_ms)? {
+        if self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {

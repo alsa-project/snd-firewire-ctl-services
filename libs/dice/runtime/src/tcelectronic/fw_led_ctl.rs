@@ -60,7 +60,7 @@ where
 
     fn write_firewire_led(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -78,8 +78,7 @@ where
                         })
                         .map(|&s| *self.firewire_led_mut() = s)
                 })?;
-                T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
-                    .map(|_| true)
+                T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }

@@ -78,7 +78,7 @@ where
 
     fn write_midi_sender(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         elem_id: &ElemId,
         elem_value: &ElemValue,
@@ -127,7 +127,7 @@ where
 
     fn state_write<F>(
         &mut self,
-        unit: &mut SndDice,
+        unit: &mut (SndDice, FwNode),
         req: &mut FwReq,
         timeout_ms: u32,
         cb: F,
@@ -136,6 +136,6 @@ where
         F: Fn(&mut TcKonnektMidiSender),
     {
         cb(&mut self.midi_sender_mut());
-        T::write_segment(req, &mut unit.get_node(), self.segment_mut(), timeout_ms)
+        T::write_segment(req, &mut unit.1, self.segment_mut(), timeout_ms)
     }
 }

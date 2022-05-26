@@ -271,9 +271,9 @@ impl KnobCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_knob_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_knob2_target(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        } else if self.write_knob2_target(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -385,9 +385,9 @@ impl ConfigCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_coax_out_src(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        if self.write_coax_out_src(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
-        } else if self.write_standalone(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
@@ -511,7 +511,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_mixer(&mut unit.0, req, elem_id, old, new, timeout_ms)? {
+        if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
             match elem_id.get_name().as_str() {
@@ -649,7 +649,7 @@ impl HwStateCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if self.write_hw_state(&mut unit.0, req, elem_id, new, timeout_ms)? {
+        if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
             Ok(false)
