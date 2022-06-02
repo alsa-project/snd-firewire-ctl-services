@@ -131,7 +131,7 @@ mod test {
 
     #[test]
     fn test_clk_ctl_definition() {
-        let mut card_cntr = CardCntr::new();
+        let mut card_cntr = CardCntr::default();
         let mut ctl = ClkCtl::default();
 
         let error = ctl.load_freq(&mut card_cntr).unwrap_err();

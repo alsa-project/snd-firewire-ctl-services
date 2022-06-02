@@ -71,7 +71,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         let unit = SndDigi00x::new();
         unit.open(&format!("/dev/snd/hwC{}D0", card_id), 0)?;
 
-        let card_cntr = CardCntr::new();
+        let card_cntr = CardCntr::default();
         card_cntr.card.open(card_id, 0)?;
 
         let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());

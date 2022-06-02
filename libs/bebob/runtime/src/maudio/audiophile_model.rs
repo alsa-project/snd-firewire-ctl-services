@@ -393,7 +393,7 @@ mod test {
 
     #[test]
     fn test_clk_ctl_definition() {
-        let mut card_cntr = CardCntr::new();
+        let mut card_cntr = CardCntr::default();
         let mut ctl = ClkCtl::default();
 
         let error = ctl.load_freq(&mut card_cntr).unwrap_err();
@@ -405,7 +405,7 @@ mod test {
 
     #[test]
     fn test_level_ctl_definition() {
-        let mut card_cntr = CardCntr::new();
+        let mut card_cntr = CardCntr::default();
 
         let ctl = PhysInputCtl::default();
         let error = ctl.load_level(&mut card_cntr).unwrap_err();
@@ -430,7 +430,7 @@ mod test {
 
     #[test]
     fn test_selector_ctl_definition() {
-        let mut card_cntr = CardCntr::new();
+        let mut card_cntr = CardCntr::default();
 
         let ctl = PhysOutputCtl::default();
         let error = ctl.load_selector(&mut card_cntr).unwrap_err();
@@ -444,7 +444,7 @@ mod test {
     #[test]
     fn test_mixer_ctl_definition() {
         let avc = BebobAvc::default();
-        let mut card_cntr = CardCntr::new();
+        let mut card_cntr = CardCntr::default();
 
         let ctl = MixerCtl::default();
         let error = ctl.load_src_state(&mut card_cntr, &avc, 100).unwrap_err();

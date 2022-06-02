@@ -75,7 +75,7 @@ where
     T: MachineStateOperation + SurfaceImageOperation<U>,
 {
     pub fn new(unit: SndTascam, node: FwNode, name: &str, sysnum: u32) -> Result<Self, Error> {
-        let card_cntr = CardCntr::new();
+        let card_cntr = CardCntr::default();
         card_cntr.card.open(sysnum, 0)?;
 
         let seq_cntr = SeqCntr::new(name)?;

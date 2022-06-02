@@ -273,7 +273,7 @@ mod test {
 
     #[test]
     fn test_output_params_definition() {
-        let mut card_cntr = CardCntr::new();
+        let mut card_cntr = CardCntr::default();
         let mut ctl = OutputCtl::default();
         let unit = SndUnit::default();
         let node = FwNode::default();

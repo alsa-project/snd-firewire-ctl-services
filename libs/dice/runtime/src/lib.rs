@@ -59,7 +59,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
 
         let model = DiceModel::new(&node)?;
 
-        let card_cntr = CardCntr::new();
+        let card_cntr = CardCntr::default();
         card_cntr.card.open(card_id, 0)?;
 
         // Use uni-directional channel for communication to child threads.

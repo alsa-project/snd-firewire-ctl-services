@@ -7,6 +7,7 @@ use {
     glib::{FileError, IsA},
 };
 
+#[derive(Default)]
 pub struct CardCntr {
     pub card: Card,
     entries: Vec<ElemValue>,
@@ -63,13 +64,6 @@ impl Drop for CardCntr {
 }
 
 impl CardCntr {
-    pub fn new() -> Self {
-        CardCntr {
-            card: Card::new(),
-            entries: Vec::new(),
-        }
-    }
-
     pub fn add_bool_elems(
         &mut self,
         elem_id: &ElemId,

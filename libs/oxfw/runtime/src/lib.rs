@@ -88,7 +88,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
 
         let model = OxfwModel::new(vendor.vendor_id, model.model_id)?;
 
-        let card_cntr = CardCntr::new();
+        let card_cntr = CardCntr::default();
         card_cntr.card.open(card_id, 0)?;
 
         // Use uni-directional channel for communication to child threads.

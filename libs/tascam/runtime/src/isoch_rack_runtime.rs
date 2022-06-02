@@ -59,7 +59,7 @@ impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Defa
     IsochRackRuntime<T>
 {
     pub fn new(unit: SndTascam, node: FwNode, _: &str, sysnum: u32) -> Result<Self, Error> {
-        let card_cntr = CardCntr::new();
+        let card_cntr = CardCntr::default();
         card_cntr.card.open(sysnum, 0)?;
 
         // Use uni-directional channel for communication to child threads.
