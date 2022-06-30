@@ -79,8 +79,7 @@ fn enum_values_from_entries(elem_value: &mut ElemValue, entries: &[Option<usize>
 }
 
 fn enum_values_to_entries(elem_value: &ElemValue, entries: &mut [Option<usize>]) {
-    let mut vals = vec![0; entries.len()];
-    elem_value.get_enum(&mut vals);
+    let vals = &elem_value.get_enum()[..entries.len()];
     entries
         .iter_mut()
         .zip(vals.iter())

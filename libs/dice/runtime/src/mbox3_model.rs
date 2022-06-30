@@ -511,7 +511,10 @@ impl HwCtl {
         match elem_id.get_name().as_str() {
             Self::MASTER_KNOB_ASSIGN_NAME => {
                 let mut assign = MasterKnobAssigns::default();
-                new.get_bool(&mut assign);
+                assign
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Mbox3Protocol::write_master_knob_assign(
                     req,
                     &mut unit.1,
@@ -537,7 +540,9 @@ impl HwCtl {
             .map(|_| true),
             Self::INPUT_HPF_NAME => {
                 let mut vals = [false; Self::INPUT_COUNT];
-                new.get_bool(&mut vals);
+                vals.iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Mbox3Protocol::write_hpf_enable(req, &mut unit.1, sections, vals, timeout_ms)?;
                 Ok(true)
             }

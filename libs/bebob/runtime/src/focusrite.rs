@@ -337,29 +337,24 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_MUTE_NAME => {
-                let mut vals = self.as_ref().mutes.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.as_ref().mutes.len()];
                 T::write_mutes(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_VOL_NAME => {
-                let mut vals = vec![Default::default(); self.as_ref().vols.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.as_ref().vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
                 T::write_vols(req, &unit.1, &vols, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_HWCTL_NAME => {
-                let mut vals = self.as_ref().hwctls.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.as_ref().hwctls.len()];
                 T::write_hwctls(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_DIM_NAME => {
-                let mut vals = self.as_ref().dims.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.as_ref().dims.len()];
                 T::write_dims(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_PAD_NAME => {
-                let mut vals = self.as_ref().pads.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.as_ref().pads.len()];
                 T::write_pads(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
@@ -481,8 +476,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     "Not available at current mixer mode",
                 ))
             } else {
-                let mut vals = vec![0i32; T::PHYS_INPUT_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::PHYS_INPUT_COUNT];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
                     levels.push(v as i16);
                     levels
@@ -498,8 +492,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     "Not available at current mixer mode",
                 ))
             } else {
-                let mut vals = vec![0i32; T::REVERB_RETURN_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::REVERB_RETURN_COUNT];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
                     levels.push(v as i16);
                     levels
@@ -515,8 +508,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     "Not available at current mixer mode",
                 ))
             } else {
-                let mut vals = vec![0i32; T::STREAM_INPUT_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::STREAM_INPUT_COUNT];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
                     levels.push(v as i16);
                     levels
@@ -603,14 +595,12 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIDI_THROUGH_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::write_midi_through(req, &unit.1, vals[0], timeout_ms).map(|_| true)
+                let val = elem_value.get_bool()[0];
+                T::write_midi_through(req, &unit.1, val, timeout_ms).map(|_| true)
             }
             AC3_THROUGH_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::write_ac3_through(req, &unit.1, vals[0], timeout_ms).map(|_| true)
+                let val = elem_value.get_bool()[0];
+                T::write_ac3_through(req, &unit.1, val, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -728,24 +718,21 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
         match elem_id.get_name().as_str() {
             PRO_MONITOR_ANALOG_INPUT_NAME => {
                 let idx = elem_id.get_index() as usize;
-                let mut vals = vec![0; self.as_ref().analog_inputs[idx].len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.as_ref().analog_inputs[idx].len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 T::write_analog_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.get_index() as usize;
-                let mut vals = vec![0; self.as_ref().spdif_inputs[idx].len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.as_ref().spdif_inputs[idx].len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 T::write_spdif_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if T::HAS_ADAT {
-                    let mut vals = vec![0; 16];
-                    elem_value.get_int(&mut vals);
+                    let vals = &elem_value.get_int()[..16];
                     let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                     let idx = elem_id.get_index() as usize;
                     T::write_adat_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
@@ -872,8 +859,7 @@ impl SaffireProioMixerCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             PRO_MIXER_MONITOR_SRC_NAME => {
-                let mut vals = vec![0; self.0.monitor_sources.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.monitor_sources.len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_monitor_sources(
                     req,
@@ -885,8 +871,7 @@ impl SaffireProioMixerCtl {
                 .map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
-                let mut vals = vec![0; self.0.stream_source_pair0.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.stream_source_pair0.len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_source_pair0(
                     req,
@@ -898,8 +883,7 @@ impl SaffireProioMixerCtl {
                 .map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_NAME => {
-                let mut vals = vec![0; self.0.stream_sources.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.stream_sources.len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_sources(
                     req,
@@ -1018,43 +1002,37 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             HEAD_ROOM_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::write_head_room(req, &unit.1, vals[0], self.as_mut(), timeout_ms).map(|_| true)
+                let val = elem_value.get_bool()[0];
+                T::write_head_room(req, &unit.1, val, self.as_mut(), timeout_ms).map(|_| true)
             }
             PHANTOM_POWERING_NAME => {
-                let mut vals = self.as_ref().phantom_powerings.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.as_ref().phantom_powerings.len()];
                 T::write_phantom_powerings(req, &unit.1, &vals, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             INSERT_SWAP_NAME => {
-                let mut vals = self.as_ref().insert_swaps.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.as_ref().insert_swaps.len()];
                 T::write_insert_swaps(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             STANDALONE_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &mode = Self::STANDALONE_MODES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of standalone mode: {}", vals[0]);
+                        let msg = format!("Invalid index of standalone mode: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 T::write_standalone_mode(req, &unit.1, mode, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             ADAT_ENABLE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::write_adat_enable(req, &unit.1, vals[0], self.as_mut(), timeout_ms).map(|_| true)
+                let val = elem_value.get_bool()[0];
+                T::write_adat_enable(req, &unit.1, val, self.as_mut(), timeout_ms).map(|_| true)
             }
             DIRECT_MONITORING_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::write_direct_monitoring(req, &unit.1, vals[0], self.as_mut(), timeout_ms)
+                let val = elem_value.get_bool()[0];
+                T::write_direct_monitoring(req, &unit.1, val, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),

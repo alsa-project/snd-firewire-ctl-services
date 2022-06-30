@@ -573,13 +573,12 @@ impl ConvertCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             FORMAT_CONVERT_TARGET_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &target = Self::FORMAT_CONVERT_TARGETS
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of format convert target: {}", vals[0]);
+                        let msg = format!("Invalid index of format convert target: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -588,21 +587,18 @@ impl ConvertCtl {
                     .map(|_| true)
             }
             CD_MODE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
                 let mut params = self.0.clone();
-                params.cd_mode = vals[0];
+                params.cd_mode = elem_value.get_bool()[0];
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             RATE_CONVERT_TARGET_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &target = Self::RATE_CONVERT_TARGETS
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of rate convert target: {}", vals[0]);
+                        let msg = format!("Invalid index of rate convert target: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -611,13 +607,12 @@ impl ConvertCtl {
                     .map(|_| true)
             }
             RATE_CONVERT_RATE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &converted_rate = Self::RATE_CONVERT_RATES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of rate convert target: {}", vals[0]);
+                        let msg = format!("Invalid index of rate convert target: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -709,29 +704,24 @@ impl DisplayCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             DISPLAY_ENABLE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
                 let mut params = self.0.clone();
-                params.enabled = vals[0];
+                params.enabled = elem_value.get_bool()[0];
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             DISPLAY_ILLUMINATE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
                 let mut params = self.0.clone();
-                params.illuminate = vals[0];
+                params.illuminate = elem_value.get_bool()[0];
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             DISPLAY_TARGET_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &target = Self::DISPLAY_METER_TARGETS
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index of display meter mode: {}", vals[0]);
+                        let msg = format!("Invalid index of display meter mode: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 let mut params = self.0.clone();
@@ -740,10 +730,8 @@ impl DisplayCtl {
                     .map(|_| true)
             }
             DISPLAY_OVERHOLD_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
                 let mut params = self.0.clone();
-                params.overhold = vals[0];
+                params.overhold = elem_value.get_bool()[0];
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -890,13 +878,16 @@ impl InputCtl {
         match elem_id.get_name().as_str() {
             INPUT_LIMIT_NAME => {
                 let mut params = self.0.clone();
-                elem_value.get_bool(&mut params.limits);
+                params
+                    .limits
+                    .iter_mut()
+                    .zip(elem_value.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             INPUT_LEVEL_NAME => {
-                let mut vals = [0; Self::INPUT_LABELS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..Self::INPUT_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .levels
@@ -916,8 +907,7 @@ impl InputCtl {
                     .map(|_| true)
             }
             MIC_GAIN_NAME => {
-                let mut vals = [0; Self::MIC_LABELS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..Self::MIC_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .gains
@@ -929,26 +919,30 @@ impl InputCtl {
             }
             MIC_PHANTOM_NAME => {
                 let mut params = self.0.clone();
-                elem_value.get_bool(&mut params.phantoms);
+                params
+                    .phantoms
+                    .iter_mut()
+                    .zip(elem_value.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_POLARITY_NAME => {
                 let mut params = self.0.clone();
-                elem_value.get_bool(&mut params.polarities);
+                params
+                    .polarities
+                    .iter_mut()
+                    .zip(elem_value.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             INPUT_OPT_IFACE_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.set_enum(&mut vals);
-                let &mode = OPT_IFACE_MODES
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of optical iface mode: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let val = elem_value.get_enum()[0];
+                let &mode = OPT_IFACE_MODES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index of optical iface mode: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 let mut params = self.0.clone();
                 params.opt_iface_mode = mode;
                 avc.update_params(&params, &mut self.0, timeout_ms)
@@ -1087,8 +1081,7 @@ impl<'a> OutputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUTPUT_LEVEL_NAME => {
-                let mut vals = [0; Self::OUT_LABELS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..Self::OUT_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .levels
@@ -1111,16 +1104,13 @@ impl<'a> OutputCtl {
                     .map(|_| true)
             }
             OUTPUT_VOL_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 let mut params = self.0.clone();
-                params.vol = vals[0] as u8;
+                params.vol = elem_value.get_int()[0] as u8;
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             HP_VOL_NAME => {
-                let mut vals = [0; Self::HP_LABELS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..Self::HP_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .headphone_vols
@@ -1131,19 +1121,12 @@ impl<'a> OutputCtl {
                     .map(|_| true)
             }
             OUTPUT_OPT_IFACE_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let mut params = self.0.clone();
-                let &mode = OPT_IFACE_MODES
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!(
-                            "Invalid value for index of input nominal level: {}",
-                            vals[0]
-                        );
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let &mode = OPT_IFACE_MODES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid value for index of input nominal level: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 params.opt_iface_mode = mode;
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1360,8 +1343,7 @@ impl RouteCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_SRC_NAME => {
-                let mut vals = [0; Self::OUTPUT_LABELS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..Self::OUTPUT_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .output_sources
@@ -1372,8 +1354,7 @@ impl RouteCtl {
                     .map(|_| true)
             }
             CAPTURE_SOURCE_NAME => {
-                let mut vals = [0; Self::CAPTURE_LABELS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..Self::CAPTURE_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .capture_sources
@@ -1384,8 +1365,7 @@ impl RouteCtl {
                     .map(|_| true)
             }
             HP_SRC_NAME => {
-                let mut vals = [0; Self::HEADPHONE_LABELS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..Self::HEADPHONE_LABELS.len()];
                 let mut params = self.0.clone();
                 params
                     .headphone_sources
@@ -1504,8 +1484,7 @@ impl MixerCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_SRC_GAIN_NAME => {
-                let mut vals = [0; Self::MIXER_SRC_LABELS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..Self::MIXER_SRC_LABELS.len()];
 
                 let index = elem_id.get_index() as usize;
 
@@ -1583,15 +1562,11 @@ impl StreamCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             STREAM_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &mode = Self::STREAM_MODES
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index of mode of stream: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let val = elem_value.get_enum()[0];
+                let &mode = Self::STREAM_MODES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index of mode of stream: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 let mut params = self.0.clone();
                 params.mode = mode;
                 unit.0.lock()?;

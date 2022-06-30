@@ -376,13 +376,12 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MONITOR_ROTARY_ASSIGN_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &target = Self::MONITOR_ROTARY_ASSIGNS
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for monitor rotary targets: {}", vals[0]);
+                        let msg = format!("Invalid index for monitor rotary targets: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 Fw1884Protocol::set_monitor_knob_target(req, &mut unit.1, target, timeout_ms)

@@ -352,28 +352,24 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
+                let val = elem_value.get_bool()[0];
                 SPro40Protocol::write_analog_out_0_1_pad(
                     req,
                     &mut unit.1,
                     sections,
-                    vals[0],
+                    val,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &mode = Self::OPT_OUT_IFACE_MODES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!(
-                            "Invalid index of optical output interface mode: {}",
-                            vals[0]
-                        );
+                        let msg =
+                            format!("Invalid index of optical output interface mode: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 SPro40Protocol::write_opt_out_iface_mode(

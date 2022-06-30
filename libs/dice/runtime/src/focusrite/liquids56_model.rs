@@ -610,28 +610,24 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
+                let val = new.get_bool()[0];
                 LiquidS56Protocol::write_analog_out_0_1_pad_offset(
                     req,
                     &mut unit.1,
                     sections,
-                    vals[0],
+                    val,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
+                let val = new.get_enum()[0];
                 let &mode = Self::OPT_OUT_IFACE_MODES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!(
-                            "Invalid index of optical output interface mode: {}",
-                            vals[0]
-                        );
+                        let msg =
+                            format!("Invalid index of optical output interface mode: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 LiquidS56Protocol::write_opt_out_iface_mode(
@@ -657,8 +653,7 @@ impl SpecificCtl {
                 .map(|_| true)
             }
             Self::ANALOG_INPUT_LEVEL_NAME => {
-                let mut vals = [0; 8];
-                new.get_enum(&mut vals);
+                let vals = &new.get_enum()[..8];
                 let mut levels = [AnalogInputLevel::Reserved(0); 8];
                 levels
                     .iter_mut()
@@ -737,8 +732,7 @@ impl SpecificCtl {
                 .map(|_| true)
             }
             Self::LED_STATE_NAME => {
-                let mut vals = [false; 4];
-                new.get_bool(&mut vals);
+                let vals = &new.get_bool()[..4];
                 let state = LedState {
                     adat1: vals[0],
                     adat2: vals[1],
@@ -749,8 +743,7 @@ impl SpecificCtl {
                     .map(|_| true)
             }
             Self::METER_DISPLAY_TARGETS_NAME => {
-                let mut vals = [0; 8];
-                new.get_enum(&mut vals);
+                let vals = &new.get_enum()[..8];
                 let mut targets = [0; 8];
                 targets
                     .iter_mut()

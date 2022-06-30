@@ -234,9 +234,8 @@ impl CommonCtl {
             })
             .map(|_| true),
             NICKNAME => {
-                let mut vals = vec![0; NICKNAME_MAX_SIZE];
-                new.get_bytes(&mut vals);
-                std::str::from_utf8(&vals)
+                let vals = &new.get_bytes()[..NICKNAME_MAX_SIZE];
+                std::str::from_utf8(vals)
                     .map_err(|e| {
                         let msg = format!("Invalid bytes for string: {}", e);
                         Error::new(FileError::Inval, &msg)

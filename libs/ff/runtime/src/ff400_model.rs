@@ -262,8 +262,7 @@ impl InputGainCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIC_GAIN_NAME => {
-                let mut vals = [0; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
                 Ff400Protocol::write_input_mic_gains(
                     req,
@@ -275,8 +274,7 @@ impl InputGainCtl {
                 .map(|_| true)
             }
             LINE_GAIN_NAME => {
-                let mut vals = [0; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
                 Ff400Protocol::write_input_line_gains(
                     req,
@@ -746,15 +744,30 @@ impl CfgCtl {
             })
             .map(|_| true),
             MIC_POWER_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                Ok(new.get_bool(&mut cfg.analog_in.phantom_powering))
+                cfg.analog_in
+                    .phantom_powering
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
+                Ok(())
             })
             .map(|_| true),
             LINE_INST_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                Ok(new.get_bool(&mut cfg.analog_in.insts))
+                cfg.analog_in
+                    .insts
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
+                Ok(())
             })
             .map(|_| true),
             LINE_PAD_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                Ok(new.get_bool(&mut cfg.analog_in.pad))
+                cfg.analog_in
+                    .pad
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
+                Ok(())
             })
             .map(|_| true),
             LINE_OUTPUT_LEVEL_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {

@@ -176,42 +176,35 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
         } else {
             match elem_id.get_name().as_str() {
                 DISPLAY_MODE_NAME => {
-                    let mut vals = [0];
-                    new.get_enum(&mut vals);
+                    let val = new.get_enum()[0];
                     let &mode = Self::DISPLAY_MODES
                         .iter()
-                        .nth(vals[0] as usize)
+                        .nth(val as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid index for display modes: {}", vals[0]);
+                            let msg = format!("Invalid index for display modes: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                     FireoneProtocol::write_display_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
                         .map(|_| true)
                 }
                 MESSAGE_MODE_NAME => {
-                    let mut vals = [0];
-                    new.get_enum(&mut vals);
+                    let val = new.get_enum()[0];
                     let &mode = Self::MESSAGE_MODES
                         .iter()
-                        .nth(vals[0] as usize)
+                        .nth(val as usize)
                         .ok_or_else(|| {
-                            let msg = format!("Invalid index for midi message modes: {}", vals[0]);
+                            let msg = format!("Invalid index for midi message modes: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                     FireoneProtocol::write_midi_message_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
                         .map(|_| true)
                 }
                 INPUT_MODE_NAME => {
-                    let mut vals = [0];
-                    new.get_enum(&mut vals);
-                    let &mode =
-                        Self::INPUT_MODES
-                            .iter()
-                            .nth(vals[0] as usize)
-                            .ok_or_else(|| {
-                                let msg = format!("Invalid index for input modes: {}", vals[0]);
-                                Error::new(FileError::Inval, &msg)
-                            })?;
+                    let val = new.get_enum()[0];
+                    let &mode = Self::INPUT_MODES.iter().nth(val as usize).ok_or_else(|| {
+                        let msg = format!("Invalid index for input modes: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
                     FireoneProtocol::write_input_mode(&mut self.avc, mode, FCP_TIMEOUT_MS)
                         .map(|_| true)
                 }

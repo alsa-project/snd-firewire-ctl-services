@@ -453,21 +453,18 @@ impl OutputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::VOL_NAME => {
-                let mut vals = vec![0; self.0.vols.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 FStudioProtocol::write_output_vols(req, &mut unit.1, &mut self.0, &vols, timeout_ms)
                     .map(|_| true)
             }
             Self::MUTE_NAME => {
-                let mut vals = self.0.mutes.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.0.mutes.len()];
                 FStudioProtocol::write_output_mute(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
                     .map(|_| true)
             }
             Self::SRC_NAME => {
-                let mut vals = vec![0; self.0.srcs.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..self.0.srcs.len()];
 
                 let mut srcs = self.0.srcs.clone();
                 vals.iter().enumerate().try_for_each(|(i, &val)| {
@@ -484,15 +481,13 @@ impl OutputCtl {
                     .map(|_| true)
             }
             Self::LINK_NAME => {
-                let mut vals = self.0.links.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.0.links.len()];
                 FStudioProtocol::write_output_link(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
                     .map(|_| true)
             }
             Self::TERMINATE_BNC_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                FStudioProtocol::write_bnc_terminalte(req, &mut unit.1, vals[0], timeout_ms)
+                let val = elem_value.get_bool()[0];
+                FStudioProtocol::write_bnc_terminalte(req, &mut unit.1, val, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -589,10 +584,9 @@ impl AssignCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             Self::MAIN_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                let target = Self::TARGETS.iter().nth(vals[0] as usize).ok_or_else(|| {
-                    let msg = format!("Invalid value for index of assignment target: {}", vals[0]);
+                let val = new.get_enum()[0];
+                let target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid value for index of assignment target: {}", val);
                     Error::new(FileError::Inval, &msg)
                 })?;
                 FStudioProtocol::write_main_assign_target(req, &mut unit.1, *target, timeout_ms)
@@ -918,8 +912,7 @@ impl MixerCtl {
             Self::PHYS_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let params = &mut self.phys_src_params[index];
-                let mut vals = vec![0; params.gains.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..params.gains.len()];
                 let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_phys_src_gains(
                     req,
@@ -934,8 +927,7 @@ impl MixerCtl {
             Self::PHYS_SRC_PAN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let params = &mut self.phys_src_params[index];
-                let mut vals = vec![0; params.pans.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..params.pans.len()];
                 let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_phys_src_pans(
                     req,
@@ -950,8 +942,7 @@ impl MixerCtl {
             Self::PHYS_SRC_MUTE_NAME => {
                 let index = elem_id.get_index() as usize;
                 let params = &mut self.phys_src_params[index];
-                let mut vals = params.mutes.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..params.mutes.len()];
                 FStudioProtocol::write_mixer_phys_src_mutes(
                     req,
                     &mut unit.1,
@@ -965,8 +956,7 @@ impl MixerCtl {
             Self::PHYS_SRC_LINK_NAME => {
                 let index = elem_id.get_index() as usize;
                 let links = &mut self.phys_src_links[index];
-                let mut vals = links.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..links.len()];
                 FStudioProtocol::write_mixer_phys_src_links(
                     req,
                     &mut unit.1,
@@ -979,8 +969,7 @@ impl MixerCtl {
             Self::STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let params = &mut self.stream_src_params[index];
-                let mut vals = vec![0; params.gains.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..params.gains.len()];
                 let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_stream_src_gains(
                     req,
@@ -995,8 +984,7 @@ impl MixerCtl {
             Self::STREAM_SRC_PAN_NAME => {
                 let index = elem_id.get_index() as usize;
                 let params = &mut self.stream_src_params[index];
-                let mut vals = vec![0; params.pans.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..params.pans.len()];
                 let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_stream_src_pans(
                     req,
@@ -1011,8 +999,7 @@ impl MixerCtl {
             Self::STREAM_SRC_MUTE_NAME => {
                 let index = elem_id.get_index() as usize;
                 let params = &mut self.stream_src_params[index];
-                let mut vals = params.mutes.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..params.mutes.len()];
                 FStudioProtocol::write_mixer_stream_src_mutes(
                     req,
                     &mut unit.1,
@@ -1026,8 +1013,7 @@ impl MixerCtl {
             Self::STREAM_SRC_LINK_NAME => {
                 let index = elem_id.get_index() as usize;
                 let links = &mut self.stream_src_links[index];
-                let mut vals = links.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..links.len()];
                 FStudioProtocol::write_mixer_stream_src_links(
                     req,
                     &mut unit.1,
@@ -1038,8 +1024,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::OUT_VOL_NAME => {
-                let mut vals = vec![0; self.outs.vols.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.outs.vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_out_vol(
                     req,
@@ -1051,8 +1036,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::OUT_MUTE_NAME => {
-                let mut vals = self.outs.mutes.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.outs.mutes.len()];
                 FStudioProtocol::write_mixer_out_mute(
                     req,
                     &mut unit.1,
@@ -1063,13 +1047,12 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::EXPANSION_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &mode = Self::EXPANSION_MODES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of expansion mode: {}", vals[0]);
+                        let msg = format!("Invalid value for index of expansion mode: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 FStudioProtocol::write_mixer_expansion_mode(req, &mut unit.1, mode, timeout_ms)

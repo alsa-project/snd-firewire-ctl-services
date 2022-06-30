@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, glib::translate::*};
+use {super::*, alsaseq::*};
 
 pub struct SeqCntr {
-    pub client: alsaseq::UserClient,
+    pub client: UserClient,
     port_id: u8,
-    ev_cntr: alsaseq::EventCntr,
+    event: Event,
 }
 
 impl Drop for SeqCntr {
@@ -19,28 +19,31 @@ impl SeqCntr {
     const SEQ_PORT_NAME: &'static str = "Control Surface";
 
     pub fn new(name: &str) -> Result<Self, Error> {
-        let client = alsaseq::UserClient::new();
+        let client = UserClient::new();
         client.open(0)?;
 
-        let info = alsaseq::ClientInfo::new();
+        let info = ClientInfo::new();
         info.set_property_name(Some(name));
         client.set_info(&info)?;
+
+        let mut event = Event::new(EventType::Controller);
+        event.set_queue_id(SpecificAddress::Subscribers.into());
 
         Ok(SeqCntr {
             client,
             port_id: 0,
-            ev_cntr: alsaseq::EventCntr::new(1).unwrap(),
+            event,
         })
     }
 
     pub fn open_port(&mut self) -> Result<(), Error> {
-        let mut info = alsaseq::PortInfo::new();
-        let attr_flags = alsaseq::PortAttrFlag::MIDI_GENERIC | alsaseq::PortAttrFlag::HARDWARE;
+        let mut info = PortInfo::new();
+        let attr_flags = PortAttrFlag::MIDI_GENERIC | PortAttrFlag::HARDWARE;
         info.set_property_attrs(attr_flags);
-        let cap_flags = alsaseq::PortCapFlag::READ
-            | alsaseq::PortCapFlag::SUBS_READ
-            | alsaseq::PortCapFlag::WRITE
-            | alsaseq::PortCapFlag::SUBS_WRITE;
+        let cap_flags = PortCapFlag::READ
+            | PortCapFlag::SUBS_READ
+            | PortCapFlag::WRITE
+            | PortCapFlag::SUBS_WRITE;
         info.set_property_caps(cap_flags);
         info.set_property_name(Some(&Self::SEQ_PORT_NAME));
         self.client.create_port(&mut info)?;
@@ -56,18 +59,12 @@ impl SeqCntr {
     }
 
     pub fn schedule_event(&mut self, param: u32, val: i32) -> Result<(), Error> {
-        let mut data = self.ev_cntr.get_ctl_data(0)?;
+        let mut data = self.event.get_ctl_data()?;
         data.set_channel(0);
         data.set_param(param);
         data.set_value(val);
-        self.ev_cntr.set_ctl_data(0, &data)?;
+        self.event.set_ctl_data(&data)?;
 
-        // Multicast to subscribers and dispatch immediately.
-        self.ev_cntr
-            .set_queue_id(0, alsaseq::SpecificAddress::Subscribers.to_glib() as u8)?;
-        self.ev_cntr
-            .set_event_type(0, alsaseq::EventType::Controller)?;
-
-        self.client.schedule_event(&self.ev_cntr, 1)
+        self.client.schedule_event(&self.event)
     }
 }

@@ -298,65 +298,48 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
         timeout_ms: u32,
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
-            REVERB_ENABLE => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.enable = vals[0];
-                    Ok(())
-                })
-            }
+            REVERB_ENABLE => self.write_state(sequence_number, unit, req, timeout_ms, |state| {
+                state.enable = elem_value.get_bool()[0];
+                Ok(())
+            }),
             REVERB_SPLIT_POINT_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &split_point =
-                    Self::SPLIT_POINTS
-                        .iter()
-                        .nth(vals[0] as usize)
-                        .ok_or_else(|| {
-                            let msg = format!("Invalid index for split points: {}", vals[0]);
-                            Error::new(FileError::Inval, &msg)
-                        })?;
+                    Self::SPLIT_POINTS.iter().nth(val as usize).ok_or_else(|| {
+                        let msg = format!("Invalid index for split points: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.split_point = split_point;
                     Ok(())
                 })
             }
             REVERB_PRE_DELAY_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.pre_delay = vals[0] as u32;
+                    state.pre_delay = elem_value.get_int()[0] as u32;
                     Ok(())
                 })
             }
             REVERB_SHELF_FILTER_FREQ_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.shelf_filter_freq = vals[0] as u32;
+                    state.shelf_filter_freq = elem_value.get_int()[0] as u32;
                     Ok(())
                 })
             }
             REVERB_SHELF_FILTER_ATTR_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.shelf_filter_attenuation = vals[0];
+                    state.shelf_filter_attenuation = elem_value.get_int()[0];
                     Ok(())
                 })
             }
             REVERB_DECAY_TIME_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.decay_time = vals[0] as u32;
+                    state.decay_time = elem_value.get_int()[0] as u32;
                     Ok(())
                 })
             }
             REVERB_FREQ_TIME_NAME => {
-                let mut vals = vec![0; T::FREQ_TIME_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::FREQ_TIME_COUNT];
                 let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.freq_time.copy_from_slice(&raw);
@@ -364,8 +347,7 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 })
             }
             REVERB_FREQ_CROSSOVER_NAME => {
-                let mut vals = vec![0; T::FREQ_CROSSOVER_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::FREQ_CROSSOVER_COUNT];
                 let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.freq_crossover.copy_from_slice(&raw);
@@ -373,41 +355,32 @@ pub trait CommandDspReverbCtlOperation<T: CommandDspReverbOperation> {
                 })
             }
             REVERB_WIDTH_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
-                let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
+                let val = (elem_value.get_int()[0] as f32) / Self::F32_CONVERT_SCALE;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.width = val;
                     Ok(())
                 })
             }
             REVERB_REFLECTION_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &mode = Self::ROOM_SHAPES
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index for reflection modes: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let val = elem_value.get_enum()[0];
+                let &mode = Self::ROOM_SHAPES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index for reflection modes: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.reflection_mode = mode;
                     Ok(())
                 })
             }
             REVERB_REFLECTION_SIZE_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
+                let val = elem_value.get_int()[0];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
-                    state.reflection_size = vals[0] as u32;
+                    state.reflection_size = val as u32;
                     Ok(())
                 })
             }
             REVERB_REFLECTION_LEVEL_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
-                let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
+                let val = (elem_value.get_int()[0] as f32) / Self::F32_CONVERT_SCALE;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.reflection_level = val;
                     Ok(())
@@ -535,9 +508,7 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MAIN_VOLUME_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
-                let val = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
+                let val = (elem_value.get_int()[0] as f32) / Self::F32_CONVERT_SCALE;
                 let mut state = self.state().clone();
                 state.main_volume = val;
                 T::write_monitor_state(
@@ -551,10 +522,8 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 .map(|_| true)
             }
             TALKBACK_ENABLE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
                 let mut state = self.state().clone();
-                state.talkback_enable = vals[0];
+                state.talkback_enable = elem_value.get_bool()[0];
                 T::write_monitor_state(
                     req,
                     &mut unit.1,
@@ -566,10 +535,8 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 .map(|_| true)
             }
             LISTENBACK_ENABLE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
                 let mut state = self.state().clone();
-                state.listenback_enable = vals[0];
+                state.listenback_enable = elem_value.get_bool()[0];
                 T::write_monitor_state(
                     req,
                     &mut unit.1,
@@ -581,10 +548,8 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 .map(|_| true)
             }
             TALKBACK_VOLUME_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 let mut state = self.state().clone();
-                state.talkback_volume = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
+                state.talkback_volume = (elem_value.get_int()[0] as f32) / Self::F32_CONVERT_SCALE;
                 T::write_monitor_state(
                     req,
                     &mut unit.1,
@@ -596,10 +561,9 @@ pub trait CommandDspMonitorCtlOperation<T: CommandDspMonitorOperation> {
                 .map(|_| true)
             }
             LISTENBACK_VOLUME_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
                 let mut state = self.state().clone();
-                state.listenback_volume = (vals[0] as f32) / Self::F32_CONVERT_SCALE;
+                state.listenback_volume =
+                    (elem_value.get_int()[0] as f32) / Self::F32_CONVERT_SCALE;
                 T::write_monitor_state(
                     req,
                     &mut unit.1,
@@ -891,8 +855,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
     }
 
     fn f32_array_from_i32_values(elem_value: &ElemValue, count: usize) -> Vec<f32> {
-        let mut vals = vec![0; count];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..count];
         vals.iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
             .collect()
@@ -909,8 +872,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_OUTPUT_DESTINATION_NAME => {
-                let mut vals = vec![0; T::MIXER_COUNT];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::MIXER_COUNT];
                 let mut dsts = Vec::new();
                 vals.iter().try_for_each(|&val| {
                     T::OUTPUT_PORTS
@@ -928,8 +890,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_OUTPUT_MUTE_NAME => {
-                let mut vals = vec![false; T::MIXER_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::MIXER_COUNT];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.output_mute.copy_from_slice(&vals);
                     Ok(())
@@ -957,8 +918,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_MUTE_NAME => {
-                let mut vals = vec![false; T::SOURCE_PORTS.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::SOURCE_PORTS.len()];
                 let mixer = elem_id.get_index() as usize;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.source[mixer].mute.copy_from_slice(&vals);
@@ -966,8 +926,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_SOLO_NAME => {
-                let mut vals = vec![false; T::SOURCE_PORTS.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::SOURCE_PORTS.len()];
                 let mixer = elem_id.get_index() as usize;
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.source[mixer].solo.copy_from_slice(&vals);
@@ -991,8 +950,7 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
                 })
             }
             MIXER_SOURCE_STEREO_PAIR_MODE_NAME => {
-                let mut vals = vec![0; T::SOURCE_PORTS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::SOURCE_PORTS.len()];
                 let mut stereo_modes = Vec::new();
                 vals.iter().try_for_each(|&val| {
                     Self::SOURCE_STEREO_PAIR_MODES
@@ -1483,8 +1441,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[bool]),
     {
-        let mut vals = vec![false; Self::CH_COUNT];
-        elem_value.get_bool(&mut vals);
+        let vals = &elem_value.get_bool()[..Self::CH_COUNT];
         self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
@@ -1503,8 +1460,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[i32]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..Self::CH_COUNT];
         self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
@@ -1523,8 +1479,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[u32]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..Self::CH_COUNT];
         let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
         self.write_equalizer_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &raw);
@@ -1544,8 +1499,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[f32]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..Self::CH_COUNT];
         let raw: Vec<f32> = vals
             .iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
@@ -1568,8 +1522,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[RollOffLevel]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_enum(&mut vals);
+        let vals = &elem_value.get_enum()[..Self::CH_COUNT];
         let mut levels = Vec::new();
         vals.iter().try_for_each(|&val| {
             Self::ROLL_OFF_LEVELS
@@ -1599,8 +1552,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[FilterType5]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_enum(&mut vals);
+        let vals = &elem_value.get_enum()[..Self::CH_COUNT];
         let mut filter_types = Vec::new();
         vals.iter().try_for_each(|&val| {
             Self::FILTER_TYPE_5
@@ -1630,8 +1582,7 @@ pub trait CommandDspEqualizerCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspEqualizerState, &[FilterType4]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_enum(&mut vals);
+        let vals = &elem_value.get_enum()[..Self::CH_COUNT];
         let mut filter_types = Vec::new();
         vals.iter().try_for_each(|&val| {
             Self::FILTER_TYPE_4
@@ -2305,8 +2256,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspDynamicsState, &[bool]),
     {
-        let mut vals = vec![false; Self::CH_COUNT];
-        elem_value.get_bool(&mut vals);
+        let vals = &elem_value.get_bool()[..Self::CH_COUNT];
         self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
@@ -2325,8 +2275,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspDynamicsState, &[i32]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..Self::CH_COUNT];
         self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
@@ -2345,8 +2294,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspDynamicsState, &[u32]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..Self::CH_COUNT];
         let raw: Vec<u32> = vals.iter().map(|&val| val as u32).collect();
         self.write_dynamics_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &raw);
@@ -2366,8 +2314,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspDynamicsState, &[f32]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..Self::CH_COUNT];
         let raw: Vec<f32> = vals
             .iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
@@ -2390,8 +2337,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspDynamicsState, &[LevelDetectMode]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_enum(&mut vals);
+        let vals = &elem_value.get_enum()[..Self::CH_COUNT];
         let mut modes = Vec::new();
         vals.iter().try_for_each(|&val| {
             Self::LEVEL_DETECT_MODES
@@ -2421,8 +2367,7 @@ pub trait CommandDspDynamicsCtlOperation<T: CommandDspOperation, U: Default> {
     where
         F: Fn(&mut CommandDspDynamicsState, &[LevelerMode]),
     {
-        let mut vals = vec![0; Self::CH_COUNT];
-        elem_value.get_enum(&mut vals);
+        let vals = &elem_value.get_enum()[..Self::CH_COUNT];
         let mut modes = Vec::new();
         vals.iter().try_for_each(|&val| {
             Self::LEVELER_MODES
@@ -2795,8 +2740,7 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
     }
 
     fn f32_array_from_i32_values(elem_value: &ElemValue) -> Vec<f32> {
-        let mut vals = vec![0; T::INPUT_PORTS.len()];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..T::INPUT_PORTS.len()];
         vals.iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)
             .collect()
@@ -2813,40 +2757,35 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_PHASE_NAME => {
-                let mut vals = vec![false; T::INPUT_PORTS.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::INPUT_PORTS.len()];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.phase.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_PAIR_NAME => {
-                let mut vals = vec![false; T::INPUT_PORTS.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::INPUT_PORTS.len()];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.pair.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_GAIN_NAME => {
-                let mut vals = vec![0; T::INPUT_PORTS.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::INPUT_PORTS.len()];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.gain.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_SWAP_NAME => {
-                let mut vals = vec![false; T::INPUT_PORTS.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::INPUT_PORTS.len()];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.swap.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             INPUT_STEREO_MODE_NAME => {
-                let mut vals = vec![0; T::INPUT_PORTS.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::INPUT_PORTS.len()];
                 let mut modes = Vec::new();
                 vals.iter().try_for_each(|&val| {
                     Self::STEREO_PAIR_MODES
@@ -2885,40 +2824,35 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
                 })
             }
             MIC_PAD_NAME => {
-                let mut vals = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::MIC_COUNT];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.pad.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_PHANTOM_NAME => {
-                let mut vals = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::MIC_COUNT];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.phantom.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_LIMITTER_NAME => {
-                let mut vals = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::MIC_COUNT];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.limitter.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_LOOKAHEAD_NAME => {
-                let mut vals = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::MIC_COUNT];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.lookahead.copy_from_slice(&vals);
                     Ok(())
                 })
             }
             MIC_SOFT_CLIP_NAME => {
-                let mut vals = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::MIC_COUNT];
                 self.write_state(sequence_number, unit, req, timeout_ms, |state| {
                     state.soft_clip.copy_from_slice(&vals);
                     Ok(())
@@ -3190,8 +3124,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     where
         F: Fn(&mut CommandDspOutputState, &[bool]),
     {
-        let mut vals = vec![false; T::OUTPUT_PORTS.len()];
-        elem_value.get_bool(&mut vals);
+        let vals = &elem_value.get_bool()[..T::OUTPUT_PORTS.len()];
         self.write_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
@@ -3210,8 +3143,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     where
         F: Fn(&mut CommandDspOutputState, &[i32]),
     {
-        let mut vals = vec![0; T::OUTPUT_PORTS.len()];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..T::OUTPUT_PORTS.len()];
         self.write_state(sequence_number, unit, req, timeout_ms, |state| {
             func(state, &vals);
             Ok(())
@@ -3230,8 +3162,7 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     where
         F: Fn(&mut CommandDspOutputState, &[f32]),
     {
-        let mut vals = vec![0; T::OUTPUT_PORTS.len()];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..T::OUTPUT_PORTS.len()];
         let raw: Vec<f32> = vals
             .iter()
             .map(|&val| (val as f32) / Self::F32_CONVERT_SCALE)

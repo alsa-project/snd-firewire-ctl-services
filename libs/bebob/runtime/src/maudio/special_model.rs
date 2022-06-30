@@ -588,8 +588,7 @@ impl InputCtl {
         T: Fn(&mut MaudioSpecialInputParameters, &[i16]),
     {
         let mut params = curr.clone();
-        let mut vals = vec![0; count];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..count];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
         MaudioSpecialInputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -840,8 +839,7 @@ impl OutputCtl {
         T: Fn(&mut MaudioSpecialOutputParameters, &[i16]),
     {
         let mut params = curr.clone();
-        let mut vals = vec![0; labels.len()];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..labels.len()];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
         MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -864,8 +862,7 @@ impl OutputCtl {
         F: Fn(&mut MaudioSpecialOutputParameters, &[T]),
     {
         let mut params = curr.clone();
-        let mut vals = vec![0; labels.len()];
-        elem_value.get_enum(&mut vals);
+        let vals = &elem_value.get_enum()[..labels.len()];
         let mut srcs = Vec::with_capacity(vals.len());
         vals.iter().try_for_each(|&val| {
             let &src = item_list.iter().nth(val as usize).ok_or_else(|| {
@@ -1037,8 +1034,7 @@ impl AuxCtl {
         F: Fn(&mut MaudioSpecialAuxParameters, &[i16]),
     {
         let mut params = curr.clone();
-        let mut vals = vec![0; labels.len()];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..labels.len()];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
         MaudioSpecialAuxProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -1205,8 +1201,7 @@ impl MixerCtl {
     {
         let index = elem_id.get_index() as usize;
         let mut params = curr.clone();
-        let mut vals = vec![false; labels.len()];
-        elem_value.get_bool(&mut vals);
+        let vals = &elem_value.get_bool()[..labels.len()];
         set(&mut params, index, &vals);
         MaudioSpecialMixerProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
