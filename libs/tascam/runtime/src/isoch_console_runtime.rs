@@ -4,7 +4,7 @@
 use {
     super::{fw1082_model::*, fw1884_model::*, seq_cntr::*, *},
     alsactl::*,
-    alsaseq::{EventType, *},
+    alsaseq::*,
     core::dispatcher::*,
     nix::sys::signal,
     std::{marker::PhantomData, sync::mpsc, time::Duration},
@@ -55,7 +55,7 @@ enum ConsoleUnitEvent {
     BusReset(u32),
     Elem((ElemId, ElemEventMask)),
     Interval,
-    SeqAppl(EventDataCtl),
+    SeqAppl(Vec<Event>),
     Surface((u32, u32, u32)),
 }
 
@@ -142,9 +142,8 @@ where
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let mut vals = [false];
-                            elem_value.get_bool(&mut vals);
-                            if vals[0] {
+                            let val = elem_value.get_bool()[0];
+                            if val {
                                 let _ = self.start_interval_timer();
                             } else {
                                 self.stop_interval_timer();
@@ -159,10 +158,12 @@ where
                         &mut self.model,
                     );
                 }
-                ConsoleUnitEvent::SeqAppl(data) => {
-                    let _ =
-                        self.model
-                            .dispatch_appl_event(&mut self.unit.1, &mut self.seq_cntr, &data);
+                ConsoleUnitEvent::SeqAppl(events) => {
+                    let _ = self.model.dispatch_appl_events(
+                        &mut self.unit.1,
+                        &mut self.seq_cntr,
+                        &events,
+                    );
                 }
                 ConsoleUnitEvent::Surface((index, before, after)) => {
                     let _ = self.model.dispatch_surface_event(
@@ -233,18 +234,8 @@ where
         self.seq_cntr
             .client
             .connect_handle_event(move |_, ev_cntr| {
-                let _ = (0..ev_cntr.count_events())
-                    .filter(|&i| {
-                        // At present, controller event is handled.
-                        ev_cntr.get_event_type(i).unwrap_or(EventType::None)
-                            == EventType::Controller
-                    })
-                    .for_each(|i| {
-                        if let Ok(ctl_data) = ev_cntr.get_ctl_data(i) {
-                            let data = ConsoleUnitEvent::SeqAppl(ctl_data);
-                            let _ = tx.send(data);
-                        }
-                    });
+                let events = ev_cntr.deserialize();
+                let _ = tx.send(ConsoleUnitEvent::SeqAppl(events));
             });
 
         self.dispatchers.push(dispatcher);

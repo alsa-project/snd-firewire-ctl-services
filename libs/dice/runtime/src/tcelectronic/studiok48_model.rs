@@ -1321,7 +1321,12 @@ impl MixerCtl {
                 })
             }
             SRC_MUTE_NAME => {
-                new.get_bool(&mut self.0.data.mutes);
+                self.0
+                    .data
+                    .mutes
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -1344,17 +1349,32 @@ impl MixerCtl {
                 })
             }
             REVERB_RETURN_MUTE_NAME => {
-                new.get_bool(&mut self.0.data.reverb_return_mute);
+                self.0
+                    .data
+                    .reverb_return_mute
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             REVERB_RETURN_GAIN_NAME => {
-                new.get_int(&mut self.0.data.reverb_return_gain);
+                self.0
+                    .data
+                    .reverb_return_gain
+                    .iter_mut()
+                    .zip(new.get_int())
+                    .for_each(|(d, s)| *d = *s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             CH_STRIP_AS_PLUGIN_NAME => {
-                new.get_bool(&mut self.0.data.ch_strip_as_plugin);
+                self.0
+                    .data
+                    .ch_strip_as_plugin
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -1383,7 +1403,12 @@ impl MixerCtl {
                     .map(|_| true)
             }
             POST_FADER_NAME => {
-                new.get_bool(&mut self.0.data.post_fader);
+                self.0
+                    .data
+                    .post_fader
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -2123,7 +2148,12 @@ impl PhysOutCtl {
                     .map(|_| true)
             }
             OUT_MUTE_NAME => {
-                new.get_bool(&mut self.0.data.out_mutes);
+                self.0
+                    .data
+                    .out_mutes
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -2141,14 +2171,17 @@ impl PhysOutCtl {
                 })
             }
             OUT_GRP_SELECT_NAME => {
-                let mut vals = [0];
-                new.get_enum(&mut vals);
-                self.0.data.selected_out_grp = vals[0] as usize;
+                self.0.data.selected_out_grp = new.get_enum()[0] as usize;
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             OUT_GRP_SRC_ENABLE_NAME => {
-                new.get_bool(&mut self.0.data.out_assign_to_grp);
+                self.0
+                    .data
+                    .out_assign_to_grp
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -2165,8 +2198,7 @@ impl PhysOutCtl {
                 })
             }
             OUT_GRP_SRC_ASSIGN_NAME => {
-                let mut vals = [false; STUDIO_PHYS_OUT_PAIR_COUNT * 2];
-                new.get_bool(&mut vals);
+                let vals = &new.get_bool()[..(STUDIO_PHYS_OUT_PAIR_COUNT * 2)];
                 let count = vals.iter().filter(|&v| *v).count();
                 if count > STUDIO_MAX_SURROUND_CHANNELS {
                     let msg = format!(

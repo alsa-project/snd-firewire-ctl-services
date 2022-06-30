@@ -376,14 +376,12 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let mut vals = [0];
-                    elem_value.get_enum(&mut vals);
+                    let val = elem_value.get_enum()[0];
                     let &src = T::SAMPLING_CLOCK_SOURCES
                         .iter()
-                        .nth(vals[0] as usize)
+                        .nth(val as usize)
                         .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid index for sampling clock sources: {}", vals[0]);
+                            let msg = format!("Invalid index for sampling clock sources: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                     T::write_sampling_clock_source(req, &mut unit.1, src, timeout_ms).map(|_| true)
@@ -394,17 +392,11 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let mut vals = [0];
-                    elem_value.get_enum(&mut vals);
-                    let &rate =
-                        Self::CLOCK_RATES
-                            .iter()
-                            .nth(vals[0] as usize)
-                            .ok_or_else(|| {
-                                let msg =
-                                    format!("Invalid index for media clock rates: {}", vals[0]);
-                                Error::new(FileError::Inval, &msg)
-                            })?;
+                    let val = elem_value.get_enum()[0];
+                    let &rate = Self::CLOCK_RATES.iter().nth(val as usize).ok_or_else(|| {
+                        let msg = format!("Invalid index for media clock rates: {}", val);
+                        Error::new(FileError::Inval, &msg)
+                    })?;
                     T::write_media_clock_rate(req, &mut unit.1, rate, timeout_ms).map(|_| {
                         self.state_mut().0 = rate;
                         true
@@ -416,14 +408,12 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let mut vals = [0];
-                    elem_value.get_enum(&mut vals);
+                    let val = elem_value.get_enum()[0];
                     let &mode = Self::OPTICAL_INTERFACE_MODES
                         .iter()
-                        .nth(vals[0] as usize)
+                        .nth(val as usize)
                         .ok_or_else(|| {
-                            let msg =
-                                format!("Invalid index for optical interface mode: {}", vals[0]);
+                            let msg = format!("Invalid index for optical interface mode: {}", val);
                             Error::new(FileError::Inval, &msg)
                         })?;
                     T::write_optical_interface_mode(req, &mut unit.1, mode, timeout_ms)
@@ -670,10 +660,9 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
                     let msg = "Monitor function is configurable during packet streaming.";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let mut vals = [false];
-                    new.get_bool(&mut vals);
-                    T::write_monitor_enable(req, &mut unit.1, vals[0], timeout_ms).map(|_| {
-                        self.state_mut().0.enabled = vals[0];
+                    let val = new.get_bool()[0];
+                    T::write_monitor_enable(req, &mut unit.1, val, timeout_ms).map(|_| {
+                        self.state_mut().0.enabled = val;
                         true
                     })
                 }

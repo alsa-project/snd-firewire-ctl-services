@@ -632,7 +632,11 @@ impl CfgCtl {
             })
             .map(|_| true),
             INPUT_POWER_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                new.get_bool(&mut cfg.analog_in.phantom_powering);
+                cfg.analog_in
+                    .phantom_powering
+                    .iter_mut()
+                    .zip(new.get_bool())
+                    .for_each(|(d, s)| *d = s);
                 Ok(())
             })
             .map(|_| true),

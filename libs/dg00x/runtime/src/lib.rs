@@ -177,9 +177,8 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let mut vals = [false];
-                            elem_value.get_bool(&mut vals);
-                            if vals[0] {
+                            let val = elem_value.get_bool()[0];
+                            if val {
                                 let _ = self.start_interval_timer();
                             } else {
                                 self.stop_interval_timer();

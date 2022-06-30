@@ -425,13 +425,12 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CLK_SRC_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &src = T::SAMPLING_CLOCK_SOURCES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock sources: {}", vals[0]);
+                        let msg = format!("Invalid value for index of clock sources: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 unit.0.lock()?;
@@ -440,50 +439,43 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 res.map(|_| true)
             }
             CLK_RATE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &rate = Self::CLOCK_RATES
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock rates: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let val = elem_value.get_enum()[0];
+                let &rate = Self::CLOCK_RATES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid value for index of clock rates: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 unit.0.lock()?;
                 let res = T::set_media_clock_rate(req, &mut unit.1, rate, timeout_ms);
                 let _ = unit.0.unlock();
                 res.map(|_| true)
             }
             SIGNAL_DETECTION_THRESHOLD_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
+                let val = elem_value.get_int()[0];
                 T::set_analog_input_threshold_for_signal_detection(
                     req,
                     &mut unit.1,
-                    vals[0] as u16,
+                    val as u16,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
+                let val = elem_value.get_int()[0];
                 T::set_analog_input_threshold_for_over_level_detection(
                     req,
                     &mut unit.1,
-                    vals[0] as u16,
+                    val as u16,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             COAX_OUT_SRC_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &src = Self::COAXIAL_OUTPUT_SOURCES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid value for index of clock rates: {}", vals[0]);
+                        let msg = format!("Invalid value for index of clock rates: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 T::set_coaxial_output_source(req, &mut unit.1, src, timeout_ms).map(|_| true)
@@ -577,25 +569,23 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OPT_OUT_SRC_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &src = Self::OPTICAL_OUTPUT_SOURCES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for optical output sources: {}", vals[0]);
+                        let msg = format!("Invalid index for optical output sources: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 T::set_opt_output_source(req, node, src, timeout_ms).map(|_| true)
             }
             SPDIF_IN_SRC_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &src = Self::SPDIF_INPUT_SOURCES
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for spdif input sources: {}", vals[0]);
+                        let msg = format!("Invalid index for spdif input sources: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 T::set_spdif_capture_source(req, node, src, timeout_ms).map(|_| true)
@@ -674,9 +664,8 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MASTER_FADER_ASSIGN_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::set_master_fader_assign(req, node, vals[0], timeout_ms).map(|_| true)
+                let val = elem_value.get_bool()[0];
+                T::set_master_fader_assign(req, node, val, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }

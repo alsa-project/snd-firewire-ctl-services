@@ -61,8 +61,6 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
             .add_bool_elems(&elem_id, 1, 1, true)
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
-        let output_count = T::ENTRY_COUNT;
-
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_NAME, 0);
         card_cntr
             .add_int_elems(
@@ -71,25 +69,25 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 Self::LEVEL_MIN,
                 Self::LEVEL_MAX,
                 Self::LEVEL_STEP,
-                output_count,
+                T::ENTRY_COUNT,
                 None,
                 true,
             )
             .map(|mut elem_id_list| notified_elem_id_list.append(&mut elem_id_list))?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_MUTE_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
+        card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
 
         if T::HAS_VOL_HWCTL {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, VOL_HWCTL_NAME, 0);
-            card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
+            card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
         }
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DIM_HWCTL_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
+        card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, MUTE_HWCTL_NAME, 0);
-        card_cntr.add_bool_elems(&elem_id, 1, output_count, true)?;
+        card_cntr.add_bool_elems(&elem_id, 1, T::ENTRY_COUNT, true)?;
 
         Ok(notified_elem_id_list)
     }
@@ -149,8 +147,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
             })
             .map(|_| true),
             VOL_NAME => {
-                let mut vals = vec![0i32; T::ENTRY_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::ENTRY_COUNT];
                 let vols: Vec<i8> = vals.iter().map(|&v| (Self::LEVEL_MAX - v) as i8).collect();
                 T::write_out_group_vols(
                     req,
@@ -163,8 +160,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 .map(|_| true)
             }
             VOL_MUTE_NAME => {
-                let mut vol_mutes = vec![false; T::ENTRY_COUNT];
-                elem_value.get_bool(&mut vol_mutes);
+                let vol_mutes = &elem_value.get_bool()[..T::ENTRY_COUNT];
                 let vol_hwctls = self.state().vol_hwctls.clone();
                 T::write_out_group_vol_mute_hwctls(
                     req,
@@ -178,8 +174,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 .map(|_| true)
             }
             VOL_HWCTL_NAME => {
-                let mut vol_hwctls = self.state().vol_hwctls.clone();
-                elem_value.get_bool(&mut vol_hwctls);
+                let vol_hwctls = &elem_value.get_bool()[..T::ENTRY_COUNT];
                 let vol_mutes = vec![false; T::ENTRY_COUNT];
                 T::write_out_group_vol_mute_hwctls(
                     req,
@@ -193,8 +188,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 .map(|_| true)
             }
             DIM_HWCTL_NAME => {
-                let mut dim_hwctls = vec![false; T::ENTRY_COUNT];
-                elem_value.get_bool(&mut dim_hwctls);
+                let dim_hwctls = &elem_value.get_bool()[..T::ENTRY_COUNT];
                 let mute_hwctls = self.state().mute_hwctls.clone();
                 T::write_out_group_dim_mute_hwctls(
                     req,
@@ -208,8 +202,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 Ok(true)
             }
             MUTE_HWCTL_NAME => {
-                let mut mute_hwctls = vec![false; T::ENTRY_COUNT];
-                elem_value.get_bool(&mut mute_hwctls);
+                let mute_hwctls = &elem_value.get_bool()[..T::ENTRY_COUNT];
                 let dim_hwctls = self.state().dim_hwctls.clone();
                 T::write_out_group_dim_mute_hwctls(
                     req,
@@ -377,8 +370,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIC_INPUT_LEVEL_NAME => {
-                let mut vals = vec![0; T::MIC_INPUT_COUNT];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::MIC_INPUT_COUNT];
                 let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
                 vals.iter().enumerate().try_for_each(|(i, &val)| {
                     Self::MIC_LEVELS
@@ -393,8 +385,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
                 T::write_mic_level(req, &mut unit.1, sections, &levels, timeout_ms).map(|_| true)
             }
             LINE_INPUT_LEVEL_NAME => {
-                let mut vals = vec![0; T::LINE_INPUT_COUNT];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::LINE_INPUT_COUNT];
                 let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
                 vals.iter().enumerate().try_for_each(|(i, &val)| {
                     Self::LINE_LEVELS

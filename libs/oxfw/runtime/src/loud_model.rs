@@ -141,10 +141,9 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CAPTURE_SOURCE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &src = Self::SRCS.iter().nth(vals[0] as usize).ok_or_else(|| {
-                    let msg = format!("Invalid value for index of signal source: {}", vals[0]);
+                let val = elem_value.get_enum()[0];
+                let &src = Self::SRCS.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid value for index of signal source: {}", val);
                     Error::new(FileError::Inval, &msg)
                 })?;
                 LinkFwProtocol::write_input_source(avc, src, timeout_ms).map(|_| true)

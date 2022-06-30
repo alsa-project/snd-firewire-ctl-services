@@ -411,8 +411,7 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             ANALOG_INPUT_2_3_HIGH_GAIN => {
-                let mut vals = [false; 2];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..2];
                 SaffireLeSpecificProtocol::write_analog_input_high_gains(
                     req,
                     &unit.1,
@@ -492,8 +491,7 @@ impl MixerLowRateCtl {
         match elem_id.get_name().as_str() {
             PHYS_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut vals = vec![0i32; self.0.phys_src_gains[0].len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.phys_src_gains[0].len()];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -510,8 +508,7 @@ impl MixerLowRateCtl {
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut vals = vec![0i32; self.0.stream_src_gains[0].len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.stream_src_gains[0].len()];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -630,8 +627,7 @@ impl MixerMiddleRateCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME => {
-                let mut vals = vec![0i32; self.0.monitor_src_phys_input_gains.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.0.monitor_src_phys_input_gains.len()];
                 let gains: Vec<i16> = vals.iter().fold(Vec::new(), |mut gains, &gain| {
                     gains.push(gain as i16);
                     gains
@@ -647,8 +643,7 @@ impl MixerMiddleRateCtl {
             }
             MIDDLE_MONITOR_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut vals = vec![0i32];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..1];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -665,8 +660,7 @@ impl MixerMiddleRateCtl {
             }
             MIDDLE_STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut vals = vec![0i32; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels

@@ -346,15 +346,11 @@ impl CfgCtl {
                 })
             })
             .map(|_| true),
-            EFFECT_ON_INPUT_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                    cfg.effect_on_inputs = vals[0];
-                    Ok(())
-                })
-                .map(|_| true)
-            }
+            EFFECT_ON_INPUT_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
+                cfg.effect_on_inputs = elem_value.get_bool()[0];
+                Ok(())
+            })
+            .map(|_| true),
             SPDIF_OUTPUT_FMT_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::SPDIF_FMTS

@@ -217,20 +217,27 @@ pub trait SequencerCtlOperation<
         })
     }
 
-    fn dispatch_appl_event(
+    fn dispatch_appl_events(
         &mut self,
         unit: &mut FwNode,
         seq_cntr: &mut SeqCntr,
-        data: &EventDataCtl,
+        events: &[Event],
     ) -> Result<(), Error> {
-        let input = self.parse_appl_event(data)?;
-        let outputs = self.dispatch_machine_event(&input);
-        outputs.iter().try_for_each(|output| {
-            if !output.eq(&input) {
-                self.feedback_to_appl(seq_cntr, output)?;
-            }
-            self.feedback_to_surface(unit, output)
-        })
+        // NOTE: At present, controller event is handled for my convenience.
+        events
+            .iter()
+            .filter(|ev| EventType::Controller == ev.get_event_type())
+            .filter_map(|ev| ev.get_ctl_data().ok())
+            .try_for_each(|ctl_data| {
+                let input = self.parse_appl_event(&ctl_data)?;
+                let outputs = self.dispatch_machine_event(&input);
+                outputs.iter().try_for_each(|output| {
+                    if !output.eq(&input) {
+                        self.feedback_to_appl(seq_cntr, output)?;
+                    }
+                    self.feedback_to_surface(unit, output)
+                })
+            })
     }
 
     fn parse_appl_event(&self, data: &EventDataCtl) -> Result<(MachineItem, ItemValue), Error> {

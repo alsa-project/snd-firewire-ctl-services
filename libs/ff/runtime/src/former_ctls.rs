@@ -63,8 +63,7 @@ pub trait FormerOutputCtlOperation<T: RmeFormerOutputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             VOL_NAME => {
-                let mut vals = self.state().0.to_vec();
-                new.get_int(&mut vals);
+                let vals = &new.get_int()[..self.state().0.len()];
                 T::write_output_vols(req, &mut unit.1, self.state_mut(), &vals, timeout_ms)
                     .map(|_| true)
             }
@@ -211,8 +210,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
         match elem_id.get_name().as_str() {
             ANALOG_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().0[index].analog_gains.clone();
-                new.get_int(&mut gains);
+                let gains = &new.get_int()[..self.state_mut().0[index].analog_gains.len()];
                 T::write_mixer_analog_gains(
                     req,
                     &mut unit.1,
@@ -225,8 +223,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             }
             SPDIF_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().0[index].spdif_gains.clone();
-                new.get_int(&mut gains);
+                let gains = &new.get_int()[..self.state_mut().0[index].spdif_gains.len()];
                 T::write_mixer_spdif_gains(
                     req,
                     &mut unit.1,
@@ -239,8 +236,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             }
             ADAT_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().0[index].adat_gains.clone();
-                new.get_int(&mut gains);
+                let gains = &new.get_int()[..self.state_mut().0[index].adat_gains.len()];
                 T::write_mixer_adat_gains(
                     req,
                     &mut unit.1,
@@ -253,8 +249,7 @@ pub trait FormerMixerCtlOperation<T: RmeFormerMixerOperation> {
             }
             STREAM_SRC_GAIN_NAME => {
                 let index = elem_id.get_index() as usize;
-                let mut gains = self.state_mut().0[index].stream_gains.clone();
-                new.get_int(&mut gains);
+                let gains = &new.get_int()[..self.state_mut().0[index].stream_gains.len()];
                 T::write_mixer_stream_gains(
                     req,
                     &mut unit.1,

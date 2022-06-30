@@ -527,15 +527,13 @@ impl MicInputCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIC_GAIN_NAME => {
-                let mut vals = [0; TravelerProtocol::MIC_INPUT_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..TravelerProtocol::MIC_INPUT_COUNT];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 TravelerProtocol::write_mic_gain(req, &mut unit.1, &gain, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_PAD_NAME => {
-                let mut pad = [false; TravelerProtocol::MIC_INPUT_COUNT];
-                elem_value.get_bool(&mut pad);
+                let pad = &elem_value.get_bool()[..TravelerProtocol::MIC_INPUT_COUNT];
                 TravelerProtocol::write_mic_pad(req, &mut unit.1, &pad, &mut self.0, timeout_ms)
                     .map(|_| true)
             }

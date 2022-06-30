@@ -746,9 +746,8 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 let analog_input_count = gains.analog_inputs.len();
                 let digital_a_input_count = gains.digital_a_inputs.len();
                 let digital_b_input_count = gains.digital_b_inputs.len();
-                let mut vals =
-                    vec![0; analog_input_count + digital_a_input_count + digital_b_input_count];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()
+                    [..(analog_input_count + digital_a_input_count + digital_b_input_count)];
 
                 let analog_inputs = &vals[..analog_input_count];
                 let digital_a_inputs =
@@ -776,9 +775,8 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 let analog_input_count = mutes.analog_inputs.len();
                 let digital_a_input_count = mutes.digital_a_inputs.len();
                 let digital_b_input_count = mutes.digital_b_inputs.len();
-                let mut vals =
-                    vec![false; analog_input_count + digital_a_input_count + digital_b_input_count];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()
+                    [..(analog_input_count + digital_a_input_count + digital_b_input_count)];
 
                 let analog_inputs = &vals[..analog_input_count];
                 let digital_a_inputs =
@@ -803,7 +801,11 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 let mixer = elem_id.get_index() as usize;
                 let mut gains = self.state().gains[mixer].clone();
 
-                elem_value.get_int(&mut gains.stream_inputs);
+                gains
+                    .stream_inputs
+                    .iter_mut()
+                    .zip(elem_value.get_int())
+                    .for_each(|(d, s)| *d = *s);
 
                 T::write_mixer_src_gains(
                     req,
@@ -816,14 +818,12 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 .map(|_| true)
             }
             OUTPUT_VOL_NAME => {
-                let mut vals = self.state().out_vols.clone();
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..self.state().out_vols.len()];
                 T::write_mixer_out_vols(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             OUTPUT_MUTE_NAME => {
-                let mut vals = self.state().out_mutes.clone();
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.state().out_mutes.len()];
                 T::write_mixer_out_mutes(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -1019,8 +1019,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             OUT_LEVEL_NAME => {
-                let mut vals = vec![0; T::ANALOG_OUTPUT_COUNT];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::ANALOG_OUTPUT_COUNT];
                 let levels: Vec<NominalSignalLevel> =
                     vals.iter().map(|v| NominalSignalLevel::from(*v)).collect();
                 T::write_out_levels(req, &mut unit.1, &levels, timeout_ms).map(|_| true)

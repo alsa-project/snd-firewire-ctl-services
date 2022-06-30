@@ -82,8 +82,7 @@ impl Iec60958Ctl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             DEFAULT_NAME => {
-                let mut vals = [0; 24];
-                new.get_iec60958_channel_status(&mut vals);
+                let vals = new.get_iec60958_channel_status();
 
                 let mut enable = vec![];
                 let mut disable = vec![];

@@ -55,7 +55,7 @@ enum AsyncUnitEvent {
     Disconnected,
     BusReset(u32),
     Surface((u32, u32, u32)),
-    SeqAppl(EventDataCtl),
+    SeqAppl(Vec<Event>),
 }
 
 const NODE_DISPATCHER_NAME: &str = "node event dispatcher";
@@ -121,10 +121,12 @@ where
                         after,
                     );
                 }
-                AsyncUnitEvent::SeqAppl(data) => {
-                    let _ =
-                        self.model
-                            .dispatch_appl_event(&mut self.unit.1, &mut self.seq_cntr, &data);
+                AsyncUnitEvent::SeqAppl(events) => {
+                    let _ = self.model.dispatch_appl_events(
+                        &mut self.unit.1,
+                        &mut self.seq_cntr,
+                        &events,
+                    );
                 }
             }
         }
@@ -161,18 +163,8 @@ where
         self.seq_cntr
             .client
             .connect_handle_event(move |_, ev_cntr| {
-                (0..ev_cntr.count_events())
-                    .filter_map(|i| {
-                        ev_cntr
-                            .get_event_type(i)
-                            .ok()
-                            .filter(|ev_type| EventType::Controller.eq(ev_type))
-                            .and_then(|_| ev_cntr.get_ctl_data(i).ok())
-                    })
-                    .for_each(|ctl_data| {
-                        let data = AsyncUnitEvent::SeqAppl(ctl_data);
-                        let _ = tx.send(data);
-                    });
+                let events = ev_cntr.deserialize();
+                let _ = tx.send(AsyncUnitEvent::SeqAppl(events));
             });
 
         let tx = self.tx.clone();

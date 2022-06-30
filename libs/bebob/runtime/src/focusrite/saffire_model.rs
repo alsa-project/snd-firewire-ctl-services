@@ -496,25 +496,23 @@ impl SpecificCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MODE_192_KHZ_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
+                let val = elem_value.get_bool()[0];
                 SaffireSpecificProtocol::write_192khz_mode(
                     req,
                     &unit.1,
-                    vals[0],
+                    val,
                     &mut self.0,
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             INPUT_PAIR_1_SRC_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
+                let val = elem_value.get_enum()[0];
                 let &src = Self::INPUT_PAIR_1_SRCS
                     .iter()
-                    .nth(vals[0] as usize)
+                    .nth(val as usize)
                     .ok_or_else(|| {
-                        let msg = format!("Invalid index for source of input pair 1: {}", vals[0]);
+                        let msg = format!("Invalid index for source of input pair 1: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
                 SaffireSpecificProtocol::write_input_pair_1_src(
@@ -527,15 +525,11 @@ impl SpecificCtl {
                 .map(|_| true)
             }
             MIXER_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &mode = Self::MIXER_MODES
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index for mode of mixer: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let val = elem_value.get_enum()[0];
+                let &mode = Self::MIXER_MODES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index for mode of mixer: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 SaffireSpecificProtocol::write_mixer_mode(
                     req,
                     &unit.1,
@@ -651,8 +645,7 @@ impl ReverbCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             REVERB_AMOUNT_NAME => {
-                let mut vals = [0; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 SaffireReverbProtocol::write_amounts(
                     req,
                     &mut unit.1,
@@ -663,8 +656,7 @@ impl ReverbCtl {
                 .map(|_| true)
             }
             REVERB_ROOM_SIZE_NAME => {
-                let mut vals = [0; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 SaffireReverbProtocol::write_room_sizes(
                     req,
                     &mut unit.1,
@@ -675,8 +667,7 @@ impl ReverbCtl {
                 .map(|_| true)
             }
             REVERB_DIFFUSION_NAME => {
-                let mut vals = [0; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 SaffireReverbProtocol::write_diffusions(
                     req,
                     &mut unit.1,
@@ -687,8 +678,7 @@ impl ReverbCtl {
                 .map(|_| true)
             }
             REVERB_TONE_NAME => {
-                let mut vals = [0; 2];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..2];
                 SaffireReverbProtocol::write_tones(req, &mut unit.1, &vals, &mut self.0, timeout_ms)
                     .map(|_| true)
             }

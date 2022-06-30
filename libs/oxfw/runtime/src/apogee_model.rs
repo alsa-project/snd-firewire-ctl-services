@@ -757,9 +757,8 @@ impl InputCtl {
             })
             .map(|_| true),
             INPUT_CLICKLESS_NAME => {
-                let mut vals = [false];
-                new.get_bool(&mut vals);
-                DuetFwInputProtocol::write_clickless(avc, vals[0], &mut self.0, timeout_ms)
+                let val = new.get_bool()[0];
+                DuetFwInputProtocol::write_clickless(avc, val, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -942,33 +941,27 @@ impl DisplayCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             DISPLAY_TARGET_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &target = Self::TARGETS.iter().nth(vals[0] as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for display targets: {}", vals[0]);
+                let val = elem_value.get_enum()[0];
+                let &target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index for display targets: {}", val);
                     Error::new(FileError::Inval, &msg)
                 })?;
                 DuetFwDisplayProtocol::write_target(avc, target, timeout_ms).map(|_| true)
             }
             DISPLAY_MODE_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &mode = Self::MODES.iter().nth(vals[0] as usize).ok_or_else(|| {
-                    let msg = format!("Invalid index for display modes: {}", vals[0]);
+                let val = elem_value.get_enum()[0];
+                let &mode = Self::MODES.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index for display modes: {}", val);
                     Error::new(FileError::Inval, &msg)
                 })?;
                 DuetFwDisplayProtocol::write_mode(avc, mode, timeout_ms).map(|_| true)
             }
             DISPLAY_OVERHOLDS_NAME => {
-                let mut vals = [0];
-                elem_value.get_enum(&mut vals);
-                let &mode = Self::OVERHOLDS
-                    .iter()
-                    .nth(vals[0] as usize)
-                    .ok_or_else(|| {
-                        let msg = format!("Invalid index for display overholds: {}", vals[0]);
-                        Error::new(FileError::Inval, &msg)
-                    })?;
+                let val = elem_value.get_enum()[0];
+                let &mode = Self::OVERHOLDS.iter().nth(val as usize).ok_or_else(|| {
+                    let msg = format!("Invalid index for display overholds: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })?;
                 DuetFwDisplayProtocol::write_overhold(avc, mode, timeout_ms).map(|_| true)
             }
             _ => Ok(false),

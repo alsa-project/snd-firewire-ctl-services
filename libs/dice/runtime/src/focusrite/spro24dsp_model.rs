@@ -533,8 +533,7 @@ impl EffectCtl {
     }
 
     fn convert_to_f32_array(elem_value: &ElemValue, raw: &mut [f32]) {
-        let mut vals = vec![0; raw.len()];
-        elem_value.get_int(&mut vals);
+        let vals = &elem_value.get_int()[..raw.len()];
         raw.iter_mut()
             .zip(vals.iter())
             .for_each(|(r, &val)| *r = (val as f32) / Self::F32_CONVERT_SCALE);
@@ -551,8 +550,7 @@ impl EffectCtl {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             CH_STRIP_ORDER_NAME => {
-                let mut vals = vec![0; self.0.eq_after_comp.len()];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..self.0.eq_after_comp.len()];
                 let eq_after_comp: Vec<bool> = vals.iter().map(|&val| val > 0).collect();
                 SPro24DspProtocol::write_eq_after_comp(
                     req,
@@ -565,8 +563,7 @@ impl EffectCtl {
                 .map(|_| true)
             }
             COMPRESSOR_ENABLE_NAME => {
-                let mut vals = vec![false; self.0.comp_enable.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.0.comp_enable.len()];
                 SPro24DspProtocol::write_comp_enable(
                     req,
                     &mut unit.1,
@@ -578,8 +575,7 @@ impl EffectCtl {
                 .map(|_| true)
             }
             EQUALIZER_ENABLE_NAME => {
-                let mut vals = vec![false; self.0.eq_enable.len()];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..self.0.eq_enable.len()];
                 SPro24DspProtocol::write_eq_enable(
                     req,
                     &mut unit.1,
@@ -699,10 +695,9 @@ impl EffectCtl {
                 .map(|_| true)
             }
             REVERB_ENABLE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
+                let val = elem_value.get_bool()[0];
                 let mut reverb = self.0.reverb.clone();
-                reverb.enabled = vals[0];
+                reverb.enabled = val;
                 SPro24DspProtocol::write_reverb_effect(
                     req,
                     &mut unit.1,

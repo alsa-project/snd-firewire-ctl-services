@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*,
-    alsactl::*,
-    glib::{FileError, IsA},
-};
+use {super::*, alsactl::*, glib::FileError};
 
 #[derive(Default)]
 pub struct CardCntr {
@@ -71,12 +67,10 @@ impl CardCntr {
         value_count: usize,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
-        let elem_info = ElemInfo::new(ElemType::Boolean)?;
+        let elem_info = ElemInfoBoolean::new();
         elem_info.set_property_value_count(value_count as u32);
 
-        let access = ElemAccessFlag::READ
-            | ElemAccessFlag::WRITE
-            | ElemAccessFlag::VOLATILE;
+        let access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
         self.register_elems(&elem_id, elem_count, &elem_info, None, unlock)
@@ -99,13 +93,11 @@ impl CardCntr {
             .map(|entry| entry.as_ref())
             .collect::<Vec<&str>>();
 
-        let elem_info = ElemInfo::new(ElemType::Enumerated)?;
+        let elem_info = ElemInfoEnumerated::new();
         elem_info.set_property_value_count(value_count as u32);
-        elem_info.set_enum_data(&entries)?;
+        elem_info.set_property_labels(&entries);
 
-        let access = ElemAccessFlag::READ
-            | ElemAccessFlag::WRITE
-            | ElemAccessFlag::VOLATILE;
+        let access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
         self.register_elems(&elem_id, elem_count, &elem_info, tlv, unlock)
@@ -119,12 +111,10 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
-        let elem_info = ElemInfo::new(ElemType::Bytes)?;
+        let elem_info = ElemInfoBytes::new();
         elem_info.set_property_value_count(value_count as u32);
 
-        let mut access = ElemAccessFlag::READ
-            | ElemAccessFlag::WRITE
-            | ElemAccessFlag::VOLATILE;
+        let mut access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         if tlv != None {
             access |= ElemAccessFlag::TLV_READ | ElemAccessFlag::TLV_WRITE;
         }
@@ -144,13 +134,13 @@ impl CardCntr {
         tlv: Option<&[u32]>,
         unlock: bool,
     ) -> Result<Vec<ElemId>, Error> {
-        let elem_info = ElemInfo::new(ElemType::Integer)?;
+        let elem_info = ElemInfoInteger::new();
         elem_info.set_property_value_count(value_count as u32);
-        elem_info.set_int_data(&[min, max, step])?;
+        elem_info.set_property_value_min(min);
+        elem_info.set_property_value_max(max);
+        elem_info.set_property_value_step(step);
 
-        let mut access = ElemAccessFlag::READ
-            | ElemAccessFlag::WRITE
-            | ElemAccessFlag::VOLATILE;
+        let mut access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         if tlv != None {
             access |= ElemAccessFlag::TLV_READ | ElemAccessFlag::TLV_WRITE;
         }
@@ -165,12 +155,9 @@ impl CardCntr {
         elem_count: usize,
         unlock: bool,
     ) -> Result<ElemId, Error> {
-        let elem_info = ElemInfo::new(ElemType::Iec60958)?;
-        elem_info.set_property_value_count(1);
+        let elem_info = ElemInfoIec60958::new();
 
-        let access = ElemAccessFlag::READ
-            | ElemAccessFlag::WRITE
-            | ElemAccessFlag::VOLATILE;
+        let access = ElemAccessFlag::READ | ElemAccessFlag::WRITE | ElemAccessFlag::VOLATILE;
         elem_info.set_property_access(access);
 
         let mut elem_id_list =
@@ -179,17 +166,14 @@ impl CardCntr {
         Ok(elem_id_list.remove(0))
     }
 
-    fn register_elems<P>(
+    fn register_elems<O: AsRef<ElemInfoCommon>>(
         &mut self,
         elem_id: &ElemId,
         elem_count: usize,
-        elem_info: &P,
+        elem_info: &O,
         tlv: Option<&[u32]>,
         unlock: bool,
-    ) -> Result<Vec<ElemId>, Error>
-    where
-        P: IsA<ElemInfo>,
-    {
+    ) -> Result<Vec<ElemId>, Error> {
         // If already registered, reuse them if possible.
         let elem_id_list = self.card.get_elem_id_list()?;
         let elem_id_list = match elem_id_list.iter().position(|eid| eid.eq(elem_id)) {
@@ -208,17 +192,17 @@ impl CardCntr {
                 }
 
                 elem_id_list.iter().try_for_each(|elem_id| {
-                    let einfo = self.card.get_elem_info(elem_id)?;
+                    let info = self.card.get_elem_info(elem_id)?;
 
-                    if einfo.get_property_access().contains(ElemAccessFlag::OWNER) {
+                    if info.as_ref().get_property_access().contains(ElemAccessFlag::OWNER) {
                         // Programming error.
                         let label = format!("{} is already added by runtime.", elem_id.get_name());
                         Err(Error::new(FileError::Inval, &label))
-                    } else if einfo.get_property_access().contains(ElemAccessFlag::LOCK) {
+                    } else if info.as_ref().get_property_access().contains(ElemAccessFlag::LOCK) {
                         // The other process locks the element.
                         let label = format!("{} is locked by the other process.", elem_id.get_name());
                         Err(Error::new(FileError::Inval, &label))
-                    } else if einfo.get_property_type() != elem_info.get_property_type() {
+                    } else if info.as_ref().get_property_elem_type() != elem_info.as_ref().get_property_elem_type() {
                         // The existent element has unexpected type.
                         let label = format!("{} is already added but has unexpected type.", elem_id.get_name());
                         Err(Error::new(FileError::Inval, &label))
@@ -252,7 +236,7 @@ impl CardCntr {
         elem_id_list
             .iter()
             .try_for_each(|elem_id| match self.card.get_elem_info(&elem_id) {
-                Ok(elem_info) => match elem_info.get_property_elem_id() {
+                Ok(elem_info) => match elem_info.as_ref().get_property_elem_id() {
                     Some(elem_id) => {
                         let mut v = ElemValue::new();
                         self.card.read_elem_value(&elem_id, &mut v)?;

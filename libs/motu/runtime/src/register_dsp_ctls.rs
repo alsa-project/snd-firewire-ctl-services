@@ -112,21 +112,18 @@ pub trait RegisterDspMixerOutputCtlOperation<T: RegisterDspMixerOutputOperation>
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_OUTPUT_VOLUME_NAME => {
-                let mut vals = vec![0; T::MIXER_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_COUNT];
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
                 T::write_mixer_output_volume(req, &mut unit.1, &vols, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             MIXER_OUTPUT_MUTE_NAME => {
-                let mut mute = vec![false; T::MIXER_COUNT];
-                elem_value.get_bool(&mut mute);
+                let mute = &elem_value.get_bool()[..T::MIXER_COUNT];
                 T::write_mixer_output_mute(req, &mut unit.1, &mute, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             MIXER_OUTPUT_DST_NAME => {
-                let mut vals = vec![0; T::MIXER_COUNT];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::MIXER_COUNT];
                 let mut dst = Vec::new();
                 vals.iter().try_for_each(|&val| {
                     T::OUTPUT_DESTINATIONS
@@ -199,9 +196,8 @@ pub trait RegisterDspMixerReturnCtlOperation<T: RegisterDspMixerReturnOperation>
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_RETURN_ENABLE_NAME => {
-                let mut vals = [false];
-                elem_value.get_bool(&mut vals);
-                T::write_mixer_return_enable(req, &mut unit.1, vals[0], timeout_ms).map(|_| true)
+                let val = elem_value.get_bool()[0];
+                T::write_mixer_return_enable(req, &mut unit.1, val, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -314,8 +310,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
-                let mut vals = vec![0; T::MIXER_SOURCES.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_SOURCES.len()];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_gain(
@@ -329,8 +324,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 .map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
-                let mut vals = vec![0; T::MIXER_SOURCES.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_SOURCES.len()];
                 let pan: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_pan(
@@ -344,8 +338,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 .map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
-                let mut mute = vec![false; T::MIXER_SOURCES.len()];
-                elem_value.get_bool(&mut mute);
+                let mute = &elem_value.get_bool()[..T::MIXER_SOURCES.len()];
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_mute(
                     req,
@@ -358,8 +351,7 @@ pub trait RegisterDspMixerMonauralSourceCtlOperation<T: RegisterDspMixerMonaural
                 .map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
-                let mut solo = vec![false; T::MIXER_SOURCES.len()];
-                elem_value.get_bool(&mut solo);
+                let solo = &elem_value.get_bool()[..T::MIXER_SOURCES.len()];
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_monaural_source_solo(
                     req,
@@ -540,8 +532,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
-                let mut vals = vec![0; T::MIXER_SOURCES.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_SOURCES.len()];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_gain(
@@ -555,8 +546,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 .map(|_| true)
             }
             MIXER_SOURCE_PAN_NAME => {
-                let mut vals = vec![0; T::MIXER_SOURCES.len()];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_SOURCES.len()];
                 let pan: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_pan(
@@ -570,8 +560,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 .map(|_| true)
             }
             MIXER_SOURCE_MUTE_NAME => {
-                let mut mute = vec![false; T::MIXER_SOURCES.len()];
-                elem_value.get_bool(&mut mute);
+                let mute = &elem_value.get_bool()[..T::MIXER_SOURCES.len()];
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_mute(
                     req,
@@ -584,8 +573,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 .map(|_| true)
             }
             MIXER_SOURCE_SOLO_NAME => {
-                let mut solo = vec![false; T::MIXER_SOURCES.len()];
-                elem_value.get_bool(&mut solo);
+                let solo = &elem_value.get_bool()[..T::MIXER_SOURCES.len()];
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_mute(
                     req,
@@ -598,8 +586,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 .map(|_| true)
             }
             MIXER_SOURCE_STEREO_BALANCE_NAME => {
-                let mut vals = vec![0; T::MIXER_SOURCE_PAIR_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_SOURCE_PAIR_COUNT];
                 let balance: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_balance(
@@ -613,8 +600,7 @@ pub trait RegisterDspMixerStereoSourceCtlOperation<T: RegisterDspMixerStereoSour
                 .map(|_| true)
             }
             MIXER_SOURCE_STEREO_WIDTH_NAME => {
-                let mut vals = vec![0; T::MIXER_SOURCE_PAIR_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::MIXER_SOURCE_PAIR_COUNT];
                 let width: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 let mixer = elem_id.get_index() as usize;
                 T::write_mixer_stereo_source_width(
@@ -720,24 +706,22 @@ pub trait RegisterDspOutputCtlOperation<T: RegisterDspOutputOperation> {
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             MASTER_OUTPUT_VOLUME_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
+                let val = elem_value.get_int()[0];
                 T::write_output_master_volume(
                     req,
                     &mut unit.1,
-                    vals[0] as u8,
+                    val as u8,
                     self.state_mut(),
                     timeout_ms,
                 )
                 .map(|_| true)
             }
             PHONE_VOLUME_NAME => {
-                let mut vals = [0];
-                elem_value.get_int(&mut vals);
+                let val = elem_value.get_int()[0];
                 T::write_output_phone_volume(
                     req,
                     &mut unit.1,
-                    vals[0] as u8,
+                    val as u8,
                     self.state_mut(),
                     timeout_ms,
                 )
@@ -828,8 +812,7 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_NOMINAL_LEVEL_NAME => {
-                let mut vals = vec![0; T::LINE_INPUT_COUNT];
-                elem_value.get_enum(&mut vals);
+                let vals = &elem_value.get_enum()[..T::LINE_INPUT_COUNT];
                 let mut level = Vec::new();
                 vals.iter().try_for_each(|&val| {
                     Self::NOMINAL_LEVELS
@@ -845,8 +828,7 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
                     .map(|_| true)
             }
             INPUT_BOOST_NAME => {
-                let mut vals = vec![false; T::LINE_INPUT_COUNT];
-                elem_value.get_bool(&mut vals);
+                let vals = &elem_value.get_bool()[..T::LINE_INPUT_COUNT];
                 T::write_line_input_boost(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -940,15 +922,13 @@ pub trait RegisterDspMonauralInputCtlOperation<T: RegisterDspMonauralInputOperat
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_GAIN_NAME => {
-                let mut vals = vec![0; T::INPUT_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::INPUT_COUNT];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 T::write_monaural_input_gain(req, &mut unit.1, &gain, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             INPUT_INVERT_NAME => {
-                let mut invert = vec![false; T::INPUT_COUNT];
-                elem_value.get_bool(&mut invert);
+                let invert = &elem_value.get_bool()[..T::INPUT_COUNT];
                 T::write_monaural_input_invert(
                     req,
                     &mut unit.1,
@@ -1077,15 +1057,13 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
     ) -> Result<bool, Error> {
         match elem_id.get_name().as_str() {
             INPUT_GAIN_NAME => {
-                let mut vals = vec![0; T::INPUT_COUNT];
-                elem_value.get_int(&mut vals);
+                let vals = &elem_value.get_int()[..T::INPUT_COUNT];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 T::write_stereo_input_gain(req, &mut unit.1, &gain, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             INPUT_INVERT_NAME => {
-                let mut invert = vec![false; T::INPUT_COUNT];
-                elem_value.get_bool(&mut invert);
+                let invert = &elem_value.get_bool()[..T::INPUT_COUNT];
                 T::write_stereo_input_invert(
                     req,
                     &mut unit.1,
@@ -1096,19 +1074,16 @@ pub trait RegisterDspStereoInputCtlOperation<T: RegisterDspStereoInputOperation>
                 .map(|_| true)
             }
             MIC_PHANTOM_NAME => {
-                let mut phantom = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut phantom);
+                let phantom = &elem_value.get_bool()[..T::MIC_COUNT];
                 T::write_mic_phantom(req, &mut unit.1, &phantom, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             MIC_PAD_NAME => {
-                let mut pad = vec![false; T::MIC_COUNT];
-                elem_value.get_bool(&mut pad);
+                let pad = &elem_value.get_bool()[..T::MIC_COUNT];
                 T::write_mic_pad(req, &mut unit.1, &pad, self.state_mut(), timeout_ms).map(|_| true)
             }
             INPUT_PAIRED_NAME => {
-                let mut paired = vec![false; T::INPUT_PAIR_COUNT];
-                elem_value.get_bool(&mut paired);
+                let paired = &elem_value.get_bool()[..T::INPUT_PAIR_COUNT];
                 T::write_stereo_input_paired(
                     req,
                     &mut unit.1,
@@ -1244,9 +1219,7 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
         match elem_id.get_name().as_str() {
             OUTPUT_METER_TARGET_NAME => {
                 if T::SELECTABLE {
-                    let mut vals = [0];
-                    elem_value.get_enum(&mut vals);
-                    let target = vals[0] as usize;
+                    let target = elem_value.get_enum()[0] as usize;
                     if target < T::OUTPUT_PORT_PAIRS.len() {
                         T::select_output(req, &mut unit.1, target, self.state_mut(), timeout_ms)
                             .map(|_| true)
