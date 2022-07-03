@@ -892,7 +892,7 @@ impl InputCtl {
                 params
                     .levels
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .try_for_each(|(level, &val)| {
                         Self::NOMINAL_LEVELS
                             .iter()
@@ -1086,7 +1086,7 @@ impl<'a> OutputCtl {
                 params
                     .levels
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .try_for_each(|(level, &val)| {
                         Self::NOMINAL_LEVELS
                             .iter()
@@ -1115,7 +1115,7 @@ impl<'a> OutputCtl {
                 params
                     .headphone_vols
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(vol, &val)| *vol = val as u8);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1348,7 +1348,7 @@ impl RouteCtl {
                 params
                     .output_sources
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1359,7 +1359,7 @@ impl RouteCtl {
                 params
                     .capture_sources
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1370,7 +1370,7 @@ impl RouteCtl {
                 params
                     .headphone_sources
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1491,7 +1491,7 @@ impl MixerCtl {
                 let mut params = self.0.clone();
                 params.src_gains[index]
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(gain, &val)| *gain = val as i16);
                 avc.update_params(&params, &mut self.0, timeout_ms)
                     .map(|_| true)
