@@ -172,7 +172,7 @@ pub trait SequencerCtlOperation<
         let map = &mut self.state_mut().map;
         T::BOOL_ITEMS
             .iter()
-            .chain(T::U16_ITEMS.iter())
+            .chain(T::U16_ITEMS)
             .for_each(|&item| {
                 assert!(
                     map.iter().find(|i| item.eq(i)).is_none(),
