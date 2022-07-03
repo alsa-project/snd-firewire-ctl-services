@@ -141,14 +141,14 @@ where
         ctls.meter_ctl
             .real_meter
             .iter_mut()
-            .chain(ctls.meter_ctl.stream_meter.iter_mut())
-            .chain(ctls.meter_ctl.mixer_meter.iter_mut())
+            .chain(&mut ctls.meter_ctl.stream_meter)
+            .chain(&mut ctls.meter_ctl.mixer_meter)
             .zip(
                 ctls.meter_ctl
                     .real_blk_dsts
                     .iter()
-                    .chain(ctls.meter_ctl.stream_blk_dsts.iter())
-                    .chain(ctls.meter_ctl.mixer_blk_dsts.iter()),
+                    .chain(&ctls.meter_ctl.stream_blk_dsts)
+                    .chain(&ctls.meter_ctl.mixer_blk_dsts)
             )
             .for_each(|(val, dst)| {
                 *val = entries
@@ -444,7 +444,7 @@ where
             .collect::<Vec<String>>();
         let mut sources = srcs
             .iter()
-            .flat_map(|srcs| srcs.iter())
+            .flat_map(|srcs| *srcs)
             .map(|src| T::src_blk_label(src))
             .collect::<Vec<String>>();
         sources.insert(0, Self::NONE_SRC_LABEL.to_string());
@@ -468,7 +468,7 @@ where
                 .find(|entry| entry.dst.eq(&dst))
                 .and_then(|entry| {
                     srcs.iter()
-                        .flat_map(|srcs| srcs.iter())
+                        .flat_map(|srcs| *srcs)
                         .position(|src| entry.src.eq(src))
                         .map(|pos| 1 + pos as u32)
                 })
@@ -497,7 +497,7 @@ where
             let src = if val > 0 {
                 let pos = (val as usize) - 1;
                 srcs.iter()
-                    .flat_map(|srcs| srcs.iter())
+                    .flat_map(|srcs| *srcs)
                     .nth(pos)
                     .cloned()
                     .unwrap_or_else(|| SrcBlk {
