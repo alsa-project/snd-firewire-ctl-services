@@ -841,9 +841,9 @@ impl SPro24DspProtocol {
 
         new_quads
             .iter()
-            .zip(old_quads.iter())
+            .zip(old_quads)
             .enumerate()
-            .filter(|(_, (n, o))| *n != *o)
+            .filter(|(_, (n, o))| *n != o)
             .try_for_each(|(i, (val, _))| {
                 let pos = COEF_OFFSET + i * 4;
                 ApplSectionProtocol::write_appl_data(

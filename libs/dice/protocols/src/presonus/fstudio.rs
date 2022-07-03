@@ -181,7 +181,7 @@ impl FStudioProtocol {
         states
             .vols
             .iter_mut()
-            .zip(vols.iter())
+            .zip(vols)
             .enumerate()
             .filter(|(_, (old, new))| !new.eq(old))
             .try_for_each(|(i, (old, new))| {
@@ -205,7 +205,7 @@ impl FStudioProtocol {
         states
             .mutes
             .iter_mut()
-            .zip(mutes.iter())
+            .zip(mutes)
             .enumerate()
             .filter(|(_, (old, new))| !new.eq(old))
             .try_for_each(|(i, (old, new))| {
@@ -229,7 +229,7 @@ impl FStudioProtocol {
         states
             .srcs
             .iter_mut()
-            .zip(srcs.iter())
+            .zip(srcs)
             .enumerate()
             .filter(|(_, (old, new))| !new.eq(old))
             .try_for_each(|(i, (old, new))| {
@@ -542,7 +542,7 @@ impl FStudioProtocol {
         params
             .gains
             .iter_mut()
-            .zip(gains.iter())
+            .zip(gains)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -569,7 +569,7 @@ impl FStudioProtocol {
         params
             .pans
             .iter_mut()
-            .zip(pans.iter())
+            .zip(pans)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -596,7 +596,7 @@ impl FStudioProtocol {
         params
             .mutes
             .iter_mut()
-            .zip(mutes.iter())
+            .zip(mutes)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -754,7 +754,7 @@ impl FStudioProtocol {
         params
             .vols
             .iter_mut()
-            .zip(vols.iter())
+            .zip(vols)
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {
@@ -776,7 +776,7 @@ impl FStudioProtocol {
         params
             .mutes
             .iter_mut()
-            .zip(mutes.iter())
+            .zip(mutes)
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {

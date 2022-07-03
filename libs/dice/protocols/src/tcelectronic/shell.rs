@@ -252,7 +252,7 @@ pub trait ShellMixerStateConvert {
             .iter()
             .enumerate()
             .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
-            .zip(state.analog.iter())
+            .zip(&state.analog)
             .for_each(|((i, _), src)| {
                 let pos = i * ShellMonitorSrcPair::SIZE;
                 src.build(&mut raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
@@ -267,7 +267,7 @@ pub trait ShellMixerStateConvert {
                     && m != Some(ShellMixerMonitorSrcType::Analog)
                     && m != Some(ShellMixerMonitorSrcType::Stream)
             })
-            .zip(state.digital.iter())
+            .zip(&state.digital)
             .for_each(|((i, _), src)| {
                 let pos = i * ShellMonitorSrcPair::SIZE;
                 src.build(&mut raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
@@ -287,7 +287,7 @@ pub trait ShellMixerStateConvert {
             .mutes
             .analog
             .iter()
-            .chain(state.mutes.digital.iter())
+            .chain(&state.mutes.digital)
             .enumerate()
             .filter(|(_, &muted)| muted)
             .for_each(|(i, _)| {
@@ -306,7 +306,7 @@ pub trait ShellMixerStateConvert {
             .iter()
             .enumerate()
             .filter(|(_, &m)| m == Some(ShellMixerMonitorSrcType::Analog))
-            .zip(state.analog.iter_mut())
+            .zip(&mut state.analog)
             .for_each(|((i, _), src)| {
                 let pos = i * ShellMonitorSrcPair::SIZE;
                 src.parse(&raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
@@ -317,7 +317,7 @@ pub trait ShellMixerStateConvert {
             .iter()
             .enumerate()
             .filter(|(_, &m)| m.is_some() && m != Some(ShellMixerMonitorSrcType::Analog))
-            .zip(state.digital.iter_mut())
+            .zip(&mut state.digital)
             .for_each(|((i, _), src)| {
                 let pos = i * ShellMonitorSrcPair::SIZE;
                 src.parse(&raw[pos..(pos + ShellMonitorSrcPair::SIZE)]);
@@ -336,7 +336,7 @@ pub trait ShellMixerStateConvert {
             .mutes
             .analog
             .iter_mut()
-            .chain(state.mutes.digital.iter_mut())
+            .chain(&mut state.mutes.digital)
             .enumerate()
             .for_each(|(i, muted)| {
                 *muted = mutes & (1 << (8 + i)) > 0;

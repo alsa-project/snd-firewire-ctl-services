@@ -113,15 +113,15 @@ pub trait Tcd22xxSpecOperation {
     ) -> (Vec<SrcBlk>, Vec<DstBlk>) {
         let dst_blk_list = tx_entries
             .iter()
-            .zip([DstBlkId::Avs0, DstBlkId::Avs1].iter())
-            .map(|(entry, &id)| (0..entry.pcm_count).map(move |ch| DstBlk { id, ch }))
+            .zip([DstBlkId::Avs0, DstBlkId::Avs1])
+            .map(|(entry, id)| (0..entry.pcm_count).map(move |ch| DstBlk { id, ch }))
             .flatten()
             .collect();
 
         let src_blk_list = rx_entries
             .iter()
-            .zip([SrcBlkId::Avs0, SrcBlkId::Avs1].iter())
-            .map(|(entry, &id)| (0..entry.pcm_count).map(move |ch| SrcBlk { id, ch }))
+            .zip([SrcBlkId::Avs0, SrcBlkId::Avs1])
+            .map(|(entry, id)| (0..entry.pcm_count).map(move |ch| SrcBlk { id, ch }))
             .flatten()
             .collect();
 
@@ -244,15 +244,15 @@ pub trait Tcd22xxRouterOperation: Tcd22xxSpecOperation {
             .real_blk_pair
             .0
             .iter()
-            .chain(state.stream_blk_pair.0.iter())
-            .chain(state.mixer_blk_pair.0.iter())
+            .chain(&state.stream_blk_pair.0)
+            .chain(&state.mixer_blk_pair.0)
             .collect();
         let dsts: Vec<_> = state
             .real_blk_pair
             .1
             .iter()
-            .chain(state.stream_blk_pair.1.iter())
-            .chain(state.mixer_blk_pair.1.iter())
+            .chain(&state.stream_blk_pair.1)
+            .chain(&state.mixer_blk_pair.1)
             .collect();
 
         let entries = Self::refine_router_entries(entries, &srcs, &dsts);

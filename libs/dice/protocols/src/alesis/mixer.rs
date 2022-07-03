@@ -374,7 +374,7 @@ pub trait IofwMixerOperation {
         assert_eq!(state.out_vols.len(), vols.len());
 
         vols.iter()
-            .zip(state.out_vols.iter_mut())
+            .zip(&mut state.out_vols)
             .enumerate()
             .filter(|(_, (n, o))| !n.eq(o))
             .try_for_each(|(i, (n, o))| {
