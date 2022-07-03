@@ -182,8 +182,8 @@ pub trait Inspire1394MeterOperation {
         meter
             .phys_inputs
             .iter_mut()
-            .chain(meter.stream_inputs.iter_mut())
-            .chain(meter.phys_outputs.iter_mut())
+            .chain(&mut meter.stream_inputs)
+            .chain(&mut meter.phys_outputs)
             .enumerate()
             .for_each(|(i, m)| {
                 let pos = i * 4;

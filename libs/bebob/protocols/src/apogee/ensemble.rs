@@ -235,7 +235,7 @@ impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
 
         [params.vol]
             .iter()
-            .chain(params.headphone_vols.iter())
+            .chain(&params.headphone_vols)
             .enumerate()
             .for_each(|(i, &vol)| {
                 cmds.push(EnsembleCmd::OutVol(
@@ -417,9 +417,9 @@ impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
 
             params.src_gains[i * 2]
                 .iter()
-                .zip(params.src_gains[i * 2 + 1].iter())
+                .zip(params.src_gains[i * 2 + 1])
                 .enumerate()
-                .for_each(|(j, (&l, &r))| {
+                .for_each(|(j, (&l, r))| {
                     let (gains, pos) = match j {
                         0..=8 => (&mut src0_gains, j),
                         9..=17 => (&mut src1_gains, j - 9),
@@ -499,7 +499,7 @@ where
     fn update_params(&mut self, new: &T, old: &mut T, timeout_ms: u32) -> Result<(), Error> {
         Vec::<EnsembleCmd>::from(new)
             .into_iter()
-            .zip(Vec::<EnsembleCmd>::from(&(*old)).iter())
+            .zip(Vec::<EnsembleCmd>::from(&(*old)))
             .filter(|(n, o)| !n.eq(o))
             .try_for_each(|(n, _)| {
                 let mut op = EnsembleOperation::new(n);
@@ -625,24 +625,24 @@ impl EnsembleMeterProtocol {
 
                 IN_GAIN_POS
                     .iter()
-                    .zip(meter.knob_input_vals.iter_mut())
+                    .zip(&mut meter.knob_input_vals)
                     .for_each(|(&i, m)| *m = frame[i]);
 
                 OUT_VOL_POS
                     .iter()
-                    .zip(meter.knob_output_vals.iter_mut())
+                    .zip(&mut meter.knob_output_vals)
                     .for_each(|(&i, m)| {
                         *m = Self::OUT_KNOB_VAL_MAX - (frame[i] & Self::OUT_KNOB_VAL_MAX);
                     });
 
                 IN_METER_POS
                     .iter()
-                    .zip(meter.phys_inputs.iter_mut())
+                    .zip(&mut meter.phys_inputs)
                     .for_each(|(&i, m)| *m = frame[i]);
 
                 OUT_METER_POS
                     .iter()
-                    .zip(meter.phys_outputs.iter_mut())
+                    .zip(&mut meter.phys_outputs)
                     .for_each(|(&i, m)| *m = frame[i]);
             }
         })

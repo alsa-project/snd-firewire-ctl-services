@@ -637,7 +637,7 @@ where
     let (offsets, buf) = old_levels
         .as_mut()
         .iter()
-        .zip(levels.iter())
+        .zip(levels)
         .enumerate()
         .filter(|(_, (old, new))| !old.eq(new))
         .fold(
@@ -810,7 +810,7 @@ where
 {
     let (offsets, buf) = old_levels
         .iter()
-        .zip(levels.iter())
+        .zip(levels)
         .enumerate()
         .filter(|(_, (old, new))| !old.eq(new))
         .fold(
@@ -977,11 +977,11 @@ pub trait SaffireProioSpecificOperation {
                 .iter()
                 .rev()
                 .zip(phantom_powerings.iter().rev())
-                .zip([PHANTOM_POWERING4567_OFFSET, PHANTOM_POWERING0123_OFFSET].iter())
+                .zip([PHANTOM_POWERING4567_OFFSET, PHANTOM_POWERING0123_OFFSET])
                 .filter(|((old, new), _)| !old.eq(new))
                 .fold(
                     (Vec::new(), Vec::new()),
-                    |(mut offsets, mut buf), ((_, &value), &offset)| {
+                    |(mut offsets, mut buf), ((_, &value), offset)| {
                         offsets.push(offset);
                         buf.extend_from_slice(&(value as u32).to_be_bytes());
                         (offsets, buf)
@@ -1008,12 +1008,12 @@ pub trait SaffireProioSpecificOperation {
             let (offsets, buf) = params
                 .insert_swaps
                 .iter()
-                .zip(insert_swaps.iter())
-                .zip([INSERT_SWAP_0_OFFSET, INSERT_SWAP_1_OFFSET].iter())
+                .zip(insert_swaps)
+                .zip([INSERT_SWAP_0_OFFSET, INSERT_SWAP_1_OFFSET])
                 .filter(|((old, new), _)| !old.eq(new))
                 .fold(
                     (Vec::new(), Vec::new()),
-                    |(mut offsets, mut buf), ((_, &value), &offset)| {
+                    |(mut offsets, mut buf), ((_, &value), offset)| {
                         offsets.push(offset);
                         buf.extend_from_slice(&(value as u32).to_be_bytes());
                         (offsets, buf)

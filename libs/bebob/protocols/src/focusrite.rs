@@ -105,33 +105,33 @@ pub trait SaffireOutputOperation {
         params
             .mutes
             .iter_mut()
-            .zip(vals.iter())
+            .zip(&vals)
             .for_each(|(mute, &val)| *mute = val & MUTE_FLAG > 0);
 
         params
             .vols
             .iter_mut()
-            .zip(vals.iter())
+            .zip(&vals)
             .for_each(|(vol, &val)| *vol = 0xff - (val & VOL_MASK) as u8);
 
         if parse_hwctl {
             params
                 .hwctls
                 .iter_mut()
-                .zip(vals.iter())
+                .zip(&vals)
                 .for_each(|(hwctl, &val)| *hwctl = val & HWCTL_FLAG > 0);
         }
 
         params
             .dims
             .iter_mut()
-            .zip(vals.iter())
+            .zip(&vals)
             .for_each(|(dim, &val)| *dim = val & DIM_FLAG > 0);
 
         params
             .pads
             .iter_mut()
-            .zip(vals.iter())
+            .zip(&vals)
             .for_each(|(pad, val)| *pad = val & PAD_FLAG > 0);
 
         Ok(())
@@ -152,8 +152,8 @@ pub trait SaffireOutputOperation {
 
         let (offsets, buf) = old_mutes
             .iter()
-            .zip(mutes.iter())
-            .zip(Self::OFFSETS.iter())
+            .zip(mutes)
+            .zip(Self::OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -189,8 +189,8 @@ pub trait SaffireOutputOperation {
 
         let (offsets, buf) = old_vols
             .iter()
-            .zip(vols.iter())
-            .zip(Self::OFFSETS.iter())
+            .zip(vols)
+            .zip(Self::OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -226,8 +226,8 @@ pub trait SaffireOutputOperation {
 
         let (offsets, buf) = old_hwctls
             .iter()
-            .zip(hwctls.iter())
-            .zip(Self::OFFSETS.iter())
+            .zip(hwctls)
+            .zip(Self::OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -263,8 +263,8 @@ pub trait SaffireOutputOperation {
 
         let (offsets, buf) = old_dims
             .iter()
-            .zip(dims.iter())
-            .zip(Self::OFFSETS.iter())
+            .zip(dims)
+            .zip(Self::OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(
@@ -300,8 +300,8 @@ pub trait SaffireOutputOperation {
 
         let (offsets, buf) = old_pads
             .iter()
-            .zip(pads.iter())
-            .zip(Self::OFFSETS.iter())
+            .zip(pads)
+            .zip(Self::OFFSETS)
             .enumerate()
             .filter(|(_, ((old, new), _))| !old.eq(new))
             .fold(

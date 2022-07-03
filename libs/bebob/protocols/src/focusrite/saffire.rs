@@ -711,9 +711,9 @@ impl SaffireLeMeterProtocol {
     ) -> Result<(), Error> {
         let offsets: Vec<usize> = Self::PHYS_INPUT_OFFSETS
             .iter()
-            .chain(Self::PHYS_OUTPUT_OFFSETS.iter())
-            .chain(Self::STREAM_INPUT_OFFSETS.iter())
-            .chain([Self::DIG_INPUT_DETECT_OFFSET].iter())
+            .chain(&Self::PHYS_OUTPUT_OFFSETS)
+            .chain(&Self::STREAM_INPUT_OFFSETS)
+            .chain(&[Self::DIG_INPUT_DETECT_OFFSET])
             .copied()
             .collect();
         let mut buf = vec![0; offsets.len() * 4];
@@ -817,7 +817,7 @@ impl SaffireLeSpecificProtocol {
         let (offsets, buf) = params
             .analog_input_2_3_high_gains
             .iter()
-            .zip(enables.iter())
+            .zip(enables)
             .zip(
                 [
                     LE_ANALOG_INTPUT_2_HIGH_GAIN_OFFSET,
@@ -1313,7 +1313,7 @@ where
 
     let (offsets, buf) = old_vals
         .iter()
-        .zip(new_vals.iter())
+        .zip(new_vals)
         .enumerate()
         .filter(|(_, (old, new))| !new.eq(old))
         .fold(
@@ -1613,7 +1613,7 @@ impl SaffireReverbProtocol {
     ) -> Result<(), Error> {
         amounts
             .iter()
-            .zip(params.amounts.iter_mut())
+            .zip(&mut params.amounts)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let buf = new.to_be_bytes();
@@ -1632,7 +1632,7 @@ impl SaffireReverbProtocol {
     ) -> Result<(), Error> {
         room_sizes
             .iter()
-            .zip(params.room_sizes.iter_mut())
+            .zip(&mut params.room_sizes)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let buf = new.to_be_bytes();
@@ -1651,7 +1651,7 @@ impl SaffireReverbProtocol {
     ) -> Result<(), Error> {
         diffusions
             .iter()
-            .zip(params.diffusions.iter_mut())
+            .zip(&mut params.diffusions)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let buf = new.to_be_bytes();
@@ -1675,7 +1675,7 @@ impl SaffireReverbProtocol {
     ) -> Result<(), Error> {
         tones
             .iter()
-            .zip(params.tones.iter_mut())
+            .zip(&mut params.tones)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let mut buf = [0; 8];
@@ -1758,7 +1758,7 @@ impl SaffireCompressorProtocol {
     ) -> Result<(), Error> {
         enables
             .iter()
-            .zip(params.enables.iter_mut())
+            .zip(&mut params.enables)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[i * 8 + 5];
@@ -1777,7 +1777,7 @@ impl SaffireCompressorProtocol {
     ) -> Result<(), Error> {
         input_gains
             .iter()
-            .zip(params.input_gains.iter_mut())
+            .zip(&mut params.input_gains)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[i * 8 + 6];
@@ -1795,7 +1795,7 @@ impl SaffireCompressorProtocol {
     ) -> Result<(), Error> {
         output_volumes
             .iter()
-            .zip(params.output_volumes.iter_mut())
+            .zip(&mut params.output_volumes)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[i * 8 + 7];
@@ -1902,7 +1902,7 @@ impl SaffireEqualizerProtocol {
     ) -> Result<(), Error> {
         enables
             .iter()
-            .zip(params.enables.iter_mut())
+            .zip(&mut params.enables)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[i];
@@ -1921,7 +1921,7 @@ impl SaffireEqualizerProtocol {
     ) -> Result<(), Error> {
         input_gains
             .iter()
-            .zip(params.input_gains.iter_mut())
+            .zip(&mut params.input_gains)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[2 + i * 2];
@@ -1939,7 +1939,7 @@ impl SaffireEqualizerProtocol {
     ) -> Result<(), Error> {
         output_volumes
             .iter()
-            .zip(params.output_volumes.iter_mut())
+            .zip(&mut params.output_volumes)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[2 + i * 2 + 1];
@@ -1999,7 +1999,7 @@ impl SaffireAmplifierProtocol {
     ) -> Result<(), Error> {
         enables
             .iter()
-            .zip(params.enables.iter_mut())
+            .zip(&mut params.enables)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[i];
@@ -2018,7 +2018,7 @@ impl SaffireAmplifierProtocol {
     ) -> Result<(), Error> {
         output_volumes
             .iter()
-            .zip(params.output_volumes.iter_mut())
+            .zip(&mut params.output_volumes)
             .enumerate()
             .try_for_each(|(i, (&new, old))| {
                 let offset = Self::OFFSETS[2 + i];
@@ -2113,8 +2113,8 @@ impl SaffireChStripProtocol {
     ) -> Result<(), Error> {
         comp_order
             .iter()
-            .zip(Self::COMP_ORDER_OFFSET.iter())
-            .try_for_each(|(&order, &offset)| {
+            .zip(Self::COMP_ORDER_OFFSET)
+            .try_for_each(|(&order, offset)| {
                 let val = match order {
                     SaffireChStripCompOrder::Pre => 0x7fffffffu32,
                     SaffireChStripCompOrder::Post => 0x00000000,
