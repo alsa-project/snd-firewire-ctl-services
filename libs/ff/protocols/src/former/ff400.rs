@@ -137,7 +137,7 @@ impl Ff400Protocol {
         status
             .mic
             .iter_mut()
-            .zip(gains.iter())
+            .zip(gains)
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {
@@ -155,7 +155,7 @@ impl Ff400Protocol {
         status
             .line
             .iter_mut()
-            .zip(gains.iter())
+            .zip(gains)
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {

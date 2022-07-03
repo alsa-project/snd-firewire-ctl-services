@@ -382,7 +382,7 @@ fn write_dsp_cmds(
     timeout_ms: u32,
 ) -> Result<(), Error> {
     cmds.iter()
-        .zip(curr.iter())
+        .zip(curr)
         .filter(|(n, o)| !n.eq(o))
         .try_for_each(|(&cmd, _)| write_dsp_cmd(req, node, cmd, timeout_ms))
 }
@@ -923,9 +923,9 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
         state
             .line_gains
             .iter()
-            .chain(state.mic_gains.iter())
-            .chain(state.spdif_gains.iter())
-            .chain(state.adat_gains.iter())
+            .chain(&state.mic_gains)
+            .chain(&state.spdif_gains)
+            .chain(&state.adat_gains)
             .enumerate()
             .for_each(|(i, &gain)| {
                 let ch = i as u16;
@@ -1911,9 +1911,9 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         state
             .line_input_gains
             .iter()
-            .chain(state.mic_input_gains.iter())
-            .chain(state.spdif_input_gains.iter())
-            .chain(state.adat_input_gains.iter())
+            .chain(&state.mic_input_gains)
+            .chain(&state.spdif_input_gains)
+            .chain(&state.adat_input_gains)
             .enumerate()
             .for_each(|(i, &gain)| {
                 let ch = i as u8;
@@ -1953,9 +1953,9 @@ pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
         state
             .line_output_vols
             .iter()
-            .chain(state.hp_output_vols.iter())
-            .chain(state.spdif_output_vols.iter())
-            .chain(state.adat_output_vols.iter())
+            .chain(&state.hp_output_vols)
+            .chain(&state.spdif_output_vols)
+            .chain(&state.adat_output_vols)
             .enumerate()
             .for_each(|(i, &gain)| {
                 let ch = (Self::PHYS_INPUT_COUNT + i) as u8;

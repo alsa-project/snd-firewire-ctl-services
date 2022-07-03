@@ -538,7 +538,7 @@ impl Ff800AnalogInConfig {
             (Q1_INPUT_7_REAR_JACK_MASK, Q1_INPUT_7_FRONT_JACK_MASK),
         ]
         .iter()
-        .zip(self.jacks.iter())
+        .zip(&self.jacks)
         .for_each(|(&(rear_mask, front_mask), &jack)| {
             if jack != Ff800AnalogInputJack::Front {
                 quads[1] |= rear_mask;
@@ -586,7 +586,7 @@ impl Ff800AnalogInConfig {
             (Q1_INPUT_7_REAR_JACK_MASK, Q1_INPUT_7_FRONT_JACK_MASK),
         ]
         .iter()
-        .zip(self.jacks.iter_mut())
+        .zip(&mut self.jacks)
         .for_each(|(&(rear_mask, front_mask), jack)| {
             *jack = match (quads[1] & rear_mask > 0, quads[1] & front_mask > 0) {
                 (true, true) => Ff800AnalogInputJack::FrontRear,
