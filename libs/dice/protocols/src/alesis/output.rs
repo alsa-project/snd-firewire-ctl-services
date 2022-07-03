@@ -131,8 +131,8 @@ pub trait IofwOutputOperation {
         alesis_read_flags(req, node, OUT_LEVEL_OFFSET, &mut flags[..], timeout_ms).map(|_| {
             levels
                 .iter_mut()
-                .zip(flags.iter())
-                .for_each(|(l, &f)| *l = NominalSignalLevel::from(f as u32))
+                .zip(flags)
+                .for_each(|(l, f)| *l = NominalSignalLevel::from(f as u32))
         })
     }
 

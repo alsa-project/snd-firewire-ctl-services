@@ -673,12 +673,12 @@ impl LiquidS56Protocol {
             quads.parse_quadlet_block(&raw);
             levels[..4]
                 .iter_mut()
-                .zip(quads[0].to_ne_bytes().iter())
-                .for_each(|(level, &val)| *level = AnalogInputLevel::from(val));
+                .zip(quads[0].to_ne_bytes())
+                .for_each(|(level, val)| *level = AnalogInputLevel::from(val));
             levels[4..]
                 .iter_mut()
-                .zip(quads[1].to_ne_bytes().iter())
-                .for_each(|(level, &val)| *level = AnalogInputLevel::from(val));
+                .zip(quads[1].to_ne_bytes())
+                .for_each(|(level, val)| *level = AnalogInputLevel::from(val));
         })
     }
 
@@ -758,12 +758,12 @@ impl LiquidS56Protocol {
             quads[1].parse_quadlet(&raw[4..]);
             targets[..4]
                 .iter_mut()
-                .zip(quads[0].to_ne_bytes().iter())
-                .for_each(|(target, &val)| *target = val as usize);
+                .zip(quads[0].to_ne_bytes())
+                .for_each(|(target, val)| *target = val as usize);
             targets[4..]
                 .iter_mut()
-                .zip(quads[1].to_ne_bytes().iter())
-                .for_each(|(target, &val)| *target = val as usize);
+                .zip(quads[1].to_ne_bytes())
+                .for_each(|(target, val)| *target = val as usize);
         })
     }
 
