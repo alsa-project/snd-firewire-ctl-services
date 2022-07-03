@@ -203,11 +203,11 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
                 let led_state = &mut state.led_state;
                 Self::ENCODER_ITEM_LEDS
                     .iter()
-                    .zip(state.specific.button_states.iter_mut())
+                    .zip(&mut state.specific.button_states)
                     .try_for_each(|((items, positions), s)| {
                         items
                             .iter()
-                            .zip(s.iter_mut())
+                            .zip(s)
                             .find(|(item, _)| machine_value.0.eq(item))
                             .map(|(_, s)| *s = value);
 
@@ -252,7 +252,7 @@ impl SurfaceImageOperation<Fw1082SurfaceState> for Fw1082Protocol {
                 let led_state = &mut state.led_state;
                 Self::ENCODER_ITEM_LEDS
                     .iter()
-                    .zip(state.specific.button_states.iter())
+                    .zip(state.specific.button_states)
                     .try_for_each(|((_, positions), s)| {
                         operate_led_cached(led_state, req, node, positions[0], s[idx], timeout_ms)
                     })?;
@@ -526,7 +526,7 @@ impl Fw1082Protocol {
 
         Self::ENCODER_BOOL_ITEMS
             .iter()
-            .zip(state.button_states.iter())
+            .zip(state.button_states)
             .filter(|((bool_val, _), _)| {
                 detect_stateful_bool_action(bool_val, index, before, after)
             })
@@ -551,11 +551,11 @@ impl Fw1082Protocol {
             ItemValue::Bool(value) => {
                 Self::ENCODER_BOOL_ITEMS
                     .iter()
-                    .zip(state.button_states.iter_mut())
+                    .zip(&mut state.button_states)
                     .for_each(|((_, items), s)| {
                         let _ = items
                             .iter()
-                            .zip(s.iter_mut())
+                            .zip(s)
                             .find(|(item, _)| machine_value.0.eq(item))
                             .map(|(_, s)| *s = value);
                     });

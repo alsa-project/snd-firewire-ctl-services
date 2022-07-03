@@ -368,12 +368,12 @@ pub trait MachineStateOperation {
 
         Self::BOOL_ITEMS
             .iter()
-            .zip(state.bool_items.iter())
+            .zip(&state.bool_items)
             .for_each(|(&item, &value)| machine_values.push((item, ItemValue::Bool(value))));
 
         Self::U16_ITEMS
             .iter()
-            .zip(state.u16_items.iter())
+            .zip(&state.u16_items)
             .for_each(|(&item, &value)| machine_values.push((item, ItemValue::U16(value))));
 
         if Self::HAS_BANK {
@@ -399,7 +399,7 @@ pub trait MachineStateOperation {
             // Normal items.
             let _ = Self::BOOL_ITEMS
                 .iter()
-                .zip(state.bool_items.iter_mut())
+                .zip(&mut state.bool_items)
                 .find(|(i, v)| input.0.eq(i) && !value.eq(v))
                 .map(|(_, v)| {
                     *v = value;
@@ -425,7 +425,7 @@ pub trait MachineStateOperation {
                 if value {
                     Self::BOOL_ITEMS
                         .iter()
-                        .zip(state.bool_items.iter_mut())
+                        .zip(&mut state.bool_items)
                         .filter(|(i, v)| {
                             !input.0.eq(i)
                                 && **v
@@ -440,7 +440,7 @@ pub trait MachineStateOperation {
         } else if let ItemValue::U16(value) = input.1 {
             let _ = Self::U16_ITEMS
                 .iter()
-                .zip(state.u16_items.iter_mut())
+                .zip(&mut state.u16_items)
                 .find(|(i, v)| input.0.eq(i) && !value.eq(v))
                 .map(|(_, v)| {
                     *v = value;
@@ -551,7 +551,7 @@ trait SurfaceImageCommonOperation {
     ) {
         Self::STATEFUL_ITEMS
             .iter()
-            .zip(state.stateful_items.iter())
+            .zip(&state.stateful_items)
             .filter(|((bool_val, _), _)| {
                 detect_stateful_bool_action(bool_val, index, before, after)
             })
@@ -588,7 +588,7 @@ trait SurfaceImageCommonOperation {
     ) {
         Self::STATEFUL_ITEMS
             .iter()
-            .zip(state.stateful_items.iter_mut())
+            .zip(&mut state.stateful_items)
             .find(|((_, item), _)| machine_value.0.eq(item))
             .map(|((_, _), s)| *s = !*s);
     }
