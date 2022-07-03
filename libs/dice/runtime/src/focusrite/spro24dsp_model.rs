@@ -535,8 +535,8 @@ impl EffectCtl {
     fn convert_to_f32_array(elem_value: &ElemValue, raw: &mut [f32]) {
         let vals = &elem_value.get_int()[..raw.len()];
         raw.iter_mut()
-            .zip(vals.iter())
-            .for_each(|(r, &val)| *r = (val as f32) / Self::F32_CONVERT_SCALE);
+            .zip(vals)
+            .for_each(|(r, val)| *r = (*val as f32) / Self::F32_CONVERT_SCALE);
     }
 
     fn write(

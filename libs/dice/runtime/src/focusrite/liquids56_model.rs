@@ -657,12 +657,12 @@ impl SpecificCtl {
                 let mut levels = [AnalogInputLevel::Reserved(0); 8];
                 levels
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .enumerate()
-                    .try_for_each(|(i, (level, &val))| {
+                    .try_for_each(|(i, (level, val))| {
                         let l = Self::ANALOG_INPUT_LEVELS
                             .iter()
-                            .nth(val as usize)
+                            .nth(*val as usize)
                             .ok_or_else(|| {
                                 let msg = format!("Invalid index of analog input level: {}", val);
                                 Error::new(FileError::Inval, &msg)
@@ -747,10 +747,10 @@ impl SpecificCtl {
                 let mut targets = [0; 8];
                 targets
                     .iter_mut()
-                    .zip(vals.iter())
-                    .try_for_each(|(target, &val)| {
-                        if val < Self::METER_DISPLAY_TARGETS.len() as u32 {
-                            *target = val as usize;
+                    .zip(vals)
+                    .try_for_each(|(target, val)| {
+                        if *val < Self::METER_DISPLAY_TARGETS.len() as u32 {
+                            *target = *val as usize;
                             Ok(())
                         } else {
                             let msg = format!("Invalid index of meter display target: {}", val);

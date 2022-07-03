@@ -242,8 +242,8 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
             state
                 .vols
                 .iter_mut()
-                .zip(hwctls.iter())
-                .filter(|(_, &hwctl)| hwctl)
+                .zip(hwctls)
+                .filter(|(_, hwctl)| *hwctl)
                 .for_each(|(v, _)| *v = vol);
         }
 

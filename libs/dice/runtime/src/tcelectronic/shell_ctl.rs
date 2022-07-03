@@ -496,7 +496,7 @@ where
                     .state()
                     .analog
                     .iter()
-                    .chain(self.state().digital.iter())
+                    .chain(&self.state().digital)
                     .map(|src| src.stereo_link)
                     .collect();
                 elem_value.set_bool(&vals);
