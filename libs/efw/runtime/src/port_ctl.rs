@@ -82,7 +82,7 @@ fn enum_values_to_entries(elem_value: &ElemValue, entries: &mut [Option<usize>])
     let vals = &elem_value.get_enum()[..entries.len()];
     entries
         .iter_mut()
-        .zip(vals.iter())
+        .zip(vals)
         .for_each(|(entry, &pos)| {
             *entry = if pos == 0 {
                 None
