@@ -226,13 +226,13 @@ impl MaudioSpecialMeterProtocol {
         meter
             .analog_inputs
             .iter_mut()
-            .chain(meter.spdif_inputs.iter_mut())
-            .chain(meter.adat_inputs.iter_mut())
-            .chain(meter.analog_outputs.iter_mut())
-            .chain(meter.spdif_outputs.iter_mut())
-            .chain(meter.adat_outputs.iter_mut())
-            .chain(meter.headphone.iter_mut())
-            .chain(meter.aux_outputs.iter_mut())
+            .chain(&mut meter.spdif_inputs)
+            .chain(&mut meter.adat_inputs)
+            .chain(&mut meter.analog_outputs)
+            .chain(&mut meter.spdif_outputs)
+            .chain(&mut meter.adat_outputs)
+            .chain(&mut meter.headphone)
+            .chain(&mut meter.aux_outputs)
             .enumerate()
             .for_each(|(i, m)| {
                 let pos = 2 + (1 + i) * 2;
