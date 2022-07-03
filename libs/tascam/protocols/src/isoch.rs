@@ -748,7 +748,7 @@ trait SurfaceImageIsochOperation {
 
             Self::SHIFTED_ITEMS
                 .iter()
-                .zip(state.shifted_items.iter())
+                .zip(&state.shifted_items)
                 .filter(|(_, &s)| s)
                 .for_each(|((_, pairs), _)| {
                     machine_values.push((pairs[prev_idx], ItemValue::Bool(false)));
