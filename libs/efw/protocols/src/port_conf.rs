@@ -181,7 +181,7 @@ pub trait PortConfProtocol: EfwProtocolExtManual {
 
             rx_stream_map
                 .iter_mut()
-                .zip(params[4..].iter())
+                .zip(&params[4..])
                 .take(params[2] as usize)
                 .for_each(|(entry, &val)| {
                     *entry = if val < phys_output_count {
@@ -192,7 +192,7 @@ pub trait PortConfProtocol: EfwProtocolExtManual {
                 });
             tx_stream_map
                 .iter_mut()
-                .zip(params[38..].iter())
+                .zip(&params[38..])
                 .take(params[36] as usize)
                 .for_each(|(entry, &val)| {
                     *entry = if val < phys_input_count {
