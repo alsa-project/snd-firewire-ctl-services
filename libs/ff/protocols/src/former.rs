@@ -166,7 +166,7 @@ pub trait RmeFormerOutputOperation {
         state
             .0
             .iter_mut()
-            .zip(vols.iter())
+            .zip(vols)
             .enumerate()
             .filter(|(_, (o, n))| !o.eq(n))
             .try_for_each(|(i, (o, n))| {
