@@ -474,7 +474,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                 state
                     .vols
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -483,7 +483,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                 state
                     .stereo_balance
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -705,7 +705,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 state
                     .line_gains
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
@@ -717,7 +717,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 state
                     .mic_gains
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
@@ -729,7 +729,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 state
                     .spdif_gains
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
@@ -741,7 +741,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 state
                     .adat_gains
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
@@ -753,7 +753,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 state
                     .stream_gains
                     .iter_mut()
-                    .zip(vals.iter())
+                    .zip(vals)
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_mixer(req, &mut unit.1, self.state_mut(), index, state, timeout_ms)
                     .map(|_| true)
@@ -2362,7 +2362,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .line_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2372,7 +2372,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .mic_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2382,7 +2382,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .spdif_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2392,7 +2392,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .adat_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2402,7 +2402,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .stream_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2412,7 +2412,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .line_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2422,7 +2422,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .hp_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2432,7 +2432,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .spdif_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2442,7 +2442,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .adat_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int().iter())
+                    .zip(elem_value.get_int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
