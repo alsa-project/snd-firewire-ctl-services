@@ -3018,12 +3018,12 @@ pub trait CommandDspMeterOperation {
         state
             .inputs
             .iter_mut()
-            .zip(Self::INPUT_PORTS.iter())
+            .zip(Self::INPUT_PORTS)
             .for_each(|(m, &(_, pos))| *m = meter[pos]);
         state
             .outputs
             .iter_mut()
-            .zip(Self::OUTPUT_PORTS.iter())
+            .zip(Self::OUTPUT_PORTS)
             .for_each(|(m, &(_, pos))| *m = meter[pos]);
     }
 }

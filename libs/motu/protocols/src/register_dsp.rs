@@ -78,7 +78,7 @@ pub trait RegisterDspMixerOutputOperation {
         state
             .mute
             .iter_mut()
-            .zip(flags.iter())
+            .zip(flags)
             .for_each(|(mute, &flag)| {
                 let val = (flag as u32) << 8;
                 *mute = val & MIXER_OUTPUT_MUTE_FLAG > 0;
@@ -86,7 +86,7 @@ pub trait RegisterDspMixerOutputOperation {
         state
             .destination
             .iter_mut()
-            .zip(flags.iter())
+            .zip(flags)
             .for_each(|(dest, &flag)| {
                 let val = (flag as u32) << 8;
                 let idx = ((val & MIXER_OUTPUT_DESTINATION_MASK) >> 8) as usize;
@@ -165,10 +165,10 @@ pub trait RegisterDspMixerOutputOperation {
         state
             .volume
             .iter_mut()
-            .zip(volume.iter())
-            .zip(MIXER_OUTPUT_OFFSETS.iter())
+            .zip(volume)
+            .zip(MIXER_OUTPUT_OFFSETS)
             .filter(|((old, new), _)| !new.eq(old))
-            .try_for_each(|((old, new), &offset)| {
+            .try_for_each(|((old, new), offset)| {
                 let mut val = read_quad(req, node, offset as u32, timeout_ms)?;
                 val &= !MIXER_OUTPUT_VOLUME_MASK;
                 val |= *new as u32;
@@ -186,10 +186,10 @@ pub trait RegisterDspMixerOutputOperation {
         state
             .mute
             .iter_mut()
-            .zip(mute.iter())
-            .zip(MIXER_OUTPUT_OFFSETS.iter())
+            .zip(mute)
+            .zip(MIXER_OUTPUT_OFFSETS)
             .filter(|((old, new), _)| !new.eq(old))
-            .try_for_each(|((old, new), &offset)| {
+            .try_for_each(|((old, new), offset)| {
                 let mut val = read_quad(req, node, offset as u32, timeout_ms)?;
                 if *new {
                     val |= MIXER_OUTPUT_MUTE_FLAG;
@@ -210,10 +210,10 @@ pub trait RegisterDspMixerOutputOperation {
         state
             .destination
             .iter_mut()
-            .zip(destination.iter())
-            .zip(MIXER_OUTPUT_OFFSETS.iter())
+            .zip(destination)
+            .zip(MIXER_OUTPUT_OFFSETS)
             .filter(|((old, new), _)| !new.eq(old))
-            .try_for_each(|((old, new), &offset)| {
+            .try_for_each(|((old, new), offset)| {
                 let mut val = read_quad(req, node, offset as u32, timeout_ms)?;
                 let pos = Self::OUTPUT_DESTINATIONS
                     .iter()
@@ -315,13 +315,13 @@ pub trait RegisterDspMixerMonauralSourceOperation {
             let gains = param.get_mixer_source_gain(i);
             src.gain
                 .iter_mut()
-                .zip(gains.iter())
+                .zip(gains)
                 .for_each(|(dst, src)| *dst = *src);
 
             let pans = param.get_mixer_source_pan(i);
             src.pan
                 .iter_mut()
-                .zip(pans.iter())
+                .zip(pans)
                 .for_each(|(dst, src)| *dst = *src);
 
             let flags: Vec<u32> = param
@@ -332,12 +332,12 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 
             src.mute
                 .iter_mut()
-                .zip(flags.iter())
-                .for_each(|(mute, &flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
+                .zip(&flags)
+                .for_each(|(mute, flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
             src.solo
                 .iter_mut()
-                .zip(flags.iter())
-                .for_each(|(solo, &flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
+                .zip(&flags)
+                .for_each(|(solo, flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
         });
     }
 
@@ -395,8 +395,8 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         state
             .0
             .iter_mut()
-            .zip(MIXER_SOURCE_OFFSETS.iter())
-            .try_for_each(|(entry, &offset)| {
+            .zip(MIXER_SOURCE_OFFSETS)
+            .try_for_each(|(entry, offset)| {
                 (0..Self::MIXER_SOURCES.len()).try_for_each(|i| {
                     read_quad(req, node, (offset + i * 4) as u32, timeout_ms).map(|val| {
                         entry.gain[i] = (val & MIXER_SOURCE_GAIN_MASK) as u8;
@@ -424,7 +424,7 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         state.0[mixer]
             .gain
             .iter_mut()
-            .zip(gain.iter())
+            .zip(gain)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -452,7 +452,7 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         state.0[mixer]
             .pan
             .iter_mut()
-            .zip(pan.iter())
+            .zip(pan)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -480,7 +480,7 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         state.0[mixer]
             .mute
             .iter_mut()
-            .zip(mute.iter())
+            .zip(mute)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -509,7 +509,7 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         state.0[mixer]
             .solo
             .iter_mut()
-            .zip(solo.iter())
+            .zip(solo)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -588,13 +588,13 @@ pub trait RegisterDspMixerStereoSourceOperation {
             let gains = param.get_mixer_source_gain(i);
             src.gain
                 .iter_mut()
-                .zip(gains.iter())
+                .zip(gains)
                 .for_each(|(dst, src)| *dst = *src);
 
             let pans = param.get_mixer_source_pan(i);
             src.pan
                 .iter_mut()
-                .zip(pans.iter())
+                .zip(pans)
                 .for_each(|(dst, src)| *dst = *src);
 
             let flags: Vec<u32> = param
@@ -605,12 +605,12 @@ pub trait RegisterDspMixerStereoSourceOperation {
 
             src.mute
                 .iter_mut()
-                .zip(flags.iter())
-                .for_each(|(mute, &flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
+                .zip(&flags)
+                .for_each(|(mute, flag)| *mute = flag & MIXER_SOURCE_MUTE_FLAG > 0);
             src.solo
                 .iter_mut()
-                .zip(flags.iter())
-                .for_each(|(solo, &flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
+                .zip(&flags)
+                .for_each(|(solo, flag)| *solo = flag & MIXER_SOURCE_SOLO_FLAG > 0);
         });
     }
 
@@ -727,7 +727,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
         state.0[mixer]
             .gain
             .iter_mut()
-            .zip(gain.iter())
+            .zip(gain)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -755,7 +755,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
         state.0[mixer]
             .pan
             .iter_mut()
-            .zip(pan.iter())
+            .zip(pan)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -784,7 +784,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
         state.0[mixer]
             .mute
             .iter_mut()
-            .zip(mute.iter())
+            .zip(mute)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -814,7 +814,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
         state.0[mixer]
             .solo
             .iter_mut()
-            .zip(solo.iter())
+            .zip(solo)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -844,7 +844,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
         state.0[mixer]
             .balance
             .iter_mut()
-            .zip(balance.iter())
+            .zip(balance)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -872,7 +872,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
         state.0[mixer]
             .width
             .iter_mut()
-            .zip(width.iter())
+            .zip(width)
             .enumerate()
             .filter(|(_, (old, new))| !old.eq(new))
             .try_for_each(|(i, (old, new))| {
@@ -1188,12 +1188,12 @@ pub trait RegisterDspMonauralInputOperation {
         state
             .gain
             .iter_mut()
-            .zip(vals.iter())
+            .zip(vals)
             .for_each(|(gain, val)| *gain = val & MONAURAL_INPUT_GAIN_MASK);
         state
             .invert
             .iter_mut()
-            .zip(vals.iter())
+            .zip(vals)
             .for_each(|(invert, val)| *invert = val & MONAURAL_INPUT_INVERT_FLAG > 0);
     }
 
@@ -1331,29 +1331,29 @@ pub trait RegisterDspStereoInputOperation {
         state
             .gain
             .iter_mut()
-            .zip(vals.iter())
+            .zip(vals)
             .for_each(|(gain, val)| *gain = val & STEREO_INPUT_GAIN_MASK);
         state
             .invert
             .iter_mut()
-            .zip(vals.iter())
+            .zip(vals)
             .for_each(|(invert, val)| *invert = val & STEREO_INPUT_INVERT_FLAG > 0);
 
         let flags = param.get_input_flag();
         state
             .phantom
             .iter_mut()
-            .zip(flags.iter())
+            .zip(flags)
             .for_each(|(phantom, val)| *phantom = val & EV_MIC_PHANTOM_FLAG > 0);
         state
             .pad
             .iter_mut()
-            .zip(flags.iter())
+            .zip(flags)
             .for_each(|(pad, val)| *pad = val & EV_MIC_PAD_FLAG > 0);
         state
             .jack
             .iter_mut()
-            .zip(flags.iter())
+            .zip(flags)
             .for_each(|(jack, val)| *jack = val & EV_INPUT_JACK_FLAG > 0);
         state.paired.iter_mut().enumerate().for_each(|(i, paired)| {
             let pos = EV_INPUT_PAIRED_CH_MAP[i * 2];
@@ -1655,8 +1655,8 @@ pub trait RegisterDspMeterOperation {
         } else {
             Self::OUTPUT_PORT_PAIRS
                 .iter()
-                .flat_map(|(_, pair)| pair.iter())
-                .zip(state.outputs.iter_mut())
+                .flat_map(|(_, pair)| pair)
+                .zip(&mut state.outputs)
                 .for_each(|(pos, m)| *m = data[MAX_METER_INPUT_COUNT + pos]);
         }
     }
