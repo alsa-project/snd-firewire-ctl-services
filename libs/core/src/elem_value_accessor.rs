@@ -36,7 +36,7 @@ where
         self.get(len, |curr| {
             old.get(len, |prev| {
                 curr.iter()
-                    .zip(prev.iter())
+                    .zip(prev)
                     .enumerate()
                     .filter(|(_, (n, o))| !n.eq(o))
                     .try_for_each(|(ch, (v, _))| cb(ch, *v))
