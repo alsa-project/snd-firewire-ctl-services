@@ -170,8 +170,8 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<(SndUnit, FwNode)>
         let range_max = MaudioSpecialMeterProtocol::ROTARY_MAX as i32;
         let delta_list: Vec<i32> = self.meter_ctl.0.rotaries[..2]
             .iter()
-            .zip(prev_rotaries.iter())
-            .map(|(&curr, &prev)| {
+            .zip(prev_rotaries)
+            .map(|(&curr, prev)| {
                 ((curr as i32) - (prev as i32)) * (val_max - val_min) / (range_max - range_min)
             })
             .collect();
