@@ -111,7 +111,7 @@ impl DuetFwMixerMeterProtocol {
             state
                 .stream_inputs
                 .iter_mut()
-                .chain(state.mixer_outputs.iter_mut())
+                .chain(&mut state.mixer_outputs)
                 .enumerate()
                 .for_each(|(i, meter)| {
                     let pos = i * 4;
