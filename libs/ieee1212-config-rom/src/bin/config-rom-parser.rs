@@ -183,7 +183,9 @@ Usage:
   config-rom-parser FILENAME | "-"
 
   where:
-    FILENAME:       the name of file for the image of configuration ROM to parse
-    "-":            the content of configuration ROM to parse. It should be aligned to big endian.
+    FILENAME:       the name of file including the image of configuration ROM.
+    "-":            the content of configuration ROM comes from STDIN.
+
+  In both cases, the content of configuration ROM should be aligned to big endian.
 "###);
 }

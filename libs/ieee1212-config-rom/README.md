@@ -1,12 +1,10 @@
-# ieee1212 - Parser for data of Configuration ROM in IEEE 1212
-
 The crate includes structures, enumerations, traits and its implementations to process
 content of Configuration ROM in IEEE 1212.
 
 ## Structures and enumerations
 
 `ConfigRom` structure represents structured data of Configuration ROM. The structure
-implements std::convert::TryFrom<&[u8]> to parse raw data of Configuration ROM. The
+implements `std::convert::TryFrom<&[u8]>` to parse raw data of Configuration ROM. The
 lifetime of `ConfigRom` structure is the same as the one of raw data, to save memory
 consumption for string.
 
@@ -29,7 +27,7 @@ use ieee1212_config_rom::entry::{Entry, KeyType, EntryData, EntryDataAccess};
 use ieee1212_config_rom::leaf::{DescriptorLeaf, DescriptorData, TextualDescriptorData};
 use std::convert::TryFrom;
 
-// Prepare raw data of Configuration ROM as array with u8 elements aligned by big endian.
+// Prepare raw data of Configuration ROM as array with u8 elements aligned to big endian.
 let raw =  [
     0x04, 0x04, 0x7f, 0x1a, 0x31, 0x33, 0x39, 0x34,
     0xf0, 0x00, 0xb2, 0x23, 0x08, 0x00, 0x28, 0x51,
@@ -83,8 +81,10 @@ Usage:
   config-rom-parser FILENAME | "-"
 
   where:
-    FILENAME:       the name of file for the image of configuration ROM to parse
-    "-":            the content of configuration ROM to parse. It should be aligned to big endian.
+    FILENAME:       the name of file including the image of configuration ROM.
+    "-":            the content of configuration ROM comes from STDIN.
+
+  In both cases, the content of configuration ROM should be aligned to big endian.
 ```
 
 For data of Configuration ROM in file:
