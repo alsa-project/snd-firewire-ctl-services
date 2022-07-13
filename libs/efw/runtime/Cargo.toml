@@ -19,5 +19,5 @@ alsactl = "0.3"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 ta1394 = "0.1"
-efw-protocols = { path = "../protocols" }
+efw-protocols = "0.1"
 core = { path = "../../core" }
