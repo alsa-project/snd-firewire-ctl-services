@@ -1,21 +1,22 @@
 [package]
+edition = "2018"
 name = "ff-runtime"
 version = "0.1.0"
-authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
-edition = "2018"
-license = "GPL-3.0-or-later"
-publish = false
+# For publishing.
+authors = ["Takashi Sakamoto"]
 description = """
 Implementation of service runtime for models in RME Fireface series.
 """
+license = "GPL-3.0-or-later"
+publish = false
 
 [dependencies]
 glib = "0.10"
 nix = "0.17"
-core = { path = "../../core" }
 hinawa = { git = "https://github.com/alsa-project/hinawa-rs.git", tag = "v0.5.2", version = "0.5" }
 hitaki = { git = "https://github.com/alsa-project/hitaki-rs.git", tag = "v0.1.0", version = "0.1" }
 alsactl = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.3.0", version = "0.3" }
 alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 ff-protocols = { path = "../protocols" }
+core = { path = "../../core" }

@@ -1,13 +1,15 @@
 [package]
+edition = "2018"
 name = "ieee1212-config-rom"
 version = "0.1.0"
-authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
-edition = "2018"
-license = "GPL-3.0-or-later"
-homepage = "https://github.com/alsa-project/snd-firewire-ctl-services"
+# For publishing.
+authors = ["Takashi Sakamoto"]
 description = """
 Utilities for Configration ROM specification in IEEE 1222
 """
+homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [[bin]]
 name = "config-rom-parser"
