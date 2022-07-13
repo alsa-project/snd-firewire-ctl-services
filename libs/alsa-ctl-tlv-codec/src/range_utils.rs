@@ -64,13 +64,21 @@ impl ToValueRange for DbInterval {
 
 impl ToValueRange for DbRangeEntry {
     fn to_valuerange(&self, range: &ValueRange) -> Option<ValueRange> {
-        Some(ValueRange{min: self.min_val, max: self.max_val, step: range.step})
+        Some(ValueRange {
+            min: self.min_val,
+            max: self.max_val,
+            step: range.step,
+        })
     }
 }
 
 impl ToValueRange for DbRange {
     fn to_valuerange(&self, range: &ValueRange) -> Option<ValueRange> {
-        let mut r = ValueRange{min: i32::MAX, max: i32::MIN, step: range.step};
+        let mut r = ValueRange {
+            min: i32::MAX,
+            max: i32::MIN,
+            step: range.step,
+        };
         self.entries.iter().for_each(|entry| {
             if !r.contains(entry.min_val) {
                 r.min = entry.min_val;
@@ -89,7 +97,11 @@ impl ToValueRange for DbRange {
 
 impl ToValueRange for Container {
     fn to_valuerange(&self, range: &ValueRange) -> Option<ValueRange> {
-        let mut r = ValueRange{min: i32::MAX, max: i32::MIN, step: range.step};
+        let mut r = ValueRange {
+            min: i32::MAX,
+            max: i32::MIN,
+            step: range.step,
+        };
         self.entries.iter().for_each(|entry| {
             if let Some(range) = entry.to_valuerange(&range) {
                 if !r.contains(range.min) {
@@ -113,8 +125,7 @@ impl ToValueRange for TlvItem {
         match self {
             TlvItem::DbRange(d) => d.to_valuerange(&range),
             TlvItem::Container(d) => d.to_valuerange(&range),
-            TlvItem::DbScale(_) |
-            TlvItem::DbInterval(_) => Some(*range),
+            TlvItem::DbScale(_) | TlvItem::DbInterval(_) => Some(*range),
             _ => None,
         }
     }
@@ -122,14 +133,14 @@ impl ToValueRange for TlvItem {
 
 /// The structure to represent conversin error into interval of dB
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToDbIntervalError{
+pub struct ToDbIntervalError {
     /// Arbitrary message for error cause.
     pub msg: String,
 }
 
 impl ToDbIntervalError {
     pub fn new(msg: String) -> Self {
-        ToDbIntervalError{msg}
+        ToDbIntervalError { msg }
     }
 }
 
@@ -146,7 +157,7 @@ pub trait ToDbInterval {
 
 impl ToDbInterval for DbScale {
     fn to_dbinterval(&self, range: &ValueRange) -> Result<DbInterval, ToDbIntervalError> {
-        Ok(DbInterval{
+        Ok(DbInterval {
             min: self.min,
             max: self.min + range.length() * self.step as i32,
             linear: false,
@@ -163,7 +174,11 @@ impl ToDbInterval for DbInterval {
 
 impl ToDbInterval for DbRangeEntry {
     fn to_dbinterval(&self, range: &ValueRange) -> Result<DbInterval, ToDbIntervalError> {
-        let r = ValueRange{min: self.min_val, max: self.max_val, step: range.step};
+        let r = ValueRange {
+            min: self.min_val,
+            max: self.max_val,
+            step: range.step,
+        };
         match &self.data {
             DbRangeEntryData::DbScale(d) => d.to_dbinterval(&r),
             DbRangeEntryData::DbInterval(d) => Ok(*d),
@@ -191,8 +206,9 @@ impl ToDbInterval for DbRange {
             entries[1..].iter().try_for_each(|entry| {
                 let i = entry.1;
                 if i.linear != interval.linear {
-                    let msg = "DbRange includes entries for both of non-linear and linear value".to_string();
-                    Err(ToDbIntervalError{msg})
+                    let msg = "DbRange includes entries for both of non-linear and linear value"
+                        .to_string();
+                    Err(ToDbIntervalError { msg })
                 } else {
                     if !interval.contains(i.min) {
                         interval.min = i.min;
@@ -207,14 +223,16 @@ impl ToDbInterval for DbRange {
             Ok(interval)
         } else {
             let msg = "DbRange includes no entry for dB information".to_string();
-            Err(ToDbIntervalError{msg})
+            Err(ToDbIntervalError { msg })
         }
     }
 }
 
 impl ToDbInterval for Container {
     fn to_dbinterval(&self, range: &ValueRange) -> Result<DbInterval, ToDbIntervalError> {
-        let intervals = self.entries.iter()
+        let intervals = self
+            .entries
+            .iter()
             .map(|entry| entry.to_dbinterval(&range))
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -222,8 +240,9 @@ impl ToDbInterval for Container {
             let mut interval = intervals[0];
             intervals[1..].iter().try_for_each(|i| {
                 if i.linear != interval.linear {
-                    let msg = "Container includes entries for both of non-linear and linear value".to_string();
-                    Err(ToDbIntervalError{msg})
+                    let msg = "Container includes entries for both of non-linear and linear value"
+                        .to_string();
+                    Err(ToDbIntervalError { msg })
                 } else {
                     if !interval.contains(i.min) {
                         interval.min = i.min;
@@ -238,7 +257,7 @@ impl ToDbInterval for Container {
             Ok(interval)
         } else {
             let msg = "Container includes no entry for dB information".to_string();
-            Err(ToDbIntervalError{msg})
+            Err(ToDbIntervalError { msg })
         }
     }
 }
@@ -252,7 +271,7 @@ impl ToDbInterval for TlvItem {
             TlvItem::DbInterval(d) => Ok(*d),
             _ => {
                 let msg = "Container includes entry without dB information".to_string();
-                Err(ToDbIntervalError{msg})
+                Err(ToDbIntervalError { msg })
             }
         }
     }
@@ -264,38 +283,73 @@ mod test {
 
     #[test]
     fn to_dbinterval_dbscale() {
-        let scale = &DbScale{min: 100, step: 10, mute_avail: true};
-        let range = ValueRange{min: 33, max: 333, step: 1};
+        let scale = &DbScale {
+            min: 100,
+            step: 10,
+            mute_avail: true,
+        };
+        let range = ValueRange {
+            min: 33,
+            max: 333,
+            step: 1,
+        };
         let interval = scale.to_dbinterval(&range).unwrap();
-        assert_eq!(interval, DbInterval{min: 100, max: 3100, linear: false, mute_avail: true});
+        assert_eq!(
+            interval,
+            DbInterval {
+                min: 100,
+                max: 3100,
+                linear: false,
+                mute_avail: true
+            }
+        );
     }
 
     #[test]
     fn to_valuerange_dbrange() {
-        let first_data = DbInterval{min: 1, max: 5, linear: false, mute_avail: true};
-        let second_data = DbInterval{min: 5, max: 10, linear: false, mute_avail: false};
-        let third_data = DbInterval{min: 10, max: 20, linear: false, mute_avail: false};
+        let first_data = DbInterval {
+            min: 1,
+            max: 5,
+            linear: false,
+            mute_avail: true,
+        };
+        let second_data = DbInterval {
+            min: 5,
+            max: 10,
+            linear: false,
+            mute_avail: false,
+        };
+        let third_data = DbInterval {
+            min: 10,
+            max: 20,
+            linear: false,
+            mute_avail: false,
+        };
 
-        let dbrange = DbRange{
+        let dbrange = DbRange {
             entries: vec![
-                DbRangeEntry{
+                DbRangeEntry {
                     min_val: 0,
                     max_val: 10,
                     data: DbRangeEntryData::DbInterval(first_data),
                 },
-                DbRangeEntry{
+                DbRangeEntry {
                     min_val: 10,
                     max_val: 20,
                     data: DbRangeEntryData::DbInterval(second_data),
                 },
-                DbRangeEntry{
+                DbRangeEntry {
                     min_val: 20,
                     max_val: 40,
                     data: DbRangeEntryData::DbInterval(third_data),
                 },
             ],
         };
-        let r = ValueRange{min: 0, max: 40, step: 1};
+        let r = ValueRange {
+            min: 0,
+            max: 40,
+            step: 1,
+        };
         let range = dbrange.to_valuerange(&r).unwrap();
         assert_eq!(range.min, 0);
         assert_eq!(range.max, 40);
@@ -304,30 +358,57 @@ mod test {
 
     #[test]
     fn to_dbinterval_dbrange() {
-        let first_data = DbInterval{min: 1, max: 5, linear: false, mute_avail: true};
-        let second_data = DbInterval{min: 5, max: 10, linear: false, mute_avail: false};
-        let third_data = DbInterval{min: 10, max: 20, linear: false, mute_avail: false};
-        let range = DbRange{
+        let first_data = DbInterval {
+            min: 1,
+            max: 5,
+            linear: false,
+            mute_avail: true,
+        };
+        let second_data = DbInterval {
+            min: 5,
+            max: 10,
+            linear: false,
+            mute_avail: false,
+        };
+        let third_data = DbInterval {
+            min: 10,
+            max: 20,
+            linear: false,
+            mute_avail: false,
+        };
+        let range = DbRange {
             entries: vec![
-                DbRangeEntry{
+                DbRangeEntry {
                     min_val: 0,
                     max_val: 10,
                     data: DbRangeEntryData::DbInterval(first_data),
                 },
-                DbRangeEntry{
+                DbRangeEntry {
                     min_val: 10,
                     max_val: 20,
                     data: DbRangeEntryData::DbInterval(second_data),
                 },
-                DbRangeEntry{
+                DbRangeEntry {
                     min_val: 20,
                     max_val: 40,
                     data: DbRangeEntryData::DbInterval(third_data),
                 },
             ],
         };
-        let r = ValueRange{min: 0, max: 40, step: 1};
+        let r = ValueRange {
+            min: 0,
+            max: 40,
+            step: 1,
+        };
         let interval = range.to_dbinterval(&r).unwrap();
-        assert_eq!(interval, DbInterval{min: 1, max: 20, linear: false, mute_avail: true});
+        assert_eq!(
+            interval,
+            DbInterval {
+                min: 1,
+                max: 20,
+                linear: false,
+                mute_avail: true
+            }
+        );
     }
 }

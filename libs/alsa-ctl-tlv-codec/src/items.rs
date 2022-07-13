@@ -9,7 +9,7 @@ use super::*;
 ///
 /// It has `SNDRV_CTL_TLVT_DB_SCALE` (=1) in its type field and has two elements in value field.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct DbScale{
+pub struct DbScale {
     /// The minimum value by dB representation, in 0.1 dB unit. This corresponds to the minimum
     /// value in the state of control element.
     pub min: i32,
@@ -26,7 +26,7 @@ pub struct DbScale{
 pub const CTL_VALUE_MUTE: i32 = SNDRV_CTL_TLVD_DB_GAIN_MUTE;
 
 /// The value of dB should be represented in 0.1 dB unit in data of TLV and crate structures.
-pub const DB_VALUE_MULTIPLIER: i32= 100;
+pub const DB_VALUE_MULTIPLIER: i32 = 100;
 
 impl DbScale {
     const VALUE_COUNT: usize = 2;
@@ -57,11 +57,13 @@ impl std::convert::TryFrom<&[u32]> for DbScale {
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() != 4 || raw[1] != 4 * Self::VALUE_COUNT as u32 {
-            Err(InvalidTlvDataError::new("Invalid length of data for DbScale"))
+            Err(InvalidTlvDataError::new(
+                "Invalid length of data for DbScale",
+            ))
         } else if raw[0] != SNDRV_CTL_TLVT_DB_SCALE {
             Err(InvalidTlvDataError::new("Invalid type of data for DbScale"))
         } else {
-            let data = DbScale{
+            let data = DbScale {
                 min: raw[2] as i32,
                 step: (raw[3] & SNDRV_CTL_TLVD_DB_SCALE_MASK) as u16,
                 mute_avail: raw[3] & SNDRV_CTL_TLVD_DB_SCALE_MUTE > 0,
@@ -96,7 +98,7 @@ impl From<DbScale> for Vec<u32> {
 ///
 ///  All of them have two elements in value field.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct DbInterval{
+pub struct DbInterval {
     /// The minimum value by dB representation, in 0.1 dB unit. This corresponds to the minimum
     /// value in the state of control element.
     pub min: i32,
@@ -144,13 +146,18 @@ impl std::convert::TryFrom<&[u32]> for DbInterval {
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() != 4 || raw[1] != 4 * Self::VALUE_COUNT as u32 {
-            Err(InvalidTlvDataError::new("Invalid length of data for DbInterval"))
-        } else if raw[0] != SNDRV_CTL_TLVT_DB_LINEAR &&
-                  raw[0] != SNDRV_CTL_TLVT_DB_MINMAX &&
-                  raw[0] != SNDRV_CTL_TLVT_DB_MINMAX_MUTE {
-            Err(InvalidTlvDataError::new("Invalid type of data for DbInterval"))
+            Err(InvalidTlvDataError::new(
+                "Invalid length of data for DbInterval",
+            ))
+        } else if raw[0] != SNDRV_CTL_TLVT_DB_LINEAR
+            && raw[0] != SNDRV_CTL_TLVT_DB_MINMAX
+            && raw[0] != SNDRV_CTL_TLVT_DB_MINMAX_MUTE
+        {
+            Err(InvalidTlvDataError::new(
+                "Invalid type of data for DbInterval",
+            ))
         } else {
-            let mut data = DbInterval{
+            let mut data = DbInterval {
                 min: raw[2] as i32,
                 max: raw[3] as i32,
                 linear: false,
@@ -184,7 +191,7 @@ impl From<DbInterval> for Vec<u32> {
 }
 
 /// The enumeration to represent generic channel position corresponding to physical port on real
-/// device. They are defined as `SNDRV_CHMAP_XXX` enumeration in UAPI of Linux kernel. 
+/// device. They are defined as `SNDRV_CHMAP_XXX` enumeration in UAPI of Linux kernel.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChmapGenericPos {
     Unknown,
@@ -275,7 +282,9 @@ impl std::convert::TryFrom<u16> for ChmapGenericPos {
             SNDRV_CHMAP_BLC => ChmapGenericPos::BottomLeftCenter,
             SNDRV_CHMAP_BRC => ChmapGenericPos::BottomRightCenter,
             _ => {
-                return Err(InvalidTlvDataError::new("Invalid value for ChmapGenericPos"));
+                return Err(InvalidTlvDataError::new(
+                    "Invalid value for ChmapGenericPos",
+                ));
             }
         };
         Ok(v)
@@ -344,7 +353,7 @@ impl Default for ChmapPos {
 
 /// The entry to represent information of each channel in channel map.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ChmapEntry{
+pub struct ChmapEntry {
     /// The position of channel.
     pub pos: ChmapPos,
     /// If true, phase is inverted (e.g. a microphone channel within multiple channels). It's
@@ -365,7 +374,7 @@ impl std::convert::TryFrom<u32> for ChmapEntry {
             let p = ChmapGenericPos::try_from(pos_val)?;
             ChmapPos::Generic(p)
         };
-        Ok(ChmapEntry{pos, phase_inverse})
+        Ok(ChmapEntry { pos, phase_inverse })
     }
 }
 
@@ -384,7 +393,7 @@ impl From<ChmapEntry> for u32 {
 
 /// The mode for channel map.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ChmapMode{
+pub enum ChmapMode {
     /// The map is fixed and no way to change. It's relevant to `SNDRV_CTL_TLVT_CHMAP_FIXED`.
     Fixed,
     /// Each entry in the map is exchangeable arbitrarily. It's relevant to
@@ -410,7 +419,7 @@ impl Default for ChmapMode {
 ///
 /// The length of value field is variable depending on the number of channels.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-pub struct Chmap{
+pub struct Chmap {
     /// The mode of map.
     pub mode: ChmapMode,
     /// The entries of map corresponding to each channel.
@@ -432,7 +441,9 @@ impl<'a> TlvData<'a> for Chmap {
 
     fn value(&self) -> Vec<u32> {
         let mut raw = Vec::new();
-        self.entries.iter().for_each(|&entry| raw.push(u32::from(entry)));
+        self.entries
+            .iter()
+            .for_each(|&entry| raw.push(u32::from(entry)));
         raw
     }
 }
@@ -443,9 +454,10 @@ impl std::convert::TryFrom<&[u32]> for Chmap {
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() < 2 {
             Err(InvalidTlvDataError::new("Invalid length of data for Chmap"))
-        } else if raw[0] != SNDRV_CTL_TLVT_CHMAP_FIXED &&
-                  raw[0] != SNDRV_CTL_TLVT_CHMAP_VAR &&
-                  raw[0] != SNDRV_CTL_TLVT_CHMAP_PAIRED {
+        } else if raw[0] != SNDRV_CTL_TLVT_CHMAP_FIXED
+            && raw[0] != SNDRV_CTL_TLVT_CHMAP_VAR
+            && raw[0] != SNDRV_CTL_TLVT_CHMAP_PAIRED
+        {
             Err(InvalidTlvDataError::new("Invalid type of data for Chmap"))
         } else {
             let mode = if raw[0] == SNDRV_CTL_TLVT_CHMAP_FIXED {
@@ -458,7 +470,9 @@ impl std::convert::TryFrom<&[u32]> for Chmap {
 
             let value = &raw[2..];
             if mode == ChmapMode::PairedExchangeable && value.len() % 2 > 0 {
-                Err(InvalidTlvDataError::new("Invalid type of data for PairedExchangeable mode of Chmap"))
+                Err(InvalidTlvDataError::new(
+                    "Invalid type of data for PairedExchangeable mode of Chmap",
+                ))
             } else {
                 let mut entries = Vec::new();
                 value.iter().try_for_each(|&val| {
@@ -466,7 +480,7 @@ impl std::convert::TryFrom<&[u32]> for Chmap {
                     entries.push(entry);
                     Ok(())
                 })?;
-                Ok(Chmap{mode, entries})
+                Ok(Chmap { mode, entries })
             }
         }
     }
@@ -490,9 +504,9 @@ impl From<Chmap> for Vec<u32> {
 
 #[cfg(test)]
 mod test {
+    use super::{Chmap, ChmapEntry, ChmapGenericPos, ChmapMode, ChmapPos};
+    use super::{DbInterval, DbScale};
     use std::convert::TryFrom;
-    use super::{DbScale, DbInterval};
-    use super::{ChmapGenericPos, ChmapPos, ChmapEntry, ChmapMode, Chmap};
 
     #[test]
     fn test_dbitem() {
@@ -587,10 +601,19 @@ mod test {
         let raw = [0x101u32, 8, 3, 4];
         let map = Chmap::try_from(&raw[..]).unwrap();
         assert_eq!(map.mode, ChmapMode::Fixed);
-        assert_eq!(&map.entries[..], &[
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft), phase_inverse: false},
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontRight), phase_inverse: false},
-        ]);
+        assert_eq!(
+            &map.entries[..],
+            &[
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft),
+                    phase_inverse: false
+                },
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::FrontRight),
+                    phase_inverse: false
+                },
+            ]
+        );
         assert_eq!(&Vec::<u32>::from(map)[..], &raw[..]);
     }
 
@@ -599,11 +622,23 @@ mod test {
         let raw = [0x102u32, 12, 3, 4, 8];
         let map = Chmap::try_from(&raw[..]).unwrap();
         assert_eq!(map.mode, ChmapMode::ArbitraryExchangeable);
-        assert_eq!(&map.entries[..], &[
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft), phase_inverse: false},
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontRight), phase_inverse: false},
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::LowFrequencyEffect), phase_inverse: false},
-        ][..]);
+        assert_eq!(
+            &map.entries[..],
+            &[
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft),
+                    phase_inverse: false
+                },
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::FrontRight),
+                    phase_inverse: false
+                },
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::LowFrequencyEffect),
+                    phase_inverse: false
+                },
+            ][..]
+        );
         assert_eq!(&Vec::<u32>::from(map)[..], &raw[..]);
     }
 
@@ -612,12 +647,27 @@ mod test {
         let raw = [0x103u32, 16, 3, 4, 5, 6];
         let map = Chmap::try_from(&raw[..]).unwrap();
         assert_eq!(map.mode, ChmapMode::PairedExchangeable);
-        assert_eq!(&map.entries[..], &[
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft), phase_inverse: false},
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::FrontRight), phase_inverse: false},
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::RearLeft), phase_inverse: false},
-            ChmapEntry{pos: ChmapPos::Generic(ChmapGenericPos::RearRight), phase_inverse: false},
-        ][..]);
+        assert_eq!(
+            &map.entries[..],
+            &[
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::FrontLeft),
+                    phase_inverse: false
+                },
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::FrontRight),
+                    phase_inverse: false
+                },
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::RearLeft),
+                    phase_inverse: false
+                },
+                ChmapEntry {
+                    pos: ChmapPos::Generic(ChmapGenericPos::RearRight),
+                    phase_inverse: false
+                },
+            ][..]
+        );
         assert_eq!(&Vec::<u32>::from(map)[..], &raw[..]);
     }
 }
