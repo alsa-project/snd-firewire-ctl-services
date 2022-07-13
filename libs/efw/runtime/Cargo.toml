@@ -16,7 +16,7 @@ glib = "0.10"
 hinawa = "0.5"
 hitaki = "0.1"
 alsactl = "0.3"
-alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
+alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 ta1394 = { path = "../../ta1394" }
 efw-protocols = { path = "../protocols" }

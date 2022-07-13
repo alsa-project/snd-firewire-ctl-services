@@ -16,7 +16,7 @@ nix = "0.17"
 alsactl = "0.3"
 hinawa = "0.5"
 hitaki = "0.1"
-alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
+alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 dice-protocols = { path = "../protocols" }
 core = { path = "../../core" }
