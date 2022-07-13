@@ -22,9 +22,7 @@ each entry by key.
 ## Usage
 
 ```rust
-use ieee1212_config_rom::ConfigRom;
-use ieee1212_config_rom::entry::{Entry, KeyType, EntryData, EntryDataAccess};
-use ieee1212_config_rom::leaf::{DescriptorLeaf, DescriptorData, TextualDescriptorData};
+use ieee1212_config_rom::*;
 use std::convert::TryFrom;
 
 // Prepare raw data of Configuration ROM as array with u8 elements aligned to big endian.

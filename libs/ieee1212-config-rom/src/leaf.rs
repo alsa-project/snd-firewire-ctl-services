@@ -16,8 +16,6 @@
 
 use super::*;
 
-use std::convert::TryFrom;
-
 /// The structure to represent error cause.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LeafParseError<T>

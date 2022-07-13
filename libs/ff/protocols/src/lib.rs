@@ -9,7 +9,7 @@
 pub mod former;
 pub mod latter;
 
-use ieee1212_config_rom::{entry::*, *};
+use ieee1212_config_rom::*;
 
 const RME_OUI: u32 = 0x00000a35;
 

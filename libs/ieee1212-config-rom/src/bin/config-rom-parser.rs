@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use ieee1212_config_rom::{*, entry::*, leaf::*};
+use ieee1212_config_rom::*;
 use std::fs::File;
 use std::io::Read;
 use std::convert::TryFrom;
