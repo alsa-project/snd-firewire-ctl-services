@@ -18,6 +18,6 @@ hitaki = "0.1"
 alsactl = "0.3"
 alsaseq = "0.3"
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
-alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
+alsa-ctl-tlv-codec = "0.1"
 tascam-protocols = { path = "../protocols" }
 core = { path = "../../core" }
