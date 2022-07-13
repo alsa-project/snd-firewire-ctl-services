@@ -6,9 +6,17 @@
 #[allow(dead_code)]
 mod uapi;
 
-pub mod items;
-pub mod containers;
-pub mod range_utils;
+mod items;
+mod containers;
+mod range_utils;
+
+pub use {
+    containers::*,
+    items::*,
+    range_utils::*,
+};
+
+use uapi::*;
 
 /// The error type at failure to convert from array of u32 elements to TLV data.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,10 +54,6 @@ pub trait TlvData<'a> : std::convert::TryFrom<&'a [u32]>
     /// Generate vector with u32 element for raw data.
     fn value(&self) -> Vec<u32>;
 }
-
-use uapi::*;
-use items::*;
-use containers::*;
 
 /// Available items as data of TLV (Type-Length-Value) style in ALSA control interface.
 ///

@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    alsa_ctl_tlv_codec::items::DbInterval,
+    alsa_ctl_tlv_codec::DbInterval,
     efw_protocols::{hw_info::*, phys_output::*, *},
 };
 

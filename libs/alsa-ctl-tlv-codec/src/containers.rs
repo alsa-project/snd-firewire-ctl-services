@@ -4,8 +4,6 @@
 //! A set of containers to aggregate items in TLV (Type-Length-Value) of ALSA control interface.
 
 use super::*;
-use super::uapi::*;
-use super::items::*;
 
 trait DataEntry<'a> : std::convert::TryFrom<&'a [u32]> {
     fn raw_length(&self) -> usize;

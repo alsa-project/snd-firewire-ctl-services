@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
-    super::*, alsa_ctl_tlv_codec::items::DbInterval, alsactl::*, core::elem_value_accessor::*,
+    super::*, alsa_ctl_tlv_codec::DbInterval, alsactl::*, core::elem_value_accessor::*,
     tascam_protocols::isoch::*,
 };
 

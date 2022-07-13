@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::*, alsa_ctl_tlv_codec::items::DbInterval, dg00x_protocols::*, std::marker::PhantomData,
-};
+use {super::*, alsa_ctl_tlv_codec::DbInterval, dg00x_protocols::*, std::marker::PhantomData};
 
 const TIMEOUT_MS: u32 = 100;
 

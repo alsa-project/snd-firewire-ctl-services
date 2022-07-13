@@ -6,7 +6,7 @@ pub use {
         audioexpress::*, common_ctls::*, f828mk2::*, f896hd::*, f8pre::*, h4pre::*,
         register_dsp_ctls::*, traveler::*, ultralite::*, v2_ctls::*, v3_ctls::*, *,
     },
-    alsa_ctl_tlv_codec::items::DbInterval,
+    alsa_ctl_tlv_codec::DbInterval,
     alsactl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*},
     glib::source,
