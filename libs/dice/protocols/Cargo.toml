@@ -1,13 +1,16 @@
 [package]
+edition = "2018"
 name = "dice-protocols"
 version = "0.1.0"
-authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
-edition = "2018"
-license = "GPL-3.0-or-later"
+# For publishing.
+authors = ["Takashi Sakamoto"]
 description = """
 Implementation of protocols defined by TC Applied Technologies for ASICs of
 Digital Interface Communication Engine (DICE) as well as hardware vendors.
 """
+homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
 glib = "0.10"

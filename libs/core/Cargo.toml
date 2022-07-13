@@ -1,13 +1,14 @@
 [package]
+edition = "2018"
 name = "core"
 version = "0.1.0"
-authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
-edition = "2018"
-license = "GPL-3.0-or-later"
-publish = false
+# For publishing.
+authors = ["Takashi Sakamoto"]
 description = """
 Core utilities to produce service programs for ALSA control and sequencer applications
 """
+license = "GPL-3.0-or-later"
+publish = false
 
 [dependencies]
 nix = "0.17"

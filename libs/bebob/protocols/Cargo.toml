@@ -1,13 +1,16 @@
 [package]
+edition = "2018"
 name = "bebob-protocols"
 version = "0.1.0"
-authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
-edition = "2018"
-license = "GPL-3.0-or-later"
+# For publishing.
+authors = ["Takashi Sakamoto"]
 description = """
 Implementation of protocols defined by BridgeCo. AG and application vendors for DM1000, DM1100, and
 DM1500 ASICs with its BridgeCo. Enhanced Break Out Box (BeBoB) solution.
 """
+homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
 glib = "0.10"

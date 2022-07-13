@@ -1,14 +1,16 @@
 [package]
+edition = "2018"
 name = "alsa-ctl-tlv-codec"
 version = "0.0.1"
-authors = ["Takashi Sakamoto <o-takashi@sakamocchi.jp>"]
-edition = "2018"
-license = "GPL-3.0-or-later"
-homepage = "https://github.com/alsa-project/snd-firewire-ctl-services"
+# For publishing.
+authors = ["Takashi Sakamoto"]
 description = """
 Encoder and Decoder for data of Type-Length-Value(TLV) style in ALSA control
 interface
 """
+homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [[bin]]
 name = "tlv-decode"
