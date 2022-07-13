@@ -3,10 +3,12 @@
 
 #![doc = include_str!("../README.md")]
 
-pub mod entry;
-pub mod leaf;
+mod entry;
+mod leaf;
 
-use entry::*;
+pub use {
+    entry::*, leaf::*,
+};
 
 use std::convert::TryFrom;
 

@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementaion to parse
 //! configuration ROM according to specification defined by Mark of the Unicorn.
 
-use ieee1212_config_rom::{entry::*, *};
+use ieee1212_config_rom::*;
 
 /// The structure to represent data in unit directory of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]

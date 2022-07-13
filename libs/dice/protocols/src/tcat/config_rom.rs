@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, and trait and its implementaion to parse
 //! configuration ROM according to specification defined by TCAT for ASICs of DICE.
 
-use ieee1212_config_rom::{entry::*, *};
+use ieee1212_config_rom::*;
 
 /// The structure to represent identifier in bus information block of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
