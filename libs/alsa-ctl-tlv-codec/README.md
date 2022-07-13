@@ -66,9 +66,9 @@ data of TLV.
 The associated value can be instantiated directly, then raw data can be generated:
 
 ```rust
-use alsa_ctl_tlv_codec::items;
+use alsa_ctl_tlv_codec::DbScale;
 
-let scale = items::DbScale{
+let scale = DbScale{
     min: -100,
     step: 10,
     mute_avail: true,
@@ -85,7 +85,7 @@ Some of the associated value are container type, which aggregates the other item
 case, `TlvItem` is used for the aggregation of `Container`.
 
 ```rust
-use alsa_ctl_tlv_codec::{*, items::*, containers::*};
+use alsa_ctl_tlv_codec::*;
 
 let cntr = Container{
     entries: vec![

@@ -4,7 +4,6 @@
 //! A set of minimum items in TLV (Type-Length-Value) of ALSA control interface.
 
 use super::*;
-use super::uapi::*;
 
 /// The data to represent dB scale in TLV (Type-Length-Value) of ALSA control interface.
 ///

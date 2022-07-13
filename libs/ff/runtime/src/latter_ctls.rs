@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    alsa_ctl_tlv_codec::items::DbInterval,
+    alsa_ctl_tlv_codec::DbInterval,
     ff_protocols::{latter::*, *},
 };
 

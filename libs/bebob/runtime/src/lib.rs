@@ -19,7 +19,7 @@ mod terratec;
 mod yamaha_terratec;
 
 use {
-    alsa_ctl_tlv_codec::items::DbInterval,
+    alsa_ctl_tlv_codec::DbInterval,
     alsactl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
