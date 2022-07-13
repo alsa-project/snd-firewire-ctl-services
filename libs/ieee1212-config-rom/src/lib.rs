@@ -6,9 +6,7 @@
 mod entry;
 mod leaf;
 
-pub use {
-    entry::*, leaf::*,
-};
+pub use {entry::*, leaf::*};
 
 use std::convert::TryFrom;
 
@@ -17,7 +15,7 @@ use std::convert::TryFrom;
 /// The structure implements std::convert::TryFrom<&[u8]> to parse raw data of configuration ROM.
 /// The structure refers to content of the raw data, thus has the same lifetime of the raw data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConfigRom<'a>{
+pub struct ConfigRom<'a> {
     /// The content of bus information block.
     pub bus_info: &'a [u8],
     /// The directory entries in root directory block.
@@ -26,14 +24,17 @@ pub struct ConfigRom<'a>{
 
 /// The structure to represent error cause to parse raw data of configuration ROM.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConfigRomParseError{
+pub struct ConfigRomParseError {
     pub ctx: Vec<ConfigRomParseCtx>,
     pub msg: String,
 }
 
 impl ConfigRomParseError {
     fn new(ctx: ConfigRomParseCtx, msg: String) -> Self {
-        ConfigRomParseError{ctx: vec![ctx], msg}
+        ConfigRomParseError {
+            ctx: vec![ctx],
+            msg,
+        }
     }
 }
 
@@ -46,11 +47,10 @@ impl std::fmt::Display for ConfigRomParseError {
             .by_ref()
             .nth(0)
             .map(|c| ctx.push_str(&c.to_string()));
-        ctx_iter
-            .for_each(|c| {
-                ctx.push_str(" -> ");
-                ctx.push_str(&c.to_string());
-            });
+        ctx_iter.for_each(|c| {
+            ctx.push_str(" -> ");
+            ctx.push_str(&c.to_string());
+        });
 
         write!(f, "{}: {}", ctx, self.msg)
     }
@@ -93,29 +93,30 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
         let doublet = [data[0], data[1]];
         let root_directory_length = 4 * u16::from_be_bytes(doublet) as usize;
         if 4 + root_directory_length > raw.len() {
-            let msg = format!("length {} is greater than {}", root_directory_length, raw.len());
+            let msg = format!(
+                "length {} is greater than {}",
+                root_directory_length,
+                raw.len()
+            );
             Err(ConfigRomParseError::new(ctx, msg))?
         }
         let root = &data[..(4 + root_directory_length)];
         let data = &data[(4 + root_directory_length)..];
 
-        let root = get_directory_entry_list(root, data)
-            .map_err(|mut e| {
-                e.ctx.insert(0, ctx);
-                e
-            })?;
+        let root = get_directory_entry_list(root, data).map_err(|mut e| {
+            e.ctx.insert(0, ctx);
+            e
+        })?;
 
-        let rom = ConfigRom{
-            bus_info,
-            root,
-        };
+        let rom = ConfigRom { bus_info, root };
         Ok(rom)
     }
 }
 
-fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8])
-    -> Result<Vec<Entry<'a>>, ConfigRomParseError>
-{
+fn get_directory_entry_list<'a>(
+    mut directory: &'a [u8],
+    data: &'a [u8],
+) -> Result<Vec<Entry<'a>>, ConfigRomParseError> {
     let mut entries = Vec::new();
 
     directory = &directory[4..];
@@ -141,7 +142,11 @@ fn get_directory_entry_list<'a>(mut directory: &'a [u8], data: &'a [u8])
                 }
                 let start_offset = offset - directory.len();
                 if start_offset > data.len() {
-                    let msg = format!("Start offset {} is over blocks {}", start_offset, directory.len());
+                    let msg = format!(
+                        "Start offset {} is over blocks {}",
+                        start_offset,
+                        directory.len()
+                    );
                     Err(ConfigRomParseError::new(ctx, msg))?
                 }
                 let doublet = [data[start_offset], data[start_offset + 1]];

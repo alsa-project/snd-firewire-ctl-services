@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 use ieee1212_config_rom::*;
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
-use std::convert::TryFrom;
 
 fn print_raw(raw: &[u8], level: usize) {
     let mut indent = String::new();
@@ -11,9 +11,7 @@ fn print_raw(raw: &[u8], level: usize) {
 
     let mut iter = raw.iter();
 
-    iter.by_ref()
-        .nth(0)
-        .map(|b| print!("{}{:02x}", indent, b));
+    iter.by_ref().nth(0).map(|b| print!("{}{:02x}", indent, b));
 
     iter.for_each(|b| print!(" {:02x}", b));
 
@@ -45,8 +43,7 @@ fn print_descriptor_leaf(raw: &[u8], level: usize) -> Result<(), String> {
     let mut indent = String::new();
     (0..(level * INDENT_PER_LEVEL)).for_each(|_| indent.push(' '));
 
-    let desc = DescriptorLeaf::try_from(raw)
-        .map_err(|e| e.to_string())?;
+    let desc = DescriptorLeaf::try_from(raw).map_err(|e| e.to_string())?;
     match &desc.data {
         DescriptorData::Textual(d) => {
             println!("{}Texual descriptor:", indent);
@@ -73,8 +70,12 @@ fn print_directory_entries(entries: &[Entry], level: usize) -> Result<(), String
 
     entries.iter().try_for_each(|entry| {
         match &entry.data {
-            EntryData::Immediate(value) => println!("{}{:?} (immediate): 0x{:08x}", indent, entry.key, value),
-            EntryData::CsrOffset(offset) => println!("{}{:?} (offset): 0x{:024x}", indent, entry.key, offset),
+            EntryData::Immediate(value) => {
+                println!("{}{:?} (immediate): 0x{:08x}", indent, entry.key, value)
+            }
+            EntryData::CsrOffset(offset) => {
+                println!("{}{:?} (offset): 0x{:024x}", indent, entry.key, offset)
+            }
             EntryData::Leaf(leaf) => {
                 println!("{}{:?} (leaf):", indent, entry.key);
                 if entry.key == KeyType::Eui64 {
@@ -97,9 +98,7 @@ fn print_directory_entries(entries: &[Entry], level: usize) -> Result<(), String
 fn main() {
     let code = std::env::args()
         .nth(1)
-        .ok_or_else(|| {
-            "The first argument is required for target to parse.".to_string()
-        })
+        .ok_or_else(|| "The first argument is required for target to parse.".to_string())
         .and_then(|arg| {
             if arg == "-" {
                 read_data_from_stdin()
@@ -109,17 +108,19 @@ fn main() {
         })
         .and_then(|raw| {
             if raw.len() % 4 > 0 {
-                let label = format!("The length of data is not aligned to quadlet: {}", raw.len());
+                let label = format!(
+                    "The length of data is not aligned to quadlet: {}",
+                    raw.len()
+                );
                 Err(label)
             } else {
                 let mut data = Vec::new();
-                let mut quadlet = [0;4];
-                (0..(raw.len() / 4))
-                    .for_each(|i| {
-                        let pos = i * 4;
-                        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
-                        data.extend_from_slice(&u32::from_be_bytes(quadlet).to_ne_bytes());
-                    });
+                let mut quadlet = [0; 4];
+                (0..(raw.len() / 4)).for_each(|i| {
+                    let pos = i * 4;
+                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                    data.extend_from_slice(&u32::from_be_bytes(quadlet).to_ne_bytes());
+                });
                 Ok(data)
             }
         })
@@ -147,7 +148,9 @@ fn main() {
 fn read_data_from_stdin() -> Result<Vec<u8>, String> {
     let mut raw = Vec::new();
 
-    std::io::stdin().lock().read_to_end(&mut raw)
+    std::io::stdin()
+        .lock()
+        .read_to_end(&mut raw)
         .map_err(|e| e.to_string())
         .and_then(|len| {
             if len == 0 {
@@ -163,7 +166,8 @@ fn read_data_from_file(filename: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
         .and_then(|mut handle| {
             let mut raw = Vec::new();
-            handle.read_to_end(&mut raw)
+            handle
+                .read_to_end(&mut raw)
                 .map_err(|e| e.to_string())
                 .and_then(|len| {
                     if len == 0 {
@@ -178,7 +182,7 @@ fn read_data_from_file(filename: &str) -> Result<Vec<u8>, String> {
 
 fn print_help() {
     print!(
-r###"
+        r###"
 Usage:
   config-rom-parser FILENAME | "-"
 
@@ -187,5 +191,6 @@ Usage:
     "-":            the content of configuration ROM comes from STDIN.
 
   In both cases, the content of configuration ROM should be aligned to big endian.
-"###);
+"###
+    );
 }

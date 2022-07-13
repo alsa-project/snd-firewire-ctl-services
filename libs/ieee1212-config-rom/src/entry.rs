@@ -124,15 +124,13 @@ impl<'a> EntryDataAccess<'a, &'a [Entry<'a>]> for Entry<'a> {
 // Cloned type.
 impl<'a> EntryDataAccess<'a, u32> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<u32> {
-        EntryDataAccess::<&u32>::get(self, key_type)
-            .map(|v| *v)
+        EntryDataAccess::<&u32>::get(self, key_type).map(|v| *v)
     }
 }
 
 impl<'a> EntryDataAccess<'a, usize> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<usize> {
-        EntryDataAccess::<&usize>::get(self, key_type)
-            .map(|v| *v)
+        EntryDataAccess::<&usize>::get(self, key_type).map(|v| *v)
     }
 }
 
@@ -140,8 +138,7 @@ impl<'a> EntryDataAccess<'a, usize> for Entry<'a> {
 impl<'a> EntryDataAccess<'a, DescriptorLeaf<'a>> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<DescriptorLeaf<'a>> {
         if self.key == key_type {
-            DescriptorLeaf::try_from(self)
-                .ok()
+            DescriptorLeaf::try_from(self).ok()
         } else {
             None
         }
@@ -150,28 +147,25 @@ impl<'a> EntryDataAccess<'a, DescriptorLeaf<'a>> for Entry<'a> {
 
 impl<'a> EntryDataAccess<'a, TextualDescriptorData<'a>> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<TextualDescriptorData<'a>> {
-        EntryDataAccess::<DescriptorLeaf<'a>>::get(self, key_type)
-            .and_then(|desc| {
-                if let DescriptorData::Textual(d) = desc.data {
-                    Some(d)
-                } else {
-                    None
-                }
-            })
+        EntryDataAccess::<DescriptorLeaf<'a>>::get(self, key_type).and_then(|desc| {
+            if let DescriptorData::Textual(d) = desc.data {
+                Some(d)
+            } else {
+                None
+            }
+        })
     }
 }
 
 impl<'a> EntryDataAccess<'a, &'a str> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<&'a str> {
-        EntryDataAccess::<TextualDescriptorData<'a>>::get(self, key_type)
-            .map(|data| data.text)
+        EntryDataAccess::<TextualDescriptorData<'a>>::get(self, key_type).map(|data| data.text)
     }
 }
 
 impl<'a> EntryDataAccess<'a, String> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<String> {
-        EntryDataAccess::<&str>::get(self, key_type)
-            .map(|text| text.to_string())
+        EntryDataAccess::<&str>::get(self, key_type).map(|text| text.to_string())
     }
 }
 
@@ -179,8 +173,7 @@ impl<'a> EntryDataAccess<'a, String> for Entry<'a> {
 impl<'a> EntryDataAccess<'a, Eui64Leaf> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<Eui64Leaf> {
         if self.key == key_type {
-            Eui64Leaf::try_from(self)
-                .ok()
+            Eui64Leaf::try_from(self).ok()
         } else {
             None
         }
@@ -189,16 +182,14 @@ impl<'a> EntryDataAccess<'a, Eui64Leaf> for Entry<'a> {
 
 impl<'a> EntryDataAccess<'a, u64> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<u64> {
-        EntryDataAccess::<Eui64Leaf>::get(self, key_type)
-            .map(|data| data.0)
+        EntryDataAccess::<Eui64Leaf>::get(self, key_type).map(|data| data.0)
     }
 }
 
 impl<'a> EntryDataAccess<'a, UnitLocationLeaf> for Entry<'a> {
     fn get(&'a self, key_type: KeyType) -> Option<UnitLocationLeaf> {
         if self.key == key_type {
-            UnitLocationLeaf::try_from(self)
-                .ok()
+            UnitLocationLeaf::try_from(self).ok()
         } else {
             None
         }
