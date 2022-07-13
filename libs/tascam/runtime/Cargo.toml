@@ -16,7 +16,7 @@ glib = "0.10"
 hinawa = "0.5"
 hitaki = "0.1"
 alsactl = "0.3"
-alsaseq = { git = "https://github.com/alsa-project/alsa-gobject-rs.git", tag = "v0.3.0", version = "0.3" }
+alsaseq = "0.3"
 ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
 alsa-ctl-tlv-codec = { path = "../../alsa-ctl-tlv-codec" }
 tascam-protocols = { path = "../protocols" }
