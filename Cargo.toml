@@ -65,3 +65,4 @@ dice-protocols = { path = "libs/dice/protocols" }
 efw-protocols = { path = "libs/efw/protocols" }
 ff-protocols = { path = "libs/ff/protocols" }
 motu-protocols = { path = "libs/motu/protocols" }
+oxfw-protocols = { path = "libs/oxfw/protocols" }
