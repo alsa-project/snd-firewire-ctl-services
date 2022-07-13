@@ -15,4 +15,4 @@ repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 [dependencies]
 glib = "0.10"
 hinawa = "0.5"
-ta1394 = { path = "../../ta1394" }
+ta1394 = "0.1"

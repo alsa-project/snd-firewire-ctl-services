@@ -17,6 +17,6 @@ hinawa = "0.5"
 hitaki = "0.1"
 alsactl = "0.3"
 ieee1212-config-rom = "0.1"
-ta1394 = { path = "../../ta1394" }
+ta1394 = "0.1"
 oxfw-protocols = { path = "../protocols" }
 core = { path = "../../core" }
