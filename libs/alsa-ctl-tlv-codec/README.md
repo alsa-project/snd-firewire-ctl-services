@@ -1,5 +1,3 @@
-# alsa-ctl-tlv-codec - Encoder and Decoder for data of Type-Length-Value(TLV) style in ALSA control interface
-
 The crate is designed to process data represented by TLV (Type-Length-Value) style in
 ALSA control interface. The crate produces encoder and decoder for the u32 array of data
 of TLV style as well as structures and enumerations to represent the content.
