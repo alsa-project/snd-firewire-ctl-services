@@ -14,4 +14,4 @@ repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 [dependencies]
 glib = "0.10"
 hinawa = "0.5"
-ieee1212-config-rom = { path = "../ieee1212-config-rom" }
+ieee1212-config-rom = "0.1"
