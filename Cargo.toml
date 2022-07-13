@@ -61,3 +61,4 @@ ieee1212-config-rom = { path = "libs/ieee1212-config-rom" }
 ta1394 = { path = "libs/ta1394" }
 bebob-protocols = { path = "libs/bebob/protocols" }
 dg00x-protocols = { path = "libs/dg00x/protocols" }
+dice-protocols = { path = "libs/dice/protocols" }
