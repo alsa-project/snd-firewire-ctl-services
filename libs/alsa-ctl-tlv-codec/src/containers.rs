@@ -5,13 +5,13 @@
 
 use super::*;
 
-trait DataEntry<'a> : std::convert::TryFrom<&'a [u32]> {
+trait DataEntry<'a>: std::convert::TryFrom<&'a [u32]> {
     fn raw_length(&self) -> usize;
 }
 
 /// The enumeration to dispatch each type of data for entry of dB range.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DbRangeEntryData{
+pub enum DbRangeEntryData {
     DbScale(DbScale),
     DbInterval(DbInterval),
     DbRange(DbRange),
@@ -19,7 +19,7 @@ pub enum DbRangeEntryData{
 
 /// The entry to represent information of each entry of dB range.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DbRangeEntry{
+pub struct DbRangeEntry {
     pub min_val: i32,
     pub max_val: i32,
     /// The data of dB representation for the minimum/maximum range in the state of control element.
@@ -43,7 +43,9 @@ impl std::convert::TryFrom<&[u32]> for DbRangeEntry {
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() < 4 {
-            Err(InvalidTlvDataError::new("Invalid length of data for DbRangeEntry"))
+            Err(InvalidTlvDataError::new(
+                "Invalid length of data for DbRangeEntry",
+            ))
         } else {
             let min_val = raw[0] as i32;
             let max_val = raw[1] as i32;
@@ -61,18 +63,24 @@ impl std::convert::TryFrom<&[u32]> for DbRangeEntry {
                     let d = DbRange::try_from(data_raw)?;
                     DbRangeEntryData::DbRange(d)
                 }
-                SNDRV_CTL_TLVT_DB_LINEAR |
-                SNDRV_CTL_TLVT_DB_MINMAX |
-                SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
+                SNDRV_CTL_TLVT_DB_LINEAR
+                | SNDRV_CTL_TLVT_DB_MINMAX
+                | SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
                     let d = DbInterval::try_from(data_raw)?;
                     DbRangeEntryData::DbInterval(d)
                 }
                 _ => {
-                    return Err(InvalidTlvDataError::new("Invalid type of data for DbRangeEntry"));
+                    return Err(InvalidTlvDataError::new(
+                        "Invalid type of data for DbRangeEntry",
+                    ));
                 }
             };
 
-            Ok(DbRangeEntry{min_val, max_val, data})
+            Ok(DbRangeEntry {
+                min_val,
+                max_val,
+                data,
+            })
         }
     }
 }
@@ -102,7 +110,7 @@ impl From<DbRangeEntry> for Vec<u32> {
 /// It has `SNDRV_CTL_TLVT_DB_RANGE` (=3) in its type field and has variable number of elements in
 /// value field.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DbRange{
+pub struct DbRange {
     /// The entries of ranges for dB representation.
     pub entries: Vec<DbRangeEntry>,
 }
@@ -113,7 +121,9 @@ impl<'a> TlvData<'a> for DbRange {
     }
 
     fn value_length(&self) -> usize {
-        self.entries.iter().fold(0, |length, entry| length + entry.raw_length())
+        self.entries
+            .iter()
+            .fold(0, |length, entry| length + entry.raw_length())
     }
 
     fn value(&self) -> Vec<u32> {
@@ -156,7 +166,7 @@ impl std::convert::TryFrom<&[u32]> for DbRange {
                     entries.push(entry);
                     cntr_value = &cntr_value[(4 + data_value_length)..];
                 }
-                Ok(DbRange{entries})
+                Ok(DbRange { entries })
             }
         }
     }
@@ -197,7 +207,7 @@ impl<'a> DataEntry<'a> for TlvItem {
 /// It has `SNDRV_CTL_TLVT_CONTAINER` (=0) in its type field and has variable number of elements in
 /// value field.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Container{
+pub struct Container {
     /// The entries of data for TLV.
     pub entries: Vec<TlvItem>,
 }
@@ -208,7 +218,9 @@ impl<'a> TlvData<'a> for Container {
     }
 
     fn value_length(&self) -> usize {
-        self.entries.iter().fold(0, |length, entry| length + entry.raw_length())
+        self.entries
+            .iter()
+            .fold(0, |length, entry| length + entry.raw_length())
     }
 
     fn value(&self) -> Vec<u32> {
@@ -225,9 +237,13 @@ impl std::convert::TryFrom<&[u32]> for Container {
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() < 4 {
-            Err(InvalidTlvDataError::new("Invalid length of data for Container"))
+            Err(InvalidTlvDataError::new(
+                "Invalid length of data for Container",
+            ))
         } else if raw[0] != SNDRV_CTL_TLVT_CONTAINER {
-            Err(InvalidTlvDataError::new("Invalid type of data for Container"))
+            Err(InvalidTlvDataError::new(
+                "Invalid type of data for Container",
+            ))
         } else {
             let cntr_value_length = (raw[1] as usize) / 4;
             if raw[2..].len() < cntr_value_length {
@@ -240,14 +256,16 @@ impl std::convert::TryFrom<&[u32]> for Container {
                 while cntr_value.len() > 2 {
                     let entry_value_length = (cntr_value[1] as usize) / 4;
                     if cntr_value[2..].len() < entry_value_length {
-                        return Err(InvalidTlvDataError::new("Invalid length of data for TlvItem"));
+                        return Err(InvalidTlvDataError::new(
+                            "Invalid length of data for TlvItem",
+                        ));
                     }
                     let entry_raw = &cntr_value[..(2 + entry_value_length)];
                     let entry = TlvItem::try_from(entry_raw)?;
                     entries.push(entry);
                     cntr_value = &cntr_value[(2 + entry_value_length)..];
                 }
-                Ok(Container{entries})
+                Ok(Container { entries })
             }
         }
     }
@@ -271,10 +289,10 @@ impl From<Container> for Vec<u32> {
 
 #[cfg(test)]
 mod test {
+    use super::{Container, TlvItem};
+    use super::{DbInterval, DbScale};
+    use super::{DbRange, DbRangeEntry, DbRangeEntryData};
     use std::convert::TryFrom;
-    use super::{DbScale, DbInterval};
-    use super::{DbRangeEntryData, DbRangeEntry, DbRange};
-    use super::{TlvItem, Container};
 
     #[test]
     fn test_dbrangeentry_dbscale() {
@@ -282,7 +300,14 @@ mod test {
         let entry = DbRangeEntry::try_from(&raw[..]).unwrap();
         assert_eq!(entry.min_val, -9);
         assert_eq!(entry.max_val, 100);
-        assert_eq!(entry.data, DbRangeEntryData::DbScale(DbScale{min: 0, step: 10, mute_avail: false}));
+        assert_eq!(
+            entry.data,
+            DbRangeEntryData::DbScale(DbScale {
+                min: 0,
+                step: 10,
+                mute_avail: false
+            })
+        );
         assert_eq!(&Vec::<u32>::from(entry)[..], &raw[..]);
     }
 
@@ -292,93 +317,179 @@ mod test {
         let entry = DbRangeEntry::try_from(&raw[..]).unwrap();
         assert_eq!(entry.min_val, -9);
         assert_eq!(entry.max_val, 100);
-        assert_eq!(entry.data, DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 10, linear: true, mute_avail: true}));
+        assert_eq!(
+            entry.data,
+            DbRangeEntryData::DbInterval(DbInterval {
+                min: 0,
+                max: 10,
+                linear: true,
+                mute_avail: true
+            })
+        );
         assert_eq!(&Vec::<u32>::from(entry)[..], &raw[..]);
     }
 
     #[test]
     fn test_dbrange() {
-        let raw = [3u32, 72,
-                   0, 10, 2, 8, -110i32 as u32, 10,
-                   10, 20, 4, 8, -10i32 as u32, 0,
-                   20, 30, 5, 8, 0, 20,
+        let raw = [
+            3u32,
+            72,
+            0,
+            10,
+            2,
+            8,
+            -110i32 as u32,
+            10,
+            10,
+            20,
+            4,
+            8,
+            -10i32 as u32,
+            0,
+            20,
+            30,
+            5,
+            8,
+            0,
+            20,
         ];
         let range = DbRange::try_from(&raw[..]).unwrap();
-        assert_eq!(range.entries[0], DbRangeEntry{
-            min_val: 0,
-            max_val: 10,
-            data: DbRangeEntryData::DbInterval(DbInterval{min: -110, max: 10, linear: true, mute_avail: true}),
-        });
-        assert_eq!(range.entries[1], DbRangeEntry{
-            min_val: 10,
-            max_val: 20,
-            data: DbRangeEntryData::DbInterval(DbInterval{min: -10, max: 0, linear: false, mute_avail: false}),
-        });
-        assert_eq!(range.entries[2], DbRangeEntry{
-            min_val: 20,
-            max_val: 30,
-            data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 20, linear: false, mute_avail: true}),
-        });
+        assert_eq!(
+            range.entries[0],
+            DbRangeEntry {
+                min_val: 0,
+                max_val: 10,
+                data: DbRangeEntryData::DbInterval(DbInterval {
+                    min: -110,
+                    max: 10,
+                    linear: true,
+                    mute_avail: true
+                }),
+            }
+        );
+        assert_eq!(
+            range.entries[1],
+            DbRangeEntry {
+                min_val: 10,
+                max_val: 20,
+                data: DbRangeEntryData::DbInterval(DbInterval {
+                    min: -10,
+                    max: 0,
+                    linear: false,
+                    mute_avail: false
+                }),
+            }
+        );
+        assert_eq!(
+            range.entries[2],
+            DbRangeEntry {
+                min_val: 20,
+                max_val: 30,
+                data: DbRangeEntryData::DbInterval(DbInterval {
+                    min: 0,
+                    max: 20,
+                    linear: false,
+                    mute_avail: true
+                }),
+            }
+        );
         assert_eq!(&Vec::<u32>::from(range)[..], &raw[..]);
     }
 
     #[test]
     fn test_containerentry_dbscale() {
-        let raw = [0u32, 32,
-                   1, 8, 0, 5,
-                   1, 8, 5, 5,
-        ];
+        let raw = [0u32, 32, 1, 8, 0, 5, 1, 8, 5, 5];
         let cntr = Container::try_from(&raw[..]).unwrap();
-        assert_eq!(cntr.entries[0], TlvItem::DbScale(DbScale{min: 0, step: 5, mute_avail: false}));
-        assert_eq!(cntr.entries[1], TlvItem::DbScale(DbScale{min: 5, step: 5, mute_avail: false}));
+        assert_eq!(
+            cntr.entries[0],
+            TlvItem::DbScale(DbScale {
+                min: 0,
+                step: 5,
+                mute_avail: false
+            })
+        );
+        assert_eq!(
+            cntr.entries[1],
+            TlvItem::DbScale(DbScale {
+                min: 5,
+                step: 5,
+                mute_avail: false
+            })
+        );
         assert_eq!(&Vec::<u32>::from(cntr)[..], &raw);
     }
 
     #[test]
     fn test_containerentry_dbrange() {
-        let raw = [0u32, 136,
-                   3, 48,
-                        0, 10, 4, 8, 0, 5,
-                        10, 20, 4, 8, 0, 10,
-                   3, 72,
-                        0, 10, 4, 8, 0, 5,
-                        10, 20, 4, 8, 5, 10,
-                        20, 40, 4, 8, 10, 20,
+        let raw = [
+            0u32, 136, 3, 48, 0, 10, 4, 8, 0, 5, 10, 20, 4, 8, 0, 10, 3, 72, 0, 10, 4, 8, 0, 5, 10,
+            20, 4, 8, 5, 10, 20, 40, 4, 8, 10, 20,
         ];
         let cntr = Container::try_from(&raw[..]).unwrap();
-        assert_eq!(cntr.entries[0], TlvItem::DbRange(DbRange{
-            entries: vec![
-                DbRangeEntry{
-                    min_val: 0,
-                    max_val: 10,
-                    data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 5, linear: false, mute_avail: false}),
-                },
-                DbRangeEntry{
-                    min_val: 10,
-                    max_val: 20,
-                    data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 10, linear: false, mute_avail: false}),
-                },
-            ],
-        }));
-        assert_eq!(cntr.entries[1], TlvItem::DbRange(DbRange{
-            entries: vec![
-                DbRangeEntry{
-                    min_val: 0,
-                    max_val: 10,
-                    data: DbRangeEntryData::DbInterval(DbInterval{min: 0, max: 5, linear: false, mute_avail: false}),
-                },
-                DbRangeEntry{
-                    min_val: 10,
-                    max_val: 20,
-                    data: DbRangeEntryData::DbInterval(DbInterval{min: 5, max: 10, linear: false, mute_avail: false}),
-                },
-                DbRangeEntry{
-                    min_val: 20,
-                    max_val: 40,
-                    data: DbRangeEntryData::DbInterval(DbInterval{min: 10, max: 20, linear: false, mute_avail: false}),
-                },
-            ],
-        }));
+        assert_eq!(
+            cntr.entries[0],
+            TlvItem::DbRange(DbRange {
+                entries: vec![
+                    DbRangeEntry {
+                        min_val: 0,
+                        max_val: 10,
+                        data: DbRangeEntryData::DbInterval(DbInterval {
+                            min: 0,
+                            max: 5,
+                            linear: false,
+                            mute_avail: false
+                        }),
+                    },
+                    DbRangeEntry {
+                        min_val: 10,
+                        max_val: 20,
+                        data: DbRangeEntryData::DbInterval(DbInterval {
+                            min: 0,
+                            max: 10,
+                            linear: false,
+                            mute_avail: false
+                        }),
+                    },
+                ],
+            })
+        );
+        assert_eq!(
+            cntr.entries[1],
+            TlvItem::DbRange(DbRange {
+                entries: vec![
+                    DbRangeEntry {
+                        min_val: 0,
+                        max_val: 10,
+                        data: DbRangeEntryData::DbInterval(DbInterval {
+                            min: 0,
+                            max: 5,
+                            linear: false,
+                            mute_avail: false
+                        }),
+                    },
+                    DbRangeEntry {
+                        min_val: 10,
+                        max_val: 20,
+                        data: DbRangeEntryData::DbInterval(DbInterval {
+                            min: 5,
+                            max: 10,
+                            linear: false,
+                            mute_avail: false
+                        }),
+                    },
+                    DbRangeEntry {
+                        min_val: 20,
+                        max_val: 40,
+                        data: DbRangeEntryData::DbInterval(DbInterval {
+                            min: 10,
+                            max: 20,
+                            linear: false,
+                            mute_avail: false
+                        }),
+                    },
+                ],
+            })
+        );
         assert_eq!(&Vec::<u32>::from(cntr)[..], &raw[..]);
     }
 }

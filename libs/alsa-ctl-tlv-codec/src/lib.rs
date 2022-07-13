@@ -6,27 +6,23 @@
 #[allow(dead_code)]
 mod uapi;
 
-mod items;
 mod containers;
+mod items;
 mod range_utils;
 
-pub use {
-    containers::*,
-    items::*,
-    range_utils::*,
-};
+pub use {containers::*, items::*, range_utils::*};
 
 use uapi::*;
 
 /// The error type at failure to convert from array of u32 elements to TLV data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InvalidTlvDataError{
+pub struct InvalidTlvDataError {
     msg: &'static str,
 }
 
 impl InvalidTlvDataError {
     pub fn new(msg: &'static str) -> Self {
-        InvalidTlvDataError{msg}
+        InvalidTlvDataError { msg }
     }
 }
 
@@ -42,8 +38,9 @@ impl std::error::Error for InvalidTlvDataError {}
 /// The TryFrom supertrait should be implemented to parse the array of u32 elements and it
 /// can return InvalidTlvDataError at failure. The trait boundary to Vec::<u32>::From(&Self)
 /// should be implemented as well to build the array of u32 element.
-pub trait TlvData<'a> : std::convert::TryFrom<&'a [u32]>
-    where for<'b> Vec<u32>: From<&'b Self>,
+pub trait TlvData<'a>: std::convert::TryFrom<&'a [u32]>
+where
+    for<'b> Vec<u32>: From<&'b Self>,
 {
     /// Return the value of type field. It should come from UAPI of Linux kernel.
     fn value_type(&self) -> u32;
@@ -61,7 +58,7 @@ pub trait TlvData<'a> : std::convert::TryFrom<&'a [u32]>
 /// to each enumeration implements `TlvData`, `TryFrom<&[u32]`, and `Vec::<u32>::from(&Self)` trait.
 /// When decoding to data of TLV, use implementation of `Vec::<u32>::from(&Self)` for the data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TlvItem{
+pub enum TlvItem {
     Container(Container),
     DbRange(DbRange),
     DbScale(DbScale),
@@ -86,15 +83,11 @@ impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
                 let data = DbScale::try_from(raw)?;
                 TlvItem::DbScale(data)
             }
-            SNDRV_CTL_TLVT_DB_LINEAR |
-            SNDRV_CTL_TLVT_DB_MINMAX |
-            SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
+            SNDRV_CTL_TLVT_DB_LINEAR | SNDRV_CTL_TLVT_DB_MINMAX | SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
                 let data = DbInterval::try_from(raw)?;
                 TlvItem::DbInterval(data)
             }
-            SNDRV_CTL_TLVT_CHMAP_FIXED |
-            SNDRV_CTL_TLVT_CHMAP_VAR |
-            SNDRV_CTL_TLVT_CHMAP_PAIRED => {
+            SNDRV_CTL_TLVT_CHMAP_FIXED | SNDRV_CTL_TLVT_CHMAP_VAR | SNDRV_CTL_TLVT_CHMAP_PAIRED => {
                 let data = Chmap::try_from(raw)?;
                 TlvItem::Chmap(data)
             }

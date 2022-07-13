@@ -7,7 +7,10 @@ use std::io::{Read, Write};
 use std::str::FromStr;
 
 fn generate_indent(level: usize) -> String {
-    (0..(level * INDENTS_PER_LEVEL)).fold(String::new(), |mut l, _| {l.push(' '); l})
+    (0..(level * INDENTS_PER_LEVEL)).fold(String::new(), |mut l, _| {
+        l.push(' ');
+        l
+    })
 }
 
 trait PrintAsMacro {
@@ -16,9 +19,16 @@ trait PrintAsMacro {
 
 impl PrintAsMacro for DbScale {
     fn print_as_macro(&self, _: usize) {
-        print!("SNDRV_CTL_TLVD_ITEM ( SNDRV_CTL_TLVT_DB_SCALE, 0x{:x}, 0x{:x}{} )",
-               self.min as u32, self.step,
-               if self.mute_avail { " | SNDRV_CTL_TLVD_DB_SCALE_MUTE" } else { "" });
+        print!(
+            "SNDRV_CTL_TLVD_ITEM ( SNDRV_CTL_TLVT_DB_SCALE, 0x{:x}, 0x{:x}{} )",
+            self.min as u32,
+            self.step,
+            if self.mute_avail {
+                " | SNDRV_CTL_TLVD_DB_SCALE_MUTE"
+            } else {
+                ""
+            }
+        );
     }
 }
 
@@ -33,8 +43,10 @@ impl PrintAsMacro for DbInterval {
                 "SNDRV_CTL_TLVT_DB_MINMAX"
             }
         };
-        print!("SNDRV_CTL_TLVD_ITEM ( {}, 0x{:x}, 0x{:x} )",
-               label, self.min as u32, self.max as u32);
+        print!(
+            "SNDRV_CTL_TLVD_ITEM ( {}, 0x{:x}, 0x{:x} )",
+            label, self.min as u32, self.max as u32
+        );
     }
 }
 
@@ -130,7 +142,7 @@ impl PrintAsMacro for DbRangeEntry {
 impl PrintAsMacro for DbRange {
     fn print_as_macro(&self, mut level: usize) {
         level += 1;
-        let indent =generate_indent(level);
+        let indent = generate_indent(level);
 
         println!("SNDRV_CTL_TLVD_ITEM ( SNDRV_CTL_TLVT_DB_RANGE,");
         self.entries.iter().for_each(|entry| {
@@ -202,41 +214,41 @@ fn main() {
             _ => interpret_tlv_data_from_command_line(&args[1..]),
         }?;
 
-        let item = TlvItem::try_from(&raw[..])
-            .map_err(|e| e.to_string())?;
+        let item = TlvItem::try_from(&raw[..]).map_err(|e| e.to_string())?;
 
         Ok((mode, item))
     })
-    .and_then(|(mode, item)| {
-        match mode {
-            Mode::Structure => {
-                println!("{:?}", item);
-                Ok(())
-            }
-            Mode::Macro => {
-                item.print_as_macro(0);
+    .and_then(|(mode, item)| match mode {
+        Mode::Structure => {
+            println!("{:?}", item);
+            Ok(())
+        }
+        Mode::Macro => {
+            item.print_as_macro(0);
+            println!("");
+            Ok(())
+        }
+        _ => {
+            let raw: Vec<u32> = match item {
+                TlvItem::Container(d) => d.into(),
+                TlvItem::DbRange(d) => d.into(),
+                TlvItem::DbScale(d) => d.into(),
+                TlvItem::DbInterval(d) => d.into(),
+                TlvItem::Chmap(d) => d.into(),
+            };
+
+            if mode == Mode::Literal {
+                raw.iter().for_each(|val| print!("{} ", val));
                 println!("");
                 Ok(())
-            }
-            _ => {
-                let raw: Vec<u32> = match item {
-                  TlvItem::Container(d) => d.into(),
-                  TlvItem::DbRange(d) => d.into(),
-                  TlvItem::DbScale(d) => d.into(),
-                  TlvItem::DbInterval(d) => d.into(),
-                  TlvItem::Chmap(d) => d.into(),
-                };
-
-                if mode == Mode::Literal {
-                    raw.iter().for_each(|val| print!("{} ", val));
-                    println!("");
-                    Ok(())
-                } else {
-                    let mut bytes = Vec::new();
-                    raw.iter().for_each(|val| bytes.extend_from_slice(&val.to_ne_bytes()));
-                    std::io::stdout().lock().write_all(&bytes)
-                        .map_err(|e| e.to_string())
-                }
+            } else {
+                let mut bytes = Vec::new();
+                raw.iter()
+                    .for_each(|val| bytes.extend_from_slice(&val.to_ne_bytes()));
+                std::io::stdout()
+                    .lock()
+                    .write_all(&bytes)
+                    .map_err(|e| e.to_string())
             }
         }
     })
@@ -252,7 +264,7 @@ fn main() {
 
 fn print_help() {
     print!(
-r###"
+        r###"
 Usage:
   tlv-decode MODE DATA | "-"
 
@@ -266,13 +278,16 @@ Usage:
     "-":            use binary from STDIN to interpret DATA according to host endian.
     DECIMAL:        decimal number. It can be signed if needed.
     HEXADECIMAL:    hexadecimal number. It should have '0x' as prefix.
-"###);
+"###
+    );
 }
 
 fn interpret_tlv_data_from_stdin() -> Result<Vec<u32>, String> {
     let mut buf = Vec::new();
 
-    std::io::stdin().lock().read_to_end(&mut buf)
+    std::io::stdin()
+        .lock()
+        .read_to_end(&mut buf)
         .map_err(|e| e.to_string())
         .and_then(|len| {
             if len == 0 {
@@ -286,7 +301,7 @@ fn interpret_tlv_data_from_stdin() -> Result<Vec<u32>, String> {
         .map(|_| {
             let mut raw = Vec::new();
 
-            let mut quadlet = [0;4];
+            let mut quadlet = [0; 4];
             (0..(buf.len() / 4)).for_each(|i| {
                 let pos = i * 4;
                 quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
@@ -302,7 +317,10 @@ fn interpret_tlv_data_from_command_line(args: &[String]) -> Result<Vec<u32>, Str
     args.iter().try_for_each(|arg| {
         (if arg.starts_with("0x") {
             u32::from_str_radix(arg.trim_start_matches("0x"), 16)
-        } else if arg.find(&['A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'][..]).is_some() {
+        } else if arg
+            .find(&['A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c', 'd', 'e', 'f'][..])
+            .is_some()
+        {
             u32::from_str_radix(arg, 16)
         } else {
             u32::from_str(arg)
