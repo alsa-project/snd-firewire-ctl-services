@@ -17,7 +17,7 @@ hinawa = "0.5"
 hitaki = "0.1"
 alsactl = "0.3"
 alsaseq = "0.3"
-ieee1212-config-rom = { path = "../../ieee1212-config-rom" }
+ieee1212-config-rom = "0.1"
 alsa-ctl-tlv-codec = "0.1"
 tascam-protocols = { path = "../protocols" }
 core = { path = "../../core" }
