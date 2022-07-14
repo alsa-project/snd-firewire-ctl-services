@@ -44,10 +44,10 @@ Build dependencies
 * Cargo
 * Some crates and their dependencies
 
- * glib crate v0.15 and its dependencies `<https://gtk-rs.org/>`_
- * hinawa crate v0.7 and its dependencies `<https://github.com/alsa-project/hinawa-rs/>`_
- * hitaki crate v0.2 and its dependencies `<https://github.com/alsa-project/hitaki-rs/>`_
- * alsactl/alsaseq crates v0.4 and their dependencies `<https://github.com/alsa-project/alsa-gobject-rs/>`_
+  * glib crate v0.15 and its dependencies `<https://gtk-rs.org/>`_
+  * hinawa crate v0.7 and its dependencies `<https://github.com/alsa-project/hinawa-rs/>`_
+  * hitaki crate v0.2 and its dependencies `<https://github.com/alsa-project/hitaki-rs/>`_
+  * alsactl/alsaseq crates v0.4 and their dependencies `<https://github.com/alsa-project/alsa-gobject-rs/>`_
 
 Runtime dependencies
 ====================
