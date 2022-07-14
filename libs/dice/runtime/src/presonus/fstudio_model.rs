@@ -251,7 +251,7 @@ impl MeterCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::ANALOG_INPUT_NAME => {
                 let vals: Vec<i32> = self.0.analog_inputs.iter().map(|&l| l as i32).collect();
                 elem_value.set_int(&vals);
@@ -406,7 +406,7 @@ impl OutputCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::VOL_NAME => {
                 let vals: Vec<i32> = self.0.vols.iter().map(|&vol| vol as i32).collect();
                 elem_value.set_int(&vals);
@@ -451,20 +451,20 @@ impl OutputCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::VOL_NAME => {
-                let vals = &elem_value.get_int()[..self.0.vols.len()];
+                let vals = &elem_value.int()[..self.0.vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 FStudioProtocol::write_output_vols(req, &mut unit.1, &mut self.0, &vols, timeout_ms)
                     .map(|_| true)
             }
             Self::MUTE_NAME => {
-                let vals = &elem_value.get_bool()[..self.0.mutes.len()];
+                let vals = &elem_value.boolean()[..self.0.mutes.len()];
                 FStudioProtocol::write_output_mute(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
                     .map(|_| true)
             }
             Self::SRC_NAME => {
-                let vals = &elem_value.get_enum()[..self.0.srcs.len()];
+                let vals = &elem_value.enumerated()[..self.0.srcs.len()];
 
                 let mut srcs = self.0.srcs.clone();
                 vals.iter().enumerate().try_for_each(|(i, &val)| {
@@ -481,12 +481,12 @@ impl OutputCtl {
                     .map(|_| true)
             }
             Self::LINK_NAME => {
-                let vals = &elem_value.get_bool()[..self.0.links.len()];
+                let vals = &elem_value.boolean()[..self.0.links.len()];
                 FStudioProtocol::write_output_link(req, &mut unit.1, &mut self.0, &vals, timeout_ms)
                     .map(|_| true)
             }
             Self::TERMINATE_BNC_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 FStudioProtocol::write_bnc_terminalte(req, &mut unit.1, val, timeout_ms)
                     .map(|_| true)
             }
@@ -554,7 +554,7 @@ impl AssignCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::MAIN_NAME => {
                 let target =
                     FStudioProtocol::read_main_assign_target(req, &mut unit.1, timeout_ms)?;
@@ -582,9 +582,9 @@ impl AssignCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::MAIN_NAME => {
-                let val = new.get_enum()[0];
+                let val = new.enumerated()[0];
                 let target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid value for index of assignment target: {}", val);
                     Error::new(FileError::Inval, &msg)
@@ -824,55 +824,55 @@ impl MixerCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::PHYS_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &self.phys_src_params[index];
                 let vals: Vec<i32> = params.gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::PHYS_SRC_PAN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &self.phys_src_params[index];
                 let vals: Vec<i32> = params.pans.iter().map(|&pan| pan as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::PHYS_SRC_MUTE_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &self.phys_src_params[index];
                 elem_value.set_bool(&params.mutes);
                 Ok(true)
             }
             Self::PHYS_SRC_LINK_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let links = &self.phys_src_links[index];
                 elem_value.set_bool(links);
                 Ok(true)
             }
             Self::STREAM_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &self.stream_src_params[index];
                 let vals: Vec<i32> = params.gains.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::STREAM_SRC_PAN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &self.stream_src_params[index];
                 let vals: Vec<i32> = params.pans.iter().map(|&pan| pan as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             Self::STREAM_SRC_MUTE_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &self.stream_src_params[index];
                 elem_value.set_bool(&params.mutes);
                 Ok(true)
             }
             Self::STREAM_SRC_LINK_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let links = &self.stream_src_links[index];
                 elem_value.set_bool(links);
                 Ok(true)
@@ -908,11 +908,11 @@ impl MixerCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::PHYS_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &mut self.phys_src_params[index];
-                let vals = &elem_value.get_int()[..params.gains.len()];
+                let vals = &elem_value.int()[..params.gains.len()];
                 let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_phys_src_gains(
                     req,
@@ -925,9 +925,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::PHYS_SRC_PAN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &mut self.phys_src_params[index];
-                let vals = &elem_value.get_int()[..params.pans.len()];
+                let vals = &elem_value.int()[..params.pans.len()];
                 let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_phys_src_pans(
                     req,
@@ -940,9 +940,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::PHYS_SRC_MUTE_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &mut self.phys_src_params[index];
-                let vals = &elem_value.get_bool()[..params.mutes.len()];
+                let vals = &elem_value.boolean()[..params.mutes.len()];
                 FStudioProtocol::write_mixer_phys_src_mutes(
                     req,
                     &mut unit.1,
@@ -954,9 +954,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::PHYS_SRC_LINK_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let links = &mut self.phys_src_links[index];
-                let vals = &elem_value.get_bool()[..links.len()];
+                let vals = &elem_value.boolean()[..links.len()];
                 FStudioProtocol::write_mixer_phys_src_links(
                     req,
                     &mut unit.1,
@@ -967,9 +967,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::STREAM_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &mut self.stream_src_params[index];
-                let vals = &elem_value.get_int()[..params.gains.len()];
+                let vals = &elem_value.int()[..params.gains.len()];
                 let gains: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_stream_src_gains(
                     req,
@@ -982,9 +982,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::STREAM_SRC_PAN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &mut self.stream_src_params[index];
-                let vals = &elem_value.get_int()[..params.pans.len()];
+                let vals = &elem_value.int()[..params.pans.len()];
                 let pans: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_stream_src_pans(
                     req,
@@ -997,9 +997,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::STREAM_SRC_MUTE_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let params = &mut self.stream_src_params[index];
-                let vals = &elem_value.get_bool()[..params.mutes.len()];
+                let vals = &elem_value.boolean()[..params.mutes.len()];
                 FStudioProtocol::write_mixer_stream_src_mutes(
                     req,
                     &mut unit.1,
@@ -1011,9 +1011,9 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::STREAM_SRC_LINK_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let links = &mut self.stream_src_links[index];
-                let vals = &elem_value.get_bool()[..links.len()];
+                let vals = &elem_value.boolean()[..links.len()];
                 FStudioProtocol::write_mixer_stream_src_links(
                     req,
                     &mut unit.1,
@@ -1024,7 +1024,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::OUT_VOL_NAME => {
-                let vals = &elem_value.get_int()[..self.outs.vols.len()];
+                let vals = &elem_value.int()[..self.outs.vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&v| v as u8).collect();
                 FStudioProtocol::write_mixer_out_vol(
                     req,
@@ -1036,7 +1036,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::OUT_MUTE_NAME => {
-                let vals = &elem_value.get_bool()[..self.outs.mutes.len()];
+                let vals = &elem_value.boolean()[..self.outs.mutes.len()];
                 FStudioProtocol::write_mixer_out_mute(
                     req,
                     &mut unit.1,
@@ -1047,7 +1047,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::EXPANSION_MODE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &mode = Self::EXPANSION_MODES
                     .iter()
                     .nth(val as usize)

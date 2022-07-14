@@ -105,7 +105,7 @@ pub mod config_rom;
 use {
     super::*,
     glib::{error::ErrorDomain, Quark},
-    hinawa::{FwReqExtManual, FwTcode},
+    hinawa::{prelude::FwReqExtManual, FwTcode},
     std::convert::TryFrom,
 };
 
@@ -187,7 +187,7 @@ impl std::fmt::Display for GeneralProtocolError {
 
 impl ErrorDomain for GeneralProtocolError {
     fn domain() -> Quark {
-        Quark::from_string("tcat-general-protocol-error-quark")
+        Quark::from_str("tcat-general-protocol-error-quark")
     }
 
     fn code(self) -> i32 {

@@ -410,7 +410,7 @@ impl MainAssignCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MAIN_ASSIGNMENT_NAME => {
                 elem_value.set_enum(&[self.0 as u32]);
                 Ok(true)
@@ -427,7 +427,7 @@ impl MainAssignCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MAIN_ASSIGNMENT_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
                 UltraliteProtocol::set_main_assign(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| self.0 = val as usize)

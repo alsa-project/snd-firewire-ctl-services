@@ -3,8 +3,7 @@
 
 use glib::{FileError, MainContext, MainLoop};
 
-use hinawa::FwReq;
-use hinawa::{FwNode, FwNodeError, FwNodeExt};
+use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq};
 
 use bebob_protocols::bridgeco::*;
 

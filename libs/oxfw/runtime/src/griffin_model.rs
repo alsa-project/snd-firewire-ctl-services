@@ -29,10 +29,10 @@ impl CtlModel<(SndUnit, FwNode)> for GriffinModel {
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
         // NOTE: I have a plan to remove control functionality from ALSA oxfw driver for future.
-        let elem_id_list = card_cntr.card.get_elem_id_list()?;
+        let elem_id_list = card_cntr.card.elem_id_list()?;
         self.voluntary = elem_id_list
             .iter()
-            .find(|elem_id| elem_id.get_name().as_str() == VOL_NAME)
+            .find(|elem_id| elem_id.name().as_str() == VOL_NAME)
             .is_none();
         if self.voluntary {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
@@ -66,7 +66,7 @@ impl CtlModel<(SndUnit, FwNode)> for GriffinModel {
         {
             Ok(true)
         } else if self.voluntary {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 VOL_NAME => {
                     ElemValueAccessor::<i32>::set_vals(elem_value, 6, |idx| {
                         let mut vol = 0;
@@ -103,7 +103,7 @@ impl CtlModel<(SndUnit, FwNode)> for GriffinModel {
         {
             Ok(true)
         } else if self.voluntary {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 VOL_NAME => {
                     ElemValueAccessor::<i32>::get_vals(new, old, 6, |idx, val| {
                         FirewaveProtocol::write_volume(

@@ -4,7 +4,7 @@
 use glib::{FileError, MainContext, MainLoop};
 
 use hinawa::FwReq;
-use hinawa::{FwNode, FwNodeError, FwNodeExt};
+use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError};
 
 use oxfw_protocols::oxford::*;
 

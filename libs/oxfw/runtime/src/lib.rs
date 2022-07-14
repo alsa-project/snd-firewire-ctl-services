@@ -12,11 +12,11 @@ mod common_ctl;
 
 use {
     self::model::*,
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{FwFcp, FwFcpExt, FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hitaki::*,
+    hinawa::{prelude::{FwFcpExt, FwNodeExt, FwNodeExtManual}, FwFcp, FwNode, FwReq},
+    hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     nix::sys::signal,
     std::{convert::TryFrom, sync::mpsc},
@@ -63,16 +63,16 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
         let unit = SndUnit::new();
         unit.open(&cdev, 0)?;
 
-        if unit.get_property_unit_type() != AlsaFirewireType::Oxfw {
+        if unit.unit_type() != AlsaFirewireType::Oxfw {
             let label = "ALSA oxfw driver is not bound to the unit.";
             return Err(Error::new(FileError::Inval, label));
         }
 
-        let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
         node.open(&cdev)?;
 
-        let raw = node.get_config_rom()?;
+        let raw = node.config_rom()?;
         let config_rom = ConfigRom::try_from(raw).map_err(|e| {
             let label = format!("Malformed configuration ROM detected: {}", e);
             Error::new(FileError::Nxio, &label)
@@ -133,7 +133,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != Self::TIMER_NAME {
+                    if elem_id.name() != Self::TIMER_NAME {
                         let _ = self.model.dispatch_elem_event(
                             &mut self.unit,
                             &mut self.card_cntr,
@@ -148,7 +148,7 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let val = elem_value.get_bool()[0];
+                            let val = elem_value.boolean()[0];
                             if val {
                                 let _ = self.start_interval_timer();
                             } else {
@@ -199,12 +199,12 @@ impl<'a> OxfwRuntime {
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_property_is_locked_notify(move |unit| {
-            let locked = unit.get_property_is_locked();
+        self.unit.0.connect_is_locked_notify(move |unit| {
+            let locked = unit.is_locked();
             let t = tx.clone();
             let _ = std::thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual

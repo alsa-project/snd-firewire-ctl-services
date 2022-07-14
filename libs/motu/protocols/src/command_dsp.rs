@@ -8,7 +8,7 @@
 
 use {
     super::*,
-    hinawa::{FwResp, FwRespExt},
+    hinawa::{prelude::FwRespExt, FwResp},
 };
 
 const DSP_CMD_OFFSET: u64 = 0xffff00010000;
@@ -1809,7 +1809,7 @@ pub trait CommandDspOperation {
         node: &mut FwNode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        if !resp.get_property_is_reserved() {
+        if !resp.is_reserved() {
             resp.reserve_within_region(
                 node,
                 MSG_DST_OFFSET_BEGIN,
@@ -1818,8 +1818,8 @@ pub trait CommandDspOperation {
             )?;
         }
 
-        let local_node_id = node.get_property_local_node_id() as u64;
-        let addr = (local_node_id << 48) | resp.get_property_offset();
+        let local_node_id = node.local_node_id() as u64;
+        let addr = (local_node_id << 48) | resp.offset();
 
         let high = (addr >> 32) as u32;
         write_quad(req, node, DSP_MSG_DST_HIGH_OFFSET, high, timeout_ms)?;
@@ -1864,7 +1864,7 @@ pub trait CommandDspOperation {
         write_quad(req, node, DSP_MSG_DST_HIGH_OFFSET, 0, timeout_ms)?;
         write_quad(req, node, DSP_MSG_DST_LOW_OFFSET, 0, timeout_ms)?;
 
-        if resp.get_property_is_reserved() {
+        if resp.is_reserved() {
             resp.release();
         }
 

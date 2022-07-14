@@ -3,7 +3,7 @@
 
 use glib::{FileError, MainContext, MainLoop};
 
-use hinawa::{FwNode, FwNodeError, FwNodeExt, FwNodeExtManual};
+use hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError};
 
 use ieee1212_config_rom::*;
 
@@ -56,7 +56,7 @@ fn main() {
         let th = thread::spawn(move || d.run());
 
         let result = {
-            let data = node.get_config_rom().map_err(|e| e.to_string())?;
+            let data = node.config_rom().map_err(|e| e.to_string())?;
             let config_rom = ConfigRom::try_from(data).map_err(|e| e.to_string())?;
 
             config_rom

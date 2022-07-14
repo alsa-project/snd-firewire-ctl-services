@@ -45,7 +45,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = Self::STATES
                     .iter()
@@ -66,7 +66,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::STATES

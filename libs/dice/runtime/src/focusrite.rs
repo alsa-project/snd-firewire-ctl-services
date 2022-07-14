@@ -93,7 +93,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             VOL_MUTE_NAME => {
                 elem_value.set_bool(&self.state().vol_mutes);
                 Ok(true)
@@ -123,7 +123,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MUTE_NAME => ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                 T::write_out_group_mute(
                     req,
@@ -147,7 +147,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
             })
             .map(|_| true),
             VOL_NAME => {
-                let vals = &elem_value.get_int()[..T::ENTRY_COUNT];
+                let vals = &elem_value.int()[..T::ENTRY_COUNT];
                 let vols: Vec<i8> = vals.iter().map(|&v| (Self::LEVEL_MAX - v) as i8).collect();
                 T::write_out_group_vols(
                     req,
@@ -160,7 +160,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 .map(|_| true)
             }
             VOL_MUTE_NAME => {
-                let vol_mutes = &elem_value.get_bool()[..T::ENTRY_COUNT];
+                let vol_mutes = &elem_value.boolean()[..T::ENTRY_COUNT];
                 let vol_hwctls = self.state().vol_hwctls.clone();
                 T::write_out_group_vol_mute_hwctls(
                     req,
@@ -174,7 +174,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 .map(|_| true)
             }
             VOL_HWCTL_NAME => {
-                let vol_hwctls = &elem_value.get_bool()[..T::ENTRY_COUNT];
+                let vol_hwctls = &elem_value.boolean()[..T::ENTRY_COUNT];
                 let vol_mutes = vec![false; T::ENTRY_COUNT];
                 T::write_out_group_vol_mute_hwctls(
                     req,
@@ -188,7 +188,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 .map(|_| true)
             }
             DIM_HWCTL_NAME => {
-                let dim_hwctls = &elem_value.get_bool()[..T::ENTRY_COUNT];
+                let dim_hwctls = &elem_value.boolean()[..T::ENTRY_COUNT];
                 let mute_hwctls = self.state().mute_hwctls.clone();
                 T::write_out_group_dim_mute_hwctls(
                     req,
@@ -202,7 +202,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
                 Ok(true)
             }
             MUTE_HWCTL_NAME => {
-                let mute_hwctls = &elem_value.get_bool()[..T::ENTRY_COUNT];
+                let mute_hwctls = &elem_value.boolean()[..T::ENTRY_COUNT];
                 let dim_hwctls = self.state().dim_hwctls.clone();
                 T::write_out_group_dim_mute_hwctls(
                     req,
@@ -251,7 +251,7 @@ trait OutGroupCtlOperation<T: SaffireproOutGroupOperation> {
     }
 
     fn read_notified_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MUTE_NAME => {
                 elem_value.set_bool(&[self.state().mute_enabled]);
                 Ok(true)
@@ -330,7 +330,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIC_INPUT_LEVEL_NAME => {
                 let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
                 T::read_mic_level(req, &mut unit.1, sections, &mut levels, timeout_ms)?;
@@ -368,9 +368,9 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIC_INPUT_LEVEL_NAME => {
-                let vals = &elem_value.get_enum()[..T::MIC_INPUT_COUNT];
+                let vals = &elem_value.enumerated()[..T::MIC_INPUT_COUNT];
                 let mut levels = vec![SaffireproMicInputLevel::default(); T::MIC_INPUT_COUNT];
                 vals.iter().enumerate().try_for_each(|(i, &val)| {
                     Self::MIC_LEVELS
@@ -385,7 +385,7 @@ trait SaffireproInputCtlOperation<T: SaffireproInputOperation> {
                 T::write_mic_level(req, &mut unit.1, sections, &levels, timeout_ms).map(|_| true)
             }
             LINE_INPUT_LEVEL_NAME => {
-                let vals = &elem_value.get_enum()[..T::LINE_INPUT_COUNT];
+                let vals = &elem_value.enumerated()[..T::LINE_INPUT_COUNT];
                 let mut levels = vec![SaffireproLineInputLevel::default(); T::LINE_INPUT_COUNT];
                 vals.iter().enumerate().try_for_each(|(i, &val)| {
                     Self::LINE_LEVELS

@@ -3,13 +3,13 @@
 mod model;
 
 use {
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{
         source, {Error, FileError},
     },
-    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hitaki::*,
+    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
+    hitaki::{prelude::*, *},
     ieee1212_config_rom::ConfigRom,
     model::*,
     nix::sys::signal,
@@ -74,10 +74,10 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
         let card_cntr = CardCntr::default();
         card_cntr.card.open(card_id, 0)?;
 
-        let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
         node.open(&cdev)?;
-        let rom = node.get_config_rom()?;
+        let rom = node.config_rom()?;
         let config_rom = ConfigRom::try_from(rom).map_err(|e| {
             let label = format!("Malformed configuration ROM detected: {}", e);
             Error::new(FileError::Nxio, &label)
@@ -154,7 +154,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != Self::TIMER_NAME {
+                    if elem_id.name() != Self::TIMER_NAME {
                         let _ = match &mut self.model {
                             Model::Digi002(m) => self.card_cntr.dispatch_elem_event(
                                 &mut self.unit,
@@ -177,7 +177,7 @@ impl RuntimeOperation<u32> for Dg00xRuntime {
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let val = elem_value.get_bool()[0];
+                            let val = elem_value.boolean()[0];
                             if val {
                                 let _ = self.start_interval_timer();
                             } else {
@@ -247,7 +247,7 @@ impl<'a> Dg00xRuntime {
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         self.dispatchers.push(dispatcher);
@@ -274,8 +274,8 @@ impl<'a> Dg00xRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_property_is_locked_notify(move |unit| {
-            let locked = unit.get_property_is_locked();
+        self.unit.0.connect_is_locked_notify(move |unit| {
+            let locked = unit.is_locked();
             let t = tx.clone();
             let _ = thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual

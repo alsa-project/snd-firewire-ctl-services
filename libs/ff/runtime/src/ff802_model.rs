@@ -252,7 +252,7 @@ impl CfgCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRIMARY_CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = Self::CLK_SRCS
                     .iter()
@@ -305,7 +305,7 @@ impl CfgCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRIMARY_CLK_SRC_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     let src = Self::CLK_SRCS.iter().nth(val as usize).ok_or_else(|| {
@@ -347,7 +347,7 @@ impl CfgCtl {
             })
             .map(|_| true),
             EFFECT_ON_INPUT_NAME => update_cfg(unit, req, &mut self.0, timeout_ms, |cfg| {
-                cfg.effect_on_inputs = elem_value.get_bool()[0];
+                cfg.effect_on_inputs = elem_value.boolean()[0];
                 Ok(())
             })
             .map(|_| true),
@@ -467,7 +467,7 @@ impl StatusCtl {
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             EXT_SRC_LOCK_NAME => {
                 let vals = [
                     self.status.ext_lock.adat_a,

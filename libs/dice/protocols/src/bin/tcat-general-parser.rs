@@ -4,7 +4,7 @@
 use glib::{Error, FileError, MainContext, MainLoop};
 
 use hinawa::FwReq;
-use hinawa::{FwNode, FwNodeError, FwNodeExt};
+use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError};
 
 use dice_protocols::tcat::{
     ext_sync_section::*, global_section::*, rx_stream_format_section::*,

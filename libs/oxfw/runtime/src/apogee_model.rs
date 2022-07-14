@@ -276,7 +276,7 @@ impl MeterCtl {
     }
 
     fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_INPUT_METER_NAME => {
                 elem_value.set_int(&self.0 .0);
                 Ok(true)
@@ -337,7 +337,7 @@ impl KnobCtl {
     }
 
     fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             KNOB_TARGET_NAME => {
                 let pos = Self::KNOB_TARGETS
                     .iter()
@@ -462,7 +462,7 @@ impl OutputCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUTPUT_SRC_NAME => {
                 let mut src = DuetFwOutputSource::default();
                 DuetFwOutputProtocol::read_src(avc, &mut src, timeout_ms)?;
@@ -503,7 +503,7 @@ impl OutputCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUTPUT_MUTE_NAME => {
                 elem_value.set_bool(&[self.0]);
                 Ok(true)
@@ -523,7 +523,7 @@ impl OutputCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUTPUT_MUTE_NAME => ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                 DuetFwOutputProtocol::write_mute(avc, val, timeout_ms)
             })
@@ -658,7 +658,7 @@ impl InputCtl {
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_POLARITY_NAME => {
                 elem_value.set_bool(&self.0.polarities);
                 Ok(true)
@@ -698,7 +698,7 @@ impl InputCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
                 let vals: Vec<i32> = self.0.gains.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
@@ -716,7 +716,7 @@ impl InputCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_GAIN_NAME => ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                 DuetFwInputProtocol::write_gain(avc, idx, val as u8, &mut self.0, timeout_ms)
             })
@@ -757,7 +757,7 @@ impl InputCtl {
             })
             .map(|_| true),
             INPUT_CLICKLESS_NAME => {
-                let val = new.get_bool()[0];
+                let val = new.boolean()[0];
                 DuetFwInputProtocol::write_clickless(avc, val, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -803,9 +803,9 @@ impl MixerCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
                     let mut gain = 0;
                     DuetFwMixerProtocol::read_source_gain(avc, dst, src, &mut gain, timeout_ms)
@@ -825,9 +825,9 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_SOURCE_GAIN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::SRC_LABELS.len(), |src, gain| {
                     DuetFwMixerProtocol::write_source_gain(avc, dst, src, gain as u16, timeout_ms)
                 })
@@ -909,7 +909,7 @@ impl DisplayCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             DISPLAY_TARGET_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let mut target = DuetFwDisplayTarget::default();
                 DuetFwDisplayProtocol::read_target(avc, &mut target, timeout_ms)
@@ -939,9 +939,9 @@ impl DisplayCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             DISPLAY_TARGET_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &target = Self::TARGETS.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid index for display targets: {}", val);
                     Error::new(FileError::Inval, &msg)
@@ -949,7 +949,7 @@ impl DisplayCtl {
                 DuetFwDisplayProtocol::write_target(avc, target, timeout_ms).map(|_| true)
             }
             DISPLAY_MODE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &mode = Self::MODES.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid index for display modes: {}", val);
                     Error::new(FileError::Inval, &msg)
@@ -957,7 +957,7 @@ impl DisplayCtl {
                 DuetFwDisplayProtocol::write_mode(avc, mode, timeout_ms).map(|_| true)
             }
             DISPLAY_OVERHOLDS_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &mode = Self::OVERHOLDS.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid index for display overholds: {}", val);
                     Error::new(FileError::Inval, &msg)

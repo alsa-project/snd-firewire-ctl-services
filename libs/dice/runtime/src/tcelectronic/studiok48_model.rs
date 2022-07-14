@@ -336,7 +336,7 @@ impl LineoutCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LINE_OUT_45_LEVEL_NAME => Self::read_as_index(elem_value, self.0.data.line_45),
             LINE_OUT_67_LEVEL_NAME => Self::read_as_index(elem_value, self.0.data.line_67),
             LINE_OUT_89_LEVEL_NAME => Self::read_as_index(elem_value, self.0.data.line_89),
@@ -364,7 +364,7 @@ impl LineoutCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LINE_OUT_45_LEVEL_NAME => {
                 self.write_as_index(unit, req, elem_value, timeout_ms, |data, level| {
                     data.line_45 = level
@@ -556,7 +556,7 @@ impl RemoteCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             USER_ASSIGN_NAME => ElemValueAccessor::<u32>::set_vals(
                 elem_value,
                 STUDIO_REMOTE_USER_ASSIGN_COUNT,
@@ -610,7 +610,7 @@ impl RemoteCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             USER_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::get_vals(
                     new,
@@ -815,7 +815,7 @@ impl ConfigCtl {
         } else if self.read_midi_sender(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OPT_IFACE_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::OPT_IFACE_MODES
                         .iter()
@@ -854,7 +854,7 @@ impl ConfigCtl {
         } else if self.write_midi_sender(unit, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OPT_IFACE_MODE_NAME => {
                     ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                         Self::OPT_IFACE_MODES
@@ -1244,7 +1244,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_PAIR_MODE_NAME => {
                 let state = &mut self.0.data;
                 ElemValueAccessor::<u32>::get_vals(new, old, state.src_pairs.len(), |idx, val| {
@@ -1325,7 +1325,7 @@ impl MixerCtl {
                     .data
                     .mutes
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1353,7 +1353,7 @@ impl MixerCtl {
                     .data
                     .reverb_return_mute
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1363,7 +1363,7 @@ impl MixerCtl {
                     .data
                     .reverb_return_gain
                     .iter_mut()
-                    .zip(new.get_int())
+                    .zip(new.int())
                     .for_each(|(d, s)| *d = *s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1373,7 +1373,7 @@ impl MixerCtl {
                     .data
                     .ch_strip_as_plugin
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1407,7 +1407,7 @@ impl MixerCtl {
                     .data
                     .post_fader
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -1477,7 +1477,7 @@ impl MixerCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_PAIR_MODE_NAME => {
                 let pair_count = self.0.data.src_pairs.len();
                 ElemValueAccessor::<u32>::set_vals(elem_value, pair_count, |idx| {
@@ -1565,7 +1565,7 @@ impl MixerCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_INPUT_METER_NAME => {
                 elem_value.set_int(&self.1.data.src_inputs);
                 Ok(true)
@@ -1982,7 +1982,7 @@ impl PhysOutCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MASTER_OUT_DIM_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
                 Ok(self.0.data.master_out.dim_enabled)
             })
@@ -2025,7 +2025,7 @@ impl PhysOutCtl {
             OUT_GRP_SRC_TRIM_NAME => self.read_out_src_param(elem_value, |param| Ok(param.vol)),
             OUT_GRP_SRC_DELAY_NAME => self.read_out_src_param(elem_value, |param| Ok(param.delay)),
             OUT_GRP_SRC_ASSIGN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 elem_value.set_bool(&self.0.data.out_grps[index].assigned_phys_outs);
                 Ok(true)
             }
@@ -2109,7 +2109,7 @@ impl PhysOutCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MASTER_OUT_DIM_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     self.0.data.master_out.dim_enabled = val;
@@ -2152,7 +2152,7 @@ impl PhysOutCtl {
                     .data
                     .out_mutes
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -2171,7 +2171,7 @@ impl PhysOutCtl {
                 })
             }
             OUT_GRP_SELECT_NAME => {
-                self.0.data.selected_out_grp = new.get_enum()[0] as usize;
+                self.0.data.selected_out_grp = new.enumerated()[0] as usize;
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
@@ -2180,7 +2180,7 @@ impl PhysOutCtl {
                     .data
                     .out_assign_to_grp
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Studiok48Protocol::write_segment(req, &mut unit.1, &mut self.0, timeout_ms)
                     .map(|_| true)
@@ -2198,7 +2198,7 @@ impl PhysOutCtl {
                 })
             }
             OUT_GRP_SRC_ASSIGN_NAME => {
-                let vals = &new.get_bool()[..(STUDIO_PHYS_OUT_PAIR_COUNT * 2)];
+                let vals = &new.boolean()[..(STUDIO_PHYS_OUT_PAIR_COUNT * 2)];
                 let count = vals.iter().filter(|&v| *v).count();
                 if count > STUDIO_MAX_SURROUND_CHANNELS {
                     let msg = format!(
@@ -2207,7 +2207,7 @@ impl PhysOutCtl {
                     );
                     Err(Error::new(FileError::Inval, &msg))?;
                 }
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 self.0.data.out_grps[index]
                     .assigned_phys_outs
                     .copy_from_slice(&vals);
@@ -2540,7 +2540,7 @@ impl HwStateCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_JACK_STATE_NAME => ElemValueAccessor::<u32>::set_vals(
                 elem_value,
                 STUDIO_ANALOG_JACK_STATE_COUNT,

@@ -12,9 +12,9 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
-glib = "0.10"
-hinawa = "0.5"
-hitaki = "0.1"
+glib = "0.15"
+hinawa = "0.7"
+hitaki = "0.2"
 ieee1212-config-rom = "0.1"
 
 [[bin]]

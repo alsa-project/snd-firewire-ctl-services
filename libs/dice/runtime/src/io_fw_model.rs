@@ -523,7 +523,7 @@ trait MeterCtlOperation<T: IofwMeterOperation> {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_INPUT_METER_NAME => {
                 elem_value.set_int(&self.meter().analog_inputs);
                 Ok(true)
@@ -693,9 +693,9 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 let gains = &self.state().gains[mixer];
                 let mut vals = Vec::new();
                 vals.extend_from_slice(&gains.analog_inputs);
@@ -705,7 +705,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 Ok(true)
             }
             INPUT_MUTE_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 let mutes = &self.state().mutes[mixer];
                 let mut vals = Vec::new();
                 vals.extend_from_slice(&mutes.analog_inputs);
@@ -715,7 +715,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 Ok(true)
             }
             STREAM_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 let gains = &self.state().gains[mixer];
                 let mut vals = Vec::new();
                 vals.extend_from_slice(&gains.stream_inputs);
@@ -738,15 +738,15 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 let mut gains = self.state().gains[mixer].clone();
 
                 let analog_input_count = gains.analog_inputs.len();
                 let digital_a_input_count = gains.digital_a_inputs.len();
                 let digital_b_input_count = gains.digital_b_inputs.len();
-                let vals = &elem_value.get_int()
+                let vals = &elem_value.int()
                     [..(analog_input_count + digital_a_input_count + digital_b_input_count)];
 
                 let analog_inputs = &vals[..analog_input_count];
@@ -769,13 +769,13 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 .map(|_| true)
             }
             INPUT_MUTE_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 let mut mutes = self.state().mutes[mixer].clone();
 
                 let analog_input_count = mutes.analog_inputs.len();
                 let digital_a_input_count = mutes.digital_a_inputs.len();
                 let digital_b_input_count = mutes.digital_b_inputs.len();
-                let vals = &elem_value.get_bool()
+                let vals = &elem_value.boolean()
                     [..(analog_input_count + digital_a_input_count + digital_b_input_count)];
 
                 let analog_inputs = &vals[..analog_input_count];
@@ -798,13 +798,13 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 .map(|_| true)
             }
             STREAM_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 let mut gains = self.state().gains[mixer].clone();
 
                 gains
                     .stream_inputs
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s);
 
                 T::write_mixer_src_gains(
@@ -818,12 +818,12 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
                 .map(|_| true)
             }
             OUTPUT_VOL_NAME => {
-                let vals = &elem_value.get_int()[..self.state().out_vols.len()];
+                let vals = &elem_value.int()[..self.state().out_vols.len()];
                 T::write_mixer_out_vols(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             OUTPUT_MUTE_NAME => {
-                let vals = &elem_value.get_bool()[..self.state().out_mutes.len()];
+                let vals = &elem_value.boolean()[..self.state().out_mutes.len()];
                 T::write_mixer_out_mutes(req, &mut unit.1, &vals, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -854,7 +854,7 @@ trait MixerCtlOperation<T: IofwMixerOperation> {
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUTPUT_VOL_NAME => {
                 elem_value.set_int(&self.state().out_vols);
                 Ok(true)
@@ -964,7 +964,7 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_LEVEL_NAME => {
                 let mut levels = vec![NominalSignalLevel::default(); T::ANALOG_OUTPUT_COUNT];
                 T::read_out_levels(req, &mut unit.1, &mut levels, timeout_ms)?;
@@ -1017,9 +1017,9 @@ trait OutputCtlOperation<T: IofwOutputOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_LEVEL_NAME => {
-                let vals = &elem_value.get_enum()[..T::ANALOG_OUTPUT_COUNT];
+                let vals = &elem_value.enumerated()[..T::ANALOG_OUTPUT_COUNT];
                 let levels: Vec<NominalSignalLevel> =
                     vals.iter().map(|v| NominalSignalLevel::from(*v)).collect();
                 T::write_out_levels(req, &mut unit.1, &levels, timeout_ms).map(|_| true)

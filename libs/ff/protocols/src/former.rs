@@ -6,11 +6,11 @@
 pub mod ff400;
 pub mod ff800;
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use super::*;
+use {
+    glib::Error,
+    hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
+    super::*,
+};
 
 /// The structure to represent state of hardware meter.
 ///

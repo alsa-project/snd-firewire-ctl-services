@@ -120,7 +120,7 @@ impl SpecificCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CAPTURE_SOURCE_NAME => {
                 let mut src = LinkFwInputSource::default();
                 LinkFwProtocol::read_input_source(avc, &mut src, timeout_ms)?;
@@ -139,9 +139,9 @@ impl SpecificCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CAPTURE_SOURCE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &src = Self::SRCS.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid value for index of signal source: {}", val);
                     Error::new(FileError::Inval, &msg)

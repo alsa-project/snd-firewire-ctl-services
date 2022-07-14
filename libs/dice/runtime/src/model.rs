@@ -51,7 +51,7 @@ pub struct DiceModel {
 
 impl DiceModel {
     pub fn new(node: &FwNode) -> Result<DiceModel, Error> {
-        let raw = node.get_config_rom()?;
+        let raw = node.config_rom()?;
         let config_rom = ConfigRom::try_from(&raw[..]).map_err(|e| {
             let msg = format!("Malformed configuration ROM detected: {}", e);
             Error::new(FileError::Nxio, &msg)

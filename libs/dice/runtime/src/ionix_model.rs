@@ -212,7 +212,7 @@ impl MeterCtl {
     }
 
     fn read_measured_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::SPDIF_INPUT_NAME => {
                 elem_value.set_int(&self.meters.spdif_inputs);
                 Ok(true)
@@ -340,9 +340,9 @@ impl MixerCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::BUS_SRC_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
                     IonixProtocol::read_mixer_bus_src_gain(
                         req,
@@ -356,7 +356,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::MAIN_SRC_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
                     IonixProtocol::read_mixer_main_src_gain(
                         req,
@@ -370,7 +370,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::REVERB_SRC_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::MIXER_SRCS.len(), |idx| {
                     IonixProtocol::read_mixer_reverb_src_gain(
                         req,
@@ -396,9 +396,9 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::BUS_SRC_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
                     IonixProtocol::write_mixer_bus_src_gain(
                         req,
@@ -412,7 +412,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::MAIN_SRC_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
                     IonixProtocol::write_mixer_main_src_gain(
                         req,
@@ -426,7 +426,7 @@ impl MixerCtl {
                 .map(|_| true)
             }
             Self::REVERB_SRC_GAIN_NAME => {
-                let mixer = elem_id.get_index() as usize;
+                let mixer = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, Self::MIXER_SRCS.len(), |idx, val| {
                     IonixProtocol::write_mixer_reverb_src_gain(
                         req,

@@ -397,7 +397,7 @@ impl MeterCtl {
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_INPUT_METER_NAME => {
                 ElemValueAccessor::set_vals(elem_value, ANALOG_INPUT_LABELS.len(), |idx| {
                     Ok(self.0.analog_inputs[idx] as i32)
@@ -562,7 +562,7 @@ impl InputCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STREAM_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.stream_gains),
             ANALOG_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.analog_gains),
             SPDIF_INPUT_GAIN_NAME => Self::read_int(elem_value, &self.0.spdif_gains),
@@ -588,7 +588,7 @@ impl InputCtl {
         T: Fn(&mut MaudioSpecialInputParameters, &[i16]),
     {
         let mut params = curr.clone();
-        let vals = &elem_value.get_int()[..count];
+        let vals = &elem_value.int()[..count];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
         MaudioSpecialInputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -604,7 +604,7 @@ impl InputCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STREAM_INPUT_GAIN_NAME => Self::write_int(
                 &mut self.0,
                 elem_value,
@@ -808,7 +808,7 @@ impl OutputCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_VOL_NAME => Self::read_int(elem_value, &self.0.analog_volumes),
             OUT_SRC_NAME => Self::read_enum(
                 elem_value,
@@ -839,7 +839,7 @@ impl OutputCtl {
         T: Fn(&mut MaudioSpecialOutputParameters, &[i16]),
     {
         let mut params = curr.clone();
-        let vals = &elem_value.get_int()[..labels.len()];
+        let vals = &elem_value.int()[..labels.len()];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
         MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -862,15 +862,14 @@ impl OutputCtl {
         F: Fn(&mut MaudioSpecialOutputParameters, &[T]),
     {
         let mut params = curr.clone();
-        let vals = &elem_value.get_enum()[..labels.len()];
+        let vals = &elem_value.enumerated()[..labels.len()];
         let mut srcs = Vec::with_capacity(vals.len());
         vals.iter().try_for_each(|&val| {
-            let &src = item_list.iter().nth(val as usize).ok_or_else(|| {
+            item_list.iter().nth(val as usize).ok_or_else(|| {
                 let msg = format!("Invalid index: {}", val);
                 Error::new(FileError::Inval, &msg)
-            })?;
-            srcs.push(src);
-            Ok(())
+            })
+                .map(|&src| srcs.push(src))
         })?;
         set(&mut params, &srcs);
         MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -886,7 +885,7 @@ impl OutputCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_VOL_NAME => Self::write_int(
                 &mut self.0,
                 elem_value,
@@ -1010,7 +1009,7 @@ impl AuxCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             AUX_OUT_VOL_NAME => Self::read_int(elem_value, &self.0.output_volumes),
             AUX_STREAM_SRC_NAME => Self::read_int(elem_value, &self.0.stream_gains),
             AUX_ANALOG_SRC_NAME => Self::read_int(elem_value, &self.0.analog_gains),
@@ -1034,7 +1033,7 @@ impl AuxCtl {
         F: Fn(&mut MaudioSpecialAuxParameters, &[i16]),
     {
         let mut params = curr.clone();
-        let vals = &elem_value.get_int()[..labels.len()];
+        let vals = &elem_value.int()[..labels.len()];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
         MaudioSpecialAuxProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
@@ -1050,7 +1049,7 @@ impl AuxCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             AUX_OUT_VOL_NAME => Self::write_int(
                 &mut self.0,
                 elem_value,
@@ -1160,24 +1159,24 @@ impl MixerCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_ANALOG_SRC_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 elem_value.set_bool(&self.0.analog_pairs[index]);
                 Ok(true)
             }
             MIXER_SPDIF_SRC_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 elem_value.set_bool(&[self.0.spdif_pairs[index]]);
                 Ok(true)
             }
             MIXER_ADAT_SRC_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 elem_value.set_bool(&self.0.adat_pairs[index]);
                 Ok(true)
             }
             MIXER_STREAM_SRC_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 elem_value.set_bool(&self.0.stream_pairs[index]);
                 Ok(true)
             }
@@ -1199,9 +1198,9 @@ impl MixerCtl {
     where
         T: Fn(&mut MaudioSpecialMixerParameters, usize, &[bool]),
     {
-        let index = elem_id.get_index() as usize;
+        let index = elem_id.index() as usize;
         let mut params = curr.clone();
-        let vals = &elem_value.get_bool()[..labels.len()];
+        let vals = &elem_value.boolean()[..labels.len()];
         set(&mut params, index, &vals);
         MaudioSpecialMixerProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
@@ -1216,7 +1215,7 @@ impl MixerCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_ANALOG_SRC_NAME => Self::write_bool(
                 &mut self.0,
                 elem_id,

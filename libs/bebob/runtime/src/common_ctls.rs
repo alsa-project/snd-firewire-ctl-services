@@ -18,7 +18,7 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::read_clk_freq(avc, timeout_ms).map(|idx| idx as u32)
             })
@@ -36,7 +36,7 @@ pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 unit.lock()?;
                 let res = ElemValueAccessor::<u32>::get_val(new, |val| {
@@ -80,7 +80,7 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::read_clk_src(avc, timeout_ms).map(|idx| idx as u32)
             })
@@ -98,7 +98,7 @@ pub trait SamplingClkSrcCtlOperation<T: SamplingClockSourceOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 unit.lock()?;
                 let res = ElemValueAccessor::<u32>::get_val(new, |val| {
@@ -158,7 +158,7 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::LEVEL_NAME {
+        if elem_id.name().as_str() == Self::LEVEL_NAME {
             ElemValueAccessor::<i32>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
                 T::read_level(avc, idx, timeout_ms).map(|level| level as i32)
             })
@@ -176,7 +176,7 @@ pub trait AvcLevelCtlOperation<T: AvcLevelOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::LEVEL_NAME {
+        if elem_id.name().as_str() == Self::LEVEL_NAME {
             ElemValueAccessor::<i32>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
                 T::write_level(avc, idx, val as i16, timeout_ms)
             })
@@ -219,7 +219,7 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLevelOperation + AvcLrBalanceOperation>
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::BALANCE_NAME {
+        if elem_id.name().as_str() == Self::BALANCE_NAME {
             ElemValueAccessor::<i32>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
                 T::read_lr_balance(avc, idx, timeout_ms).map(|balance| balance as i32)
             })
@@ -237,7 +237,7 @@ pub trait AvcLrBalanceCtlOperation<T: AvcLevelOperation + AvcLrBalanceOperation>
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::BALANCE_NAME {
+        if elem_id.name().as_str() == Self::BALANCE_NAME {
             ElemValueAccessor::<i32>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
                 T::write_lr_balance(avc, idx, val as i16, timeout_ms)
             })
@@ -267,7 +267,7 @@ pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>:
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::MUTE_NAME {
+        if elem_id.name().as_str() == Self::MUTE_NAME {
             ElemValueAccessor::<bool>::set_vals(elem_value, T::ENTRIES.len(), |idx| {
                 T::read_mute(avc, idx, timeout_ms)
             })
@@ -285,7 +285,7 @@ pub trait AvcMuteCtlOperation<T: AvcLevelOperation + AvcMuteOperation>:
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::MUTE_NAME {
+        if elem_id.name().as_str() == Self::MUTE_NAME {
             ElemValueAccessor::<bool>::get_vals(new, old, T::ENTRIES.len(), |idx, val| {
                 T::write_mute(avc, idx, val, timeout_ms)
             })
@@ -331,7 +331,7 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::SELECTOR_NAME {
+        if elem_id.name().as_str() == Self::SELECTOR_NAME {
             ElemValueAccessor::<u32>::set_vals(elem_value, Self::CH_COUNT, |idx| {
                 T::read_selector(avc, idx, timeout_ms).map(|val| val as u32)
             })
@@ -349,7 +349,7 @@ pub trait AvcSelectorCtlOperation<T: AvcSelectorOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::SELECTOR_NAME {
+        if elem_id.name().as_str() == Self::SELECTOR_NAME {
             ElemValueAccessor::<u32>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
                 T::write_selector(avc, idx, val as usize, timeout_ms)
             })

@@ -7,7 +7,7 @@
 
 use glib::{Error, FileError};
 
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
+use hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode};
 
 /// The protocol implementation for Digi 002.
 #[derive(Default)]

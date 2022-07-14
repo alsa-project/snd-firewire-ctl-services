@@ -165,7 +165,7 @@ where
     }
 
     fn measure_elem_meter(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_METER_NAME => {
                 elem_value.set_int(&self.tcd22xx_ctl().meter_ctl.real_meter);
                 Ok(true)
@@ -314,7 +314,7 @@ where
     }
 
     fn read_router(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ROUTER_OUT_SRC_NAME => {
                 let ctls = self.tcd22xx_ctl();
                 Self::read_elem_src(
@@ -369,7 +369,7 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ROUTER_OUT_SRC_NAME => {
                 let ctls = self.tcd22xx_ctl_mut();
                 Self::write_elem_src(
@@ -579,9 +579,9 @@ where
     }
 
     fn read_mixer(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_SRC_GAIN_NAME => {
-                let dst_ch = elem_id.get_index() as usize;
+                let dst_ch = elem_id.index() as usize;
                 let res = self
                     .tcd22xx_ctl()
                     .state
@@ -609,10 +609,10 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_SRC_GAIN_NAME => {
                 let ctls = &mut self.tcd22xx_ctl_mut();
-                let dst_ch = elem_id.get_index() as usize;
+                let dst_ch = elem_id.index() as usize;
                 let mut cache = ctls.state.mixer_cache.clone();
                 let res = match cache.iter_mut().nth(dst_ch) {
                     Some(entries) => {
@@ -773,7 +773,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STANDALONE_CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let src = StandaloneSectionProtocol::read_standalone_clock_source(
                     req, node, sections, timeout_ms,
@@ -871,7 +871,7 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STANDALONE_CLK_SRC_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
                 let &src = self
                     .tcd22xx_ctl()

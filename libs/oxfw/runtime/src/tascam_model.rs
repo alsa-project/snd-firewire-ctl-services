@@ -114,7 +114,7 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
         {
             return Ok(true);
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 DISPLAY_MODE_NAME => {
                     let mut mode = FireoneDisplayMode::default();
                     FireoneProtocol::read_display_mode(&mut self.avc, &mut mode, FCP_TIMEOUT_MS)?;
@@ -174,9 +174,9 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
         {
             return Ok(true);
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 DISPLAY_MODE_NAME => {
-                    let val = new.get_enum()[0];
+                    let val = new.enumerated()[0];
                     let &mode = Self::DISPLAY_MODES
                         .iter()
                         .nth(val as usize)
@@ -188,7 +188,7 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
                         .map(|_| true)
                 }
                 MESSAGE_MODE_NAME => {
-                    let val = new.get_enum()[0];
+                    let val = new.enumerated()[0];
                     let &mode = Self::MESSAGE_MODES
                         .iter()
                         .nth(val as usize)
@@ -200,7 +200,7 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
                         .map(|_| true)
                 }
                 INPUT_MODE_NAME => {
-                    let val = new.get_enum()[0];
+                    let val = new.enumerated()[0];
                     let &mode = Self::INPUT_MODES.iter().nth(val as usize).ok_or_else(|| {
                         let msg = format!("Invalid index for input modes: {}", val);
                         Error::new(FileError::Inval, &msg)

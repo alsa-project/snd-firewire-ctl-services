@@ -85,7 +85,7 @@ pub trait FfLatterMeterCtlOperation<T: RmeFfLatterMeterOperation> {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LINE_INPUT_METER => {
                 elem_value.set_int(&self.meter().line_inputs);
                 Ok(true)
@@ -207,7 +207,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
     }
 
     fn read_input(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_STEREO_LINK_NAME => {
                 elem_value.set_bool(&self.state().input.stereo_links);
                 Ok(true)
@@ -261,13 +261,13 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_STEREO_LINK_NAME => {
                 let mut state = self.state().input.clone();
                 state
                     .stereo_links
                     .iter_mut()
-                    .zip(elem_value.get_bool())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
                 T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -276,13 +276,13 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
                 state
                     .line_gains
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             INPUT_LINE_LEVEL_NAME => {
                 let mut state = self.state().input.clone();
-                let vals = &elem_value.get_enum()[..state.line_levels.len()];
+                let vals = &elem_value.enumerated()[..state.line_levels.len()];
                 vals.iter().enumerate().try_for_each(|(i, &pos)| {
                     Self::LINE_LEVELS
                         .iter()
@@ -300,7 +300,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
                 state
                     .mic_powers
                     .iter_mut()
-                    .zip(elem_value.get_bool())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
                 T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -309,7 +309,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
                 state
                     .mic_insts
                     .iter_mut()
-                    .zip(elem_value.get_bool())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
                 T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -318,7 +318,7 @@ pub trait FfLatterInputCtlOperation<T: RmeFfLatterInputOperation>:
                 state
                     .invert_phases
                     .iter_mut()
-                    .zip(elem_value.get_bool())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
                 T::write_input(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -411,7 +411,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
     }
 
     fn read_output(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             VOL_NAME => {
                 let vals: Vec<i32> = self
                     .state()
@@ -468,13 +468,13 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             VOL_NAME => {
                 let mut state = self.state().output.clone();
                 state
                     .vols
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -483,7 +483,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                 state
                     .stereo_balance
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -492,7 +492,7 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                 state
                     .stereo_links
                     .iter_mut()
-                    .zip(elem_value.get_bool())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
@@ -501,13 +501,13 @@ pub trait FfLatterOutputCtlOperation<T: RmeFfLatterOutputOperation>:
                 state
                     .invert_phases
                     .iter_mut()
-                    .zip(elem_value.get_bool())
+                    .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
                 T::write_output(req, &mut unit.1, self.state_mut(), state, timeout_ms).map(|_| true)
             }
             LINE_LEVEL_NAME => {
                 let mut state = self.state().output.clone();
-                let vals = elem_value.get_enum();
+                let vals = elem_value.enumerated();
                 vals.iter().enumerate().try_for_each(|(i, &pos)| {
                     Self::LINE_LEVELS
                         .iter()
@@ -634,9 +634,9 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
     }
 
     fn read_mixer(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let vals: Vec<i32> = self.state().mixer[index]
                     .line_gains
                     .iter()
@@ -646,7 +646,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 Ok(true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let vals: Vec<i32> = self.state().mixer[index]
                     .mic_gains
                     .iter()
@@ -656,7 +656,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 Ok(true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let vals: Vec<i32> = self.state().mixer[index]
                     .spdif_gains
                     .iter()
@@ -666,7 +666,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 Ok(true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let vals: Vec<i32> = self.state().mixer[index]
                     .adat_gains
                     .iter()
@@ -676,7 +676,7 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                 Ok(true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let vals: Vec<i32> = self.state().mixer[index]
                     .stream_gains
                     .iter()
@@ -697,11 +697,11 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_LINE_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let mut state = self.state().mixer[index].clone();
-                let vals = &new.get_int()[..state.line_gains.len()];
+                let vals = &new.int()[..state.line_gains.len()];
                 state
                     .line_gains
                     .iter_mut()
@@ -711,9 +711,9 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .map(|_| true)
             }
             MIXER_MIC_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let mut state = self.state().mixer[index].clone();
-                let vals = &new.get_int()[..state.mic_gains.len()];
+                let vals = &new.int()[..state.mic_gains.len()];
                 state
                     .mic_gains
                     .iter_mut()
@@ -723,9 +723,9 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .map(|_| true)
             }
             MIXER_SPDIF_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let mut state = self.state().mixer[index].clone();
-                let vals = &new.get_int()[..state.spdif_gains.len()];
+                let vals = &new.int()[..state.spdif_gains.len()];
                 state
                     .spdif_gains
                     .iter_mut()
@@ -735,9 +735,9 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .map(|_| true)
             }
             MIXER_ADAT_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let mut state = self.state().mixer[index].clone();
-                let vals = &new.get_int()[..state.adat_gains.len()];
+                let vals = &new.int()[..state.adat_gains.len()];
                 state
                     .adat_gains
                     .iter_mut()
@@ -747,9 +747,9 @@ pub trait FfLatterMixerCtlOperation<T: RmeFfLatterMixerOperation>:
                     .map(|_| true)
             }
             MIXER_STREAM_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 let mut state = self.state().mixer[index].clone();
-                let vals = &new.get_int()[..state.stream_gains.len()];
+                let vals = &new.int()[..state.stream_gains.len()];
                 state
                     .stream_gains
                     .iter_mut()
@@ -1141,7 +1141,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        let n = elem_id.get_name();
+        let n = elem_id.name();
 
         if n == Self::HPF_ACTIVATE_NAME {
             elem_value.set_bool(&T::ch_strip(self.state()).hpf.activates);
@@ -1388,23 +1388,23 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let n = elem_id.get_name();
+        let n = elem_id.name();
 
         if n == Self::HPF_ACTIVATE_NAME {
-            let vals = &elem_value.get_bool()[..T::ch_strip(self.state()).hpf.activates.len()];
+            let vals = &elem_value.boolean()[..T::ch_strip(self.state()).hpf.activates.len()];
             self.update_hpf(unit, req, timeout_ms, |state| {
                 Ok(state.activates.copy_from_slice(&vals))
             })
             .map(|_| true)
         } else if n == Self::HPF_CUT_OFF_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).hpf.cut_offs.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).hpf.cut_offs.len()];
             let cut_offs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_hpf(unit, req, timeout_ms, |state| {
                 Ok(state.cut_offs.copy_from_slice(&cut_offs))
             })
             .map(|_| true)
         } else if n == Self::HPF_ROLL_OFF_NAME {
-            let vals = &elem_value.get_enum()[..T::ch_strip(self.state()).hpf.roll_offs.len()];
+            let vals = &elem_value.enumerated()[..T::ch_strip(self.state()).hpf.roll_offs.len()];
             let mut roll_offs = Vec::new();
             vals.iter().try_for_each(|&pos| {
                 Self::HPF_ROLL_OFF_LEVELS
@@ -1421,13 +1421,13 @@ where
             })
             .map(|_| true)
         } else if n == Self::EQ_ACTIVATE_NAME {
-            let vals = &elem_value.get_bool()[..T::ch_strip(self.state()).eq.activates.len()];
+            let vals = &elem_value.boolean()[..T::ch_strip(self.state()).eq.activates.len()];
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.activates.copy_from_slice(vals))
             })
             .map(|_| true)
         } else if n == Self::EQ_LOW_TYPE_NAME {
-            let vals = &elem_value.get_enum()[..T::ch_strip(self.state()).eq.low_types.len()];
+            let vals = &elem_value.enumerated()[..T::ch_strip(self.state()).eq.low_types.len()];
             let mut eq_types = Vec::new();
             vals.iter().try_for_each(|&pos| {
                 Self::EQ_TYPES
@@ -1444,7 +1444,7 @@ where
             })
             .map(|_| true)
         } else if n == Self::EQ_HIGH_TYPE_NAME {
-            let vals = &elem_value.get_enum()[..T::ch_strip(self.state()).eq.high_types.len()];
+            let vals = &elem_value.enumerated()[..T::ch_strip(self.state()).eq.high_types.len()];
             let mut eq_types = Vec::new();
             vals.iter().try_for_each(|&pos| {
                 Self::EQ_TYPES
@@ -1461,97 +1461,97 @@ where
             })
             .map(|_| true)
         } else if n == Self::EQ_LOW_GAIN_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.low_gains.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.low_gains.len()];
             let gains: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.low_gains.copy_from_slice(&gains))
             })
             .map(|_| true)
         } else if n == Self::EQ_MIDDLE_GAIN_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.middle_gains.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.middle_gains.len()];
             let gains: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.middle_gains.copy_from_slice(&gains))
             })
             .map(|_| true)
         } else if n == Self::EQ_HIGH_GAIN_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.high_gains.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.high_gains.len()];
             let gains: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.high_gains.copy_from_slice(&gains))
             })
             .map(|_| true)
         } else if n == Self::EQ_LOW_FREQ_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.low_freqs.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.low_freqs.len()];
             let freqs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.low_freqs.copy_from_slice(&freqs))
             })
             .map(|_| true)
         } else if n == Self::EQ_MIDDLE_FREQ_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.middle_freqs.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.middle_freqs.len()];
             let freqs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.middle_freqs.copy_from_slice(&freqs))
             })
             .map(|_| true)
         } else if n == Self::EQ_HIGH_FREQ_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.high_freqs.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.high_freqs.len()];
             let freqs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.high_freqs.copy_from_slice(&freqs))
             })
             .map(|_| true)
         } else if n == Self::EQ_LOW_QUALITY_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.low_qualities.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.low_qualities.len()];
             let freqs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.low_qualities.copy_from_slice(&freqs))
             })
             .map(|_| true)
         } else if n == Self::EQ_MIDDLE_QUALITY_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.middle_qualities.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.middle_qualities.len()];
             let freqs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.middle_qualities.copy_from_slice(&freqs))
             })
             .map(|_| true)
         } else if n == Self::EQ_HIGH_QUALITY_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).eq.high_qualities.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).eq.high_qualities.len()];
             let freqs: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_eq(unit, req, timeout_ms, |state| {
                 Ok(state.high_qualities.copy_from_slice(&freqs))
             })
             .map(|_| true)
         } else if n == Self::DYN_ACTIVATE_NAME {
-            let vals = &elem_value.get_bool()[..T::ch_strip(self.state()).dynamics.activates.len()];
+            let vals = &elem_value.boolean()[..T::ch_strip(self.state()).dynamics.activates.len()];
             self.update_dynamics(unit, req, timeout_ms, |state| {
                 Ok(state.activates.copy_from_slice(&vals))
             })
             .map(|_| true)
         } else if n == Self::DYN_GAIN_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).dynamics.gains.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).dynamics.gains.len()];
             let gains: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
             self.update_dynamics(unit, req, timeout_ms, |state| {
                 Ok(state.gains.copy_from_slice(&gains))
             })
             .map(|_| true)
         } else if n == Self::DYN_ATTACK_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).dynamics.attacks.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).dynamics.attacks.len()];
             let attacks: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_dynamics(unit, req, timeout_ms, |state| {
                 Ok(state.attacks.copy_from_slice(&attacks))
             })
             .map(|_| true)
         } else if n == Self::DYN_RELEASE_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).dynamics.releases.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).dynamics.releases.len()];
             let release: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_dynamics(unit, req, timeout_ms, |state| {
                 Ok(state.releases.copy_from_slice(&release))
             })
             .map(|_| true)
         } else if n == Self::DYN_COMP_THRESHOLD_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state())
+            let vals = &elem_value.int()[..T::ch_strip(self.state())
                 .dynamics
                 .compressor_thresholds
                 .len()];
@@ -1562,14 +1562,14 @@ where
             .map(|_| true)
         } else if n == Self::DYN_COMP_RATIO_NAME {
             let vals =
-                &elem_value.get_int()[..T::ch_strip(self.state()).dynamics.compressor_ratios.len()];
+                &elem_value.int()[..T::ch_strip(self.state()).dynamics.compressor_ratios.len()];
             let ratios: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_dynamics(unit, req, timeout_ms, |state| {
                 Ok(state.compressor_ratios.copy_from_slice(&ratios))
             })
             .map(|_| true)
         } else if n == Self::DYN_EX_THRESHOLD_NAME {
-            let vals = &elem_value.get_int()
+            let vals = &elem_value.int()
                 [..T::ch_strip(self.state()).dynamics.expander_thresholds.len()];
             let ths: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
             self.update_dynamics(unit, req, timeout_ms, |state| {
@@ -1578,7 +1578,7 @@ where
             .map(|_| true)
         } else if n == Self::DYN_EX_RATIO_NAME {
             let vals =
-                &elem_value.get_int()[..T::ch_strip(self.state()).dynamics.compressor_ratios.len()];
+                &elem_value.int()[..T::ch_strip(self.state()).dynamics.compressor_ratios.len()];
             let ratios: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_dynamics(unit, req, timeout_ms, |state| {
                 Ok(state.expander_ratios.copy_from_slice(&ratios))
@@ -1586,20 +1586,20 @@ where
             .map(|_| true)
         } else if n == Self::AUTOLEVEL_ACTIVATE_NAME {
             let activates =
-                &elem_value.get_bool()[..T::ch_strip(self.state()).autolevel.activates.len()];
+                &elem_value.boolean()[..T::ch_strip(self.state()).autolevel.activates.len()];
             self.update_autolevel(unit, req, timeout_ms, |state| {
                 Ok(state.activates.copy_from_slice(&activates))
             })
             .map(|_| true)
         } else if n == Self::AUTOLEVEL_MAX_GAIN_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).autolevel.max_gains.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).autolevel.max_gains.len()];
             let gains: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_autolevel(unit, req, timeout_ms, |state| {
                 Ok(state.max_gains.copy_from_slice(&gains))
             })
             .map(|_| true)
         } else if n == Self::AUTOLEVEL_HEAD_ROOM_NAME {
-            let vals = &elem_value.get_int()[..T::ch_strip(self.state()).autolevel.headrooms.len()];
+            let vals = &elem_value.int()[..T::ch_strip(self.state()).autolevel.headrooms.len()];
             let rooms: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_autolevel(unit, req, timeout_ms, |state| {
                 Ok(state.headrooms.copy_from_slice(&rooms))
@@ -1607,7 +1607,7 @@ where
             .map(|_| true)
         } else if n == Self::AUTOLEVEL_RISE_TIME_NAME {
             let vals =
-                &elem_value.get_int()[..T::ch_strip(self.state()).autolevel.rise_times.len()];
+                &elem_value.int()[..T::ch_strip(self.state()).autolevel.rise_times.len()];
             let times: Vec<u16> = vals.iter().map(|&val| val as u16).collect();
             self.update_autolevel(unit, req, timeout_ms, |state| {
                 Ok(state.rise_times.copy_from_slice(&times))
@@ -2148,7 +2148,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
     }
 
     fn read_fx(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LINE_SRC_GAIN_NAME => {
                 let vals: Vec<i32> = self
                     .state()
@@ -2356,13 +2356,13 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LINE_SRC_GAIN_NAME => {
                 let mut state = self.state().fx.clone();
                 state
                     .line_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2372,7 +2372,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .mic_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2382,7 +2382,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .spdif_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2392,7 +2392,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .adat_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2402,7 +2402,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .stream_input_gains
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as u16);
                 T::write_fx_input_gains(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2412,7 +2412,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .line_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2422,7 +2422,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .hp_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2432,7 +2432,7 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .spdif_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
@@ -2442,19 +2442,19 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
                 state
                     .adat_output_vols
                     .iter_mut()
-                    .zip(elem_value.get_int())
+                    .zip(elem_value.int())
                     .for_each(|(d, s)| *d = *s as i16);
                 T::write_fx_output_volumes(req, &mut unit.1, self.state_mut(), state, timeout_ms)
                     .map(|_| true)
             }
             REVERB_ACTIVATE_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.activate = elem_value.get_bool()[0];
+                    state.activate = elem_value.boolean()[0];
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_TYPE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let reverb_type = Self::REVERB_TYPES
                     .iter()
                     .nth(val as usize)
@@ -2471,84 +2471,84 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
             }
             REVERB_PRE_DELAY_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.pre_delay = elem_value.get_int()[0] as u16;
+                    state.pre_delay = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_PRE_HPF_FREQ_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.pre_hpf = elem_value.get_int()[0] as u16;
+                    state.pre_hpf = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_ROOM_SCALE_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.room_scale = elem_value.get_int()[0] as u16;
+                    state.room_scale = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_ATTACK_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.attack = elem_value.get_int()[0] as u16;
+                    state.attack = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_HOLD_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.hold = elem_value.get_int()[0] as u16;
+                    state.hold = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_RELEASE_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.release = elem_value.get_int()[0] as u16;
+                    state.release = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_POST_LPF_FREQ_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.post_lpf = elem_value.get_int()[0] as u16;
+                    state.post_lpf = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_TIME_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.time = elem_value.get_int()[0] as u16;
+                    state.time = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_DAMPING_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.damping = elem_value.get_int()[0] as u16;
+                    state.damping = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_SMOOTH_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.smooth = elem_value.get_int()[0] as u16;
+                    state.smooth = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_VOL_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.volume = elem_value.get_int()[0] as i16;
+                    state.volume = elem_value.int()[0] as i16;
                     Ok(())
                 })
                 .map(|_| true),
             REVERB_STEREO_WIDTH_NAME => self
                 .update_reverb(unit, req, timeout_ms, |state| {
-                    state.stereo_width = elem_value.get_int()[0] as u16;
+                    state.stereo_width = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             ECHO_ACTIVATE_NAME => self
                 .update_echo(unit, req, timeout_ms, |state| {
-                    state.activate = elem_value.get_bool()[0];
+                    state.activate = elem_value.boolean()[0];
                     Ok(())
                 })
                 .map(|_| true),
             ECHO_TYPE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let echo_type = Self::ECHO_TYPES
                     .iter()
                     .nth(val as usize)
@@ -2565,18 +2565,18 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
             }
             ECHO_DELAY_NAME => self
                 .update_echo(unit, req, timeout_ms, |state| {
-                    state.delay = elem_value.get_int()[0] as u16;
+                    state.delay = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             ECHO_FEEDBACK_NAME => self
                 .update_echo(unit, req, timeout_ms, |state| {
-                    state.feedback = elem_value.get_int()[0] as u16;
+                    state.feedback = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),
             ECHO_LPF_FREQ_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let lpf = Self::ECHO_LPF_FREQS
                     .iter()
                     .nth(val as usize)
@@ -2593,13 +2593,13 @@ pub trait FfLatterFxCtlOperation<T: RmeFfLatterFxOperation>: FfLatterDspCtlOpera
             }
             ECHO_VOL_NAME => self
                 .update_echo(unit, req, timeout_ms, |state| {
-                    state.volume = elem_value.get_int()[0] as i16;
+                    state.volume = elem_value.int()[0] as i16;
                     Ok(())
                 })
                 .map(|_| true),
             ECHO_STEREO_WIDTH_NAME => self
                 .update_echo(unit, req, timeout_ms, |state| {
-                    state.stereo_width = elem_value.get_int()[0] as u16;
+                    state.stereo_width = elem_value.int()[0] as u16;
                     Ok(())
                 })
                 .map(|_| true),

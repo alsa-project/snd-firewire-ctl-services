@@ -39,7 +39,7 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::get_clk_rate(req, &mut unit.1, timeout_ms).map(|idx| idx as u32)
             })
@@ -66,7 +66,7 @@ pub trait V2ClkCtlOperation<T: V2ClkOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 unit.0.lock()?;
                 let res = T::set_clk_rate(req, &mut unit.1, val as usize, timeout_ms);
@@ -150,7 +150,7 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().0 as u32))
                     .map(|_| true)
@@ -171,7 +171,7 @@ pub trait V2OptIfaceCtlOperation<T: V2OptIfaceOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 unit.0.lock()?;
                 let res = T::set_opt_in_iface_mode(req, &mut unit.1, val as usize, timeout_ms);

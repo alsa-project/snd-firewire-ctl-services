@@ -3,8 +3,8 @@
 
 use {
     super::{fw1082_model::*, fw1884_model::*, seq_cntr::*, *},
-    alsactl::*,
-    alsaseq::*,
+    alsactl::{prelude::*, *},
+    alsaseq::{prelude::*, *},
     core::dispatcher::*,
     nix::sys::signal,
     std::{marker::PhantomData, sync::mpsc, time::Duration},
@@ -127,7 +127,7 @@ where
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 ConsoleUnitEvent::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != TIMER_NAME {
+                    if elem_id.name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
                             &elem_id,
@@ -142,7 +142,7 @@ where
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let val = elem_value.get_bool()[0];
+                            let val = elem_value.boolean()[0];
                             if val {
                                 let _ = self.start_interval_timer();
                             } else {
@@ -202,7 +202,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let generation = node.get_property_generation();
+            let generation = node.generation();
             let _ = tx.send(ConsoleUnitEvent::BusReset(generation));
         });
 

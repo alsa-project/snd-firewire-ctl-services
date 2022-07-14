@@ -68,7 +68,7 @@ pub mod config_rom;
 
 use {
     glib::{Error, FileError},
-    hinawa::*,
+    hinawa::{prelude::*, *},
 };
 
 const BASE_OFFSET: u64 = 0xffff00000000;

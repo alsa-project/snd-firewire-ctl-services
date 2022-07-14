@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use {
     super::{fw1804_model::*, *},
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::dispatcher::*,
     nix::sys::signal,
     std::{sync::mpsc, time::Duration},
@@ -104,7 +104,7 @@ impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Defa
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 RackUnitEvent::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != TIMER_NAME {
+                    if elem_id.name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
                             &elem_id,
@@ -119,7 +119,7 @@ impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Defa
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let val = elem_value.get_bool()[0];
+                            let val = elem_value.boolean()[0];
                             if val {
                                 let _ = self.start_interval_timer();
                             } else {
@@ -157,7 +157,7 @@ impl<T: CtlModel<(SndTascam, FwNode)> + MeasureModel<(SndTascam, FwNode)> + Defa
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let generation = node.get_property_generation();
+            let generation = node.generation();
             let _ = tx.send(RackUnitEvent::BusReset(generation));
         });
 

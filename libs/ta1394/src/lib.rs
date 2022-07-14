@@ -9,7 +9,7 @@ pub mod stream_format;
 
 use glib::{Error, error::ErrorDomain, Quark};
 
-use hinawa::{FwFcp, FwFcpExtManual};
+use hinawa::{prelude::FwFcpExtManual, FwFcp};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcSubunitType {
@@ -290,7 +290,7 @@ pub enum Ta1394AvcError {
 
 impl ErrorDomain for Ta1394AvcError {
     fn domain() -> Quark {
-        Quark::from_string("ta1394-avc-error-quark")
+        Quark::from_str("ta1394-avc-error-quark")
     }
 
     fn code(self) -> i32 {

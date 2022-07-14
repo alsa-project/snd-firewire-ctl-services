@@ -142,7 +142,7 @@ impl SpecificCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 F828Protocol::get_optical_input_iface_mode(req, &mut unit.1, timeout_ms)
                     .map(|val| val as u32)
@@ -165,7 +165,7 @@ impl SpecificCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IN_IFACE_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 unit.0.lock()?;
                 let res = F828Protocol::set_optical_input_iface_mode(

@@ -3,11 +3,11 @@
 
 //! Protocol defined by RME GmbH for Fireface 400.
 
-use glib::Error;
-
-use hinawa::{FwNode, FwReq, FwReqExtManual, FwTcode};
-
-use super::*;
+use {
+    glib::Error,
+    hinawa::{prelude::FwReqExtManual, FwNode, FwReq, FwTcode},
+    super::*,
+};
 
 /// The structure to represent unique protocol for Fireface 400.
 #[derive(Default)]

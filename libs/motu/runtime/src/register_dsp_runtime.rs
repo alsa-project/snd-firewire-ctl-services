@@ -7,7 +7,7 @@ pub use {
         register_dsp_ctls::*, traveler::*, ultralite::*, v2_ctls::*, v3_ctls::*, *,
     },
     alsa_ctl_tlv_codec::DbInterval,
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*},
     glib::source,
     hinawa::FwReq,
@@ -157,7 +157,7 @@ where
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != TIMER_NAME {
+                    if elem_id.name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
                             &elem_id,
@@ -171,7 +171,7 @@ where
                             .card
                             .read_elem_value(&elem_id, &mut elem_value)
                             .map(|_| {
-                                let val = elem_value.get_bool()[0];
+                                let val = elem_value.boolean()[0];
                                 if val {
                                     let _ = self.start_interval_timer();
                                 } else {
@@ -257,7 +257,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         self.dispatchers.push(dispatcher);
@@ -276,8 +276,8 @@ where
         });
 
         let tx = self.tx.clone();
-        self.unit.0.connect_property_is_locked_notify(move |unit| {
-            let is_locked = unit.get_property_is_locked();
+        self.unit.0.connect_is_locked_notify(move |unit| {
+            let is_locked = unit.is_locked();
             let _ = tx.send(Event::LockNotify(is_locked));
         });
 

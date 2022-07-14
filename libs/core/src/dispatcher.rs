@@ -3,11 +3,11 @@
 
 use {
     super::*,
-    alsactl::{Card, CardExt},
-    alsaseq::{UserClient, UserClientExt},
+    alsactl::{Card, prelude::CardExt},
+    alsaseq::{UserClient, prelude::UserClientExt},
     glib::{source, IsA, MainContext, MainLoop, Source},
-    hinawa::{FwNode, FwNodeExt},
-    hitaki::{AlsaFirewire, AlsaFirewireExt},
+    hinawa::{FwNode, prelude::FwNodeExt},
+    hitaki::{AlsaFirewire, prelude::AlsaFirewireExt},
     nix::sys::signal,
     std::{sync::Arc, thread, time::Duration},
 };
@@ -61,7 +61,7 @@ impl Dispatcher {
     }
 
     fn attach_src_to_ctx(&mut self, src: &Source) {
-        let ctx = self.ev_loop.get_context();
+        let ctx = self.ev_loop.context();
         src.attach(Some(&ctx));
     }
 
@@ -105,7 +105,7 @@ impl Dispatcher {
     {
         let src = unit.create_source()?;
 
-        unit.connect_property_is_disconnected_notify(disconnect_cb);
+        unit.connect_is_disconnected_notify(disconnect_cb);
 
         self.attach_src_to_ctx(&src);
 
@@ -130,8 +130,7 @@ impl Dispatcher {
     where
         F: FnMut() -> source::Continue + Send + 'static,
     {
-        let msec = interval_msec.as_millis() as u32;
-        let src = source::timeout_source_new(msec, None, source::PRIORITY_DEFAULT_IDLE, cb);
+        let src = source::timeout_source_new(interval_msec, None, source::PRIORITY_DEFAULT_IDLE, cb);
 
         self.attach_src_to_ctx(&src);
     }

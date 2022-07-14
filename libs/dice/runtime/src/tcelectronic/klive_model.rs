@@ -353,7 +353,7 @@ impl KnobCtl {
         } else if self.read_prog(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUTPUT_IMPEDANCE_NAME => ElemValueAccessor::<u32>::set_vals(elem_value, 2, |idx| {
                     let pos = Self::OUTPUT_IMPEDANCES
                         .iter()
@@ -383,7 +383,7 @@ impl KnobCtl {
         } else if self.write_prog(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUTPUT_IMPEDANCE_NAME => {
                     ElemValueAccessor::<u32>::get_vals(new, old, 2, |idx, val| {
                         Self::OUTPUT_IMPEDANCES
@@ -585,7 +585,7 @@ impl ConfigCtl {
         } else if self.write_midi_sender(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUT_01_SRC_NAME => {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         PHYS_OUT_SRCS
@@ -805,7 +805,7 @@ impl MixerCtl {
         } else if self.read_reverb_return(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
                         .map(|_| true)
@@ -855,7 +855,7 @@ impl MixerCtl {
         } else if self.write_reverb_return(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         self.0.data.enabled = val;

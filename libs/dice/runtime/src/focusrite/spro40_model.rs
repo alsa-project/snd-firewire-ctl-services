@@ -312,7 +312,7 @@ impl SpecificCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
                 let enabled = SPro40Protocol::read_analog_out_0_1_pad(
                     req,
@@ -350,9 +350,9 @@ impl SpecificCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::ANALOG_OUT_0_1_PAD_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 SPro40Protocol::write_analog_out_0_1_pad(
                     req,
                     &mut unit.1,
@@ -363,7 +363,7 @@ impl SpecificCtl {
                 .map(|_| true)
             }
             Self::OPT_OUT_IFACE_MODE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &mode = Self::OPT_OUT_IFACE_MODES
                     .iter()
                     .nth(val as usize)

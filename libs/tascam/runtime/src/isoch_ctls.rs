@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
-    super::*, alsa_ctl_tlv_codec::DbInterval, alsactl::*, core::elem_value_accessor::*,
+    super::*, alsa_ctl_tlv_codec::DbInterval, alsactl::{prelude::*, *}, core::elem_value_accessor::*,
     tascam_protocols::isoch::*,
 };
 
@@ -201,7 +201,7 @@ pub trait IsochMeterCtlOperation<T: IsochMeterOperation> {
     }
 
     fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MONITOR_ROTARY_NAME => {
                 elem_value.set_int(&[self.meter().monitor as i32]);
                 Ok(true)
@@ -374,7 +374,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 let src = T::get_sampling_clock_source(req, node, timeout_ms)?;
                 let pos = T::SAMPLING_CLOCK_SOURCES
@@ -423,9 +423,9 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &src = T::SAMPLING_CLOCK_SOURCES
                     .iter()
                     .nth(val as usize)
@@ -439,7 +439,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 res.map(|_| true)
             }
             CLK_RATE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &rate = Self::CLOCK_RATES.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid value for index of clock rates: {}", val);
                     Error::new(FileError::Inval, &msg)
@@ -450,7 +450,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 res.map(|_| true)
             }
             SIGNAL_DETECTION_THRESHOLD_NAME => {
-                let val = elem_value.get_int()[0];
+                let val = elem_value.int()[0];
                 T::set_analog_input_threshold_for_signal_detection(
                     req,
                     &mut unit.1,
@@ -460,7 +460,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 .map(|_| true)
             }
             OVER_LEVEL_DETECTION_THRESHOLD_NAME => {
-                let val = elem_value.get_int()[0];
+                let val = elem_value.int()[0];
                 T::set_analog_input_threshold_for_over_level_detection(
                     req,
                     &mut unit.1,
@@ -470,7 +470,7 @@ pub trait IsochCommonCtlOperation<T: IsochCommonOperation> {
                 .map(|_| true)
             }
             COAX_OUT_SRC_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &src = Self::COAXIAL_OUTPUT_SOURCES
                     .iter()
                     .nth(val as usize)
@@ -536,7 +536,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_OUT_SRC_NAME => {
                 let src = T::get_opt_output_source(req, node, timeout_ms)?;
                 let pos = Self::OPTICAL_OUTPUT_SOURCES
@@ -567,9 +567,9 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_OUT_SRC_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &src = Self::OPTICAL_OUTPUT_SOURCES
                     .iter()
                     .nth(val as usize)
@@ -580,7 +580,7 @@ pub trait IsochOpticalCtlOperation<T: IsochOpticalOperation> {
                 T::set_opt_output_source(req, node, src, timeout_ms).map(|_| true)
             }
             SPDIF_IN_SRC_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &src = Self::SPDIF_INPUT_SOURCES
                     .iter()
                     .nth(val as usize)
@@ -627,7 +627,7 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
     }
 
     fn read_states(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             HOST_MODE_NAME => {
                 elem_value.set_bool(&[self.state().host_mode]);
                 Ok(true)
@@ -644,7 +644,7 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MASTER_FADER_ASSIGN_NAME => {
                 let enabled = T::get_master_fader_assign(req, node, timeout_ms)?;
                 elem_value.set_bool(&[enabled]);
@@ -662,9 +662,9 @@ pub trait IsochConsoleCtlOperation<T: IsochConsoleOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MASTER_FADER_ASSIGN_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 T::set_master_fader_assign(req, node, val, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
@@ -726,7 +726,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_GAIN_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::INPUT_LABELS.len(), |idx| {
                     Ok(T::get_input_gain(self.state(), idx) as i32)
@@ -758,7 +758,7 @@ pub trait IsochRackCtlOperation<T: IsochRackOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_GAIN_NAME => ElemValueAccessor::<i32>::get_vals(
                 new,
                 old,

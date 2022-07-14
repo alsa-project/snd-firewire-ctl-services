@@ -124,7 +124,7 @@ impl MeterCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_DETECT_NAME => {
                 if let Some(meters) = &self.meters {
                     let vals: Vec<bool> = meters

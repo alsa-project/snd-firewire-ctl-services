@@ -6,10 +6,10 @@ pub use {
         command_dsp_ctls::*, f828mk3::*, f828mk3_hybrid::*, track16::*, traveler_mk3::*,
         ultralite_mk3::*, ultralite_mk3_hybrid::*, *,
     },
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*},
     glib::source,
-    hinawa::{FwRcode, FwResp, FwRespExtManual, FwTcode},
+    hinawa::{prelude::FwRespExtManual, FwRcode, FwResp, FwTcode},
     motu_protocols::{command_dsp::*, version_3::*},
     nix::sys::signal::Signal,
     std::{
@@ -132,7 +132,7 @@ where
         let tx = self.tx.clone();
         let handler = self.msg_handler.clone();
         // TODO: bus reset can cause change of node ID by updating bus topology.
-        let peer_node_id = self.unit.1.get_property_node_id();
+        let peer_node_id = self.unit.1.node_id();
         self.model.prepare_message_handler(
             &mut self.unit,
             move |_, tcode, _, src, _, _, _, frame| {
@@ -217,7 +217,7 @@ where
                     println!("IEEE 1394 bus is updated: {}", generation);
                 }
                 Event::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != TIMER_NAME {
+                    if elem_id.name() != TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
                             &elem_id,
@@ -231,7 +231,7 @@ where
                             .card
                             .read_elem_value(&elem_id, &mut elem_value)
                             .map(|_| {
-                                let val = elem_value.get_bool()[0];
+                                let val = elem_value.boolean()[0];
                                 if val {
                                     let _ = self.start_interval_timer();
                                 } else {
@@ -298,7 +298,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         self.dispatchers.push(dispatcher);

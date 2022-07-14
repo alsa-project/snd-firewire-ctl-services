@@ -14,12 +14,12 @@ mod isoch_ctls;
 mod seq_cntr;
 
 use {
-    alsaseq::*,
+    alsaseq::{prelude::*, *},
     asynch_runtime::*,
     core::{card_cntr::*, RuntimeOperation},
     glib::{source, Error, FileError, IsA},
-    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hitaki::{traits::*, *},
+    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
+    hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     isoch_console_runtime::*,
     isoch_rack_runtime::*,
@@ -49,11 +49,11 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                 let devnode = format!("/dev/snd/hwC{}D0", sysnum);
                 unit.open(&devnode, 0)?;
 
-                let devnode = format!("/dev/{}", unit.get_property_node_device().unwrap());
+                let devnode = format!("/dev/{}", unit.node_device().unwrap());
                 let node = FwNode::new();
                 node.open(&devnode)?;
 
-                let data = node.get_config_rom()?;
+                let data = node.config_rom()?;
                 let config_rom = ConfigRom::try_from(data).map_err(|e| {
                     let label = format!("Malformed configuration ROM detected: {}", e.to_string());
                     Error::new(FileError::Nxio, &label)
@@ -81,7 +81,7 @@ impl RuntimeOperation<(String, u32)> for TascamRuntime {
                 let devnode = format!("/dev/fw{}", sysnum);
                 node.open(&devnode)?;
 
-                let data = node.get_config_rom()?;
+                let data = node.config_rom()?;
                 let config_rom = ConfigRom::try_from(data).map_err(|e| {
                     let label = format!("Malformed configuration ROM detected: {}", e.to_string());
                     Error::new(FileError::Nxio, &label)
@@ -226,8 +226,8 @@ pub trait SequencerCtlOperation<
         // NOTE: At present, controller event is handled for my convenience.
         events
             .iter()
-            .filter(|ev| EventType::Controller == ev.get_event_type())
-            .filter_map(|ev| ev.get_ctl_data().ok())
+            .filter(|ev| EventType::Controller == ev.event_type())
+            .filter_map(|ev| ev.ctl_data().ok())
             .try_for_each(|ctl_data| {
                 let input = self.parse_appl_event(&ctl_data)?;
                 let outputs = self.dispatch_machine_event(&input);
@@ -241,18 +241,18 @@ pub trait SequencerCtlOperation<
     }
 
     fn parse_appl_event(&self, data: &EventDataCtl) -> Result<(MachineItem, ItemValue), Error> {
-        if data.get_channel() != 0 {
-            let msg = format!("Channel {} is not supported yet.", data.get_channel());
+        if data.channel() != 0 {
+            let msg = format!("Channel {} is not supported yet.", data.channel());
             Err(Error::new(FileError::Inval, &msg))?;
         }
 
-        let index = data.get_param();
+        let index = data.param();
         let &machine_item = self.state().map.iter().nth(index as usize).ok_or_else(|| {
             let msg = format!("Unsupported control number: {}", index);
             Error::new(FileError::Inval, &msg)
         })?;
 
-        let value = data.get_value();
+        let value = data.value();
         let item_value = if T::BOOL_ITEMS.iter().find(|i| machine_item.eq(i)).is_some() {
             ItemValue::Bool(value == BOOL_TRUE)
         } else if T::TRANSPORT_ITEMS

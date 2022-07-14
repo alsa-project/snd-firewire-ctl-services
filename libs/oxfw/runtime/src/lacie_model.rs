@@ -29,10 +29,10 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
         // NOTE: I have a plan to remove control functionality from ALSA oxfw driver for future.
-        let elem_id_list = card_cntr.card.get_elem_id_list()?;
+        let elem_id_list = card_cntr.card.elem_id_list()?;
         self.voluntary = elem_id_list
             .iter()
-            .find(|elem_id| elem_id.get_name().as_str() == VOL_NAME)
+            .find(|elem_id| elem_id.name().as_str() == VOL_NAME)
             .is_none();
         if self.voluntary {
             let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, VOL_NAME, 0);
@@ -66,7 +66,7 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
         {
             Ok(true)
         } else if self.voluntary {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 VOL_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
                     let mut vol = 0;
                     FwSpeakersProtocol::read_volume(&mut self.avc, &mut vol, FCP_TIMEOUT_MS)
@@ -99,7 +99,7 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
         {
             Ok(true)
         } else if self.voluntary {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 VOL_NAME => ElemValueAccessor::<i32>::get_val(new, |val| {
                     FwSpeakersProtocol::write_volume(&mut self.avc, val as i16, FCP_TIMEOUT_MS)
                 })

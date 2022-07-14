@@ -15,6 +15,6 @@ pub mod tascam;
 
 use {
     glib::{Error, FileError},
-    hinawa::{FwFcp, FwNode, FwReq, FwReqExtManual, FwTcode},
+    hinawa::{prelude::FwReqExtManual, FwFcp, FwNode, FwReq, FwTcode},
     ta1394::{audio::*, ccm::*, general::*, *},
 };

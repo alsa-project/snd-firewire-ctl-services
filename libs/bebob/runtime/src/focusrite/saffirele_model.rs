@@ -353,7 +353,7 @@ impl MeterCtl {
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             IN_METER_NAME => {
                 elem_value.set_int(&self.1.phys_inputs);
                 Ok(true)
@@ -392,7 +392,7 @@ impl SpecificCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_INPUT_2_3_HIGH_GAIN => {
                 elem_value.set_bool(&self.0.analog_input_2_3_high_gains);
                 Ok(true)
@@ -409,9 +409,9 @@ impl SpecificCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_INPUT_2_3_HIGH_GAIN => {
-                let vals = &elem_value.get_bool()[..2];
+                let vals = &elem_value.boolean()[..2];
                 SaffireLeSpecificProtocol::write_analog_input_high_gains(
                     req,
                     &unit.1,
@@ -471,7 +471,7 @@ impl MixerLowRateCtl {
     }
 
     fn read_src_gains(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PHYS_SRC_GAIN_NAME => read_mixer_src_gains(elem_value, elem_id, &self.0.phys_src_gains),
             STREAM_SRC_GAIN_NAME => {
                 read_mixer_src_gains(elem_value, elem_id, &self.0.stream_src_gains)
@@ -488,10 +488,10 @@ impl MixerLowRateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PHYS_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
-                let vals = &elem_value.get_int()[..self.0.phys_src_gains[0].len()];
+                let index = elem_id.index() as usize;
+                let vals = &elem_value.int()[..self.0.phys_src_gains[0].len()];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -507,8 +507,8 @@ impl MixerLowRateCtl {
                 .map(|_| true)
             }
             STREAM_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
-                let vals = &elem_value.get_int()[..self.0.stream_src_gains[0].len()];
+                let index = elem_id.index() as usize;
+                let vals = &elem_value.int()[..self.0.stream_src_gains[0].len()];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -596,7 +596,7 @@ impl MixerMiddleRateCtl {
     }
 
     fn read_src_gains(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME => {
                 let gains: Vec<i32> = self
                     .0
@@ -625,9 +625,9 @@ impl MixerMiddleRateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIDDLE_MONITOR_PHYS_SRC_GAIN_NAME => {
-                let vals = &elem_value.get_int()[..self.0.monitor_src_phys_input_gains.len()];
+                let vals = &elem_value.int()[..self.0.monitor_src_phys_input_gains.len()];
                 let gains: Vec<i16> = vals.iter().fold(Vec::new(), |mut gains, &gain| {
                     gains.push(gain as i16);
                     gains
@@ -642,8 +642,8 @@ impl MixerMiddleRateCtl {
                 .map(|_| true)
             }
             MIDDLE_MONITOR_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
-                let vals = &elem_value.get_int()[..1];
+                let index = elem_id.index() as usize;
+                let vals = &elem_value.int()[..1];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -659,8 +659,8 @@ impl MixerMiddleRateCtl {
                 .map(|_| true)
             }
             MIDDLE_STREAM_SRC_GAIN_NAME => {
-                let index = elem_id.get_index() as usize;
-                let vals = &elem_value.get_int()[..2];
+                let index = elem_id.index() as usize;
+                let vals = &elem_value.int()[..2];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &level| {
                     levels.push(level as i16);
                     levels
@@ -688,7 +688,7 @@ fn read_mixer_src_gains<T>(
 where
     T: AsRef<[i16]>,
 {
-    let index = elem_id.get_index() as usize;
+    let index = elem_id.index() as usize;
     levels_list
         .iter()
         .nth(index)

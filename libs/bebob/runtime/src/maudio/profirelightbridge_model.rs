@@ -248,7 +248,7 @@ impl MeterCtl {
     }
 
     fn read_state(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             DETECTED_RATE_NAME => {
                 let freq = Self::DETECTED_INPUT_FREQ_LIST
                     .iter()
@@ -295,7 +295,7 @@ impl InputParamsCtl {
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ADAT_MUTE_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, 4, |idx| Ok(self.0.adat_mute[idx]))
                     .map(|_| true)
@@ -321,9 +321,9 @@ impl InputParamsCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ADAT_MUTE_NAME => {
-                if unit.0.get_property_is_locked() {
+                if unit.0.is_locked() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
 
@@ -345,7 +345,7 @@ impl InputParamsCtl {
                 })
             }
             SPDIF_MUTE_NAME => {
-                if unit.0.get_property_is_locked() {
+                if unit.0.is_locked() {
                     Err(Error::new(FileError::Again, "Packet streaming started"))?;
                 }
 

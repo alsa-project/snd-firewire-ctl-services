@@ -337,7 +337,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 let src = T::read_sampling_clock_source(req, &mut unit.1, timeout_ms)?;
                 let pos = T::SAMPLING_CLOCK_SOURCES
@@ -368,13 +368,13 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => {
-                if unit.0.get_property_is_locked() {
+                if unit.0.is_locked() {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let val = elem_value.get_enum()[0];
+                    let val = elem_value.enumerated()[0];
                     let &src = T::SAMPLING_CLOCK_SOURCES
                         .iter()
                         .nth(val as usize)
@@ -386,11 +386,11 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                 }
             }
             CLK_LOCAL_RATE_NAME => {
-                if unit.0.get_property_is_locked() {
+                if unit.0.is_locked() {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let val = elem_value.get_enum()[0];
+                    let val = elem_value.enumerated()[0];
                     let &rate = Self::CLOCK_RATES.iter().nth(val as usize).ok_or_else(|| {
                         let msg = format!("Invalid index for media clock rates: {}", val);
                         Error::new(FileError::Inval, &msg)
@@ -402,11 +402,11 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
                 }
             }
             OPT_IFACE_NAME => {
-                if unit.0.get_property_is_locked() {
+                if unit.0.is_locked() {
                     let msg = "Not configurable during packet streaming";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let val = elem_value.get_enum()[0];
+                    let val = elem_value.enumerated()[0];
                     let &mode = Self::OPTICAL_INTERFACE_MODES
                         .iter()
                         .nth(val as usize)
@@ -442,7 +442,7 @@ pub trait Dg00xCommonCtlOperation<T: Dg00xCommonOperation> {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_LOCAL_RATE_NAME => {
                 let pos = Self::CLOCK_RATES
                     .iter()
@@ -514,7 +514,7 @@ pub trait Dg00xMeterCtlOperation<T: Dg00xCommonOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_EXT_RATE_NAME => {
                 let pos = Self::OPTIONAL_CLOCK_RATES
                     .iter()
@@ -599,7 +599,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
 
         T::read_monitor_state(req, &mut unit.1, &mut self.state_mut().0, timeout_ms)?;
 
-        if !unit.0.get_property_is_locked() {
+        if !unit.0.is_locked() {
             self.state_mut().0.enabled = false;
         }
 
@@ -627,13 +627,13 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MONITOR_ENABLE_NAME => {
                 elem_value.set_bool(&[self.state().0.enabled]);
                 Ok(true)
             }
             MONITOR_SRC_GAIN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, Self::SRC_LABELS.len(), |src| {
                     Ok(self.state().0.src_gains[dst][src] as i32)
                 })
@@ -652,13 +652,13 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MONITOR_ENABLE_NAME => {
-                if !unit.0.get_property_is_locked() {
+                if !unit.0.is_locked() {
                     let msg = "Monitor function is configurable during packet streaming.";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let val = new.get_bool()[0];
+                    let val = new.boolean()[0];
                     T::write_monitor_enable(req, &mut unit.1, val, timeout_ms).map(|_| {
                         self.state_mut().0.enabled = val;
                         true
@@ -670,7 +670,7 @@ pub trait Dg00xMonitorCtlOperation<T: Dg00xMonitorOperation> {
                     let msg = "Monitor is disabled.";
                     Err(Error::new(FileError::Again, &msg))
                 } else {
-                    let dst = elem_id.get_index() as usize;
+                    let dst = elem_id.index() as usize;
                     ElemValueAccessor::<i32>::get_vals(
                         new,
                         old,
