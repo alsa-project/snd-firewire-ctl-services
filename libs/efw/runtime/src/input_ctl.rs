@@ -75,7 +75,7 @@ impl InputCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             IN_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, self.phys_inputs, |idx| {
                     if let Some(cache) = &self.cache {
@@ -106,7 +106,7 @@ impl InputCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             IN_NOMINAL_NAME => {
                 ElemValueAccessor::<u32>::get_vals(new, old, self.phys_inputs, |idx, val| {
                     if let Some(&level) = Self::IN_NOMINAL_LEVELS.iter().nth(val as usize) {

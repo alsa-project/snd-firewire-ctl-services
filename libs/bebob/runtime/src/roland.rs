@@ -32,7 +32,7 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
         _: &ElemValue,
         _: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == CLK_RATE_NAME {
+        if elem_id.name().as_str() == CLK_RATE_NAME {
             Err(Error::new(
                 FileError::Nxio,
                 "Sampling rate is immutable from software",

@@ -99,7 +99,7 @@ impl CommonCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 let config = GlobalSectionProtocol::read_clock_config(
                     req,
@@ -184,7 +184,7 @@ impl CommonCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
                 unit.0.lock()?;
                 let res = GlobalSectionProtocol::read_clock_config(
@@ -234,7 +234,7 @@ impl CommonCtl {
             })
             .map(|_| true),
             NICKNAME => {
-                let vals = &new.get_bytes()[..NICKNAME_MAX_SIZE];
+                let vals = &new.bytes()[..NICKNAME_MAX_SIZE];
                 std::str::from_utf8(vals)
                     .map_err(|e| {
                         let msg = format!("Invalid bytes for string: {}", e);
@@ -290,7 +290,7 @@ impl CommonCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.curr_rate_idx))
                     .map(|_| true)
@@ -323,7 +323,7 @@ impl CommonCtl {
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SLIPPED_CLK_SRC_NAME => {
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.ext_srcs.len(), |idx| {
                     Ok(self.ext_srcs[idx].is_slipped(&self.ext_src_states))

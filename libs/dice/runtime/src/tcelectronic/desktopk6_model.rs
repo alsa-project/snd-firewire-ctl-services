@@ -319,7 +319,7 @@ impl HwStateCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             METER_TARGET_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = Self::METER_TARGETS
                     .iter()
@@ -384,7 +384,7 @@ impl HwStateCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             METER_TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::METER_TARGETS
@@ -759,7 +759,7 @@ impl MixerCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, 2, |idx| {
                     Ok(self.0.data.mic_inst_level[idx])
@@ -829,7 +829,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_MIC_INST_SRC_LEVEL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, 2, |idx, val| {
                     self.0.data.mic_inst_level[idx] = val;
@@ -1040,7 +1040,7 @@ impl PanelCtl {
         if self.read_firewire_led(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 PANEL_BUTTON_COUNT_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
                     Ok(self.0.data.panel_button_count as i32)
                 })
@@ -1081,7 +1081,7 @@ impl PanelCtl {
         if self.write_firewire_led(unit, req, elem_id, elem_value, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 REVERB_LED_STATE_NAME => {
                     ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                         self.0.data.reverb_led_on = val;
@@ -1186,7 +1186,7 @@ impl MeterCtl {
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             ANALOG_IN_NAME => {
                 elem_value.set_int(&self.0.data.analog_inputs);
                 Ok(true)

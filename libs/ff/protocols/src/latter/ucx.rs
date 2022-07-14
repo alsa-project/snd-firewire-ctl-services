@@ -3,8 +3,10 @@
 
 //! Protocol defined by RME GmbH for Fireface UCX.
 
-use super::*;
-use crate::*;
+use {
+    super::*,
+    crate::*,
+};
 
 /// The structure to represent unique protocol for Fireface UCX.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

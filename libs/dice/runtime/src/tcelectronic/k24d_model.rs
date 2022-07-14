@@ -479,7 +479,7 @@ impl ConfigCtl {
         } else if self.read_standalone(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUT_23_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = PHYS_OUT_SRCS
                         .iter()
@@ -509,7 +509,7 @@ impl ConfigCtl {
         } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUT_23_SRC_NAME => {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         PHYS_OUT_SRCS
@@ -657,7 +657,7 @@ impl MixerCtl {
         } else if self.read_reverb_return(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
                         .map(|_| true)
@@ -691,7 +691,7 @@ impl MixerCtl {
         } else if self.write_reverb_return(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         self.0.data.enabled = val;

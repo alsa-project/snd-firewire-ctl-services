@@ -3,7 +3,7 @@
 
 use {
     super::{isoch_ctls::*, *},
-    alsactl::*,
+    alsactl::{prelude::*, *},
     tascam_protocols::isoch::{fw1884::*, *},
 };
 
@@ -352,7 +352,7 @@ impl SpecificCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MONITOR_ROTARY_ASSIGN_NAME => {
                 let target = Fw1884Protocol::get_monitor_knob_target(req, &mut unit.1, timeout_ms)?;
                 let pos = Self::MONITOR_ROTARY_ASSIGNS
@@ -374,9 +374,9 @@ impl SpecificCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MONITOR_ROTARY_ASSIGN_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &target = Self::MONITOR_ROTARY_ASSIGNS
                     .iter()
                     .nth(val as usize)

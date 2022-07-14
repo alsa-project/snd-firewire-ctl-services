@@ -127,8 +127,8 @@ impl RxStreamFormatSectionProtocol {
                 .map_err(|e| Error::new(GeneralProtocolError::RxStreamFormat, &e.to_string()))?;
             entries.push(entry);
             Ok(())
-        })?;
-        Ok(entries)
+        })
+            .map(|_| entries)
     }
 
     pub fn write_entries(
@@ -184,8 +184,6 @@ impl RxStreamFormatSectionProtocol {
             }
 
             Ok(())
-        })?;
-
-        Ok(())
+        })
     }
 }

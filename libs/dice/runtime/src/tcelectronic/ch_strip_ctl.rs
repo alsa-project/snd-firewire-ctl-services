@@ -458,7 +458,7 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_TYPE_NAME => {
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: u32| {
                     state.src_type = Self::SRC_TYPES
@@ -504,13 +504,13 @@ where
                 })
             }
             COMP_CTL_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
                     state.comp.ctl[idx] = val as u32
                 })
             }
             COMP_LEVEL_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
                     state.comp.level[idx] = val as u32
                 })
@@ -521,25 +521,25 @@ where
                 })
             }
             EQ_ENABLE_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: bool| {
                     state.eq[idx].enabled = val
                 })
             }
             EQ_BANDWIDTH_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
                     state.eq[idx].bandwidth = val as u32
                 })
             }
             EQ_GAIN_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
                     state.eq[idx].gain = val as u32
                 })
             }
             EQ_FREQ_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_write_elem(unit, req, old, new, timeout_ms, |state, val: i32| {
                     state.eq[idx].freq = val as u32
                 })
@@ -602,7 +602,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_TYPE_NAME => self
                 .state_read_elem(elem_value, |state| {
                     Self::SRC_TYPES
@@ -625,30 +625,30 @@ where
                 self.state_read_elem(elem_value, |state| state.comp.full_band_enabled)
             }
             COMP_CTL_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_read_elem(elem_value, |entry| entry.comp.ctl[idx] as i32)
             }
             COMP_LEVEL_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_read_elem(elem_value, |entry| entry.comp.level[idx] as i32)
             }
             DEESSER_RATIO_NAME => {
                 self.state_read_elem(elem_value, |state| state.deesser.ratio as i32)
             }
             EQ_ENABLE_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_read_elem(elem_value, |state| state.eq[idx].enabled)
             }
             EQ_BANDWIDTH_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_read_elem(elem_value, |state| state.eq[idx].bandwidth as i32)
             }
             EQ_GAIN_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_read_elem(elem_value, |state| state.eq[idx].gain as i32)
             }
             EQ_FREQ_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 self.state_read_elem(elem_value, |state| state.eq[idx].freq as i32)
             }
             LIMITTER_THRESHOLD_NAME => {
@@ -663,12 +663,12 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             INPUT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.input),
             LIMIT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.limit),
             OUTPUT_METER_NAME => self.meter_read_elem(elem_value, |meter| meter.output),
             GAIN_METER_NAME => {
-                let idx = match elem_id.get_index() {
+                let idx = match elem_id.index() {
                     2 => 2,
                     1 => 1,
                     _ => 0,

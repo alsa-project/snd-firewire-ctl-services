@@ -24,7 +24,7 @@ where
     }
 
     fn read_prog(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LOADED_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 if self.prog().0 >= Self::PROG_LABELS.len() as u32 {
                     let msg = format!("Unexpected index of program: {}", self.prog().0);
@@ -46,7 +46,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             LOADED_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     if val >= Self::PROG_LABELS.len() as u32 {

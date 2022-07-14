@@ -148,7 +148,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let generation = node.get_property_generation();
+            let generation = node.generation();
             let _ = tx.send(AsyncUnitEvent::BusReset(generation));
         });
 

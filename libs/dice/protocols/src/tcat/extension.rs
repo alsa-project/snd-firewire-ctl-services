@@ -101,7 +101,7 @@ impl std::fmt::Display for ProtocolExtensionError {
 
 impl ErrorDomain for ProtocolExtensionError {
     fn domain() -> Quark {
-        Quark::from_string("tcat-protocol-extension-error-quark")
+        Quark::from_str("tcat-protocol-extension-error-quark")
     }
 
     fn code(self) -> i32 {

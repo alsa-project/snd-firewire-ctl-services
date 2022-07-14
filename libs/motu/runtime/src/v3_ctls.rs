@@ -38,7 +38,7 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::get_clk_rate(req, &mut unit.1, timeout_ms).map(|val| val as u32)
             })
@@ -64,7 +64,7 @@ pub trait V3ClkCtlOperation<T: V3ClkOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             RATE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 unit.0.lock()?;
                 let res = T::set_clk_rate(req, &mut unit.1, val as usize, timeout_ms);
@@ -143,7 +143,7 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MAIN_ASSIGN_NAME => {
                 elem_value.set_enum(&[self.state().0 as u32]);
                 Ok(true)
@@ -164,7 +164,7 @@ pub trait V3PortAssignCtlOperation<T: V3PortAssignOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MAIN_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 T::set_main_assign(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| self.state_mut().0 = val as usize)
@@ -212,7 +212,7 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_vals(elem_value, T::TARGETS.len(), |idx| {
                     T::get_opt_input_iface_mode(req, &mut unit.1, T::TARGETS[idx], timeout_ms)
@@ -240,7 +240,7 @@ pub trait V3OptIfaceCtlOperation<T: V3OptIfaceOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IFACE_IN_MODE_NAME => {
                 unit.0.lock()?;
                 let res =

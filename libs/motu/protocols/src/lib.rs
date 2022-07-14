@@ -14,7 +14,7 @@ pub mod version_3;
 
 use {
     glib::{Error, FileError},
-    hinawa::{FwNode, FwNodeExt, FwReq, FwReqExtManual, FwTcode},
+    hinawa::{prelude::{FwNodeExt, FwReqExtManual}, FwNode, FwReq, FwTcode},
     std::{thread, time},
 };
 

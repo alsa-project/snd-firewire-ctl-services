@@ -492,7 +492,7 @@ impl MixerCtl {
         if self.read_mixer(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
                         .map(|_| true)
@@ -514,7 +514,7 @@ impl MixerCtl {
         if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         self.0.data.enabled = val;
@@ -630,7 +630,7 @@ impl HwStateCtl {
         if self.read_hw_state(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 AUX_IN_ENABLED_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(self.0.data.aux_input_enabled)
                 })

@@ -3,7 +3,7 @@
 
 pub use {
     super::{f828::*, f896::*, v1_ctls::*, *},
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*},
     glib::source,
     motu_protocols::version_1::*,
@@ -146,7 +146,7 @@ where
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         self.dispatchers.push(dispatcher);

@@ -3,7 +3,7 @@
 
 use glib::{FileError, MainContext, MainLoop};
 
-use hinawa::{FwNode, FwNodeError, FwNodeExt, FwReq};
+use hinawa::{prelude::FwNodeExt, FwReq, FwNode, FwNodeError};
 
 use tascam_protocols::*;
 

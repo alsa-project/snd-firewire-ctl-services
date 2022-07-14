@@ -47,7 +47,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             NORMAL_EVENT_CH_NAME => {
                 ElemValueAccessor::<u8>::set_val(elem_value, || Ok(self.midi_sender().normal.ch))
                     .map(|_| true)
@@ -84,7 +84,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             NORMAL_EVENT_CH_NAME => ElemValueAccessor::<u8>::get_val(elem_value, |val| {
                 self.state_write(unit, req, timeout_ms, |state| {
                     state.normal.ch = val;

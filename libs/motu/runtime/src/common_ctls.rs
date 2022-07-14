@@ -41,7 +41,7 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PHONE_ASSIGN_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(*self.state() as u32))
                     .map(|_| true)
@@ -58,7 +58,7 @@ pub trait PhoneAssignCtlOperation<T: AssignOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PHONE_ASSIGN_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 T::set_phone_assign(req, &mut unit.1, val as usize, timeout_ms)
                     .map(|_| *self.state_mut() = val as usize)
@@ -114,7 +114,7 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             WORD_OUT_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = WORD_OUT_MODES
                     .iter()
@@ -135,7 +135,7 @@ pub trait WordClkCtlOperation<T: WordClkOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             WORD_OUT_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 let &mode = WORD_OUT_MODES.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid argument for index of word clock speed: {}", val);
@@ -182,7 +182,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             AESEBU_RATE_CONVERT_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::get_aesebu_rate_convert_mode(req, &mut unit.1, timeout_ms).map(|val| val as u32)
             })
@@ -199,7 +199,7 @@ pub trait AesebuRateConvertCtlOperation<T: AesebuRateConvertOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             AESEBU_RATE_CONVERT_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 T::set_aesebu_rate_convert_mode(req, &mut unit.1, val as usize, timeout_ms)
             })
@@ -316,7 +316,7 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PEAK_HOLD_TIME_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::get_level_meters_peak_hold_time_mode(req, &mut unit.1, timeout_ms)
                     .map(|val| val as u32)
@@ -332,7 +332,7 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
     }
 
     fn refer(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             AESEBU_MODE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || Ok(self.state().0 as u32))
                     .map(|_| true)
@@ -353,7 +353,7 @@ pub trait LevelMetersCtlOperation<T: LevelMetersOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PEAK_HOLD_TIME_MODE_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 T::set_level_meters_peak_hold_time_mode(req, &mut unit.1, val as usize, timeout_ms)
             })

@@ -378,7 +378,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             REVERB_INPUT_LEVEL_NAME => {
                 self.state_write_elem(unit, req, elem_value, timeout_ms, |state, val| {
                     state.input_level = val
@@ -492,7 +492,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             REVERB_INPUT_LEVEL_NAME => self.state_read_elem(elem_value, |state| state.input_level),
             REVERB_BYPASS_NAME => self.state_read_elem(elem_value, |state| state.bypass),
             REVERB_KILL_WET => self.state_read_elem(elem_value, |state| state.kill_wet),
@@ -531,7 +531,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             REVERB_OUTPUT_METER_NAME => {
                 elem_value.set_int(&self.meter().outputs);
                 Ok(true)

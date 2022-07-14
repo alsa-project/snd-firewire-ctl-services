@@ -118,7 +118,7 @@ impl MixerCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PLAYBACK_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.playbacks, |idx| {
                     unit.get_playback_vol(idx, timeout_ms)
@@ -138,7 +138,7 @@ impl MixerCtl {
                 Ok(true)
             }
             MONITOR_GAIN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
                     let val = unit.get_monitor_vol(dst, src, timeout_ms)?;
                     Ok(val)
@@ -146,7 +146,7 @@ impl MixerCtl {
                 Ok(true)
             }
             MONITOR_MUTE_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
                     let val = unit.get_monitor_mute(dst, src, timeout_ms)?;
                     Ok(val)
@@ -154,7 +154,7 @@ impl MixerCtl {
                 Ok(true)
             }
             MONITOR_SOLO_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<bool>::set_vals(elem_value, self.captures, |src| {
                     let val = unit.get_monitor_solo(dst, src, timeout_ms)?;
                     Ok(val)
@@ -162,7 +162,7 @@ impl MixerCtl {
                 Ok(true)
             }
             MONITOR_PAN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.captures, |src| {
                     let val = unit.get_monitor_pan(dst, src, timeout_ms)? as i32;
                     Ok(val)
@@ -191,7 +191,7 @@ impl MixerCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PLAYBACK_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, self.playbacks, |idx, val| {
                     unit.set_playback_vol(idx, val, timeout_ms)
@@ -211,28 +211,28 @@ impl MixerCtl {
                 Ok(true)
             }
             MONITOR_GAIN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
                     unit.set_monitor_vol(dst, src, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             MONITOR_MUTE_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
                     unit.set_monitor_mute(dst, src, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             MONITOR_SOLO_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<bool>::get_vals(new, old, self.captures, |src, val| {
                     unit.set_monitor_solo(dst, src, val, timeout_ms)
                 })?;
                 Ok(true)
             }
             MONITOR_PAN_NAME => {
-                let dst = elem_id.get_index() as usize;
+                let dst = elem_id.index() as usize;
                 ElemValueAccessor::<i32>::get_vals(new, old, self.captures, |src, val| {
                     unit.set_monitor_pan(dst, src, val as u8, timeout_ms)
                 })?;

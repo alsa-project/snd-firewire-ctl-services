@@ -341,7 +341,7 @@ impl StandaloneCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::USE_CASE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let usecase = Mbox3Protocol::read_standalone_use_case(
                     req,
@@ -367,7 +367,7 @@ impl StandaloneCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::USE_CASE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
                 let &usecase = Self::USE_CASES.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid value for standalone usecase: {}", val);
@@ -451,7 +451,7 @@ impl HwCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::MASTER_KNOB_ASSIGN_NAME => {
                 let mut assigns = MasterKnobAssigns::default();
                 Mbox3Protocol::read_master_knob_assign(
@@ -508,12 +508,12 @@ impl HwCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::MASTER_KNOB_ASSIGN_NAME => {
                 let mut assign = MasterKnobAssigns::default();
                 assign
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Mbox3Protocol::write_master_knob_assign(
                     req,
@@ -541,7 +541,7 @@ impl HwCtl {
             Self::INPUT_HPF_NAME => {
                 let mut vals = [false; Self::INPUT_COUNT];
                 vals.iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Mbox3Protocol::write_hpf_enable(req, &mut unit.1, sections, vals, timeout_ms)?;
                 Ok(true)
@@ -650,7 +650,7 @@ impl ReverbCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::TYPE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let reverb_type =
                     Mbox3Protocol::read_reverb_type(req, &mut unit.1, sections, timeout_ms)?;
@@ -687,7 +687,7 @@ impl ReverbCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::TYPE_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
                 let &reverb_type = Self::TYPES.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid value for index of reverb type: {}", val);
@@ -826,7 +826,7 @@ impl ButtonCtl {
     }
 
     fn read(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::MUTE_BUTTON_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = Self::MUTE_LED_STATES
                     .iter()
@@ -864,7 +864,7 @@ impl ButtonCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::MUTE_BUTTON_NAME => ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                 let mut state = self.0.clone();
                 state.mute = Self::MUTE_LED_STATES

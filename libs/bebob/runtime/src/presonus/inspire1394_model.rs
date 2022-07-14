@@ -579,7 +579,7 @@ trait MeterCtlOperation<T: Inspire1394MeterOperation>:
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             IN_METER_NAME => {
                 elem_value.set_int(&self.as_ref().phys_inputs);
                 Ok(true)
@@ -615,7 +615,7 @@ trait SwitchCtlOperation<T: PresonusSwitchOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::SWITCH_NAME {
+        if elem_id.name().as_str() == Self::SWITCH_NAME {
             ElemValueAccessor::<bool>::set_vals(elem_value, T::CH_COUNT, |idx| {
                 T::read_switch(avc, idx, timeout_ms)
             })
@@ -633,7 +633,7 @@ trait SwitchCtlOperation<T: PresonusSwitchOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::SWITCH_NAME {
+        if elem_id.name().as_str() == Self::SWITCH_NAME {
             ElemValueAccessor::<bool>::get_vals(new, old, T::CH_COUNT, |idx, val| {
                 T::write_switch(avc, idx, val, timeout_ms)
             })

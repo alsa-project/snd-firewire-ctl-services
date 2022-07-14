@@ -85,7 +85,7 @@ impl OutputCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::set_vals(elem_value, self.phys_outputs, |idx| {
                     unit.get_vol(idx, timeout_ms)
@@ -121,7 +121,7 @@ impl OutputCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_VOL_NAME => {
                 ElemValueAccessor::<i32>::get_vals(new, old, self.phys_outputs, |idx, val| {
                     unit.set_vol(idx, val, timeout_ms)

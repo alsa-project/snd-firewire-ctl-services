@@ -473,7 +473,7 @@ trait SwitchCtlOperation<T: AvcSelectorOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::SWITCH_NAME {
+        if elem_id.name().as_str() == Self::SWITCH_NAME {
             ElemValueAccessor::<bool>::set_vals(elem_value, Self::CH_COUNT, |idx| {
                 T::read_selector(avc, idx, timeout_ms).map(|val| val > 0)
             })
@@ -491,7 +491,7 @@ trait SwitchCtlOperation<T: AvcSelectorOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::SWITCH_NAME {
+        if elem_id.name().as_str() == Self::SWITCH_NAME {
             ElemValueAccessor::<bool>::get_vals(new, old, Self::CH_COUNT, |idx, val| {
                 T::write_selector(avc, idx, val as usize, timeout_ms)
             })

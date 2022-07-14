@@ -108,7 +108,7 @@ impl<'a> CommonCtl {
     where
         O: Ta1394Avc,
     {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let idx = self.read_freq(avc, timeout_ms)?;
@@ -228,7 +228,7 @@ impl<'a> CommonCtl {
     where
         O: Ta1394Avc,
     {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             Self::CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     unit.0.lock()?;

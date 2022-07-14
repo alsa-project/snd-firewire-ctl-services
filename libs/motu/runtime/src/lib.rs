@@ -33,8 +33,8 @@ use {
     self::{command_dsp_runtime::*, register_dsp_runtime::*, v1_runtime::*},
     core::RuntimeOperation,
     glib::{Error, FileError},
-    hinawa::{FwNode, FwNodeExt, FwNodeExtManual},
-    hitaki::{traits::*, *},
+    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode},
+    hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     motu_protocols::{config_rom::*, *},
     std::convert::TryFrom,
@@ -64,11 +64,11 @@ impl RuntimeOperation<u32> for MotuRuntime {
         let unit = SndMotu::new();
         unit.open(&cdev, 0)?;
 
-        let cdev = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let cdev = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
         node.open(&cdev)?;
 
-        let data = node.get_config_rom()?;
+        let data = node.config_rom()?;
         let unit_data = ConfigRom::try_from(data)
             .map_err(|e| {
                 let msg = format!("Malformed configuration ROM detected: {}", e);

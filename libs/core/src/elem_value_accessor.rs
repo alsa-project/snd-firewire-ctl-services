@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    alsactl::{ElemValue, ElemValueExt, ElemValueExtManual},
+    alsactl::{prelude::*, ElemValue},
     glib::IsA,
 };
 
@@ -68,7 +68,7 @@ impl ElemValueAccessor<bool> for ElemValue {
     where
         F: FnMut(&[bool]) -> Result<(), Error>,
     {
-        cb(&self.get_bool()[..len])
+        cb(&self.boolean()[..len])
     }
 }
 
@@ -81,7 +81,7 @@ impl ElemValueAccessor<u8> for ElemValue {
     where
         F: FnMut(&[u8]) -> Result<(), Error>,
     {
-        cb(&self.get_bytes()[..len])
+        cb(&self.bytes()[..len])
     }
 }
 
@@ -94,7 +94,7 @@ impl ElemValueAccessor<i32> for ElemValue {
     where
         F: FnMut(&[i32]) -> Result<(), Error>,
     {
-        cb(&self.get_int()[..len])
+        cb(&self.int()[..len])
     }
 }
 
@@ -107,7 +107,7 @@ impl ElemValueAccessor<u32> for ElemValue {
     where
         F: FnMut(&[u32]) -> Result<(), Error>,
     {
-        cb(&self.get_enum()[..len])
+        cb(&self.enumerated()[..len])
     }
 }
 
@@ -120,6 +120,6 @@ impl ElemValueAccessor<i64> for ElemValue {
     where
         F: FnMut(&[i64]) -> Result<(), Error>,
     {
-        cb(&self.get_int64()[..len])
+        cb(&self.int64()[..len])
     }
 }

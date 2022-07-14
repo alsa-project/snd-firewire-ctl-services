@@ -12,11 +12,11 @@ mod output_ctl;
 mod port_ctl;
 
 use {
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
     glib::{source, Error, FileError},
-    hinawa::{FwNode, FwNodeExt, FwNodeExtManual},
-    hitaki::{traits::*, SndEfw},
+    hinawa::{prelude::{FwNodeExtManual, FwNodeExt}, FwNode},
+    hitaki::{prelude::*, SndEfw},
     nix::sys::signal,
     std::{sync::mpsc, thread, time},
 };
@@ -66,9 +66,9 @@ impl RuntimeOperation<u32> for EfwRuntime {
         let node = FwNode::new();
         node.open(&format!(
             "/dev/{}",
-            unit.get_property_node_device().unwrap()
+            unit.node_device().unwrap()
         ))?;
-        let data = node.get_config_rom()?;
+        let data = node.config_rom()?;
         let model = model::EfwModel::new(&data)?;
 
         let card_cntr = CardCntr::default();
@@ -129,7 +129,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
                     );
                 }
                 Event::Elem((elem_id, events)) => {
-                    if elem_id.get_name() != Self::TIMER_NAME {
+                    if elem_id.name() != Self::TIMER_NAME {
                         let _ = self.card_cntr.dispatch_elem_event(
                             &mut self.unit,
                             &elem_id,
@@ -144,7 +144,7 @@ impl RuntimeOperation<u32> for EfwRuntime {
                             .read_elem_value(&elem_id, &mut elem_value)
                             .is_ok()
                         {
-                            let val = elem_value.get_bool()[0];
+                            let val = elem_value.boolean()[0];
                             if val {
                                 let _ = self.start_interval_timer();
                             } else {
@@ -191,7 +191,7 @@ impl EfwRuntime {
 
         let tx = self.tx.clone();
         self.node.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         self.dispatchers.push(dispatcher);
@@ -219,8 +219,8 @@ impl EfwRuntime {
             });
 
         let tx = self.tx.clone();
-        self.unit.connect_property_is_locked_notify(move |unit| {
-            let locked = unit.get_property_is_locked();
+        self.unit.connect_is_locked_notify(move |unit| {
+            let locked = unit.is_locked();
             let t = tx.clone();
             let _ = thread::spawn(move || {
                 // The notification of stream lock is not strictly corresponding to actual

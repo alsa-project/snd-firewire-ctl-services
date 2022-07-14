@@ -503,7 +503,7 @@ impl MicInputCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
                 let vals: Vec<i32> = self.0.gain.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
@@ -525,15 +525,15 @@ impl MicInputCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals = &elem_value.get_int()[..TravelerProtocol::MIC_INPUT_COUNT];
+                let vals = &elem_value.int()[..TravelerProtocol::MIC_INPUT_COUNT];
                 let gain: Vec<u8> = vals.iter().map(|&val| val as u8).collect();
                 TravelerProtocol::write_mic_gain(req, &mut unit.1, &gain, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_PAD_NAME => {
-                let pad = &elem_value.get_bool()[..TravelerProtocol::MIC_INPUT_COUNT];
+                let pad = &elem_value.boolean()[..TravelerProtocol::MIC_INPUT_COUNT];
                 TravelerProtocol::write_mic_pad(req, &mut unit.1, &pad, &mut self.0, timeout_ms)
                     .map(|_| true)
             }

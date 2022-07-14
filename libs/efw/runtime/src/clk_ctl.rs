@@ -86,7 +86,7 @@ impl ClkCtl {
     }
 
     pub fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 Ok(self.srcs.iter().position(|s| self.curr_src.eq(s)).unwrap() as u32)
             })
@@ -111,7 +111,7 @@ impl ClkCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     if let Some(&src) = self.srcs.iter().nth(val as usize) {

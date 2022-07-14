@@ -12,11 +12,11 @@ publish = false
 
 [dependencies]
 nix = "0.17"
-glib = "0.10"
-hinawa = "0.5"
-hitaki = "0.1"
-alsactl = "0.3"
-alsaseq = "0.3"
+glib = "0.15"
+hinawa = "0.7"
+hitaki = "0.2"
+alsactl = "0.4"
+alsaseq = "0.4"
 ieee1212-config-rom = "0.1"
 alsa-ctl-tlv-codec = "0.1"
 tascam-protocols = "0.1"

@@ -11,42 +11,29 @@ pub mod fe8;
 use {
     super::*,
     glib::{
-        subclass::{object::*, simple, types::*},
-        translate::*,
+        subclass::{object::*, types::*},
         *,
     },
-    hinawa::{subclass::fw_resp::*, *},
-    hitaki::{subclass::tascam_protocol::*, *},
+    hinawa::{prelude::*, subclass::prelude::*, *},
+    hitaki::{prelude::*, subclass::prelude::*, *},
     std::{cell::RefCell, sync::Mutex},
 };
 
-glib_wrapper! {
-    pub struct TascamExpander(
-        Object<simple::InstanceStruct<imp::TascamExpanderPrivate>,
-        simple::ClassStruct<imp::TascamExpanderPrivate>, TascamExpanderClass>
-    ) @extends FwResp, @implements TascamProtocol;
-
-    match fn {
-        get_type => || imp::TascamExpanderPrivate::get_type().to_glib(),
-    }
+glib::wrapper! {
+    pub struct TascamExpander(ObjectSubclass<imp::TascamExpanderPrivate>)
+        @extends FwResp, @implements TascamProtocol;
 }
 
 impl TascamExpander {
     pub const QUADLET_COUNT: usize = imp::RESPONSE_FRAME_SIZE / 4;
 
     pub fn new() -> Self {
-        Object::new(Self::static_type(), &[])
+        Object::new(&[])
             .expect("Failed to create TascamExpander")
-            .downcast()
-            .expect("Created row data is of wrong type")
     }
 
-    fn get_property_node(&self) -> Result<FwNode, Error> {
-        self.get_property("node")
-            .map_err(|e| Error::new(FileError::Nxio, &e.message))?
-            .get::<FwNode>()
-            .map_err(|e| Error::new(FileError::Nxio, &format!("{:?}", e)))?
-            .ok_or_else(|| Error::new(FileError::Nxio, "node property is not available"))
+    fn node(&self) -> FwNode {
+        self.property::<FwNode>("node")
     }
 
     pub fn bind(&self, node: &FwNode) -> Result<(), Error> {
@@ -57,8 +44,8 @@ impl TascamExpander {
             imp::RESPONSE_FRAME_SIZE as u32,
         )?;
 
-        let mut addr = self.get_property_offset();
-        addr |= (node.get_property_local_node_id() as u64) << 48;
+        let mut addr = self.offset();
+        addr |= (node.local_node_id() as u64) << 48;
 
         let mut req = FwReq::new();
 
@@ -68,34 +55,29 @@ impl TascamExpander {
         let mut addr_lo = ((addr & 0xffffffff) as u32).to_be_bytes();
         write_quadlet(&mut req, node, imp::ADDR_LOW_OFFSET, &mut addr_lo, 100)?;
 
-        self.set_property("node", node).unwrap();
+        self.set_property("node", node);
 
         Ok(())
     }
 
     pub fn listen(&self) -> Result<(), Error> {
-        let node = self.get_property_node()?;
         let mut frames = 1u32.to_be_bytes();
         let mut req = FwReq::new();
-        write_quadlet(&mut req, &node, imp::ENABLE_NOTIFICATION, &mut frames, 100)
+        write_quadlet(&mut req, &self.node(), imp::ENABLE_NOTIFICATION, &mut frames, 100)
     }
 
     pub fn unlisten(&self) {
-        if let Ok(node) = self.get_property_node() {
-            let mut frames = 0u32.to_be_bytes();
-            let mut req = FwReq::new();
-            let _ = write_quadlet(&mut req, &node, imp::ENABLE_NOTIFICATION, &mut frames, 100);
-        }
+        let mut frames = 0u32.to_be_bytes();
+        let mut req = FwReq::new();
+        let _ = write_quadlet(&mut req, &self.node(), imp::ENABLE_NOTIFICATION, &mut frames, 100);
     }
 
     pub fn unbind(&self) {
         self.release();
 
-        if let Ok(node) = self.get_property_node() {
-            let mut req = FwReq::new();
-            let _ = write_quadlet(&mut req, &node, imp::ADDR_HIGH_OFFSET, &mut [0; 4], 100);
-            let _ = write_quadlet(&mut req, &node, imp::ADDR_LOW_OFFSET, &mut [0; 4], 100);
-        }
+        let mut req = FwReq::new();
+        let _ = write_quadlet(&mut req, &self.node(), imp::ADDR_HIGH_OFFSET, &mut [0; 4], 100);
+        let _ = write_quadlet(&mut req, &self.node(), imp::ADDR_LOW_OFFSET, &mut [0; 4], 100);
 
         let private = imp::TascamExpanderPrivate::from_instance(self);
         *private.0.borrow_mut() = None;
@@ -103,7 +85,7 @@ impl TascamExpander {
 }
 
 mod imp {
-    use super::*;
+    use {once_cell::sync::Lazy, super::*};
 
     pub const RESPONSE_REGION_START: u64 = 0xffffe0000000;
     pub const RESPONSE_REGION_END: u64 = 0xfffff0000000;
@@ -119,54 +101,45 @@ mod imp {
         RefCell<Mutex<[u32; super::TascamExpander::QUADLET_COUNT]>>,
     );
 
-    static PROPERTIES: [Property; 1] = [Property("node", |node| {
-        ParamSpec::object(
-            node,
-            "node",
-            "An instance of FwNode",
-            FwNode::static_type(),
-            ParamFlags::READWRITE,
-        )
-    })];
-
+    #[glib::object_subclass]
     impl ObjectSubclass for TascamExpanderPrivate {
-        const NAME: &'static str = "TascamExpander";
-        type ParentType = FwResp;
-        type Instance = simple::InstanceStruct<Self>;
-        type Class = simple::ClassStruct<Self>;
+            const NAME: &'static str = "TascamExpander";
+            type Type = super::TascamExpander;
+            type ParentType = FwResp;
+            type Interfaces = (TascamProtocol,);
 
-        glib_object_subclass!();
-
-        fn new() -> Self {
-            Self::default()
-        }
-
-        fn class_init(klass: &mut Self::Class) {
-            klass.install_properties(&PROPERTIES);
-        }
-
-        fn type_init(type_: &mut InitializingType<Self>) {
-            type_.add_interface::<TascamProtocol>();
-        }
+            fn new() -> Self {
+                Self::default()
+            }
     }
 
     impl ObjectImpl for TascamExpanderPrivate {
-        glib_object_impl!();
+        fn properties() -> &'static [ParamSpec] {
+            static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
+                vec![
+                    ParamSpecObject::new(
+                        "node",
+                        "node",
+                        "An instance of FwNode",
+                        FwNode::static_type(),
+                        ParamFlags::READWRITE,
+                    ),
+                ]
+            });
 
-        fn get_property(&self, _obj: &Object, id: usize) -> Result<Value, ()> {
-            let prop = &PROPERTIES[id];
+            PROPERTIES.as_ref()
+        }
 
-            match *prop {
-                Property("node", ..) => Ok(self.0.borrow().as_ref().unwrap().to_value()),
+        fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
+            match pspec.name() {
+                "node" => self.0.borrow().as_ref().unwrap().to_value(),
                 _ => unimplemented!(),
             }
         }
 
-        fn set_property(&self, _obj: &Object, id: usize, value: &Value) {
-            let prop = &PROPERTIES[id];
-
-            match *prop {
-                Property("node", ..) => {
+        fn set_property(&self, _unit: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
+            match pspec.name() {
+                "name" => {
                     let node = value
                         .get()
                         .expect("type conformity checked by `Object::set_property`");
@@ -204,7 +177,7 @@ mod imp {
     impl FwRespImpl for TascamExpanderPrivate {
         fn requested2(
             &self,
-            resp: &FwResp,
+            resp: &Self::Type,
             tcode: FwTcode,
             offset: u64,
             src: u32,
@@ -213,7 +186,7 @@ mod imp {
             _generation: u32,
             frame: &[u8],
         ) -> FwRcode {
-            if !resp.get_property_is_reserved() {
+            if !resp.is_reserved() {
                 return FwRcode::DataError;
             }
 
@@ -224,7 +197,7 @@ mod imp {
 
             match self.0.borrow().as_ref() {
                 Some(node) => {
-                    if src != node.get_property_node_id() || offset != resp.get_property_offset() {
+                    if src != node.node_id() || offset != resp.offset() {
                         return FwRcode::AddressError;
                     }
                 }
@@ -252,7 +225,7 @@ mod imp {
     }
 
     impl TascamProtocolImpl for TascamExpanderPrivate {
-        fn read_state(&self, _unit: &TascamProtocol, state: &mut Vec<u32>) -> Result<(), Error> {
+        fn read_state(&self, _unit: &Self::Type, state: &mut Vec<u32>) -> Result<(), Error> {
             if state.len() < super::TascamExpander::QUADLET_COUNT {
                 let msg = format!(
                     "The size of buffer should be greater than 32 but {}",
@@ -274,6 +247,6 @@ mod imp {
             }
         }
 
-        fn changed(&self, _unit: &TascamProtocol, _index: u32, _before: u32, _after: u32) {}
+        fn changed(&self, _unit: &Self::Type, _index: u32, _before: u32, _after: u32) {}
     }
 }

@@ -11,11 +11,11 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [dependencies]
-glib = "0.10"
+glib = "0.15"
 nix = "0.17"
-alsactl = "0.3"
-hinawa = "0.5"
-hitaki = "0.1"
+alsactl = "0.4"
+hinawa = "0.7"
+hitaki = "0.2"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 dice-protocols = "0.1"

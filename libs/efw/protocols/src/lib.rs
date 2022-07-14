@@ -20,7 +20,7 @@ pub mod transport;
 
 use {
     glib::{Error, FileError},
-    hitaki::{EfwProtocolError, EfwProtocolExtManual},
+    hitaki::{prelude::EfwProtocolExtManual, EfwProtocolError},
 };
 
 /// The enumeration to express source of sampling clock.

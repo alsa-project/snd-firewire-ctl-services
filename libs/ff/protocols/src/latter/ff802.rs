@@ -3,8 +3,10 @@
 
 //! Protocol defined by RME GmbH for Fireface 802.
 
-use super::*;
-use crate::*;
+use {
+    super::*,
+    crate::*,
+};
 
 /// The structure to represent unique protocol for Fireface 802.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]

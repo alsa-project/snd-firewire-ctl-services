@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 use glib::FileError;
 
-use hinawa::{FwNode, FwNodeError, FwNodeExt, FwNodeExtManual};
+use hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError};
 
 use ff_protocols::*;
 use ieee1212_config_rom::*;
@@ -60,7 +60,7 @@ fn main() {
                     )
                 })?;
 
-                node.get_config_rom()
+                node.config_rom()
                     .map_err(|e| format!("Fail to get content of configuration ROM: {}", e))
                     .map(|raw| raw.to_vec())
             }

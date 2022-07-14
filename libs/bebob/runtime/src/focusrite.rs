@@ -31,7 +31,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::read_clk_freq(req, &unit.1, timeout_ms).map(|idx| idx as u32)
             })
@@ -48,7 +48,7 @@ trait SaffireProMediaClkFreqCtlOperation<T: SaffireProioMediaClockFrequencyOpera
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_RATE_NAME => {
                 unit.0.lock()?;
                 let res = ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -97,7 +97,7 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 T::read_clk_src(req, &unit.1, timeout_ms).map(|idx| idx as u32)
             })
@@ -114,7 +114,7 @@ trait SaffireProSamplingClkSrcCtlOperation<T: SaffireProioSamplingClockSourceOpe
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CLK_SRC_NAME => {
                 unit.0.lock()?;
                 let res = ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -185,7 +185,7 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MONITOR_KNOB_VALUE_NAME => {
                 elem_value.set_int(&[self.as_ref().monitor_knob as i32]);
                 Ok(true)
@@ -301,7 +301,7 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_MUTE_NAME => {
                 elem_value.set_bool(&self.as_ref().mutes);
                 Ok(true)
@@ -335,26 +335,26 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OUT_MUTE_NAME => {
-                let vals = &elem_value.get_bool()[..self.as_ref().mutes.len()];
+                let vals = &elem_value.boolean()[..self.as_ref().mutes.len()];
                 T::write_mutes(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_VOL_NAME => {
-                let vals = &elem_value.get_int()[..self.as_ref().vols.len()];
+                let vals = &elem_value.int()[..self.as_ref().vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
                 T::write_vols(req, &unit.1, &vols, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_HWCTL_NAME => {
-                let vals = &elem_value.get_bool()[..self.as_ref().hwctls.len()];
+                let vals = &elem_value.boolean()[..self.as_ref().hwctls.len()];
                 T::write_hwctls(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_DIM_NAME => {
-                let vals = &elem_value.get_bool()[..self.as_ref().dims.len()];
+                let vals = &elem_value.boolean()[..self.as_ref().dims.len()];
                 T::write_dims(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             OUT_PAD_NAME => {
-                let vals = &elem_value.get_bool()[..self.as_ref().pads.len()];
+                let vals = &elem_value.boolean()[..self.as_ref().pads.len()];
                 T::write_pads(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
@@ -445,7 +445,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
     }
 
     fn read_src_levels(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        let name = elem_id.get_name();
+        let name = elem_id.name();
 
         if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
             read_mixer_src_levels(elem_value, elem_id, &self.as_ref().phys_inputs)
@@ -467,7 +467,7 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        let name = &elem_id.get_name();
+        let name = &elem_id.name();
 
         if name.as_str() == Self::PHYS_INPUT_GAIN_NAME {
             if Self::MIXER_MODE != mixer_mode {
@@ -476,12 +476,12 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     "Not available at current mixer mode",
                 ))
             } else {
-                let vals = &elem_value.get_int()[..T::PHYS_INPUT_COUNT];
+                let vals = &elem_value.int()[..T::PHYS_INPUT_COUNT];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
                     levels.push(v as i16);
                     levels
                 });
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 T::write_phys_inputs(req, &unit.1, index, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -492,12 +492,12 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     "Not available at current mixer mode",
                 ))
             } else {
-                let vals = &elem_value.get_int()[..T::REVERB_RETURN_COUNT];
+                let vals = &elem_value.int()[..T::REVERB_RETURN_COUNT];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
                     levels.push(v as i16);
                     levels
                 });
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 T::write_reverb_returns(req, &unit.1, index, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -508,12 +508,12 @@ trait SaffireMixerCtlOperation<T: SaffireMixerOperation>:
                     "Not available at current mixer mode",
                 ))
             } else {
-                let vals = &elem_value.get_int()[..T::STREAM_INPUT_COUNT];
+                let vals = &elem_value.int()[..T::STREAM_INPUT_COUNT];
                 let levels: Vec<i16> = vals.iter().fold(Vec::new(), |mut levels, &v| {
                     levels.push(v as i16);
                     levels
                 });
-                let index = elem_id.get_index() as usize;
+                let index = elem_id.index() as usize;
                 T::write_stream_inputs(req, &unit.1, index, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
@@ -528,7 +528,7 @@ fn read_mixer_src_levels(
     elem_id: &ElemId,
     levels_list: &[Vec<i16>],
 ) -> Result<bool, Error> {
-    let index = elem_id.get_index() as usize;
+    let index = elem_id.index() as usize;
     levels_list
         .iter()
         .nth(index)
@@ -568,7 +568,7 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIDI_THROUGH_NAME => {
                 let mut val = false;
                 T::read_midi_through(req, &unit.1, &mut val, timeout_ms)?;
@@ -593,13 +593,13 @@ trait SaffireThroughCtlOperation<T: SaffireThroughOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIDI_THROUGH_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 T::write_midi_through(req, &unit.1, val, timeout_ms).map(|_| true)
             }
             AC3_THROUGH_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 T::write_ac3_through(req, &unit.1, val, timeout_ms).map(|_| true)
             }
             _ => Ok(false),
@@ -674,9 +674,9 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRO_MONITOR_ANALOG_INPUT_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = self.as_ref().analog_inputs[idx]
                     .iter()
                     .map(|&val| val as i32)
@@ -685,7 +685,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                 Ok(true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
-                let idx = elem_id.get_index() as usize;
+                let idx = elem_id.index() as usize;
                 let vals: Vec<i32> = self.as_ref().spdif_inputs[idx]
                     .iter()
                     .map(|&val| val as i32)
@@ -695,7 +695,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if let Some(adat_inputs) = self.as_ref().adat_inputs {
-                    let idx = elem_id.get_index() as usize;
+                    let idx = elem_id.index() as usize;
                     let vals: Vec<i32> = adat_inputs[idx].iter().map(|&val| val as i32).collect();
                     elem_value.set_int(&vals);
                     Ok(true)
@@ -715,26 +715,26 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRO_MONITOR_ANALOG_INPUT_NAME => {
-                let idx = elem_id.get_index() as usize;
-                let vals = &elem_value.get_int()[..self.as_ref().analog_inputs[idx].len()];
+                let idx = elem_id.index() as usize;
+                let vals = &elem_value.int()[..self.as_ref().analog_inputs[idx].len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 T::write_analog_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
-                let idx = elem_id.get_index() as usize;
-                let vals = &elem_value.get_int()[..self.as_ref().spdif_inputs[idx].len()];
+                let idx = elem_id.index() as usize;
+                let vals = &elem_value.int()[..self.as_ref().spdif_inputs[idx].len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 T::write_spdif_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
                 if T::HAS_ADAT {
-                    let vals = &elem_value.get_int()[..16];
+                    let vals = &elem_value.int()[..16];
                     let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
-                    let idx = elem_id.get_index() as usize;
+                    let idx = elem_id.index() as usize;
                     T::write_adat_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
                         .map(|_| true)
                 } else {
@@ -814,7 +814,7 @@ impl SaffireProioMixerCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRO_MIXER_MONITOR_SRC_NAME => {
                 let vals: Vec<i32> = self
                     .0
@@ -857,9 +857,9 @@ impl SaffireProioMixerCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRO_MIXER_MONITOR_SRC_NAME => {
-                let vals = &elem_value.get_int()[..self.0.monitor_sources.len()];
+                let vals = &elem_value.int()[..self.0.monitor_sources.len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_monitor_sources(
                     req,
@@ -871,7 +871,7 @@ impl SaffireProioMixerCtl {
                 .map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_PAIR_0_NAME => {
-                let vals = &elem_value.get_int()[..self.0.stream_source_pair0.len()];
+                let vals = &elem_value.int()[..self.0.stream_source_pair0.len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_source_pair0(
                     req,
@@ -883,7 +883,7 @@ impl SaffireProioMixerCtl {
                 .map(|_| true)
             }
             PRO_MIXER_STREAM_SRC_NAME => {
-                let vals = &elem_value.get_int()[..self.0.stream_sources.len()];
+                let vals = &elem_value.int()[..self.0.stream_sources.len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                 SaffireProioMixerProtocol::write_stream_sources(
                     req,
@@ -959,7 +959,7 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             HEAD_ROOM_NAME => {
                 elem_value.set_bool(&[self.as_ref().head_room]);
                 Ok(true)
@@ -1000,22 +1000,22 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             HEAD_ROOM_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 T::write_head_room(req, &unit.1, val, self.as_mut(), timeout_ms).map(|_| true)
             }
             PHANTOM_POWERING_NAME => {
-                let vals = &elem_value.get_bool()[..self.as_ref().phantom_powerings.len()];
+                let vals = &elem_value.boolean()[..self.as_ref().phantom_powerings.len()];
                 T::write_phantom_powerings(req, &unit.1, &vals, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }
             INSERT_SWAP_NAME => {
-                let vals = &elem_value.get_bool()[..self.as_ref().insert_swaps.len()];
+                let vals = &elem_value.boolean()[..self.as_ref().insert_swaps.len()];
                 T::write_insert_swaps(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
             }
             STANDALONE_MODE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &mode = Self::STANDALONE_MODES
                     .iter()
                     .nth(val as usize)
@@ -1027,11 +1027,11 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
                     .map(|_| true)
             }
             ADAT_ENABLE_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 T::write_adat_enable(req, &unit.1, val, self.as_mut(), timeout_ms).map(|_| true)
             }
             DIRECT_MONITORING_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 T::write_direct_monitoring(req, &unit.1, val, self.as_mut(), timeout_ms)
                     .map(|_| true)
             }

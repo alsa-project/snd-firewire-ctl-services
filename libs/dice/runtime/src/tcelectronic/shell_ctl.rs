@@ -66,7 +66,7 @@ where
         if self.read_firewire_led(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 ANALOG_JACK_STATE_NAME => ElemValueAccessor::<u32>::set_vals(
                     elem_value,
                     SHELL_ANALOG_JACK_STATE_COUNT,
@@ -323,7 +323,7 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
                 self.state_write(unit, req, new, timeout_ms, |state, val| {
                     state.stream.left.gain_to_mixer = val;
@@ -474,7 +474,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_STREAM_SRC_PAIR_GAIN_NAME => {
                 elem_value.set_int(&[self.state().stream.left.gain_to_mixer]);
                 Ok(true)
@@ -538,7 +538,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             STREAM_IN_METER_NAME => {
                 elem_value.set_int(&self.meter().stream_inputs);
                 Ok(true)
@@ -692,7 +692,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             USE_AS_PLUGIN_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
                 Ok(self.reverb_return().plugin_mode)
             })
@@ -709,7 +709,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             USE_AS_PLUGIN_NAME => {
                 ElemValueAccessor::<bool>::get_val(elem_value, |val| {
                     self.reverb_return_mut().plugin_mode = val;
@@ -740,7 +740,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             GAIN_NAME => ElemValueAccessor::<i32>::set_val(elem_value, || {
                 Ok(self.reverb_return().return_gain)
             })
@@ -787,7 +787,7 @@ where
     }
 
     fn read_standalone(&mut self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = S::STANDALONE_CLOCK_SOURCES
                     .iter()
@@ -808,7 +808,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     S::STANDALONE_CLOCK_SOURCES
@@ -878,7 +878,7 @@ where
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_STREAM_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = Self::MIXER_STREAM_SRC_PAIRS
                     .iter()
@@ -900,7 +900,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIXER_STREAM_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::MIXER_STREAM_SRC_PAIRS
@@ -964,7 +964,7 @@ where
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             COAX_OUT_SRC_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = PHYS_OUT_SRCS
                     .iter()
@@ -985,7 +985,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             COAX_OUT_SRC_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     PHYS_OUT_SRCS
@@ -1071,7 +1071,7 @@ where
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IN_FMT_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let pos = Self::IN_FMTS
                     .iter()
@@ -1108,7 +1108,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             OPT_IN_FMT_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     Self::IN_FMTS
@@ -1177,7 +1177,7 @@ where
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             TARGET_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let state = self.knob_target();
                 if state.0 >= Self::TARGETS.len() as u32 {
@@ -1200,7 +1200,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             TARGET_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     if val >= Self::TARGETS.len() as u32 {
@@ -1242,7 +1242,7 @@ where
         elem_id: &ElemId,
         elem_value: &ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             KNOB2_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                 let state = self.knob2_target();
                 if state.0 >= Self::TARGETS.len() as u32 {
@@ -1265,7 +1265,7 @@ where
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             KNOB2_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
                     if val >= Self::TARGETS.len() as u32 {

@@ -544,7 +544,7 @@ trait SpecificCtlOperation<T: PfireSpecificOperation> {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MASTER_KNOB_NAME => {
                 T::read_knob_assign(
                     req,
@@ -589,7 +589,7 @@ trait SpecificCtlOperation<T: PfireSpecificOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MASTER_KNOB_NAME => {
                 ElemValueAccessor::<bool>::get_vals(new, old, T::KNOB_COUNT, |idx, val| {
                     self.state_mut()[idx] = val;

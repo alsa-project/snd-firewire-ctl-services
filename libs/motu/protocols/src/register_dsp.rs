@@ -71,10 +71,10 @@ pub trait RegisterDspMixerOutputOperation {
         state: &mut RegisterDspMixerOutputState,
         param: &SndMotuRegisterDspParameter,
     ) {
-        let vols = param.get_mixer_output_paired_volume();
+        let vols = param.mixer_output_paired_volume();
         state.volume.copy_from_slice(vols);
 
-        let flags = param.get_mixer_output_paired_flag();
+        let flags = param.mixer_output_paired_flag();
         state
             .mute
             .iter_mut()
@@ -312,20 +312,20 @@ pub trait RegisterDspMixerMonauralSourceOperation {
         param: &SndMotuRegisterDspParameter,
     ) {
         state.0.iter_mut().enumerate().for_each(|(i, src)| {
-            let gains = param.get_mixer_source_gain(i);
+            let gains = param.mixer_source_gain(i);
             src.gain
                 .iter_mut()
                 .zip(gains)
                 .for_each(|(dst, src)| *dst = *src);
 
-            let pans = param.get_mixer_source_pan(i);
+            let pans = param.mixer_source_pan(i);
             src.pan
                 .iter_mut()
                 .zip(pans)
                 .for_each(|(dst, src)| *dst = *src);
 
             let flags: Vec<u32> = param
-                .get_mixer_source_flag(i)
+                .mixer_source_flag(i)
                 .iter()
                 .map(|&flag| (flag as u32) << 16)
                 .collect();
@@ -585,20 +585,20 @@ pub trait RegisterDspMixerStereoSourceOperation {
         param: &SndMotuRegisterDspParameter,
     ) {
         state.0.iter_mut().enumerate().for_each(|(i, src)| {
-            let gains = param.get_mixer_source_gain(i);
+            let gains = param.mixer_source_gain(i);
             src.gain
                 .iter_mut()
                 .zip(gains)
                 .for_each(|(dst, src)| *dst = *src);
 
-            let pans = param.get_mixer_source_pan(i);
+            let pans = param.mixer_source_pan(i);
             src.pan
                 .iter_mut()
                 .zip(pans)
                 .for_each(|(dst, src)| *dst = *src);
 
             let flags: Vec<u32> = param
-                .get_mixer_source_flag(i)
+                .mixer_source_flag(i)
                 .iter()
                 .map(|&flag| (flag as u32) << 16)
                 .collect();
@@ -905,8 +905,8 @@ pub trait RegisterDspOutputOperation {
         state: &mut RegisterDspOutputState,
         param: &SndMotuRegisterDspParameter,
     ) {
-        state.master_volume = param.get_main_output_paired_volume();
-        state.phone_volume = param.get_headphone_output_paired_volume();
+        state.master_volume = param.main_output_paired_volume();
+        state.phone_volume = param.headphone_output_paired_volume();
     }
 
     fn parse_dsp_event(state: &mut RegisterDspOutputState, event: &RegisterDspEvent) -> bool {
@@ -1004,7 +1004,7 @@ pub trait Traveler828mk2LineInputOperation {
         state: &mut RegisterDspLineInputState,
         param: &SndMotuRegisterDspParameter,
     ) {
-        let flags = param.get_line_input_nominal_level_flag();
+        let flags = param.line_input_nominal_level_flag();
         state.level.iter_mut().enumerate().for_each(|(i, level)| {
             let shift = i + Self::CH_OFFSET;
             *level = if flags & (1 << shift) > 0 {
@@ -1014,7 +1014,7 @@ pub trait Traveler828mk2LineInputOperation {
             };
         });
 
-        let flags = param.get_line_input_boost_flag();
+        let flags = param.line_input_boost_flag();
         state.boost.iter_mut().enumerate().for_each(|(i, boost)| {
             let shift = i + Self::CH_OFFSET;
             *boost = flags & (1 << shift) > 0;
@@ -1184,7 +1184,7 @@ pub trait RegisterDspMonauralInputOperation {
         state: &mut RegisterDspMonauralInputState,
         param: &SndMotuRegisterDspParameter,
     ) {
-        let vals = param.get_input_gain_and_invert();
+        let vals = param.input_gain_and_invert();
         state
             .gain
             .iter_mut()
@@ -1327,7 +1327,7 @@ pub trait RegisterDspStereoInputOperation {
         state: &mut RegisterDspStereoInputState,
         param: &SndMotuRegisterDspParameter,
     ) {
-        let vals = param.get_input_gain_and_invert();
+        let vals = param.input_gain_and_invert();
         state
             .gain
             .iter_mut()
@@ -1339,7 +1339,7 @@ pub trait RegisterDspStereoInputOperation {
             .zip(vals)
             .for_each(|(invert, val)| *invert = val & STEREO_INPUT_INVERT_FLAG > 0);
 
-        let flags = param.get_input_flag();
+        let flags = param.input_flag();
         state
             .phantom
             .iter_mut()

@@ -296,7 +296,7 @@ impl KnobCtl {
         if self.read_knob_target(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 CLK_RECOVERY_NAME => ElemValueAccessor::<bool>::set_val(elem_value, || {
                     Ok(self.0.data.clock_recovery)
                 })
@@ -318,7 +318,7 @@ impl KnobCtl {
         if self.write_knob_target(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 CLK_RECOVERY_NAME => {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         self.0.data.clock_recovery = val;
@@ -478,7 +478,7 @@ impl ConfigCtl {
         } else if self.read_standalone(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUT_SRC_NAME => ElemValueAccessor::<u32>::set_vals(
                     elem_value,
                     ITWIN_PHYS_OUT_PAIR_COUNT,
@@ -510,7 +510,7 @@ impl ConfigCtl {
         } else if self.write_standalone(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 OUT_SRC_NAME => {
                     ElemValueAccessor::<u32>::get_vals(
                         new,
@@ -633,7 +633,7 @@ impl MixerCtl {
         if self.read_mixer(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::set_val(elem_value, || Ok(self.0.data.enabled))
                         .map(|_| true)
@@ -655,7 +655,7 @@ impl MixerCtl {
         if self.write_mixer(unit, req, elem_id, old, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 MIXER_ENABLE_NAME => {
                     ElemValueAccessor::<bool>::get_val(new, |val| {
                         self.0.data.enabled = val;
@@ -789,7 +789,7 @@ impl HwStateCtl {
         if self.read_hw_state(elem_id, elem_value)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 LISTENING_MODE_NAME => ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pos = Self::LISTENING_MODES
                         .iter()
@@ -815,7 +815,7 @@ impl HwStateCtl {
         if self.write_hw_state(unit, req, elem_id, new, timeout_ms)? {
             Ok(true)
         } else {
-            match elem_id.get_name().as_str() {
+            match elem_id.name().as_str() {
                 LISTENING_MODE_NAME => {
                     ElemValueAccessor::<u32>::get_val(new, |val| {
                         Self::LISTENING_MODES

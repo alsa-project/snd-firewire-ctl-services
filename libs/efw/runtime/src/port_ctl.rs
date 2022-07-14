@@ -79,7 +79,7 @@ fn enum_values_from_entries(elem_value: &mut ElemValue, entries: &[Option<usize>
 }
 
 fn enum_values_to_entries(elem_value: &ElemValue, entries: &mut [Option<usize>]) {
-    let vals = &elem_value.get_enum()[..entries.len()];
+    let vals = &elem_value.enumerated()[..entries.len()];
     entries
         .iter_mut()
         .zip(vals)
@@ -256,7 +256,7 @@ impl PortCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CONTROL_ROOM_SOURCE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
                     let pair = unit.get_control_room_source(timeout_ms)?;
@@ -290,7 +290,7 @@ impl PortCtl {
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             RX_MAP_NAME => {
                 enum_values_from_entries(elem_value, &self.rx_stream_map);
                 Ok(true)
@@ -311,7 +311,7 @@ impl PortCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             CONTROL_ROOM_SOURCE_NAME => {
                 ElemValueAccessor::<u32>::get_val(new, |val| {
                     unit.set_control_room_source(val as usize, timeout_ms)

@@ -18,11 +18,11 @@ mod tcd22xx_ctl;
 
 use {
     alsa_ctl_tlv_codec::DbInterval,
-    alsactl::*,
+    alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{FwNode, FwNodeExt, FwNodeExtManual, FwReq},
-    hitaki::*,
+    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
+    hitaki::{prelude::*, *},
     model::*,
     nix::sys::signal,
     std::sync::mpsc,
@@ -53,7 +53,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
         let path = format!("/dev/snd/hwC{}D0", card_id);
         unit.open(&path, 0)?;
 
-        let path = format!("/dev/{}", unit.get_property_node_device().unwrap());
+        let path = format!("/dev/{}", unit.node_device().unwrap());
         let node = FwNode::new();
         node.open(&path)?;
 
@@ -104,7 +104,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
                         println!("IEEE 1394 bus is updated: {}", generation);
                     }
                     Event::Elem(elem_id, events) => {
-                        if elem_id.get_name() != Self::TIMER_NAME {
+                        if elem_id.name() != Self::TIMER_NAME {
                             let _ = self.model.dispatch_elem_event(
                                 &mut self.unit,
                                 &mut self.card_cntr,
@@ -118,7 +118,7 @@ impl RuntimeOperation<u32> for DiceRuntime {
                                 .card
                                 .read_elem_value(&elem_id, &mut elem_value)
                                 .map(|_| {
-                                    let val = elem_value.get_bool()[0];
+                                    let val = elem_value.boolean()[0];
                                     if val {
                                         let _ = self.start_interval_timer();
                                     } else {
@@ -183,7 +183,7 @@ impl DiceRuntime {
 
         let tx = self.tx.clone();
         self.unit.1.connect_bus_update(move |node| {
-            let _ = tx.send(Event::BusReset(node.get_property_generation()));
+            let _ = tx.send(Event::BusReset(node.generation()));
         });
 
         let tx = self.tx.clone();

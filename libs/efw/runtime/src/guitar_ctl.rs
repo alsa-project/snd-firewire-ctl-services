@@ -55,7 +55,7 @@ impl GuitarCtl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MANUAL_CHARGE_NAME => {
                 ElemValueAccessor::<bool>::set_val(elem_value, || {
                     unit.get_charge_state(timeout_ms).map(|s| s.manual_charge)
@@ -87,7 +87,7 @@ impl GuitarCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MANUAL_CHARGE_NAME => {
                 ElemValueAccessor::<bool>::get_val(new, |val| {
                     let mut state = unit.get_charge_state(timeout_ms)?;

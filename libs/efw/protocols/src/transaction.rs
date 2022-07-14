@@ -9,32 +9,23 @@
 
 use {
     glib::{
-        subclass::{object::*, simple, types::*},
-        translate::*,
+        subclass::{object::*, types::*},
         *,
     },
-    hinawa::{subclass::fw_resp::*, *},
-    hitaki::{subclass::efw_protocol::*, *},
+    hinawa::{prelude::*, subclass::prelude::*, *},
+    hitaki::{prelude::*, subclass::prelude::*, *},
     std::cell::RefCell,
 };
 
-glib_wrapper! {
-    pub struct EfwTransaction(
-        Object<simple::InstanceStruct<imp::EfwTransactionPrivate>,
-        simple::ClassStruct<imp::EfwTransactionPrivate>, EfwTransactionClass>
-    ) @extends FwResp, @implements EfwProtocol;
-
-    match fn {
-        get_type => || imp::EfwTransactionPrivate::get_type().to_glib(),
-    }
+glib::wrapper! {
+    pub struct EfwTransaction(ObjectSubclass<imp::EfwTransactionPrivate>)
+        @extends FwResp, @implements EfwProtocol;
 }
 
 impl EfwTransaction {
     pub fn new() -> Self {
-        Object::new(Self::static_type(), &[])
+        Object::new(&[])
             .expect("Failed to create EfwTransaction")
-            .downcast()
-            .expect("Created row data is of wrong type")
     }
 
     pub fn bind(&self, node: &FwNode) -> Result<(), Error> {
@@ -44,7 +35,7 @@ impl EfwTransaction {
             imp::RESPONSE_OFFSET + (imp::MAX_FRAME_SIZE as u64),
             imp::MAX_FRAME_SIZE as u32,
         )
-        .map(|_| self.set_property("node", node).unwrap())
+        .map(|_| self.set_property("node", node))
     }
 
     pub fn unbind(&self) {
@@ -53,7 +44,7 @@ impl EfwTransaction {
 }
 
 mod imp {
-    use super::*;
+    use {once_cell::sync::Lazy, super::*};
 
     pub const COMMAND_OFFSET: u64 = 0xecc000000000;
     pub const RESPONSE_OFFSET: u64 = 0xecc080000000;
@@ -62,54 +53,45 @@ mod imp {
     #[derive(Default)]
     pub struct EfwTransactionPrivate(RefCell<u32>, RefCell<Option<FwNode>>);
 
-    static PROPERTIES: [Property; 1] = [Property("node", |node| {
-        ParamSpec::object(
-            node,
-            "node",
-            "An instance of FwNode",
-            FwNode::static_type(),
-            ParamFlags::READWRITE,
-        )
-    })];
-
+    #[glib::object_subclass]
     impl ObjectSubclass for EfwTransactionPrivate {
         const NAME: &'static str = "EfwTransaction";
+        type Type = super::EfwTransaction;
         type ParentType = FwResp;
-        type Instance = simple::InstanceStruct<Self>;
-        type Class = simple::ClassStruct<Self>;
-
-        glib_object_subclass!();
+        type Interfaces = (EfwProtocol,);
 
         fn new() -> Self {
             Self::default()
         }
-
-        fn class_init(klass: &mut Self::Class) {
-            klass.install_properties(&PROPERTIES);
-        }
-
-        fn type_init(type_: &mut InitializingType<Self>) {
-            type_.add_interface::<EfwProtocol>();
-        }
     }
 
     impl ObjectImpl for EfwTransactionPrivate {
-        glib_object_impl!();
+        fn properties() -> &'static [ParamSpec] {
+            static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
+                vec![
+                    ParamSpecObject::new(
+                        "node",
+                        "node",
+                        "An instance of FwNode",
+                        FwNode::static_type(),
+                        ParamFlags::READWRITE,
+                    ),
+                ]
+            });
 
-        fn get_property(&self, _obj: &Object, id: usize) -> Result<Value, ()> {
-            let prop = &PROPERTIES[id];
+            PROPERTIES.as_ref()
+        }
 
-            match *prop {
-                Property("node", ..) => Ok(self.1.borrow().as_ref().unwrap().to_value()),
+        fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
+            match pspec.name() {
+                "node" => self.1.borrow().as_ref().unwrap().to_value(),
                 _ => unimplemented!(),
             }
         }
 
-        fn set_property(&self, _obj: &Object, id: usize, value: &Value) {
-            let prop = &PROPERTIES[id];
-
-            match *prop {
-                Property("node", ..) => {
+        fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
+            match pspec.name() {
+                "node" => {
                     let node = value
                         .get()
                         .expect("type conformity checked by `Object::set_property`");
@@ -123,7 +105,7 @@ mod imp {
     impl FwRespImpl for EfwTransactionPrivate {
         fn requested2(
             &self,
-            resp: &FwResp,
+            resp: &Self::Type,
             tcode: FwTcode,
             offset: u64,
             src: u32,
@@ -135,9 +117,9 @@ mod imp {
             if let Some(node) = self.1.borrow().as_ref() {
                 if tcode != FwTcode::WriteBlockRequest {
                     FwRcode::TypeError
-                } else if src != node.get_property_node_id() || offset != RESPONSE_OFFSET {
+                } else if src != node.node_id() || offset != RESPONSE_OFFSET {
                     FwRcode::AddressError
-                } else if !resp.get_property_is_reserved() || frame.len() < 24 {
+                } else if !resp.is_reserved() || frame.len() < 24 {
                     FwRcode::DataError
                 } else {
                     let inst = resp.downcast_ref::<super::EfwTransaction>().unwrap();
@@ -153,7 +135,7 @@ mod imp {
     }
 
     impl EfwProtocolImpl for EfwTransactionPrivate {
-        fn transmit_request(&self, _: &EfwProtocol, buffer: &[u8]) -> Result<(), Error> {
+        fn transmit_request(&self, _: &Self::Type, buffer: &[u8]) -> Result<(), Error> {
             if let Some(node) = self.1.borrow().as_ref() {
                 let req = FwReq::new();
                 let mut frame = buffer.to_owned();
@@ -172,7 +154,7 @@ mod imp {
             }
         }
 
-        fn get_seqnum(&self, _: &EfwProtocol) -> u32 {
+        fn get_seqnum(&self, _: &Self::Type) -> u32 {
             let seqnum = *self.0.borrow();
             let next_seqnum = seqnum + 2;
             *self.0.borrow_mut() = if next_seqnum < (u16::MAX - 1) as u32 {
@@ -185,7 +167,7 @@ mod imp {
 
         fn responded(
             &self,
-            _unit: &EfwProtocol,
+            _unit: &Self::Type,
             _version: u32,
             _seqnum: u32,
             _category: u32,

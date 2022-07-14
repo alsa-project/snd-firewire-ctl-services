@@ -1470,7 +1470,7 @@ pub struct BcoImageInformation {
 impl Default for BcoImageInformation {
     fn default() -> Self {
         Self {
-            timestamp: glib::DateTime::new_now_utc(),
+            timestamp: glib::DateTime::now_utc().unwrap(),
             id: Default::default(),
             version: Default::default(),
         }
@@ -1503,7 +1503,7 @@ impl Default for BcoBootloaderInformation {
             software: Default::default(),
             image_base_address: Default::default(),
             image_maximum_size: Default::default(),
-            bootloader_timestamp: glib::DateTime::new_now_utc(),
+            bootloader_timestamp: glib::DateTime::now_utc().unwrap(),
             debugger: Default::default(),
         }
     }
@@ -1652,23 +1652,23 @@ fn parse_tstamp(buf: &[u8]) -> Result<glib::DateTime, Error> {
             Error::new(FileError::Nxio, &msg)
         })?;
 
-        let seconds = u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
+        u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
             let msg = format!("{}", err);
             Error::new(FileError::Nxio, &msg)
-        })?;
-        Ok((hour, minute, seconds))
+        })
+            .map(|seconds| (hour, minute, seconds))
     } else {
         Ok((0, 0, 0))
     }?;
 
-    let tstamp = glib::DateTime::new_utc(
+    let tstamp = glib::DateTime::from_utc(
         year as i32,
         month as i32,
         day as i32,
         hour as i32,
         minute as i32,
         seconds as f64,
-    );
+    ).unwrap();
 
     Ok(tstamp)
 }

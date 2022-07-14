@@ -41,7 +41,7 @@ impl Iec60958Ctl {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             DEFAULT_NAME => {
                 let mut val = [0; 24];
                 let flags = unit.get_flags(timeout_ms)?;
@@ -80,9 +80,9 @@ impl Iec60958Ctl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             DEFAULT_NAME => {
-                let vals = new.get_iec60958_channel_status();
+                let vals = new.iec60958_channel_status();
 
                 let mut enable = vec![];
                 let mut disable = vec![];

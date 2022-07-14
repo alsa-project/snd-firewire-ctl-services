@@ -237,7 +237,7 @@ impl InputGainCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
                 let vals: Vec<i32> = self.status.mic.iter().map(|&gain| gain as i32).collect();
                 elem_value.set_int(&vals);
@@ -260,9 +260,9 @@ impl InputGainCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MIC_GAIN_NAME => {
-                let vals = &elem_value.get_int()[..2];
+                let vals = &elem_value.int()[..2];
                 let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
                 Ff400Protocol::write_input_mic_gains(
                     req,
@@ -274,7 +274,7 @@ impl InputGainCtl {
                 .map(|_| true)
             }
             LINE_GAIN_NAME => {
-                let vals = &elem_value.get_int()[..2];
+                let vals = &elem_value.int()[..2];
                 let gains: Vec<i8> = vals.iter().map(|&val| val as i8).collect();
                 Ff400Protocol::write_input_line_gains(
                     req,
@@ -401,7 +401,7 @@ impl StatusCtl {
     }
 
     fn measure_elem(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             EXT_SRC_LOCK_NAME => {
                 let vals = [
                     self.status.lock.spdif,
@@ -615,7 +615,7 @@ impl CfgCtl {
     }
 
     fn read(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRIMARY_CLK_SRC_NAME => {
                 let pos = Self::CLK_SRCS
                     .iter()
@@ -713,7 +713,7 @@ impl CfgCtl {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             PRIMARY_CLK_SRC_NAME => ElemValueAccessor::<u32>::get_val(new, |val| {
                 Self::CLK_SRCS
                     .iter()
@@ -747,7 +747,7 @@ impl CfgCtl {
                 cfg.analog_in
                     .phantom_powering
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Ok(())
             })
@@ -756,7 +756,7 @@ impl CfgCtl {
                 cfg.analog_in
                     .insts
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Ok(())
             })
@@ -765,7 +765,7 @@ impl CfgCtl {
                 cfg.analog_in
                     .pad
                     .iter_mut()
-                    .zip(new.get_bool())
+                    .zip(new.boolean())
                     .for_each(|(d, s)| *d = s);
                 Ok(())
             })

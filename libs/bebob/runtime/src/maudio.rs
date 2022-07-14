@@ -194,7 +194,7 @@ where
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         let meter = self.as_ref();
 
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             IN_METER_NAME => {
                 elem_value.set_int(&meter.phys_inputs);
                 Ok(true)
@@ -268,7 +268,7 @@ where
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             SWITCH_NAME => {
                 if O::HAS_SWITCH {
                     if let Some(switch) = &mut self.as_mut().switch {
@@ -350,8 +350,8 @@ pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
         elem_value: &mut ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::MIXER_NAME {
-            let dst_idx = elem_id.get_index() as usize;
+        if elem_id.name().as_str() == Self::MIXER_NAME {
+            let dst_idx = elem_id.index() as usize;
             ElemValueAccessor::<bool>::set_vals(elem_value, Self::SRC_COUNT, |src_idx| {
                 O::read_mixer_src(avc, dst_idx, src_idx, timeout_ms)
             })
@@ -369,8 +369,8 @@ pub trait MaudioNormalMixerCtlOperation<O: MaudioNormalMixerOperation> {
         new: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        if elem_id.get_name().as_str() == Self::MIXER_NAME {
-            let dst_idx = elem_id.get_index() as usize;
+        if elem_id.name().as_str() == Self::MIXER_NAME {
+            let dst_idx = elem_id.index() as usize;
             ElemValueAccessor::<bool>::get_vals(new, old, Self::SRC_COUNT, |src_idx, val| {
                 O::write_mixer_src(avc, dst_idx, src_idx, val, timeout_ms)
             })

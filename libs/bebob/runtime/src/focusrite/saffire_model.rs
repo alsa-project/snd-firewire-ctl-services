@@ -382,7 +382,7 @@ impl MeterCtl {
     }
 
     fn read_meter(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             IN_METER_NAME => {
                 elem_value.set_int(&self.1.phys_inputs);
                 Ok(true)
@@ -459,7 +459,7 @@ impl SpecificCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MODE_192_KHZ_NAME => {
                 elem_value.set_bool(&[self.0.mode_192khz]);
                 Ok(true)
@@ -494,9 +494,9 @@ impl SpecificCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             MODE_192_KHZ_NAME => {
-                let val = elem_value.get_bool()[0];
+                let val = elem_value.boolean()[0];
                 SaffireSpecificProtocol::write_192khz_mode(
                     req,
                     &unit.1,
@@ -507,7 +507,7 @@ impl SpecificCtl {
                 .map(|_| true)
             }
             INPUT_PAIR_1_SRC_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &src = Self::INPUT_PAIR_1_SRCS
                     .iter()
                     .nth(val as usize)
@@ -525,7 +525,7 @@ impl SpecificCtl {
                 .map(|_| true)
             }
             MIXER_MODE_NAME => {
-                let val = elem_value.get_enum()[0];
+                let val = elem_value.enumerated()[0];
                 let &mode = Self::MIXER_MODES.iter().nth(val as usize).ok_or_else(|| {
                     let msg = format!("Invalid index for mode of mixer: {}", val);
                     Error::new(FileError::Inval, &msg)
@@ -614,7 +614,7 @@ impl ReverbCtl {
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             REVERB_AMOUNT_NAME => {
                 elem_value.set_int(&self.0.amounts);
                 Ok(true)
@@ -643,9 +643,9 @@ impl ReverbCtl {
         elem_value: &ElemValue,
         timeout_ms: u32,
     ) -> Result<bool, Error> {
-        match elem_id.get_name().as_str() {
+        match elem_id.name().as_str() {
             REVERB_AMOUNT_NAME => {
-                let vals = &elem_value.get_int()[..2];
+                let vals = &elem_value.int()[..2];
                 SaffireReverbProtocol::write_amounts(
                     req,
                     &mut unit.1,
@@ -656,7 +656,7 @@ impl ReverbCtl {
                 .map(|_| true)
             }
             REVERB_ROOM_SIZE_NAME => {
-                let vals = &elem_value.get_int()[..2];
+                let vals = &elem_value.int()[..2];
                 SaffireReverbProtocol::write_room_sizes(
                     req,
                     &mut unit.1,
@@ -667,7 +667,7 @@ impl ReverbCtl {
                 .map(|_| true)
             }
             REVERB_DIFFUSION_NAME => {
-                let vals = &elem_value.get_int()[..2];
+                let vals = &elem_value.int()[..2];
                 SaffireReverbProtocol::write_diffusions(
                     req,
                     &mut unit.1,
@@ -678,7 +678,7 @@ impl ReverbCtl {
                 .map(|_| true)
             }
             REVERB_TONE_NAME => {
-                let vals = &elem_value.get_int()[..2];
+                let vals = &elem_value.int()[..2];
                 SaffireReverbProtocol::write_tones(req, &mut unit.1, &vals, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
