@@ -83,33 +83,34 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
         let bus_info_length = 4 * raw[0] as usize;
         if 4 + bus_info_length > raw.len() {
             let msg = format!("length {} is greater than {}", bus_info_length, raw.len());
-            Err(ConfigRomParseError::new(ctx, msg))?
+            Err(ConfigRomParseError::new(ctx, msg))
+        } else {
+            let bus_info = &raw[4..(4 + bus_info_length)];
+            let data = &raw[(4 + bus_info_length)..];
+
+            // Get block of root directory.
+            let ctx = ConfigRomParseCtx::RootDirectory;
+            let doublet = [data[0], data[1]];
+            let root_directory_length = 4 * u16::from_be_bytes(doublet) as usize;
+            if 4 + root_directory_length > raw.len() {
+                let msg = format!(
+                    "length {} is greater than {}",
+                    root_directory_length,
+                    raw.len()
+                );
+                Err(ConfigRomParseError::new(ctx, msg))
+            } else {
+                let root = &data[..(4 + root_directory_length)];
+                let data = &data[(4 + root_directory_length)..];
+
+                get_directory_entry_list(root, data)
+                    .map_err(|mut e| {
+                        e.ctx.insert(0, ctx);
+                        e
+                    })
+                    .map(|root| ConfigRom { bus_info, root })
+            }
         }
-        let bus_info = &raw[4..(4 + bus_info_length)];
-        let data = &raw[(4 + bus_info_length)..];
-
-        // Get block of root directory.
-        let ctx = ConfigRomParseCtx::RootDirectory;
-        let doublet = [data[0], data[1]];
-        let root_directory_length = 4 * u16::from_be_bytes(doublet) as usize;
-        if 4 + root_directory_length > raw.len() {
-            let msg = format!(
-                "length {} is greater than {}",
-                root_directory_length,
-                raw.len()
-            );
-            Err(ConfigRomParseError::new(ctx, msg))?
-        }
-        let root = &data[..(4 + root_directory_length)];
-        let data = &data[(4 + root_directory_length)..];
-
-        let root = get_directory_entry_list(root, data).map_err(|mut e| {
-            e.ctx.insert(0, ctx);
-            e
-        })?;
-
-        let rom = ConfigRom { bus_info, root };
-        Ok(rom)
     }
 }
 
@@ -128,63 +129,71 @@ fn get_directory_entry_list<'a>(
 
         let ctx = ConfigRomParseCtx::DirectoryEntry(key);
 
-        let entry_data = match entry_type {
-            0 => EntryData::Immediate(value),
+        match entry_type {
+            0 => Ok(EntryData::Immediate(value)),
             1 => {
                 let offset = 0xfffff0000000 + (value as usize);
-                EntryData::CsrOffset(offset)
+                Ok(EntryData::CsrOffset(offset))
             }
             2 | 3 => {
                 let offset = 4 * value as usize;
                 if offset < directory.len() {
                     let msg = format!("Offset {} reaches no block {}", offset, directory.len());
-                    Err(ConfigRomParseError::new(ctx, msg))?
-                }
-                let start_offset = offset - directory.len();
-                if start_offset > data.len() {
-                    let msg = format!(
-                        "Start offset {} is over blocks {}",
-                        start_offset,
-                        directory.len()
-                    );
-                    Err(ConfigRomParseError::new(ctx, msg))?
-                }
-                let doublet = [data[start_offset], data[start_offset + 1]];
-                let length = 4 * u16::from_be_bytes(doublet) as usize;
-                if length < 4 {
-                    let msg = format!("Invalid length of block {}", length);
-                    Err(ConfigRomParseError::new(ctx, msg))?
-                }
-                let end_offset = start_offset + 4 + length;
-                if end_offset > data.len() {
-                    let msg = format!("End offset {} is over blocks {}", end_offset, data.len());
-                    Err(ConfigRomParseError::new(ctx, msg))?
-                }
-                if entry_type == 2 {
-                    let leaf = &data[(4 + start_offset)..end_offset];
-                    EntryData::Leaf(leaf)
+                    Err(ConfigRomParseError::new(ctx, msg))
                 } else {
-                    let directory = &data[start_offset..end_offset];
-                    let entries = get_directory_entry_list(directory, &data[end_offset..])
-                        .map_err(|mut e| {
-                            e.ctx.insert(0, ctx);
-                            e
-                        })?;
-                    EntryData::Directory(entries)
+                    let start_offset = offset - directory.len();
+                    if start_offset > data.len() {
+                        let msg = format!(
+                            "Start offset {} is over blocks {}",
+                            start_offset,
+                            directory.len()
+                        );
+                        Err(ConfigRomParseError::new(ctx, msg))
+                    } else {
+                        let doublet = [data[start_offset], data[start_offset + 1]];
+                        let length = 4 * u16::from_be_bytes(doublet) as usize;
+                        if length < 4 {
+                            let msg = format!("Invalid length of block {}", length);
+                            Err(ConfigRomParseError::new(ctx, msg))
+                        } else {
+                            let end_offset = start_offset + 4 + length;
+                            if end_offset > data.len() {
+                                let msg = format!(
+                                    "End offset {} is over blocks {}",
+                                    end_offset,
+                                    data.len()
+                                );
+                                Err(ConfigRomParseError::new(ctx, msg))
+                            } else {
+                                if entry_type == 2 {
+                                    let leaf = &data[(4 + start_offset)..end_offset];
+                                    Ok(EntryData::Leaf(leaf))
+                                } else {
+                                    let directory = &data[start_offset..end_offset];
+                                    get_directory_entry_list(directory, &data[end_offset..])
+                                        .map_err(|mut e| {
+                                            e.ctx.insert(0, ctx);
+                                            e
+                                        })
+                                        .map(|entries| EntryData::Directory(entries))
+                                }
+                            }
+                        }
+                    }
                 }
             }
             _ => {
                 let msg = format!("Invalid type: {}", entry_type);
-                Err(ConfigRomParseError::new(ctx, msg))?
+                Err(ConfigRomParseError::new(ctx, msg))
             }
-        };
-        let entry = Entry {
-            key: KeyType::from(key),
-            data: entry_data,
-        };
-        entries.push(entry);
-
-        directory = &directory[4..];
+        }
+        .map(|entry_data| {
+            entries.push(Entry {
+                key: KeyType::from(key),
+                data: entry_data,
+            });
+            directory = &directory[4..];
+        })?;
     }
 
     Ok(entries)

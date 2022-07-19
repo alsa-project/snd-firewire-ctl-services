@@ -64,19 +64,19 @@ impl<'a> TryFrom<&'a [u8]> for TextualDescriptorData<'a> {
         let character_set = ((meta & 0x0fff0000) >> 16) as u16;
         let language = (meta & 0x0000ffff) as u16;
         let literal = &raw[4..];
-        let text = literal
+        literal
             .iter()
             .position(|&c| c == 0x00)
             .ok_or(String::new())
             .and_then(|pos| std::str::from_utf8(&literal[..pos]).map_err(|e| e.to_string()))
             .or_else(|_| std::str::from_utf8(literal).map_err(|e| e.to_string()))
-            .map_err(|msg| Self::Error::new(DescriptorLeafParseCtx::InvalidTextString, msg))?;
-        Ok(TextualDescriptorData {
-            width,
-            character_set,
-            language,
-            text,
-        })
+            .map_err(|msg| Self::Error::new(DescriptorLeafParseCtx::InvalidTextString, msg))
+            .map(|text| TextualDescriptorData {
+                width,
+                character_set,
+                language,
+                text,
+            })
     }
 }
 
@@ -98,17 +98,22 @@ impl<'a> TryFrom<&'a [u8]> for DescriptorData<'a> {
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
         match raw[0] {
             Self::TEXTUAL_DESCRIPTOR_TYPE => {
-                let d = TextualDescriptorData::try_from(&raw[4..])?;
-                Ok(DescriptorData::Textual(d))
+                TextualDescriptorData::try_from(&raw[4..]).map(|d| Self::Textual(d))
             }
-            _ => {
-                let msg = format!("{} type", raw[0]);
-                Err(Self::Error::new(
-                    DescriptorLeafParseCtx::UnsupportedType,
-                    msg,
-                ))
-            }
+            _ => Err(Self::Error::new(
+                DescriptorLeafParseCtx::UnsupportedType,
+                format!("{} type", raw[0]),
+            )),
         }
+    }
+}
+
+fn entry_data_to_str(data: &EntryData) -> &'static str {
+    match data {
+        EntryData::Immediate(_) => "immediate",
+        EntryData::CsrOffset(_) => "csr-offset",
+        EntryData::Directory(_) => "directory",
+        _ => unreachable!(),
     }
 }
 
@@ -127,8 +132,7 @@ impl<'a> TryFrom<&'a [u8]> for DescriptorLeaf<'a> {
         quadlet.copy_from_slice(&raw[..4]);
         let spec_id = u32::from_be_bytes(quadlet) & 0x00ffffff;
 
-        let data = DescriptorData::try_from(raw)?;
-        Ok(Self { spec_id, data })
+        DescriptorData::try_from(raw).map(|data| Self { spec_id, data })
     }
 }
 
@@ -137,22 +141,11 @@ impl<'a> TryFrom<&'a Entry<'a>> for DescriptorLeaf<'a> {
 
     fn try_from(entry: &'a Entry<'a>) -> Result<Self, Self::Error> {
         if let EntryData::Leaf(leaf) = &entry.data {
-            let desc = Self::try_from(&leaf[..])?;
-            Ok(desc)
+            Self::try_from(&leaf[..])
         } else {
-            let label = if let EntryData::Immediate(_) = &entry.data {
-                "immediate"
-            } else if let EntryData::CsrOffset(_) = &entry.data {
-                "csr-offset"
-            } else if let EntryData::Directory(_) = &entry.data {
-                "directory"
-            } else {
-                unreachable!()
-            };
-            let msg = format!("{} entry", label);
             Err(Self::Error::new(
                 DescriptorLeafParseCtx::WrongDirectoryEntry,
-                msg,
+                format!("{} entry", entry_data_to_str(&entry.data)),
             ))
         }
     }
@@ -168,9 +161,9 @@ pub enum DescriptorLeafParseCtx {
 impl std::fmt::Display for DescriptorLeafParseCtx {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ctx = match self {
-            DescriptorLeafParseCtx::InvalidTextString => "invalid text string in leaf",
-            DescriptorLeafParseCtx::UnsupportedType => "unsupported type",
-            DescriptorLeafParseCtx::WrongDirectoryEntry => "wrong directory entry",
+            Self::InvalidTextString => "invalid text string in leaf",
+            Self::UnsupportedType => "unsupported type",
+            Self::WrongDirectoryEntry => "wrong directory entry",
         };
         write!(f, "{}", ctx)
     }
@@ -203,22 +196,11 @@ impl<'a> TryFrom<&Entry<'a>> for Eui64Leaf {
 
     fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
         if let EntryData::Leaf(leaf) = &entry.data {
-            let eui64 = Eui64Leaf::try_from(&leaf[..])?;
-            Ok(eui64)
+            Eui64Leaf::try_from(&leaf[..])
         } else {
-            let label = if let EntryData::Immediate(_) = &entry.data {
-                "immediate"
-            } else if let EntryData::CsrOffset(_) = &entry.data {
-                "csr-offset"
-            } else if let EntryData::Directory(_) = &entry.data {
-                "directory"
-            } else {
-                unreachable!()
-            };
-            let msg = format!("{} entry is not available", label);
             Err(Self::Error::new(
                 Eui64LeafParseCtx::WrongDirectoryEntry,
-                msg,
+                format!("{} entry is not available", entry_data_to_str(&entry.data)),
             ))
         }
     }
@@ -282,22 +264,11 @@ impl<'a> TryFrom<&Entry<'a>> for UnitLocationLeaf {
 
     fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
         if let EntryData::Leaf(leaf) = &entry.data {
-            let unit_location = UnitLocationLeaf::try_from(&leaf[..])?;
-            Ok(unit_location)
+            UnitLocationLeaf::try_from(&leaf[..])
         } else {
-            let label = if let EntryData::Immediate(_) = &entry.data {
-                "immediate"
-            } else if let EntryData::CsrOffset(_) = &entry.data {
-                "csr-offset"
-            } else if let EntryData::Directory(_) = &entry.data {
-                "directory"
-            } else {
-                unreachable!()
-            };
-            let msg = format!("{} entry is not available", label);
             Err(Self::Error::new(
                 UnitLocationParseCtx::WrongDirectoryEntry,
-                msg,
+                format!("{} entry is not available", entry_data_to_str(&entry.data)),
             ))
         }
     }
