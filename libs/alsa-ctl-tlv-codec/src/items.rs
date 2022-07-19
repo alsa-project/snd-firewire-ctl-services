@@ -145,31 +145,39 @@ impl std::convert::TryFrom<&[u32]> for DbInterval {
     type Error = InvalidTlvDataError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
-        if raw.len() != 4 || raw[1] != 4 * Self::VALUE_COUNT as u32 {
-            Err(InvalidTlvDataError::new(
-                "Invalid length of data for DbInterval",
-            ))
-        } else if raw[0] != SNDRV_CTL_TLVT_DB_LINEAR
-            && raw[0] != SNDRV_CTL_TLVT_DB_MINMAX
-            && raw[0] != SNDRV_CTL_TLVT_DB_MINMAX_MUTE
-        {
-            Err(InvalidTlvDataError::new(
-                "Invalid type of data for DbInterval",
-            ))
+        // At least, type and length field should be included.
+        if raw.len() < 2 {
+            Err(Self::Error::new("Invalid length of data for DbInterval"))
         } else {
-            let mut data = DbInterval {
-                min: raw[2] as i32,
-                max: raw[3] as i32,
-                linear: false,
-                mute_avail: false,
-            };
-            if raw[0] == SNDRV_CTL_TLVT_DB_LINEAR {
-                data.linear = true;
-                data.mute_avail = true;
-            } else if raw[0] == SNDRV_CTL_TLVT_DB_MINMAX_MUTE {
-                data.mute_avail = true;
+            // Check length field against length of value field.
+            let value_length = (raw[1] / 4) as usize;
+            let value = &raw[2..];
+            if value.len() < value_length || value.len() < Self::VALUE_COUNT {
+                Err(Self::Error::new("Invalid length of value for DbInterval"))
+            } else {
+                // Check type field.
+                match raw[0] {
+                    SNDRV_CTL_TLVT_DB_LINEAR => Ok(Self {
+                        min: value[0] as i32,
+                        max: value[1] as i32,
+                        linear: true,
+                        mute_avail: true,
+                    }),
+                    SNDRV_CTL_TLVT_DB_MINMAX => Ok(Self {
+                        min: value[0] as i32,
+                        max: value[1] as i32,
+                        linear: false,
+                        mute_avail: false,
+                    }),
+                    SNDRV_CTL_TLVT_DB_MINMAX_MUTE => Ok(Self {
+                        min: value[0] as i32,
+                        max: value[1] as i32,
+                        linear: false,
+                        mute_avail: true,
+                    }),
+                    _ => Err(Self::Error::new("Invalid type of data for DbInterval")),
+                }
             }
-            Ok(data)
         }
     }
 }
