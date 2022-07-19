@@ -35,7 +35,8 @@ snd-fireface-ctl-service
 License
 =======
 
-GNU General Public License Version 3
+ * The `alsa-ctl-tlv-codec` crate is released under MIT license.
+ * The other crates are released under GNU General Public License Version 3.
 
 Dependencies
 ============

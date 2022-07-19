@@ -9,7 +9,7 @@ Encoder and Decoder for data of Type-Length-Value(TLV) style in ALSA control
 interface
 """
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
-license = "GPL-3.0-or-later"
+license = "MIT"
 readme = "README.md"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
