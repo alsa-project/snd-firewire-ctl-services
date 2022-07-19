@@ -70,32 +70,20 @@ impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
     type Error = InvalidTlvDataError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
-        let entry = match raw[0] {
+        match raw[0] {
             SNDRV_CTL_TLVT_CONTAINER => {
-                let data = Container::try_from(raw)?;
-                TlvItem::Container(data)
+                Container::try_from(raw).map(|data| TlvItem::Container(data))
             }
-            SNDRV_CTL_TLVT_DB_RANGE => {
-                let data = DbRange::try_from(raw)?;
-                TlvItem::DbRange(data)
-            }
-            SNDRV_CTL_TLVT_DB_SCALE => {
-                let data = DbScale::try_from(raw)?;
-                TlvItem::DbScale(data)
-            }
+            SNDRV_CTL_TLVT_DB_RANGE => DbRange::try_from(raw).map(|data| TlvItem::DbRange(data)),
+            SNDRV_CTL_TLVT_DB_SCALE => DbScale::try_from(raw).map(|data| TlvItem::DbScale(data)),
             SNDRV_CTL_TLVT_DB_LINEAR | SNDRV_CTL_TLVT_DB_MINMAX | SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
-                let data = DbInterval::try_from(raw)?;
-                TlvItem::DbInterval(data)
+                DbInterval::try_from(raw).map(|data| TlvItem::DbInterval(data))
             }
             SNDRV_CTL_TLVT_CHMAP_FIXED | SNDRV_CTL_TLVT_CHMAP_VAR | SNDRV_CTL_TLVT_CHMAP_PAIRED => {
-                let data = Chmap::try_from(raw)?;
-                TlvItem::Chmap(data)
+                Chmap::try_from(raw).map(|data| TlvItem::Chmap(data))
             }
-            _ => {
-                return Err(InvalidTlvDataError::new("Invalid type of data for TlvItem"));
-            }
-        };
-        Ok(entry)
+            _ => Err(Self::Error::new("Invalid type of data for TlvItem")),
+        }
     }
 }
 
