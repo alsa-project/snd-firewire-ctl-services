@@ -236,36 +236,31 @@ impl std::convert::TryFrom<&[u32]> for Container {
     type Error = InvalidTlvDataError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
-        if raw.len() < 4 {
-            Err(InvalidTlvDataError::new(
-                "Invalid length of data for Container",
-            ))
+        // At least, type and length field should be included.
+        if raw.len() < 2 {
+            Err(Self::Error::new("Invalid length of data for Container"))
+        // Check type field.
         } else if raw[0] != SNDRV_CTL_TLVT_CONTAINER {
-            Err(InvalidTlvDataError::new(
-                "Invalid type of data for Container",
-            ))
+            Err(Self::Error::new("Invalid type of data for Container"))
         } else {
-            let cntr_value_length = (raw[1] as usize) / 4;
-            if raw[2..].len() < cntr_value_length {
-                let msg = "Truncated length of data for DbRange";
-                return Err(InvalidTlvDataError::new(msg));
+            // Check length field against length of value field.
+            let value_length = (raw[1] / 4) as usize;
+            let value = &raw[2..];
+            if value.len() < value_length {
+                Err(Self::Error::new("Invalid length of value for Container"))
             } else {
-                let mut cntr_value = &raw[2..(2 + cntr_value_length)];
+                // Decode value field.
+                let mut pos = 0;
 
                 let mut entries = Vec::new();
-                while cntr_value.len() > 2 {
-                    let entry_value_length = (cntr_value[1] as usize) / 4;
-                    if cntr_value[2..].len() < entry_value_length {
-                        return Err(InvalidTlvDataError::new(
-                            "Invalid length of data for TlvItem",
-                        ));
-                    }
-                    let entry_raw = &cntr_value[..(2 + entry_value_length)];
-                    let entry = TlvItem::try_from(entry_raw)?;
-                    entries.push(entry);
-                    cntr_value = &cntr_value[(2 + entry_value_length)..];
+                while pos < value_length {
+                    TlvItem::try_from(&value[pos..]).map(|entry| {
+                        entries.push(entry);
+                        pos += 2 + (value[pos + 1] / 4) as usize;
+                    })?;
                 }
-                Ok(Container { entries })
+
+                Ok(Self { entries })
             }
         }
     }
