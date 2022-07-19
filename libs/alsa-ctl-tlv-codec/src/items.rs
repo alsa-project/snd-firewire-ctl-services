@@ -452,35 +452,38 @@ impl std::convert::TryFrom<&[u32]> for Chmap {
     type Error = InvalidTlvDataError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
+        // At least, type and length field should be included.
         if raw.len() < 2 {
-            Err(InvalidTlvDataError::new("Invalid length of data for Chmap"))
-        } else if raw[0] != SNDRV_CTL_TLVT_CHMAP_FIXED
-            && raw[0] != SNDRV_CTL_TLVT_CHMAP_VAR
-            && raw[0] != SNDRV_CTL_TLVT_CHMAP_PAIRED
-        {
-            Err(InvalidTlvDataError::new("Invalid type of data for Chmap"))
+            Err(Self::Error::new("Invalid length of data for Chmap"))
         } else {
-            let mode = if raw[0] == SNDRV_CTL_TLVT_CHMAP_FIXED {
-                ChmapMode::Fixed
-            } else if raw[0] == SNDRV_CTL_TLVT_CHMAP_VAR {
-                ChmapMode::ArbitraryExchangeable
-            } else {
-                ChmapMode::PairedExchangeable
-            };
+            // Check type field.
+            let mode = match raw[0] {
+                SNDRV_CTL_TLVT_CHMAP_FIXED => Ok(ChmapMode::Fixed),
+                SNDRV_CTL_TLVT_CHMAP_VAR => Ok(ChmapMode::ArbitraryExchangeable),
+                SNDRV_CTL_TLVT_CHMAP_PAIRED => Ok(ChmapMode::PairedExchangeable),
+                _ => Err(Self::Error::new("Invalid type for Chmap")),
+            }?;
 
+            // Check length field against length of value field.
+            let value_length = (raw[1] / 4) as usize;
             let value = &raw[2..];
-            if mode == ChmapMode::PairedExchangeable && value.len() % 2 > 0 {
-                Err(InvalidTlvDataError::new(
-                    "Invalid type of data for PairedExchangeable mode of Chmap",
+            if value.len() < value_length {
+                Err(Self::Error::new("Invalid length of value for Chmap"))
+            } else if mode == ChmapMode::PairedExchangeable && value.len() % 2 > 0 {
+                Err(Self::Error::new(
+                    "Invalid length of value for PairedExchangeable mode of Chmap",
                 ))
             } else {
-                let mut entries = Vec::new();
-                value.iter().try_for_each(|&val| {
-                    let entry = ChmapEntry::try_from(val)?;
-                    entries.push(entry);
-                    Ok(())
-                })?;
-                Ok(Chmap { mode, entries })
+                // Decode value field.
+                value
+                    .iter()
+                    .try_fold(Vec::new(), |mut entries, &val| {
+                        ChmapEntry::try_from(val).map(|entry| {
+                            entries.push(entry);
+                            entries
+                        })
+                    })
+                    .map(|entries| Self { mode, entries })
             }
         }
     }
