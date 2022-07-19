@@ -140,33 +140,31 @@ impl std::convert::TryFrom<&[u32]> for DbRange {
     type Error = InvalidTlvDataError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
-        if raw.len() < 6 {
-            let msg = "Invalid length of data for DbRange";
-            Err(InvalidTlvDataError::new(msg))
+        // At least, type and length field should be included.
+        if raw.len() < 2 {
+            Err(Self::Error::new("Invalid length of data for DbRange"))
+        // Check type field.
         } else if raw[0] != SNDRV_CTL_TLVT_DB_RANGE {
-            let msg = "Invalid type of data for DbRange";
-            Err(InvalidTlvDataError::new(msg))
+            Err(Self::Error::new("Invalid type of data for DbRange"))
         } else {
-            let cntr_value_length = (raw[1] as usize) / 4;
-            if raw[2..].len() < cntr_value_length {
-                let msg = "Truncated length of data for DbRange";
-                Err(InvalidTlvDataError::new(msg))
+            // Check length field against length of value field.
+            let value_length = (raw[1] / 4) as usize;
+            let value = &raw[2..];
+            if value.len() < value_length {
+                Err(Self::Error::new("Invalid length of value for DbRange"))
             } else {
-                let mut cntr_value = &raw[2..(2 + cntr_value_length)];
+                // Decode value field.
+                let mut pos = 0;
 
                 let mut entries = Vec::new();
-                while cntr_value.len() > 4 {
-                    let data_value_length = (cntr_value[3] as usize) / 4;
-                    if cntr_value[4..].len() < data_value_length {
-                        let msg = "Invalid length of data for DbRangeEntry";
-                        return Err(InvalidTlvDataError::new(msg));
-                    }
-                    let data_raw = &cntr_value[..(4 + data_value_length)];
-                    let entry = DbRangeEntry::try_from(data_raw)?;
-                    entries.push(entry);
-                    cntr_value = &cntr_value[(4 + data_value_length)..];
+                while pos < value_length {
+                    DbRangeEntry::try_from(&value[pos..]).map(|entry| {
+                        entries.push(entry);
+                        pos += 4 + (value[pos + 3] / 4) as usize;
+                    })?;
                 }
-                Ok(DbRange { entries })
+
+                Ok(Self { entries })
             }
         }
     }
