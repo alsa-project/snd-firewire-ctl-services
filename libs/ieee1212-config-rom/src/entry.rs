@@ -3,19 +3,19 @@
 
 //! For directory entries, the module includes structure, enumeration and trait implementation.
 //!
-//! Entry structure represents directory entry. KeyType enumerations represents key of entry.
-//! EntryData enumeration represents type of directory entry, including its content.
+//! Entry structure expresss directory entry. KeyType enumerations expresss key of entry.
+//! EntryData enumeration expresss type of directory entry, including its content.
 
 use super::*;
 
-/// The structure to represent directory entry.
+/// The structure to express directory entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry<'a> {
     pub key: KeyType,
     pub data: EntryData<'a>,
 }
 
-/// The enumeration to represent key of directory entry.
+/// The enumeration to express key of directory entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyType {
     Descriptor,
@@ -65,7 +65,7 @@ impl From<u8> for KeyType {
     }
 }
 
-/// The enumeration to represent type of directory entry and its content.
+/// The enumeration to express type of directory entry and its content.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EntryData<'a> {
     Immediate(u32),
