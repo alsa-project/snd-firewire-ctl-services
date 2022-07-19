@@ -282,7 +282,7 @@ Usage:
   where:
     MODE:           The mode to process after parsing DATA:
                         "structure":    prints data structures.
-                        "macro":        prints C macro representation
+                        "macro":        prints C macro expression
                         "literal":      prints space-separated decimal array.
                         "raw":          prints binary with host endian.
     DATA:           space-separated DECIMAL and HEXADECIMAL array for the data of TLV.

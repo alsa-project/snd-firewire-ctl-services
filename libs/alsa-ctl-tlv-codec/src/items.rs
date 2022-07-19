@@ -5,15 +5,15 @@
 
 use super::*;
 
-/// The data to represent dB scale in TLV (Type-Length-Value) of ALSA control interface.
+/// The data to express dB scale in TLV (Type-Length-Value) of ALSA control interface.
 ///
 /// It has `SNDRV_CTL_TLVT_DB_SCALE` (=1) in its type field and has two elements in value field.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DbScale {
-    /// The minimum value by dB representation, in 0.1 dB unit. This corresponds to the minimum
+    /// The minimum value by dB expression, in 0.1 dB unit. This corresponds to the minimum
     /// value in the state of control element.
     pub min: i32,
-    /// The step by dB representation, in 0.1 dB unit. This corresponds to one increase of the value
+    /// The step by dB expression, in 0.1 dB unit. This corresponds to one increase of the value
     /// in the state of control element.
     pub step: u16,
     /// If true, the value less than or equals to [`CTL_VALUE_MUTE`] (=-9999999) is available to
@@ -25,7 +25,7 @@ pub struct DbScale {
 /// element. It's relevant to `SNDRV_CTL_TLVD_DB_GAIN_MUTE` macro in UAPI of Linux kernel.
 pub const CTL_VALUE_MUTE: i32 = SNDRV_CTL_TLVD_DB_GAIN_MUTE;
 
-/// The value of dB should be represented in 0.1 dB unit in data of TLV and crate structures.
+/// The value of dB should be expressed in 0.1 dB unit in data of TLV and crate structures.
 pub const DB_VALUE_MULTIPLIER: i32 = 100;
 
 impl DbScale {
@@ -104,7 +104,7 @@ impl From<DbScale> for Vec<u32> {
     }
 }
 
-/// The data to represent dB interval in TLV (Type-Length-Value) of ALSA control interface.
+/// The data to express dB interval in TLV (Type-Length-Value) of ALSA control interface.
 ///
 /// It has three variants below;
 ///  * SNDRV_CTL_TLVT_DB_LINEAR(=2)
@@ -114,18 +114,18 @@ impl From<DbScale> for Vec<u32> {
 ///  All of them have two elements in value field.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct DbInterval {
-    /// The minimum value by dB representation, in 0.1 dB unit. This corresponds to the minimum
+    /// The minimum value by dB expression, in 0.1 dB unit. This corresponds to the minimum
     /// value in the state of control element.
     pub min: i32,
-    /// The maximum value by dB representation, 0.1 dB unit. This corresponds to the maximum value
+    /// The maximum value by dB expression, 0.1 dB unit. This corresponds to the maximum value
     /// in the state of control element.
     pub max: i32,
     /// If true, the value in the state of control element increases linearly, thus need calculation
-    /// to convert to the value by dB representation. The calculation shall be:
+    /// to convert to the value by dB expression. The calculation shall be:
     ///
     /// 20 * log10( current_value / ( maximum_value - minimum_value ) ) (* 100 in 0.1dB unit)
     ///
-    /// Else, the value in the state of control element corresponds to dB representation itself.
+    /// Else, the value in the state of control element corresponds to dB expression itself.
     pub linear: bool,
     /// If true, the value less than or equals to [`CTL_VALUE_MUTE`] (=-9999999) is available to
     /// mute the control element explicitly.
@@ -225,7 +225,7 @@ impl From<DbInterval> for Vec<u32> {
     }
 }
 
-/// The enumeration to represent generic channel position corresponding to physical port on real
+/// The enumeration to express generic channel position corresponding to physical port on real
 /// device. They are defined as `SNDRV_CHMAP_XXX` enumeration in UAPI of Linux kernel.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChmapGenericPos {
@@ -365,7 +365,7 @@ impl From<ChmapGenericPos> for u16 {
     }
 }
 
-/// The enumeration to represent channel position.
+/// The enumeration to express channel position.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ChmapPos {
     /// The position of channel is generic. It's relevant to the series of `SNDRV_CHMAP_XXX` macro.
@@ -381,7 +381,7 @@ impl Default for ChmapPos {
     }
 }
 
-/// The entry to represent information of each channel in channel map.
+/// The entry to express information of each channel in channel map.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ChmapEntry {
     /// The position of channel.
@@ -437,7 +437,7 @@ impl Default for ChmapMode {
     }
 }
 
-/// The data to represent channel map of PCM substream in TLV (Type-Length-Value) of ALSA control interface.
+/// The data to express channel map of PCM substream in TLV (Type-Length-Value) of ALSA control interface.
 ///
 /// It has three variants below;
 ///  * `SNDRV_CTL_TLVT_CHMAP_FIXED` (=0x101)
