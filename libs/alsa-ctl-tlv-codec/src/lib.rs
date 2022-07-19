@@ -14,29 +14,98 @@ pub use {containers::*, items::*, range_utils::*};
 
 use uapi::*;
 
-/// The error type at failure to convert from array of u32 elements to TLV data.
+/// The cause of error to decode given array as TLV data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InvalidTlvDataError {
-    msg: &'static str,
+pub enum TlvDecodeErrorCtx {
+    /// Insufficient length of available elements in array.
+    Length(
+        /// The lengh of available elements in array.
+        usize,
+        /// The length expected at least.
+        usize,
+    ),
+    /// Invalid value in type field.
+    ValueType(
+        /// The value in type field.
+        u32,
+        /// The allowed types.
+        &'static [u32],
+    ),
+    /// Invalid value in length field.
+    ValueLength(
+        /// The value in length field.
+        usize,
+        /// The actual length of available elements in array.
+        usize,
+    ),
+    /// Invalid data in value field.
+    ValueContent(Box<TlvDecodeError>),
 }
 
-impl InvalidTlvDataError {
-    pub fn new(msg: &'static str) -> Self {
-        InvalidTlvDataError { msg }
+/// The structure to store decode context and position for error reporting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TlvDecodeError {
+    /// The context at which decode error appears.
+    pub ctx: TlvDecodeErrorCtx,
+    /// The offset at which decode error appears. It's mostly offset from the beginning of
+    /// Type-Length-Value array. Each entry in DbRange is an exception that the offset is
+    /// from the beginning of the entry.
+    pub offset: usize,
+}
+
+impl TlvDecodeError {
+    pub fn new(ctx: TlvDecodeErrorCtx, offset: usize) -> Self {
+        Self { ctx, offset }
+    }
+
+    pub fn delve_into_lowest_error(&self, mut offset: usize) -> (&TlvDecodeError, usize) {
+        offset += self.offset;
+        match &self.ctx {
+            TlvDecodeErrorCtx::ValueContent(e) => e.delve_into_lowest_error(offset),
+            _ => (self, offset),
+        }
     }
 }
 
-impl std::fmt::Display for InvalidTlvDataError {
+impl std::fmt::Display for TlvDecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
+        let (err, offset) = self.delve_into_lowest_error(0);
+        match err.ctx {
+            TlvDecodeErrorCtx::Length(len, at_least) => {
+                write!(
+                    f,
+                    "Insufficient length of array {}, should be greater than {}, at {}",
+                    len, at_least, offset
+                )
+            }
+            TlvDecodeErrorCtx::ValueType(val_type, allowed_types) => {
+                let mut allowed = format!("{}", allowed_types[0]);
+                allowed_types[1..]
+                    .iter()
+                    .for_each(|allowed_type| allowed = format!("{}, {}", allowed, allowed_type));
+                write!(
+                    f,
+                    "Invalid value {} in type field, expected {}, at {}",
+                    val_type, allowed, offset
+                )
+            }
+            TlvDecodeErrorCtx::ValueLength(val_len, array_len) => {
+                write!(
+                    f,
+                    "Invalid value {} in length field, actual {}, at {}",
+                    val_len, array_len, offset
+                )
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
-impl std::error::Error for InvalidTlvDataError {}
+impl std::error::Error for TlvDecodeError {}
 
 /// The trait for common methods to data of TLV (Type-Length-Value) in ALSA control interface.
 /// The TryFrom supertrait should be implemented to parse the array of u32 elements and it
-/// can return InvalidTlvDataError at failure. The trait boundary to Vec::<u32>::From(&Self)
+/// can return TlvDecodeError at failure. The trait boundary to Vec::<u32>::From(&Self)
 /// should be implemented as well to build the array of u32 element.
 pub trait TlvData<'a>: std::convert::TryFrom<&'a [u32]>
 where
@@ -66,8 +135,20 @@ pub enum TlvItem {
     Chmap(Chmap),
 }
 
+const TYPES_FOR_ITEM: &'static [u32] = &[
+    SNDRV_CTL_TLVT_CONTAINER,
+    SNDRV_CTL_TLVT_DB_RANGE,
+    SNDRV_CTL_TLVT_DB_SCALE,
+    SNDRV_CTL_TLVT_DB_LINEAR,
+    SNDRV_CTL_TLVT_DB_MINMAX,
+    SNDRV_CTL_TLVT_DB_MINMAX_MUTE,
+    SNDRV_CTL_TLVT_CHMAP_FIXED,
+    SNDRV_CTL_TLVT_CHMAP_VAR,
+    SNDRV_CTL_TLVT_CHMAP_PAIRED,
+];
+
 impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         match raw[0] {
@@ -82,7 +163,10 @@ impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
             SNDRV_CTL_TLVT_CHMAP_FIXED | SNDRV_CTL_TLVT_CHMAP_VAR | SNDRV_CTL_TLVT_CHMAP_PAIRED => {
                 Chmap::try_from(raw).map(|data| TlvItem::Chmap(data))
             }
-            _ => Err(Self::Error::new("Invalid type of data for TlvItem")),
+            _ => Err(TlvDecodeError::new(
+                TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_ITEM),
+                0,
+            )),
         }
     }
 }

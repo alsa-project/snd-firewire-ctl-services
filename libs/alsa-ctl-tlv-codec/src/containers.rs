@@ -38,12 +38,20 @@ impl<'a> DataEntry<'a> for DbRangeEntry {
     }
 }
 
+const TYPES_FOR_DB_RANGE_ENTRY: &'static [u32] = &[
+    SNDRV_CTL_TLVT_DB_SCALE,
+    SNDRV_CTL_TLVT_DB_RANGE,
+    SNDRV_CTL_TLVT_DB_LINEAR,
+    SNDRV_CTL_TLVT_DB_MINMAX,
+    SNDRV_CTL_TLVT_DB_MINMAX_MUTE,
+];
+
 impl std::convert::TryFrom<&[u32]> for DbRangeEntry {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() < 4 {
-            Err(Self::Error::new("Invalid length of data for DbRangeEntry"))
+            Err(Self::Error::new(TlvDecodeErrorCtx::Length(raw.len(), 4), 0))
         } else {
             let min_val = raw[0] as i32;
             let max_val = raw[1] as i32;
@@ -67,8 +75,12 @@ impl std::convert::TryFrom<&[u32]> for DbRangeEntry {
                     max_val,
                     data: DbRangeEntryData::DbInterval(d),
                 }),
-                _ => Err(Self::Error::new("Invalid type of data for DbRangeEntry")),
+                _ => Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueType(entry_data[0], TYPES_FOR_DB_RANGE_ENTRY),
+                    0,
+                )),
             }
+            .map_err(|e| Self::Error::new(TlvDecodeErrorCtx::ValueContent(Box::new(e)), 2))
         }
     }
 }
@@ -124,32 +136,44 @@ impl<'a> TlvData<'a> for DbRange {
     }
 }
 
+const TYPES_FOR_DB_RANGE: &'static [u32] = &[SNDRV_CTL_TLVT_DB_RANGE];
+
 impl std::convert::TryFrom<&[u32]> for DbRange {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         // At least, type and length field should be included.
         if raw.len() < 2 {
-            Err(Self::Error::new("Invalid length of data for DbRange"))
+            Err(Self::Error::new(TlvDecodeErrorCtx::Length(raw.len(), 2), 0))
         // Check type field.
         } else if raw[0] != SNDRV_CTL_TLVT_DB_RANGE {
-            Err(Self::Error::new("Invalid type of data for DbRange"))
+            Err(Self::Error::new(
+                TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_DB_RANGE),
+                0,
+            ))
         } else {
             // Check length field against length of value field.
             let value_length = (raw[1] / 4) as usize;
             let value = &raw[2..];
             if value.len() < value_length {
-                Err(Self::Error::new("Invalid length of value for DbRange"))
+                Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueLength(value_length, value.len()),
+                    1,
+                ))
             } else {
                 // Decode value field.
                 let mut pos = 0;
 
                 let mut entries = Vec::new();
                 while pos < value_length {
-                    DbRangeEntry::try_from(&value[pos..]).map(|entry| {
-                        entries.push(entry);
-                        pos += 4 + (value[pos + 3] / 4) as usize;
-                    })?;
+                    DbRangeEntry::try_from(&value[pos..])
+                        .map(|entry| {
+                            entries.push(entry);
+                            pos += 4 + (value[pos + 3] / 4) as usize;
+                        })
+                        .map_err(|e| {
+                            Self::Error::new(TlvDecodeErrorCtx::ValueContent(Box::new(e)), pos + 2)
+                        })?;
                 }
 
                 Ok(Self { entries })
@@ -218,32 +242,44 @@ impl<'a> TlvData<'a> for Container {
     }
 }
 
+const TYPES_FOR_CONTAINER: &'static [u32] = &[SNDRV_CTL_TLVT_CONTAINER];
+
 impl std::convert::TryFrom<&[u32]> for Container {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         // At least, type and length field should be included.
         if raw.len() < 2 {
-            Err(Self::Error::new("Invalid length of data for Container"))
+            Err(Self::Error::new(TlvDecodeErrorCtx::Length(raw.len(), 2), 0))
         // Check type field.
         } else if raw[0] != SNDRV_CTL_TLVT_CONTAINER {
-            Err(Self::Error::new("Invalid type of data for Container"))
+            Err(Self::Error::new(
+                TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_CONTAINER),
+                0,
+            ))
         } else {
             // Check length field against length of value field.
             let value_length = (raw[1] / 4) as usize;
             let value = &raw[2..];
             if value.len() < value_length {
-                Err(Self::Error::new("Invalid length of value for Container"))
+                Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueLength(value_length, value.len()),
+                    1,
+                ))
             } else {
                 // Decode value field.
                 let mut pos = 0;
 
                 let mut entries = Vec::new();
                 while pos < value_length {
-                    TlvItem::try_from(&value[pos..]).map(|entry| {
-                        entries.push(entry);
-                        pos += 2 + (value[pos + 1] / 4) as usize;
-                    })?;
+                    TlvItem::try_from(&value[pos..])
+                        .map(|entry| {
+                            entries.push(entry);
+                            pos += 2 + (value[pos + 1] / 4) as usize;
+                        })
+                        .map_err(|e| {
+                            Self::Error::new(TlvDecodeErrorCtx::ValueContent(Box::new(e)), pos + 2)
+                        })?;
                 }
 
                 Ok(Self { entries })
