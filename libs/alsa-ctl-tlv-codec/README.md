@@ -48,6 +48,7 @@ match TlvItem::try_from(&raw[..]) {
           TlvItem::DbScale(d) => d.into(),
           TlvItem::DbInterval(d) => d.into(),
           TlvItem::Chmap(d) => d.into(),
+          TlvItem::Unknown(d) => d.to_owned(),
         };
 
         assert_eq!(&raw[..], &raw_generated[..]);

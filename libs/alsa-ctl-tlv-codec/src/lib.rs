@@ -133,19 +133,8 @@ pub enum TlvItem {
     DbScale(DbScale),
     DbInterval(DbInterval),
     Chmap(Chmap),
+    Unknown(Vec<u32>),
 }
-
-const TYPES_FOR_ITEM: &'static [u32] = &[
-    SNDRV_CTL_TLVT_CONTAINER,
-    SNDRV_CTL_TLVT_DB_RANGE,
-    SNDRV_CTL_TLVT_DB_SCALE,
-    SNDRV_CTL_TLVT_DB_LINEAR,
-    SNDRV_CTL_TLVT_DB_MINMAX,
-    SNDRV_CTL_TLVT_DB_MINMAX_MUTE,
-    SNDRV_CTL_TLVT_CHMAP_FIXED,
-    SNDRV_CTL_TLVT_CHMAP_VAR,
-    SNDRV_CTL_TLVT_CHMAP_PAIRED,
-];
 
 impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
     type Error = TlvDecodeError;
@@ -163,10 +152,7 @@ impl<'a> std::convert::TryFrom<&'a [u32]> for TlvItem {
             SNDRV_CTL_TLVT_CHMAP_FIXED | SNDRV_CTL_TLVT_CHMAP_VAR | SNDRV_CTL_TLVT_CHMAP_PAIRED => {
                 Chmap::try_from(raw).map(|data| TlvItem::Chmap(data))
             }
-            _ => Err(TlvDecodeError::new(
-                TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_ITEM),
-                0,
-            )),
+            _ => Ok(TlvItem::Unknown(raw.to_owned())),
         }
     }
 }
@@ -179,6 +165,7 @@ impl From<&TlvItem> for Vec<u32> {
             TlvItem::DbScale(d) => d.into(),
             TlvItem::DbInterval(d) => d.into(),
             TlvItem::Chmap(d) => d.into(),
+            TlvItem::Unknown(d) => d.to_owned(),
         }
     }
 }

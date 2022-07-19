@@ -171,6 +171,14 @@ impl PrintAsMacro for Container {
     }
 }
 
+impl PrintAsMacro for Vec<u32> {
+    fn print_as_macro(&self, _: usize) {
+        print!("SNDRV_CTL_TLVD_ITEM ( {}", self[0]);
+        self[2..].iter().for_each(|val| print!(", 0x{:x}", val));
+        print!(" )");
+    }
+}
+
 impl PrintAsMacro for TlvItem {
     fn print_as_macro(&self, level: usize) {
         match self {
@@ -179,6 +187,7 @@ impl PrintAsMacro for TlvItem {
             TlvItem::DbScale(d) => d.print_as_macro(level),
             TlvItem::DbInterval(d) => d.print_as_macro(level),
             TlvItem::Chmap(d) => d.print_as_macro(level),
+            TlvItem::Unknown(d) => d.print_as_macro(level),
         }
     }
 }
@@ -236,6 +245,7 @@ fn main() {
                 TlvItem::DbScale(d) => d.into(),
                 TlvItem::DbInterval(d) => d.into(),
                 TlvItem::Chmap(d) => d.into(),
+                TlvItem::Unknown(d) => d,
             };
 
             if mode == Mode::Literal {
