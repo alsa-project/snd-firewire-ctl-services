@@ -3,7 +3,7 @@
 //! A set of trait and implementation to retrieve range of dB value and raw value from data of TLV.
 use super::*;
 
-/// The structure represents the range of available value in the state of control element with
+/// The structure expresses the range of available value in the state of control element with
 /// step to change it.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ValueRange {

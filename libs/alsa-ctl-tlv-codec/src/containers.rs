@@ -17,12 +17,12 @@ pub enum DbRangeEntryData {
     DbRange(DbRange),
 }
 
-/// The entry to represent information of each entry of dB range.
+/// The entry to express information of each entry of dB range.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DbRangeEntry {
     pub min_val: i32,
     pub max_val: i32,
-    /// The data of dB representation for the minimum/maximum range in the state of control element.
+    /// The data of dB expression for the minimum/maximum range in the state of control element.
     pub data: DbRangeEntryData,
 }
 
@@ -106,12 +106,12 @@ impl From<DbRangeEntry> for Vec<u32> {
     }
 }
 
-/// The data to represent multiple ranges in the state of control element for dB representation.
+/// The data to express multiple ranges in the state of control element for dB expression.
 /// It has `SNDRV_CTL_TLVT_DB_RANGE` (=3) in its type field and has variable number of elements in
 /// value field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DbRange {
-    /// The entries of ranges for dB representation.
+    /// The entries of ranges for dB expression.
     pub entries: Vec<DbRangeEntry>,
 }
 
@@ -212,7 +212,7 @@ impl<'a> DataEntry<'a> for TlvItem {
     }
 }
 
-/// The data to represent container to aggregate multiple data for TLV (Type-Length-Value) of ALSA
+/// The data to express container to aggregate multiple data for TLV (Type-Length-Value) of ALSA
 /// control interface.
 ///
 /// It has `SNDRV_CTL_TLVT_CONTAINER` (=0) in its type field and has variable number of elements in
