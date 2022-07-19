@@ -4,10 +4,13 @@ name = "alsa-ctl-tlv-codec"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
+categories = ["data-structures", "encoding", "parser-implementations"]
 description = """
-Encoder and Decoder for data of Type-Length-Value(TLV) style in ALSA control
+Encoder and Decoder for Type-Length-Value(TLV) style data in ALSA control
 interface
 """
+documentation = "https://docs.rs/alsa-ctl-tlv-codec/"
+keywords = ["alsa", "tlv", "encoder", "decoder"]
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
 license = "MIT"
 readme = "README.md"
