@@ -4,9 +4,12 @@ name = "ieee1212-config-rom"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
+categories = ["data-structures", "parser-implementations"]
 description = """
-Utilities for Configration ROM specification in IEEE 1222
+Decoder for content of Configuration ROM defined in IEEE 1212.
 """
+documentation = "https://docs.rs/ieee1212-config-rom/"
+keywords = ["ieee1212", "configuration rom"]
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
 license = "MIT"
 readme = "README.md"
