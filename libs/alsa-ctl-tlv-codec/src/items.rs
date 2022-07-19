@@ -52,22 +52,30 @@ impl<'a> TlvData<'a> for DbScale {
     }
 }
 
+const TYPES_FOR_DB_SCALE: &'static [u32] = &[SNDRV_CTL_TLVT_DB_SCALE];
+
 impl std::convert::TryFrom<&[u32]> for DbScale {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         // At least, type and length field should be included.
         if raw.len() < 2 {
-            Err(Self::Error::new("Invalid length of data for DbScale"))
+            Err(Self::Error::new(TlvDecodeErrorCtx::Length(raw.len(), 2), 0))
         // Check type field.
         } else if raw[0] != SNDRV_CTL_TLVT_DB_SCALE {
-            Err(Self::Error::new("Invalid type of data for DbScale"))
+            Err(Self::Error::new(
+                TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_DB_SCALE),
+                0,
+            ))
         } else {
             // Check length field against length of value field.
             let value_length = (raw[1] / 4) as usize;
             let value = &raw[2..];
             if value.len() < value_length {
-                Err(Self::Error::new("Invalid length of value for DbScale"))
+                Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueLength(value_length, value.len()),
+                    1,
+                ))
             } else {
                 // Decode value field.
                 Ok(Self {
@@ -148,19 +156,28 @@ impl<'a> TlvData<'a> for DbInterval {
     }
 }
 
+const TYPES_FOR_DB_INTERVAL: &'static [u32] = &[
+    SNDRV_CTL_TLVT_DB_LINEAR,
+    SNDRV_CTL_TLVT_DB_MINMAX,
+    SNDRV_CTL_TLVT_DB_MINMAX_MUTE,
+];
+
 impl std::convert::TryFrom<&[u32]> for DbInterval {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         // At least, type and length field should be included.
         if raw.len() < 2 {
-            Err(Self::Error::new("Invalid length of data for DbInterval"))
+            Err(Self::Error::new(TlvDecodeErrorCtx::Length(raw.len(), 2), 0))
         } else {
             // Check length field against length of value field.
             let value_length = (raw[1] / 4) as usize;
             let value = &raw[2..];
             if value.len() < value_length || value.len() < Self::VALUE_COUNT {
-                Err(Self::Error::new("Invalid length of value for DbInterval"))
+                Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueLength(value_length, value.len()),
+                    1,
+                ))
             } else {
                 // Check type field.
                 match raw[0] {
@@ -182,7 +199,10 @@ impl std::convert::TryFrom<&[u32]> for DbInterval {
                         linear: false,
                         mute_avail: true,
                     }),
-                    _ => Err(Self::Error::new("Invalid type of data for DbInterval")),
+                    _ => Err(Self::Error::new(
+                        TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_DB_INTERVAL),
+                        0,
+                    )),
                 }
             }
         }
@@ -455,37 +475,47 @@ impl<'a> TlvData<'a> for Chmap {
     }
 }
 
+const TYPES_FOR_CHMAP: &'static [u32] = &[
+    SNDRV_CTL_TLVT_CHMAP_FIXED,
+    SNDRV_CTL_TLVT_CHMAP_VAR,
+    SNDRV_CTL_TLVT_CHMAP_PAIRED,
+];
+
 impl std::convert::TryFrom<&[u32]> for Chmap {
-    type Error = InvalidTlvDataError;
+    type Error = TlvDecodeError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         // At least, type and length field should be included.
         if raw.len() < 2 {
-            Err(Self::Error::new("Invalid length of data for Chmap"))
+            Err(Self::Error::new(TlvDecodeErrorCtx::Length(raw.len(), 2), 0))
         } else {
             // Check type field.
             let mode = match raw[0] {
                 SNDRV_CTL_TLVT_CHMAP_FIXED => Ok(ChmapMode::Fixed),
                 SNDRV_CTL_TLVT_CHMAP_VAR => Ok(ChmapMode::ArbitraryExchangeable),
                 SNDRV_CTL_TLVT_CHMAP_PAIRED => Ok(ChmapMode::PairedExchangeable),
-                _ => Err(Self::Error::new("Invalid type for Chmap")),
+                _ => Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueType(raw[0], TYPES_FOR_CHMAP),
+                    0,
+                )),
             }?;
 
             // Check length field against length of value field.
             let value_length = (raw[1] / 4) as usize;
             let value = &raw[2..];
             if value.len() < value_length {
-                Err(Self::Error::new("Invalid length of value for Chmap"))
+                Err(Self::Error::new(
+                    TlvDecodeErrorCtx::ValueLength(value_length, value.len()),
+                    1,
+                ))
             } else if mode == ChmapMode::PairedExchangeable && value.len() % 2 > 0 {
                 Err(Self::Error::new(
-                    "Invalid length of value for PairedExchangeable mode of Chmap",
+                    TlvDecodeErrorCtx::ValueLength(value_length, value.len()),
+                    1,
                 ))
             } else {
                 // Decode value field.
-                let entries = value
-                    .iter()
-                    .map(|&val| ChmapEntry::from(val))
-                    .collect();
+                let entries = value.iter().map(|&val| ChmapEntry::from(val)).collect();
                 Ok(Self { mode, entries })
             }
         }
