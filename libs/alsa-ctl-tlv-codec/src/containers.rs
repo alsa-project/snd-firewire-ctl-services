@@ -206,6 +206,7 @@ impl<'a> DataEntry<'a> for TlvItem {
             TlvItem::DbScale(d) => d.value_length(),
             TlvItem::DbInterval(d) => d.value_length(),
             TlvItem::Chmap(d) => d.value_length(),
+            TlvItem::Unknown(d) => d.len(),
         };
         2 + entry_value_length
     }

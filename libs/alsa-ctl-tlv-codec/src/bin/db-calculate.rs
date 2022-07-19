@@ -15,6 +15,7 @@ enum ErrorTarget {
     DbScale,
     DbInterval,
     Chmap,
+    Unknown,
 }
 
 impl From<&TlvItem> for ErrorTarget {
@@ -25,6 +26,7 @@ impl From<&TlvItem> for ErrorTarget {
             TlvItem::DbScale(_) => ErrorTarget::DbScale,
             TlvItem::DbInterval(_) => ErrorTarget::DbInterval,
             TlvItem::Chmap(_) => ErrorTarget::Chmap,
+            TlvItem::Unknown(_) => ErrorTarget::Unknown,
         }
     }
 }
@@ -37,6 +39,7 @@ impl std::fmt::Display for ErrorTarget {
             ErrorTarget::DbScale => "DbScale",
             ErrorTarget::DbInterval => "DbInterval",
             ErrorTarget::Chmap => "Chmap",
+            ErrorTarget::Unknown => "Unknown",
         };
         write!(f, "{}", label)
     }
