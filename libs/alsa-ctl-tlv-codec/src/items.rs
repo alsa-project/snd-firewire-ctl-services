@@ -56,19 +56,26 @@ impl std::convert::TryFrom<&[u32]> for DbScale {
     type Error = InvalidTlvDataError;
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
-        if raw.len() != 4 || raw[1] != 4 * Self::VALUE_COUNT as u32 {
-            Err(InvalidTlvDataError::new(
-                "Invalid length of data for DbScale",
-            ))
+        // At least, type and length field should be included.
+        if raw.len() < 2 {
+            Err(Self::Error::new("Invalid length of data for DbScale"))
+        // Check type field.
         } else if raw[0] != SNDRV_CTL_TLVT_DB_SCALE {
-            Err(InvalidTlvDataError::new("Invalid type of data for DbScale"))
+            Err(Self::Error::new("Invalid type of data for DbScale"))
         } else {
-            let data = DbScale {
-                min: raw[2] as i32,
-                step: (raw[3] & SNDRV_CTL_TLVD_DB_SCALE_MASK) as u16,
-                mute_avail: raw[3] & SNDRV_CTL_TLVD_DB_SCALE_MUTE > 0,
-            };
-            Ok(data)
+            // Check length field against length of value field.
+            let value_length = (raw[1] / 4) as usize;
+            let value = &raw[2..];
+            if value.len() < value_length {
+                Err(Self::Error::new("Invalid length of value for DbScale"))
+            } else {
+                // Decode value field.
+                Ok(Self {
+                    min: value[0] as i32,
+                    step: (value[1] & SNDRV_CTL_TLVD_DB_SCALE_MASK) as u16,
+                    mute_avail: value[1] & SNDRV_CTL_TLVD_DB_SCALE_MUTE > 0,
+                })
+            }
         }
     }
 }
