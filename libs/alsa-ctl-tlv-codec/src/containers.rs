@@ -43,44 +43,32 @@ impl std::convert::TryFrom<&[u32]> for DbRangeEntry {
 
     fn try_from(raw: &[u32]) -> Result<Self, Self::Error> {
         if raw.len() < 4 {
-            Err(InvalidTlvDataError::new(
-                "Invalid length of data for DbRangeEntry",
-            ))
+            Err(Self::Error::new("Invalid length of data for DbRangeEntry"))
         } else {
             let min_val = raw[0] as i32;
             let max_val = raw[1] as i32;
 
-            let data_value_type = raw[2];
-            let data_value_length = (raw[3] as usize) / 4;
-            let data_raw = &raw[2..(4 + data_value_length)];
-
-            let data = match data_value_type {
-                SNDRV_CTL_TLVT_DB_SCALE => {
-                    let d = DbScale::try_from(data_raw)?;
-                    DbRangeEntryData::DbScale(d)
-                }
-                SNDRV_CTL_TLVT_DB_RANGE => {
-                    let d = DbRange::try_from(data_raw)?;
-                    DbRangeEntryData::DbRange(d)
-                }
+            let entry_data = &raw[2..];
+            match entry_data[0] {
+                SNDRV_CTL_TLVT_DB_SCALE => DbScale::try_from(entry_data).map(|d| Self {
+                    min_val,
+                    max_val,
+                    data: DbRangeEntryData::DbScale(d),
+                }),
+                SNDRV_CTL_TLVT_DB_RANGE => DbRange::try_from(entry_data).map(|d| Self {
+                    min_val,
+                    max_val,
+                    data: DbRangeEntryData::DbRange(d),
+                }),
                 SNDRV_CTL_TLVT_DB_LINEAR
                 | SNDRV_CTL_TLVT_DB_MINMAX
-                | SNDRV_CTL_TLVT_DB_MINMAX_MUTE => {
-                    let d = DbInterval::try_from(data_raw)?;
-                    DbRangeEntryData::DbInterval(d)
-                }
-                _ => {
-                    return Err(InvalidTlvDataError::new(
-                        "Invalid type of data for DbRangeEntry",
-                    ));
-                }
-            };
-
-            Ok(DbRangeEntry {
-                min_val,
-                max_val,
-                data,
-            })
+                | SNDRV_CTL_TLVT_DB_MINMAX_MUTE => DbInterval::try_from(entry_data).map(|d| Self {
+                    min_val,
+                    max_val,
+                    data: DbRangeEntryData::DbInterval(d),
+                }),
+                _ => Err(Self::Error::new("Invalid type of data for DbRangeEntry")),
+            }
         }
     }
 }
