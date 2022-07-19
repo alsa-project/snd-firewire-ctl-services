@@ -246,6 +246,7 @@ pub enum ChmapGenericPos {
     BottomCenter,
     BottomLeftCenter,
     BottomRightCenter,
+    Reserved(u16),
 }
 
 impl Default for ChmapGenericPos {
@@ -254,56 +255,54 @@ impl Default for ChmapGenericPos {
     }
 }
 
-impl std::convert::TryFrom<u16> for ChmapGenericPos {
-    type Error = InvalidTlvDataError;
-
-    fn try_from(val: u16) -> Result<Self, Self::Error> {
-        match val as u32 {
-            SNDRV_CHMAP_UNKNOWN => Ok(Self::Unknown),
-            SNDRV_CHMAP_NA => Ok(Self::NotAvailable),
-            SNDRV_CHMAP_MONO => Ok(Self::Monaural),
-            SNDRV_CHMAP_FL => Ok(Self::FrontLeft),
-            SNDRV_CHMAP_FR => Ok(Self::FrontRight),
-            SNDRV_CHMAP_RL => Ok(Self::RearLeft),
-            SNDRV_CHMAP_RR => Ok(Self::RearRight),
-            SNDRV_CHMAP_FC => Ok(Self::FrontCenter),
-            SNDRV_CHMAP_LFE => Ok(Self::LowFrequencyEffect),
-            SNDRV_CHMAP_SL => Ok(Self::SideLeft),
-            SNDRV_CHMAP_SR => Ok(Self::SideRight),
-            SNDRV_CHMAP_RC => Ok(Self::RearCenter),
-            SNDRV_CHMAP_FLC => Ok(Self::FrontLeftCenter),
-            SNDRV_CHMAP_FRC => Ok(Self::FrontRightCenter),
-            SNDRV_CHMAP_RLC => Ok(Self::RearLeftCenter),
-            SNDRV_CHMAP_RRC => Ok(Self::RearRightCenter),
-            SNDRV_CHMAP_FLW => Ok(Self::FrontLeftWide),
-            SNDRV_CHMAP_FRW => Ok(Self::FrontRightWide),
-            SNDRV_CHMAP_FLH => Ok(Self::FrontLeftHigh),
-            SNDRV_CHMAP_FCH => Ok(Self::FrontCenterHigh),
-            SNDRV_CHMAP_FRH => Ok(Self::FrontRightHigh),
-            SNDRV_CHMAP_TC => Ok(Self::TopCenter),
-            SNDRV_CHMAP_TFL => Ok(Self::TopFrontLeft),
-            SNDRV_CHMAP_TFR => Ok(Self::TopFrontRight),
-            SNDRV_CHMAP_TFC => Ok(Self::TopFrontCenter),
-            SNDRV_CHMAP_TRL => Ok(Self::TopRearLeft),
-            SNDRV_CHMAP_TRR => Ok(Self::TopRearRight),
-            SNDRV_CHMAP_TRC => Ok(Self::TopRearCenter),
-            SNDRV_CHMAP_TFLC => Ok(Self::TopFrontLeftCenter),
-            SNDRV_CHMAP_TFRC => Ok(Self::TopFrontRightCenter),
-            SNDRV_CHMAP_TSL => Ok(Self::TopSideLeft),
-            SNDRV_CHMAP_TSR => Ok(Self::TopSideRight),
-            SNDRV_CHMAP_LLFE => Ok(Self::LeftLowFrequencyEffect),
-            SNDRV_CHMAP_RLFE => Ok(Self::RightLowFrequencyEffect),
-            SNDRV_CHMAP_BC => Ok(Self::BottomCenter),
-            SNDRV_CHMAP_BLC => Ok(Self::BottomLeftCenter),
-            SNDRV_CHMAP_BRC => Ok(Self::BottomRightCenter),
-            _ => Err(Self::Error::new("Invalid value for ChmapGenericPos")),
+impl std::convert::From<u16> for ChmapGenericPos {
+    fn from(val: u16) -> Self {
+        match val as u16 {
+            SNDRV_CHMAP_UNKNOWN => Self::Unknown,
+            SNDRV_CHMAP_NA => Self::NotAvailable,
+            SNDRV_CHMAP_MONO => Self::Monaural,
+            SNDRV_CHMAP_FL => Self::FrontLeft,
+            SNDRV_CHMAP_FR => Self::FrontRight,
+            SNDRV_CHMAP_RL => Self::RearLeft,
+            SNDRV_CHMAP_RR => Self::RearRight,
+            SNDRV_CHMAP_FC => Self::FrontCenter,
+            SNDRV_CHMAP_LFE => Self::LowFrequencyEffect,
+            SNDRV_CHMAP_SL => Self::SideLeft,
+            SNDRV_CHMAP_SR => Self::SideRight,
+            SNDRV_CHMAP_RC => Self::RearCenter,
+            SNDRV_CHMAP_FLC => Self::FrontLeftCenter,
+            SNDRV_CHMAP_FRC => Self::FrontRightCenter,
+            SNDRV_CHMAP_RLC => Self::RearLeftCenter,
+            SNDRV_CHMAP_RRC => Self::RearRightCenter,
+            SNDRV_CHMAP_FLW => Self::FrontLeftWide,
+            SNDRV_CHMAP_FRW => Self::FrontRightWide,
+            SNDRV_CHMAP_FLH => Self::FrontLeftHigh,
+            SNDRV_CHMAP_FCH => Self::FrontCenterHigh,
+            SNDRV_CHMAP_FRH => Self::FrontRightHigh,
+            SNDRV_CHMAP_TC => Self::TopCenter,
+            SNDRV_CHMAP_TFL => Self::TopFrontLeft,
+            SNDRV_CHMAP_TFR => Self::TopFrontRight,
+            SNDRV_CHMAP_TFC => Self::TopFrontCenter,
+            SNDRV_CHMAP_TRL => Self::TopRearLeft,
+            SNDRV_CHMAP_TRR => Self::TopRearRight,
+            SNDRV_CHMAP_TRC => Self::TopRearCenter,
+            SNDRV_CHMAP_TFLC => Self::TopFrontLeftCenter,
+            SNDRV_CHMAP_TFRC => Self::TopFrontRightCenter,
+            SNDRV_CHMAP_TSL => Self::TopSideLeft,
+            SNDRV_CHMAP_TSR => Self::TopSideRight,
+            SNDRV_CHMAP_LLFE => Self::LeftLowFrequencyEffect,
+            SNDRV_CHMAP_RLFE => Self::RightLowFrequencyEffect,
+            SNDRV_CHMAP_BC => Self::BottomCenter,
+            SNDRV_CHMAP_BLC => Self::BottomLeftCenter,
+            SNDRV_CHMAP_BRC => Self::BottomRightCenter,
+            _ => Self::Reserved(val),
         }
     }
 }
 
 impl From<ChmapGenericPos> for u16 {
     fn from(code: ChmapGenericPos) -> Self {
-        (match code {
+        match code {
             ChmapGenericPos::Unknown => SNDRV_CHMAP_UNKNOWN,
             ChmapGenericPos::NotAvailable => SNDRV_CHMAP_NA,
             ChmapGenericPos::Monaural => SNDRV_CHMAP_MONO,
@@ -341,7 +340,8 @@ impl From<ChmapGenericPos> for u16 {
             ChmapGenericPos::BottomCenter => SNDRV_CHMAP_BC,
             ChmapGenericPos::BottomLeftCenter => SNDRV_CHMAP_BLC,
             ChmapGenericPos::BottomRightCenter => SNDRV_CHMAP_BRC,
-        }) as u16
+            ChmapGenericPos::Reserved(val) => val,
+        }
     }
 }
 
@@ -371,19 +371,17 @@ pub struct ChmapEntry {
     pub phase_inverse: bool,
 }
 
-impl std::convert::TryFrom<u32> for ChmapEntry {
-    type Error = InvalidTlvDataError;
-
-    fn try_from(val: u32) -> Result<Self, Self::Error> {
+impl std::convert::From<u32> for ChmapEntry {
+    fn from(val: u32) -> Self {
         let pos_val = (val & 0x0000ffff) as u16;
         let phase_inverse = val & SNDRV_CHMAP_PHASE_INVERSE > 0;
         let driver_spec = val & SNDRV_CHMAP_DRIVER_SPEC > 0;
-        if driver_spec {
-            Ok(ChmapPos::Specific(pos_val))
+        let pos = if driver_spec {
+            ChmapPos::Specific(pos_val)
         } else {
-            ChmapGenericPos::try_from(pos_val).map(|p| ChmapPos::Generic(p))
-        }
-        .map(|pos| ChmapEntry { pos, phase_inverse })
+            ChmapPos::Generic(ChmapGenericPos::from(pos_val))
+        };
+        ChmapEntry { pos, phase_inverse }
     }
 }
 
@@ -484,15 +482,11 @@ impl std::convert::TryFrom<&[u32]> for Chmap {
                 ))
             } else {
                 // Decode value field.
-                value
+                let entries = value
                     .iter()
-                    .try_fold(Vec::new(), |mut entries, &val| {
-                        ChmapEntry::try_from(val).map(|entry| {
-                            entries.push(entry);
-                            entries
-                        })
-                    })
-                    .map(|entries| Self { mode, entries })
+                    .map(|&val| ChmapEntry::from(val))
+                    .collect();
+                Ok(Self { mode, entries })
             }
         }
     }
@@ -575,16 +569,9 @@ mod test {
 
     #[test]
     fn test_chmapgenericpos() {
-        (0..37).for_each(|val| {
-            let generic_pos = ChmapGenericPos::try_from(val as u16).unwrap();
-            assert_eq!(u16::from(generic_pos), val as u16);
-        });
-    }
-
-    #[test]
-    fn test_chmapgenericpos_invalid() {
-        (37..0xffff).for_each(|val| {
-            assert!(ChmapGenericPos::try_from(val as u16).is_err());
+        (0..u16::MAX).for_each(|val| {
+            let generic_pos = ChmapGenericPos::from(val);
+            assert_eq!(u16::from(generic_pos), val);
         });
     }
 
