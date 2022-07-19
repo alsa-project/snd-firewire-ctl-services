@@ -460,7 +460,7 @@ impl DbCalc for TlvItem {
     fn val_to_db(&self, val: i32, range: &ValueRange) -> Result<f64, LocalError> {
         self.to_dbinterval(&range)
             .or_else(|e| {
-                let msg = format!("{}: {:?}", e.msg, self);
+                let msg = format!("{}: {:?}", e, self);
                 Err(LocalError::new(
                     ErrorTarget::from(self),
                     ErrorCause::ToDbInterval,
@@ -473,7 +473,7 @@ impl DbCalc for TlvItem {
     fn val_from_db(&self, db: f64, range: &ValueRange) -> Result<i32, LocalError> {
         self.to_dbinterval(&range)
             .or_else(|e| {
-                let msg = format!("{}: {:?}", e.msg, self);
+                let msg = format!("{}: {:?}", e, self);
                 Err(LocalError::new(
                     ErrorTarget::from(self),
                     ErrorCause::ToDbInterval,

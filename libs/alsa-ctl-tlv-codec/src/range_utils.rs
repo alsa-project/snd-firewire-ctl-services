@@ -131,22 +131,37 @@ impl ToValueRange for TlvItem {
     }
 }
 
-/// The structure to represent conversin error into interval of dB
+/// The enumeration to express conversion error into interval of dB.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToDbIntervalError {
-    /// Arbitrary message for error cause.
-    pub msg: String,
-}
-
-impl ToDbIntervalError {
-    pub fn new(msg: String) -> Self {
-        ToDbIntervalError { msg }
-    }
+pub enum ToDbIntervalError {
+    /// Including any entry in which both minimum and maximum value are out of range, or either
+    /// minimum or maximum value is out of range.
+    Range(
+        /// Minimum value of the entry.
+        i32,
+        /// Maximum value of the entry.
+        i32,
+    ),
+    /// Including entries for both of non-linear and linear value.
+    Linearity,
+    /// Including no entry.
+    Empty,
+    /// Including any entry without dB information.
+    Unsupported,
 }
 
 impl std::fmt::Display for ToDbIntervalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.msg)
+        match self {
+            Self::Range(min_val, max_val) => write!(
+                f,
+                "Any entry out of range, min: {}, max: {}",
+                min_val, max_val
+            ),
+            Self::Linearity => write!(f, "Some entries for both of non-linear and linear value"),
+            Self::Empty => write!(f, "No entry for dB information"),
+            Self::Unsupported => write!(f, "Any entry without dB information"),
+        }
     }
 }
 
@@ -189,26 +204,29 @@ impl ToDbInterval for DbRangeEntry {
 
 impl ToDbInterval for DbRange {
     fn to_dbinterval(&self, range: &ValueRange) -> Result<DbInterval, ToDbIntervalError> {
-        let entries = self.entries.iter().map(|entry| {
-            if range.contains(entry.min_val) && range.contains(entry.max_val) {
-                let r = ValueRange{min: entry.min_val, max: entry.max_val, step: range.step};
-                entry.to_dbinterval(&r).and_then(|i| Ok((r, i)))
-            } else {
-                let msg = format!("DbRange includes entry in which value range is out of expectation:{}:{} but {}:{}",
-                                  entry.min_val, entry.max_val, range.min, range.max);
-                Err(ToDbIntervalError{msg})
-            }
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+        let entries = self
+            .entries
+            .iter()
+            .map(|entry| {
+                if range.contains(entry.min_val) && range.contains(entry.max_val) {
+                    let r = ValueRange {
+                        min: entry.min_val,
+                        max: entry.max_val,
+                        step: range.step,
+                    };
+                    entry.to_dbinterval(&r).and_then(|i| Ok((r, i)))
+                } else {
+                    Err(ToDbIntervalError::Range(entry.min_val, entry.max_val))
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         if entries.len() > 0 {
             let mut interval = entries[0].1;
             entries[1..].iter().try_for_each(|entry| {
                 let i = entry.1;
                 if i.linear != interval.linear {
-                    let msg = "DbRange includes entries for both of non-linear and linear value"
-                        .to_string();
-                    Err(ToDbIntervalError { msg })
+                    Err(ToDbIntervalError::Linearity)
                 } else {
                     if !interval.contains(i.min) {
                         interval.min = i.min;
@@ -222,8 +240,7 @@ impl ToDbInterval for DbRange {
             })?;
             Ok(interval)
         } else {
-            let msg = "DbRange includes no entry for dB information".to_string();
-            Err(ToDbIntervalError { msg })
+            Err(ToDbIntervalError::Empty)
         }
     }
 }
@@ -240,9 +257,7 @@ impl ToDbInterval for Container {
             let mut interval = intervals[0];
             intervals[1..].iter().try_for_each(|i| {
                 if i.linear != interval.linear {
-                    let msg = "Container includes entries for both of non-linear and linear value"
-                        .to_string();
-                    Err(ToDbIntervalError { msg })
+                    Err(ToDbIntervalError::Linearity)
                 } else {
                     if !interval.contains(i.min) {
                         interval.min = i.min;
@@ -256,8 +271,7 @@ impl ToDbInterval for Container {
             })?;
             Ok(interval)
         } else {
-            let msg = "Container includes no entry for dB information".to_string();
-            Err(ToDbIntervalError { msg })
+            Err(ToDbIntervalError::Empty)
         }
     }
 }
@@ -269,10 +283,7 @@ impl ToDbInterval for TlvItem {
             TlvItem::DbRange(d) => d.to_dbinterval(&range),
             TlvItem::DbScale(d) => d.to_dbinterval(&range),
             TlvItem::DbInterval(d) => Ok(*d),
-            _ => {
-                let msg = "Container includes entry without dB information".to_string();
-                Err(ToDbIntervalError { msg })
-            }
+            _ => Err(ToDbIntervalError::Unsupported),
         }
     }
 }
