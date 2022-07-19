@@ -5,18 +5,18 @@
 //! implementation to parse it. The structure implements TryFrom trait to convert from the
 //! content of leaf entry.
 //!
-//! Descriptor structure represents descriptor itself. DescriptorData enumeration represents data
-//! of descriptor. At present, Textual descriptor is supported. TextualDescriptorData represents
+//! Descriptor structure expresss descriptor itself. DescriptorData enumeration expresss data
+//! of descriptor. At present, Textual descriptor is supported. TextualDescriptorData expresss
 //! the data of Texual descriptor.
 //!
-//! EUI-64 structure represents 64-bit EUI.
+//! EUI-64 structure expresss 64-bit EUI.
 //!
-//! Unit_Location structure represents a pair of base address and upper bound for data of specific
+//! Unit_Location structure expresss a pair of base address and upper bound for data of specific
 //! unit.
 
 use super::*;
 
-/// The structure to represent error cause.
+/// The structure to express error cause to parse leaf entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LeafParseError<T>
 where
@@ -44,7 +44,7 @@ where
     }
 }
 
-/// The structure represents data of textual descriptor.
+/// The structure expresss data of textual descriptor.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextualDescriptorData<'a> {
     pub width: u8,
@@ -80,7 +80,7 @@ impl<'a> TryFrom<&'a [u8]> for TextualDescriptorData<'a> {
     }
 }
 
-/// The enumeration represents data of descriptor according to its type.
+/// The enumeration expresss data of descriptor according to its type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DescriptorData<'a> {
     Textual(TextualDescriptorData<'a>),
@@ -117,7 +117,7 @@ fn entry_data_to_str(data: &EntryData) -> &'static str {
     }
 }
 
-/// The structure represents descriptor in content of leaf.
+/// The structure expresss descriptor in content of leaf entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DescriptorLeaf<'a> {
     pub spec_id: u32,
@@ -151,6 +151,7 @@ impl<'a> TryFrom<&'a Entry<'a>> for DescriptorLeaf<'a> {
     }
 }
 
+/// The context to parse leaf entry for descriptor data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DescriptorLeafParseCtx {
     InvalidTextString,
@@ -169,7 +170,7 @@ impl std::fmt::Display for DescriptorLeafParseCtx {
     }
 }
 
-/// The structure to represent data of EUI-64 leaf.
+/// The structure to express data of EUI-64 leaf.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Eui64Leaf(pub u64);
 
@@ -206,6 +207,7 @@ impl<'a> TryFrom<&Entry<'a>> for Eui64Leaf {
     }
 }
 
+/// The context to parse leaf entry with EUI64 data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Eui64LeafParseCtx {
     TooShort,
@@ -222,7 +224,7 @@ impl std::fmt::Display for Eui64LeafParseCtx {
     }
 }
 
-/// The structure to represent data of unit location leaf.
+/// The structure to express data of unit location leaf.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UnitLocationLeaf {
     pub base_addr: u64,

@@ -21,6 +21,15 @@ each entry by key.
 
 ## Usage
 
+Add the following line to your Cargo.toml file:
+
+```toml
+[dependencies]
+ieee1212-config-rom = "0.1.0"
+```
+
+[`ConfigRom`] structure is a good start to use the crate.
+
 ```rust
 use ieee1212_config_rom::*;
 use std::convert::TryFrom;
@@ -66,7 +75,7 @@ assert_eq!("Juju", model_name);
 
 Some programs are available under `src/bin` directory.
 
-### src/bin/config-rom-parser
+### config-rom-parser.rs
 
 This program parses raw data of Configuration ROM from stdin, or image file as arguments of
 command line.
@@ -98,3 +107,11 @@ $ cat /sys/bus/firewire/devices/fw0/config_rom  | cargo run --bin config-rom-par
 ```
 
 In both cases, the content to be parsed should be aligned to big-endian order.
+
+## License
+
+The hinawa crate is released under [MIT license](https://spdx.org/licenses/MIT.html).
+
+## Support
+
+If finding issue, please file it to <https://github.com/alsa-project/snd-firewire-ctl-services/>.

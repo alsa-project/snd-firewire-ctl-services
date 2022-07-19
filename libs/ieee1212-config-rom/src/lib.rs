@@ -10,7 +10,7 @@ pub use {entry::*, leaf::*};
 
 use std::convert::TryFrom;
 
-/// The structure to represent content of configuration ROM in IEEE 1212.
+/// The structure to express content of configuration ROM in IEEE 1212.
 ///
 /// The structure implements std::convert::TryFrom<&[u8]> to parse raw data of configuration ROM.
 /// The structure refers to content of the raw data, thus has the same lifetime of the raw data.
@@ -22,7 +22,7 @@ pub struct ConfigRom<'a> {
     pub root: Vec<Entry<'a>>,
 }
 
-/// The structure to represent error cause to parse raw data of configuration ROM.
+/// The structure to express error cause to parse raw data of configuration ROM.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigRomParseError {
     pub ctx: Vec<ConfigRomParseCtx>,
@@ -56,7 +56,7 @@ impl std::fmt::Display for ConfigRomParseError {
     }
 }
 
-/// The enumeration to represent context of parsing.
+/// The context to parse configuration ROM.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigRomParseCtx {
     BusInfo,
