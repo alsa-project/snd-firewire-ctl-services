@@ -235,7 +235,7 @@ pub enum ChmapGenericPos {
 
 impl Default for ChmapGenericPos {
     fn default() -> Self {
-        ChmapGenericPos::Unknown
+        Self::Unknown
     }
 }
 
@@ -243,51 +243,46 @@ impl std::convert::TryFrom<u16> for ChmapGenericPos {
     type Error = InvalidTlvDataError;
 
     fn try_from(val: u16) -> Result<Self, Self::Error> {
-        let v = match val as u32 {
-            SNDRV_CHMAP_UNKNOWN => ChmapGenericPos::Unknown,
-            SNDRV_CHMAP_NA => ChmapGenericPos::NotAvailable,
-            SNDRV_CHMAP_MONO => ChmapGenericPos::Monaural,
-            SNDRV_CHMAP_FL => ChmapGenericPos::FrontLeft,
-            SNDRV_CHMAP_FR => ChmapGenericPos::FrontRight,
-            SNDRV_CHMAP_RL => ChmapGenericPos::RearLeft,
-            SNDRV_CHMAP_RR => ChmapGenericPos::RearRight,
-            SNDRV_CHMAP_FC => ChmapGenericPos::FrontCenter,
-            SNDRV_CHMAP_LFE => ChmapGenericPos::LowFrequencyEffect,
-            SNDRV_CHMAP_SL => ChmapGenericPos::SideLeft,
-            SNDRV_CHMAP_SR => ChmapGenericPos::SideRight,
-            SNDRV_CHMAP_RC => ChmapGenericPos::RearCenter,
-            SNDRV_CHMAP_FLC => ChmapGenericPos::FrontLeftCenter,
-            SNDRV_CHMAP_FRC => ChmapGenericPos::FrontRightCenter,
-            SNDRV_CHMAP_RLC => ChmapGenericPos::RearLeftCenter,
-            SNDRV_CHMAP_RRC => ChmapGenericPos::RearRightCenter,
-            SNDRV_CHMAP_FLW => ChmapGenericPos::FrontLeftWide,
-            SNDRV_CHMAP_FRW => ChmapGenericPos::FrontRightWide,
-            SNDRV_CHMAP_FLH => ChmapGenericPos::FrontLeftHigh,
-            SNDRV_CHMAP_FCH => ChmapGenericPos::FrontCenterHigh,
-            SNDRV_CHMAP_FRH => ChmapGenericPos::FrontRightHigh,
-            SNDRV_CHMAP_TC => ChmapGenericPos::TopCenter,
-            SNDRV_CHMAP_TFL => ChmapGenericPos::TopFrontLeft,
-            SNDRV_CHMAP_TFR => ChmapGenericPos::TopFrontRight,
-            SNDRV_CHMAP_TFC => ChmapGenericPos::TopFrontCenter,
-            SNDRV_CHMAP_TRL => ChmapGenericPos::TopRearLeft,
-            SNDRV_CHMAP_TRR => ChmapGenericPos::TopRearRight,
-            SNDRV_CHMAP_TRC => ChmapGenericPos::TopRearCenter,
-            SNDRV_CHMAP_TFLC => ChmapGenericPos::TopFrontLeftCenter,
-            SNDRV_CHMAP_TFRC => ChmapGenericPos::TopFrontRightCenter,
-            SNDRV_CHMAP_TSL => ChmapGenericPos::TopSideLeft,
-            SNDRV_CHMAP_TSR => ChmapGenericPos::TopSideRight,
-            SNDRV_CHMAP_LLFE => ChmapGenericPos::LeftLowFrequencyEffect,
-            SNDRV_CHMAP_RLFE => ChmapGenericPos::RightLowFrequencyEffect,
-            SNDRV_CHMAP_BC => ChmapGenericPos::BottomCenter,
-            SNDRV_CHMAP_BLC => ChmapGenericPos::BottomLeftCenter,
-            SNDRV_CHMAP_BRC => ChmapGenericPos::BottomRightCenter,
-            _ => {
-                return Err(InvalidTlvDataError::new(
-                    "Invalid value for ChmapGenericPos",
-                ));
-            }
-        };
-        Ok(v)
+        match val as u32 {
+            SNDRV_CHMAP_UNKNOWN => Ok(Self::Unknown),
+            SNDRV_CHMAP_NA => Ok(Self::NotAvailable),
+            SNDRV_CHMAP_MONO => Ok(Self::Monaural),
+            SNDRV_CHMAP_FL => Ok(Self::FrontLeft),
+            SNDRV_CHMAP_FR => Ok(Self::FrontRight),
+            SNDRV_CHMAP_RL => Ok(Self::RearLeft),
+            SNDRV_CHMAP_RR => Ok(Self::RearRight),
+            SNDRV_CHMAP_FC => Ok(Self::FrontCenter),
+            SNDRV_CHMAP_LFE => Ok(Self::LowFrequencyEffect),
+            SNDRV_CHMAP_SL => Ok(Self::SideLeft),
+            SNDRV_CHMAP_SR => Ok(Self::SideRight),
+            SNDRV_CHMAP_RC => Ok(Self::RearCenter),
+            SNDRV_CHMAP_FLC => Ok(Self::FrontLeftCenter),
+            SNDRV_CHMAP_FRC => Ok(Self::FrontRightCenter),
+            SNDRV_CHMAP_RLC => Ok(Self::RearLeftCenter),
+            SNDRV_CHMAP_RRC => Ok(Self::RearRightCenter),
+            SNDRV_CHMAP_FLW => Ok(Self::FrontLeftWide),
+            SNDRV_CHMAP_FRW => Ok(Self::FrontRightWide),
+            SNDRV_CHMAP_FLH => Ok(Self::FrontLeftHigh),
+            SNDRV_CHMAP_FCH => Ok(Self::FrontCenterHigh),
+            SNDRV_CHMAP_FRH => Ok(Self::FrontRightHigh),
+            SNDRV_CHMAP_TC => Ok(Self::TopCenter),
+            SNDRV_CHMAP_TFL => Ok(Self::TopFrontLeft),
+            SNDRV_CHMAP_TFR => Ok(Self::TopFrontRight),
+            SNDRV_CHMAP_TFC => Ok(Self::TopFrontCenter),
+            SNDRV_CHMAP_TRL => Ok(Self::TopRearLeft),
+            SNDRV_CHMAP_TRR => Ok(Self::TopRearRight),
+            SNDRV_CHMAP_TRC => Ok(Self::TopRearCenter),
+            SNDRV_CHMAP_TFLC => Ok(Self::TopFrontLeftCenter),
+            SNDRV_CHMAP_TFRC => Ok(Self::TopFrontRightCenter),
+            SNDRV_CHMAP_TSL => Ok(Self::TopSideLeft),
+            SNDRV_CHMAP_TSR => Ok(Self::TopSideRight),
+            SNDRV_CHMAP_LLFE => Ok(Self::LeftLowFrequencyEffect),
+            SNDRV_CHMAP_RLFE => Ok(Self::RightLowFrequencyEffect),
+            SNDRV_CHMAP_BC => Ok(Self::BottomCenter),
+            SNDRV_CHMAP_BLC => Ok(Self::BottomLeftCenter),
+            SNDRV_CHMAP_BRC => Ok(Self::BottomRightCenter),
+            _ => Err(Self::Error::new("Invalid value for ChmapGenericPos")),
+        }
     }
 }
 
@@ -347,7 +342,7 @@ pub enum ChmapPos {
 
 impl Default for ChmapPos {
     fn default() -> Self {
-        ChmapPos::Generic(Default::default())
+        Self::Generic(Default::default())
     }
 }
 
@@ -368,13 +363,12 @@ impl std::convert::TryFrom<u32> for ChmapEntry {
         let pos_val = (val & 0x0000ffff) as u16;
         let phase_inverse = val & SNDRV_CHMAP_PHASE_INVERSE > 0;
         let driver_spec = val & SNDRV_CHMAP_DRIVER_SPEC > 0;
-        let pos = if driver_spec {
-            ChmapPos::Specific(pos_val)
+        if driver_spec {
+            Ok(ChmapPos::Specific(pos_val))
         } else {
-            let p = ChmapGenericPos::try_from(pos_val)?;
-            ChmapPos::Generic(p)
-        };
-        Ok(ChmapEntry { pos, phase_inverse })
+            ChmapGenericPos::try_from(pos_val).map(|p| ChmapPos::Generic(p))
+        }
+        .map(|pos| ChmapEntry { pos, phase_inverse })
     }
 }
 
@@ -406,7 +400,7 @@ pub enum ChmapMode {
 
 impl Default for ChmapMode {
     fn default() -> Self {
-        ChmapMode::Fixed
+        Self::Fixed
     }
 }
 
