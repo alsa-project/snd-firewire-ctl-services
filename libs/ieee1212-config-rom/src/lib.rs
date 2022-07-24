@@ -78,21 +78,25 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
     type Error = ConfigRomParseError;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
-        // Get block of bus information.
         let ctx = ConfigRomParseCtx::BusInfo;
-        let bus_info_length = 4 * raw[0] as usize;
-        if 4 + bus_info_length > raw.len() {
+        let mut pos = 0;
+
+        let bus_info_length = 4 * raw[pos] as usize;
+        pos += 4;
+
+        if pos + bus_info_length > raw.len() {
             let msg = format!("length {} is greater than {}", bus_info_length, raw.len());
             Err(ConfigRomParseError::new(ctx, msg))
         } else {
-            let bus_info = &raw[4..(4 + bus_info_length)];
-            let data = &raw[(4 + bus_info_length)..];
+            let bus_info = &raw[pos..(pos + bus_info_length)];
+            pos += bus_info_length;
 
-            // Get block of root directory.
             let ctx = ConfigRomParseCtx::RootDirectory;
-            let doublet = [data[0], data[1]];
+            let doublet = [raw[pos], raw[pos + 1]];
             let root_directory_length = 4 * u16::from_be_bytes(doublet) as usize;
-            if 4 + root_directory_length > raw.len() {
+            pos += 4;
+
+            if pos + root_directory_length > raw.len() {
                 let msg = format!(
                     "length {} is greater than {}",
                     root_directory_length,
@@ -100,12 +104,9 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
                 );
                 Err(ConfigRomParseError::new(ctx, msg))
             } else {
-                let root = &data[..(4 + root_directory_length)];
-                let data = &data[(4 + root_directory_length)..];
-
-                get_directory_entry_list(root, data)
+                get_directory_entry_list(raw, pos, root_directory_length)
                     .map_err(|mut e| {
-                        e.ctx.insert(0, ctx);
+                        e.ctx.insert(0, ConfigRomParseCtx::RootDirectory);
                         e
                     })
                     .map(|root| ConfigRom { bus_info, root })
@@ -120,16 +121,18 @@ const ENTRY_KEY_LEAF: u8 = 2;
 const ENTRY_KEY_DIRECTORY: u8 = 3;
 
 fn get_directory_entry_list<'a>(
-    mut directory: &'a [u8],
-    data: &'a [u8],
+    raw: &'a [u8],
+    directory_pos: usize,
+    directory_length: usize,
 ) -> Result<Vec<Entry<'a>>, ConfigRomParseError> {
     let mut entries = Vec::new();
 
-    directory = &directory[4..];
-    while directory.len() > 0 {
-        let entry_type = directory[0] >> 6;
-        let key = directory[0] & 0x3f;
-        let quadlet = [0, directory[1], directory[2], directory[3]];
+    let mut pos = directory_pos;
+
+    while pos < directory_pos + directory_length {
+        let entry_type = raw[pos] >> 6;
+        let key = raw[pos] & 0x3f;
+        let quadlet = [0, raw[pos + 1], raw[pos + 2], raw[pos + 3]];
         let value = u32::from_be_bytes(quadlet);
 
         let ctx = ConfigRomParseCtx::DirectoryEntry(key);
@@ -145,40 +148,36 @@ fn get_directory_entry_list<'a>(
             }
             ENTRY_KEY_LEAF | ENTRY_KEY_DIRECTORY => {
                 let offset = 4 * value as usize;
-                if offset < directory.len() {
-                    let msg = format!("Offset {} reaches no block {}", offset, directory.len());
+                if pos + offset > raw.len() {
+                    let msg = format!("Offset {} reaches no block {}", offset, raw.len());
                     Err(ConfigRomParseError::new(ctx, msg))
                 } else {
-                    let start_offset = offset - directory.len();
-                    if start_offset > data.len() {
-                        let msg = format!(
-                            "Start offset {} is over blocks {}",
-                            start_offset,
-                            directory.len()
-                        );
+                    let start_offset = pos + offset;
+                    if start_offset > raw.len() {
+                        let msg =
+                            format!("Start offset {} is over blocks {}", start_offset, raw.len());
                         Err(ConfigRomParseError::new(ctx, msg))
                     } else {
-                        let doublet = [data[start_offset], data[start_offset + 1]];
+                        let doublet = [raw[start_offset], raw[start_offset + 1]];
                         let length = 4 * u16::from_be_bytes(doublet) as usize;
                         if length < 4 {
                             let msg = format!("Invalid length of block {}", length);
                             Err(ConfigRomParseError::new(ctx, msg))
                         } else {
                             let end_offset = start_offset + 4 + length;
-                            if end_offset > data.len() {
+                            if end_offset > raw.len() {
                                 let msg = format!(
                                     "End offset {} is over blocks {}",
                                     end_offset,
-                                    data.len()
+                                    raw.len()
                                 );
                                 Err(ConfigRomParseError::new(ctx, msg))
                             } else {
                                 if entry_type == ENTRY_KEY_LEAF {
-                                    let leaf = &data[(4 + start_offset)..end_offset];
+                                    let leaf = &raw[(start_offset + 4)..end_offset];
                                     Ok(EntryData::Leaf(leaf))
                                 } else {
-                                    let directory = &data[start_offset..end_offset];
-                                    get_directory_entry_list(directory, &data[end_offset..])
+                                    get_directory_entry_list(raw, start_offset + 4, length)
                                         .map_err(|mut e| {
                                             e.ctx.insert(0, ctx);
                                             e
@@ -198,7 +197,7 @@ fn get_directory_entry_list<'a>(
                 key: KeyType::from(key),
                 data: entry_data,
             });
-            directory = &directory[4..];
+            pos += 4;
         })?;
     }
 
