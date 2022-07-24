@@ -6,10 +6,10 @@ version = "0.1.0"
 authors = ["Takashi Sakamoto"]
 categories = ["data-structures", "parser-implementations"]
 description = """
-Decoder for content of Configuration ROM defined in IEEE 1212.
+Parser for content of Configuration ROM defined in IEEE 1212.
 """
 documentation = "https://docs.rs/ieee1212-config-rom/"
-keywords = ["ieee1212", "configuration rom"]
+keywords = ["ieee1212", "configuration-rom"]
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
 license = "MIT"
 readme = "README.md"
