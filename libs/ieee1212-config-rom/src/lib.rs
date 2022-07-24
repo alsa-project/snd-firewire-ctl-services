@@ -12,8 +12,9 @@ use std::convert::TryFrom;
 
 /// The structure to express content of configuration ROM in IEEE 1212.
 ///
-/// The structure implements std::convert::TryFrom<&[u8]> to parse raw data of configuration ROM.
-/// The structure refers to content of the raw data, thus has the same lifetime of the raw data.
+/// The structure implements std::convert::TryFrom<&[u8]> to parse raw data of configuration ROM,
+/// aligned to big-endian. The structure refers to content of the raw data, thus has the same
+/// lifetime of the raw data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigRom<'a> {
     /// The content of bus information block.
@@ -22,54 +23,94 @@ pub struct ConfigRom<'a> {
     pub root: Vec<Entry<'a>>,
 }
 
-/// The structure to express error cause to parse raw data of configuration ROM.
+/// The error to parse Configuration ROM.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConfigRomParseError {
-    pub ctx: Vec<ConfigRomParseCtx>,
-    pub msg: String,
-}
-
-impl ConfigRomParseError {
-    fn new(ctx: ConfigRomParseCtx, msg: String) -> Self {
-        ConfigRomParseError {
-            ctx: vec![ctx],
-            msg,
-        }
-    }
+pub enum ConfigRomParseError {
+    /// The error to parse bus information block.
+    BusInfo(
+        /// The cause of error.
+        BusInfoParseError,
+    ),
+    /// The error to parse root directory entry.
+    RootDirectory(
+        /// The start offset of root directory.
+        usize,
+        /// The index of root directory entry.
+        usize,
+        /// The cause of error to parse block referred by the root directory entry.
+        BlockParseError,
+    ),
 }
 
 impl std::fmt::Display for ConfigRomParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut ctx = String::new();
-
-        let mut ctx_iter = self.ctx.iter();
-        ctx_iter
-            .by_ref()
-            .nth(0)
-            .map(|c| ctx.push_str(&c.to_string()));
-        ctx_iter.for_each(|c| {
-            ctx.push_str(" -> ");
-            ctx.push_str(&c.to_string());
-        });
-
-        write!(f, "{}: {}", ctx, self.msg)
+        match self {
+            Self::BusInfo(err) => {
+                write!(f, "Detect ill-formed bus info: {}", err)
+            }
+            Self::RootDirectory(pos, entry_index, err) => {
+                write!(
+                    f,
+                    "Detect ill-formed root directory, pos  {}, entry  {}: {}",
+                    pos, entry_index, err
+                )
+            }
+        }
     }
 }
 
-/// The context to parse configuration ROM.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConfigRomParseCtx {
-    BusInfo,
-    RootDirectory,
-    DirectoryEntry(u8),
+/// The error to parse bus information block.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BusInfoParseError {
+    /// The start offset is beyond boundary.
+    OffsetBeyondBoundary(
+        /// The offset of block.
+        usize,
+    ),
+    /// The detected length is invalid.
+    InvalidLength(
+        /// The length of content.
+        usize,
+    ),
+    /// The content is beyond boundary.
+    ContentBeyondBoundary(
+        /// The start offset of content.
+        usize,
+        /// The length of content.
+        usize,
+    ),
+    /// The error to parse directory entry.
+    Directory(
+        /// The start offset of directory.
+        usize,
+        /// The index of directory entry.
+        usize,
+        /// The cause of error to parse block referred by the directory entry.
+        Box<BlockParseError>,
+    ),
 }
 
-impl std::fmt::Display for ConfigRomParseCtx {
+impl std::fmt::Display for BusInfoParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConfigRomParseCtx::BusInfo => write!(f, "bus-info"),
-            ConfigRomParseCtx::RootDirectory => write!(f, "root-directory"),
-            ConfigRomParseCtx::DirectoryEntry(key) => write!(f, "directory-entry (key: {})", key),
+            Self::OffsetBeyondBoundary(offset) => write!(f, "offset {}", offset),
+            Self::InvalidLength(length) => {
+                write!(f, "invalid length {}", length)
+            }
+            Self::ContentBeyondBoundary(offset, length) => {
+                write!(
+                    f,
+                    "content beyond boundary, offset {}, length {}",
+                    offset, length
+                )
+            }
+            Self::Directory(pos, entry_index, err) => {
+                write!(
+                    f,
+                    "ill-formed directory, pos: {}, entry {}: {}",
+                    pos, entry_index, err
+                )
+            }
         }
     }
 }
@@ -84,15 +125,24 @@ pub enum BlockParseError {
     ),
     /// The detected length is invalid.
     InvalidLength(
-        /// The length of block.
+        /// The length of content.
         usize,
     ),
     /// The content is beyond boundary.
     ContentBeyondBoundary(
-        /// The start offset of block.
+        /// The start offset of content.
         usize,
-        /// The length of block.
+        /// The length of content.
         usize,
+    ),
+    /// The error to parse directory entry.
+    Directory(
+        /// The start offset of directory.
+        usize,
+        /// The index of directory entry.
+        usize,
+        /// The cause of error.
+        Box<BlockParseError>,
     ),
 }
 
@@ -110,6 +160,13 @@ impl std::fmt::Display for BlockParseError {
                     f,
                     "content beyond boundary, offset {}, length {}",
                     offset, length
+                )
+            }
+            Self::Directory(pos, entry_index, err) => {
+                write!(
+                    f,
+                    "ill-formed directory, pos: {}, entry {}: {}",
+                    pos, entry_index, err
                 )
             }
         }
@@ -140,31 +197,25 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
     type Error = ConfigRomParseError;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
-        let ctx = ConfigRomParseCtx::BusInfo;
         let mut pos = 0;
 
         let bus_info_length = 4 * raw[pos] as usize;
         pos += 4;
 
         if pos + bus_info_length > raw.len() {
-            let msg = format!("length {} is greater than {}", bus_info_length, raw.len());
-            Err(ConfigRomParseError::new(ctx, msg))
+            Err(Self::Error::BusInfo(BusInfoParseError::InvalidLength(
+                bus_info_length,
+            )))
         } else {
             let bus_info = &raw[pos..(pos + bus_info_length)];
             pos += bus_info_length;
 
             detect_block(raw, pos, 0)
-                .map_err(|err| {
-                    ConfigRomParseError::new(ConfigRomParseCtx::RootDirectory, err.to_string())
-                })
                 .and_then(|(start_offset, length)| {
                     get_directory_entry_list(raw, start_offset, length)
-                        .map_err(|mut e| {
-                            e.ctx.insert(0, ConfigRomParseCtx::RootDirectory);
-                            e
-                        })
                         .map(|root| ConfigRom { bus_info, root })
                 })
+                .map_err(|err| Self::Error::RootDirectory(pos, 0, err))
         }
     }
 }
@@ -178,7 +229,7 @@ fn get_directory_entry_list<'a>(
     raw: &'a [u8],
     directory_pos: usize,
     directory_length: usize,
-) -> Result<Vec<Entry<'a>>, ConfigRomParseError> {
+) -> Result<Vec<Entry<'a>>, BlockParseError> {
     let mut entries = Vec::new();
 
     let mut pos = directory_pos;
@@ -188,8 +239,6 @@ fn get_directory_entry_list<'a>(
         let key = raw[pos] & 0x3f;
         let quadlet = [0, raw[pos + 1], raw[pos + 2], raw[pos + 3]];
         let value = u32::from_be_bytes(quadlet);
-
-        let ctx = ConfigRomParseCtx::DirectoryEntry(key);
 
         match entry_type {
             ENTRY_KEY_IMMEDIATE => Ok(EntryData::Immediate(value)),
@@ -203,7 +252,7 @@ fn get_directory_entry_list<'a>(
             ENTRY_KEY_LEAF => {
                 let offset = 4 * value as usize;
                 detect_block(raw, pos, offset)
-                    .map_err(|err| ConfigRomParseError::new(ctx, err.to_string()))
+                    .map_err(|err| BlockParseError::Directory(pos, offset, Box::new(err)))
                     .map(|(start_offset, length)| {
                         let leaf = &raw[start_offset..(start_offset + length)];
                         EntryData::Leaf(leaf)
@@ -212,15 +261,11 @@ fn get_directory_entry_list<'a>(
             ENTRY_KEY_DIRECTORY => {
                 let offset = 4 * value as usize;
                 detect_block(raw, pos, offset)
-                    .map_err(|err| ConfigRomParseError::new(ctx, err.to_string()))
                     .and_then(|(start_offset, length)| {
                         get_directory_entry_list(raw, start_offset + 4, length)
-                            .map_err(|mut e| {
-                                e.ctx.insert(0, ctx);
-                                e
-                            })
                             .map(|entries| EntryData::Directory(entries))
                     })
+                    .map_err(|err| BlockParseError::Directory(pos, offset, Box::new(err)))
             }
             // NOTE: The field of key has two bits, thus it can not be over 0x03.
             _ => unreachable!(),
