@@ -110,7 +110,7 @@ In both cases, the content to be parsed should be aligned to big-endian order.
 
 ## License
 
-The hinawa crate is released under [MIT license](https://spdx.org/licenses/MIT.html).
+The ieee1212-config-rom crate is released under [MIT license](https://spdx.org/licenses/MIT.html).
 
 ## Support
 
