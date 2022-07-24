@@ -74,6 +74,68 @@ impl std::fmt::Display for ConfigRomParseCtx {
     }
 }
 
+/// The error to parse block for leaf or directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BlockParseError {
+    /// The start offset is beyond boundary.
+    OffsetBeyondBoundary(
+        /// The offset of block.
+        usize,
+    ),
+    /// The detected length is invalid.
+    InvalidLength(
+        /// The length of block.
+        usize,
+    ),
+    /// The content is beyond boundary.
+    ContentBeyondBoundary(
+        /// The start offset of block.
+        usize,
+        /// The length of block.
+        usize,
+    ),
+}
+
+impl std::fmt::Display for BlockParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OffsetBeyondBoundary(offset) => {
+                write!(f, "offset {}", offset)
+            }
+            Self::InvalidLength(length) => {
+                write!(f, "invalid length {}", length)
+            }
+            Self::ContentBeyondBoundary(offset, length) => {
+                write!(
+                    f,
+                    "content beyond boundary, offset {}, length {}",
+                    offset, length
+                )
+            }
+        }
+    }
+}
+
+fn detect_block(raw: &[u8], pos: usize, offset: usize) -> Result<(usize, usize), BlockParseError> {
+    let mut start_offset = pos + offset;
+    if start_offset > raw.len() {
+        Err(BlockParseError::OffsetBeyondBoundary(start_offset))
+    } else {
+        let doublet = [raw[start_offset], raw[start_offset + 1]];
+        let length = 4 * u16::from_be_bytes(doublet) as usize;
+        if length < 4 {
+            Err(BlockParseError::InvalidLength(length))
+        } else {
+            start_offset += 4;
+            if start_offset + length > raw.len() {
+                Err(BlockParseError::ContentBeyondBoundary(start_offset, length))
+            } else {
+                Ok((start_offset, length))
+            }
+        }
+    }
+}
+
 impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
     type Error = ConfigRomParseError;
 
@@ -91,26 +153,18 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
             let bus_info = &raw[pos..(pos + bus_info_length)];
             pos += bus_info_length;
 
-            let ctx = ConfigRomParseCtx::RootDirectory;
-            let doublet = [raw[pos], raw[pos + 1]];
-            let root_directory_length = 4 * u16::from_be_bytes(doublet) as usize;
-            pos += 4;
-
-            if pos + root_directory_length > raw.len() {
-                let msg = format!(
-                    "length {} is greater than {}",
-                    root_directory_length,
-                    raw.len()
-                );
-                Err(ConfigRomParseError::new(ctx, msg))
-            } else {
-                get_directory_entry_list(raw, pos, root_directory_length)
-                    .map_err(|mut e| {
-                        e.ctx.insert(0, ConfigRomParseCtx::RootDirectory);
-                        e
-                    })
-                    .map(|root| ConfigRom { bus_info, root })
-            }
+            detect_block(raw, pos, 0)
+                .map_err(|err| {
+                    ConfigRomParseError::new(ConfigRomParseCtx::RootDirectory, err.to_string())
+                })
+                .and_then(|(start_offset, length)| {
+                    get_directory_entry_list(raw, start_offset, length)
+                        .map_err(|mut e| {
+                            e.ctx.insert(0, ConfigRomParseCtx::RootDirectory);
+                            e
+                        })
+                        .map(|root| ConfigRom { bus_info, root })
+                })
         }
     }
 }
@@ -146,48 +200,27 @@ fn get_directory_entry_list<'a>(
                 let offset = 0xfffff0000000 + (4 * value as usize);
                 Ok(EntryData::CsrOffset(offset))
             }
-            ENTRY_KEY_LEAF | ENTRY_KEY_DIRECTORY => {
+            ENTRY_KEY_LEAF => {
                 let offset = 4 * value as usize;
-                if pos + offset > raw.len() {
-                    let msg = format!("Offset {} reaches no block {}", offset, raw.len());
-                    Err(ConfigRomParseError::new(ctx, msg))
-                } else {
-                    let start_offset = pos + offset;
-                    if start_offset > raw.len() {
-                        let msg =
-                            format!("Start offset {} is over blocks {}", start_offset, raw.len());
-                        Err(ConfigRomParseError::new(ctx, msg))
-                    } else {
-                        let doublet = [raw[start_offset], raw[start_offset + 1]];
-                        let length = 4 * u16::from_be_bytes(doublet) as usize;
-                        if length < 4 {
-                            let msg = format!("Invalid length of block {}", length);
-                            Err(ConfigRomParseError::new(ctx, msg))
-                        } else {
-                            let end_offset = start_offset + 4 + length;
-                            if end_offset > raw.len() {
-                                let msg = format!(
-                                    "End offset {} is over blocks {}",
-                                    end_offset,
-                                    raw.len()
-                                );
-                                Err(ConfigRomParseError::new(ctx, msg))
-                            } else {
-                                if entry_type == ENTRY_KEY_LEAF {
-                                    let leaf = &raw[(start_offset + 4)..end_offset];
-                                    Ok(EntryData::Leaf(leaf))
-                                } else {
-                                    get_directory_entry_list(raw, start_offset + 4, length)
-                                        .map_err(|mut e| {
-                                            e.ctx.insert(0, ctx);
-                                            e
-                                        })
-                                        .map(|entries| EntryData::Directory(entries))
-                                }
-                            }
-                        }
-                    }
-                }
+                detect_block(raw, pos, offset)
+                    .map_err(|err| ConfigRomParseError::new(ctx, err.to_string()))
+                    .map(|(start_offset, length)| {
+                        let leaf = &raw[start_offset..(start_offset + length)];
+                        EntryData::Leaf(leaf)
+                    })
+            }
+            ENTRY_KEY_DIRECTORY => {
+                let offset = 4 * value as usize;
+                detect_block(raw, pos, offset)
+                    .map_err(|err| ConfigRomParseError::new(ctx, err.to_string()))
+                    .and_then(|(start_offset, length)| {
+                        get_directory_entry_list(raw, start_offset + 4, length)
+                            .map_err(|mut e| {
+                                e.ctx.insert(0, ctx);
+                                e
+                            })
+                            .map(|entries| EntryData::Directory(entries))
+                    })
             }
             // NOTE: The field of key has two bits, thus it can not be over 0x03.
             _ => unreachable!(),
