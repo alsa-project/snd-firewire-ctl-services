@@ -16,34 +16,6 @@
 
 use super::*;
 
-/// The structure to express error cause to parse leaf entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LeafParseError<T>
-where
-    T: std::fmt::Debug + std::fmt::Display + Clone + Copy + PartialEq + Eq,
-{
-    ctx: T,
-    msg: String,
-}
-
-impl<T> LeafParseError<T>
-where
-    T: std::fmt::Debug + std::fmt::Display + Clone + Copy + PartialEq + Eq,
-{
-    pub fn new(ctx: T, msg: String) -> Self {
-        LeafParseError { ctx, msg }
-    }
-}
-
-impl<T> std::fmt::Display for LeafParseError<T>
-where
-    T: std::fmt::Debug + std::fmt::Display + Clone + Copy + PartialEq + Eq,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.ctx, self.msg)
-    }
-}
-
 fn detect_leaf_from_entry<'a>(entry: &'a Entry<'a>) -> Option<&'a [u8]> {
     if let EntryData::Leaf(leaf) = entry.data {
         Some(leaf)
@@ -62,29 +34,36 @@ pub struct TextualDescriptorData<'a> {
 }
 
 impl<'a> TryFrom<&'a [u8]> for TextualDescriptorData<'a> {
-    type Error = LeafParseError<DescriptorLeafParseCtx>;
+    type Error = DescriptorLeafParseError;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        let meta = u32::from_be_bytes(quadlet);
-        let width = ((meta & 0xf0000000) >> 28) as u8;
-        let character_set = ((meta & 0x0fff0000) >> 16) as u16;
-        let language = (meta & 0x0000ffff) as u16;
-        let literal = &raw[4..];
-        literal
-            .iter()
-            .position(|&c| c == 0x00)
-            .ok_or(String::new())
-            .and_then(|pos| std::str::from_utf8(&literal[..pos]).map_err(|e| e.to_string()))
-            .or_else(|_| std::str::from_utf8(literal).map_err(|e| e.to_string()))
-            .map_err(|msg| Self::Error::new(DescriptorLeafParseCtx::InvalidTextString, msg))
-            .map(|text| TextualDescriptorData {
-                width,
-                character_set,
-                language,
-                text,
-            })
+        if raw.len() < 4 {
+            Err(Self::Error::TooShort(raw.len()))
+        } else {
+            let mut quadlet = [0; 4];
+            quadlet.copy_from_slice(&raw[..4]);
+            let meta = u32::from_be_bytes(quadlet);
+            let width = ((meta & 0xf0000000) >> 28) as u8;
+            let character_set = ((meta & 0x0fff0000) >> 16) as u16;
+            let language = (meta & 0x0000ffff) as u16;
+            let literal = &raw[4..];
+            literal
+                .iter()
+                .position(|&c| c == 0x00)
+                .ok_or(Self::Error::InvalidTextString)
+                .and_then(|pos| {
+                    std::str::from_utf8(&literal[..pos]).map_err(|_| Self::Error::InvalidTextString)
+                })
+                .or_else(|_| {
+                    std::str::from_utf8(literal).map_err(|_| Self::Error::InvalidTextString)
+                })
+                .map(|text| TextualDescriptorData {
+                    width,
+                    character_set,
+                    language,
+                    text,
+                })
+        }
     }
 }
 
@@ -101,27 +80,19 @@ impl<'a> DescriptorData<'a> {
 }
 
 impl<'a> TryFrom<&'a [u8]> for DescriptorData<'a> {
-    type Error = LeafParseError<DescriptorLeafParseCtx>;
+    type Error = DescriptorLeafParseError;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
         match raw[0] {
             Self::TEXTUAL_DESCRIPTOR_TYPE => {
-                TextualDescriptorData::try_from(&raw[4..]).map(|d| Self::Textual(d))
+                if raw.len() < 4 {
+                    Err(Self::Error::TooShort(raw.len()))
+                } else {
+                    TextualDescriptorData::try_from(&raw[4..]).map(|d| Self::Textual(d))
+                }
             }
-            _ => Err(Self::Error::new(
-                DescriptorLeafParseCtx::UnsupportedType,
-                format!("{} type", raw[0]),
-            )),
+            _ => Err(Self::Error::UnsupportedType(raw[0])),
         }
-    }
-}
-
-fn entry_data_to_str(data: &EntryData) -> &'static str {
-    match data {
-        EntryData::Immediate(_) => "immediate",
-        EntryData::CsrOffset(_) => "csr-offset",
-        EntryData::Directory(_) => "directory",
-        _ => unreachable!(),
     }
 }
 
@@ -133,48 +104,55 @@ pub struct DescriptorLeaf<'a> {
 }
 
 impl<'a> TryFrom<&'a [u8]> for DescriptorLeaf<'a> {
-    type Error = LeafParseError<DescriptorLeafParseCtx>;
+    type Error = DescriptorLeafParseError;
 
     fn try_from(raw: &'a [u8]) -> Result<Self, Self::Error> {
-        let mut quadlet = [0; 4];
-        quadlet.copy_from_slice(&raw[..4]);
-        let spec_id = u32::from_be_bytes(quadlet) & 0x00ffffff;
+        if raw.len() < 4 {
+            Err(Self::Error::TooShort(raw.len()))
+        } else {
+            let mut quadlet = [0; 4];
+            quadlet.copy_from_slice(&raw[..4]);
+            let spec_id = u32::from_be_bytes(quadlet) & 0x00ffffff;
 
-        DescriptorData::try_from(raw).map(|data| Self { spec_id, data })
+            DescriptorData::try_from(raw).map(|data| Self { spec_id, data })
+        }
     }
 }
 
 impl<'a> TryFrom<&'a Entry<'a>> for DescriptorLeaf<'a> {
-    type Error = LeafParseError<DescriptorLeafParseCtx>;
+    type Error = DescriptorLeafParseError;
 
     fn try_from(entry: &'a Entry<'a>) -> Result<Self, Self::Error> {
         detect_leaf_from_entry(entry)
-            .ok_or_else(|| {
-                Self::Error::new(
-                    DescriptorLeafParseCtx::WrongDirectoryEntry,
-                    format!("{} entry", entry_data_to_str(&entry.data)),
-                )
-            })
+            .ok_or_else(|| Self::Error::WrongDirectoryEntry)
             .and_then(|leaf| Self::try_from(leaf))
     }
 }
 
-/// The context to parse leaf entry for descriptor data.
+/// The error to parse leaf entry for descriptor data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DescriptorLeafParseCtx {
+pub enum DescriptorLeafParseError {
+    /// Insufficient data to parse.
+    TooShort(usize),
+    /// Failed to parse the leaf as text string.
     InvalidTextString,
-    UnsupportedType,
+    /// Unsupported type of descriptor.
+    UnsupportedType(
+        /// The value of descriptor type.
+        u8,
+    ),
+    /// The entry is not for leaf.
     WrongDirectoryEntry,
 }
 
-impl std::fmt::Display for DescriptorLeafParseCtx {
+impl std::fmt::Display for DescriptorLeafParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ctx = match self {
-            Self::InvalidTextString => "invalid text string in leaf",
-            Self::UnsupportedType => "unsupported type",
-            Self::WrongDirectoryEntry => "wrong directory entry",
-        };
-        write!(f, "{}", ctx)
+        match self {
+            Self::TooShort(length) => write!(f, "The length of leaf {} is too short", length),
+            Self::InvalidTextString => write!(f, "invalid text string in leaf"),
+            Self::UnsupportedType(desc_type) => write!(f, "unsupported type {}", desc_type),
+            Self::WrongDirectoryEntry => write!(f, "wrong directory entry"),
+        }
     }
 }
 
@@ -183,12 +161,11 @@ impl std::fmt::Display for DescriptorLeafParseCtx {
 pub struct Eui64Leaf(pub u64);
 
 impl TryFrom<&[u8]> for Eui64Leaf {
-    type Error = LeafParseError<Eui64LeafParseCtx>;
+    type Error = Eui64LeafParseError;
 
     fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
         if raw.len() < 8 {
-            let msg = format!("8 bytes required but {}", raw.len());
-            Err(Self::Error::new(Eui64LeafParseCtx::TooShort, msg))
+            Err(Self::Error::TooShort(raw.len()))
         } else {
             let mut quadlet = [0; 4];
             quadlet.copy_from_slice(&raw[..4]);
@@ -201,34 +178,30 @@ impl TryFrom<&[u8]> for Eui64Leaf {
 }
 
 impl<'a> TryFrom<&Entry<'a>> for Eui64Leaf {
-    type Error = LeafParseError<Eui64LeafParseCtx>;
+    type Error = Eui64LeafParseError;
 
     fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
         detect_leaf_from_entry(entry)
-            .ok_or_else(|| {
-                Self::Error::new(
-                    Eui64LeafParseCtx::WrongDirectoryEntry,
-                    format!("{} entry is not available", entry_data_to_str(&entry.data)),
-                )
-            })
+            .ok_or_else(|| Self::Error::WrongDirectoryEntry)
             .and_then(|leaf| Eui64Leaf::try_from(leaf))
     }
 }
 
-/// The context to parse leaf entry with EUI64 data.
+/// The error to parse leaf entry with EUI64 data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Eui64LeafParseCtx {
-    TooShort,
+pub enum Eui64LeafParseError {
+    /// Insufficient data to parse, 8 bytes at least.
+    TooShort(usize),
+    /// The entry is not for leaf.
     WrongDirectoryEntry,
 }
 
-impl std::fmt::Display for Eui64LeafParseCtx {
+impl std::fmt::Display for Eui64LeafParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ctx = match self {
-            Self::TooShort => "Size of leaf too short",
-            Self::WrongDirectoryEntry => "wrong directory entry",
-        };
-        write!(f, "{}", ctx)
+        match self {
+            Self::TooShort(length) => write!(f, "The length of leaf {} too short", length),
+            Self::WrongDirectoryEntry => write!(f, "wrong directory entry"),
+        }
     }
 }
 
@@ -240,12 +213,11 @@ pub struct UnitLocationLeaf {
 }
 
 impl TryFrom<&[u8]> for UnitLocationLeaf {
-    type Error = LeafParseError<UnitLocationParseCtx>;
+    type Error = UnitLocationParseError;
 
     fn try_from(raw: &[u8]) -> Result<Self, Self::Error> {
         if raw.len() < 16 {
-            let msg = format!("16 bytes required but {}", raw.len());
-            Err(Self::Error::new(UnitLocationParseCtx::TooShort, msg))
+            Err(Self::Error::TooShort(raw.len()))
         } else {
             let mut quadlet = [0; 4];
 
@@ -270,34 +242,30 @@ impl TryFrom<&[u8]> for UnitLocationLeaf {
 }
 
 impl<'a> TryFrom<&Entry<'a>> for UnitLocationLeaf {
-    type Error = LeafParseError<UnitLocationParseCtx>;
+    type Error = UnitLocationParseError;
 
     fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
         detect_leaf_from_entry(entry)
-            .ok_or_else(|| {
-                Self::Error::new(
-                    UnitLocationParseCtx::WrongDirectoryEntry,
-                    format!("{} entry is not available", entry_data_to_str(&entry.data)),
-                )
-            })
+            .ok_or_else(|| Self::Error::WrongDirectoryEntry)
             .and_then(|leaf| UnitLocationLeaf::try_from(leaf))
     }
 }
 
-/// The error context to parse data of unit location leaf.
+/// The error to parse leaf entry for unit location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnitLocationParseCtx {
-    TooShort,
+pub enum UnitLocationParseError {
+    /// Insufficient data to parse, 8 bytes at least.
+    TooShort(usize),
+    /// The entry is not for leaf.
     WrongDirectoryEntry,
 }
 
-impl std::fmt::Display for UnitLocationParseCtx {
+impl std::fmt::Display for UnitLocationParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ctx = match self {
-            Self::TooShort => "Size of leaf too short",
-            Self::WrongDirectoryEntry => "wrong directory entry",
-        };
-        write!(f, "{}", ctx)
+        match self {
+            Self::TooShort(length) => write!(f, "The length of leaf {} is too short", length),
+            Self::WrongDirectoryEntry => write!(f, "wrong directory entry"),
+        }
     }
 }
 
