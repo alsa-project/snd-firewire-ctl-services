@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2022/07/14
+2022/07/24
 Takashi Sakamoto
 
 Introduction
@@ -35,8 +35,8 @@ snd-fireface-ctl-service
 License
 =======
 
- * The `alsa-ctl-tlv-codec` and `ieee1212-config-rom` crates are released under MIT license.
- * The other crates are released under GNU General Public License Version 3.
+* The `alsa-ctl-tlv-codec` and `ieee1212-config-rom` crates are released under MIT license.
+* The other crates are released under GNU General Public License Version 3.
 
 Dependencies
 ============
