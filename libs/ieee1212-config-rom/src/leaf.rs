@@ -44,6 +44,14 @@ where
     }
 }
 
+fn detect_leaf_from_entry<'a>(entry: &'a Entry<'a>) -> Option<&'a [u8]> {
+    if let EntryData::Leaf(leaf) = entry.data {
+        Some(leaf)
+    } else {
+        None
+    }
+}
+
 /// The structure expresss data of textual descriptor.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextualDescriptorData<'a> {
@@ -140,14 +148,14 @@ impl<'a> TryFrom<&'a Entry<'a>> for DescriptorLeaf<'a> {
     type Error = LeafParseError<DescriptorLeafParseCtx>;
 
     fn try_from(entry: &'a Entry<'a>) -> Result<Self, Self::Error> {
-        if let EntryData::Leaf(leaf) = &entry.data {
-            Self::try_from(&leaf[..])
-        } else {
-            Err(Self::Error::new(
-                DescriptorLeafParseCtx::WrongDirectoryEntry,
-                format!("{} entry", entry_data_to_str(&entry.data)),
-            ))
-        }
+        detect_leaf_from_entry(entry)
+            .ok_or_else(|| {
+                Self::Error::new(
+                    DescriptorLeafParseCtx::WrongDirectoryEntry,
+                    format!("{} entry", entry_data_to_str(&entry.data)),
+                )
+            })
+            .and_then(|leaf| Self::try_from(leaf))
     }
 }
 
@@ -196,14 +204,14 @@ impl<'a> TryFrom<&Entry<'a>> for Eui64Leaf {
     type Error = LeafParseError<Eui64LeafParseCtx>;
 
     fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
-        if let EntryData::Leaf(leaf) = &entry.data {
-            Eui64Leaf::try_from(&leaf[..])
-        } else {
-            Err(Self::Error::new(
-                Eui64LeafParseCtx::WrongDirectoryEntry,
-                format!("{} entry is not available", entry_data_to_str(&entry.data)),
-            ))
-        }
+        detect_leaf_from_entry(entry)
+            .ok_or_else(|| {
+                Self::Error::new(
+                    Eui64LeafParseCtx::WrongDirectoryEntry,
+                    format!("{} entry is not available", entry_data_to_str(&entry.data)),
+                )
+            })
+            .and_then(|leaf| Eui64Leaf::try_from(leaf))
     }
 }
 
@@ -265,14 +273,14 @@ impl<'a> TryFrom<&Entry<'a>> for UnitLocationLeaf {
     type Error = LeafParseError<UnitLocationParseCtx>;
 
     fn try_from(entry: &Entry<'a>) -> Result<Self, Self::Error> {
-        if let EntryData::Leaf(leaf) = &entry.data {
-            UnitLocationLeaf::try_from(&leaf[..])
-        } else {
-            Err(Self::Error::new(
-                UnitLocationParseCtx::WrongDirectoryEntry,
-                format!("{} entry is not available", entry_data_to_str(&entry.data)),
-            ))
-        }
+        detect_leaf_from_entry(entry)
+            .ok_or_else(|| {
+                Self::Error::new(
+                    UnitLocationParseCtx::WrongDirectoryEntry,
+                    format!("{} entry is not available", entry_data_to_str(&entry.data)),
+                )
+            })
+            .and_then(|leaf| UnitLocationLeaf::try_from(leaf))
     }
 }
 
