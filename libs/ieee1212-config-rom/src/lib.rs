@@ -190,10 +190,8 @@ fn get_directory_entry_list<'a>(
                     }
                 }
             }
-            _ => {
-                let msg = format!("Invalid type: {}", entry_type);
-                Err(ConfigRomParseError::new(ctx, msg))
-            }
+            // NOTE: The field of key has two bits, thus it can not be over 0x03.
+            _ => unreachable!(),
         }
         .map(|entry_data| {
             entries.push(Entry {
