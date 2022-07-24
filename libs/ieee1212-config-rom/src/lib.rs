@@ -114,6 +114,11 @@ impl<'a> TryFrom<&'a [u8]> for ConfigRom<'a> {
     }
 }
 
+const ENTRY_KEY_IMMEDIATE: u8 = 0;
+const ENTRY_KEY_CSR_OFFSET: u8 = 1;
+const ENTRY_KEY_LEAF: u8 = 2;
+const ENTRY_KEY_DIRECTORY: u8 = 3;
+
 fn get_directory_entry_list<'a>(
     mut directory: &'a [u8],
     data: &'a [u8],
@@ -130,15 +135,15 @@ fn get_directory_entry_list<'a>(
         let ctx = ConfigRomParseCtx::DirectoryEntry(key);
 
         match entry_type {
-            0 => Ok(EntryData::Immediate(value)),
-            1 => {
+            ENTRY_KEY_IMMEDIATE => Ok(EntryData::Immediate(value)),
+            ENTRY_KEY_CSR_OFFSET => {
                 // NOTE: The maximum value of value field in directory entry is 0x00ffffff. The
                 // maximum value multipled by 4 is within 0x0fffffff, therefore no need to detect
                 // error.
                 let offset = 0xfffff0000000 + (4 * value as usize);
                 Ok(EntryData::CsrOffset(offset))
             }
-            2 | 3 => {
+            ENTRY_KEY_LEAF | ENTRY_KEY_DIRECTORY => {
                 let offset = 4 * value as usize;
                 if offset < directory.len() {
                     let msg = format!("Offset {} reaches no block {}", offset, directory.len());
@@ -168,7 +173,7 @@ fn get_directory_entry_list<'a>(
                                 );
                                 Err(ConfigRomParseError::new(ctx, msg))
                             } else {
-                                if entry_type == 2 {
+                                if entry_type == ENTRY_KEY_LEAF {
                                     let leaf = &data[(4 + start_offset)..end_offset];
                                     Ok(EntryData::Leaf(leaf))
                                 } else {
