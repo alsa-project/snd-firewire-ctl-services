@@ -132,7 +132,10 @@ fn get_directory_entry_list<'a>(
         match entry_type {
             0 => Ok(EntryData::Immediate(value)),
             1 => {
-                let offset = 0xfffff0000000 + (value as usize);
+                // NOTE: The maximum value of value field in directory entry is 0x00ffffff. The
+                // maximum value multipled by 4 is within 0x0fffffff, therefore no need to detect
+                // error.
+                let offset = 0xfffff0000000 + (4 * value as usize);
                 Ok(EntryData::CsrOffset(offset))
             }
             2 | 3 => {
