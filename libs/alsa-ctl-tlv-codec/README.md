@@ -255,7 +255,7 @@ The calculation has no validated numerics.
 
 ## License
 
-The hinawa crate is released under [MIT license](https://spdx.org/licenses/MIT.html).
+The alsa-ctl-tlv-codec crate is released under [MIT license](https://spdx.org/licenses/MIT.html).
 
 ## Support
 
