@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (c) 2020 Takashi Sakamoto
 
 //! Leaf entry has structured data. The module includes structure, enumeration and trait
