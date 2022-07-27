@@ -37,7 +37,7 @@ Add the following line to your Cargo.toml file:
 
 ```toml
 [dependencies]
-alsa-ctl-tlv-codec = "0.1.0"
+alsa-ctl-tlv-codec = "0.1"
 ```
 
 [`TlvItem`] enumeration is a good start to use the crate.

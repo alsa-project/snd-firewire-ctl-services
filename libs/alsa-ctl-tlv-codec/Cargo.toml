@@ -1,7 +1,7 @@
 [package]
 edition = "2018"
 name = "alsa-ctl-tlv-codec"
-version = "0.1.0"
+version = "0.1.1"
 # For publishing.
 authors = ["Takashi Sakamoto"]
 categories = ["data-structures", "encoding", "parser-implementations"]
