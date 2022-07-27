@@ -25,7 +25,7 @@ Add the following line to your Cargo.toml file:
 
 ```toml
 [dependencies]
-ieee1212-config-rom = "0.1.0"
+ieee1212-config-rom = "0.1"
 ```
 
 [`ConfigRom`] structure is a good start to use the crate.
