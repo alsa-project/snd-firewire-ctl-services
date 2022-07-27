@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (c) 2020 Takashi Sakamoto
 
 use alsa_ctl_tlv_codec::*;

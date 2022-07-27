@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (c) 2020 Takashi Sakamoto
 
 // The content comes from 'include/uapi/sound/tlv.h' of Linux kernel.

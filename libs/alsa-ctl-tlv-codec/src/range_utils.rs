@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Copyright (c) 2020 Takashi Sakamoto
 //! A set of trait and implementation to retrieve range of dB value and raw value from data of TLV.
 use super::*;
