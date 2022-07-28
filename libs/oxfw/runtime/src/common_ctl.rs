@@ -174,14 +174,17 @@ impl<'a> CommonCtl {
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let stream_format = op.stream_format.as_compound_am824_stream()?;
-        let pos = entries
-            .iter()
-            .position(|entry| entry.freq == freq && entry.entries == stream_format.entries)
-            .ok_or_else(|| {
-                let label = "Stream format entry is not found";
-                Error::new(FileError::Nxio, &label)
-            })?;
+        let pos = op
+            .stream_format
+            .as_compound_am824_stream()
+            .ok_or("Compound AM824 stream formats are not available")
+            .and_then(|stream_format| {
+                entries
+                    .iter()
+                    .position(|entry| entry.freq == freq && entry.entries == stream_format.entries)
+                    .ok_or("Stream format entry is not found")
+            })
+            .map_err(|cause| Error::new(FileError::Nxio, cause))?;
 
         op.stream_format = StreamFormat::Am(AmStream::CompoundAm824(entries[pos].clone()));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
@@ -263,22 +266,37 @@ impl<'a> CommonCtl {
         let mut op = ExtendedStreamFormatList::new(&plug_addr, 0);
 
         if avc.status(&AvcAddr::Unit, &mut op, timeout_ms).is_ok() {
-            let stream_format = op.stream_format.as_compound_am824_stream()?;
-            entries.push(stream_format.clone());
+            op.stream_format
+                .as_compound_am824_stream()
+                .map(|stream_format| entries.push(stream_format.clone()))
+                .ok_or(Error::new(
+                    FileError::Nxio,
+                    "Compound AM824 stream formats are not available",
+                ))?;
 
             let _ = (1..10).try_for_each(|i| {
                 op.index = i as u8;
                 avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-                let stream_format = op.stream_format.as_compound_am824_stream()?;
-                entries.push(stream_format.clone());
-                Ok::<(), Error>(())
+                op.stream_format
+                    .as_compound_am824_stream()
+                    .ok_or(Error::new(
+                        FileError::Nxio,
+                        "Compound AM824 stream formats are not available",
+                    ))
+                    .map(|stream_format| entries.push(stream_format.clone()))
             });
         } else {
             // Fallback. At first, retrieve current format information.
             let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
             avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-            let stream_format = op.stream_format.as_compound_am824_stream()?;
+            let stream_format = op
+                .stream_format
+                .as_compound_am824_stream()
+                .ok_or(Error::new(
+                    FileError::Nxio,
+                    "Compound AM824 stream formats are not available",
+                ))?;
 
             // Next, inquire supported sampling rates and make entries.
             Self::SUPPORTED_RATES.iter().for_each(|&freq| {

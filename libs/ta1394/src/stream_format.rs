@@ -650,30 +650,27 @@ pub enum StreamFormat {
 impl StreamFormat {
     pub const HIER_ROOT_AM: u8 = 0x90;
 
-    fn as_am_stream(&self) -> Result<&AmStream, Error> {
+    fn as_am_stream(&self) -> Option<&AmStream> {
         if let StreamFormat::Am(i) = self {
-            Ok(i)
+            Some(i)
         } else {
-            let label = "Audio & Music format is not available for the unit";
-            Err(Error::new(FileError::Nxio, &label))
+            None
         }
     }
 
-    pub fn as_am824_stream(&self) -> Result<&Am824Stream, Error> {
+    pub fn as_am824_stream(&self) -> Option<&Am824Stream> {
         if let AmStream::Am824(s) = self.as_am_stream()? {
-            Ok(s)
+            Some(s)
         } else {
-            let label = "AM824 format is not available for the unit";
-            Err(Error::new(FileError::Nxio, &label))
+            None
         }
     }
 
-    pub fn as_compound_am824_stream(&self) -> Result<&CompoundAm824Stream, Error> {
+    pub fn as_compound_am824_stream(&self) -> Option<&CompoundAm824Stream> {
         if let AmStream::CompoundAm824(s) = self.as_am_stream()? {
-            Ok(s)
+            Some(s)
         } else {
-            let label = "Compound AM824 stream is not available for the unit";
-            Err(Error::new(FileError::Nxio, &label))
+            None
         }
     }
 }
