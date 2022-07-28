@@ -318,12 +318,6 @@ impl AvcStatus for TascamProto {
 #[derive(Default, Debug)]
 pub struct TascamAvc(OxfwAvc);
 
-impl AsRef<FwFcp> for TascamAvc {
-    fn as_ref(&self) -> &FwFcp {
-        self.0.as_ref()
-    }
-}
-
 impl Ta1394Avc for TascamAvc {
     fn transaction(
         &self,
@@ -363,6 +357,12 @@ impl Ta1394Avc for TascamAvc {
                     AvcControl::parse_operands(op, addr, &operands)
                 }
             })
+    }
+}
+
+impl TascamAvc {
+    pub fn bind(&self, node: &impl IsA<FwNode>) -> Result<(), Error> {
+        self.0.bind(node)
     }
 }
 

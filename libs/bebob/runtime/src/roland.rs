@@ -98,7 +98,7 @@ impl CtlModel<(SndUnit, FwNode)> for FaModel<Fa66MixerAnalogSourceProtocol> {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.1)?;
+        self.avc.bind(&unit.1)?;
 
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;
@@ -171,7 +171,7 @@ impl CtlModel<(SndUnit, FwNode)> for FaModel<Fa101MixerAnalogSourceProtocol> {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.1)?;
+        self.avc.bind(&unit.1)?;
 
         self.clk_ctl.load_freq(card_cntr)?;
         self.analog_in_ctl.load_level(card_cntr)?;

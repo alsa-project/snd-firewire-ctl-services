@@ -19,7 +19,7 @@ impl CtlModel<(SndUnit, FwNode)> for CommonModel {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.1)?;
+        self.avc.bind(&unit.1)?;
 
         self.common_ctl
             .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
