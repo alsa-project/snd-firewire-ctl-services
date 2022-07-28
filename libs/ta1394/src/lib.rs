@@ -7,10 +7,7 @@ pub mod config_rom;
 pub mod general;
 pub mod stream_format;
 
-use {
-    glib::{error::ErrorDomain, Error, FileError, Quark},
-    hinawa::{prelude::FwFcpExtManual, FwFcp},
-};
+use glib::{error::ErrorDomain, Error, Quark};
 
 /// The type of subunit for AV/C address defined by 1394 Trading Association.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -374,7 +371,7 @@ impl ErrorDomain for Ta1394AvcError {
 /// communication backend to target device. Additionally, two types of transaction are supported;
 /// immediate and deferred transactions. `Ta1394Avc::transaction()` should support both of them
 /// as blocking API to wait for response.
-pub trait Ta1394Avc: AsRef<FwFcp> {
+pub trait Ta1394Avc {
     const FRAME_SIZE: usize = 0x200;
     const RESP_CODE_MASK: u8 = 0x0f;
 
@@ -385,34 +382,7 @@ pub trait Ta1394Avc: AsRef<FwFcp> {
         opcode: u8,
         operands: &[u8],
         timeout_ms: u32,
-    ) -> Result<(AvcRespCode, Vec<u8>), Error> {
-        let mut cmd = Vec::new();
-        cmd.push(ctype.into());
-        cmd.push(addr.into());
-        cmd.push(opcode);
-        cmd.extend_from_slice(operands);
-
-        let mut resp = vec![0; Self::FRAME_SIZE];
-        self.as_ref()
-            .avc_transaction(&cmd, &mut resp, timeout_ms)
-            .and_then(|len| {
-                if resp[1] != addr.into() {
-                    let label = format!("Unexpected address in response: {}", resp[1]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
-                } else if resp[2] != opcode {
-                    let label =
-                        format!("Unexpected opcode in response: {} but {}", opcode, resp[2]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
-                } else {
-                    let rcode = AvcRespCode::from(resp[0] & Self::RESP_CODE_MASK);
-
-                    resp.truncate(len);
-                    let operands = resp.split_off(3);
-
-                    Ok((rcode, operands))
-                }
-            })
-    }
+    ) -> Result<(AvcRespCode, Vec<u8>), Error>;
 
     fn control<O: AvcOp + AvcControl>(
         &self,
@@ -508,8 +478,6 @@ pub trait Ta1394Avc: AsRef<FwFcp> {
             })
     }
 }
-
-impl Ta1394Avc for FwFcp {}
 
 #[cfg(test)]
 mod test {

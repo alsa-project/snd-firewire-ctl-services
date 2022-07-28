@@ -14,9 +14,9 @@ pub mod oxford;
 pub mod tascam;
 
 use {
-    glib::{Error, FileError},
+    glib::{Error, FileError, IsA},
     hinawa::{
-        prelude::{FwFcpExtManual, FwReqExtManual},
+        prelude::{FwFcpExtManual, FwFcpExt, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,
     },
     ta1394::{audio::*, ccm::*, general::*, *},
@@ -25,12 +25,6 @@ use {
 /// The structure to implement AV/C transaction.
 #[derive(Default, Debug)]
 pub struct OxfwAvc(FwFcp);
-
-impl AsRef<FwFcp> for OxfwAvc {
-    fn as_ref(&self) -> &FwFcp {
-        &self.0
-    }
-}
 
 impl Ta1394Avc for OxfwAvc {
     fn transaction(
@@ -67,5 +61,11 @@ impl Ta1394Avc for OxfwAvc {
                     Ok((rcode, operands))
                 }
             })
+    }
+}
+
+impl OxfwAvc {
+    pub fn bind(&self, node: &impl IsA<FwNode>) -> Result<(), Error> {
+        self.0.bind(node)
     }
 }

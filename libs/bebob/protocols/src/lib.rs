@@ -23,8 +23,8 @@ pub mod yamaha_terratec;
 
 use {
     self::bridgeco::{ExtendedStreamFormatSingle, *},
-    glib::{Error, FileError},
-    hinawa::{prelude::{FwFcpExtManual, FwReqExtManual}, FwFcp, FwNode, FwReq, FwTcode},
+    glib::{Error, FileError, IsA},
+    hinawa::{prelude::{FwFcpExtManual, FwFcpExt, FwReqExtManual}, FwFcp, FwNode, FwReq, FwTcode},
     ta1394::{amdtp::*, audio::*, ccm::*, general::*, *},
 };
 
@@ -38,12 +38,6 @@ pub const DM_BCO_BOOTLOADER_INFO_OFFSET: u64 = DM_BCO_OFFSET + 0x00020000;
 /// The structure for AV/C transaction helper with quirks specific to BeBoB solution.
 #[derive(Default, Debug)]
 pub struct BebobAvc(FwFcp);
-
-impl AsRef<FwFcp> for BebobAvc {
-    fn as_ref(&self) -> &FwFcp {
-        &self.0
-    }
-}
 
 impl Ta1394Avc for BebobAvc {
     fn transaction(
@@ -118,6 +112,12 @@ impl Ta1394Avc for BebobAvc {
                 AvcControl::parse_operands(op, addr, &operands)
             }
         })
+    }
+}
+
+impl BebobAvc {
+    pub fn bind(&self, node: &impl IsA<FwNode>) -> Result<(), Error> {
+        self.0.bind(node)
     }
 }
 

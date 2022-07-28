@@ -199,7 +199,7 @@ impl CtlModel<(SndUnit, FwNode)> for Fw410Model {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.as_ref().bind(&unit.1)?;
+        self.avc.bind(&unit.1)?;
 
         self.clk_ctl
             .load_freq(card_cntr)
