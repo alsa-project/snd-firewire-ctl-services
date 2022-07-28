@@ -44,10 +44,9 @@ impl AvcStatus for UnitInfo {
         }
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 5 {
-            let label = format!("Oprands too short for UnitInfo; {}", operands.len());
-            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+            Err(AvcRespParseError::TooShortResp(5))
         } else {
             let unit_type = (operands[1] >> AvcAddrSubunit::SUBUNIT_TYPE_SHIFT)
                 & AvcAddrSubunit::SUBUNIT_TYPE_MASK;
@@ -125,10 +124,9 @@ impl AvcStatus for SubunitInfo {
         }
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 4 {
-            let label = format!("Oprands too short for SubunitInfo; {}", operands.len());
-            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+            Err(AvcRespParseError::TooShortResp(4))
         } else {
             self.page = (operands[0] >> Self::PAGE_SHIFT) & Self::PAGE_MASK;
             self.extension_code =
@@ -181,14 +179,13 @@ impl VendorDependent {
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() > 3 {
             self.company_id.copy_from_slice(&operands[0..3]);
             self.data = operands[3..].to_vec();
             Ok(())
         } else {
-            let label = format!("Oprands too short for VendorDependent; {}", operands.len());
-            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+            Err(AvcRespParseError::TooShortResp(3))
         }
     }
 }
@@ -206,7 +203,7 @@ impl AvcControl for VendorDependent {
         Self::build_operands(self, operands)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }
@@ -220,7 +217,7 @@ impl AvcStatus for VendorDependent {
         Self::build_operands(self, operands)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }
@@ -342,10 +339,9 @@ impl AvcStatus for PlugInfo {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 5 {
-            let label = format!("Oprands too short for PlugInfo; {}", operands.len());
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::TooShortResp(5))?;
         }
 
         let subfunction = operands[0];
@@ -353,9 +349,7 @@ impl AvcStatus for PlugInfo {
             PlugInfo::Unit(u) => match u {
                 PlugInfoUnitData::IsocExt(d) => {
                     if subfunction != Self::SUBFUNC_UNIT_ISOC_EXT {
-                        let label =
-                            format!("Invalid subfunction for unit by PlugInfo: {}", subfunction);
-                        return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                        Err(AvcRespParseError::UnexpectedOperands(0))?;
                     }
                     d.isoc_input_plugs = operands[1];
                     d.isoc_output_plugs = operands[2];
@@ -364,18 +358,14 @@ impl AvcStatus for PlugInfo {
                 }
                 PlugInfoUnitData::Async(d) => {
                     if subfunction != Self::SUBFUNC_UNIT_ASYNC {
-                        let label =
-                            format!("Invalid subfunction for unit by PlugInfo: {}", subfunction);
-                        return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                        Err(AvcRespParseError::UnexpectedOperands(0))?;
                     }
                     d.async_input_plugs = operands[1];
                     d.async_output_plugs = operands[2];
                 }
                 PlugInfoUnitData::Other(d) => {
                     if subfunction != d.subfunction {
-                        let label =
-                            format!("Invalid subfunction for unit by PlugInfo: {}", subfunction);
-                        return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                        Err(AvcRespParseError::UnexpectedOperands(0))?;
                     }
                     d.first_input_plug = operands[1];
                     d.input_plugs = operands[2];
@@ -385,11 +375,7 @@ impl AvcStatus for PlugInfo {
             },
             PlugInfo::Subunit(s) => {
                 if subfunction != Self::SUBFUNC_SUBUNIT {
-                    let label = format!(
-                        "Invalid subfunction for subunit by PlugInfo: {}",
-                        subfunction
-                    );
-                    return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+                    Err(AvcRespParseError::UnexpectedOperands(0))?;
                 }
                 s.dst_plugs = operands[1];
                 s.src_plugs = operands[2];
@@ -419,18 +405,14 @@ impl InputPlugSignalFormat {
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() > 4 {
             self.plug_id = operands[0];
             self.fmt = operands[1];
             self.fdf.copy_from_slice(&operands[2..5]);
             Ok(())
         } else {
-            let label = format!(
-                "Oprands too short for InputPlugSignalFormat; {}",
-                operands.len()
-            );
-            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+            Err(AvcRespParseError::TooShortResp(4))
         }
     }
 }
@@ -455,7 +437,7 @@ impl AvcControl for InputPlugSignalFormat {
         }
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }
@@ -475,7 +457,7 @@ impl AvcStatus for InputPlugSignalFormat {
         }
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }
@@ -499,18 +481,14 @@ impl OutputPlugSignalFormat {
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() > 4 {
             self.plug_id = operands[0];
             self.fmt = operands[1];
             self.fdf.copy_from_slice(&operands[2..5]);
             Ok(())
         } else {
-            let label = format!(
-                "Oprands too short for OutputPlugSignalFormat; {}",
-                operands.len()
-            );
-            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+            Err(AvcRespParseError::TooShortResp(4))
         }
     }
 }
@@ -535,7 +513,7 @@ impl AvcControl for OutputPlugSignalFormat {
         }
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }
@@ -555,7 +533,7 @@ impl AvcStatus for OutputPlugSignalFormat {
         }
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }

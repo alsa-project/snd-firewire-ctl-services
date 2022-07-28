@@ -962,27 +962,15 @@ impl ExtendedStreamFormat {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 7 {
-            let label = format!(
-                "Unexpected length of data for ExtendedStreamFormat: {}",
-                operands.len()
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::TooShortResp(7))
         } else if operands[0] != self.subfunc {
-            let label = format!(
-                "Unexpected subfunction for ExtendedStreamFormat: {} but {}",
-                self.subfunc, operands[0]
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::UnexpectedOperands(0))
         } else {
             let plug_addr = PlugAddr::from(&operands[1..6]);
             if plug_addr != self.plug_addr {
-                let label = format!(
-                    "Unexpected address to plug for ExtendedStreamFormat: {:?} but {:?}",
-                    plug_addr, self.plug_addr
-                );
-                Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+                Err(AvcRespParseError::UnexpectedOperands(1))
             } else {
                 self.support_status = SupportStatus::from(operands[6]);
                 Ok(())
@@ -1024,7 +1012,7 @@ impl AvcStatus for ExtendedStreamFormatSingle {
         self.op.build_operands(addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         self.op.parse_operands(addr, operands)?;
 
         self.stream_format = StreamFormat::from(&operands[7..]);
@@ -1046,7 +1034,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
         Ok(())
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         self.op.parse_operands(addr, operands)?;
 
         self.stream_format = StreamFormat::from(&operands[7..]);
@@ -1094,12 +1082,11 @@ impl AvcStatus for ExtendedStreamFormatList {
         Ok(())
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         self.op.parse_operands(addr, operands)?;
 
         if self.index != operands[7] {
-            let label = format!("Unexpected value for list index: {:?}", operands[7]);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
 
         self.stream_format = StreamFormat::from(&operands[8..]);

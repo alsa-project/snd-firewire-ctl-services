@@ -174,45 +174,30 @@ impl AudioFuncBlk {
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 4 {
-            let label = format!("Oprands too short for AudioFuncBlk; {}", operands.len());
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::TooShortResp(4))?;
         }
         let func_blk_type = AudioFuncBlkType::from(operands[0]);
         if func_blk_type != self.func_blk_type {
-            let label = format!("Unexpected function block type: {}", operands[0]);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(0))?;
         }
 
         let func_blk_id = operands[1];
         if func_blk_id != self.func_blk_id {
-            let label = format!(
-                "Unexpected function block ID: {} but {}",
-                self.func_blk_id, func_blk_id
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(1))?;
         }
 
         let ctl_attr = CtlAttr::from(operands[2]);
         if ctl_attr != self.ctl_attr {
-            let label = format!(
-                "Unexpected control attribute: {} but {}",
-                self.ctl_attr, ctl_attr
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(2))?;
         }
 
         let mut audio_selector_length = operands[3] as usize;
         if operands.len() < 3 + audio_selector_length {
-            let label = format!(
-                "Oprands too short for selector of AudioFuncBlk; {}",
-                operands.len()
-            );
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::TooShortResp(3 + audio_selector_length))?;
         } else if audio_selector_length < 1 {
-            let label = "The length of audio selector is less thant 1:";
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(3))?;
         }
         audio_selector_length -= 1;
         self.audio_selector_data = operands[4..(4 + audio_selector_length)].to_vec();
@@ -236,7 +221,7 @@ impl AvcStatus for AudioFuncBlk {
         AudioFuncBlk::build_operands(self, addr, operands)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AudioFuncBlk::parse_operands(self, operands)
     }
 }
@@ -250,7 +235,7 @@ impl AvcControl for AudioFuncBlk {
         AudioFuncBlk::build_operands(self, addr, operands)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AudioFuncBlk::parse_operands(self, operands)
     }
 }
@@ -281,21 +266,11 @@ impl AudioSelector {
         Ok(())
     }
 
-    fn parse_func_blk(&mut self) -> Result<(), Error> {
+    fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
         if self.func_blk.ctl.selector != Self::SELECTOR_CONTROL {
-            let label = format!(
-                "Unexpected control selector: {} but {}",
-                Self::SELECTOR_CONTROL,
-                self.func_blk.ctl.selector
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::UnexpectedOperands(5))
         } else if self.func_blk.ctl.data.len() > 0 {
-            let label = format!(
-                "Unexpected length of control data: {} but {}",
-                0,
-                self.func_blk.ctl.data.len()
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::UnexpectedOperands(7))
         } else {
             self.input_plug_id = self.func_blk.audio_selector_data[0];
             Ok(())
@@ -317,7 +292,7 @@ impl AvcStatus for AudioSelector {
         AvcStatus::build_operands(&mut self.func_blk, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
         self.parse_func_blk()
     }
@@ -333,7 +308,7 @@ impl AvcControl for AudioSelector {
         AvcControl::build_operands(&mut self.func_blk, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
         self.parse_func_blk()
     }
@@ -610,14 +585,10 @@ impl AudioFeature {
         Ok(())
     }
 
-    fn parse_func_blk(&mut self) -> Result<(), Error> {
+    fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
         let audio_ch_num = AudioCh::from(self.func_blk.audio_selector_data[0]);
         if audio_ch_num != self.audio_ch_num {
-            let label = format!(
-                "Unexpected channel number for AudioFeature: {:?} but {:?}",
-                self.audio_ch_num, audio_ch_num
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::UnexpectedOperands(7))
         } else {
             self.ctl = FeatureCtl::from(&self.func_blk.ctl);
             Ok(())
@@ -639,7 +610,7 @@ impl AvcStatus for AudioFeature {
         AvcStatus::build_operands(&mut self.func_blk, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
         self.parse_func_blk()
     }
@@ -655,7 +626,7 @@ impl AvcControl for AudioFeature {
         AvcControl::build_operands(&mut self.func_blk, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
         self.parse_func_blk()
     }
@@ -769,31 +740,19 @@ impl AudioProcessing {
         Ok(())
     }
 
-    fn parse_func_blk(&mut self) -> Result<(), Error> {
+    fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
         if self.func_blk.audio_selector_data[0] != self.input_plug_id {
-            let label = format!(
-                "Unexpected input plug ID for AudioProcessing: {} but {}",
-                self.input_plug_id, self.func_blk.func_blk_id
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
 
         let input_ch = AudioCh::from(self.func_blk.audio_selector_data[1]);
         if input_ch != self.input_ch {
-            let label = format!(
-                "Unexpected input audio channel number for AudioProcessing: {:?} but {:?}",
-                self.input_ch, input_ch
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(8))?;
         }
 
         let output_ch = AudioCh::from(self.func_blk.audio_selector_data[2]);
         if output_ch != self.output_ch {
-            let label = format!(
-                "Unexpected output audio channel number for AudioProcessing: {:?} but {:?}",
-                self.output_ch, output_ch
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(9))?;
         }
 
         self.ctl = ProcessingCtl::from(&self.func_blk.ctl);
@@ -815,7 +774,7 @@ impl AvcStatus for AudioProcessing {
         AvcStatus::build_operands(&mut self.func_blk, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
         self.parse_func_blk()
     }
@@ -831,7 +790,7 @@ impl AvcControl for AudioProcessing {
         AvcControl::build_operands(&mut self.func_blk, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
         self.parse_func_blk()
     }

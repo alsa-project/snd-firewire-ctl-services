@@ -421,7 +421,7 @@ impl AvcControl for SaffireAvcOperation {
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)?;
         (0..self.offsets.len()).for_each(|i| {
             let data = &self.op.data[(5 + i * 8 + 4)..(5 + i * 8 + 8)];
@@ -453,7 +453,7 @@ impl AvcStatus for SaffireAvcOperation {
         AvcStatus::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)?;
         (0..self.offsets.len()).for_each(|i| {
             let data = &self.op.data[(2 + i * 8 + 4)..(2 + i * 8 + 8)];

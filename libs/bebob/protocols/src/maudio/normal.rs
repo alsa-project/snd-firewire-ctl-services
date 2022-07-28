@@ -739,7 +739,7 @@ impl AvcControl for AudiophileLedSwitch {
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)
     }
 }

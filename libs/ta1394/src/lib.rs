@@ -322,6 +322,35 @@ impl std::fmt::Display for AvcCmdBuildError {
     }
 }
 
+/// The error to build command frame for AV/C transaction.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum AvcRespParseError {
+    /// The length of response frame is shorter than expected.
+    TooShortResp(
+        /// The expected length at least.
+        usize,
+    ),
+    /// The status code in response frame is not expected.
+    UnexpectedStatus,
+    /// Any of operand in response frame is not expected.
+    UnexpectedOperands(
+        /// The first offset for unexpected operand.
+        usize,
+    ),
+}
+
+impl std::fmt::Display for AvcRespParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooShortResp(expected) => write!(f, "response frame too short {}", expected),
+            Self::UnexpectedStatus => write!(f, "unexpected response status"),
+            Self::UnexpectedOperands(offset) => {
+                write!(f, "unexpected response operands at {}", offset)
+            }
+        }
+    }
+}
+
 /// For AV/C operation with opcode.
 pub trait AvcOp {
     /// The code to specify operation.
@@ -335,7 +364,7 @@ pub trait AvcControl {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError>;
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError>;
 }
 
 /// The AV/C operation supporting status command.
@@ -345,7 +374,7 @@ pub trait AvcStatus {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError>;
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError>;
 }
 
 /// The AV/C operation supporting notify command.
@@ -355,16 +384,15 @@ pub trait AvcNotify {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError>;
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError>;
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Ta1394AvcError {
-    TooShortResp,
-    UnexpectedRespCode,
-    UnexpectedRespOperands,
     /// Fail to build command frame.
     CmdBuild(AvcCmdBuildError),
+    /// Fail to parse response frame.
+    RespParse(AvcRespParseError),
     Invalid(i32),
 }
 
@@ -375,20 +403,16 @@ impl ErrorDomain for Ta1394AvcError {
 
     fn code(self) -> i32 {
         match self {
-            Self::TooShortResp => 0,
-            Self::UnexpectedRespCode => 1,
-            Self::UnexpectedRespOperands => 2,
-            Self::CmdBuild(_) => 3,
+            Self::CmdBuild(_) => 0,
+            Self::RespParse(_) => 1,
             Self::Invalid(val) => val,
         }
     }
 
     fn from(code: i32) -> Option<Self> {
         let enumeration = match code {
-            0 => Self::TooShortResp,
-            1 => Self::UnexpectedRespCode,
-            2 => Self::UnexpectedRespOperands,
-            3 => Self::CmdBuild(AvcCmdBuildError::InvalidAddress),
+            0 => Self::CmdBuild(AvcCmdBuildError::InvalidAddress),
+            1 => Self::RespParse(AvcRespParseError::TooShortResp(Default::default())),
             _ => Self::Invalid(code),
         };
 
@@ -425,16 +449,12 @@ pub trait Ta1394Avc {
         AvcControl::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| match rcode {
-                AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
-                _ => {
-                    let label = format!(
-                        "Unexpected response code for control opcode {}: {:?}",
-                        O::OPCODE,
-                        rcode
-                    );
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+            .and_then(|(rcode, operands)| {
+                match rcode {
+                    AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
+                    _ => Err(AvcRespParseError::UnexpectedStatus),
                 }
+                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 
@@ -448,16 +468,14 @@ pub trait Ta1394Avc {
         AvcStatus::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Status, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| match rcode {
-                AvcRespCode::ImplementedStable => AvcStatus::parse_operands(op, addr, &operands),
-                _ => {
-                    let label = format!(
-                        "Unexpected response code for status opcode {}: {:?}",
-                        O::OPCODE,
-                        rcode
-                    );
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+            .and_then(|(rcode, operands)| {
+                match rcode {
+                    AvcRespCode::ImplementedStable => {
+                        AvcStatus::parse_operands(op, addr, &operands)
+                    }
+                    _ => Err(AvcRespParseError::UnexpectedStatus),
                 }
+                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 
@@ -477,16 +495,12 @@ pub trait Ta1394Avc {
             &operands,
             timeout_ms,
         )
-        .and_then(|(rcode, operands)| match rcode {
-            AvcRespCode::ImplementedStable => AvcControl::parse_operands(op, addr, &operands),
-            _ => {
-                let label = format!(
-                    "Unexpected response code for specific inquiry opcode {}: {:?}",
-                    O::OPCODE,
-                    rcode
-                );
-                Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+        .and_then(|(rcode, operands)| {
+            match rcode {
+                AvcRespCode::ImplementedStable => AvcControl::parse_operands(op, addr, &operands),
+                _ => Err(AvcRespParseError::UnexpectedStatus),
             }
+            .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
         })
     }
 
@@ -500,16 +514,12 @@ pub trait Ta1394Avc {
         AvcNotify::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Notify, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| match rcode {
-                AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
-                _ => {
-                    let label = format!(
-                        "Unexpected response code for notify opcode {}: {:?}",
-                        O::OPCODE,
-                        rcode
-                    );
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+            .and_then(|(rcode, operands)| {
+                match rcode {
+                    AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
+                    _ => Err(AvcRespParseError::UnexpectedStatus),
                 }
+                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 }
@@ -590,18 +600,15 @@ mod test {
 
     #[test]
     fn ta1394avcerror_from() {
-        assert_eq!(Some(Ta1394AvcError::TooShortResp), ErrorDomain::from(0));
-        assert_eq!(
-            Some(Ta1394AvcError::UnexpectedRespCode),
-            ErrorDomain::from(1)
-        );
-        assert_eq!(
-            Some(Ta1394AvcError::UnexpectedRespOperands),
-            ErrorDomain::from(2)
-        );
         assert_eq!(
             Some(Ta1394AvcError::CmdBuild(AvcCmdBuildError::InvalidAddress)),
-            ErrorDomain::from(3)
+            ErrorDomain::from(0)
+        );
+        assert_eq!(
+            Some(Ta1394AvcError::RespParse(AvcRespParseError::TooShortResp(
+                Default::default()
+            ))),
+            ErrorDomain::from(1)
         );
         assert_eq!(Some(Ta1394AvcError::Invalid(1234)), ErrorDomain::from(1234));
     }
