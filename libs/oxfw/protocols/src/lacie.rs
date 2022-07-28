@@ -18,7 +18,7 @@ impl FwSpeakersProtocol {
 
     const FB_ID: u8 = 0x01;
 
-    pub fn read_volume(avc: &mut FwFcp, volume: &mut i16, timeout_ms: u32) -> Result<(), Error> {
+    pub fn read_volume(avc: &mut OxfwAvc, volume: &mut i16, timeout_ms: u32) -> Result<(), Error> {
         let mut op = AudioFeature::new(
             Self::FB_ID,
             CtlAttr::Current,
@@ -33,7 +33,7 @@ impl FwSpeakersProtocol {
             })
     }
 
-    pub fn write_volume(avc: &mut FwFcp, volume: i16, timeout_ms: u32) -> Result<(), Error> {
+    pub fn write_volume(avc: &mut OxfwAvc, volume: i16, timeout_ms: u32) -> Result<(), Error> {
         let mut op = AudioFeature::new(
             Self::FB_ID,
             CtlAttr::Current,
@@ -43,7 +43,7 @@ impl FwSpeakersProtocol {
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
 
-    pub fn read_mute(avc: &mut FwFcp, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
+    pub fn read_mute(avc: &mut OxfwAvc, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = AudioFeature::new(
             Self::FB_ID,
             CtlAttr::Current,
@@ -58,7 +58,7 @@ impl FwSpeakersProtocol {
             })
     }
 
-    pub fn write_mute(avc: &mut FwFcp, mute: bool, timeout_ms: u32) -> Result<(), Error> {
+    pub fn write_mute(avc: &mut OxfwAvc, mute: bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = AudioFeature::new(
             Self::FB_ID,
             CtlAttr::Current,

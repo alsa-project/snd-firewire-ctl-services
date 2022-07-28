@@ -9,7 +9,7 @@ use {
 #[derive(Default, Debug)]
 pub struct ApogeeModel {
     req: FwReq,
-    avc: FwFcp,
+    avc: OxfwAvc,
     common_ctl: CommonCtl,
     meter_ctl: MeterCtl,
     knob_ctl: KnobCtl,
@@ -31,7 +31,7 @@ impl CtlModel<(SndUnit, FwNode)> for ApogeeModel {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.common_ctl
             .load(&self.avc, card_cntr, Self::FCP_TIMEOUT_MS)?;
@@ -317,7 +317,7 @@ impl KnobCtl {
     fn load_state(
         &mut self,
         card_cntr: &mut CardCntr,
-        fcp: &mut FwFcp,
+        fcp: &mut OxfwAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let labels: Vec<&str> = Self::KNOB_TARGETS
@@ -332,7 +332,7 @@ impl KnobCtl {
         self.measure_state(fcp, timeout_ms)
     }
 
-    fn measure_state(&mut self, fcp: &mut FwFcp, timeout_ms: u32) -> Result<(), Error> {
+    fn measure_state(&mut self, fcp: &mut OxfwAvc, timeout_ms: u32) -> Result<(), Error> {
         DuetFwKnobProtocol::read_state(fcp, &mut self.0, timeout_ms)
     }
 
@@ -403,7 +403,7 @@ impl OutputCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_MUTE_NAME, 0);
@@ -457,7 +457,7 @@ impl OutputCtl {
 
     fn read_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -518,7 +518,7 @@ impl OutputCtl {
 
     fn write_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
@@ -612,7 +612,7 @@ impl InputCtl {
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_GAIN_NAME, 0);
@@ -710,7 +710,7 @@ impl InputCtl {
 
     fn write_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -798,7 +798,7 @@ impl MixerCtl {
 
     fn read_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -819,7 +819,7 @@ impl MixerCtl {
 
     fn write_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         old: &ElemValue,
         new: &ElemValue,
@@ -904,7 +904,7 @@ impl DisplayCtl {
 
     fn read_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -934,7 +934,7 @@ impl DisplayCtl {
 
     fn write_params(
         &mut self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,

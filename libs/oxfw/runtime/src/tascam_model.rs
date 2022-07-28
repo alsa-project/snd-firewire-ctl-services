@@ -71,7 +71,7 @@ impl CtlModel<(SndUnit, FwNode)> for TascamModel {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.0.bind(&unit.1)?;
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 

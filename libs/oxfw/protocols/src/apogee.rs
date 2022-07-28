@@ -161,7 +161,7 @@ impl DuetFwKnobProtocol {
 
 impl DuetFwKnobProtocol {
     pub fn read_state(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         state: &mut DuetFwKnobState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -233,7 +233,7 @@ impl DuetFwOutputProtocol {
     pub const VOLUME_MAX: u8 = 64;
     pub const VOLUME_STEP: u8 = 1;
 
-    pub fn read_mute(avc: &mut FwFcp, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
+    pub fn read_mute(avc: &mut OxfwAvc, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = ApogeeCmd::new(VendorCmd::OutMute(Default::default()));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             if let VendorCmd::OutMute(e) = &op.cmd {
@@ -242,12 +242,12 @@ impl DuetFwOutputProtocol {
         })
     }
 
-    pub fn write_mute(avc: &mut FwFcp, mute: bool, timeout_ms: u32) -> Result<(), Error> {
+    pub fn write_mute(avc: &mut OxfwAvc, mute: bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = ApogeeCmd::new(VendorCmd::OutMute(mute));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 
-    pub fn read_volume(avc: &mut FwFcp, volume: &mut u8, timeout_ms: u32) -> Result<(), Error> {
+    pub fn read_volume(avc: &mut OxfwAvc, volume: &mut u8, timeout_ms: u32) -> Result<(), Error> {
         let mut op = ApogeeCmd::new(VendorCmd::OutVolume(Default::default()));
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
             if let VendorCmd::OutVolume(v) = &op.cmd {
@@ -256,13 +256,13 @@ impl DuetFwOutputProtocol {
         })
     }
 
-    pub fn write_volume(avc: &mut FwFcp, volume: u8, timeout_ms: u32) -> Result<(), Error> {
+    pub fn write_volume(avc: &mut OxfwAvc, volume: u8, timeout_ms: u32) -> Result<(), Error> {
         let mut op = ApogeeCmd::new(VendorCmd::OutVolume(Self::VOLUME_MAX - volume));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 
     pub fn read_src(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         src: &mut DuetFwOutputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -279,7 +279,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn write_src(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         src: DuetFwOutputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -289,7 +289,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn read_nominal_level(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         level: &mut DuetFwOutputNominalLevel,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -306,7 +306,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn write_nominal_level(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         level: DuetFwOutputNominalLevel,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -333,7 +333,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn read_mute_mode_for_analog_output(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: &mut DuetFwOutputMuteMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -357,7 +357,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn write_mute_mode_for_analog_output(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: DuetFwOutputMuteMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -371,7 +371,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn read_mute_mode_for_hp(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: &mut DuetFwOutputMuteMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -395,7 +395,7 @@ impl DuetFwOutputProtocol {
     }
 
     pub fn write_mute_mode_for_hp(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: DuetFwOutputMuteMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -462,7 +462,7 @@ impl DuetFwInputProtocol {
     pub const GAIN_STEP: u8 = 1;
 
     pub fn read_parameters(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         params: &mut DuetFwInputParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -565,7 +565,7 @@ impl DuetFwInputProtocol {
     }
 
     pub fn write_gain(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         gain: u8,
         params: &mut DuetFwInputParameters,
@@ -584,7 +584,7 @@ impl DuetFwInputProtocol {
     }
 
     pub fn write_polarity(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         polarity: bool,
         params: &mut DuetFwInputParameters,
@@ -596,7 +596,7 @@ impl DuetFwInputProtocol {
     }
 
     pub fn write_xlr_nominal_level(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         level: DuetFwInputXlrNominalLevel,
         params: &mut DuetFwInputParameters,
@@ -617,7 +617,7 @@ impl DuetFwInputProtocol {
     }
 
     pub fn write_phantom_powering(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         enable: bool,
         params: &mut DuetFwInputParameters,
@@ -634,7 +634,7 @@ impl DuetFwInputProtocol {
     }
 
     pub fn write_src(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         src: DuetFwInputSource,
         params: &mut DuetFwInputParameters,
@@ -647,7 +647,7 @@ impl DuetFwInputProtocol {
     }
 
     pub fn write_clickless(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         enable: bool,
         params: &mut DuetFwInputParameters,
         timeout_ms: u32,
@@ -668,7 +668,7 @@ impl DuetFwMixerProtocol {
     pub const GAIN_STEP: u16 = 0x80;
 
     pub fn read_source_gain(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         dst: usize,
         src: usize,
         gain: &mut u16,
@@ -683,7 +683,7 @@ impl DuetFwMixerProtocol {
     }
 
     pub fn write_source_gain(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         dst: usize,
         src: usize,
         gain: u16,
@@ -739,7 +739,7 @@ pub struct DuetFwDisplayProtocol;
 
 impl DuetFwDisplayProtocol {
     pub fn read_target(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         target: &mut DuetFwDisplayTarget,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -756,7 +756,7 @@ impl DuetFwDisplayProtocol {
     }
 
     pub fn write_target(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         target: DuetFwDisplayTarget,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -766,7 +766,7 @@ impl DuetFwDisplayProtocol {
     }
 
     pub fn read_mode(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: &mut DuetFwDisplayMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -783,7 +783,7 @@ impl DuetFwDisplayProtocol {
     }
 
     pub fn write_mode(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: DuetFwDisplayMode,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -793,7 +793,7 @@ impl DuetFwDisplayProtocol {
     }
 
     pub fn read_overhold(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: &mut DuetFwDisplayOverhold,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -810,7 +810,7 @@ impl DuetFwDisplayProtocol {
     }
 
     pub fn write_overhold(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         mode: DuetFwDisplayOverhold,
         timeout_ms: u32,
     ) -> Result<(), Error> {

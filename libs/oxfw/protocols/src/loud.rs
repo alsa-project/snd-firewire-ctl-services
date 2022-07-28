@@ -40,7 +40,7 @@ impl LinkFwProtocol {
     ];
 
     pub fn read_input_source(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         src: &mut LinkFwInputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {
@@ -59,7 +59,7 @@ impl LinkFwProtocol {
     }
 
     pub fn write_input_source(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         src: LinkFwInputSource,
         timeout_ms: u32,
     ) -> Result<(), Error> {

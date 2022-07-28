@@ -8,7 +8,7 @@ use {
 
 #[derive(Default, Debug)]
 pub struct LacieModel {
-    avc: hinawa::FwFcp,
+    avc: OxfwAvc,
     common_ctl: CommonCtl,
     voluntary: bool,
 }
@@ -24,7 +24,7 @@ impl CtlModel<(SndUnit, FwNode)> for LacieModel {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
 
