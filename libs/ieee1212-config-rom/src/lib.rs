@@ -262,7 +262,7 @@ fn get_directory_entry_list<'a>(
                 let offset = 4 * value as usize;
                 detect_block(raw, pos, offset)
                     .and_then(|(start_offset, length)| {
-                        get_directory_entry_list(raw, start_offset + 4, length)
+                        get_directory_entry_list(raw, start_offset, length)
                             .map(|entries| EntryData::Directory(entries))
                     })
                     .map_err(|err| BlockParseError::Directory(pos, offset, Box::new(err)))
