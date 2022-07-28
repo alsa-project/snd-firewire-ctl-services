@@ -136,10 +136,14 @@ impl AvcOp for SignalSource {
 }
 
 impl AvcControl for SignalSource {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         operands.push(0xff);
-        operands.extend_from_slice(&Into::<[u8;2]>::into(self.src));
-        operands.extend_from_slice(&Into::<[u8;2]>::into(self.dst));
+        operands.extend_from_slice(&Into::<[u8; 2]>::into(self.src));
+        operands.extend_from_slice(&Into::<[u8; 2]>::into(self.dst));
         Ok(())
     }
 
@@ -149,10 +153,14 @@ impl AvcControl for SignalSource {
 }
 
 impl AvcStatus for SignalSource {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         operands.push(0xff);
         operands.extend_from_slice(&[0xff, 0xfe]);
-        operands.extend_from_slice(&Into::<[u8;2]>::into(self.dst));
+        operands.extend_from_slice(&Into::<[u8; 2]>::into(self.dst));
         Ok(())
     }
 

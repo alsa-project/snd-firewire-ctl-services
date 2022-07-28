@@ -30,13 +30,16 @@ impl AvcOp for UnitInfo {
 }
 
 impl AvcStatus for UnitInfo {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         if let AvcAddr::Subunit(_) = addr {
-            let label = "Subunit address is not supported by UnitInfo";
-            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+            Err(AvcCmdBuildError::InvalidAddress)
         } else {
             operands.push(Self::FIRST_OPERAND);
-            operands.extend_from_slice(&[0xff;4]);
+            operands.extend_from_slice(&[0xff; 4]);
             Ok(())
         }
     }
@@ -99,14 +102,20 @@ impl AvcOp for SubunitInfo {
 }
 
 impl AvcStatus for SubunitInfo {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         if let AvcAddr::Subunit(_) = addr {
-            let label = "Subunit address is not supported by SubunitInfo";
-            return Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label));
+            Err(AvcCmdBuildError::InvalidAddress)
         } else {
-            operands.push(((self.page & Self::PAGE_MASK) << Self::PAGE_SHIFT) |
-                          ((self.extension_code & Self::EXTENSION_CODE_MASK) << Self::EXTENSION_CODE_SHIFT));
-            operands.extend_from_slice(&[0xff;4]);
+            operands.push(
+                ((self.page & Self::PAGE_MASK) << Self::PAGE_SHIFT)
+                    | ((self.extension_code & Self::EXTENSION_CODE_MASK)
+                        << Self::EXTENSION_CODE_SHIFT),
+            );
+            operands.extend_from_slice(&[0xff; 4]);
             Ok(())
         }
     }
@@ -152,14 +161,13 @@ impl VendorDependent {
         }
     }
 
-    fn build_operands(&self, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(&self, operands: &mut Vec<u8>) -> Result<(), AvcCmdBuildError> {
         if self.data.len() > 0 {
             operands.extend_from_slice(&self.company_id);
             operands.extend_from_slice(&self.data);
             Ok(())
         } else {
-            let label = format!("No data for VendorDependent");
-            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+            Err(AvcCmdBuildError::InvalidOperands)
         }
     }
 
@@ -180,7 +188,11 @@ impl AvcOp for VendorDependent {
 }
 
 impl AvcControl for VendorDependent {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         Self::build_operands(self, operands)
     }
 
@@ -190,7 +202,11 @@ impl AvcControl for VendorDependent {
 }
 
 impl AvcStatus for VendorDependent {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         Self::build_operands(self, operands)
     }
 
@@ -288,12 +304,15 @@ impl AvcOp for PlugInfo {
 }
 
 impl AvcStatus for PlugInfo {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         let subfunction = match &self {
             PlugInfo::Unit(u) => {
                 if let AvcAddr::Subunit(_) = addr {
-                    let label = "Subunit address is not supported for unit plug data by PlugInfo";
-                    return Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label));
+                    Err(AvcCmdBuildError::InvalidAddress)?;
                 }
                 match u {
                     PlugInfoUnitData::IsocExt(_) => Self::SUBFUNC_UNIT_ISOC_EXT,
@@ -303,8 +322,7 @@ impl AvcStatus for PlugInfo {
             }
             PlugInfo::Subunit(_) => {
                 if let AvcAddr::Unit = addr {
-                    let label = "Unit address is not supported for subunit plug data by PlugInfo";
-                    return Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label));
+                    Err(AvcCmdBuildError::InvalidAddress)?;
                 }
                 Self::SUBFUNC_SUBUNIT
             }
@@ -405,15 +423,18 @@ impl AvcOp for InputPlugSignalFormat {
 }
 
 impl AvcControl for InputPlugSignalFormat {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         if *addr == AvcAddr::Unit {
             operands.push(self.plug_id);
             operands.push(self.fmt);
             operands.extend_from_slice(&self.fdf);
             Ok(())
         } else {
-            let label = "Subunit address is not supported by InputPlugSignalFormat";
-            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+            Err(AvcCmdBuildError::InvalidAddress)
         }
     }
 
@@ -423,14 +444,17 @@ impl AvcControl for InputPlugSignalFormat {
 }
 
 impl AvcStatus for InputPlugSignalFormat {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         if *addr == AvcAddr::Unit {
             operands.push(self.plug_id);
-            operands.extend_from_slice(&[0xff;4]);
+            operands.extend_from_slice(&[0xff; 4]);
             Ok(())
         } else {
-            let label = "Subunit address is not supported by InputPlugSignalFormat";
-            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+            Err(AvcCmdBuildError::InvalidAddress)
         }
     }
 
@@ -476,15 +500,18 @@ impl AvcOp for OutputPlugSignalFormat {
 }
 
 impl AvcControl for OutputPlugSignalFormat {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         if *addr == AvcAddr::Unit {
             operands.push(self.plug_id);
             operands.push(self.fmt);
             operands.extend_from_slice(&self.fdf);
             Ok(())
         } else {
-            let label = "Subunit address is not supported by OutputPlugSignalFormat";
-            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+            Err(AvcCmdBuildError::InvalidAddress)
         }
     }
 
@@ -494,14 +521,17 @@ impl AvcControl for OutputPlugSignalFormat {
 }
 
 impl AvcStatus for OutputPlugSignalFormat {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         if *addr == AvcAddr::Unit {
             operands.push(self.plug_id);
-            operands.extend_from_slice(&[0xff;4]);
+            operands.extend_from_slice(&[0xff; 4]);
             Ok(())
         } else {
-            let label = "Subunit address is not supported by OutputPlugSignalFormat";
-            Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+            Err(AvcCmdBuildError::InvalidAddress)
         }
     }
 

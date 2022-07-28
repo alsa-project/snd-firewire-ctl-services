@@ -290,7 +290,11 @@ impl AvcOp for TascamProto {
 }
 
 impl AvcControl for TascamProto {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         let mut data = self.cmd.build_data();
         self.cmd.append_variable(&mut data);
         self.op.data = data;
@@ -303,7 +307,11 @@ impl AvcControl for TascamProto {
 }
 
 impl AvcStatus for TascamProto {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.op.data = self.cmd.build_data();
         AvcStatus::build_operands(&mut self.op, addr, operands)
     }
@@ -338,7 +346,8 @@ impl Ta1394Avc for TascamAvc {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
-        AvcControl::build_operands(op, addr, &mut operands)?;
+        AvcControl::build_operands(op, addr, &mut operands)
+            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
             .and_then(|(rcode, operands)| {
                 let expected = if O::OPCODE != VendorDependent::OPCODE {

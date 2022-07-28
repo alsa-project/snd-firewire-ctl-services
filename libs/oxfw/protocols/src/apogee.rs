@@ -1144,7 +1144,11 @@ impl AvcOp for ApogeeCmd {
 }
 
 impl AvcControl for ApogeeCmd {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         let mut data = self.cmd.build_args();
         self.cmd.append_variable(&mut data);
         self.op.data = data;
@@ -1157,7 +1161,11 @@ impl AvcControl for ApogeeCmd {
 }
 
 impl AvcStatus for ApogeeCmd {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.op.data = self.cmd.build_args();
         AvcStatus::build_operands(&mut self.op, addr, operands)
     }

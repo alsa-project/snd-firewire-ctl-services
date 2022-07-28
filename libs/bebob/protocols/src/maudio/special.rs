@@ -137,7 +137,11 @@ impl AvcOp for MaudioSpecialLedSwitch {
 }
 
 impl AvcControl for MaudioSpecialLedSwitch {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.op.data[0] = self.state.into();
         AvcControl::build_operands(&mut self.op, addr, operands)
     }

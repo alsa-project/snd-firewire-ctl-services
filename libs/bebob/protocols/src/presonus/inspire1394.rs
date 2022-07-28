@@ -364,7 +364,11 @@ impl AvcOp for InputParameterOperation {
 }
 
 impl AvcControl for InputParameterOperation {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         match self.param {
             InputParameter::Analog34Phono(state) => {
                 self.op.data[0] = CMD_PHONO;
@@ -401,7 +405,11 @@ impl AvcControl for InputParameterOperation {
 }
 
 impl AvcStatus for InputParameterOperation {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         match self.param {
             InputParameter::Analog34Phono(_) => {
                 self.op.data[0] = CMD_PHONO;
