@@ -482,7 +482,7 @@ impl EnsembleParameterProtocol<EnsembleStreamParameters> for BebobAvc {
 }
 
 /// The trait for parameter protocol.
-pub trait EnsembleParameterProtocol<T>: Ta1394Avc
+pub trait EnsembleParameterProtocol<T>: Ta1394Avc<Error>
 where
     for<'a> Vec<EnsembleCmd>: From<&'a T>,
     T: Copy,
@@ -493,6 +493,7 @@ where
             .try_for_each(|cmd| {
                 let mut op = EnsembleOperation::new(cmd);
                 self.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map_err(|err| from_avc_err(err))
             })
     }
 
@@ -504,6 +505,7 @@ where
             .try_for_each(|(n, _)| {
                 let mut op = EnsembleOperation::new(n);
                 self.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map_err(|err| from_avc_err(err))
             })
             .map(|_| *old = *new)
     }

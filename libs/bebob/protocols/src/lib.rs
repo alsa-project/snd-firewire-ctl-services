@@ -25,7 +25,7 @@ use {
     self::bridgeco::{ExtendedStreamFormatSingle, *},
     glib::{Error, FileError, IsA},
     hinawa::{
-        prelude::{FwFcpExtManual, FwFcpExt, FwReqExtManual},
+        prelude::{FwFcpExt, FwFcpExtManual, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,
     },
     ta1394::{amdtp::*, audio::*, ccm::*, general::*, *},
@@ -42,7 +42,7 @@ pub const DM_BCO_BOOTLOADER_INFO_OFFSET: u64 = DM_BCO_OFFSET + 0x00020000;
 #[derive(Default, Debug)]
 pub struct BebobAvc(FwFcp);
 
-impl Ta1394Avc for BebobAvc {
+impl Ta1394Avc<Error> for BebobAvc {
     fn transaction(&self, command_frame: &[u8], timeout_ms: u32) -> Result<Vec<u8>, Error> {
         let mut resp = vec![0; Self::FRAME_SIZE];
         self.0
@@ -58,14 +58,15 @@ impl Ta1394Avc for BebobAvc {
         addr: &AvcAddr,
         op: &mut O,
         timeout_ms: u32,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Ta1394AvcError<Error>> {
         let mut operands = Vec::new();
         let command_frame = AvcControl::build_operands(op, addr, &mut operands)
-            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))
+            .map_err(|err| Ta1394AvcError::CmdBuild(err))
             .map(|_| {
                 Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)
             })?;
         self.transaction(&command_frame, timeout_ms)
+            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))
             .and_then(|response_frame| {
                 Self::detect_response_operands(&response_frame, addr, O::OPCODE)
                     .and_then(|(rcode, operands)| {
@@ -85,7 +86,7 @@ impl Ta1394Avc for BebobAvc {
                             AvcControl::parse_operands(op, addr, &operands)
                         }
                     })
-                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
+                    .map_err(|err| Ta1394AvcError::RespParse(err))
             })
     }
 }
@@ -93,6 +94,32 @@ impl Ta1394Avc for BebobAvc {
 impl BebobAvc {
     pub fn bind(&self, node: &impl IsA<FwNode>) -> Result<(), Error> {
         self.0.bind(node)
+    }
+
+    pub fn control<O: AvcOp + AvcControl>(
+        &self,
+        addr: &AvcAddr,
+        op: &mut O,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Ta1394Avc::<Error>::control(self, addr, op, timeout_ms).map_err(|err| from_avc_err(err))
+    }
+
+    pub fn status<O: AvcOp + AvcStatus>(
+        &self,
+        addr: &AvcAddr,
+        op: &mut O,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Ta1394Avc::<Error>::status(self, addr, op, timeout_ms).map_err(|err| from_avc_err(err))
+    }
+}
+
+fn from_avc_err(err: Ta1394AvcError<Error>) -> Error {
+    match err {
+        Ta1394AvcError::CmdBuild(cause) => Error::new(FileError::Inval, &cause.to_string()),
+        Ta1394AvcError::CommunicationFailure(cause) => cause,
+        Ta1394AvcError::RespParse(cause) => Error::new(FileError::Io, &cause.to_string()),
     }
 }
 
