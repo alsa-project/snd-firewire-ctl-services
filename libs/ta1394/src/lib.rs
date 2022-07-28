@@ -12,6 +12,7 @@ use {
     hinawa::{prelude::FwFcpExtManual, FwFcp},
 };
 
+/// The type of subunit for AV/C address defined by 1394 Trading Association.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcSubunitType {
     Monitor,
@@ -70,8 +71,8 @@ impl From<u8> for AvcSubunitType {
     }
 }
 
-impl From<AvcSubunitType> for u8 {
-    fn from(subunit_type: AvcSubunitType) -> Self {
+impl From<&AvcSubunitType> for u8 {
+    fn from(subunit_type: &AvcSubunitType) -> Self {
         match subunit_type {
             AvcSubunitType::Monitor => AvcSubunitType::MONITOR,
             AvcSubunitType::Audio => AvcSubunitType::AUDIO,
@@ -87,21 +88,30 @@ impl From<AvcSubunitType> for u8 {
             AvcSubunitType::Music => AvcSubunitType::MUSIC,
             AvcSubunitType::VendorUnique => AvcSubunitType::VENDOR_UNIQUE,
             AvcSubunitType::Extended => AvcSubunitType::EXTENDED,
-            AvcSubunitType::Reserved(value) => value,
+            AvcSubunitType::Reserved(value) => *value,
         }
     }
 }
 
-pub const MUSIC_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit{
+impl From<AvcSubunitType> for u8 {
+    fn from(subunit_type: AvcSubunitType) -> Self {
+        Self::from(&subunit_type)
+    }
+}
+
+/// The AV/C address of first music subunit for convenience.
+pub const MUSIC_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit {
     subunit_type: AvcSubunitType::Music,
     subunit_id: 0,
 };
 
-pub const AUDIO_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit{
+/// The AV/C address of first audio subunit for convenience.
+pub const AUDIO_SUBUNIT_0: AvcAddrSubunit = AvcAddrSubunit {
     subunit_type: AvcSubunitType::Audio,
     subunit_id: 0,
 };
 
+/// The data of AV/C address in subunit case.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AvcAddrSubunit {
     pub subunit_type: AvcSubunitType,
@@ -109,34 +119,49 @@ pub struct AvcAddrSubunit {
 }
 
 impl AvcAddrSubunit {
-    pub const SUBUNIT_TYPE_SHIFT: usize = 3;
-    pub const SUBUNIT_TYPE_MASK: u8 = 0x1f;
-    pub const SUBUNIT_ID_SHIFT: usize = 0;
-    pub const SUBUNIT_ID_MASK: u8 = 0x07;
+    const SUBUNIT_TYPE_SHIFT: usize = 3;
+    const SUBUNIT_TYPE_MASK: u8 = 0x1f;
+    const SUBUNIT_ID_SHIFT: usize = 0;
+    const SUBUNIT_ID_MASK: u8 = 0x07;
 
     pub fn new(subunit_type: AvcSubunitType, mut subunit_id: u8) -> Self {
         subunit_id &= Self::SUBUNIT_ID_MASK;
-        AvcAddrSubunit{subunit_type, subunit_id}
+        AvcAddrSubunit {
+            subunit_type,
+            subunit_id,
+        }
     }
 }
 
 impl From<u8> for AvcAddrSubunit {
     fn from(val: u8) -> Self {
-        let subunit_type = AvcSubunitType::from((val >> Self::SUBUNIT_TYPE_SHIFT) & Self::SUBUNIT_TYPE_MASK);
+        let subunit_type =
+            AvcSubunitType::from((val >> Self::SUBUNIT_TYPE_SHIFT) & Self::SUBUNIT_TYPE_MASK);
         let subunit_id = (val >> Self::SUBUNIT_ID_SHIFT) & Self::SUBUNIT_ID_MASK;
-        AvcAddrSubunit{subunit_type, subunit_id}
+        AvcAddrSubunit {
+            subunit_type,
+            subunit_id,
+        }
     }
 }
 
-impl From<AvcAddrSubunit> for u8 {
-    fn from(subunit: AvcAddrSubunit) -> u8 {
+impl From<&AvcAddrSubunit> for u8 {
+    fn from(subunit: &AvcAddrSubunit) -> Self {
         let mut val = u8::from(subunit.subunit_type);
         val = (val & AvcAddrSubunit::SUBUNIT_TYPE_MASK) << AvcAddrSubunit::SUBUNIT_TYPE_SHIFT;
-        val |= (subunit.subunit_id & AvcAddrSubunit::SUBUNIT_ID_MASK) << AvcAddrSubunit::SUBUNIT_ID_SHIFT;
+        val |= (subunit.subunit_id & AvcAddrSubunit::SUBUNIT_ID_MASK)
+            << AvcAddrSubunit::SUBUNIT_ID_SHIFT;
         val
     }
 }
 
+impl From<AvcAddrSubunit> for u8 {
+    fn from(subunit: AvcAddrSubunit) -> Self {
+        Self::from(&subunit)
+    }
+}
+
+/// For AV/C address in both unit and subunit cases.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcAddr {
     Unit,
@@ -156,12 +181,18 @@ impl From<u8> for AvcAddr {
     }
 }
 
-impl From<AvcAddr> for u8 {
-    fn from(addr: AvcAddr) -> Self {
+impl From<&AvcAddr> for u8 {
+    fn from(addr: &AvcAddr) -> Self {
         match addr {
             AvcAddr::Unit => AvcAddr::UNIT_ADDR,
-            AvcAddr::Subunit(d) => u8::from(d),
+            AvcAddr::Subunit(d) => u8::from(*d),
         }
+    }
+}
+
+impl From<AvcAddr> for u8 {
+    fn from(addr: AvcAddr) -> Self {
+        Self::from(&addr)
     }
 }
 
@@ -326,7 +357,7 @@ pub trait Ta1394Avc : AsRef<FwFcp> {
     {
         let mut cmd = Vec::new();
         cmd.push(ctype.into());
-        cmd.push((*addr).into());
+        cmd.push(addr.into());
         cmd.push(opcode);
         cmd.extend_from_slice(operands);
 
@@ -336,7 +367,7 @@ pub trait Ta1394Avc : AsRef<FwFcp> {
 
         let rcode = AvcRespCode::from(resp[0] & Self::RESP_CODE_MASK);
 
-        if resp[1] != (*addr).into() {
+        if resp[1] != addr.into() {
             let label = format!("Unexpected address in response: {}", resp[1]);
             return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
         }
