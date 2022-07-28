@@ -119,7 +119,7 @@ impl SignalSource {
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() > 4 {
             let mut doublet = [0; 2];
             doublet.copy_from_slice(&operands[1..3]);
@@ -128,8 +128,7 @@ impl SignalSource {
             self.dst = SignalAddr::from(&doublet);
             Ok(())
         } else {
-            let label = format!("Oprands too short for VendorDependent; {}", operands.len());
-            Err(Error::new(Ta1394AvcError::TooShortResp, &label))
+            Err(AvcRespParseError::TooShortResp(4))
         }
     }
 }
@@ -150,7 +149,7 @@ impl AvcControl for SignalSource {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }
@@ -167,7 +166,7 @@ impl AvcStatus for SignalSource {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         Self::parse_operands(self, operands)
     }
 }

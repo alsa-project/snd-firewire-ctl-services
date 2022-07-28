@@ -827,26 +827,20 @@ impl AvcStatus for ExtendedPlugInfo {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 8 {
-            let label = format!("Oprands too short for ExtendedPlugInfo; {}", operands.len());
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::TooShortResp(8))?;
         }
 
         if operands[0] != Self::SUBFUNC {
-            let label = format!(
-                "Unexpected subfunction for ExtendedPlugInfo; {}",
-                operands[0]
-            );
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::UnexpectedOperands(0))?;
         }
 
         let mut a = [0; 5];
         a.copy_from_slice(&operands[1..6]);
         let addr = BcoPlugAddr::from(&a);
         if addr != self.addr {
-            let label = format!("Unexpected address for ExtendedPlugInfo; {:?}", addr);
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::UnexpectedOperands(1))?;
         }
 
         let info_type = match &self.info {
@@ -861,21 +855,13 @@ impl AvcStatus for ExtendedPlugInfo {
             BcoPlugInfo::Reserved(d) => d[0],
         };
         if info_type != operands[6] {
-            let label = format!(
-                "Unexpected type of information for ExtendedPlugInfo; {}",
-                operands[6]
-            );
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::UnexpectedOperands(6))?;
         }
 
         let info = BcoPlugInfo::from(&operands[6..]);
         if let BcoPlugInfo::Input(d) = &info {
-            if let BcoPlugDirection::Reserved(val) = &d.direction {
-                let label = format!(
-                    "Unexpected value for direction of ExtendedPlugInfo: {}",
-                    val
-                );
-                return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            if let BcoPlugDirection::Reserved(_) = &d.direction {
+                Err(AvcRespParseError::UnexpectedOperands(6))?;
             }
         }
 
@@ -958,25 +944,13 @@ impl AvcStatus for ExtendedSubunitInfo {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() != 27 {
-            let label = format!(
-                "Unexpected length of operands for ExtendedSubunitInfo: {}",
-                operands.len()
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::TooShortResp(27))
         } else if self.page != operands[0] {
-            let label = format!(
-                "Unexpected value of page for ExtendedSubunitInfo: {} but {}",
-                self.page, operands[0]
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::UnexpectedOperands(0))
         } else if self.func_blk_type != operands[1] {
-            let label = format!(
-                "Unexpected value of function block type for ExtendedSubunitInfo: {} but {}",
-                self.func_blk_type, operands[2]
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
+            Err(AvcRespParseError::UnexpectedOperands(1))
         } else {
             self.entries = (0..5)
                 .filter(|i| operands[2 + i * 5] != 0xff)
@@ -1324,32 +1298,20 @@ impl AvcStatus for BcoExtendedStreamFormat {
         Ok(())
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() < 7 {
-            let label = format!(
-                "Unexpected length of data for BcoExtendedStreamFormat: {}",
-                operands.len()
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::TooShortResp(7))?;
         }
 
         if operands[0] != self.subfunc {
-            let label = format!(
-                "Unexpected subfunction: {} but {}",
-                self.subfunc, operands[0]
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(0))?;
         }
 
         let mut r = [0; 5];
         r.copy_from_slice(&operands[1..6]);
         let plug_addr = BcoPlugAddr::from(&r);
         if plug_addr != self.plug_addr {
-            let label = format!(
-                "Unexpected address for plug: {:?} but {:?}",
-                self.plug_addr, plug_addr
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(1))?;
         }
 
         self.support_status = SupportStatus::from(operands[6]);
@@ -1392,7 +1354,7 @@ impl AvcStatus for ExtendedStreamFormatSingle {
         self.op.build_operands(addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
@@ -1414,7 +1376,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
         Ok(())
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
@@ -1463,17 +1425,13 @@ impl AvcStatus for ExtendedStreamFormatList {
         Ok(())
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
 
         if operands[7] != self.index {
-            let label = format!(
-                "Unexpected index to stream entry: {} but {}",
-                self.index, operands[7]
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label));
+            Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
 
         self.stream_format = BcoStreamFormat::from(&operands[8..]);

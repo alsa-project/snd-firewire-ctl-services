@@ -1237,7 +1237,7 @@ impl AvcControl for EnsembleOperation {
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands).map(|_| {
             // NOTE: parameters are retrieved by HwStatus command only.
             match &mut self.cmd {

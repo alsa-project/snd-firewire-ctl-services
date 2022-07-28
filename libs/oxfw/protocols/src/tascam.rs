@@ -212,17 +212,15 @@ impl VendorCmd {
         }
     }
 
-    fn parse_variable(&mut self, data: &[u8]) -> Result<(), Error> {
+    fn parse_variable(&mut self, data: &[u8]) -> Result<(), AvcRespParseError> {
         if data.len() < 5 {
-            let label = format!("Data too short for TascamProtocol; {}", data.len());
-            return Err(Error::new(Ta1394AvcError::TooShortResp, &label));
+            Err(AvcRespParseError::TooShortResp(5))?;
         }
 
         match self {
             VendorCmd::DisplayMode(val) => {
                 if data[3] != Self::DISPLAY_MODE {
-                    let msg = format!("Invalid command for display mode; {}", data[3]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &msg))
+                    Err(AvcRespParseError::UnexpectedOperands(3))
                 } else {
                     *val = data[4];
                     Ok(())
@@ -230,8 +228,7 @@ impl VendorCmd {
             }
             VendorCmd::MessageMode(val) => {
                 if data[3] != Self::MESSAGE_MODE {
-                    let msg = format!("Invalid command for midi message mode; {}", data[3]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &msg))
+                    Err(AvcRespParseError::UnexpectedOperands(3))
                 } else {
                     *val = data[4];
                     Ok(())
@@ -239,8 +236,7 @@ impl VendorCmd {
             }
             VendorCmd::InputMode(val) => {
                 if data[3] != Self::INPUT_MODE {
-                    let msg = format!("Invalid command for input mode; {}", data[3]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &msg))
+                    Err(AvcRespParseError::UnexpectedOperands(3))
                 } else {
                     *val = data[4];
                     Ok(())
@@ -248,8 +244,7 @@ impl VendorCmd {
             }
             VendorCmd::FirmwareVersion(val) => {
                 if data[3] != Self::FIRMWARE_VERSION {
-                    let msg = format!("Invalid command in firmware version; {}", data[3]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &msg))
+                    Err(AvcRespParseError::UnexpectedOperands(3))
                 } else {
                     *val = data[4];
                     Ok(())
@@ -301,7 +296,7 @@ impl AvcControl for TascamProto {
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)
     }
 }
@@ -316,7 +311,7 @@ impl AvcStatus for TascamProto {
         AvcStatus::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)?;
         self.cmd.parse_variable(&self.op.data)
     }
@@ -361,9 +356,10 @@ impl Ta1394Avc for TascamAvc {
                         "Unexpected response code for TascamAvc control: {:?}",
                         rcode
                     );
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                    Err(Error::new(Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedStatus), &label))
                 } else {
                     AvcControl::parse_operands(op, addr, &operands)
+                        .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
                 }
             })
     }

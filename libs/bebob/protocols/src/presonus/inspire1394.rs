@@ -399,7 +399,7 @@ impl AvcControl for InputParameterOperation {
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)
     }
 }
@@ -436,7 +436,7 @@ impl AvcStatus for InputParameterOperation {
         AvcControl::build_operands(&mut self.op, addr, operands)
     }
 
-    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         AvcControl::parse_operands(&mut self.op, addr, operands)?;
         match &mut self.param {
             InputParameter::Analog34Phono(state) => {

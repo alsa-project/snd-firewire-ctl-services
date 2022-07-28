@@ -63,11 +63,11 @@ impl Ta1394Avc for BebobAvc {
             .and_then(|len| {
                 if resp[1] != addr.into() {
                     let label = format!("Unexpected address in response: {}", resp[1]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                    Err(Error::new(Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedStatus), &label))
                 } else if resp[2] != opcode {
                     let label =
                         format!("Unexpected opcode in response: {} but {}", opcode, resp[2]);
-                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                    Err(Error::new(Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedStatus), &label))
                 } else {
                     let rcode = AvcRespCode::from(resp[0] & Self::RESP_CODE_MASK);
 
@@ -111,9 +111,10 @@ impl Ta1394Avc for BebobAvc {
                     O::OPCODE,
                     rcode
                 );
-                Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                Err(Error::new(Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedStatus), &label))
             } else {
                 AvcControl::parse_operands(op, addr, &operands)
+                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             }
         })
     }
