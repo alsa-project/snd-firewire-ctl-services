@@ -24,7 +24,10 @@ pub mod yamaha_terratec;
 use {
     self::bridgeco::{ExtendedStreamFormatSingle, *},
     glib::{Error, FileError, IsA},
-    hinawa::{prelude::{FwFcpExtManual, FwFcpExt, FwReqExtManual}, FwFcp, FwNode, FwReq, FwTcode},
+    hinawa::{
+        prelude::{FwFcpExtManual, FwFcpExt, FwReqExtManual},
+        FwFcp, FwNode, FwReq, FwTcode,
+    },
     ta1394::{amdtp::*, audio::*, ccm::*, general::*, *},
 };
 

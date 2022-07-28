@@ -14,8 +14,8 @@ impl SignalUnitAddr {
     const PLUG_ID_MASK: u8 = 0x7f;
 }
 
-impl From<&[u8;2]> for SignalUnitAddr {
-    fn from(data: &[u8;2]) -> Self {
+impl From<&[u8; 2]> for SignalUnitAddr {
+    fn from(data: &[u8; 2]) -> Self {
         let plug_id = data[1] & Self::PLUG_ID_MASK;
         if data[1] & Self::EXT_PLUG_FLAG > 0 {
             Self::Ext(plug_id)
@@ -25,9 +25,9 @@ impl From<&[u8;2]> for SignalUnitAddr {
     }
 }
 
-impl From<SignalUnitAddr> for [u8;2] {
+impl From<SignalUnitAddr> for [u8; 2] {
     fn from(addr: SignalUnitAddr) -> Self {
-        let mut data = [0;2];
+        let mut data = [0; 2];
         data[0] = AvcAddr::UNIT_ADDR;
         data[1] = match addr {
             SignalUnitAddr::Isoc(val) => val,
@@ -43,17 +43,17 @@ pub struct SignalSubunitAddr {
     pub plug_id: u8,
 }
 
-impl From<&[u8;2]> for SignalSubunitAddr {
-    fn from(data: &[u8;2]) -> Self {
+impl From<&[u8; 2]> for SignalSubunitAddr {
+    fn from(data: &[u8; 2]) -> Self {
         let subunit = AvcAddrSubunit::from(data[0]);
         let plug_id = data[1];
-        SignalSubunitAddr{subunit, plug_id}
+        SignalSubunitAddr { subunit, plug_id }
     }
 }
 
-impl From<SignalSubunitAddr> for [u8;2] {
+impl From<SignalSubunitAddr> for [u8; 2] {
     fn from(addr: SignalSubunitAddr) -> Self {
-        let mut data = [0;2];
+        let mut data = [0; 2];
         data[0] = u8::from(addr.subunit);
         data[1] = addr.plug_id;
         data
@@ -76,15 +76,18 @@ impl SignalAddr {
     }
 
     pub fn new_for_subunit(subunit_type: AvcSubunitType, subunit_id: u8, plug_id: u8) -> Self {
-        SignalAddr::Subunit(SignalSubunitAddr{
-            subunit: AvcAddrSubunit{subunit_type, subunit_id},
+        SignalAddr::Subunit(SignalSubunitAddr {
+            subunit: AvcAddrSubunit {
+                subunit_type,
+                subunit_id,
+            },
             plug_id,
         })
     }
 }
 
-impl From<&[u8;2]> for SignalAddr {
-    fn from(data: &[u8;2]) -> Self {
+impl From<&[u8; 2]> for SignalAddr {
+    fn from(data: &[u8; 2]) -> Self {
         if data[0] == AvcAddr::UNIT_ADDR {
             SignalAddr::Unit(data.into())
         } else {
@@ -93,7 +96,7 @@ impl From<&[u8;2]> for SignalAddr {
     }
 }
 
-impl From<SignalAddr> for [u8;2] {
+impl From<SignalAddr> for [u8; 2] {
     fn from(addr: SignalAddr) -> Self {
         match addr {
             SignalAddr::Unit(a) => a.into(),
@@ -110,7 +113,7 @@ pub struct SignalSource {
 
 impl SignalSource {
     pub fn new(dst: &SignalAddr) -> Self {
-        SignalSource{
+        SignalSource {
             src: SignalAddr::Unit(SignalUnitAddr::Isoc(SignalUnitAddr::PLUG_ID_MASK)),
             dst: *dst,
         }
@@ -118,7 +121,7 @@ impl SignalSource {
 
     fn parse_operands(&mut self, operands: &[u8]) -> Result<(), Error> {
         if operands.len() > 4 {
-            let mut doublet = [0;2];
+            let mut doublet = [0; 2];
             doublet.copy_from_slice(&operands[1..3]);
             self.src = SignalAddr::from(&doublet);
             doublet.copy_from_slice(&operands[3..5]);
@@ -175,19 +178,37 @@ mod test {
 
     #[test]
     fn signaladdr_from() {
-        assert_eq!([0xff, 0x00], Into::<[u8;2]>::into(SignalAddr::from(&[0xff, 0x00])));
-        assert_eq!([0xff, 0x27], Into::<[u8;2]>::into(SignalAddr::from(&[0xff, 0x27])));
-        assert_eq!([0xff, 0x87], Into::<[u8;2]>::into(SignalAddr::from(&[0xff, 0x87])));
-        assert_eq!([0xff, 0xc7], Into::<[u8;2]>::into(SignalAddr::from(&[0xff, 0xc7])));
-        assert_eq!([0x63, 0x07], Into::<[u8;2]>::into(SignalAddr::from(&[0x63, 0x07])));
-        assert_eq!([0x09, 0x11], Into::<[u8;2]>::into(SignalAddr::from(&[0x09, 0x11])));
+        assert_eq!(
+            [0xff, 0x00],
+            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0x00]))
+        );
+        assert_eq!(
+            [0xff, 0x27],
+            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0x27]))
+        );
+        assert_eq!(
+            [0xff, 0x87],
+            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0x87]))
+        );
+        assert_eq!(
+            [0xff, 0xc7],
+            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0xc7]))
+        );
+        assert_eq!(
+            [0x63, 0x07],
+            Into::<[u8; 2]>::into(SignalAddr::from(&[0x63, 0x07]))
+        );
+        assert_eq!(
+            [0x09, 0x11],
+            Into::<[u8; 2]>::into(SignalAddr::from(&[0x09, 0x11]))
+        );
     }
 
     #[test]
     fn signalsource_operands() {
         let operands = [0x00, 0x2e, 0x1c, 0xff, 0x05];
         let dst = SignalAddr::Unit(SignalUnitAddr::Isoc(0x05));
-        let src = SignalAddr::Subunit(SignalSubunitAddr{
+        let src = SignalAddr::Subunit(SignalSubunitAddr {
             subunit: AvcAddrSubunit::new(AvcSubunitType::Tuner, 0x06),
             plug_id: 0x1c,
         });
@@ -201,16 +222,16 @@ mod test {
         assert_eq!(targets, [0xff, 0xff, 0xfe, 0xff, 0x05]);
 
         let mut targets = Vec::new();
-        let src = SignalAddr::Subunit(SignalSubunitAddr{
+        let src = SignalAddr::Subunit(SignalSubunitAddr {
             subunit: AvcAddrSubunit::new(AvcSubunitType::Extended, 0x05),
             plug_id: 0x07,
         });
         let dst = SignalAddr::Unit(SignalUnitAddr::Ext(0x03));
-        let mut op = SignalSource{src, dst};
+        let mut op = SignalSource { src, dst };
         AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut targets).unwrap();
         assert_eq!(targets, [0xff, 0xf5, 0x07, 0xff, 0x83]);
 
-        let mut op = SignalSource{
+        let mut op = SignalSource {
             src: SignalAddr::Unit(SignalUnitAddr::Isoc(0xf)),
             dst: SignalAddr::Unit(SignalUnitAddr::Isoc(0xf)),
         };

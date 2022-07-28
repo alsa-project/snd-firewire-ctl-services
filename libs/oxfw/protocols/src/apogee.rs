@@ -1172,7 +1172,8 @@ impl AvcStatus for ApogeeCmd {
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
         AvcStatus::parse_operands(&mut self.op, addr, operands)?;
-        self.cmd.parse_variable(&self.op.data)
+        self.cmd
+            .parse_variable(&self.op.data)
     }
 }
 
