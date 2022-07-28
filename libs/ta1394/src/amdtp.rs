@@ -4,7 +4,7 @@
 pub const FMT_IS_AMDTP: u8 = 0x90;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum AmdtpEventType{
+pub enum AmdtpEventType {
     Am824,
     AudioPack,
     FloatingPoint,
@@ -12,7 +12,7 @@ pub enum AmdtpEventType{
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct AmdtpFdf{
+pub struct AmdtpFdf {
     pub ev_type: AmdtpEventType,
     pub cmd_rate_ctl: bool,
     pub freq: u32,
@@ -42,7 +42,7 @@ impl AmdtpFdf {
     const SFC_RESERVED: u8 = 0x07;
 
     pub fn new(ev_type: AmdtpEventType, cmd_rate_ctl: bool, freq: u32) -> Self {
-        AmdtpFdf{
+        AmdtpFdf {
             ev_type,
             cmd_rate_ctl,
             freq,
@@ -74,7 +74,7 @@ impl From<&[u8]> for AmdtpFdf {
             _ => 0,
         };
 
-        AmdtpFdf{
+        AmdtpFdf {
             ev_type,
             cmd_rate_ctl: nflag > 0,
             freq,
@@ -82,9 +82,9 @@ impl From<&[u8]> for AmdtpFdf {
     }
 }
 
-impl From<AmdtpFdf> for [u8;3] {
+impl From<AmdtpFdf> for [u8; 3] {
     fn from(fdf: AmdtpFdf) -> Self {
-        let mut data = [0xff;3];
+        let mut data = [0xff; 3];
 
         let ev_type = match fdf.ev_type {
             AmdtpEventType::Am824 => AmdtpFdf::AM824,
@@ -106,9 +106,9 @@ impl From<AmdtpFdf> for [u8;3] {
             _ => AmdtpFdf::SFC_RESERVED,
         };
 
-        data[0] = ((ev_type & AmdtpFdf::EVT_MASK) << AmdtpFdf::EVT_SHIFT) |
-                  ((nflag as u8 & AmdtpFdf::NFLAG_MASK) << AmdtpFdf::NFLAG_SHIFT) |
-                  ((sfc & AmdtpFdf::SFC_MASK) << AmdtpFdf::SFC_SHIFT);
+        data[0] = ((ev_type & AmdtpFdf::EVT_MASK) << AmdtpFdf::EVT_SHIFT)
+            | ((nflag as u8 & AmdtpFdf::NFLAG_MASK) << AmdtpFdf::NFLAG_SHIFT)
+            | ((sfc & AmdtpFdf::SFC_MASK) << AmdtpFdf::SFC_SHIFT);
 
         data
     }

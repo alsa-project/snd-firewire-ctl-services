@@ -1675,10 +1675,11 @@ fn parse_tstamp(buf: &[u8]) -> Result<glib::DateTime, Error> {
             Error::new(FileError::Nxio, &msg)
         })?;
 
-        u16::from_str_radix(&literal[4..6], 10).map_err(|err| {
-            let msg = format!("{}", err);
-            Error::new(FileError::Nxio, &msg)
-        })
+        u16::from_str_radix(&literal[4..6], 10)
+            .map_err(|err| {
+                let msg = format!("{}", err);
+                Error::new(FileError::Nxio, &msg)
+            })
             .map(|seconds| (hour, minute, seconds))
     } else {
         Ok((0, 0, 0))
@@ -1691,7 +1692,8 @@ fn parse_tstamp(buf: &[u8]) -> Result<glib::DateTime, Error> {
         hour as i32,
         minute as i32,
         seconds as f64,
-    ).unwrap();
+    )
+    .unwrap();
 
     Ok(tstamp)
 }

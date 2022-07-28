@@ -552,12 +552,18 @@ mod test {
     #[test]
     fn avcaddr_from() {
         assert_eq!(AvcAddr::from(0xff), AvcAddr::Unit);
-        assert_eq!(AvcAddr::from(0x09),
-                   AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Audio, 0x01)));
-        assert_eq!(AvcAddr::from(0x63),
-                   AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Music, 0x03)));
-        assert_eq!(AvcAddr::from(0x87),
-                   AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Reserved(0x10), 0x07)));
+        assert_eq!(
+            AvcAddr::from(0x09),
+            AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Audio, 0x01))
+        );
+        assert_eq!(
+            AvcAddr::from(0x63),
+            AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Music, 0x03))
+        );
+        assert_eq!(
+            AvcAddr::from(0x87),
+            AvcAddr::Subunit(AvcAddrSubunit::new(AvcSubunitType::Reserved(0x10), 0x07))
+        );
     }
 
     #[test]
