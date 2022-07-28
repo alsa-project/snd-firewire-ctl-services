@@ -27,23 +27,10 @@ use {
 pub struct OxfwAvc(FwFcp);
 
 impl Ta1394Avc for OxfwAvc {
-    fn transaction(
-        &self,
-        ctype: AvcCmdType,
-        addr: &AvcAddr,
-        opcode: u8,
-        operands: &[u8],
-        timeout_ms: u32,
-    ) -> Result<Vec<u8>, Error> {
-        let mut cmd = Vec::new();
-        cmd.push(ctype.into());
-        cmd.push(addr.into());
-        cmd.push(opcode);
-        cmd.extend_from_slice(operands);
-
+    fn transaction(&self, command_frame: &[u8], timeout_ms: u32) -> Result<Vec<u8>, Error> {
         let mut resp = vec![0; Self::FRAME_SIZE];
         self.0
-            .avc_transaction(&cmd, &mut resp, timeout_ms)
+            .avc_transaction(&command_frame, &mut resp, timeout_ms)
             .map(|len| {
                 resp.truncate(len);
                 resp

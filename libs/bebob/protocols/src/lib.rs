@@ -43,23 +43,10 @@ pub const DM_BCO_BOOTLOADER_INFO_OFFSET: u64 = DM_BCO_OFFSET + 0x00020000;
 pub struct BebobAvc(FwFcp);
 
 impl Ta1394Avc for BebobAvc {
-    fn transaction(
-        &self,
-        ctype: AvcCmdType,
-        addr: &AvcAddr,
-        opcode: u8,
-        operands: &[u8],
-        timeout_ms: u32,
-    ) -> Result<Vec<u8>, Error> {
-        let mut cmd = Vec::new();
-        cmd.push(ctype.into());
-        cmd.push(addr.into());
-        cmd.push(opcode);
-        cmd.extend_from_slice(operands);
-
+    fn transaction(&self, command_frame: &[u8], timeout_ms: u32) -> Result<Vec<u8>, Error> {
         let mut resp = vec![0; Self::FRAME_SIZE];
         self.0
-            .avc_transaction(&cmd, &mut resp, timeout_ms)
+            .avc_transaction(&command_frame, &mut resp, timeout_ms)
             .map(|len| {
                 resp.truncate(len);
                 resp
@@ -73,35 +60,33 @@ impl Ta1394Avc for BebobAvc {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
-        AvcControl::build_operands(op, addr, &mut operands)
-            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
-        self.transaction(
-            AvcCmdType::Control,
-            addr,
-            O::OPCODE,
-            &mut operands,
-            timeout_ms,
-        )
-        .and_then(|response_frame| {
-            Self::detect_response_operands(&response_frame, addr, O::OPCODE)
-                .and_then(|(rcode, operands)| {
-                    let expected = match O::OPCODE {
-                        InputPlugSignalFormat::OPCODE
-                        | OutputPlugSignalFormat::OPCODE
-                        | SignalSource::OPCODE => {
-                            // NOTE: quirk.
-                            rcode == AvcRespCode::Accepted || rcode == AvcRespCode::Reserved(0x00)
+        let command_frame = AvcControl::build_operands(op, addr, &mut operands)
+            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))
+            .map(|_| {
+                Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)
+            })?;
+        self.transaction(&command_frame, timeout_ms)
+            .and_then(|response_frame| {
+                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+                    .and_then(|(rcode, operands)| {
+                        let expected = match O::OPCODE {
+                            InputPlugSignalFormat::OPCODE
+                            | OutputPlugSignalFormat::OPCODE
+                            | SignalSource::OPCODE => {
+                                // NOTE: quirk.
+                                rcode == AvcRespCode::Accepted
+                                    || rcode == AvcRespCode::Reserved(0x00)
+                            }
+                            _ => rcode == AvcRespCode::Accepted,
+                        };
+                        if !expected {
+                            Err(AvcRespParseError::UnexpectedStatus)
+                        } else {
+                            AvcControl::parse_operands(op, addr, &operands)
                         }
-                        _ => rcode == AvcRespCode::Accepted,
-                    };
-                    if !expected {
-                        Err(AvcRespParseError::UnexpectedStatus)
-                    } else {
-                        AvcControl::parse_operands(op, addr, &operands)
-                    }
-                })
-                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
-        })
+                    })
+                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
+            })
     }
 }
 
