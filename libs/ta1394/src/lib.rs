@@ -196,12 +196,18 @@ impl From<AvcAddr> for u8 {
     }
 }
 
+/// The type of command in AV/C transaction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcCmdType {
+    /// Perform an operation to the addressed target.
     Control,
+    /// Check current status of the addressed target.
     Status,
+    /// Check whether the addressed target supports a particular Control command including operands.
     SpecificInquiry,
+    /// Schedule notification of a change in the addressed target.
     Notify,
+    /// Check whether the addressed target supports a particular Control command just with opcode.
     GeneralInquiry,
     Reserved(u8),
 }
@@ -240,14 +246,23 @@ impl From<AvcCmdType> for u8 {
     }
 }
 
+/// The status of response in AV/C transaction.
 #[derive(Debug, Eq, PartialEq)]
 pub enum AvcRespCode {
+    /// The target does not implement the requested command or the addressed subunit.
     NotImplemented,
+    /// The requested CONTROL command has been processed or is scheduled to process.
     Accepted,
+    /// The target refused to process the requested command due to some reasons.
     Rejected,
+    /// The target is under transition state and can not process the requested STATUS command.
     InTransition,
+    /// The target implements the inquired command or returns current status against the requested
+    /// STATUS command.
     ImplementedStable,
+    /// The actual notification scheduled by the NOTIFY command.
     Changed,
+    /// The intermediate response during AV/C deferred transaction.
     Interim,
     Reserved(u8),
 }
@@ -278,7 +293,7 @@ impl From<u8> for AvcRespCode {
 }
 
 impl From<AvcRespCode> for u8 {
-    fn from(resp: AvcRespCode) -> u8 {
+    fn from(resp: AvcRespCode) -> Self {
         match resp {
             AvcRespCode::NotImplemented => AvcRespCode::NOT_IMPLEMENTED,
             AvcRespCode::Accepted => AvcRespCode::ACCEPTED,
@@ -292,20 +307,25 @@ impl From<AvcRespCode> for u8 {
     }
 }
 
+/// For AV/C operation with opcode.
 pub trait AvcOp {
+    /// The code to specify operation.
     const OPCODE: u8;
 }
 
+/// The AV/C operation supporting control and inquiry command.
 pub trait AvcControl {
     fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error>;
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
 }
 
+/// The AV/C operation supporting status command.
 pub trait AvcStatus {
     fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error>;
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
 }
 
+/// The AV/C operation supporting notify command.
 pub trait AvcNotify {
     fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error>;
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error>;
