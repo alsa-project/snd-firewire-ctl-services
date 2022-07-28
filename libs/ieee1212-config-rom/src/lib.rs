@@ -227,14 +227,14 @@ const ENTRY_KEY_DIRECTORY: u8 = 3;
 
 fn get_directory_entry_list<'a>(
     raw: &'a [u8],
-    directory_pos: usize,
-    directory_length: usize,
+    content_pos: usize,
+    content_length: usize,
 ) -> Result<Vec<Entry<'a>>, BlockParseError> {
     let mut entries = Vec::new();
 
-    let mut pos = directory_pos;
+    let mut pos = content_pos;
 
-    while pos < directory_pos + directory_length {
+    while pos < content_pos + content_length {
         let entry_type = raw[pos] >> 6;
         let key = raw[pos] & 0x3f;
         let quadlet = [0, raw[pos + 1], raw[pos + 2], raw[pos + 3]];
