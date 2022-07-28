@@ -316,15 +316,27 @@ impl AvcStatus for TascamProto {
 
 /// The structure to represent AV/C protocol for TASCAM FireOne.
 #[derive(Default, Debug)]
-pub struct TascamAvc(pub FwFcp);
+pub struct TascamAvc(OxfwAvc);
 
 impl AsRef<FwFcp> for TascamAvc {
     fn as_ref(&self) -> &FwFcp {
-        &self.0
+        self.0.as_ref()
     }
 }
 
 impl Ta1394Avc for TascamAvc {
+    fn transaction(
+        &self,
+        ctype: AvcCmdType,
+        addr: &AvcAddr,
+        opcode: u8,
+        operands: &[u8],
+        timeout_ms: u32,
+    ) -> Result<(AvcRespCode, Vec<u8>), Error> {
+        self.0
+            .transaction(ctype, addr, opcode, operands, timeout_ms)
+    }
+
     fn control<O: AvcOp + AvcControl>(
         &self,
         addr: &AvcAddr,

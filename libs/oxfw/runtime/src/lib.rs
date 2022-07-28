@@ -15,10 +15,11 @@ use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{prelude::{FwFcpExt, FwNodeExt, FwNodeExtManual}, FwFcp, FwNode, FwReq},
+    hinawa::{prelude::{FwFcpExt, FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     nix::sys::signal,
+    oxfw_protocols::*,
     std::{convert::TryFrom, sync::mpsc},
     ta1394::config_rom::*,
 };

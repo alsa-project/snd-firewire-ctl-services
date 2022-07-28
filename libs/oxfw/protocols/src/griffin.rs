@@ -23,7 +23,7 @@ impl FirewaveProtocol {
     const MUTE_FB_ID: u8 = 0x01;
 
     pub fn read_volume(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         volume: &mut i16,
         timeout_ms: u32,
@@ -48,7 +48,7 @@ impl FirewaveProtocol {
     }
 
     pub fn write_volume(
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         idx: usize,
         volume: i16,
         timeout_ms: u32,
@@ -67,7 +67,7 @@ impl FirewaveProtocol {
         }
     }
 
-    pub fn read_mute(avc: &mut FwFcp, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
+    pub fn read_mute(avc: &mut OxfwAvc, mute: &mut bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = AudioFeature::new(
             Self::MUTE_FB_ID,
             CtlAttr::Current,
@@ -82,7 +82,7 @@ impl FirewaveProtocol {
             })
     }
 
-    pub fn write_mute(avc: &mut FwFcp, mute: bool, timeout_ms: u32) -> Result<(), Error> {
+    pub fn write_mute(avc: &mut OxfwAvc, mute: bool, timeout_ms: u32) -> Result<(), Error> {
         let mut op = AudioFeature::new(
             Self::MUTE_FB_ID,
             CtlAttr::Current,

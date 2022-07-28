@@ -5,7 +5,7 @@ use {super::common_ctl::CommonCtl, super::*, oxfw_protocols::loud::*};
 
 #[derive(Default, Debug)]
 pub struct LinkFwModel {
-    avc: FwFcp,
+    avc: OxfwAvc,
     common_ctl: CommonCtl,
     specific_ctl: SpecificCtl,
 }
@@ -18,7 +18,7 @@ impl CtlModel<(SndUnit, FwNode)> for LinkFwModel {
         unit: &mut (SndUnit, FwNode),
         card_cntr: &mut CardCntr,
     ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
+        self.avc.as_ref().bind(&unit.1)?;
 
         self.common_ctl.load(&self.avc, card_cntr, FCP_TIMEOUT_MS)?;
         self.specific_ctl.load(card_cntr)?;
@@ -115,7 +115,7 @@ impl SpecificCtl {
 
     fn read(
         &self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
@@ -134,7 +134,7 @@ impl SpecificCtl {
 
     fn write(
         &self,
-        avc: &mut FwFcp,
+        avc: &mut OxfwAvc,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
