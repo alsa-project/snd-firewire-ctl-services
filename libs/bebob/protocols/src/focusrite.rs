@@ -399,7 +399,11 @@ const FOCUSRITE_CONTROL_ACTION: u8 = 0x01;
 const FOCUSRITE_STATUS_ACTION: u8 = 0x03;
 
 impl AvcControl for SaffireAvcOperation {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         assert!(self.offsets.len() <= MAXIMUM_OFFSET_COUNT);
         assert_eq!(self.offsets.len() * 4, self.buf.len());
 
@@ -429,7 +433,11 @@ impl AvcControl for SaffireAvcOperation {
 }
 
 impl AvcStatus for SaffireAvcOperation {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         assert!(self.offsets.len() <= MAXIMUM_OFFSET_COUNT);
         assert_eq!(self.offsets.len() * 4, self.buf.len());
 

@@ -83,7 +83,8 @@ impl Ta1394Avc for BebobAvc {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
-        AvcControl::build_operands(op, addr, &mut operands)?;
+        AvcControl::build_operands(op, addr, &mut operands)
+            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(
             AvcCmdType::Control,
             addr,

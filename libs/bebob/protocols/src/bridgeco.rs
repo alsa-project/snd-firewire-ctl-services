@@ -816,7 +816,11 @@ impl AvcOp for ExtendedPlugInfo {
 }
 
 impl AvcStatus for ExtendedPlugInfo {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         operands.push(Self::SUBFUNC);
         operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.addr));
         operands.append(&mut Into::<Vec<u8>>::into(&self.info));
@@ -943,7 +947,11 @@ impl AvcOp for ExtendedSubunitInfo {
 }
 
 impl AvcStatus for ExtendedSubunitInfo {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         operands.push(self.page);
         operands.push(self.func_blk_type);
         operands.extend_from_slice(&[0xff; 25]);
@@ -1305,7 +1313,11 @@ impl BcoExtendedStreamFormat {
 }
 
 impl AvcStatus for BcoExtendedStreamFormat {
-    fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        _: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         operands.push(self.subfunc);
         operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.plug_addr));
         operands.push(self.support_status.into());
@@ -1371,10 +1383,13 @@ impl AvcOp for ExtendedStreamFormatSingle {
 }
 
 impl AvcStatus for ExtendedStreamFormatSingle {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.op.support_status = SupportStatus::Reserved(0xff);
-        self.op.build_operands(addr, operands)?;
-        Ok(())
+        self.op.build_operands(addr, operands)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
@@ -1388,7 +1403,11 @@ impl AvcStatus for ExtendedStreamFormatSingle {
 }
 
 impl AvcControl for ExtendedStreamFormatSingle {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.op.support_status = SupportStatus::Active;
         self.op.build_operands(addr, operands)?;
         operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
@@ -1434,7 +1453,11 @@ impl AvcOp for ExtendedStreamFormatList {
 }
 
 impl AvcStatus for ExtendedStreamFormatList {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.op.build_operands(addr, operands)?;
         operands.push(self.index);
         Ok(())

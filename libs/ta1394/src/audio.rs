@@ -151,12 +151,13 @@ impl AudioFuncBlk {
         }
     }
 
-    fn build_operands(&self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         match addr {
-            AvcAddr::Unit => {
-                let label = "Unit address is not supported by AudioFuncBlk";
-                Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
-            }
+            AvcAddr::Unit => Err(AvcCmdBuildError::InvalidAddress),
             AvcAddr::Subunit(s) => {
                 if s.subunit_type == AvcSubunitType::Audio {
                     operands.push(self.func_blk_type.into());
@@ -167,8 +168,7 @@ impl AudioFuncBlk {
                     self.ctl.build_raw(operands);
                     Ok(())
                 } else {
-                    let label = "SubUnit address except for audio is not supported by AudioFuncBlk";
-                    Err(Error::new(Ta1394AvcError::InvalidCmdOperands, &label))
+                    Err(AvcCmdBuildError::InvalidAddress)
                 }
             }
         }
@@ -221,7 +221,11 @@ impl AvcOp for AudioFuncBlk {
 }
 
 impl AvcStatus for AudioFuncBlk {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         AudioFuncBlk::build_operands(self, addr, operands)
     }
 
@@ -231,7 +235,11 @@ impl AvcStatus for AudioFuncBlk {
 }
 
 impl AvcControl for AudioFuncBlk {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         AudioFuncBlk::build_operands(self, addr, operands)
     }
 
@@ -258,7 +266,7 @@ impl AudioSelector {
         }
     }
 
-    fn build_func_blk(&mut self) -> Result<(), Error> {
+    fn build_func_blk(&mut self) -> Result<(), AvcCmdBuildError> {
         self.func_blk.audio_selector_data.clear();
         self.func_blk.audio_selector_data.push(self.input_plug_id);
         self.func_blk.ctl.selector = Self::SELECTOR_CONTROL;
@@ -287,7 +295,11 @@ impl AvcOp for AudioSelector {
 }
 
 impl AvcStatus for AudioSelector {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.build_func_blk()?;
         AvcStatus::build_operands(&mut self.func_blk, addr, operands)
     }
@@ -299,7 +311,11 @@ impl AvcStatus for AudioSelector {
 }
 
 impl AvcControl for AudioSelector {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.build_func_blk()?;
         AvcControl::build_operands(&mut self.func_blk, addr, operands)
     }
@@ -580,7 +596,7 @@ impl AudioFeature {
         }
     }
 
-    fn build_func_blk(&mut self) -> Result<(), Error> {
+    fn build_func_blk(&mut self) -> Result<(), AvcCmdBuildError> {
         self.func_blk.audio_selector_data.clear();
         self.func_blk.audio_selector_data.push(u8::from(self.audio_ch_num));
         self.func_blk.ctl = AudioFuncBlkCtl::from(&self.ctl);
@@ -605,7 +621,11 @@ impl AvcOp for AudioFeature {
 }
 
 impl AvcStatus for AudioFeature {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.build_func_blk()?;
         AvcStatus::build_operands(&mut self.func_blk, addr, operands)
     }
@@ -617,7 +637,11 @@ impl AvcStatus for AudioFeature {
 }
 
 impl AvcControl for AudioFeature {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.build_func_blk()?;
         AvcControl::build_operands(&mut self.func_blk, addr, operands)
     }
@@ -721,7 +745,7 @@ impl AudioProcessing {
         }
     }
 
-    fn build_func_blk(&mut self) -> Result<(), Error> {
+    fn build_func_blk(&mut self) -> Result<(), AvcCmdBuildError> {
         self.func_blk.audio_selector_data.clear();
         self.func_blk.audio_selector_data.push(self.input_plug_id);
         self.func_blk.audio_selector_data.push(u8::from(self.input_ch));
@@ -761,7 +785,11 @@ impl AvcOp for AudioProcessing {
 }
 
 impl AvcStatus for AudioProcessing {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.build_func_blk()?;
         AvcStatus::build_operands(&mut self.func_blk, addr, operands)
     }
@@ -773,7 +801,11 @@ impl AvcStatus for AudioProcessing {
 }
 
 impl AvcControl for AudioProcessing {
-    fn build_operands(&mut self, addr: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+    ) -> Result<(), AvcCmdBuildError> {
         self.build_func_blk()?;
         AvcControl::build_operands(&mut self.func_blk, addr, operands)
     }
