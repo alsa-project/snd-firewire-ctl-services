@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use super::{AvcAddr, AvcAddrSubunit, AvcSubunitType, Ta1394AvcError};
-use super::{AvcOp, AvcStatus, AvcControl};
+use super::*;
 
 //
 // AV/C UNIT INFO command.
@@ -514,11 +512,7 @@ impl AvcStatus for OutputPlugSignalFormat {
 
 #[cfg(test)]
 mod test {
-    use super::{AvcSubunitType, AvcAddr, AvcAddrSubunit};
-    use super::{AvcStatus, AvcControl};
-    use super::{UnitInfo, SubunitInfo, SubunitInfoEntry, VendorDependent};
-    use super::{PlugInfo, PlugInfoUnitData};
-    use super::{InputPlugSignalFormat, OutputPlugSignalFormat};
+    use crate::general::*;
 
     #[test]
     fn unitinfo_operands() {

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::{Error, FileError};
 
-use super::{AvcAddr, Ta1394AvcError};
-use super::{AvcOp, AvcStatus, AvcControl};
+use super::*;
 
 //
 // AV/C STREAM FORMAT INFORMATION
@@ -1068,15 +1066,7 @@ impl AvcStatus for ExtendedStreamFormatList {
 
 #[cfg(test)]
 mod tests {
-    use super::{Am824MultiBitAudioAttr, Am824OneBitAudioAttr, Am824Stream};
-    use super::{CompoundAm824Stream, CompoundAm824StreamEntry, CompoundAm824StreamFormat, RateCtl};
-    use super::{AmStream, StreamFormat};
-
-    use super::{UnitPlugType, UnitPlugData, SubunitPlugData, FunctionBlockPlugData, PlugAddrMode, PlugDirection, PlugAddr};
-
-    use super::AvcAddr;
-    use super::{AvcStatus, AvcControl};
-    use super::{SupportStatus, ExtendedStreamFormatSingle, ExtendedStreamFormatList};
+    use crate::stream_format::*;
 
     #[test]
     fn am824multibitaudioattr_from() {

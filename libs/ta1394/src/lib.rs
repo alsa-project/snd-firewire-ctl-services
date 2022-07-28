@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
+pub mod amdtp;
+pub mod audio;
+pub mod ccm;
 pub mod config_rom;
 pub mod general;
-pub mod amdtp;
-pub mod ccm;
-pub mod audio;
 pub mod stream_format;
 
-use glib::{Error, error::ErrorDomain, Quark};
-
-use hinawa::{prelude::FwFcpExtManual, FwFcp};
+use {
+    glib::{error::ErrorDomain, Error, FileError, Quark},
+    hinawa::{prelude::FwFcpExtManual, FwFcp},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AvcSubunitType {
@@ -418,8 +419,7 @@ impl Ta1394Avc for FwFcp {}
 
 #[cfg(test)]
 mod test {
-    use super::{AvcSubunitType, AvcAddrSubunit, AvcAddr};
-    use super::{AvcCmdType, AvcRespCode, Ta1394AvcError, ErrorDomain};
+    use crate::*;
 
     #[test]
     fn avcsubunittype_from() {
