@@ -32,10 +32,10 @@ impl Am824MultiBitAudioAttr {
     const RATE_CTL_SHIFT: usize = 0;
 }
 
-impl From<&[u8;2]> for Am824MultiBitAudioAttr {
-    fn from(raw: &[u8;2]) -> Self {
-        let freq_code =
-            (raw[0] >> Am824MultiBitAudioAttr::FREQ_CODE_SHIFT) & Am824MultiBitAudioAttr::FREQ_CODE_MASK;
+impl From<&[u8; 2]> for Am824MultiBitAudioAttr {
+    fn from(raw: &[u8; 2]) -> Self {
+        let freq_code = (raw[0] >> Am824MultiBitAudioAttr::FREQ_CODE_SHIFT)
+            & Am824MultiBitAudioAttr::FREQ_CODE_MASK;
         let freq = match freq_code {
             Am824MultiBitAudioAttr::FREQ_CODE_22050 => 22050,
             Am824MultiBitAudioAttr::FREQ_CODE_24000 => 24000,
@@ -48,18 +48,15 @@ impl From<&[u8;2]> for Am824MultiBitAudioAttr {
             _ => 0xffffffff,
         };
 
-        let rate_ctl_code =
-            (raw[0] >> Am824MultiBitAudioAttr::RATE_CTL_SHIFT) & Am824MultiBitAudioAttr::RATE_CTL_MASK;
+        let rate_ctl_code = (raw[0] >> Am824MultiBitAudioAttr::RATE_CTL_SHIFT)
+            & Am824MultiBitAudioAttr::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == Am824MultiBitAudioAttr::RATE_CTL_SUPPORTED;
 
-        Am824MultiBitAudioAttr{
-            freq,
-            rate_ctl,
-        }
+        Am824MultiBitAudioAttr { freq, rate_ctl }
     }
 }
 
-impl From<&Am824MultiBitAudioAttr> for [u8;2] {
+impl From<&Am824MultiBitAudioAttr> for [u8; 2] {
     fn from(data: &Am824MultiBitAudioAttr) -> Self {
         let freq_code = match data.freq {
             22050 => Am824MultiBitAudioAttr::FREQ_CODE_22050,
@@ -79,10 +76,11 @@ impl From<&Am824MultiBitAudioAttr> for [u8;2] {
             Am824MultiBitAudioAttr::RATE_CTL_DONT_CARE
         };
 
-        let mut raw = [0xff;2];
-        raw[0] =
-            ((freq_code & Am824MultiBitAudioAttr::FREQ_CODE_MASK) << Am824MultiBitAudioAttr::FREQ_CODE_SHIFT) |
-            ((rate_ctl_code & Am824MultiBitAudioAttr::RATE_CTL_MASK) << Am824MultiBitAudioAttr::RATE_CTL_SHIFT);
+        let mut raw = [0xff; 2];
+        raw[0] = ((freq_code & Am824MultiBitAudioAttr::FREQ_CODE_MASK)
+            << Am824MultiBitAudioAttr::FREQ_CODE_SHIFT)
+            | ((rate_ctl_code & Am824MultiBitAudioAttr::RATE_CTL_MASK)
+                << Am824MultiBitAudioAttr::RATE_CTL_SHIFT);
         raw
     }
 }
@@ -112,10 +110,10 @@ impl Am824OneBitAudioAttr {
     const RATE_CTL_SHIFT: usize = 0;
 }
 
-impl From<&[u8;2]> for Am824OneBitAudioAttr {
-    fn from(raw: &[u8;2]) -> Self {
-        let freq_code =
-            (raw[0] >> Am824OneBitAudioAttr::FREQ_CODE_SHIFT) & Am824OneBitAudioAttr::FREQ_CODE_MASK;
+impl From<&[u8; 2]> for Am824OneBitAudioAttr {
+    fn from(raw: &[u8; 2]) -> Self {
+        let freq_code = (raw[0] >> Am824OneBitAudioAttr::FREQ_CODE_SHIFT)
+            & Am824OneBitAudioAttr::FREQ_CODE_MASK;
         let freq = match freq_code {
             Am824OneBitAudioAttr::FREQ_CODE_2048000 => 2048000,
             Am824OneBitAudioAttr::FREQ_CODE_2822400 => 2822400,
@@ -131,23 +129,20 @@ impl From<&[u8;2]> for Am824OneBitAudioAttr {
             (raw[0] >> Am824OneBitAudioAttr::RATE_CTL_SHIFT) & Am824OneBitAudioAttr::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == Am824OneBitAudioAttr::RATE_CTL_SUPPORTED;
 
-        Am824OneBitAudioAttr{
-            freq,
-            rate_ctl,
-        }
+        Am824OneBitAudioAttr { freq, rate_ctl }
     }
 }
 
-impl From<&Am824OneBitAudioAttr> for [u8;2] {
+impl From<&Am824OneBitAudioAttr> for [u8; 2] {
     fn from(data: &Am824OneBitAudioAttr) -> Self {
         let freq_code = match data.freq {
-             2048000 => Am824OneBitAudioAttr::FREQ_CODE_2048000,
-             2822400 => Am824OneBitAudioAttr::FREQ_CODE_2822400,
-             3072000 => Am824OneBitAudioAttr::FREQ_CODE_3072000,
-             5644800 => Am824OneBitAudioAttr::FREQ_CODE_5644800,
-             6144000 => Am824OneBitAudioAttr::FREQ_CODE_6144000,
-             11289600 => Am824OneBitAudioAttr::FREQ_CODE_11289600,
-             12288000 => Am824OneBitAudioAttr::FREQ_CODE_12288000,
+            2048000 => Am824OneBitAudioAttr::FREQ_CODE_2048000,
+            2822400 => Am824OneBitAudioAttr::FREQ_CODE_2822400,
+            3072000 => Am824OneBitAudioAttr::FREQ_CODE_3072000,
+            5644800 => Am824OneBitAudioAttr::FREQ_CODE_5644800,
+            6144000 => Am824OneBitAudioAttr::FREQ_CODE_6144000,
+            11289600 => Am824OneBitAudioAttr::FREQ_CODE_11289600,
+            12288000 => Am824OneBitAudioAttr::FREQ_CODE_12288000,
             _ => 0x0f,
         };
 
@@ -157,10 +152,11 @@ impl From<&Am824OneBitAudioAttr> for [u8;2] {
             Am824OneBitAudioAttr::RATE_CTL_DONT_CARE
         };
 
-        let mut raw = [0xff;2];
-        raw[0] =
-            ((freq_code & Am824OneBitAudioAttr::FREQ_CODE_MASK) << Am824OneBitAudioAttr::FREQ_CODE_SHIFT) |
-            ((rate_ctl_code & Am824OneBitAudioAttr::RATE_CTL_MASK) << Am824OneBitAudioAttr::RATE_CTL_SHIFT);
+        let mut raw = [0xff; 2];
+        raw[0] = ((freq_code & Am824OneBitAudioAttr::FREQ_CODE_MASK)
+            << Am824OneBitAudioAttr::FREQ_CODE_SHIFT)
+            | ((rate_ctl_code & Am824OneBitAudioAttr::RATE_CTL_MASK)
+                << Am824OneBitAudioAttr::RATE_CTL_SHIFT);
         raw
     }
 }
@@ -180,8 +176,8 @@ pub enum Am824Stream {
     OneBitAudioEncodedRaw(Am824OneBitAudioAttr),
     OneBitAudioEncodedSacd(Am824OneBitAudioAttr),
     HighPrecisionMultiBitLinearAudio(Am824MultiBitAudioAttr),
-    MidiConformant([u8;2]),
-    Reserved([u8;4]),
+    MidiConformant([u8; 2]),
+    Reserved([u8; 4]),
 }
 
 impl Am824Stream {
@@ -201,19 +197,19 @@ impl Am824Stream {
     const MIDI_CONFORMANT: u8 = 0x0d;
 }
 
-impl From<&[u8;4]> for Am824Stream {
-    fn from(raw: &[u8;4]) -> Self {
+impl From<&[u8; 4]> for Am824Stream {
+    fn from(raw: &[u8; 4]) -> Self {
         match raw[0] {
-            Am824Stream::IEC60958_3 |
-            Am824Stream::IEC61937_3 |
-            Am824Stream::IEC61937_4 |
-            Am824Stream::IEC61937_5 |
-            Am824Stream::IEC61937_6 |
-            Am824Stream::IEC61937_7 |
-            Am824Stream::MULTI_BIT_LINEAR_AUDIO_RAW |
-            Am824Stream::MULTI_BIT_LINEAR_AUDIO_DVD |
-            Am824Stream::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
-                let mut r = [0;2];
+            Am824Stream::IEC60958_3
+            | Am824Stream::IEC61937_3
+            | Am824Stream::IEC61937_4
+            | Am824Stream::IEC61937_5
+            | Am824Stream::IEC61937_6
+            | Am824Stream::IEC61937_7
+            | Am824Stream::MULTI_BIT_LINEAR_AUDIO_RAW
+            | Am824Stream::MULTI_BIT_LINEAR_AUDIO_DVD
+            | Am824Stream::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
+                let mut r = [0; 2];
                 r.copy_from_slice(&raw[2..4]);
                 let attrs = Am824MultiBitAudioAttr::from(&r);
                 match raw[0] {
@@ -223,36 +219,41 @@ impl From<&[u8;4]> for Am824Stream {
                     Am824Stream::IEC61937_5 => Am824Stream::Iec61937_5(attrs),
                     Am824Stream::IEC61937_6 => Am824Stream::Iec61937_6(attrs),
                     Am824Stream::IEC61937_7 => Am824Stream::Iec61937_7(attrs),
-                    Am824Stream::MULTI_BIT_LINEAR_AUDIO_RAW =>
-                        Am824Stream::MultiBitLinearAudioRaw(attrs),
-                    Am824Stream::MULTI_BIT_LINEAR_AUDIO_DVD =>
-                        Am824Stream::MultiBitLinearAudioDvd(attrs),
-                    Am824Stream::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO =>
-                        Am824Stream::HighPrecisionMultiBitLinearAudio(attrs),
+                    Am824Stream::MULTI_BIT_LINEAR_AUDIO_RAW => {
+                        Am824Stream::MultiBitLinearAudioRaw(attrs)
+                    }
+                    Am824Stream::MULTI_BIT_LINEAR_AUDIO_DVD => {
+                        Am824Stream::MultiBitLinearAudioDvd(attrs)
+                    }
+                    Am824Stream::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
+                        Am824Stream::HighPrecisionMultiBitLinearAudio(attrs)
+                    }
                     _ => unreachable!(),
                 }
             }
-            Am824Stream::ONE_BIT_AUDIO_PLAIN_RAW |
-            Am824Stream::ONE_BIT_AUDIO_PLAIN_SACD |
-            Am824Stream::ONE_BIT_AUDIO_ENCODED_RAW |
-            Am824Stream::ONE_BIT_AUDIO_ENCODED_SACD => {
-                let mut r = [0;2];
+            Am824Stream::ONE_BIT_AUDIO_PLAIN_RAW
+            | Am824Stream::ONE_BIT_AUDIO_PLAIN_SACD
+            | Am824Stream::ONE_BIT_AUDIO_ENCODED_RAW
+            | Am824Stream::ONE_BIT_AUDIO_ENCODED_SACD => {
+                let mut r = [0; 2];
                 r.copy_from_slice(&raw[2..4]);
                 let attrs = Am824OneBitAudioAttr::from(&r);
                 match raw[0] {
-                    Am824Stream::ONE_BIT_AUDIO_PLAIN_RAW =>
-                        Am824Stream::OneBitAudioPlainRaw(attrs),
-                    Am824Stream::ONE_BIT_AUDIO_PLAIN_SACD =>
-                        Am824Stream::OneBitAudioPlainSacd(attrs),
-                    Am824Stream::ONE_BIT_AUDIO_ENCODED_RAW =>
-                        Am824Stream::OneBitAudioEncodedRaw(attrs),
-                    Am824Stream::ONE_BIT_AUDIO_ENCODED_SACD =>
-                        Am824Stream::OneBitAudioEncodedSacd(attrs),
+                    Am824Stream::ONE_BIT_AUDIO_PLAIN_RAW => Am824Stream::OneBitAudioPlainRaw(attrs),
+                    Am824Stream::ONE_BIT_AUDIO_PLAIN_SACD => {
+                        Am824Stream::OneBitAudioPlainSacd(attrs)
+                    }
+                    Am824Stream::ONE_BIT_AUDIO_ENCODED_RAW => {
+                        Am824Stream::OneBitAudioEncodedRaw(attrs)
+                    }
+                    Am824Stream::ONE_BIT_AUDIO_ENCODED_SACD => {
+                        Am824Stream::OneBitAudioEncodedSacd(attrs)
+                    }
                     _ => unreachable!(),
                 }
             }
             Am824Stream::MIDI_CONFORMANT => {
-                let mut r = [0;2];
+                let mut r = [0; 2];
                 r.copy_from_slice(&raw[2..4]);
                 Am824Stream::MidiConformant(r)
             }
@@ -261,19 +262,19 @@ impl From<&[u8;4]> for Am824Stream {
     }
 }
 
-impl From<&Am824Stream> for [u8;4] {
+impl From<&Am824Stream> for [u8; 4] {
     fn from(format: &Am824Stream) -> Self {
-        let mut raw = [0xff;4];
+        let mut raw = [0xff; 4];
         match format {
-            Am824Stream::Iec60958_3(attrs) |
-            Am824Stream::Iec61937_3(attrs) |
-            Am824Stream::Iec61937_4(attrs) |
-            Am824Stream::Iec61937_5(attrs) |
-            Am824Stream::Iec61937_6(attrs) |
-            Am824Stream::Iec61937_7(attrs) |
-            Am824Stream::MultiBitLinearAudioRaw(attrs) |
-            Am824Stream::MultiBitLinearAudioDvd(attrs) |
-            Am824Stream::HighPrecisionMultiBitLinearAudio(attrs) => {
+            Am824Stream::Iec60958_3(attrs)
+            | Am824Stream::Iec61937_3(attrs)
+            | Am824Stream::Iec61937_4(attrs)
+            | Am824Stream::Iec61937_5(attrs)
+            | Am824Stream::Iec61937_6(attrs)
+            | Am824Stream::Iec61937_7(attrs)
+            | Am824Stream::MultiBitLinearAudioRaw(attrs)
+            | Am824Stream::MultiBitLinearAudioDvd(attrs)
+            | Am824Stream::HighPrecisionMultiBitLinearAudio(attrs) => {
                 raw[0] = match format {
                     Am824Stream::Iec60958_3(_) => Am824Stream::IEC60958_3,
                     Am824Stream::Iec61937_3(_) => Am824Stream::IEC61937_3,
@@ -281,35 +282,40 @@ impl From<&Am824Stream> for [u8;4] {
                     Am824Stream::Iec61937_5(_) => Am824Stream::IEC61937_5,
                     Am824Stream::Iec61937_6(_) => Am824Stream::IEC61937_6,
                     Am824Stream::Iec61937_7(_) => Am824Stream::IEC61937_7,
-                    Am824Stream::MultiBitLinearAudioRaw(_) =>
-                        Am824Stream::MULTI_BIT_LINEAR_AUDIO_RAW,
-                    Am824Stream::MultiBitLinearAudioDvd(_) =>
-                        Am824Stream::MULTI_BIT_LINEAR_AUDIO_DVD,
-                    Am824Stream::HighPrecisionMultiBitLinearAudio(_) =>
-                        Am824Stream::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO,
+                    Am824Stream::MultiBitLinearAudioRaw(_) => {
+                        Am824Stream::MULTI_BIT_LINEAR_AUDIO_RAW
+                    }
+                    Am824Stream::MultiBitLinearAudioDvd(_) => {
+                        Am824Stream::MULTI_BIT_LINEAR_AUDIO_DVD
+                    }
+                    Am824Stream::HighPrecisionMultiBitLinearAudio(_) => {
+                        Am824Stream::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO
+                    }
                     _ => unreachable!(),
                 };
-                let a = Into::<[u8;2]>::into(attrs);
+                let a = Into::<[u8; 2]>::into(attrs);
                 raw[2..4].copy_from_slice(&a);
                 raw
             }
-            Am824Stream::OneBitAudioPlainRaw(attrs) |
-            Am824Stream::OneBitAudioPlainSacd(attrs) |
-            Am824Stream::OneBitAudioEncodedRaw(attrs) |
-            Am824Stream::OneBitAudioEncodedSacd(attrs) => {
+            Am824Stream::OneBitAudioPlainRaw(attrs)
+            | Am824Stream::OneBitAudioPlainSacd(attrs)
+            | Am824Stream::OneBitAudioEncodedRaw(attrs)
+            | Am824Stream::OneBitAudioEncodedSacd(attrs) => {
                 raw[0] = match format {
                     Am824Stream::OneBitAudioPlainRaw(_) => Am824Stream::ONE_BIT_AUDIO_PLAIN_RAW,
                     Am824Stream::OneBitAudioPlainSacd(_) => Am824Stream::ONE_BIT_AUDIO_PLAIN_SACD,
                     Am824Stream::OneBitAudioEncodedRaw(_) => Am824Stream::ONE_BIT_AUDIO_ENCODED_RAW,
-                    Am824Stream::OneBitAudioEncodedSacd(_) => Am824Stream::ONE_BIT_AUDIO_ENCODED_SACD,
+                    Am824Stream::OneBitAudioEncodedSacd(_) => {
+                        Am824Stream::ONE_BIT_AUDIO_ENCODED_SACD
+                    }
                     _ => unreachable!(),
                 };
-                let a = Into::<[u8;2]>::into(attrs);
+                let a = Into::<[u8; 2]>::into(attrs);
                 raw[2..4].copy_from_slice(&a);
                 raw
             }
             Am824Stream::MidiConformant(d) => {
-                let mut raw = [0xff;4];
+                let mut raw = [0xff; 4];
                 raw[0] = Am824Stream::MIDI_CONFORMANT;
                 raw[2..4].copy_from_slice(d);
                 raw
@@ -320,7 +326,7 @@ impl From<&Am824Stream> for [u8;4] {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CompoundAm824StreamFormat{
+pub enum CompoundAm824StreamFormat {
     Iec60958_3,
     Iec61937_3,
     Iec61937_4,
@@ -364,11 +370,19 @@ impl From<u8> for CompoundAm824StreamFormat {
             CompoundAm824StreamFormat::IEC61937_5 => CompoundAm824StreamFormat::Iec61937_5,
             CompoundAm824StreamFormat::IEC61937_6 => CompoundAm824StreamFormat::Iec61937_6,
             CompoundAm824StreamFormat::IEC61937_7 => CompoundAm824StreamFormat::Iec61937_7,
-            CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => CompoundAm824StreamFormat::MultiBitLinearAudioRaw,
-            CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => CompoundAm824StreamFormat::MultiBitLinearAudioDvd,
-            CompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => CompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio,
+            CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => {
+                CompoundAm824StreamFormat::MultiBitLinearAudioRaw
+            }
+            CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => {
+                CompoundAm824StreamFormat::MultiBitLinearAudioDvd
+            }
+            CompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
+                CompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio
+            }
             CompoundAm824StreamFormat::MIDI_CONFORMANT => CompoundAm824StreamFormat::MidiConformant,
-            CompoundAm824StreamFormat::SMPTE_TIME_CODE_CONFORMANT => CompoundAm824StreamFormat::SmpteTimeCodeConformant,
+            CompoundAm824StreamFormat::SMPTE_TIME_CODE_CONFORMANT => {
+                CompoundAm824StreamFormat::SmpteTimeCodeConformant
+            }
             CompoundAm824StreamFormat::SAMPLE_COUNT => CompoundAm824StreamFormat::SampleCount,
             CompoundAm824StreamFormat::ANCILLARY_DATA => CompoundAm824StreamFormat::AncillaryData,
             CompoundAm824StreamFormat::SYNC_STREAM => CompoundAm824StreamFormat::SyncStream,
@@ -386,11 +400,19 @@ impl From<CompoundAm824StreamFormat> for u8 {
             CompoundAm824StreamFormat::Iec61937_5 => CompoundAm824StreamFormat::IEC61937_5,
             CompoundAm824StreamFormat::Iec61937_6 => CompoundAm824StreamFormat::IEC61937_6,
             CompoundAm824StreamFormat::Iec61937_7 => CompoundAm824StreamFormat::IEC61937_7,
-            CompoundAm824StreamFormat::MultiBitLinearAudioRaw => CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW,
-            CompoundAm824StreamFormat::MultiBitLinearAudioDvd => CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD,
-            CompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => CompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO,
+            CompoundAm824StreamFormat::MultiBitLinearAudioRaw => {
+                CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW
+            }
+            CompoundAm824StreamFormat::MultiBitLinearAudioDvd => {
+                CompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD
+            }
+            CompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => {
+                CompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO
+            }
             CompoundAm824StreamFormat::MidiConformant => CompoundAm824StreamFormat::MIDI_CONFORMANT,
-            CompoundAm824StreamFormat::SmpteTimeCodeConformant => CompoundAm824StreamFormat::SMPTE_TIME_CODE_CONFORMANT,
+            CompoundAm824StreamFormat::SmpteTimeCodeConformant => {
+                CompoundAm824StreamFormat::SMPTE_TIME_CODE_CONFORMANT
+            }
             CompoundAm824StreamFormat::SampleCount => CompoundAm824StreamFormat::SAMPLE_COUNT,
             CompoundAm824StreamFormat::AncillaryData => CompoundAm824StreamFormat::ANCILLARY_DATA,
             CompoundAm824StreamFormat::SyncStream => CompoundAm824StreamFormat::SYNC_STREAM,
@@ -400,21 +422,21 @@ impl From<CompoundAm824StreamFormat> for u8 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CompoundAm824StreamEntry{
+pub struct CompoundAm824StreamEntry {
     pub count: u8,
     pub format: CompoundAm824StreamFormat,
 }
 
-impl From<&[u8;2]> for CompoundAm824StreamEntry {
-    fn from(raw: &[u8;2]) -> Self {
-        CompoundAm824StreamEntry{
+impl From<&[u8; 2]> for CompoundAm824StreamEntry {
+    fn from(raw: &[u8; 2]) -> Self {
+        CompoundAm824StreamEntry {
             count: raw[0],
             format: CompoundAm824StreamFormat::from(raw[1]),
         }
     }
 }
 
-impl From<&CompoundAm824StreamEntry> for [u8;2] {
+impl From<&CompoundAm824StreamEntry> for [u8; 2] {
     fn from(data: &CompoundAm824StreamEntry) -> Self {
         [data.count, data.format.into()]
     }
@@ -457,7 +479,7 @@ impl From<u8> for RateCtl {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CompoundAm824Stream{
+pub struct CompoundAm824Stream {
     pub freq: u32,
     pub sync_src: bool,
     pub rate_ctl: RateCtl,
@@ -503,16 +525,23 @@ impl From<&[u8]> for CompoundAm824Stream {
             (raw[1] >> CompoundAm824Stream::RATE_CTL_SHIFT) & CompoundAm824Stream::RATE_CTL_MASK;
         let rate_ctl = RateCtl::from(rate_ctl_code);
         let entry_count = raw[2] as usize;
-        let entries = (0..entry_count).filter_map(|i| {
-            if 3 + i * 2 + 2 > raw.len() {
-                None
-            } else {
-                let mut doublet = [0;2];
-                doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
-                Some(CompoundAm824StreamEntry::from(&doublet))
-            }
-        }).collect();
-        CompoundAm824Stream{freq, sync_src, rate_ctl, entries}
+        let entries = (0..entry_count)
+            .filter_map(|i| {
+                if 3 + i * 2 + 2 > raw.len() {
+                    None
+                } else {
+                    let mut doublet = [0; 2];
+                    doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
+                    Some(CompoundAm824StreamEntry::from(&doublet))
+                }
+            })
+            .collect();
+        CompoundAm824Stream {
+            freq,
+            sync_src,
+            rate_ctl,
+            entries,
+        }
     }
 }
 
@@ -533,22 +562,22 @@ impl From<&CompoundAm824Stream> for Vec<u8> {
         };
         raw.push(freq_code);
 
-        let sync_src_code = ((data.sync_src as u8) & CompoundAm824Stream::SYNC_SRC_MASK) <<
-                            CompoundAm824Stream::SYNC_SRC_SHIFT;
-        let rate_ctl_code = (u8::from(data.rate_ctl) & CompoundAm824Stream::RATE_CTL_MASK) <<
-                            CompoundAm824Stream::RATE_CTL_SHIFT;
+        let sync_src_code = ((data.sync_src as u8) & CompoundAm824Stream::SYNC_SRC_MASK)
+            << CompoundAm824Stream::SYNC_SRC_SHIFT;
+        let rate_ctl_code = (u8::from(data.rate_ctl) & CompoundAm824Stream::RATE_CTL_MASK)
+            << CompoundAm824Stream::RATE_CTL_SHIFT;
         raw.push(sync_src_code | rate_ctl_code);
 
         raw.push(data.entries.len() as u8);
-        data.entries.iter().for_each(|entry|{
-            raw.extend_from_slice(&Into::<[u8;2]>::into(entry));
+        data.entries.iter().for_each(|entry| {
+            raw.extend_from_slice(&Into::<[u8; 2]>::into(entry));
         });
         raw
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum AmStream{
+pub enum AmStream {
     Am824(Am824Stream),
     AudioPack,
     Fp32,
@@ -567,7 +596,7 @@ impl From<&[u8]> for AmStream {
     fn from(raw: &[u8]) -> Self {
         match raw[0] {
             AmStream::HIER_LEVEL_1_AM824 => {
-                let mut r = [0xff;4];
+                let mut r = [0xff; 4];
                 r.copy_from_slice(&raw[1..5]);
                 let format = Am824Stream::from(&r);
                 AmStream::Am824(format)
@@ -589,7 +618,7 @@ impl From<&AmStream> for Vec<u8> {
         match data {
             AmStream::Am824(d) => {
                 raw.push(AmStream::HIER_LEVEL_1_AM824);
-                raw.extend_from_slice(&Into::<[u8;4]>::into(d));
+                raw.extend_from_slice(&Into::<[u8; 4]>::into(d));
             }
             AmStream::AudioPack => {
                 raw.push(AmStream::HIER_LEVEL_1_AUDIO_PACK);
@@ -612,7 +641,7 @@ impl From<&AmStream> for Vec<u8> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StreamFormat{
+pub enum StreamFormat {
     // Dvcr is not supported currently.
     Am(AmStream),
     Reserved(Vec<u8>),
@@ -706,47 +735,45 @@ impl From<UnitPlugType> for u8 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct UnitPlugData{
+pub struct UnitPlugData {
     pub unit_type: UnitPlugType,
     pub plug_id: u8,
 }
 
 impl From<&[u8]> for UnitPlugData {
     fn from(raw: &[u8]) -> Self {
-        UnitPlugData{
+        UnitPlugData {
             unit_type: raw[0].into(),
             plug_id: raw[1],
         }
     }
 }
 
-impl From<UnitPlugData> for [u8;3] {
+impl From<UnitPlugData> for [u8; 3] {
     fn from(data: UnitPlugData) -> Self {
         [u8::from(data.unit_type), data.plug_id, 0xff]
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SubunitPlugData{
+pub struct SubunitPlugData {
     pub plug_id: u8,
 }
 
 impl From<&[u8]> for SubunitPlugData {
     fn from(raw: &[u8]) -> Self {
-        SubunitPlugData{
-            plug_id: raw[0],
-        }
+        SubunitPlugData { plug_id: raw[0] }
     }
 }
 
-impl From<SubunitPlugData> for [u8;3] {
+impl From<SubunitPlugData> for [u8; 3] {
     fn from(data: SubunitPlugData) -> Self {
         [data.plug_id, 0xff, 0xff]
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct FunctionBlockPlugData{
+pub struct FunctionBlockPlugData {
     pub fb_type: u8,
     pub fb_id: u8,
     pub plug_id: u8,
@@ -754,7 +781,7 @@ pub struct FunctionBlockPlugData{
 
 impl From<&[u8]> for FunctionBlockPlugData {
     fn from(raw: &[u8]) -> Self {
-        FunctionBlockPlugData{
+        FunctionBlockPlugData {
             fb_type: raw[0],
             fb_id: raw[1],
             plug_id: raw[2],
@@ -762,7 +789,7 @@ impl From<&[u8]> for FunctionBlockPlugData {
     }
 }
 
-impl From<FunctionBlockPlugData> for [u8;3] {
+impl From<FunctionBlockPlugData> for [u8; 3] {
     fn from(data: FunctionBlockPlugData) -> Self {
         [data.fb_type, data.fb_id, data.plug_id]
     }
@@ -787,23 +814,23 @@ impl From<&[u8]> for PlugAddrMode {
     }
 }
 
-impl From<PlugAddrMode> for [u8;4] {
+impl From<PlugAddrMode> for [u8; 4] {
     fn from(mode: PlugAddrMode) -> Self {
-        let mut raw: [u8;4] = [0xff;4];
+        let mut raw: [u8; 4] = [0xff; 4];
         match mode {
             PlugAddrMode::Unit(data) => {
                 raw[0] = 0;
-                let d: [u8;3] = data.into();
+                let d: [u8; 3] = data.into();
                 raw[1..4].copy_from_slice(&d);
             }
             PlugAddrMode::Subunit(data) => {
                 raw[0] = 1;
-                let d: [u8;3] = data.into();
+                let d: [u8; 3] = data.into();
                 raw[1..4].copy_from_slice(&d);
             }
             PlugAddrMode::FunctionBlock(data) => {
                 raw[0] = 2;
-                let d: [u8;3] = data.into();
+                let d: [u8; 3] = data.into();
                 raw[1..4].copy_from_slice(&d);
             }
             _ => (),
@@ -845,7 +872,7 @@ impl From<PlugDirection> for u8 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PlugAddr{
+pub struct PlugAddr {
     pub direction: PlugDirection,
     pub mode: PlugAddrMode,
 }
@@ -859,11 +886,11 @@ impl From<&[u8]> for PlugAddr {
     }
 }
 
-impl From<PlugAddr> for [u8;5] {
-    fn from(addr: PlugAddr) -> [u8;5] {
-        let mut raw = [0xff;5];
+impl From<PlugAddr> for [u8; 5] {
+    fn from(addr: PlugAddr) -> [u8; 5] {
+        let mut raw = [0xff; 5];
         raw[0] = u8::from(addr.direction);
-        let m: [u8;4] = addr.mode.into();
+        let m: [u8; 4] = addr.mode.into();
         raw[1..5].copy_from_slice(&m);
         raw
     }
@@ -910,7 +937,7 @@ impl From<SupportStatus> for u8 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ExtendedStreamFormat{
+struct ExtendedStreamFormat {
     subfunc: u8,
     plug_addr: PlugAddr,
     support_status: SupportStatus,
@@ -918,9 +945,9 @@ struct ExtendedStreamFormat{
 
 impl ExtendedStreamFormat {
     const OPCODE: u8 = 0xbf;
-    
+
     fn new(subfunc: u8, plug_addr: &PlugAddr) -> Self {
-        ExtendedStreamFormat{
+        ExtendedStreamFormat {
             subfunc,
             plug_addr: *plug_addr,
             support_status: SupportStatus::Reserved(0xff),
@@ -929,25 +956,31 @@ impl ExtendedStreamFormat {
 
     fn build_operands(&mut self, _: &AvcAddr, operands: &mut Vec<u8>) -> Result<(), Error> {
         operands.push(self.subfunc);
-        operands.extend_from_slice(&Into::<[u8;5]>::into(self.plug_addr));
+        operands.extend_from_slice(&Into::<[u8; 5]>::into(self.plug_addr));
         operands.push(self.support_status.into());
         Ok(())
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), Error> {
         if operands.len() < 7 {
-            let label = format!("Unexpected length of data for ExtendedStreamFormat: {}",
-                                operands.len());
+            let label = format!(
+                "Unexpected length of data for ExtendedStreamFormat: {}",
+                operands.len()
+            );
             Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
         } else if operands[0] != self.subfunc {
-            let label = format!("Unexpected subfunction for ExtendedStreamFormat: {} but {}",
-                                self.subfunc, operands[0]);
+            let label = format!(
+                "Unexpected subfunction for ExtendedStreamFormat: {} but {}",
+                self.subfunc, operands[0]
+            );
             Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
         } else {
             let plug_addr = PlugAddr::from(&operands[1..6]);
             if plug_addr != self.plug_addr {
-                let label = format!("Unexpected address to plug for ExtendedStreamFormat: {:?} but {:?}",
-                                    plug_addr, self.plug_addr);
+                let label = format!(
+                    "Unexpected address to plug for ExtendedStreamFormat: {:?} but {:?}",
+                    plug_addr, self.plug_addr
+                );
                 Err(Error::new(Ta1394AvcError::UnexpectedRespOperands, &label))
             } else {
                 self.support_status = SupportStatus::from(operands[6]);
@@ -958,7 +991,7 @@ impl ExtendedStreamFormat {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ExtendedStreamFormatSingle{
+pub struct ExtendedStreamFormatSingle {
     pub support_status: SupportStatus,
     pub stream_format: StreamFormat,
     op: ExtendedStreamFormat,
@@ -968,7 +1001,7 @@ impl ExtendedStreamFormatSingle {
     const SUBFUNC: u8 = 0xc0;
 
     pub fn new(plug_addr: &PlugAddr) -> Self {
-        ExtendedStreamFormatSingle{
+        ExtendedStreamFormatSingle {
             support_status: SupportStatus::NoInfo,
             stream_format: StreamFormat::Reserved(Vec::new()),
             op: ExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
@@ -1016,7 +1049,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ExtendedStreamFormatList{
+pub struct ExtendedStreamFormatList {
     pub support_status: SupportStatus,
     pub index: u8,
     pub stream_format: StreamFormat,
@@ -1027,7 +1060,7 @@ impl ExtendedStreamFormatList {
     const SUBFUNC: u8 = 0xc1;
 
     pub fn new(plug_addr: &PlugAddr, index: u8) -> Self {
-        ExtendedStreamFormatList{
+        ExtendedStreamFormatList {
             support_status: SupportStatus::Reserved(0xff),
             index,
             stream_format: StreamFormat::Reserved(Vec::new()),
@@ -1074,7 +1107,7 @@ mod tests {
         let attr = Am824MultiBitAudioAttr::from(&raw);
         assert_eq!(44100, attr.freq);
         assert_eq!(false, attr.rate_ctl);
-        assert_eq!(raw, Into::<[u8;2]>::into(&attr));
+        assert_eq!(raw, Into::<[u8; 2]>::into(&attr));
     }
 
     #[test]
@@ -1083,30 +1116,33 @@ mod tests {
         let attr = Am824OneBitAudioAttr::from(&raw);
         assert_eq!(6144000, attr.freq);
         assert_eq!(true, attr.rate_ctl);
-        assert_eq!(raw, Into::<[u8;2]>::into(&attr));
+        assert_eq!(raw, Into::<[u8; 2]>::into(&attr));
     }
 
     #[test]
     fn am824stream_from() {
         let raw = [0x06, 0xff, 0x20, 0xff];
         let format = Am824Stream::from(&raw);
-        let attr = Am824MultiBitAudioAttr{
+        let attr = Am824MultiBitAudioAttr {
             freq: 32000,
             rate_ctl: true,
         };
         assert_eq!(format, Am824Stream::MultiBitLinearAudioRaw(attr));
-        assert_eq!(raw, Into::<[u8;4]>::into(&format));
+        assert_eq!(raw, Into::<[u8; 4]>::into(&format));
     }
 
     #[test]
     fn amstream_from() {
         let raw: &[u8] = &[0x00, 0x08, 0xff, 0x40, 0xff];
-        let attr = Am824OneBitAudioAttr{
+        let attr = Am824OneBitAudioAttr {
             freq: 6144000,
             rate_ctl: true,
         };
         let format = AmStream::from(raw);
-        assert_eq!(AmStream::Am824(Am824Stream::OneBitAudioPlainRaw(attr)), format);
+        assert_eq!(
+            AmStream::Am824(Am824Stream::OneBitAudioPlainRaw(attr)),
+            format
+        );
         assert_eq!(raw, Into::<Vec<u8>>::into(&format).as_slice());
 
         let raw: &[u8] = &[0x01, 0xff, 0xff, 0xff, 0xff];
@@ -1181,9 +1217,18 @@ mod tests {
 
     #[test]
     fn compoundam824streamentry_from() {
-        assert_eq!([0x02, 0x04], Into::<[u8;2]>::into(&CompoundAm824StreamEntry::from(&[0x02, 0x04])));
-        assert_eq!([0x19, 0x03], Into::<[u8;2]>::into(&CompoundAm824StreamEntry::from(&[0x19, 0x03])));
-        assert_eq!([0x37, 0x00], Into::<[u8;2]>::into(&CompoundAm824StreamEntry::from(&[0x37, 0x00])));
+        assert_eq!(
+            [0x02, 0x04],
+            Into::<[u8; 2]>::into(&CompoundAm824StreamEntry::from(&[0x02, 0x04]))
+        );
+        assert_eq!(
+            [0x19, 0x03],
+            Into::<[u8; 2]>::into(&CompoundAm824StreamEntry::from(&[0x19, 0x03]))
+        );
+        assert_eq!(
+            [0x37, 0x00],
+            Into::<[u8; 2]>::into(&CompoundAm824StreamEntry::from(&[0x37, 0x00]))
+        );
     }
 
     #[test]
@@ -1206,8 +1251,14 @@ mod tests {
         assert_eq!(0xee, s.entries[0].count);
         assert_eq!(CompoundAm824StreamFormat::Iec61937_5, s.entries[0].format);
         assert_eq!(0x37, s.entries[1].count);
-        assert_eq!(CompoundAm824StreamFormat::MidiConformant, s.entries[1].format);
-        assert_eq!(raw, Into::<Vec<u8>>::into(&CompoundAm824Stream::from(raw.as_slice())));
+        assert_eq!(
+            CompoundAm824StreamFormat::MidiConformant,
+            s.entries[1].format
+        );
+        assert_eq!(
+            raw,
+            Into::<Vec<u8>>::into(&CompoundAm824Stream::from(raw.as_slice()))
+        );
     }
 
     #[test]
@@ -1219,7 +1270,7 @@ mod tests {
                 plug_id: 0x2,
             }),
         };
-        let raw: [u8;5] = unit_pcr.into();
+        let raw: [u8; 5] = unit_pcr.into();
         assert_eq!(unit_pcr, raw[..].into());
 
         let unit_ext = PlugAddr {
@@ -1229,7 +1280,7 @@ mod tests {
                 plug_id: 0x3,
             }),
         };
-        let raw: [u8;5] = unit_ext.into();
+        let raw: [u8; 5] = unit_ext.into();
         assert_eq!(unit_ext, raw[..].into());
 
         let unit_async = PlugAddr {
@@ -1239,14 +1290,14 @@ mod tests {
                 plug_id: 0x4,
             }),
         };
-        let raw: [u8;5] = unit_async.into();
+        let raw: [u8; 5] = unit_async.into();
         assert_eq!(unit_async, raw[..].into());
 
         let subunit = PlugAddr {
             direction: PlugDirection::Output,
             mode: PlugAddrMode::Subunit(SubunitPlugData { plug_id: 0x8 }),
         };
-        let raw: [u8;5] = subunit.into();
+        let raw: [u8; 5] = subunit.into();
         assert_eq!(subunit, raw[..].into());
 
         let fb = PlugAddr {
@@ -1257,15 +1308,15 @@ mod tests {
                 plug_id: 0x29,
             }),
         };
-        let raw: [u8;5] = fb.into();
+        let raw: [u8; 5] = fb.into();
         assert_eq!(fb, raw[..].into());
     }
 
     #[test]
     fn single_operands() {
-        let plug_addr = PlugAddr{
+        let plug_addr = PlugAddr {
             direction: PlugDirection::Output,
-            mode: PlugAddrMode::Unit(UnitPlugData{
+            mode: PlugAddrMode::Unit(UnitPlugData {
                 unit_type: UnitPlugType::Pcr,
                 plug_id: 0x03,
             }),
@@ -1275,8 +1326,10 @@ mod tests {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
         assert_eq!(&operands, &[0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff]);
 
-        let operands = [0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01,
-                        0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00];
+        let operands = [
+            0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06,
+            0x02, 0x00,
+        ];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.op.plug_addr, plug_addr);
         assert_eq!(op.op.support_status, SupportStatus::Inactive);
@@ -1287,8 +1340,20 @@ mod tests {
                 assert_eq!(s.sync_src, false);
                 assert_eq!(s.rate_ctl, RateCtl::Supported);
                 assert_eq!(s.entries.len(), 2);
-                assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
-                assert_eq!(s.entries[1], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::Iec60958_3});
+                assert_eq!(
+                    s.entries[0],
+                    CompoundAm824StreamEntry {
+                        count: 2,
+                        format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw
+                    }
+                );
+                assert_eq!(
+                    s.entries[1],
+                    CompoundAm824StreamEntry {
+                        count: 2,
+                        format: CompoundAm824StreamFormat::Iec60958_3
+                    }
+                );
             } else {
                 unreachable!();
             }
@@ -1298,12 +1363,19 @@ mod tests {
 
         let mut operands = Vec::new();
         AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
-        assert_eq!(&operands, &[0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01,
-                                0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00]);
+        assert_eq!(
+            &operands,
+            &[
+                0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06,
+                0x02, 0x00
+            ]
+        );
 
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
-        let operands = [0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff,
-                        0x90, 0x40, 0x05, 0x04, 0x02, 0x02, 0x06, 0x02, 0x00];
+        let operands = [
+            0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff, 0x90, 0x40, 0x05, 0x04, 0x02, 0x02, 0x06,
+            0x02, 0x00,
+        ];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.op.plug_addr, plug_addr);
         assert_eq!(op.op.support_status, SupportStatus::NoInfo);
@@ -1313,8 +1385,20 @@ mod tests {
                 assert_eq!(s.sync_src, true);
                 assert_eq!(s.rate_ctl, RateCtl::Supported);
                 assert_eq!(s.entries.len(), 2);
-                assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
-                assert_eq!(s.entries[1], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::Iec60958_3});
+                assert_eq!(
+                    s.entries[0],
+                    CompoundAm824StreamEntry {
+                        count: 2,
+                        format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw
+                    }
+                );
+                assert_eq!(
+                    s.entries[1],
+                    CompoundAm824StreamEntry {
+                        count: 2,
+                        format: CompoundAm824StreamFormat::Iec60958_3
+                    }
+                );
             } else {
                 unreachable!();
             }
@@ -1325,9 +1409,9 @@ mod tests {
 
     #[test]
     fn list_operands() {
-        let plug_addr = PlugAddr{
+        let plug_addr = PlugAddr {
             direction: PlugDirection::Output,
-            mode: PlugAddrMode::Unit(UnitPlugData{
+            mode: PlugAddrMode::Unit(UnitPlugData {
                 unit_type: UnitPlugType::Pcr,
                 plug_id: 0x03,
             }),
@@ -1337,8 +1421,10 @@ mod tests {
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
         assert_eq!(&operands, &[0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff, 0x31]);
 
-        let operands = [0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x31,
-                        0x90, 0x40, 0x04, 0x00, 0x02, 0x02, 0x06, 0x02, 0x00];
+        let operands = [
+            0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0x01, 0x31, 0x90, 0x40, 0x04, 0x00, 0x02, 0x02,
+            0x06, 0x02, 0x00,
+        ];
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.op.plug_addr, plug_addr);
         assert_eq!(op.op.support_status, SupportStatus::Inactive);
@@ -1349,8 +1435,20 @@ mod tests {
                 assert_eq!(s.sync_src, false);
                 assert_eq!(s.rate_ctl, RateCtl::Supported);
                 assert_eq!(s.entries.len(), 2);
-                assert_eq!(s.entries[0], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw});
-                assert_eq!(s.entries[1], CompoundAm824StreamEntry{count: 2, format: CompoundAm824StreamFormat::Iec60958_3});
+                assert_eq!(
+                    s.entries[0],
+                    CompoundAm824StreamEntry {
+                        count: 2,
+                        format: CompoundAm824StreamFormat::MultiBitLinearAudioRaw
+                    }
+                );
+                assert_eq!(
+                    s.entries[1],
+                    CompoundAm824StreamEntry {
+                        count: 2,
+                        format: CompoundAm824StreamFormat::Iec60958_3
+                    }
+                );
             } else {
                 unreachable!();
             }
