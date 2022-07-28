@@ -437,7 +437,23 @@ pub trait Ta1394Avc {
         opcode: u8,
         operands: &[u8],
         timeout_ms: u32,
-    ) -> Result<(AvcRespCode, Vec<u8>), Error>;
+    ) -> Result<Vec<u8>, Error>;
+
+    fn detect_response_operands<'a>(
+        frame: &'a [u8],
+        addr: &AvcAddr,
+        opcode: u8,
+    ) -> Result<(AvcRespCode, &'a [u8]), AvcRespParseError> {
+        if frame[1] != addr.into() {
+            Err(AvcRespParseError::UnexpectedStatus)
+        } else if frame[2] != opcode {
+            Err(AvcRespParseError::UnexpectedStatus)
+        } else {
+            let rcode = AvcRespCode::from(frame[0] & Self::RESP_CODE_MASK);
+            let operands = &frame[3..];
+            Ok((rcode, operands))
+        }
+    }
 
     fn control<O: AvcOp + AvcControl>(
         &self,
@@ -449,12 +465,13 @@ pub trait Ta1394Avc {
         AvcControl::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| {
-                match rcode {
-                    AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
-                    _ => Err(AvcRespParseError::UnexpectedStatus),
-                }
-                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
+            .and_then(|response_frame| {
+                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+                    .and_then(|(rcode, operands)| match rcode {
+                        AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
+                        _ => Err(AvcRespParseError::UnexpectedStatus),
+                    })
+                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 
@@ -468,14 +485,15 @@ pub trait Ta1394Avc {
         AvcStatus::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Status, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| {
-                match rcode {
-                    AvcRespCode::ImplementedStable => {
-                        AvcStatus::parse_operands(op, addr, &operands)
-                    }
-                    _ => Err(AvcRespParseError::UnexpectedStatus),
-                }
-                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
+            .and_then(|response_frame| {
+                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+                    .and_then(|(rcode, operands)| match rcode {
+                        AvcRespCode::ImplementedStable => {
+                            AvcStatus::parse_operands(op, addr, &operands)
+                        }
+                        _ => Err(AvcRespParseError::UnexpectedStatus),
+                    })
+                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 
@@ -495,12 +513,15 @@ pub trait Ta1394Avc {
             &operands,
             timeout_ms,
         )
-        .and_then(|(rcode, operands)| {
-            match rcode {
-                AvcRespCode::ImplementedStable => AvcControl::parse_operands(op, addr, &operands),
-                _ => Err(AvcRespParseError::UnexpectedStatus),
-            }
-            .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
+        .and_then(|response_frame| {
+            Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+                .and_then(|(rcode, operands)| match rcode {
+                    AvcRespCode::ImplementedStable => {
+                        AvcControl::parse_operands(op, addr, &operands)
+                    }
+                    _ => Err(AvcRespParseError::UnexpectedStatus),
+                })
+                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
         })
     }
 
@@ -514,12 +535,13 @@ pub trait Ta1394Avc {
         AvcNotify::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Notify, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| {
-                match rcode {
-                    AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
-                    _ => Err(AvcRespParseError::UnexpectedStatus),
-                }
-                .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
+            .and_then(|response_frame| {
+                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+                    .and_then(|(rcode, operands)| match rcode {
+                        AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
+                        _ => Err(AvcRespParseError::UnexpectedStatus),
+                    })
+                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 }

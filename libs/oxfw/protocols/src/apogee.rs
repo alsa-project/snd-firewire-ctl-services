@@ -505,23 +505,22 @@ impl DuetFwInputProtocol {
                 };
 
                 let mut op = ApogeeCmd::new(VendorCmd::XlrIsConsumerLevel(i, Default::default()));
-                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
-                    .map(|_| {
-                        let is_consumer_level = match &op.cmd {
-                            VendorCmd::XlrIsConsumerLevel(_, enabled) => *enabled,
-                            _ => unreachable!(),
-                        };
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms).map(|_| {
+                    let is_consumer_level = match &op.cmd {
+                        VendorCmd::XlrIsConsumerLevel(_, enabled) => *enabled,
+                        _ => unreachable!(),
+                    };
 
-                        *level = if is_mic_level {
-                            DuetFwInputXlrNominalLevel::Microphone
+                    *level = if is_mic_level {
+                        DuetFwInputXlrNominalLevel::Microphone
+                    } else {
+                        if is_consumer_level {
+                            DuetFwInputXlrNominalLevel::Consumer
                         } else {
-                            if is_consumer_level {
-                                DuetFwInputXlrNominalLevel::Consumer
-                            } else {
-                                DuetFwInputXlrNominalLevel::Professional
-                            }
-                        };
-                    })
+                            DuetFwInputXlrNominalLevel::Professional
+                        }
+                    };
+                })
             })?;
 
         params

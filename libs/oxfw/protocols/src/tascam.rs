@@ -329,7 +329,7 @@ impl Ta1394Avc for TascamAvc {
         opcode: u8,
         operands: &[u8],
         timeout_ms: u32,
-    ) -> Result<(AvcRespCode, Vec<u8>), Error> {
+    ) -> Result<Vec<u8>, Error> {
         self.0
             .transaction(ctype, addr, opcode, operands, timeout_ms)
     }
@@ -344,23 +344,22 @@ impl Ta1394Avc for TascamAvc {
         AvcControl::build_operands(op, addr, &mut operands)
             .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
         self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
-            .and_then(|(rcode, operands)| {
-                let expected = if O::OPCODE != VendorDependent::OPCODE {
-                    AvcRespCode::Accepted
-                } else {
-                    // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
-                    AvcRespCode::ImplementedStable
-                };
-                if rcode != expected {
-                    let label = format!(
-                        "Unexpected response code for TascamAvc control: {:?}",
-                        rcode
-                    );
-                    Err(Error::new(Ta1394AvcError::RespParse(AvcRespParseError::UnexpectedStatus), &label))
-                } else {
-                    AvcControl::parse_operands(op, addr, &operands)
-                        .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
-                }
+            .and_then(|response_frame| {
+                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+                    .and_then(|(rcode, operands)| {
+                        let expected = if O::OPCODE != VendorDependent::OPCODE {
+                            AvcRespCode::Accepted
+                        } else {
+                            // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
+                            AvcRespCode::ImplementedStable
+                        };
+                        if rcode != expected {
+                            Err(AvcRespParseError::UnexpectedStatus)
+                        } else {
+                            AvcControl::parse_operands(op, addr, &operands)
+                        }
+                    })
+                    .map_err(|err| Error::new(Ta1394AvcError::RespParse(err), ""))
             })
     }
 }
