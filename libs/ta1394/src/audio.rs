@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use super::{AvcSubunitType, AUDIO_SUBUNIT_0, AvcAddr, Ta1394AvcError};
-use super::{AvcOp, AvcStatus, AvcControl};
+use super::*;
 
 pub const AUDIO_SUBUNIT_0_ADDR: AvcAddr = AvcAddr::Subunit(AUDIO_SUBUNIT_0);
 
@@ -788,12 +786,7 @@ impl AvcControl for AudioProcessing {
 
 #[cfg(test)]
 mod test {
-    use super::super::AvcAddr;
-    use super::super::{AvcStatus, AvcControl};
-    use super::{AUDIO_SUBUNIT_0_ADDR, AudioFuncBlk, AudioFuncBlkType, AudioFuncBlkCtl, CtlAttr};
-    use super::AudioSelector;
-    use super::{AudioFeature, FeatureCtl, GraphicEqualizerData, AudioCh};
-    use super::{AudioProcessing, ProcessingCtl};
+    use crate::audio::*;
 
     #[test]
     fn func_blk_operands() {

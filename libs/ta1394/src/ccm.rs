@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::Error;
 
-use super::{AvcSubunitType, AvcAddr, AvcAddrSubunit, Ta1394AvcError};
-use super::{AvcOp, AvcStatus, AvcControl};
+use super::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignalUnitAddr {
@@ -165,9 +163,7 @@ impl AvcStatus for SignalSource {
 
 #[cfg(test)]
 mod test {
-    use super::{AvcSubunitType, AvcAddrSubunit, AvcAddr};
-    use super::{AvcStatus, AvcControl};
-    use super::{SignalAddr, SignalUnitAddr, SignalSubunitAddr, SignalSource};
+    use crate::ccm::*;
 
     #[test]
     fn signaladdr_from() {
