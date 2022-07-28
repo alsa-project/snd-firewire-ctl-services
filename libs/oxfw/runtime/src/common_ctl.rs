@@ -27,10 +27,11 @@ impl<'a> CommonCtl {
         timeout_ms: u32,
     ) -> Result<(), Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         let mut op = PlugInfo::new_for_unit_isoc_ext_plugs();
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))?;
 
         let (isoc_input_plugs, isoc_output_plugs) = match op {
             PlugInfo::Unit(u) => match u {
@@ -79,11 +80,12 @@ impl<'a> CommonCtl {
 
     fn read_freq<O>(&self, avc: &O, timeout_ms: u32) -> Result<usize, Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         // For playback direction.
         let mut op = InputPlugSignalFormat::new(0);
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))?;
         let fdf = AmdtpFdf::from(op.fdf.as_ref());
 
         if let Some(pos) = self
@@ -106,7 +108,7 @@ impl<'a> CommonCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         match elem_id.name().as_str() {
             Self::CLK_RATE_NAME => {
@@ -128,7 +130,7 @@ impl<'a> CommonCtl {
         timeout_ms: u32,
     ) -> Result<(), Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         let fdf: [u8; 3] = AmdtpFdf::new(AmdtpEventType::Am824, false, freq).into();
 
@@ -139,6 +141,7 @@ impl<'a> CommonCtl {
                 fdf: fdf.clone(),
             };
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))
         } else {
             let mut op = OutputPlugSignalFormat {
                 plug_id: 0,
@@ -146,6 +149,7 @@ impl<'a> CommonCtl {
                 fdf: fdf.clone(),
             };
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))
         }
     }
 
@@ -157,7 +161,7 @@ impl<'a> CommonCtl {
         timeout_ms: u32,
     ) -> Result<(), Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         let entries = match direction {
             PlugDirection::Input => &self.input_fmt_entries,
@@ -172,7 +176,8 @@ impl<'a> CommonCtl {
             }),
         };
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
-        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))?;
 
         let pos = op
             .stream_format
@@ -188,11 +193,12 @@ impl<'a> CommonCtl {
 
         op.stream_format = StreamFormat::Am(AmStream::CompoundAm824(entries[pos].clone()));
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+            .map_err(|err| from_avc_err(err))
     }
 
     fn write_freq<O>(&self, avc: &O, idx: usize, timeout_ms: u32) -> Result<(), Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         if idx >= self.supported_rates.len() {
             let label = format!("Invalid value for index of sampling rate: {}", idx);
@@ -229,7 +235,7 @@ impl<'a> CommonCtl {
         timeout_ms: u32,
     ) -> Result<bool, Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         match elem_id.name().as_str() {
             Self::CLK_RATE_NAME => {
@@ -252,7 +258,7 @@ impl<'a> CommonCtl {
         timeout_ms: u32,
     ) -> Result<Vec<CompoundAm824Stream>, Error>
     where
-        O: Ta1394Avc,
+        O: Ta1394Avc<Error>,
     {
         let mut entries = Vec::new();
 
@@ -276,7 +282,8 @@ impl<'a> CommonCtl {
 
             let _ = (1..10).try_for_each(|i| {
                 op.index = i as u8;
-                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+                avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+                    .map_err(|err| from_avc_err(err))?;
                 op.stream_format
                     .as_compound_am824_stream()
                     .ok_or(Error::new(
@@ -288,7 +295,8 @@ impl<'a> CommonCtl {
         } else {
             // Fallback. At first, retrieve current format information.
             let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
-            avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+            avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
+                .map_err(|err| from_avc_err(err))?;
 
             let stream_format = op
                 .stream_format
@@ -337,5 +345,13 @@ impl<'a> CommonCtl {
         }
 
         Ok(entries)
+    }
+}
+
+fn from_avc_err(err: Ta1394AvcError<Error>) -> Error {
+    match err {
+        Ta1394AvcError::CmdBuild(cause) => Error::new(FileError::Inval, &cause.to_string()),
+        Ta1394AvcError::CommunicationFailure(cause) => cause,
+        Ta1394AvcError::RespParse(cause) => Error::new(FileError::Io, &cause.to_string()),
     }
 }
