@@ -54,32 +54,34 @@ impl Ta1394Avc for BebobAvc {
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(
+        self.transaction(
             AvcCmdType::Control,
             addr,
             O::OPCODE,
             &mut operands,
             timeout_ms,
-        )?;
-        let expected = match O::OPCODE {
-            InputPlugSignalFormat::OPCODE
-            | OutputPlugSignalFormat::OPCODE
-            | SignalSource::OPCODE => {
-                // NOTE: quirk.
-                rcode == AvcRespCode::Accepted || rcode == AvcRespCode::Reserved(0x00)
+        )
+        .and_then(|(rcode, operands)| {
+            let expected = match O::OPCODE {
+                InputPlugSignalFormat::OPCODE
+                | OutputPlugSignalFormat::OPCODE
+                | SignalSource::OPCODE => {
+                    // NOTE: quirk.
+                    rcode == AvcRespCode::Accepted || rcode == AvcRespCode::Reserved(0x00)
+                }
+                _ => rcode == AvcRespCode::Accepted,
+            };
+            if !expected {
+                let label = format!(
+                    "Unexpected response code for control opcode {}: {:?}",
+                    O::OPCODE,
+                    rcode
+                );
+                Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+            } else {
+                AvcControl::parse_operands(op, addr, &operands)
             }
-            _ => rcode == AvcRespCode::Accepted,
-        };
-        if !expected {
-            let label = format!(
-                "Unexpected response code for control opcode {}: {:?}",
-                O::OPCODE,
-                rcode
-            );
-            Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
-        } else {
-            AvcControl::parse_operands(op, addr, &operands)
-        }
+        })
     }
 }
 
