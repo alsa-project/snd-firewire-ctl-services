@@ -368,53 +368,72 @@ impl ErrorDomain for Ta1394AvcError {
     }
 }
 
-pub trait Ta1394Avc : AsRef<FwFcp> {
+/// For AV/C transaction defined by 1394 Trading Association.
+///
+/// AV/C transaction is defined to use Function Control Protocol (FCP) in IEC 61883-1 as
+/// communication backend to target device. Additionally, two types of transaction are supported;
+/// immediate and deferred transactions. `Ta1394Avc::transaction()` should support both of them
+/// as blocking API to wait for response.
+pub trait Ta1394Avc: AsRef<FwFcp> {
     const FRAME_SIZE: usize = 0x200;
     const RESP_CODE_MASK: u8 = 0x0f;
 
-    fn trx(&self, ctype: AvcCmdType, addr: &AvcAddr, opcode: u8, operands: &[u8], timeout_ms: u32)
-        -> Result<(AvcRespCode, Vec<u8>), Error>
-    {
+    fn transaction(
+        &self,
+        ctype: AvcCmdType,
+        addr: &AvcAddr,
+        opcode: u8,
+        operands: &[u8],
+        timeout_ms: u32,
+    ) -> Result<(AvcRespCode, Vec<u8>), Error> {
         let mut cmd = Vec::new();
         cmd.push(ctype.into());
         cmd.push(addr.into());
         cmd.push(opcode);
         cmd.extend_from_slice(operands);
 
-        let mut resp = vec![0;Self::FRAME_SIZE];
-        let len = self.as_ref().avc_transaction(&cmd, &mut resp, timeout_ms)?;
-        resp.truncate(len);
+        let mut resp = vec![0; Self::FRAME_SIZE];
+        self.as_ref()
+            .avc_transaction(&cmd, &mut resp, timeout_ms)
+            .and_then(|len| {
+                if resp[1] != addr.into() {
+                    let label = format!("Unexpected address in response: {}", resp[1]);
+                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                } else if resp[2] != opcode {
+                    let label =
+                        format!("Unexpected opcode in response: {} but {}", opcode, resp[2]);
+                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                } else {
+                    let rcode = AvcRespCode::from(resp[0] & Self::RESP_CODE_MASK);
 
-        let rcode = AvcRespCode::from(resp[0] & Self::RESP_CODE_MASK);
+                    resp.truncate(len);
+                    let operands = resp.split_off(3);
 
-        if resp[1] != addr.into() {
-            let label = format!("Unexpected address in response: {}", resp[1]);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-
-        if resp[2] != opcode {
-            let label = format!("Unexpected opcode in response: {} but {}", opcode, resp[2]);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-
-        let operands = resp.split_off(3);
-
-        Ok((rcode, operands))
+                    Ok((rcode, operands))
+                }
+            })
     }
 
     fn control<O: AvcOp + AvcControl>(
         &self,
         addr: &AvcAddr,
-        op: &mut O, timeout_ms: u32,
+        op: &mut O,
+        timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)?;
-        if rcode != AvcRespCode::Accepted {
-            let label = format!("Unexpected response code for control opcode {}: {:?}", O::OPCODE, rcode);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-        AvcControl::parse_operands(op, addr, &operands)
+        self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
+                _ => {
+                    let label = format!(
+                        "Unexpected response code for control opcode {}: {:?}",
+                        O::OPCODE,
+                        rcode
+                    );
+                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                }
+            })
     }
 
     fn status<O: AvcOp + AvcStatus>(
@@ -425,12 +444,18 @@ pub trait Ta1394Avc : AsRef<FwFcp> {
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcStatus::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Status, addr, O::OPCODE, &operands, timeout_ms)?;
-        if rcode != AvcRespCode::ImplementedStable {
-            let label = format!("Unexpected response code for status opcode {}: {:?}", O::OPCODE, rcode);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-        AvcStatus::parse_operands(op, addr, &operands)
+        self.transaction(AvcCmdType::Status, addr, O::OPCODE, &operands, timeout_ms)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::ImplementedStable => AvcStatus::parse_operands(op, addr, &operands),
+                _ => {
+                    let label = format!(
+                        "Unexpected response code for status opcode {}: {:?}",
+                        O::OPCODE,
+                        rcode
+                    );
+                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                }
+            })
     }
 
     fn specific_inquiry<O: AvcOp + AvcControl>(
@@ -441,12 +466,24 @@ pub trait Ta1394Avc : AsRef<FwFcp> {
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands, timeout_ms)?;
-        if rcode != AvcRespCode::ImplementedStable {
-            let label = format!("Unexpected response code for specific inquiry opcode {}: {:?}", O::OPCODE, rcode);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-        AvcControl::parse_operands(op, addr, &operands)
+        self.transaction(
+            AvcCmdType::SpecificInquiry,
+            addr,
+            O::OPCODE,
+            &operands,
+            timeout_ms,
+        )
+        .and_then(|(rcode, operands)| match rcode {
+            AvcRespCode::ImplementedStable => AvcControl::parse_operands(op, addr, &operands),
+            _ => {
+                let label = format!(
+                    "Unexpected response code for specific inquiry opcode {}: {:?}",
+                    O::OPCODE,
+                    rcode
+                );
+                Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+            }
+        })
     }
 
     fn notify<O: AvcOp + AvcNotify>(
@@ -457,12 +494,18 @@ pub trait Ta1394Avc : AsRef<FwFcp> {
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcNotify::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) = self.trx(AvcCmdType::Notify, addr, O::OPCODE, &operands, timeout_ms)?;
-        if rcode != AvcRespCode::Changed {
-            let label = format!("Unexpected response code for notify opcode {}: {:?}", O::OPCODE, rcode);
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-        AvcNotify::parse_operands(op, addr, &operands)
+        self.transaction(AvcCmdType::Notify, addr, O::OPCODE, &operands, timeout_ms)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
+                _ => {
+                    let label = format!(
+                        "Unexpected response code for notify opcode {}: {:?}",
+                        O::OPCODE,
+                        rcode
+                    );
+                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                }
+            })
     }
 }
 

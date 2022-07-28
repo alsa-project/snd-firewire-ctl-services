@@ -333,22 +333,24 @@ impl Ta1394Avc for TascamAvc {
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
         AvcControl::build_operands(op, addr, &mut operands)?;
-        let (rcode, operands) =
-            self.trx(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)?;
-        let expected = if O::OPCODE != VendorDependent::OPCODE {
-            AvcRespCode::Accepted
-        } else {
-            // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
-            AvcRespCode::ImplementedStable
-        };
-        if rcode != expected {
-            let label = format!(
-                "Unexpected response code for TascamAvc control: {:?}",
-                rcode
-            );
-            return Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label));
-        }
-        AvcControl::parse_operands(op, addr, &operands)
+        self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
+            .and_then(|(rcode, operands)| {
+                let expected = if O::OPCODE != VendorDependent::OPCODE {
+                    AvcRespCode::Accepted
+                } else {
+                    // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
+                    AvcRespCode::ImplementedStable
+                };
+                if rcode != expected {
+                    let label = format!(
+                        "Unexpected response code for TascamAvc control: {:?}",
+                        rcode
+                    );
+                    Err(Error::new(Ta1394AvcError::UnexpectedRespCode, &label))
+                } else {
+                    AvcControl::parse_operands(op, addr, &operands)
+                }
+            })
     }
 }
 
