@@ -322,16 +322,8 @@ impl AvcStatus for TascamProto {
 pub struct TascamAvc(OxfwAvc);
 
 impl Ta1394Avc for TascamAvc {
-    fn transaction(
-        &self,
-        ctype: AvcCmdType,
-        addr: &AvcAddr,
-        opcode: u8,
-        operands: &[u8],
-        timeout_ms: u32,
-    ) -> Result<Vec<u8>, Error> {
-        self.0
-            .transaction(ctype, addr, opcode, operands, timeout_ms)
+    fn transaction(&self, command_frame: &[u8], timeout_ms: u32) -> Result<Vec<u8>, Error> {
+        self.0.transaction(command_frame, timeout_ms)
     }
 
     fn control<O: AvcOp + AvcControl>(
@@ -341,9 +333,12 @@ impl Ta1394Avc for TascamAvc {
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let mut operands = Vec::new();
-        AvcControl::build_operands(op, addr, &mut operands)
-            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))?;
-        self.transaction(AvcCmdType::Control, addr, O::OPCODE, &operands, timeout_ms)
+        let command_frame = AvcControl::build_operands(op, addr, &mut operands)
+            .map_err(|err| Error::new(Ta1394AvcError::CmdBuild(err), ""))
+            .map(|_| {
+                Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)
+            })?;
+        self.transaction(&command_frame, timeout_ms)
             .and_then(|response_frame| {
                 Self::detect_response_operands(&response_frame, addr, O::OPCODE)
                     .and_then(|(rcode, operands)| {
