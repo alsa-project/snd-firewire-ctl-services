@@ -92,7 +92,7 @@ impl MediaClockFrequencyOperation for ProjectMixClkProtocol {
 fn read_clk_freq(avc: &BebobAvc, freq_list: &[u32], timeout_ms: u32) -> Result<usize, Error> {
     let mut op = OutputPlugSignalFormat::new(0);
     avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
-    let fdf = AmdtpFdf::from(&op.fdf[..]);
+    let fdf = AmdtpFdf::from(&op.0.fdf[..]);
     freq_list
         .iter()
         .position(|&freq| freq == fdf.freq)

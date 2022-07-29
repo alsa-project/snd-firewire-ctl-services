@@ -159,18 +159,18 @@ pub trait MediaClockFrequencyOperation {
             })
             .map(|&freq| AmdtpFdf::new(AmdtpEventType::Am824, false, freq))?;
 
-        let mut op = InputPlugSignalFormat {
+        let mut op = InputPlugSignalFormat(PlugSignalFormat {
             plug_id: 0,
             fmt: FMT_IS_AMDTP,
             fdf: fdf.into(),
-        };
+        });
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let mut op = OutputPlugSignalFormat {
+        let mut op = OutputPlugSignalFormat(PlugSignalFormat {
             plug_id: 0,
             fmt: FMT_IS_AMDTP,
             fdf: fdf.into(),
-        };
+        });
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
 }
