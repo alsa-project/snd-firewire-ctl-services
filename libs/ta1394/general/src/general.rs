@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022 Takashi Sakamoto
 
+//! A set of AV/C commands described in general specification.
+
 use super::*;
 
-//
-// AV/C UNIT INFO command.
-//
+/// AV/C UNIT INFO command.
+///
+/// Described in clause "9.2 UNIT INFO command".
 #[derive(Debug)]
 pub struct UnitInfo {
     pub unit_type: AvcSubunitType,
@@ -61,9 +63,7 @@ impl AvcStatus for UnitInfo {
     }
 }
 
-//
-// AV/C SUBUNIT INFO command.
-//
+/// The data for each entry of subunit information.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SubunitInfoEntry {
     pub subunit_type: AvcSubunitType,
@@ -79,6 +79,9 @@ impl SubunitInfoEntry {
     }
 }
 
+/// AV/C SUBUNIT INFO command.
+///
+/// Described in clause "9.3 SUBUNIT INFO command".
 #[derive(Debug)]
 pub struct SubunitInfo {
     pub page: u8,
@@ -152,9 +155,9 @@ impl AvcStatus for SubunitInfo {
     }
 }
 
-//
-// AV/C VENDOR-DEPENDENT command.
-//
+/// AV/C VENDOR-DEPENDENT command.
+///
+/// Described in clause "9.6 VENDOR-DEPENDENT commands".
 #[derive(Debug)]
 pub struct VendorDependent {
     pub company_id: [u8; 3],
@@ -222,9 +225,7 @@ impl AvcStatus for VendorDependent {
     }
 }
 
-//
-// AV/C PLUG INFO command.
-//
+/// The data of unit plugs for isochronous and external inputs/outputs.
 #[derive(Debug)]
 pub struct PlugInfoUnitIsocExtData {
     pub isoc_input_plugs: u8,
@@ -233,12 +234,14 @@ pub struct PlugInfoUnitIsocExtData {
     pub external_output_plugs: u8,
 }
 
+/// The data of unit plugs for asynchronous inputs/outputs.
 #[derive(Debug)]
 pub struct PlugInfoUnitAsyncData {
     pub async_input_plugs: u8,
     pub async_output_plugs: u8,
 }
 
+/// The data of the number of plugs for inputs/outputs.
 #[derive(Debug)]
 pub struct PlugInfoUnitOtherData {
     pub subfunction: u8,
@@ -248,6 +251,7 @@ pub struct PlugInfoUnitOtherData {
     pub output_plugs: u8,
 }
 
+/// Plug information for unit.
 #[derive(Debug)]
 pub enum PlugInfoUnitData {
     IsocExt(PlugInfoUnitIsocExtData),
@@ -255,12 +259,16 @@ pub enum PlugInfoUnitData {
     Other(PlugInfoUnitOtherData),
 }
 
+/// Plug information for subunit.
 #[derive(Debug)]
 pub struct PlugInfoSubunitData {
     pub dst_plugs: u8,
     pub src_plugs: u8,
 }
 
+/// AV/C PLUG INFO command.
+///
+/// Described in clause "10.1 PLUG INFO command".
 #[derive(Debug)]
 pub enum PlugInfo {
     Unit(PlugInfoUnitData),
@@ -386,9 +394,7 @@ impl AvcStatus for PlugInfo {
     }
 }
 
-//
-// AV/C INPUT PLUG SIGNAL FORMAT command.
-//
+/// The common data for plug signal format.
 #[derive(Debug)]
 pub struct PlugSignalFormat {
     pub plug_id: u8,
@@ -439,6 +445,9 @@ impl Default for PlugSignalFormat {
     }
 }
 
+/// AV/C INPUT PLUG SIGNAL FORMAT command.
+///
+/// Described in 10.10 INPUT PLUG SIGNAL FORMAT command.
 #[derive(Debug, Default)]
 pub struct InputPlugSignalFormat(pub PlugSignalFormat);
 
@@ -483,9 +492,9 @@ impl AvcStatus for InputPlugSignalFormat {
     }
 }
 
-//
-// AV/C OUTPUT PLUG SIGNAL FORMAT command.
-//
+/// AV/C OUTPUT PLUG SIGNAL FORMAT command.
+///
+/// Described in 10.10 OUTPUT PLUG SIGNAL FORMAT command.
 #[derive(Debug, Default)]
 pub struct OutputPlugSignalFormat(pub PlugSignalFormat);
 

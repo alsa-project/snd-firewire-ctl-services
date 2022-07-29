@@ -404,15 +404,18 @@ impl<T: std::fmt::Display + Clone> std::fmt::Display for Ta1394AvcError<T> {
 }
 
 /// For AV/C transaction defined by 1394 Trading Association.
-///
-/// AV/C transaction is defined to use Function Control Protocol (FCP) in IEC 61883-1 as
-/// communication backend to target device. Additionally, two types of transaction are supported;
-/// immediate and deferred transactions. `Ta1394Avc::transaction()` should support both of them
-/// as blocking API to wait for response.
 pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
     const FRAME_SIZE: usize = 0x200;
     const RESP_CODE_MASK: u8 = 0x0f;
 
+    /// Transmit given command frame and return received response frame.
+    ///
+    /// Initiate request transaction and wait for response transaction by Function Control
+    /// Protocol (FCP) in IEC 61883-1. When detecting `AvcRespCode::INTERIM` in received response
+    /// frame, wait for further response transaction as final result, according to "deferred
+    /// transaction" in AV/C general specification.
+    ///
+    /// The call of method is expected to yield running processor to wait for the response.
     fn transaction(&self, command_frame: &[u8], timeout_ms: u32) -> Result<Vec<u8>, T>;
 
     fn compose_command_frame(

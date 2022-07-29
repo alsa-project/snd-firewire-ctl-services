@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022 Takashi Sakamoto
+
+//! Typical data layout of Configuration ROM for AV/C devices defined by 1394 Trading Association.
+
 use ieee1212_config_rom::*;
 
+/// The data of vendor.
 #[derive(Clone, Debug)]
 pub struct VendorData<'a> {
     pub vendor_id: u32,
     pub vendor_name: &'a str,
 }
 
+/// The data of unit.
 #[derive(Clone, Debug)]
 pub struct UnitData<'a> {
     pub model_id: u32,
@@ -16,6 +21,7 @@ pub struct UnitData<'a> {
     pub version: u32,
 }
 
+/// For detection of typical layout.
 pub trait Ta1394ConfigRom<'a> {
     fn get_vendor(&'a self) -> Option<VendorData<'a>>;
     fn get_model(&'a self) -> Option<UnitData<'a>>;
