@@ -3,7 +3,7 @@
 
 use {
     super::*, efw_protocols::hw_info::*, ieee1212_config_rom::ConfigRom, std::convert::TryFrom,
-    ta1394::config_rom::Ta1394ConfigRom,
+    ta1394_avc_general::config_rom::Ta1394ConfigRom,
 };
 
 const TIMEOUT_MS: u32 = 100;

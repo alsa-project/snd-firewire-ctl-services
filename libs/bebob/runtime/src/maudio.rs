@@ -10,7 +10,7 @@ pub mod special_model;
 use {
     super::{common_ctls::*, *},
     bebob_protocols::{maudio::normal::*, *},
-    ta1394::*,
+    ta1394_avc_general::*,
 };
 
 const STREAM_INPUT_METER_NAME: &str = "stream-input-meters";

@@ -28,7 +28,8 @@ use {
         prelude::{FwFcpExt, FwFcpExtManual, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,
     },
-    ta1394::{amdtp::*, audio::*, ccm::*, general::*, *},
+    ta1394_avc_general::{general::*, *},
+    ta1394::{amdtp::*, audio::*, ccm::*},
 };
 
 /// The offset for specific purposes in DM1000/DM1100/DM1500 ASICs.

@@ -12,4 +12,4 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
-ieee1212-config-rom = "0.1"
+ta1394-avc-general = "0.1"

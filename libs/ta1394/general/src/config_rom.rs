@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2022 Takashi Sakamoto
 use ieee1212_config_rom::*;
 
 #[derive(Clone, Debug)]

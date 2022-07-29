@@ -19,7 +19,8 @@ use {
         prelude::{FwFcpExt, FwFcpExtManual, FwReqExtManual},
         FwFcp, FwNode, FwReq, FwTcode,
     },
-    ta1394::{audio::*, ccm::*, general::*, *},
+    ta1394_avc_general::{general::*, *},
+    ta1394::{audio::*, ccm::*},
 };
 
 /// The structure to implement AV/C transaction.

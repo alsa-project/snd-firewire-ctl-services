@@ -14,7 +14,7 @@ use {
     model::*,
     nix::sys::signal,
     std::{convert::TryFrom, sync::mpsc, thread},
-    ta1394::config_rom::Ta1394ConfigRom,
+    ta1394_avc_general::config_rom::Ta1394ConfigRom,
 };
 
 enum Event {
