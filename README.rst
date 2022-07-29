@@ -35,7 +35,12 @@ snd-fireface-ctl-service
 License
 =======
 
-* The `alsa-ctl-tlv-codec` and `ieee1212-config-rom` crates are released under MIT license.
+* Some library crates are released under MIT license.
+
+  * `alsa-ctl-tlv-codec`
+  * `ieee1212-config-rom`
+  * `ta1394-avc-general`
+
 * The other crates are released under GNU General Public License Version 3.
 
 Dependencies
