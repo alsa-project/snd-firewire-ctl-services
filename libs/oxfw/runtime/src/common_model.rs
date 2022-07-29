@@ -6,7 +6,7 @@ use super::{common_ctl::*, *};
 #[derive(Default, Debug)]
 pub struct CommonModel {
     avc: OxfwAvc,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<OxfwAvc>,
 }
 
 impl<'a> CommonModel {

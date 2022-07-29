@@ -865,10 +865,13 @@ impl OutputCtl {
         let vals = &elem_value.enumerated()[..labels.len()];
         let mut srcs = Vec::with_capacity(vals.len());
         vals.iter().try_for_each(|&val| {
-            item_list.iter().nth(val as usize).ok_or_else(|| {
-                let msg = format!("Invalid index: {}", val);
-                Error::new(FileError::Inval, &msg)
-            })
+            item_list
+                .iter()
+                .nth(val as usize)
+                .ok_or_else(|| {
+                    let msg = format!("Invalid index: {}", val);
+                    Error::new(FileError::Inval, &msg)
+                })
                 .map(|&src| srcs.push(src))
         })?;
         set(&mut params, &srcs);

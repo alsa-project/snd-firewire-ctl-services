@@ -10,7 +10,7 @@ use {
 pub struct ApogeeModel {
     req: FwReq,
     avc: OxfwAvc,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<OxfwAvc>,
     meter_ctl: MeterCtl,
     knob_ctl: KnobCtl,
     output_ctl: OutputCtl,

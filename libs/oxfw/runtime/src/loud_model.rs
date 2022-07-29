@@ -6,7 +6,7 @@ use {super::common_ctl::CommonCtl, super::*, oxfw_protocols::loud::*};
 #[derive(Default, Debug)]
 pub struct LinkFwModel {
     avc: OxfwAvc,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<OxfwAvc>,
     specific_ctl: SpecificCtl,
 }
 

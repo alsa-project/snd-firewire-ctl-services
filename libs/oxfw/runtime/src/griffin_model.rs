@@ -9,7 +9,7 @@ use {
 #[derive(Default, Debug)]
 pub struct GriffinModel {
     avc: OxfwAvc,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<OxfwAvc>,
     voluntary: bool,
 }
 
