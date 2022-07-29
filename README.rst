@@ -41,6 +41,7 @@ License
   * `ieee1212-config-rom`
   * `ta1394-avc-general`
   * `ta1394-avc-audio`
+  * `ta1394-avc-stream-format`
 
 * The other crates are released under GNU General Public License Version 3.
 
