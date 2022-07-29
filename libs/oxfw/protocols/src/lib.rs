@@ -21,7 +21,7 @@ use {
     },
     ta1394_avc_audio::*,
     ta1394_avc_general::{general::*, *},
-    ta1394::ccm::*,
+    ta1394_avc_ccm::*,
 };
 
 /// The structure to implement AV/C transaction.

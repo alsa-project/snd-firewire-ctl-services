@@ -31,7 +31,7 @@ use {
     ta1394_avc_audio::{amdtp::*, *},
     ta1394_avc_general::{general::*, *},
     ta1394_avc_stream_format::*,
-    ta1394::ccm::*,
+    ta1394_avc_ccm::*,
 };
 
 /// The offset for specific purposes in DM1000/DM1100/DM1500 ASICs.

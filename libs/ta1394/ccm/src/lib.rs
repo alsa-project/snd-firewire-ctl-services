@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2022 Takashi Sakamoto
 
-use super::*;
+use ta1394_avc_general::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignalUnitAddr {
@@ -173,7 +173,7 @@ impl AvcStatus for SignalSource {
 
 #[cfg(test)]
 mod test {
-    use crate::ccm::*;
+    use crate::*;
 
     #[test]
     fn signaladdr_from() {
