@@ -1,16 +1,22 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022 Takashi Sakamoto
 
+/// Encoder and decoder of FDF field in Audio and Music Data Transmission Protocol.
 pub mod amdtp;
 
 use ta1394_avc_general::*;
 
+/// The AV/C address of first music subunit for convenience.
 pub const AUDIO_SUBUNIT_0_ADDR: AvcAddr = AvcAddr::Subunit(AUDIO_SUBUNIT_0);
 
+/// The type of function block in audio subunit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum AudioFuncBlkType {
+    /// Selector function block.
     Selector,
+    /// Feature function block.
     Feature,
+    /// Processing function block.
     Processing,
     Reserved(u8),
 }
@@ -37,15 +43,24 @@ impl From<AudioFuncBlkType> for u8 {
     }
 }
 
+/// For attributes of control (clause "4.8 Control Attributes").
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CtlAttr {
+    /// Minimum scale.
     Resolution,
+    /// Minimum setting.
     Minimum,
+    /// Maximum setting.
     Maximum,
+    /// Default setting.
     Default,
+    /// Minimum moving time.
     Duration,
+    /// Current setting.
     Current,
+    /// Request to change the value during a period equalds to a number of Duration.
     Move,
+    /// Relative setting in unit steps.
     Delta,
     Reserved(u8),
 }
@@ -99,9 +114,12 @@ impl std::fmt::Display for CtlAttr {
     }
 }
 
+/// For control information in frame of function block command.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct AudioFuncBlkCtl {
+    /// The value of control_selector field for the type of control.
     selector: u8,
+    /// The data in control_data field according to the type.
     data: Vec<u8>,
 }
 
@@ -133,6 +151,8 @@ impl AudioFuncBlkCtl {
     }
 }
 
+/// For operands of frame in function block command (clause "10. Audio Subunit FUNCTION_BLOCK
+/// command")
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct AudioFuncBlk {
     func_blk_type: AudioFuncBlkType,
@@ -242,9 +262,10 @@ impl AvcControl for AudioFuncBlk {
     }
 }
 
-//
-// AV/C Audio Subunit FUNCTION_BLOCK command for Selector function block
-//
+///
+/// AV/C Audio Subunit FUNCTION_BLOCK command for Selector function block
+///
+/// Described in clause "10.2 Selector function block".
 pub struct AudioSelector {
     pub input_plug_id: u8,
     func_blk: AudioFuncBlk,
@@ -316,9 +337,7 @@ impl AvcControl for AudioSelector {
     }
 }
 
-//
-// AV/C Audio Subunit FUNCTION_BLOCK command for Feature function block
-//
+/// Figure 10.30 – First Form of the Graphic Equalizer Control Parameters.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GraphicEqualizerData {
     pub bands_present: [u8; 4],
@@ -376,19 +395,32 @@ fn bool_vector_to_raw(data: &[bool]) -> Vec<u8> {
         .collect()
 }
 
+/// The type of Feature Control.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FeatureCtl {
+    /// Clause 10.3.1 Mute Control.
     Mute(Vec<bool>),
+    /// Clause 10.3.2 Volume Control.
     Volume(Vec<i16>),
+    /// Clause 10.3.3 LR Balance Control.
     LrBalance(i16),
+    /// Clause 10.3.4 FR Balance Control.
     FrBalance(i16),
+    /// Clause 10.3.5 Bass Control.
     Bass(Vec<i8>),
+    /// Clause 10.3.6 Mid Control.
     Mid(Vec<i8>),
+    /// Clause 10.3.7 Treble Control.
     Treble(Vec<i8>),
+    /// Clause 10.3.8 Graphic Equalizer Control.
     GraphicEqualizer(GraphicEqualizerData),
+    /// Clause 10.3.9 Automatic Gain Control.
     AutomaticGain(Vec<bool>),
+    /// Clause 10.3.10 Delay Control.
     Delay(Vec<u16>),
+    /// Clause 10.3.11 Bass Boost Control.
     BassBoost(Vec<bool>),
+    /// Clause 10.3.12 Loudness Control.
     Loudness(Vec<bool>),
     Reserved(Vec<u8>),
 }
@@ -533,9 +565,13 @@ impl From<&AudioFuncBlkCtl> for FeatureCtl {
     }
 }
 
+/// For the value of audio_channel_number field described in clause "10.3 Feature function
+/// block".
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AudioCh {
+    /// All channels.
     All,
+    /// Each of channel.
     Each(u8),
 }
 
@@ -561,9 +597,15 @@ impl From<AudioCh> for u8 {
     }
 }
 
+///
+/// AV/C Audio Subunit FUNCTION_BLOCK command for Feature function block
+///
+/// Described in 10.3 Feature function block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AudioFeature {
+    /// The channels to address.
     pub audio_ch_num: AudioCh,
+    /// The control to manipulate.
     pub ctl: FeatureCtl,
 
     func_blk: AudioFuncBlk,
@@ -634,10 +676,7 @@ impl AvcControl for AudioFeature {
     }
 }
 
-//
-// AV/C Audio Subunit FUNCTION_BLOCK command for processing function block
-//
-//
+/// The type of processing control.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProcessingCtl {
     Enable(bool),
@@ -702,10 +741,18 @@ impl From<&AudioFuncBlkCtl> for ProcessingCtl {
     }
 }
 
+///
+/// AV/C Audio Subunit FUNCTION_BLOCK command for processing function block
+///
+/// Described in 10.4 Processing function block.
 pub struct AudioProcessing {
+    /// Function block input plug number (FBPN).
     pub input_plug_id: u8,
+    /// Input audio channel (ICN).
     pub input_ch: AudioCh,
+    /// Output audio channel (OCN).
     pub output_ch: AudioCh,
+    /// Processing function block type dependent parameters.
     pub ctl: ProcessingCtl,
 
     func_blk: AudioFuncBlk,

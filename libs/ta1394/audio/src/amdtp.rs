@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022 Takashi Sakamoto
 
+/// The value of Format ID (FMT) field for Audio and Music Data Transmission Protocol, including
+/// End of Header (EOH) flag of CIP header.
 pub const FMT_IS_AMDTP: u8 = 0x90;
 
+/// For the type of event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum AmdtpEventType {
+    /// AM824 data (8 bit label and 24 bit data).
     Am824,
+    /// 24 bit * 4 audio pack data.
     AudioPack,
+    /// 32 bit floating point data.
     FloatingPoint,
     Reserved(u8),
 }
 
+/// For the information of FDF field.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct AmdtpFdf {
     pub ev_type: AmdtpEventType,
