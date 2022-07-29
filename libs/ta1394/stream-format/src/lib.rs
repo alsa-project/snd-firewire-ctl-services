@@ -3,9 +3,7 @@
 
 use ta1394_avc_general::*;
 
-//
-// AV/C STREAM FORMAT INFORMATION
-//
+/// The attribute for multi bit audio data in AM824 format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Am824MultiBitAudioAttr {
     pub freq: u32,
@@ -85,6 +83,7 @@ impl From<&Am824MultiBitAudioAttr> for [u8; 2] {
     }
 }
 
+/// The attribute for one bit audio data in AM824 format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Am824OneBitAudioAttr {
     pub freq: u32,
@@ -161,6 +160,7 @@ impl From<&Am824OneBitAudioAttr> for [u8; 2] {
     }
 }
 
+/// The stream type for AM824 format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Am824Stream {
     Iec60958_3(Am824MultiBitAudioAttr),
@@ -325,21 +325,34 @@ impl From<&Am824Stream> for [u8; 4] {
     }
 }
 
+/// The stream type for compound AM824 format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompoundAm824StreamFormat {
+    /// S/PDIF for either uncompressed (PCM) or compressed (AC3/WMA) stream.
     Iec60958_3,
+    /// AC 3 compressed stream.
     Iec61937_3,
+    /// MPEG compressed stream.
     Iec61937_4,
+    /// DTS (Digital Theater Systems) compressed stream.
     Iec61937_5,
+    /// MPEG-2 AAC compressed stream.
     Iec61937_6,
+    /// ATRAC and ATRAC 2/3 compressed stream.
     Iec61937_7,
+    /// Uncompressed linear PCM data stream.
     MultiBitLinearAudioRaw,
     MultiBitLinearAudioDvd,
     HighPrecisionMultiBitLinearAudio,
+    /// Multiplexed MIDI stream.
     MidiConformant,
+    /// SMPTE time code defined in Audio and Music Data Transmission Protocol v2.1.
     SmpteTimeCodeConformant,
+    /// Sample count defined in Audio and Music Data Transmission Protocol v2.1.
     SampleCount,
+    /// Ancillary data defined in Audio and Music Data Transmission Protocol v2.1.
     AncillaryData,
+    /// Delivery of synchronization information.
     SyncStream,
     Reserved(u8),
 }
@@ -421,9 +434,12 @@ impl From<CompoundAm824StreamFormat> for u8 {
     }
 }
 
+/// The entry of stream format.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompoundAm824StreamEntry {
+    /// The number of stream formats.
     pub count: u8,
+    /// The stream format.
     pub format: CompoundAm824StreamFormat,
 }
 
@@ -442,6 +458,7 @@ impl From<&CompoundAm824StreamEntry> for [u8; 2] {
     }
 }
 
+/// Whether to support command-based rate control.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RateCtl {
     Supported,
@@ -478,11 +495,16 @@ impl From<u8> for RateCtl {
     }
 }
 
+/// The stream format of compound AM824.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CompoundAm824Stream {
+    /// The nominal sampling frequency.
     pub freq: u32,
+    /// The synchronization source.
     pub sync_src: bool,
+    /// Whether to support command-based rate control.
     pub rate_ctl: RateCtl,
+    /// The entries of available stream format.
     pub entries: Vec<CompoundAm824StreamEntry>,
 }
 
@@ -576,11 +598,16 @@ impl From<&CompoundAm824Stream> for Vec<u8> {
     }
 }
 
+/// The type of stream format in Audio and Music hierarchy root.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AmStream {
+    /// AM824 (single stream) data.
     Am824(Am824Stream),
+    /// 24 bit * 4 audio pack data.
     AudioPack,
+    /// 32 bit floating point data.
     Fp32,
+    /// Compound AM824 (multiplexed stream) data.
     CompoundAm824(CompoundAm824Stream),
     Reserved(Vec<u8>),
 }
@@ -640,14 +667,17 @@ impl From<&AmStream> for Vec<u8> {
     }
 }
 
+/// The format of stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StreamFormat {
     // Dvcr is not supported currently.
+    /// Defined in Audio and Music Data Transmission Protocol.
     Am(AmStream),
     Reserved(Vec<u8>),
 }
 
 impl StreamFormat {
+    /// The value in `format_hierarchy_root` field for Audio and Music.
     pub const HIER_ROOT_AM: u8 = 0x90;
 
     fn as_am_stream(&self) -> Option<&AmStream> {
@@ -658,6 +688,7 @@ impl StreamFormat {
         }
     }
 
+    /// Detect stream format for AM824 in Audio and Music hierarchy root.
     pub fn as_am824_stream(&self) -> Option<&Am824Stream> {
         if let AmStream::Am824(s) = self.as_am_stream()? {
             Some(s)
@@ -666,6 +697,7 @@ impl StreamFormat {
         }
     }
 
+    /// Detect stream format for Compound AM824 in Audio and Music hierarchy root.
     pub fn as_compound_am824_stream(&self) -> Option<&CompoundAm824Stream> {
         if let AmStream::CompoundAm824(s) = self.as_am_stream()? {
             Some(s)
@@ -698,9 +730,7 @@ impl From<&StreamFormat> for Vec<u8> {
     }
 }
 
-//
-// AV/C EXTENDED STREAM FORMAT INFORMATION.
-//
+/// The type of plug in unit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UnitPlugType {
     Pcr,
@@ -731,9 +761,12 @@ impl From<UnitPlugType> for u8 {
     }
 }
 
+/// Data of plug in unit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct UnitPlugData {
+    /// The type of unit.
     pub unit_type: UnitPlugType,
+    /// The numeric identifier of plug.
     pub plug_id: u8,
 }
 
@@ -752,6 +785,7 @@ impl From<UnitPlugData> for [u8; 3] {
     }
 }
 
+/// Data of plug in subunit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SubunitPlugData {
     pub plug_id: u8,
@@ -769,10 +803,14 @@ impl From<SubunitPlugData> for [u8; 3] {
     }
 }
 
+/// Data of plug in function block.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FunctionBlockPlugData {
+    /// The type of function block.
     pub fb_type: u8,
+    /// The numeric identifier of function block.
     pub fb_id: u8,
+    /// The numeric identifier of plug.
     pub plug_id: u8,
 }
 
@@ -792,6 +830,7 @@ impl From<FunctionBlockPlugData> for [u8; 3] {
     }
 }
 
+/// Mode of addressing to plug.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PlugAddrMode {
     Unit(UnitPlugData),
@@ -836,6 +875,7 @@ impl From<PlugAddrMode> for [u8; 4] {
     }
 }
 
+/// Direction of stream for plug.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PlugDirection {
     Input,
@@ -868,9 +908,12 @@ impl From<PlugDirection> for u8 {
     }
 }
 
+/// The address of issued plug.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PlugAddr {
+    /// The direction of stream for the plug.
     pub direction: PlugDirection,
+    /// The mode of addressing.
     pub mode: PlugAddrMode,
 }
 
@@ -893,11 +936,16 @@ impl From<PlugAddr> for [u8; 5] {
     }
 }
 
+/// The current status of plug (Table 6.17 – support_status field for SINGLE REQUEST subfunction).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SupportStatus {
+    /// The format is already set and stream is available.
     Active,
+    /// The format is already set but stream is not available.
     Inactive,
+    /// The format is not uset yet.
     NoStreamFormat,
+    /// For response frame of specific inquiry operation.
     NoInfo,
     Reserved(u8),
 }
@@ -979,9 +1027,15 @@ impl ExtendedStreamFormat {
     }
 }
 
+///
+/// SINGLE subfunction of AV/C EXTENDED STREAM FORMAT INFORMATION.
+///
+/// Described in 6.2.3 SINGLE subfunction.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedStreamFormatSingle {
+    /// Current status of addressed plug.
     pub support_status: SupportStatus,
+    /// The format of stream.
     pub stream_format: StreamFormat,
     op: ExtendedStreamFormat,
 }
@@ -1045,10 +1099,17 @@ impl AvcControl for ExtendedStreamFormatSingle {
     }
 }
 
+///
+/// LIST subfunction of AV/C EXTENDED STREAM FORMAT INFORMATION.
+///
+/// Described in 6.2.4 LIST subfunction.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedStreamFormatList {
+    /// Current status of plug.
     pub support_status: SupportStatus,
+    /// The index of stream format.
     pub index: u8,
+    /// The format of stream.
     pub stream_format: StreamFormat,
     op: ExtendedStreamFormat,
 }
