@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022 Takashi Sakamoto
 
+#![doc = include_str!("../README.md")]
+
 pub mod config_rom;
 pub mod general;
 
@@ -405,7 +407,11 @@ impl<T: std::fmt::Display + Clone> std::fmt::Display for Ta1394AvcError<T> {
 
 /// For AV/C transaction defined by 1394 Trading Association.
 pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
+    /// The maximum size of frame in both command and response.
     const FRAME_SIZE: usize = 0x200;
+
+    /// The mask for first byte of response frame to detect status code. The rest bits express
+    /// Command/transaction set (CTS) but appears not to be used actually.
     const RESP_CODE_MASK: u8 = 0x0f;
 
     /// Transmit given command frame and return received response frame.
