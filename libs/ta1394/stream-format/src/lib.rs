@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2022 Takashi Sakamoto
 
-use super::*;
+use ta1394_avc_general::*;
 
 //
 // AV/C STREAM FORMAT INFORMATION
@@ -1099,7 +1099,7 @@ impl AvcStatus for ExtendedStreamFormatList {
 
 #[cfg(test)]
 mod tests {
-    use crate::stream_format::*;
+    use crate::*;
 
     #[test]
     fn am824multibitaudioattr_from() {

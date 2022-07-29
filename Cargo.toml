@@ -33,6 +33,7 @@ members = [
     "libs/ieee1212-config-rom",
     "libs/ta1394/general",
     "libs/ta1394/audio",
+    "libs/ta1394/stream-format",
     "libs/ta1394",
     "libs/dg00x/protocols",
     "libs/dg00x/runtime",
@@ -58,6 +59,7 @@ alsa-ctl-tlv-codec = { path = "libs/alsa-ctl-tlv-codec" }
 ieee1212-config-rom = { path = "libs/ieee1212-config-rom" }
 ta1394-avc-general = { path = "libs/ta1394/general" }
 ta1394-avc-audio = { path = "libs/ta1394/audio" }
+ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
 ta1394 = { path = "libs/ta1394" }
 bebob-protocols = { path = "libs/bebob/protocols" }
 dg00x-protocols = { path = "libs/dg00x/protocols" }
