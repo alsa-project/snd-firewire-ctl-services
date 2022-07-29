@@ -11,7 +11,8 @@ A pure-Rust implementation of AV/C commands for audio subunit defined by 1394 Tr
 documentation = "https://docs.rs/ta1394-avc-audio/"
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
 keywords = ["ieee1394", "firewire", "command", "serialization", "deserialization"]
-license = "GPL-3.0-or-later"
+license = "MIT"
+readme = "README.md"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
