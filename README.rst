@@ -40,6 +40,7 @@ License
   * `alsa-ctl-tlv-codec`
   * `ieee1212-config-rom`
   * `ta1394-avc-general`
+  * `ta1394-avc-audio`
 
 * The other crates are released under GNU General Public License Version 3.
 
