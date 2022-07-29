@@ -390,22 +390,34 @@ impl AvcStatus for PlugInfo {
 // AV/C INPUT PLUG SIGNAL FORMAT command.
 //
 #[derive(Debug)]
-pub struct InputPlugSignalFormat {
+pub struct PlugSignalFormat {
     pub plug_id: u8,
     pub fmt: u8,
     pub fdf: [u8; 3],
 }
 
-impl InputPlugSignalFormat {
-    pub fn new(plug_id: u8) -> Self {
-        InputPlugSignalFormat {
-            plug_id,
-            fmt: 0xff,
-            fdf: [0xff; 3],
+impl PlugSignalFormat {
+    fn build_operands(
+        &mut self,
+        addr: &AvcAddr,
+        operands: &mut Vec<u8>,
+        for_status: bool,
+    ) -> Result<(), AvcCmdBuildError> {
+        if *addr == AvcAddr::Unit {
+            operands.push(self.plug_id);
+            if for_status {
+                operands.extend_from_slice(&[0xff; 4]);
+            } else {
+                operands.push(self.fmt);
+                operands.extend_from_slice(&self.fdf);
+            }
+            Ok(())
+        } else {
+            Err(AvcCmdBuildError::InvalidAddress)
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
+    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() > 4 {
             self.plug_id = operands[0];
             self.fmt = operands[1];
@@ -414,6 +426,28 @@ impl InputPlugSignalFormat {
         } else {
             Err(AvcRespParseError::TooShortResp(4))
         }
+    }
+}
+
+impl Default for PlugSignalFormat {
+    fn default() -> Self {
+        Self {
+            plug_id: 0xff,
+            fmt: 0xff,
+            fdf: [0xff; 3],
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct InputPlugSignalFormat(pub PlugSignalFormat);
+
+impl InputPlugSignalFormat {
+    pub fn new(plug_id: u8) -> Self {
+        InputPlugSignalFormat(PlugSignalFormat {
+            plug_id,
+            ..Default::default()
+        })
     }
 }
 
@@ -427,18 +461,11 @@ impl AvcControl for InputPlugSignalFormat {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        if *addr == AvcAddr::Unit {
-            operands.push(self.plug_id);
-            operands.push(self.fmt);
-            operands.extend_from_slice(&self.fdf);
-            Ok(())
-        } else {
-            Err(AvcCmdBuildError::InvalidAddress)
-        }
+        self.0.build_operands(addr, operands, false)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        Self::parse_operands(self, operands)
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        self.0.parse_operands(addr, operands)
     }
 }
 
@@ -448,48 +475,26 @@ impl AvcStatus for InputPlugSignalFormat {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        if *addr == AvcAddr::Unit {
-            operands.push(self.plug_id);
-            operands.extend_from_slice(&[0xff; 4]);
-            Ok(())
-        } else {
-            Err(AvcCmdBuildError::InvalidAddress)
-        }
+        self.0.build_operands(addr, operands, true)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        Self::parse_operands(self, operands)
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        self.0.parse_operands(addr, operands)
     }
 }
 
 //
 // AV/C OUTPUT PLUG SIGNAL FORMAT command.
 //
-#[derive(Debug)]
-pub struct OutputPlugSignalFormat {
-    pub plug_id: u8,
-    pub fmt: u8,
-    pub fdf: [u8; 3],
-}
+#[derive(Debug, Default)]
+pub struct OutputPlugSignalFormat(pub PlugSignalFormat);
 
 impl OutputPlugSignalFormat {
     pub fn new(plug_id: u8) -> Self {
-        OutputPlugSignalFormat {
+        OutputPlugSignalFormat(PlugSignalFormat {
             plug_id,
-            fmt: 0xff,
-            fdf: [0xff; 3],
-        }
-    }
-
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        if operands.len() > 4 {
-            self.plug_id = operands[0];
-            self.fmt = operands[1];
-            self.fdf.copy_from_slice(&operands[2..5]);
-            Ok(())
-        } else {
-            Err(AvcRespParseError::TooShortResp(4))
-        }
+            ..Default::default()
+        })
     }
 }
 
@@ -503,18 +508,11 @@ impl AvcControl for OutputPlugSignalFormat {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        if *addr == AvcAddr::Unit {
-            operands.push(self.plug_id);
-            operands.push(self.fmt);
-            operands.extend_from_slice(&self.fdf);
-            Ok(())
-        } else {
-            Err(AvcCmdBuildError::InvalidAddress)
-        }
+        self.0.build_operands(addr, operands, false)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        Self::parse_operands(self, operands)
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        self.0.parse_operands(addr, operands)
     }
 }
 
@@ -524,17 +522,11 @@ impl AvcStatus for OutputPlugSignalFormat {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        if *addr == AvcAddr::Unit {
-            operands.push(self.plug_id);
-            operands.extend_from_slice(&[0xff; 4]);
-            Ok(())
-        } else {
-            Err(AvcCmdBuildError::InvalidAddress)
-        }
+        self.0.build_operands(addr, operands, true)
     }
 
-    fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        Self::parse_operands(self, operands)
+    fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        self.0.parse_operands(addr, operands)
     }
 }
 
@@ -689,9 +681,9 @@ mod test {
         let operands = [0x1e, 0xde, 0xad, 0xbe, 0xef];
         let mut op = InputPlugSignalFormat::new(0x1e);
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.plug_id, 0x1e);
-        assert_eq!(op.fmt, 0xde);
-        assert_eq!(op.fdf, [0xad, 0xbe, 0xef]);
+        assert_eq!(op.0.plug_id, 0x1e);
+        assert_eq!(op.0.fmt, 0xde);
+        assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
 
         let mut target = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
@@ -703,9 +695,9 @@ mod test {
 
         let mut op = InputPlugSignalFormat::new(0x1e);
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.plug_id, 0x1e);
-        assert_eq!(op.fmt, 0xde);
-        assert_eq!(op.fdf, [0xad, 0xbe, 0xef]);
+        assert_eq!(op.0.plug_id, 0x1e);
+        assert_eq!(op.0.fmt, 0xde);
+        assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
     }
 
     #[test]
@@ -713,9 +705,9 @@ mod test {
         let operands = [0x1e, 0xde, 0xad, 0xbe, 0xef];
         let mut op = OutputPlugSignalFormat::new(0x1e);
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.plug_id, 0x1e);
-        assert_eq!(op.fmt, 0xde);
-        assert_eq!(op.fdf, [0xad, 0xbe, 0xef]);
+        assert_eq!(op.0.plug_id, 0x1e);
+        assert_eq!(op.0.fmt, 0xde);
+        assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
 
         let mut target = Vec::new();
         AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
@@ -727,8 +719,8 @@ mod test {
 
         let mut op = OutputPlugSignalFormat::new(0x1e);
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
-        assert_eq!(op.plug_id, 0x1e);
-        assert_eq!(op.fmt, 0xde);
-        assert_eq!(op.fdf, [0xad, 0xbe, 0xef]);
+        assert_eq!(op.0.plug_id, 0x1e);
+        assert_eq!(op.0.fmt, 0xde);
+        assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
     }
 }

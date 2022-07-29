@@ -82,7 +82,7 @@ impl<O: Ta1394Avc<Error>> CommonCtl<O> {
         let mut op = InputPlugSignalFormat::new(0);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map_err(|err| from_avc_err(err))?;
-        let fdf = AmdtpFdf::from(op.fdf.as_ref());
+        let fdf = AmdtpFdf::from(op.0.fdf.as_ref());
 
         if let Some(pos) = self
             .supported_rates
@@ -125,19 +125,19 @@ impl<O: Ta1394Avc<Error>> CommonCtl<O> {
         let fdf: [u8; 3] = AmdtpFdf::new(AmdtpEventType::Am824, false, freq).into();
 
         if direction == PlugDirection::Input {
-            let mut op = InputPlugSignalFormat {
+            let mut op = InputPlugSignalFormat(PlugSignalFormat {
                 plug_id: 0,
                 fmt: FMT_IS_AMDTP,
                 fdf: fdf.clone(),
-            };
+            });
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                 .map_err(|err| from_avc_err(err))
         } else {
-            let mut op = OutputPlugSignalFormat {
+            let mut op = OutputPlugSignalFormat(PlugSignalFormat {
                 plug_id: 0,
                 fmt: FMT_IS_AMDTP,
                 fdf: fdf.clone(),
-            };
+            });
             avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
                 .map_err(|err| from_avc_err(err))
         }
@@ -289,11 +289,11 @@ impl<O: Ta1394Avc<Error>> CommonCtl<O> {
                 let fdf: [u8; 3] = AmdtpFdf::new(AmdtpEventType::Am824, false, freq).into();
 
                 if direction == PlugDirection::Input {
-                    let mut op = InputPlugSignalFormat {
+                    let mut op = InputPlugSignalFormat(PlugSignalFormat {
                         plug_id: 0,
                         fmt: FMT_IS_AMDTP,
                         fdf,
-                    };
+                    });
                     if avc
                         .specific_inquiry(&AvcAddr::Unit, &mut op, timeout_ms)
                         .is_err()
@@ -301,11 +301,11 @@ impl<O: Ta1394Avc<Error>> CommonCtl<O> {
                         return;
                     }
                 } else {
-                    let mut op = OutputPlugSignalFormat {
+                    let mut op = OutputPlugSignalFormat(PlugSignalFormat {
                         plug_id: 0,
                         fmt: FMT_IS_AMDTP,
                         fdf,
-                    };
+                    });
                     if avc
                         .specific_inquiry(&AvcAddr::Unit, &mut op, timeout_ms)
                         .is_err()
