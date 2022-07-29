@@ -24,7 +24,7 @@ use {
     nix::sys::signal,
     oxfw_protocols::*,
     std::{convert::TryFrom, sync::mpsc},
-    ta1394::config_rom::*,
+    ta1394_avc_general::config_rom::*,
 };
 
 enum Event {

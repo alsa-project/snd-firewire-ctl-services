@@ -1668,8 +1668,7 @@ mod test {
     use super::{BcoIoPlugAddr, BcoIoPlugAddrMode};
     use super::{BcoPlugAddr, BcoPlugAddrMode, BcoPlugDirection};
     use super::{BcoPlugAddrFuncBlk, BcoPlugAddrSubunit, BcoPlugAddrUnit, BcoPlugAddrUnitType};
-    use ta1394::AvcStatus;
-    use ta1394::{AvcAddr, AvcSubunitType};
+    use ta1394_avc_general::*;
 
     #[test]
     fn bcoplugaddr_from() {

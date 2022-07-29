@@ -387,7 +387,7 @@ impl TascamAvc {
 #[cfg(test)]
 mod test {
     use super::{TascamProto, VendorCmd};
-    use ta1394::{AvcAddr, AvcControl, AvcStatus};
+    use ta1394_avc_general::*;
 
     #[test]
     fn tascam_proto_operands() {
