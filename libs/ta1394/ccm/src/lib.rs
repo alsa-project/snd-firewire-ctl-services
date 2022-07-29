@@ -3,10 +3,19 @@
 
 use ta1394_avc_general::*;
 
+/// Address of plug in unit.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignalUnitAddr {
-    Isoc(u8),
-    Ext(u8),
+    /// The plug for isochronous stream.
+    Isoc(
+        /// The numeric identifier of plug.
+        u8,
+    ),
+    /// The plug for external signal.
+    Ext(
+        /// The numeric identifier of plug.
+        u8,
+    ),
 }
 
 impl SignalUnitAddr {
@@ -37,9 +46,12 @@ impl From<SignalUnitAddr> for [u8; 2] {
     }
 }
 
+/// Address of plug in subunit.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct SignalSubunitAddr {
+    /// The address of subunit.
     pub subunit: AvcAddrSubunit,
+    /// The numeric identifier of plug.
     pub plug_id: u8,
 }
 
@@ -60,6 +72,7 @@ impl From<SignalSubunitAddr> for [u8; 2] {
     }
 }
 
+/// Address of plug for signal source or destination.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SignalAddr {
     Unit(SignalUnitAddr),
@@ -105,9 +118,14 @@ impl From<SignalAddr> for [u8; 2] {
     }
 }
 
+/// AV/C SIGNAL SOURCE command
+///
+/// Described in clause 7.1.1 SIGNAL SOURCE control command format.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct SignalSource {
+    /// The source of signal.
     pub src: SignalAddr,
+    /// The destination of signal.
     pub dst: SignalAddr,
 }
 
