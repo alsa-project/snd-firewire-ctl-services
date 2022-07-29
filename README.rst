@@ -42,6 +42,7 @@ License
   * `ta1394-avc-general`
   * `ta1394-avc-audio`
   * `ta1394-avc-stream-format`
+  * `ta1394-avc-ccm`
 
 * The other crates are released under GNU General Public License Version 3.
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2022 Takashi Sakamoto
 
+#![doc = include_str!("../README.md")]
+
 use ta1394_avc_general::*;
 
 /// Address of plug in unit.
