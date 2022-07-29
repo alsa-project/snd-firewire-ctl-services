@@ -3,32 +3,31 @@
 
 use {
     super::*,
+    std::marker::PhantomData,
     ta1394::{amdtp::*, general::*, stream_format::*, *},
 };
 
 #[derive(Default, Debug)]
-pub struct CommonCtl {
+pub struct CommonCtl<O: Ta1394Avc<Error>> {
     output_fmt_entries: Vec<CompoundAm824Stream>,
     input_fmt_entries: Vec<CompoundAm824Stream>,
     supported_rates: Vec<u32>,
     assumed: bool,
     pub notified_elem_list: Vec<ElemId>,
+    _phantom: PhantomData<O>,
 }
 
-impl<'a> CommonCtl {
-    const CLK_RATE_NAME: &'a str = "sampling-rate";
+impl<O: Ta1394Avc<Error>> CommonCtl<O> {
+    const CLK_RATE_NAME: &'static str = "sampling-rate";
 
-    const SUPPORTED_RATES: &'a [u32] = &[32000, 44100, 48000, 88200, 96000, 176400, 192000];
+    const SUPPORTED_RATES: &'static [u32] = &[32000, 44100, 48000, 88200, 96000, 176400, 192000];
 
-    pub fn load<O>(
+    pub fn load(
         &mut self,
         avc: &O,
         card_cntr: &mut CardCntr,
         timeout_ms: u32,
-    ) -> Result<(), Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    ) -> Result<(), Error> {
         let mut op = PlugInfo::new_for_unit_isoc_ext_plugs();
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
             .map_err(|err| from_avc_err(err))?;
@@ -78,10 +77,7 @@ impl<'a> CommonCtl {
         Ok(())
     }
 
-    fn read_freq<O>(&self, avc: &O, timeout_ms: u32) -> Result<usize, Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    fn read_freq(&self, avc: &O, timeout_ms: u32) -> Result<usize, Error> {
         // For playback direction.
         let mut op = InputPlugSignalFormat::new(0);
         avc.status(&AvcAddr::Unit, &mut op, timeout_ms)
@@ -100,16 +96,13 @@ impl<'a> CommonCtl {
         }
     }
 
-    pub fn read<O>(
+    pub fn read(
         &mut self,
         avc: &O,
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::set_val(elem_value, || {
@@ -122,16 +115,13 @@ impl<'a> CommonCtl {
         }
     }
 
-    fn write_freq_for_fallback_mode<O>(
+    fn write_freq_for_fallback_mode(
         &self,
         avc: &O,
         freq: u32,
         direction: PlugDirection,
         timeout_ms: u32,
-    ) -> Result<(), Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    ) -> Result<(), Error> {
         let fdf: [u8; 3] = AmdtpFdf::new(AmdtpEventType::Am824, false, freq).into();
 
         if direction == PlugDirection::Input {
@@ -153,16 +143,13 @@ impl<'a> CommonCtl {
         }
     }
 
-    fn write_freq_for_enhanced_mode<O>(
+    fn write_freq_for_enhanced_mode(
         &self,
         avc: &O,
         freq: u32,
         direction: PlugDirection,
         timeout_ms: u32,
-    ) -> Result<(), Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    ) -> Result<(), Error> {
         let entries = match direction {
             PlugDirection::Input => &self.input_fmt_entries,
             _ => &self.output_fmt_entries,
@@ -196,10 +183,7 @@ impl<'a> CommonCtl {
             .map_err(|err| from_avc_err(err))
     }
 
-    fn write_freq<O>(&self, avc: &O, idx: usize, timeout_ms: u32) -> Result<(), Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    fn write_freq(&self, avc: &O, idx: usize, timeout_ms: u32) -> Result<(), Error> {
         if idx >= self.supported_rates.len() {
             let label = format!("Invalid value for index of sampling rate: {}", idx);
             return Err(Error::new(FileError::Io, &label));
@@ -226,17 +210,14 @@ impl<'a> CommonCtl {
         Ok(())
     }
 
-    pub fn write<O>(
+    pub fn write(
         &mut self,
         unit: &(SndUnit, FwNode),
         avc: &O,
         elem_id: &ElemId,
         elem_value: &ElemValue,
         timeout_ms: u32,
-    ) -> Result<bool, Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             Self::CLK_RATE_NAME => {
                 ElemValueAccessor::<u32>::get_val(elem_value, |val| {
@@ -251,15 +232,12 @@ impl<'a> CommonCtl {
         }
     }
 
-    fn detect_stream_formats<O>(
+    fn detect_stream_formats(
         &mut self,
         avc: &O,
         direction: PlugDirection,
         timeout_ms: u32,
-    ) -> Result<Vec<CompoundAm824Stream>, Error>
-    where
-        O: Ta1394Avc<Error>,
-    {
+    ) -> Result<Vec<CompoundAm824Stream>, Error> {
         let mut entries = Vec::new();
 
         let plug_addr = PlugAddr {

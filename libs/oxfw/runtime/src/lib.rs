@@ -15,7 +15,10 @@ use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
-    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
+    hinawa::{
+        prelude::{FwNodeExt, FwNodeExtManual},
+        FwNode, FwReq,
+    },
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     nix::sys::signal,

@@ -9,7 +9,7 @@ use {
 #[derive(Default, Debug)]
 pub struct TascamModel {
     avc: TascamAvc,
-    common_ctl: CommonCtl,
+    common_ctl: CommonCtl<TascamAvc>,
 }
 
 fn display_mode_to_str(mode: &FireoneDisplayMode) -> &str {
