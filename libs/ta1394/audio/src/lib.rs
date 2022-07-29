@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2022 Takashi Sakamoto
 
-use super::*;
+pub mod amdtp;
+
+use ta1394_avc_general::*;
 
 pub const AUDIO_SUBUNIT_0_ADDR: AvcAddr = AvcAddr::Subunit(AUDIO_SUBUNIT_0);
 
@@ -798,7 +800,7 @@ impl AvcControl for AudioProcessing {
 
 #[cfg(test)]
 mod test {
-    use crate::audio::*;
+    use crate::*;
 
     #[test]
     fn func_blk_operands() {

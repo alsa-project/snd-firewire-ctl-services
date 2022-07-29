@@ -4,8 +4,9 @@
 use {
     super::*,
     std::marker::PhantomData,
+    ta1394_avc_audio::amdtp::*,
     ta1394_avc_general::{general::*, *},
-    ta1394::{amdtp::*, stream_format::*},
+    ta1394::stream_format::*,
 };
 
 #[derive(Default, Debug)]
