@@ -1,0 +1,18 @@
+[package]
+edition = "2018"
+name = "ta1394-avc-stream-format"
+version = "0.1.0"
+# For publishing.
+authors = ["Takashi Sakamoto"]
+categories = ["embedded", "hardware-support", "multimedia", "encoding"]
+description = """
+A pure-Rust implementation of AV/C commands for stream format defined by 1394 Trading Association
+"""
+documentation = "https://docs.rs/ta1394-avc-stream-format/"
+homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+keywords = ["ieee1394", "firewire", "command", "serialization", "deserialization"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
+
+[dependencies]
+ta1394-avc-general = "0.1"

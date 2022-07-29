@@ -6,7 +6,7 @@
 //! The module includes structure, enumeration, trait and its implementation for AV/C command
 //! extensions defined by BridgeCo. AG for BeBoB solution.
 
-use {super::*, ta1394::stream_format::*};
+use super::*;
 
 //
 // Bco Extended Plug Info command

@@ -30,6 +30,7 @@ use {
     },
     ta1394_avc_audio::{amdtp::*, *},
     ta1394_avc_general::{general::*, *},
+    ta1394_avc_stream_format::*,
     ta1394::ccm::*,
 };
 
