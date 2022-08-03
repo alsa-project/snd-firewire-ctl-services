@@ -36,11 +36,11 @@ use {
 };
 
 /// The offset for specific purposes in DM1000/DM1100/DM1500 ASICs.
-pub const DM_APPL_OFFSET: u64 = 0xffc700000000;
-pub const DM_APPL_METER_OFFSET: u64 = DM_APPL_OFFSET + 0x00600000;
-pub const DM_APPL_PARAM_OFFSET: u64 = DM_APPL_OFFSET + 0x00700000;
-pub const DM_BCO_OFFSET: u64 = 0xffffc8000000;
-pub const DM_BCO_BOOTLOADER_INFO_OFFSET: u64 = DM_BCO_OFFSET + 0x00020000;
+const DM_APPL_OFFSET: u64 = 0xffc700000000;
+const DM_APPL_METER_OFFSET: u64 = DM_APPL_OFFSET + 0x00600000;
+const DM_APPL_PARAM_OFFSET: u64 = DM_APPL_OFFSET + 0x00700000;
+const DM_BCO_OFFSET: u64 = 0xffffc8000000;
+const DM_BCO_BOOTLOADER_INFO_OFFSET: u64 = DM_BCO_OFFSET + 0x00020000;
 
 /// The implementation of AV/C transaction with quirks specific to BeBoB solution.
 ///
