@@ -44,6 +44,11 @@ License
   * `ta1394-avc-stream-format`
   * `ta1394-avc-ccm`
 
+* Some library crates for protocol implementation are released under GNU Lesser General
+  Public License v3.0 or later with respect to clause for reverse engineering.
+
+  * `bebob-protocols`
+
 * The other crates are released under GNU General Public License Version 3.
 
 Dependencies
