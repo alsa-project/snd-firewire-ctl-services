@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctl::*, *},
-    oxfw_protocols::griffin::*,
+    protocols::griffin::*,
 };
 
 #[derive(Default, Debug)]

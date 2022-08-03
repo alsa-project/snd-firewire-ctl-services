@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctl::*, *},
-    oxfw_protocols::lacie::*,
+    protocols::lacie::*,
 };
 
 #[derive(Default, Debug)]

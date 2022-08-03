@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctl::*, *},
-    oxfw_protocols::tascam::*,
+    protocols::tascam::*,
 };
 
 #[derive(Default, Debug)]
