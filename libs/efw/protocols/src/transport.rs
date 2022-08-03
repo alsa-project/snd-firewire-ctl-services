@@ -31,7 +31,7 @@ impl From<TxPacketFormat> for u32 {
 
 /// Protocol about transmission for Fireworks board module.
 pub trait TransportProtocol: EfwProtocolExtManual {
-    fn get_hw_info(&mut self, fmt: TxPacketFormat, timeout_ms: u32) -> Result<(), Error> {
+    fn get_packet_format(&mut self, fmt: TxPacketFormat, timeout_ms: u32) -> Result<(), Error> {
         let args = [u32::from(fmt)];
         self.transaction(
             CATEGORY_TRANSPORT,
