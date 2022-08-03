@@ -12,8 +12,8 @@ use {
         tcelectronic::k24d_model::*, tcelectronic::k8_model::*, tcelectronic::klive_model::*,
         tcelectronic::studiok48_model::*, *,
     },
-    dice_protocols::tcat::{config_rom::*, extension::*, *},
     ieee1212_config_rom::*,
+    protocols::tcat::{config_rom::*, extension::*, *},
     std::convert::TryFrom,
 };
 

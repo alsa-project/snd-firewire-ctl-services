@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctl::*, *},
-    dice_protocols::{
+    protocols::{
         lexicon::*,
         tcat::{global_section::*, *},
     },

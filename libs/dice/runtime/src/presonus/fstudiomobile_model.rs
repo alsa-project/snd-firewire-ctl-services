@@ -3,7 +3,7 @@
 
 use {
     super::{tcd22xx_ctl::*, *},
-    dice_protocols::{presonus::fstudiomobile::*, tcat::extension::*},
+    protocols::{presonus::fstudiomobile::*, tcat::extension::*},
 };
 
 #[derive(Default)]

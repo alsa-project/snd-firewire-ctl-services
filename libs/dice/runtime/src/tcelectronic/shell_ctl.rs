@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, dice_protocols::tcelectronic::shell::*};
+use {super::*, protocols::tcelectronic::shell::*};
 
 fn analog_jack_state_to_str(state: &ShellAnalogJackState) -> &'static str {
     match state {

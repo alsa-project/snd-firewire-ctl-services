@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctl::*, tcd22xx_ctl::*, *},
-    dice_protocols::{
+    protocols::{
         avid::*,
         tcat::{extension::*, global_section::*, *},
     },

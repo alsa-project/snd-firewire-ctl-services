@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctl::*, *},
-    dice_protocols::{
+    protocols::{
         alesis::{meter::*, mixer::*, output::*, *},
         tcat::{global_section::*, tx_stream_format_section::*, *},
     },

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, dice_protocols::tcelectronic::desktop::*};
+use {super::*, protocols::tcelectronic::desktop::*};
 
 #[derive(Default)]
 pub struct Desktopk6Model {

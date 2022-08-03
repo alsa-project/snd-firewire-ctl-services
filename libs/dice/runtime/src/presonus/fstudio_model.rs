@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {super::*, dice_protocols::presonus::fstudio::*};
+use {super::*, protocols::presonus::fstudio::*};
 
 #[derive(Default)]
 pub struct FStudioModel {
