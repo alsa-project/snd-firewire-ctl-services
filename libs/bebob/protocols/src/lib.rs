@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-//! Protocols defined for BridgeCo. Enhanced Break Out Box (BeBoB) solution.
+//! Protocol implementation for BridgeCo. Enhanced Break Out Box (BeBoB) solution and application
+//! devices.
 //!
 //! The crate includes various kind of protocols defined by BridgeCo. AG and application vendors
 //! for DM1000, DM1100, and DM1500 ASICs with its BridgeCo. Enhanced Break Out Box (BeBoB) solution.
@@ -41,7 +42,10 @@ pub const DM_APPL_PARAM_OFFSET: u64 = DM_APPL_OFFSET + 0x00700000;
 pub const DM_BCO_OFFSET: u64 = 0xffffc8000000;
 pub const DM_BCO_BOOTLOADER_INFO_OFFSET: u64 = DM_BCO_OFFSET + 0x00020000;
 
-/// The structure for AV/C transaction helper with quirks specific to BeBoB solution.
+/// The implementation of AV/C transaction with quirks specific to BeBoB solution.
+///
+/// It seems a unique quirk that the status code in response frame for some AV/C commands is
+/// against AV/C general specification in control operation.
 #[derive(Default, Debug)]
 pub struct BebobAvc(FwFcp);
 

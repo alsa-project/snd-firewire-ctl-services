@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-//! Protocols defined by BridgeCo. AG for its BridgeCo. Enhanced Break Out Box (BeBoB) solution.
+//! Protocol implementation defined by BridgeCo. AG for its BridgeCo. Enhanced Break Out Box
+//! (BeBoB) solution.
 //!
 //! The module includes structure, enumeration, trait and its implementation for AV/C command
 //! extensions defined by BridgeCo. AG for BeBoB solution.
@@ -12,7 +13,7 @@ use super::*;
 // Bco Extended Plug Info command
 //
 
-/// The enumeration to express type of address to plug for unit.
+/// Type of address to plug for unit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugAddrUnitType {
     Isoc,
@@ -49,7 +50,7 @@ impl From<BcoPlugAddrUnitType> for u8 {
     }
 }
 
-/// The structure to express address to plug for unit.
+/// Address to plug for unit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddrUnit {
     pub plug_type: BcoPlugAddrUnitType,
@@ -71,7 +72,7 @@ impl From<&BcoPlugAddrUnit> for [u8; 3] {
     }
 }
 
-/// The structure to express address to plug for subunit.
+/// Address to plug for subunit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddrSubunit {
     pub plug_id: u8,
@@ -89,7 +90,7 @@ impl From<&BcoPlugAddrSubunit> for [u8; 3] {
     }
 }
 
-/// The structure to express address to plug for function block.
+/// Address to plug for function block.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddrFuncBlk {
     pub func_blk_type: u8,
@@ -113,7 +114,7 @@ impl From<&BcoPlugAddrFuncBlk> for [u8; 3] {
     }
 }
 
-/// The enumeration to express mode of address to plug.
+/// Mode of address to plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugAddrMode {
     Unit(BcoPlugAddrUnit),
@@ -165,7 +166,7 @@ impl From<&BcoPlugAddrMode> for [u8; 4] {
     }
 }
 
-/// The enumeration to express direction of plug.
+/// Direction of plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugDirection {
     Input,
@@ -198,7 +199,7 @@ impl From<BcoPlugDirection> for u8 {
     }
 }
 
-/// The structure for plug address.
+/// Address of plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddr {
     pub direction: BcoPlugDirection,
@@ -264,7 +265,7 @@ impl From<&BcoPlugAddr> for [u8; 5] {
     }
 }
 
-/// The enumeration to express mode of address to plug for input and output direction.
+/// Mode to address to plug for input and output direction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoIoPlugAddrMode {
     Unit(BcoPlugAddrUnit),
@@ -330,7 +331,7 @@ impl From<&BcoIoPlugAddrMode> for [u8; 6] {
     }
 }
 
-/// The enumeration to express address to plug for input and output direction.
+/// Address to plug for input and output direction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoIoPlugAddr {
     pub direction: BcoPlugDirection,
@@ -357,7 +358,7 @@ impl From<&BcoIoPlugAddr> for [u8; 7] {
     }
 }
 
-/// The enumeration to express type of plug.
+/// The type of plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugType {
     Isoc,
@@ -406,7 +407,7 @@ impl From<BcoPlugType> for u8 {
     }
 }
 
-/// The enumeration to express physical location of data channel for multi bit linear audio.
+/// Physical location of data channel for multi bit linear audio.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoLocation {
     LeftFront,
@@ -491,7 +492,7 @@ impl From<BcoLocation> for u8 {
     }
 }
 
-/// The structure to express information of data channel for multi bit linear audio.
+/// Information about data channel for multi bit linear audio.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoChannelInfo {
     pos: u8,
@@ -516,7 +517,7 @@ impl From<&[u8; 2]> for BcoChannelInfo {
     }
 }
 
-/// The structure to express cluster of data channels.
+/// Cluster with single or multiple data channels.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BcoCluster {
     entries: Vec<BcoChannelInfo>,
@@ -549,14 +550,14 @@ impl From<&BcoCluster> for Vec<u8> {
     }
 }
 
-/// The structure to express name of data channel.
+/// Name of data channel.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BcoChannelName {
     pub ch: u8,
     pub name: String,
 }
 
-/// The enumeration to express type of physical port.
+/// Type of physical port.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPortType {
     Speaker,
@@ -625,7 +626,7 @@ impl From<u8> for BcoPortType {
     }
 }
 
-/// The structure to express cluster of data channels.
+/// Information about cluster of data channels.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BcoClusterInfo {
     pub index: u8,
@@ -660,7 +661,7 @@ impl From<&BcoClusterInfo> for Vec<u8> {
     }
 }
 
-/// The enumeration to express information of plug.
+/// Type of information about plug.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BcoPlugInfo {
     Type(BcoPlugType),
@@ -795,9 +796,11 @@ impl From<&[u8]> for BcoPlugInfo {
     }
 }
 
-/// The structure to express operation for extended plug information command.
+/// AV/C command for extend plug information.
 pub struct ExtendedPlugInfo {
+    /// The address of plug.
     pub addr: BcoPlugAddr,
+    /// The type of plug information
     pub info: BcoPlugInfo,
 }
 
@@ -875,7 +878,7 @@ impl AvcStatus for ExtendedPlugInfo {
 // Bco Extended Subunit Info command
 //
 
-/// The structure to express operation for extended subunit information.
+/// Entry for information about plugs in subunit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ExtendedSubunitInfoEntry {
     pub func_blk_type: u8,
@@ -909,7 +912,7 @@ impl From<&ExtendedSubunitInfoEntry> for [u8; 5] {
     }
 }
 
-/// The structure to express operation for extended subunit information.
+/// AV/C command for extended subunit information.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ExtendedSubunitInfo {
     pub page: u8,
@@ -970,7 +973,7 @@ impl AvcStatus for ExtendedSubunitInfo {
 // Bco Extended Stream Format Info command
 //
 
-/// The enumeration to express format of compound AM824 stream.
+/// Format of compound AM824 stream.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoCompoundAm824StreamFormat {
     Iec60958_3,
@@ -1051,7 +1054,7 @@ impl From<BcoCompoundAm824StreamFormat> for u8 {
     }
 }
 
-/// The structure to express entry for compound AM824 stream.
+/// Entry for compound AM824 stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BcoCompoundAm824StreamEntry {
     pub count: u8,
@@ -1073,7 +1076,7 @@ impl From<&BcoCompoundAm824StreamEntry> for [u8; 2] {
     }
 }
 
-/// The structure to express parameters for compound AM824 stream.
+/// Parameters for compound AM824 stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BcoCompoundAm824Stream {
     pub freq: u32,
@@ -1173,7 +1176,7 @@ impl From<&BcoCompoundAm824Stream> for Vec<u8> {
     }
 }
 
-/// The enumeration to express format of isochronous packet stream for audio and music data transmission.
+/// Format of isochronous packet stream for Audio and Music data transmission.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BcoAmStream {
     AmStream(AmStream),
@@ -1206,7 +1209,7 @@ impl From<&BcoAmStream> for Vec<u8> {
     }
 }
 
-/// The enumeration to express format of isochronous packet stream.
+/// Format of isochronous packet stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BcoStreamFormat {
     // Dvcr is not supported currently.
@@ -1266,7 +1269,7 @@ impl From<&BcoStreamFormat> for Vec<u8> {
     }
 }
 
-/// The structure to express extended format of stream.
+/// AV/C command for extension of stream format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct BcoExtendedStreamFormat {
     subfunc: u8,
@@ -1320,7 +1323,7 @@ impl AvcStatus for BcoExtendedStreamFormat {
     }
 }
 
-/// The structure to express operation to configure extended format of isochronous packet stream.
+/// AV/C command for single subfunction of extension of stream format.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedStreamFormatSingle {
     pub support_status: SupportStatus,
@@ -1386,8 +1389,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
     }
 }
 
-/// The structure to express operation to retrieve list of extended format of isochronous packet
-/// stream.
+/// AV/C command for list subfunction of extension of stream format.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedStreamFormatList {
     pub support_status: SupportStatus,
@@ -1440,7 +1442,7 @@ impl AvcStatus for ExtendedStreamFormatList {
     }
 }
 
-/// The structure for image information.
+/// Information about firmware image.
 #[derive(Debug)]
 pub struct BcoImageInformation {
     pub timestamp: glib::DateTime,
@@ -1458,7 +1460,7 @@ impl Default for BcoImageInformation {
     }
 }
 
-/// The structure for boot loader information.
+/// Information about boot loader.
 #[derive(Debug)]
 pub struct BcoBootloaderInformation {
     pub protocol_version: u32,
