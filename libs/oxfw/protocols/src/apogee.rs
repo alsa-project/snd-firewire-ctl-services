@@ -823,7 +823,7 @@ impl DuetFwDisplayProtocol {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 // Usually 5 params.
-pub enum VendorCmd {
+enum VendorCmd {
     MicPolarity(usize, bool),
     XlrIsMicLevel(usize, bool),
     XlrIsConsumerLevel(usize, bool),
@@ -1124,13 +1124,13 @@ impl VendorCmd {
 }
 
 /// AV/C vendor-dependent command specific to Apogee Duet FireWire.
-pub struct ApogeeCmd {
+struct ApogeeCmd {
     cmd: VendorCmd,
     op: VendorDependent,
 }
 
 impl ApogeeCmd {
-    pub fn new(cmd: VendorCmd) -> Self {
+    fn new(cmd: VendorCmd) -> Self {
         ApogeeCmd {
             cmd,
             op: VendorDependent::new(&APOGEE_OUI),
