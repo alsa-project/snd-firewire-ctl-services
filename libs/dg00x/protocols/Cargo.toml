@@ -8,7 +8,7 @@ description = """
 Implementation of protocol for Digi 00x family
 """
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
-license = "GPL-3.0-or-later"
+license = "LGPL-3.0-or-later"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
 
 [dependencies]
