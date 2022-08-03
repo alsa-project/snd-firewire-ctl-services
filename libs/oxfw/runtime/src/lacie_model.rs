@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::{common_ctl::*, *},
-    protocols::lacie::*,
-};
+use {super::*, protocols::lacie::*};
 
 #[derive(Default, Debug)]
 pub struct LacieModel {

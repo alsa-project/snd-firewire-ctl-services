@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {
-    super::{common_ctl::*, *},
-    protocols::griffin::*,
-};
+use {super::*, protocols::griffin::*};
 
 #[derive(Default, Debug)]
 pub struct GriffinModel {
