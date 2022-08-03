@@ -53,6 +53,7 @@ License
   * `dice-protocols`
   * `dg00x-protocols`
   * `tascam-protocols`
+  * `motu-protocols`
 
 * The other crates are released under GNU General Public License Version 3.
 
