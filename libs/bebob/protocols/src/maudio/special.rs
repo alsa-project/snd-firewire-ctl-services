@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
 //! Protocol implementation for M-Audio FireWire 1814 and ProjectMix I/O.
