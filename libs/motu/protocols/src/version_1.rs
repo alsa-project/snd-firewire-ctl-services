@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The enumeration to express source of sampling clock.
+/// Signal source of sampling clock.
 pub enum V1ClkSrc {
     /// Internal.
     Internal,
@@ -24,7 +24,7 @@ pub enum V1ClkSrc {
     AesebuXlr,
 }
 
-/// The enumeration to express mode of optical interface.
+/// Mode of optical interface.
 pub enum V1OptIfaceMode {
     Adat,
     Spdif,

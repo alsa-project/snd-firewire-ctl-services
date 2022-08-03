@@ -117,7 +117,7 @@ fn set_idx_to_val(
     write_quad(req, node, offset, quad, timeout_ms)
 }
 
-/// The enumeration to express rate of sampling clock.
+/// Nominal rate of sampling clock.
 pub enum ClkRate {
     /// 44.1 kHx.
     R44100,
@@ -205,7 +205,7 @@ pub trait AssignOperation {
     }
 }
 
-/// The enumeration to express mode of speed for output signal of word clock on BNC interface.
+/// Mode of speed for output signal of word clock on BNC interface.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum WordClkSpeedMode {
     /// The speed is forced to be 44.1/48.0 kHz.
@@ -276,7 +276,7 @@ pub trait WordClkOperation {
     }
 }
 
-/// The enumeration to express the mode of rate convert for AES/EBU input/output signals.
+/// Mode of rate convert for AES/EBU input/output signals.
 pub enum AesebuRateConvertMode {
     /// Not available.
     None,
@@ -341,7 +341,7 @@ pub trait AesebuRateConvertOperation {
     }
 }
 
-/// The enumeration to express the mode of hold time for clip and peak LEDs.
+/// Mode of hold time for clip and peak LEDs.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersHoldTimeMode {
     /// off.
@@ -368,7 +368,7 @@ impl Default for LevelMetersHoldTimeMode {
     }
 }
 
-/// The enumeration to express the mode of programmable meter display.
+/// Mode of programmable meter display.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersProgrammableMode {
     AnalogOutput,
@@ -382,7 +382,7 @@ impl Default for LevelMetersProgrammableMode {
     }
 }
 
-/// The enumeration to express the mode of AES/EBU meter display.
+/// Mode of AES/EBU meter display.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LevelMetersAesebuMode {
     Input,
@@ -586,7 +586,7 @@ pub trait LevelMetersOperation {
     }
 }
 
-/// The enumeration for port to assign.
+/// Port to assign.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TargetPort {
     Disabled,
@@ -616,7 +616,7 @@ impl Default for TargetPort {
     }
 }
 
-/// The enumeration to express nominal level of audio signal.
+/// Nominal level of audio signal.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum NominalSignalLevel {
     /// -10 dBV.

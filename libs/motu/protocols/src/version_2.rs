@@ -8,7 +8,7 @@
 
 use super::{register_dsp::*, *};
 
-/// The enumeration to express source of sampling clock.
+/// Signal source of sampling clock.
 pub enum V2ClkSrc {
     /// Internal.
     Internal,
@@ -119,7 +119,7 @@ pub trait V2ClkOperation {
     }
 }
 
-/// The enumeration to express mode of optical interface.
+/// Mode of optical interface.
 pub enum V2OptIfaceMode {
     None,
     Adat,
@@ -597,7 +597,7 @@ impl RegisterDspMeterOperation for TravelerProtocol {
     ];
 }
 
-/// The structure for state of inputs in Traveler.
+/// State of inputs in Traveler.
 #[derive(Default)]
 pub struct TravelerMicInputState {
     pub gain: [u8; TravelerProtocol::MIC_INPUT_COUNT],

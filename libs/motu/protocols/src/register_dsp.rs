@@ -5,6 +5,12 @@
 //!
 //! The module includes structure, enumeration, and trait for hardware mixer function expressed
 //! in registers.
+//!
+//! The hardware transfers isochronous packets in which its state, PCM frames, and MIDI messages
+//! are multiplexed. ALSA firewire-motu driver caches the state, and allow userspace application
+//! to read the cache from kernel space as `SndMotuRegisterDspParameter` structure. Additionally,
+//! when changing the cache, the driver generates notification to the application.
+//! `RegisterDspEvent` is available to parse the notification.
 
 use {super::*, hitaki::SndMotuRegisterDspParameter};
 
@@ -49,7 +55,7 @@ const MIXER_OUTPUT_MUTE_FLAG: u32 = 0x00001000;
 const MIXER_OUTPUT_DESTINATION_MASK: u32 = 0x00000f00;
 const MIXER_OUTPUT_VOLUME_MASK: u32 = 0x000000ff;
 
-/// The structure for state of mixer output.
+/// State of mixer output.
 #[derive(Default)]
 pub struct RegisterDspMixerOutputState {
     pub volume: [u8; MIXER_COUNT],
@@ -259,7 +265,7 @@ pub trait RegisterDspMixerReturnOperation {
     }
 }
 
-/// The structure for state of sources in mixer entiry.
+/// State of sources in mixer entiry.
 #[derive(Default, Clone)]
 pub struct RegisterDspMixerMonauralSourceEntry {
     pub gain: Vec<u8>,
@@ -268,7 +274,7 @@ pub struct RegisterDspMixerMonauralSourceEntry {
     pub solo: Vec<bool>,
 }
 
-/// The structure for state of mixer sources.
+/// State of mixer sources.
 #[derive(Default)]
 pub struct RegisterDspMixerMonauralSourceState(
     pub [RegisterDspMixerMonauralSourceEntry; MIXER_COUNT],
@@ -526,7 +532,7 @@ pub trait RegisterDspMixerMonauralSourceOperation {
 const MIXER_STEREO_SOURCE_COUNT: usize = 6;
 const MIXER_STEREO_SOURCE_PAIR_COUNT: usize = MIXER_STEREO_SOURCE_COUNT / 2;
 
-/// The structure for state of sources in mixer entiry.
+/// State of sources in mixer entiry.
 #[derive(Default, Clone)]
 pub struct RegisterDspMixerStereoSourceEntry {
     pub gain: [u8; MIXER_STEREO_SOURCE_COUNT],
@@ -537,7 +543,7 @@ pub struct RegisterDspMixerStereoSourceEntry {
     pub width: [u8; MIXER_STEREO_SOURCE_PAIR_COUNT],
 }
 
-/// The structure for state of mixer sources.
+/// State of mixer sources.
 #[derive(Default)]
 pub struct RegisterDspMixerStereoSourceState(pub [RegisterDspMixerStereoSourceEntry; MIXER_COUNT]);
 
@@ -888,7 +894,7 @@ pub trait RegisterDspMixerStereoSourceOperation {
 const MASTER_VOLUME_OFFSET: usize = 0x0c0c;
 const PHONE_VOLUME_OFFSET: usize = 0x0c10;
 
-/// The structure for state of output.
+/// State of output.
 #[derive(Default)]
 pub struct RegisterDspOutputState {
     pub master_volume: u8,
@@ -977,7 +983,7 @@ pub trait RegisterDspOutputOperation {
     }
 }
 
-/// The structure for state of inputs in 828mkII.
+/// State of inputs in 828mkII.
 #[derive(Default)]
 pub struct RegisterDspLineInputState {
     pub level: Vec<NominalSignalLevel>,
@@ -1122,7 +1128,7 @@ pub trait Traveler828mk2LineInputOperation {
 
 const MONAURAL_INPUT_COUNT: usize = 10;
 
-/// The structure for state of input in Ultralite.
+/// State of input in Ultralite.
 #[derive(Default)]
 pub struct RegisterDspMonauralInputState {
     pub gain: [u8; MONAURAL_INPUT_COUNT],
@@ -1131,7 +1137,7 @@ pub struct RegisterDspMonauralInputState {
 
 const STEREO_INPUT_COUNT: usize = 6;
 
-/// The structure for state of input in Audio Express, and 4 pre.
+/// State of input in Audio Express, and 4 pre.
 #[derive(Default)]
 pub struct RegisterDspStereoInputState {
     pub gain: [u8; STEREO_INPUT_COUNT],
@@ -1576,7 +1582,7 @@ pub trait RegisterDspStereoInputOperation {
     }
 }
 
-/// The structure for meter information.
+/// Information of meter.
 #[derive(Default)]
 pub struct RegisterDspMeterState {
     pub inputs: Vec<u8>,

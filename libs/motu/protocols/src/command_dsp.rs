@@ -5,6 +5,10 @@
 //!
 //! The module includes structure, enumeration, and trait for hardware mixer function operated by
 //! command.
+//!
+//! The hardware transfers asynchronous packet to registered address when changing its state by
+//! user operation. The packet includes some command to express the change of status. The
+//! hardware also accepts the same command in asynchronous packet arrived at specific address.
 
 use {
     super::*,
@@ -404,7 +408,7 @@ fn append_data(raw: &mut Vec<u8>, identifier: &[u8], vals: &[u8]) {
     }
 }
 
-/// The enumeration for focus target.
+/// Target of focus.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FocusTarget {
     Output(usize),
@@ -1872,7 +1876,7 @@ pub trait CommandDspOperation {
     }
 }
 
-/// The structure for state of message parser.
+/// State of message parser.
 #[derive(Debug)]
 pub struct CommandDspMessageHandler {
     state: ParserState,
@@ -2002,7 +2006,7 @@ impl CommandDspMessageHandler {
     }
 }
 
-/// The structure for state of reverb function.
+/// State of reverb function.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct CommandDspReverbState {
     pub enable: bool,
@@ -2123,7 +2127,7 @@ pub trait CommandDspReverbOperation: CommandDspOperation {
     }
 }
 
-/// The structure for state of monitor function.
+/// State of monitor function.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct CommandDspMonitorState {
     /// The volume adjusted by main (master) knob. -inf (mute), -80.0 dB to 0.0 dB.
@@ -2209,7 +2213,7 @@ pub trait CommandDspMonitorOperation: CommandDspOperation {
     }
 }
 
-/// The structure for state of entry of mixer function.
+/// State of entry of mixer function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMixerSourceState {
     pub mute: Vec<bool>,
@@ -2223,7 +2227,7 @@ pub struct CommandDspMixerSourceState {
 
 const MIXER_COUNT: usize = 8;
 
-/// The structure for state of mixer function.
+/// State of mixer function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspMixerState {
     pub output_assign: [TargetPort; MIXER_COUNT],
@@ -2385,7 +2389,7 @@ pub trait CommandDspMixerOperation: CommandDspOperation {
     }
 }
 
-/// The structure for state of equalizer.
+/// State of equalizer.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspEqualizerState {
     pub enable: Vec<bool>,
@@ -2526,7 +2530,7 @@ fn parse_equalizer_parameter(
     }
 }
 
-/// The structure for state of dynamics.
+/// State of dynamics.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspDynamicsState {
     pub enable: Vec<bool>,
@@ -2594,7 +2598,7 @@ fn parse_dynamics_parameter(
     }
 }
 
-/// The structure for state of input function.
+/// State of input function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspInputState {
     pub phase: Vec<bool>,
@@ -2824,7 +2828,7 @@ pub trait CommandDspInputOperation: CommandDspOperation {
     }
 }
 
-/// The structure for state of input function.
+/// State of input function.
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct CommandDspOutputState {
     pub equalizer: CommandDspEqualizerState,
@@ -2991,7 +2995,7 @@ pub trait CommandDspOutputOperation: CommandDspOperation {
     }
 }
 
-/// The structure for meter information.
+/// Information of Meter.
 #[derive(Default)]
 pub struct CommandDspMeterState {
     pub inputs: Vec<f32>,

@@ -8,7 +8,7 @@
 
 use super::{command_dsp::*, register_dsp::*, *};
 
-/// The enumeration to express source of sampling clock.
+/// Signal source of sampling clock.
 pub enum V3ClkSrc {
     /// Internal.
     Internal,
@@ -204,7 +204,7 @@ pub trait V3PortAssignOperation: AssignOperation {
     }
 }
 
-/// The enumeration for direction of optical interface.
+/// Direction of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum V3OptIfaceTarget {
     A,
@@ -217,7 +217,7 @@ impl Default for V3OptIfaceTarget {
     }
 }
 
-/// The enumeration for mode of optical interface.
+/// Mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum V3OptIfaceMode {
     Disabled,
