@@ -9,7 +9,7 @@ use super::*;
 
 const TEAC_OUI: [u8; 3] = [0x00, 0x02, 0x2e];
 
-/// The enumeration for mode of display.
+/// Mode of display.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FireoneDisplayMode {
     Off,
@@ -28,7 +28,7 @@ impl Default for FireoneDisplayMode {
     }
 }
 
-/// The enumeration for mode of MIDI message.
+/// Mode of MIDI message.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FireoneMidiMessageMode {
     Native,
@@ -41,7 +41,7 @@ impl Default for FireoneMidiMessageMode {
     }
 }
 
-/// The enumeration for mode of input.
+/// Mode of input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FireoneInputMode {
     Stereo,
@@ -174,7 +174,7 @@ impl FireoneProtocol {
     }
 }
 
-/// The enumeration to represent type of command for TASCAM FireOne.
+/// Type of command for TASCAM FireOne.
 pub enum VendorCmd {
     DisplayMode(u8),
     MessageMode(u8),
@@ -265,7 +265,7 @@ impl From<&VendorCmd> for u8 {
     }
 }
 
-/// The structure to represent protocol of TASCAM FireOne.
+/// AV/C vendor-dependent command specialized by TASCAM.
 pub struct TascamProto {
     cmd: VendorCmd,
     op: VendorDependent,
@@ -317,7 +317,10 @@ impl AvcStatus for TascamProto {
     }
 }
 
-/// The structure to represent AV/C protocol for TASCAM FireOne.
+/// The implementation of AV/C transaction with quirk specific to Tascam FireOne.
+///
+/// It seems a unique quirk that the status code in response frame for AV/C vendor-dependent
+/// command is against AV/C general specification in control operation.
 #[derive(Default, Debug)]
 pub struct TascamAvc(OxfwAvc);
 
