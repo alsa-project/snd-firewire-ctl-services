@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
 //! Protocols defined for Tascam for FireWire series only with asynchronous communication.
