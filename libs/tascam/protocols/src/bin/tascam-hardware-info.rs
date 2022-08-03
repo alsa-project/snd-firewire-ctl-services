@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{FileError, MainContext, MainLoop};
-
-use hinawa::{prelude::FwNodeExt, FwReq, FwNode, FwNodeError};
-
-use tascam_protocols::*;
-
-use std::sync::Arc;
-use std::thread;
+use {
+    glib::{FileError, MainContext, MainLoop},
+    hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
+    std::{sync::Arc, thread},
+    protocols::*,
+    tascam_protocols as protocols,
+};
 
 const TIMEOUT_MS: u32 = 50;
 
