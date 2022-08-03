@@ -3,7 +3,7 @@
 
 use {
     super::{latter_ctls::*, *},
-    ff_protocols::{
+    protocols::{
         latter::{ucx::*, *},
         *,
     },

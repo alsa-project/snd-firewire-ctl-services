@@ -3,7 +3,7 @@
 
 use {
     super::{former_ctls::*, *},
-    ff_protocols::{
+    protocols::{
         former::{ff800::*, *},
         *,
     },

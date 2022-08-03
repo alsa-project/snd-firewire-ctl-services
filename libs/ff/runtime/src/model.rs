@@ -3,8 +3,8 @@
 
 use {
     super::{ff400_model::*, ff800_model::*, ff802_model::*, ucx_model::*, *},
-    ff_protocols::{former::*, latter::*, *},
     ieee1212_config_rom::*,
+    protocols::{former::*, latter::*, *},
     std::convert::TryFrom,
 };
 
