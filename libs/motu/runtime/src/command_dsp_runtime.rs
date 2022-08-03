@@ -10,8 +10,8 @@ pub use {
     core::{card_cntr::*, dispatcher::*},
     glib::source,
     hinawa::{prelude::FwRespExtManual, FwRcode, FwResp, FwTcode},
-    motu_protocols::{command_dsp::*, version_3::*},
     nix::sys::signal::Signal,
+    protocols::{command_dsp::*, version_3::*},
     std::{
         sync::{mpsc, Arc, Mutex},
         thread,

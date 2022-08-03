@@ -6,8 +6,8 @@ pub use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*},
     glib::source,
-    motu_protocols::version_1::*,
     nix::sys::signal::Signal,
+    protocols::version_1::*,
     std::sync::mpsc,
 };
 
