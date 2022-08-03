@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
 //! Protocol used in version 3 devices of MOTU FireWire series.
