@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    dice_protocols::tcat::{global_section::*, *},
+    protocols::tcat::{global_section::*, *},
 };
 
 #[derive(Default)]

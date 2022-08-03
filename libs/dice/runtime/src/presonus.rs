@@ -7,5 +7,5 @@ pub mod fstudioproject_model;
 
 use {
     super::{common_ctl::*, *},
-    dice_protocols::tcat::{global_section::*, *},
+    protocols::tcat::{global_section::*, *},
 };

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {super::*, dice_protocols::focusrite::spro24dsp::*};
+use {super::*, protocols::focusrite::spro24dsp::*};
 
 #[derive(Default)]
 pub struct SPro24DspModel {

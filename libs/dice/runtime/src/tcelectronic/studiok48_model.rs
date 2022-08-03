@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, dice_protocols::tcelectronic::studio::*};
+use {super::*, protocols::tcelectronic::studio::*};
 
 #[derive(Default)]
 pub struct Studiok48Model {

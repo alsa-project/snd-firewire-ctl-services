@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {super::*, dice_protocols::focusrite::liquids56::*};
+use {super::*, protocols::focusrite::liquids56::*};
 
 #[derive(Default)]
 pub struct LiquidS56Model {

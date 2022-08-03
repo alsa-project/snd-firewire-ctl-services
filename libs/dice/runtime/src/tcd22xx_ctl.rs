@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    dice_protocols::tcat::{
+    protocols::tcat::{
         extension::{
             peak_section::*,
             {caps_section::*, cmd_section::*, mixer_section::*, *},

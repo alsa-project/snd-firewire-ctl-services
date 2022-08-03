@@ -20,6 +20,7 @@ use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    dice_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
     hitaki::{prelude::*, *},

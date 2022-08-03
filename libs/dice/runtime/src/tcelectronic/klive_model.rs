@@ -3,7 +3,7 @@
 
 use {
     super::{shell_ctl::*, *},
-    dice_protocols::tcelectronic::shell::{klive::*, *},
+    protocols::tcelectronic::shell::{klive::*, *},
 };
 
 #[derive(Default)]

@@ -10,7 +10,7 @@ pub mod spro40_model;
 
 use {
     super::{common_ctl::*, tcd22xx_ctl::*, *},
-    dice_protocols::{
+    protocols::{
         focusrite::*,
         tcat::{extension::*, global_section::*, *},
     },
