@@ -54,6 +54,7 @@ License
   * `dg00x-protocols`
   * `tascam-protocols`
   * `motu-protocols`
+  * `ff-protocols`
 
 * The other crates are released under GNU General Public License Version 3.
 
