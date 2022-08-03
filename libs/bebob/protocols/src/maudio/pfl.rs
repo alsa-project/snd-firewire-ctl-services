@@ -119,7 +119,7 @@ const METER_SIZE: usize = 56;
 #[derive(Default)]
 pub struct PflInputParametersProtocol;
 
-/// The enumeration for detected frequency of any external input.
+/// Nominal frequency detected for any external input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PflDetectedInputFreq {
     Unavailable,
@@ -135,7 +135,7 @@ impl Default for PflDetectedInputFreq {
     }
 }
 
-/// The structure for meter information.
+/// Information of hardware metering.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PflMeterState {
     pub detected_input_freq: PflDetectedInputFreq,
@@ -209,7 +209,7 @@ impl PflMeterProtocol {
 
 const CACHE_SIZE: usize = 24;
 
-/// The structure for input configuration.
+/// Parameters of input configuration.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PflInputParameters {
     pub adat_mute: [bool; 4],

@@ -260,7 +260,7 @@ pub trait SaffireProioMediaClockFrequencyOperation {
     }
 }
 
-/// The enumeration for source of sampling clock in Saffire Pro series.
+/// Signal source of sampling clock in Saffire Pro series.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireProioSamplingClockSource {
     Internal,
@@ -344,7 +344,7 @@ impl SaffireThroughOperation for SaffireProioThroughProtocol {
     const AC3_THROUGH_OFFSET: usize = 0x01a0;
 }
 
-/// The structure for meter information in Saffire Pro i/o.
+/// Information of hardware metering in Saffire Pro i/o.
 #[derive(Default, Debug)]
 pub struct SaffireProioMeterState {
     pub monitor_knob: u8,
@@ -653,7 +653,7 @@ where
         .map(|_| old_levels.as_mut().copy_from_slice(levels))
 }
 
-/// The structure for parameters of mixer in Saffire Pro i/o.
+/// The parameters of signal multiplexer in Saffire Pro i/o.
 #[derive(Default, Debug)]
 pub struct SaffireProioMixerParameters {
     pub monitor_sources: [i16; 10],
@@ -849,7 +849,7 @@ fn calc_stream_source_pos(i: usize) -> usize {
     }
 }
 
-/// The enumeration for mode of stand alone.
+/// Working mode at standalone mode.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireProioStandaloneMode {
     Mix,
@@ -862,7 +862,7 @@ impl Default for SaffireProioStandaloneMode {
     }
 }
 
-/// The structure for parameters specific to Saffire Pro i/o series.
+/// Parameters specific to Saffire Pro i/o series.
 #[derive(Default, Debug)]
 pub struct SaffireProioSpecificParameters {
     pub head_room: bool,

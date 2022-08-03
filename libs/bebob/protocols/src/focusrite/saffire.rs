@@ -185,7 +185,7 @@ impl SamplingClockSourceOperation for SaffireClkProtocol {
     ];
 }
 
-/// The structure for meter in Saffire.
+/// Information of hardware metering in Saffire.
 #[derive(Debug, Default)]
 pub struct SaffireMeter {
     pub phys_inputs: [i32; 4],
@@ -286,7 +286,7 @@ impl SaffireOutputOperation for SaffireOutputProtocol {
     const PAD_COUNT: usize = 0;
 }
 
-/// The enumeration for source of input-2/3.
+/// The signal source of input 2/3.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireInputPair1Source {
     AnalogInputPair0,
@@ -299,7 +299,7 @@ impl Default for SaffireInputPair1Source {
     }
 }
 
-/// The enumeration for mode of mixer.
+/// The mode of signal multiplexer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireMixerMode {
     StereoPaired,
@@ -312,7 +312,7 @@ impl Default for SaffireMixerMode {
     }
 }
 
-/// The structure for parameters specific to Saffire.
+/// Parameters specific to Saffire.
 #[derive(Default)]
 pub struct SaffireSpecificParameters {
     pub mode_192khz: bool,
@@ -656,7 +656,7 @@ impl SaffireStoreConfigOperation for SaffireStoreConfigProtocol {
     const OFFSET: usize = 0x148;
 }
 
-/// The structure for meter information in Saffire LE.
+/// Information of hardware metering in Saffire LE.
 #[derive(Default)]
 pub struct SaffireLeMeter {
     pub phys_inputs: [i32; 6],
@@ -767,7 +767,7 @@ impl SaffireOutputOperation for SaffireLeOutputProtocol {
     const PAD_COUNT: usize = 0;
 }
 
-/// The structure for parameters specific to Saffire.
+/// The parameters specific to Saffire.
 #[derive(Default)]
 pub struct SaffireLeSpecificParameters {
     pub analog_input_2_3_high_gains: [bool; 2],
@@ -839,7 +839,7 @@ impl SaffireLeSpecificProtocol {
     }
 }
 
-/// The enumeration for source of S/PDIF output.
+/// Signal source of S/PDIF output.
 #[derive(Debug)]
 pub enum SaffireLeSpdifOutputSource {
     MixerOutputPair01,
@@ -852,7 +852,7 @@ impl Default for SaffireLeSpdifOutputSource {
     }
 }
 
-/// The structure for mixer state at 44.1/48.0 kHz in Saffire LE.
+/// State of signal multiplexer in Saffire LE at 44.1/48.0 kHz.
 #[derive(Default, Debug)]
 pub struct SaffireLeMixerLowRateState {
     pub phys_src_gains: [[i16; 6]; 4],
@@ -1060,7 +1060,7 @@ impl SaffireLeMixerLowRateProtocol {
     }
 }
 
-/// The structure for mixer state at 88.2/96.0 kHz in Saffire LE.
+/// State of signal multiplexer in Saffire LE at 88.2/96.0 kHz.
 #[derive(Default, Debug)]
 pub struct SaffireLeMixerMiddleRateState {
     pub monitor_src_phys_input_gains: [i16; 6],
@@ -1271,7 +1271,7 @@ impl SaffireStoreConfigOperation for SaffireLeStoreConfigProtocol {
     const OFFSET: usize = 0x1b8;
 }
 
-/// The structure of mixer coefficiencies in Saffire and Saffire LE.
+/// State of signal multiplexer in Saffire.
 #[derive(Default, Debug)]
 pub struct SaffireMixerState {
     pub phys_inputs: Vec<Vec<i16>>,
@@ -1515,7 +1515,7 @@ pub trait SaffireMixerOperation {
     }
 }
 
-/// The structure for state of stereo-separated reverb effect in Saffire.
+/// State of stereo-separated reverb effect in Saffire.
 #[derive(Default, Debug)]
 pub struct SaffireReverbParameters {
     pub amounts: [i32; 2],
@@ -1686,7 +1686,7 @@ impl SaffireReverbProtocol {
     }
 }
 
-/// The structure for compressor effect in Saffire.
+/// Parameters of compressor effect in Saffire.
 #[derive(Default, Debug)]
 pub struct SaffireCompressorParameters {
     pub input_gains: [i32; 2],
@@ -1694,7 +1694,7 @@ pub struct SaffireCompressorParameters {
     pub output_volumes: [i32; 2],
 }
 
-/// The structure for protocol implementation to operate compressor parameters.
+/// The protocol implementation to operate compressor parameters.
 ///
 /// parameters    | ch 0  | ch 1  | minimum    | maximum    | min val | max val
 /// ------------- | ----- | ----- | ---------- | ---------- | ------- | -------
@@ -1805,7 +1805,7 @@ impl SaffireCompressorProtocol {
     }
 }
 
-/// The structure for equalizer effect in Saffire.
+/// Parameters of equalizer effect in Saffire.
 #[derive(Default, Debug)]
 pub struct SaffireEqualizerParameters {
     pub enables: [bool; 2],
@@ -1813,7 +1813,7 @@ pub struct SaffireEqualizerParameters {
     pub output_volumes: [i32; 2],
 }
 
-/// The structure for protocol implementation to operate equalizer parameters.
+/// The protocol implementation to operate equalizer parameters.
 ///
 /// parameters    | ch0    | ch1    | minimum    | maximum    | min val | max val
 /// ------------- | ------ | ------ | ---------- | ---------- | ------- | -------
@@ -1949,7 +1949,7 @@ impl SaffireEqualizerProtocol {
     }
 }
 
-/// The structure for amplifier effect in Saffire.
+/// Parameters of amplifier effect in Saffire.
 #[derive(Default, Debug)]
 pub struct SaffireAmplifierParameters {
     pub enables: [bool; 2],
@@ -2028,7 +2028,7 @@ impl SaffireAmplifierProtocol {
     }
 }
 
-/// The enumeration for order of compressor effect against equalizer/amplifier effect.
+/// Order of compressor effect against equalizer/amplifier effect.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireChStripCompOrder {
     Pre,
@@ -2041,7 +2041,7 @@ impl Default for SaffireChStripCompOrder {
     }
 }
 
-/// The structure for protocol implementation to operate channel strip effects.
+/// The protocol implementation to operate channel strip effects.
 #[derive(Default)]
 pub struct SaffireChStripProtocol;
 
