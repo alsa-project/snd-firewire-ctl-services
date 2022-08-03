@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
 //! Transaction protocol implementation defined by Echo Audio Digital Corporation for Fireworks

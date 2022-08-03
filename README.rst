@@ -48,6 +48,7 @@ License
   Public License v3.0 or later with respect to clause for reverse engineering.
 
   * `bebob-protocols`
+  * `efw-protocols`
 
 * The other crates are released under GNU General Public License Version 3.
 
