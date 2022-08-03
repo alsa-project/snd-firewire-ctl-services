@@ -36,7 +36,8 @@ use {
     hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode},
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
-    motu_protocols::{config_rom::*, *},
+    motu_protocols as protocols,
+    protocols::{config_rom::*, *},
     std::convert::TryFrom,
 };
 

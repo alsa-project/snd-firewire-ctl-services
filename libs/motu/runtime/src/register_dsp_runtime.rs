@@ -11,8 +11,8 @@ pub use {
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*},
     glib::source,
     hinawa::FwReq,
-    motu_protocols::{register_dsp::*, version_2::*, version_3::*},
     nix::sys::signal::Signal,
+    protocols::{register_dsp::*, version_2::*, version_3::*},
     std::sync::mpsc,
 };
 
