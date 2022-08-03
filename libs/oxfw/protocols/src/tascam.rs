@@ -175,7 +175,7 @@ impl FireoneProtocol {
 }
 
 /// Type of command for TASCAM FireOne.
-pub enum VendorCmd {
+enum VendorCmd {
     DisplayMode(u8),
     MessageMode(u8),
     InputMode(u8),
@@ -266,13 +266,13 @@ impl From<&VendorCmd> for u8 {
 }
 
 /// AV/C vendor-dependent command specialized by TASCAM.
-pub struct TascamProto {
+struct TascamProto {
     cmd: VendorCmd,
     op: VendorDependent,
 }
 
 impl TascamProto {
-    pub fn new(cmd: VendorCmd) -> Self {
+    fn new(cmd: VendorCmd) -> Self {
         TascamProto {
             cmd,
             op: VendorDependent::new(&TEAC_OUI),
