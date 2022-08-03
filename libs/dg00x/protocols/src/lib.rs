@@ -74,7 +74,7 @@ fn write_quadlet(
     )
 }
 
-/// The enumeration for frequency of media clock.
+/// Nominal frequency of media clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClockRate {
     R44100,
@@ -89,7 +89,7 @@ impl Default for ClockRate {
     }
 }
 
-/// The enumeration for source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClockSource {
     Internal,
@@ -104,7 +104,7 @@ impl Default for ClockSource {
     }
 }
 
-/// The enumeration for mode of optical interface.
+/// Mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OpticalInterfaceMode {
     Adat,
@@ -268,7 +268,7 @@ pub trait Dg00xCommonOperation {
 const MONITOR_DST_COUNT: usize = 2;
 const MONITOR_SRC_COUNT: usize = 18;
 
-/// The structure for state of monitor. The gain is between 0x00 and 0x80 for -48.0 and 0.0 dB.
+/// State of monitor. The gain is between 0x00 and 0x80 for -48.0 and 0.0 dB.
 #[derive(Default, Debug)]
 pub struct Dg00xMonitorState {
     pub enabled: bool,
