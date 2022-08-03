@@ -102,7 +102,7 @@ fn read_clk_freq(avc: &BebobAvc, freq_list: &[u32], timeout_ms: u32) -> Result<u
         })
 }
 
-/// The structure of AV/C vendor-dependent command for specific LED switch.
+/// AV/C vendor-dependent command for specific LED switch.
 pub struct MaudioSpecialLedSwitch {
     state: bool,
     op: VendorDependent,
@@ -157,7 +157,7 @@ pub struct MaudioSpecialMeterProtocol;
 
 const METER_SIZE: usize = 84;
 
-/// The structure for meter information.
+/// Information of hardware metering.
 #[derive(Debug)]
 pub struct MaudioSpecialMeterState {
     pub analog_inputs: [i16; 8],
@@ -315,7 +315,7 @@ const MIXER_STREAM_SOURCE_POS: usize = 0x0094;
 const HEADPHONE_PAIR_SOURCE_POS: usize = 0x0098;
 const ANALOG_OUTPUT_PAIR_SOURCE_POS: usize = 0x009c;
 
-/// The structure for cache of state;
+/// Cache of state.
 #[derive(Debug)]
 pub struct MaudioSpecialStateCache(pub [u8; CACHE_SIZE]);
 
@@ -340,7 +340,7 @@ impl MaudioSpecialStateCache {
     }
 }
 
-/// The structure for input parameters.
+/// Parameters of input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MaudioSpecialInputParameters {
     pub stream_gains: [i16; 4],
@@ -452,7 +452,7 @@ impl MaudioSpecialInputProtocol {
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialInputParameters> for MaudioSpecialInputProtocol {}
 
-/// The enumeration for source of analog output.
+/// Source of analog output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OutputSource {
     MixerOutputPair,
@@ -465,7 +465,7 @@ impl Default for OutputSource {
     }
 }
 
-/// The enumeration for source of headphone.
+/// Source of headphone.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum HeadphoneSource {
     MixerOutputPair0,
@@ -479,7 +479,7 @@ impl Default for HeadphoneSource {
     }
 }
 
-/// The structure for output parameters.
+/// Parameters of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MaudioSpecialOutputParameters {
     pub analog_volumes: [i16; 4],
@@ -577,7 +577,7 @@ impl MaudioSpecialOutputProtocol {
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialOutputParameters> for MaudioSpecialOutputProtocol {}
 
-/// The structure for aux parameters.
+/// Parameters of aux signal multiplexer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MaudioSpecialAuxParameters {
     pub output_volumes: [i16; 2],
@@ -655,7 +655,7 @@ impl MaudioSpecialAuxProtocol {
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol {}
 
-/// The structure for aux parameters.
+/// Parameters of signal multiplexer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MaudioSpecialMixerParameters {
     pub analog_pairs: [[bool; 4]; 2],

@@ -111,7 +111,7 @@ impl SamplingClockSourceOperation for EnsembleClkProtocol {
     ];
 }
 
-/// The structure of sample format converter.
+/// Parameters of sample format converter.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleConvertParameters {
     pub format_target: FormatConvertTarget,
@@ -132,7 +132,7 @@ impl From<&EnsembleConvertParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleConvertParameters> for BebobAvc {}
 
-/// The structure for parameters of display meters.
+/// Parameters of display meters.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleDisplayParameters {
     pub enabled: bool,
@@ -154,7 +154,7 @@ impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleDisplayParameters> for BebobAvc {}
 
-/// The parameters of analog/digital inputs. The gains, phantoms, and polarities parameters
+/// Parameters of analog/digital inputs. The gains, phantoms, and polarities parameters
 /// are available when channel 0-3 levels are for mic.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleInputParameters {
@@ -214,7 +214,7 @@ impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleInputParameters> for BebobAvc {}
 
-/// The structure for parameters of analog/digital outputs.
+/// Parameters of analog/digital outputs.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleOutputParameters {
     pub vol: u8,
@@ -258,7 +258,7 @@ impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleOutputParameters> for BebobAvc {}
 
-/// The structure for parameters of input/output source.
+/// Parameters of input/output source.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleSourceParameters {
     /// To (18):
@@ -364,7 +364,7 @@ impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleSourceParameters> for BebobAvc {}
 
-/// The structure for mixer parameters.
+/// Parameters of signal multiplexer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleMixerParameters {
     /// To (4):
@@ -442,7 +442,7 @@ impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
 
 impl EnsembleParameterProtocol<EnsembleMixerParameters> for BebobAvc {}
 
-/// The structure for stream parameters.
+/// Parameters of stream mode.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleStreamParameters {
     pub mode: StreamMode,
@@ -540,7 +540,7 @@ impl Default for KnobOutputTarget {
     }
 }
 
-/// The structure for meter information.
+/// Information of hardware metering.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EnsembleMeter {
     pub knob_input_target: KnobInputTarget,
@@ -769,7 +769,7 @@ const METER_SHORT_FRAME_SIZE: usize = 17;
 const METER_LONG_FRAME_SIZE: usize = 56;
 const MIXER_COEFFICIENT_COUNT: usize = 18;
 
-/// The enumeration of command specific to Apogee Ensemble.
+/// Command specific to Apogee Ensemble.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum EnsembleCmd {
     InputLimit(usize, bool), // index, state
@@ -1110,7 +1110,7 @@ impl Default for DisplayMeterTarget {
     }
 }
 
-/// The enumeration of command for hardware operation.
+/// Command for functions in hardware category specific to Apogee Ensemble.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum HwCmd {
     /// STREAM_MODE command generates bus reset to change available stream formats.
