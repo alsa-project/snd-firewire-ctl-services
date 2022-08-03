@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{terratec::phase88::*, *},
+    protocols::{terratec::phase88::*, *},
 };
 
 #[derive(Default)]

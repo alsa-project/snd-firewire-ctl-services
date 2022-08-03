@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{esi::*, *},
+    protocols::{esi::*, *},
 };
 
 const FCP_TIMEOUT_MS: u32 = 100;

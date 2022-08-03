@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{yamaha_terratec::*, *},
+    protocols::{yamaha_terratec::*, *},
 };
 
 #[derive(Default)]

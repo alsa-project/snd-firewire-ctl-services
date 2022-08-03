@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    bebob_protocols::{presonus::inspire1394::*, *},
+    protocols::{presonus::inspire1394::*, *},
 };
 
 #[derive(Default)]

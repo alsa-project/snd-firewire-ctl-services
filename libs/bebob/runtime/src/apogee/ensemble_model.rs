@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{apogee::ensemble::*, *},
+    protocols::{apogee::ensemble::*, *},
 };
 
 const FCP_TIMEOUT_MS: u32 = 100;

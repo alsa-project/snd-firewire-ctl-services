@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{roland::*, *},
+    protocols::{roland::*, *},
 };
 
 pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;

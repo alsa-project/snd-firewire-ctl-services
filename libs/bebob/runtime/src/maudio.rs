@@ -9,7 +9,7 @@ pub mod special_model;
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{maudio::normal::*, *},
+    protocols::{maudio::normal::*, *},
     ta1394_avc_general::*,
 };
 
