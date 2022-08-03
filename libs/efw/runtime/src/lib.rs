@@ -14,6 +14,7 @@ mod port_ctl;
 use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, *},
+    efw_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{prelude::{FwNodeExtManual, FwNodeExt}, FwNode},
     hitaki::{prelude::*, SndEfw},

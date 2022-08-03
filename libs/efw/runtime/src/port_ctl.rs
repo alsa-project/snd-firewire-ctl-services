@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    efw_protocols::{hw_info::*, port_conf::*},
+    protocols::{hw_info::*, port_conf::*},
 };
 
 fn phys_group_type_to_str(phys_group_type: &PhysGroupType) -> &'static str {

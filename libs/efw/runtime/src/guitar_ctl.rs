@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    efw_protocols::{hw_info::*, robot_guitar::*},
+    protocols::{hw_info::*, robot_guitar::*},
 };
 
 #[derive(Default)]
