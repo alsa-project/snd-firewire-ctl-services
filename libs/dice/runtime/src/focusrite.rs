@@ -9,7 +9,7 @@ pub mod spro26_model;
 pub mod spro40_model;
 
 use {
-    super::{common_ctl::*, tcd22xx_ctl::*, *},
+    super::{tcd22xx_ctl::*, *},
     protocols::{focusrite::*, tcat::extension::*},
 };
 

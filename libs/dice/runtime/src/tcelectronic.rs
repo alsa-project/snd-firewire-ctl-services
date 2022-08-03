@@ -22,7 +22,7 @@ use {
     self::prog_ctl::*,
     self::reverb_ctl::*,
     self::standalone_ctl::*,
-    super::{common_ctl::*, *},
+    super::*,
     protocols::tcelectronic::{
         ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *,
     },
