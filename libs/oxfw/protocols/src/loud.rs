@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The enumeration for source of capture.
+/// Source of capture.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LinkFwInputSource {
     Analog,

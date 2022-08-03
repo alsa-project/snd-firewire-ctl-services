@@ -24,7 +24,7 @@ use {
     ta1394_avc_ccm::*,
 };
 
-/// The structure to implement AV/C transaction.
+/// The implementation of AV/C transaction.
 #[derive(Default, Debug)]
 pub struct OxfwAvc(FwFcp);
 

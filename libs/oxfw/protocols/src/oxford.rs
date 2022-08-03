@@ -5,6 +5,7 @@
 
 use super::*;
 
+/// The implementation for protocol of FW970/971 ASICs.
 #[derive(Default, Debug)]
 pub struct OxfordProtocol;
 

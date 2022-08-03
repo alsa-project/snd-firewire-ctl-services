@@ -122,7 +122,7 @@ impl DuetFwMixerMeterProtocol {
     }
 }
 
-/// The enumeration for target of knob.
+/// Target of knob.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwKnobTarget {
     OutputPair0,
@@ -182,7 +182,7 @@ impl DuetFwKnobProtocol {
     }
 }
 
-/// The enumeration for source of output.
+/// Source of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwOutputSource {
     StreamInputPair0,
@@ -195,7 +195,7 @@ impl Default for DuetFwOutputSource {
     }
 }
 
-/// The enumeration for level of output.
+/// Level of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwOutputNominalLevel {
     /// Fixed level for external amplifier.
@@ -210,7 +210,7 @@ impl Default for DuetFwOutputNominalLevel {
     }
 }
 
-/// The enumeration for level of output.
+/// Level of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwOutputMuteMode {
     Never,
@@ -409,7 +409,7 @@ impl DuetFwOutputProtocol {
     }
 }
 
-/// The enumeration for source of input.
+/// Source of input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwInputSource {
     /// From XLR plug.
@@ -424,7 +424,7 @@ impl Default for DuetFwInputSource {
     }
 }
 
-/// The enumeration for nominal level of input.
+/// Nominal level of input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwInputXlrNominalLevel {
     /// Adjustable between 10 and 75 dB.
@@ -441,7 +441,7 @@ impl Default for DuetFwInputXlrNominalLevel {
     }
 }
 
-/// The structure of input parameters.
+/// Input parameters.
 #[derive(Default, Debug)]
 pub struct DuetFwInputParameters {
     pub gains: [u8; 2],
@@ -693,7 +693,7 @@ impl DuetFwMixerProtocol {
     }
 }
 
-/// The enumeration for target of display.
+/// Target of display.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwDisplayTarget {
     Output,
@@ -706,7 +706,7 @@ impl Default for DuetFwDisplayTarget {
     }
 }
 
-/// The enumeration for mode of display.
+/// Mode of display.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwDisplayMode {
     Independent,
@@ -719,7 +719,7 @@ impl Default for DuetFwDisplayMode {
     }
 }
 
-/// The enumeration for overhold of display.
+/// Overhold of display.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DuetFwDisplayOverhold {
     Infinite,
@@ -819,7 +819,7 @@ impl DuetFwDisplayProtocol {
     }
 }
 
-/// The enumeration to represent type of command for Apogee Duet FireWire.
+/// Type of command for Apogee Duet FireWire.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 // Usually 5 params.
@@ -1123,7 +1123,7 @@ impl VendorCmd {
     }
 }
 
-/// The structure to represent protocol of Apogee Duet FireWire.
+/// AV/C vendor-dependent command specific to Apogee Duet FireWire.
 pub struct ApogeeCmd {
     cmd: VendorCmd,
     op: VendorDependent,
