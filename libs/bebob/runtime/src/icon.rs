@@ -3,7 +3,7 @@
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{icon::*, *},
+    protocols::{icon::*, *},
 };
 
 #[derive(Default)]

@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    bebob_protocols::{maudio::pfl::*, *},
+    protocols::{maudio::pfl::*, *},
 };
 
 #[derive(Default)]

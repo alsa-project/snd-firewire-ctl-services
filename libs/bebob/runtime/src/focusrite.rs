@@ -9,7 +9,7 @@ pub mod saffirele_model;
 
 use {
     super::{common_ctls::*, *},
-    bebob_protocols::{
+    protocols::{
         focusrite::{saffire::*, saffireproio::*, *},
         *,
     },

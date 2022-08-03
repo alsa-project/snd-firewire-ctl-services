@@ -21,6 +21,7 @@ mod yamaha_terratec;
 use {
     alsa_ctl_tlv_codec::DbInterval,
     alsactl::{prelude::*, *},
+    bebob_protocols as protocols,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
     hinawa::{

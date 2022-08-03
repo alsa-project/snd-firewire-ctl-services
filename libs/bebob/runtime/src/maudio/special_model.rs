@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    bebob_protocols::{maudio::special::*, *},
+    protocols::{maudio::special::*, *},
 };
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;

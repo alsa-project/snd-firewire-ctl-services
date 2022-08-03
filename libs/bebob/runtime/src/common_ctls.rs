@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, bebob_protocols::*};
+use {super::*, protocols::*};
 
 pub trait MediaClkFreqCtlOperation<T: MediaClockFrequencyOperation> {
     fn load_freq(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
