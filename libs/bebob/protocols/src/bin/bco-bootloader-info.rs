@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{FileError, MainContext, MainLoop};
-
-use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq};
-
-use bebob_protocols::bridgeco::*;
-
-use std::sync::Arc;
-use std::thread;
+use {
+    bebob_protocols as protocols,
+    glib::{FileError, MainContext, MainLoop},
+    hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
+    protocols::bridgeco::*,
+    std::{sync::Arc, thread},
+};
 
 const TIMEOUT_MS: u32 = 20;
 
