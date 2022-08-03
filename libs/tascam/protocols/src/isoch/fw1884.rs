@@ -243,7 +243,7 @@ impl MachineStateOperation for Fw1884Protocol {
     const HAS_BANK: bool = true;
 }
 
-/// The structure for state of control surface in FW-1884.
+/// State of control surface in FW-1884.
 #[derive(Default, Debug)]
 pub struct Fw1884SurfaceState {
     common: SurfaceCommonState,

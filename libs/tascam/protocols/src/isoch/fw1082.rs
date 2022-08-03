@@ -134,7 +134,7 @@ impl MachineStateOperation for Fw1082Protocol {
     const HAS_BANK: bool = true;
 }
 
-/// The structure for state of control surface in FW-1082.
+/// State of control surface in FW-1082.
 #[derive(Default, Debug)]
 pub struct Fw1082SurfaceState {
     common: SurfaceCommonState,
@@ -414,7 +414,7 @@ impl Default for Fw1082EncoderMode {
     }
 }
 
-/// The structure for state of surface specific to FW-1082.
+/// State of surface specific to FW-1082.
 #[derive(Default, Debug)]
 struct SurfaceSpecificState {
     mode: Fw1082EncoderMode,
