@@ -9,7 +9,7 @@ use {
     super::*,
 };
 
-/// The structure to represent unique protocol for Fireface 400.
+/// The protocol implementation for Fireface 400.
 #[derive(Default)]
 pub struct Ff400Protocol;
 
@@ -72,7 +72,7 @@ impl Ff400Protocol {
     }
 }
 
-/// The structure to represent status of input gains of Fireface 400.
+/// Status of input gains of Fireface 400.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400InputGainStatus {
     /// The level of gain for input 1 and 2. The value is between 0 and 65 by step 1 to represent
@@ -210,7 +210,7 @@ impl RmeFormerMixerOperation for Ff400Protocol {
     const AVAIL_COUNT: usize = 18;
 }
 
-/// The enumeration to represent source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Ff400ClkSrc {
     Internal,
@@ -283,7 +283,7 @@ const Q1_CONF_CLK_RATE_48000_FLAG: u32 = 0x00000006;
 const Q1_CONF_CLK_RATE_44100_FLAG: u32 = 0x00000000;
 const Q1_CONF_CLK_RATE_32000_FLAG: u32 = 0x00000002;
 
-/// The structure to represent status of clock locking.
+/// Status of clock locking.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400ClkLockStatus {
     pub adat: bool,
@@ -299,7 +299,7 @@ impl Ff400ClkLockStatus {
     }
 }
 
-/// The structure to represent status of clock synchronization.
+/// Status of clock synchronization.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400ClkSyncStatus {
     pub adat: bool,
@@ -315,7 +315,7 @@ impl Ff400ClkSyncStatus {
     }
 }
 
-/// The structure to represent status of clock synchronization.
+/// Status of clock synchronization.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400Status {
     /// For S/PDIF input.
@@ -511,7 +511,7 @@ const Q2_CLK_AVAIL_RATE_DOUBLE_MASK: u32 = 0x00000008;
 const Q2_CLK_AVAIL_RATE_BASE_48000_MASK: u32 = 0x00000004;
 const Q2_CLK_AVAIL_RATE_BASE_44100_MASK: u32 = 0x00000002;
 
-/// The structure to represent configurations of sampling clock.
+/// Configurations of sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400ClkConfig {
     pub primary_src: Ff400ClkSrc,
@@ -574,7 +574,7 @@ impl Ff400ClkConfig {
     }
 }
 
-/// The structure to represent configuration for analog inputs.
+/// Configuration for analog inputs.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400AnalogInConfig {
     /// The nominal level of audio signal for input 5, 6, 7 and 8.
@@ -653,7 +653,7 @@ impl Ff400AnalogInConfig {
     }
 }
 
-/// The enumeration to represent low offset of destination address for MIDI messages.
+/// Low offset of destination address for MIDI messages.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Ff400MidiTxLowOffset {
     /// Between 0x0000 to 0x007c.
@@ -693,7 +693,7 @@ impl Ff400MidiTxLowOffset {
     }
 }
 
-/// The structure to represent configurations.
+/// Configurations for Fireface 400.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff400Config {
     /// The low offset of destination address for MIDI messages.

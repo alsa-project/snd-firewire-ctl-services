@@ -8,7 +8,7 @@ use {
     crate::*,
 };
 
-/// The structure to represent unique protocol for Fireface UCX.
+/// Unique protocol for UCX.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfUcxProtocol;
 
@@ -24,7 +24,7 @@ const CFG_DSP_EFFECT_ON_INPUT_MASK: u32 = 0x00000040;
 const CFG_WORD_INPUT_TERMINATE_MASK: u32 = 0x00000008;
 const CFG_SPDIF_OUT_PRO_MASK: u32 = 0x00000020;
 
-/// The enumeration to represent source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfUcxClkSrc {
     Internal,
@@ -60,7 +60,7 @@ impl FfUcxClkSrc {
     }
 }
 
-/// The structure to represent unique protocol for Fireface UCX.
+/// Configuration for UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfUcxConfig {
     /// The low offset of destination address for MIDI messages.
@@ -150,7 +150,7 @@ const STATUS_LOCK_WORD_CLK_MASK: u32 = 0x00000004;
 const STATUS_LOCK_OPT_IFACE_MASK: u32 = 0x00000002;
 const STATUS_LOCK_COAX_IFACE_MASK: u32 = 0x00000001;
 
-/// The structure to represent lock status of UCX.
+/// Lock status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfUcxExtLockStatus {
     pub word_clk: bool,
@@ -178,7 +178,7 @@ impl FfUcxExtLockStatus {
     }
 }
 
-/// The structure to represent sync status of UCX.
+/// Sync status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfUcxExtSyncStatus {
     pub word_clk: bool,
@@ -206,7 +206,7 @@ impl FfUcxExtSyncStatus {
     }
 }
 
-/// The structure to represent sync status of UCX.
+/// Sync status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfUcxExtRateStatus {
     pub word_clk: Option<ClkNominalRate>,
@@ -240,7 +240,7 @@ impl FfUcxExtRateStatus {
     }
 }
 
-/// The structure to represent status of UCX.
+/// Status of UCX.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfUcxStatus {
     pub ext_lock: FfUcxExtLockStatus,

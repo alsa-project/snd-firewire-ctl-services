@@ -8,7 +8,7 @@ use {
     crate::*,
 };
 
-/// The structure to represent unique protocol for Fireface 802.
+/// Unique protocol for 802.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct Ff802Protocol;
 
@@ -25,7 +25,7 @@ const CFG_DSP_EFFECT_ON_INPUT_MASK: u32 = 0x00000040;
 const CFG_AESEBU_OUT_PRO_MASK: u32 = 0x00000020;
 const CFG_WORD_OUT_SINGLE_MASK: u32 = 0x00000010;
 
-/// The enumeration to represent source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Ff802ClkSrc {
     Internal,
@@ -64,7 +64,7 @@ impl Ff802ClkSrc {
     }
 }
 
-/// The enumeration to represent interface of S/PDIF signal for Fireface 802.
+/// Digital interface of S/PDIF signal for 802.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Ff802SpdifIface {
     Xlr,
@@ -77,7 +77,7 @@ impl Default for Ff802SpdifIface {
     }
 }
 
-/// The structure to represent unique protocol for Fireface 802.
+/// Unique protocol for 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Ff802Config {
     /// The low offset of destination address for MIDI messages.
@@ -176,7 +176,7 @@ const STATUS_LOCK_ADAT_A_MASK: u32 = 0x00000004;
 const STATUS_LOCK_SPDIF_MASK: u32 = 0x00000002;
 const STATUS_LOCK_WORD_CLK_MASK: u32 = 0x00000001;
 
-/// The structure to represent lock status of 802.
+/// Lock status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Ff802ExtLockStatus {
     pub word_clk: bool,
@@ -209,7 +209,7 @@ impl Ff802ExtLockStatus {
     }
 }
 
-/// The structure to represent sync status of 802.
+/// Sync status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Ff802ExtSyncStatus {
     pub word_clk: bool,
@@ -242,7 +242,7 @@ impl Ff802ExtSyncStatus {
     }
 }
 
-/// The structure to represent sync status of 802.
+/// Sync status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Ff802ExtRateStatus {
     pub word_clk: Option<ClkNominalRate>,
@@ -283,7 +283,7 @@ impl Ff802ExtRateStatus {
     }
 }
 
-/// The structure to represent status of 802.
+/// Status of 802.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Ff802Status {
     pub ext_lock: Ff802ExtLockStatus,

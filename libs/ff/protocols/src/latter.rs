@@ -23,7 +23,7 @@ const CFG_MIDI_TX_LOW_OFFSET_0100_FLAG: u32 = 0x00008000;
 const CFG_MIDI_TX_LOW_OFFSET_0080_FLAG: u32 = 0x00004000;
 const CFG_MIDI_TX_LOW_OFFSET_0000_FLAG: u32 = 0x00002000;
 
-/// The enumeration to represent low offset of destination address for MIDI messages.
+/// Low offset of destination address for MIDI messages.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum FfLatterMidiTxLowOffset {
     /// Between 0x0000 to 0x007c.
@@ -180,7 +180,7 @@ where
     }
 }
 
-/// The structure to represent state of meters.
+/// State of meters.
 ///
 /// Each value is between 0x'0000'0000'0000'0000 and 0x'3fff'ffff'ffff'ffff. 0x'0000'0000'0000'001f
 /// represents negative infinite.
@@ -332,7 +332,7 @@ pub trait RmeFfLatterMeterOperation {
     }
 }
 
-/// The structure to represent state of send effects (reverb and echo).
+/// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDspState {
     pub input: FfLatterInputState,
@@ -602,7 +602,7 @@ const FX_ECHO_LPF_FREQ_CMD: u8 = 0x24;
 const FX_ECHO_VOLUME_CMD: u8 = 0x25;
 const FX_ECHO_STEREO_WIDTH_CMD: u8 = 0x26;
 
-/// The structure to represent nominal level of analog input.
+/// Nominal level of analog input.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LatterInNominalLevel {
     Low,
@@ -625,7 +625,7 @@ impl From<LatterInNominalLevel> for i16 {
     }
 }
 
-/// The structure to represent state of inputs.
+/// State of inputs.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterInputState {
     /// Whether to link each pair of left and right ports.
@@ -748,7 +748,7 @@ impl From<LineOutNominalLevel> for i16 {
     }
 }
 
-/// The structure to represent state of inputs.
+/// State of outputs.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputState {
     /// The level of volume. Each value is between -650 (0xfd76) and 60 (0x003c) to represent
@@ -868,7 +868,7 @@ pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
 
 impl<O: RmeFfLatterDspOperation> RmeFfLatterOutputOperation for O {}
 
-/// The structure to represent state of mixer.
+/// State of mixer.
 ///
 /// Each value is between 0x0000 and 0xa000 through 0x9000 to represent -65.00 dB and 6.00 dB
 /// through 0.00 dB.
@@ -974,7 +974,7 @@ impl From<FfLatterHpfRollOffLevel> for i16 {
     }
 }
 
-/// The structure to represent state of high pass filter in channel strip effect.
+/// State of high pass filter in channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterHpfState {
     /// Whether to activate high pass filter.
@@ -1037,7 +1037,7 @@ impl From<FfLatterChStripEqType> for i16 {
     }
 }
 
-/// The structure to represent state of equalizer in channel strip effect.
+/// State of equalizer in channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterEqState {
     /// Whether to activate equalizer.
@@ -1148,7 +1148,7 @@ fn eq_state_to_cmds(state: &FfLatterEqState, ch_offset: u8) -> Vec<u32> {
     cmds
 }
 
-/// The structure to represent state of dynamics in channel strip effect.
+/// State of dynamics in channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterDynState {
     /// Whether to activate dynamics.
@@ -1227,7 +1227,7 @@ fn dyn_state_to_cmds(state: &FfLatterDynState, ch_offset: u8) -> Vec<u32> {
     cmds
 }
 
-/// The structure to represent state of autolevel in channel strip effects.
+/// State of autolevel in channel strip effects.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterAutolevelState {
     /// Whether to activate auto level.
@@ -1274,7 +1274,7 @@ fn autolevel_state_to_cmds(state: &FfLatterAutolevelState, ch_offset: u8) -> Vec
     cmds
 }
 
-/// The structure to represent state of channel strip effect.
+/// State of channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterChStripState {
     pub hpf: FfLatterHpfState,
@@ -1427,7 +1427,7 @@ pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
     }
 }
 
-/// The structure to represent state of input channel strip effect.
+/// State of input channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterInputChStripState(pub FfLatterChStripState);
 
@@ -1444,7 +1444,7 @@ impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterInputChStri
     }
 }
 
-/// The structure to represent state of output channel strip effect.
+/// State of output channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterOutputChStripState(pub FfLatterChStripState);
 
@@ -1461,7 +1461,7 @@ impl<O: RmeFfLatterDspOperation> RmeFfLatterChStripOperation<FfLatterOutputChStr
     }
 }
 
-/// The enumeration to represent type of reverb effect.
+/// Type of reverb effect.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfLatterFxReverbType {
     SmallRoom,
@@ -1509,7 +1509,7 @@ impl From<FfLatterFxReverbType> for i16 {
     }
 }
 
-/// The enumeration to represent type of echo effect.
+/// Type of echo effect.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfLatterFxEchoType {
     StereoEcho,
@@ -1533,7 +1533,7 @@ impl From<FfLatterFxEchoType> for i16 {
     }
 }
 
-/// The enumeration to represent frequency of low pass filter for echo effect.
+/// Frequency of low pass filter for echo effect.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfLatterFxEchoLpfFreq {
     Off,
@@ -1563,7 +1563,7 @@ impl From<FfLatterFxEchoLpfFreq> for i16 {
     }
 }
 
-/// The structure to represent state of reverb in send effect.
+/// State of reverb in send effect.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfLatterFxReverbState {
     /// Whether to activate reverb effect.
@@ -1675,7 +1675,7 @@ fn reverb_state_to_cmds(state: &FfLatterFxReverbState) -> Vec<u32> {
     cmds
 }
 
-/// The structure to represent state of echo in send effect.
+/// State of echo in send effect.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct FfLatterFxEchoState {
     /// Whether to activate echo effect.
@@ -1736,7 +1736,7 @@ fn echo_state_to_cmds(state: &FfLatterFxEchoState) -> Vec<u32> {
     cmds
 }
 
-/// The structure to represent state of send effects (reverb and echo).
+/// State of send effects (reverb and echo).
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FfLatterFxState {
     /// The gain of line inputs. Each value is between 0xfd76 (-65.0 dB) and 0x0000 (0.0 dB).
