@@ -5,6 +5,7 @@ mod model;
 use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    dg00x_protocols as protocols,
     glib::{
         source, {Error, FileError},
     },
