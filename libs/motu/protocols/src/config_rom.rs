@@ -8,7 +8,7 @@
 
 use ieee1212_config_rom::*;
 
-/// The structure to represent data in unit directory of Configuration ROM.
+/// Data in unit directory of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct UnitData {
     pub model_id: u32,
