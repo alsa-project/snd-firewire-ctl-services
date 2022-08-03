@@ -7,7 +7,7 @@ use hinawa::{FwNode, FwReq};
 use super::*;
 use crate::*;
 
-/// The structure to represent unique protocol for Fireface 800.
+/// Unique protocol for Fireface 800.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct Ff800Protocol;
 
@@ -86,7 +86,7 @@ impl RmeFormerMixerOperation for Ff800Protocol {
     const AVAIL_COUNT: usize = 32;
 }
 
-/// The enumeration to represent source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Ff800ClkSrc {
     Internal,
@@ -166,7 +166,7 @@ const Q1_CONF_CLK_RATE_48000_FLAGS: u32 = 0x00000006;
 const Q1_CONF_CLK_RATE_44100_FLAGS: u32 = 0x00000000;
 const Q1_CONF_CLK_RATE_32000_FLAGS: u32 = 0x00000002;
 
-/// The structure to represent status of clock locking.
+/// Status of clock locking.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800ClkLockStatus {
     pub adat_a: bool,
@@ -186,7 +186,7 @@ impl Ff800ClkLockStatus {
     }
 }
 
-/// The structure to represent status of clock synchronization.
+/// Status of clock synchronization.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800ClkSyncStatus {
     pub adat_a: bool,
@@ -206,7 +206,7 @@ impl Ff800ClkSyncStatus {
     }
 }
 
-/// The structure to represent status of clock synchronization.
+/// Status of clock synchronization.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800Status {
     /// For S/PDIF input.
@@ -403,7 +403,7 @@ const Q2_CLK_AVAIL_RATE_BASE_48000_MASK: u32 = 0x00000004;
 const Q2_CLK_AVAIL_RATE_BASE_44100_MASK: u32 = 0x00000002;
 const Q2_CONTINUE_AT_ERRORS: u32 = 0x80000000;
 
-/// The structure to represent configurations of sampling clock.
+/// Configurations of sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800ClkConfig {
     pub primary_src: Ff800ClkSrc,
@@ -468,7 +468,7 @@ impl Ff800ClkConfig {
     }
 }
 
-/// The structure to represent configurations for instrument.
+/// Configurations for instrument.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800InstConfig {
     /// Whether to add extra gain by 25 dB.
@@ -503,7 +503,7 @@ impl Ff800InstConfig {
     }
 }
 
-/// The enumeration to represent jack of analog inputs.
+/// Jack of analog inputs.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Ff800AnalogInputJack {
     Front,
@@ -517,7 +517,7 @@ impl Default for Ff800AnalogInputJack {
     }
 }
 
-/// The structure to represent configuration for analog inputs.
+/// Configuration for analog inputs.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800AnalogInConfig {
     /// Whether to use rear jack instead of front jack for input 1, 7, and 8.
@@ -620,7 +620,7 @@ impl Ff800AnalogInConfig {
     }
 }
 
-/// The structure to represent configurations.
+/// Configurations for Fireface 800.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Ff800Config {
     /// For sampling clock.

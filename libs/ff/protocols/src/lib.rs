@@ -37,7 +37,7 @@ impl<'a> FfConfigRom for ConfigRom<'a> {
     }
 }
 
-/// The enumeration to represent nominal frequency of sampling clock.
+/// Nominal frequency of sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClkNominalRate {
     R32000,
@@ -57,7 +57,7 @@ impl Default for ClkNominalRate {
     }
 }
 
-/// The enumeration to represent format of S/PDIF signal.
+/// Format of S/PDIF signal.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SpdifFormat {
     Consumer,
@@ -70,7 +70,7 @@ impl Default for SpdifFormat {
     }
 }
 
-/// The enumeration to represent interface of S/PDIF signal.
+/// Digital interface of S/PDIF signal.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SpdifIface {
     Coaxial,
@@ -83,7 +83,7 @@ impl Default for SpdifIface {
     }
 }
 
-/// The structure to represent configuration of S/PDIF input.
+/// Configuration of S/PDIF input.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SpdifInput {
     /// The interface of S/PDIF signal.
@@ -92,7 +92,7 @@ pub struct SpdifInput {
     pub use_preemble: bool,
 }
 
-/// The enumeration to represent the type of signal to optical output interface.
+/// Type of signal to optical output interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OpticalOutputSignal {
     Adat,
@@ -105,7 +105,7 @@ impl Default for OpticalOutputSignal {
     }
 }
 
-/// The enumeration to represent nominal level of line outputs.
+/// Nominal level of line outputs.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LineOutNominalLevel {
     High,

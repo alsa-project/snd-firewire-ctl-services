@@ -12,7 +12,7 @@ use {
     super::*,
 };
 
-/// The structure to represent state of hardware meter.
+/// State of hardware meter.
 ///
 /// Each value of 32 bit integer is between 0x00000000 and 0x7fffff00 to represent -90.03 and
 /// 0.00 dB. When reaching saturation, 1 byte in LSB side represent ratio of overload.
@@ -110,7 +110,7 @@ pub trait RmeFfFormerMeterOperation {
     }
 }
 
-/// The structure for state of output volumes.
+/// State of output volumes.
 ///
 /// The value for volume is between 0x00000000 and 0x00010000 through 0x00000001 and 0x00080000 to
 /// represent the range from negative infinite to 6.00 dB through -90.30 dB and 0.00 dB.
@@ -175,7 +175,7 @@ pub trait RmeFormerOutputOperation {
     }
 }
 
-/// The structure to represent source of mixer specific to former models of RME Fireface.
+/// Sources of mixer specific to former models of RME Fireface.
 ///
 /// The value is between 0x00000000 and 0x00010000 through 0x00008000 to represent -90.30 and 6.02 dB
 /// through 0x00008000.
@@ -187,7 +187,7 @@ pub struct FormerMixerSrc {
     pub stream_gains: Vec<i32>,
 }
 
-/// The structure for state of mixer.
+/// State of mixer.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormerMixerState(pub Vec<FormerMixerSrc>);
 
@@ -334,7 +334,7 @@ pub trait RmeFormerMixerOperation {
     }
 }
 
-/// The structure to represent configuration of S/PDIF output.
+/// Configuration of S/PDIF output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FormerSpdifOutput {
     /// The format of S/PDIF signal.
@@ -345,7 +345,7 @@ pub struct FormerSpdifOutput {
     pub non_audio: bool,
 }
 
-/// The enumeration to represent nominal level of line inputs.
+/// Nominal level of line inputs.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FormerLineInNominalLevel {
     Low,
