@@ -4,7 +4,7 @@
 use {
     super::{isoch_ctls::*, *},
     alsactl::{prelude::*, *},
-    tascam_protocols::isoch::{fw1884::*, *},
+    protocols::isoch::{fw1884::*, *},
 };
 
 pub struct Fw1884Model {

@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    tascam_protocols::asynch::{fe8::*, *},
+    protocols::asynch::{fe8::*, *},
 };
 
 pub struct Fe8Model {

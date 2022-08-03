@@ -7,8 +7,8 @@ use {
     alsaseq::{prelude::*, *},
     core::dispatcher::*,
     nix::sys::signal,
+    protocols::isoch::{fw1082::*, fw1884::*},
     std::{marker::PhantomData, sync::mpsc, time::Duration},
-    tascam_protocols::isoch::{fw1082::*, fw1884::*},
 };
 
 pub type Fw1884Runtime = IsochConsoleRuntime<Fw1884Model, Fw1884Protocol, Fw1884SurfaceState>;
