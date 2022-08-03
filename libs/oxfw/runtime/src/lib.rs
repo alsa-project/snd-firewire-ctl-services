@@ -11,7 +11,6 @@ mod tascam_model;
 mod common_ctl;
 
 use {
-    self::model::*,
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
     glib::{source, Error, FileError},
@@ -21,8 +20,10 @@ use {
     },
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
+    model::*,
     nix::sys::signal,
-    oxfw_protocols::*,
+    oxfw_protocols as protocols,
+    protocols::*,
     std::{convert::TryFrom, sync::mpsc},
     ta1394_avc_general::config_rom::*,
 };
