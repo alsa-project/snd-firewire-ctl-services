@@ -13,7 +13,7 @@ const CATEGORY_ROBOT_GUITAR: u32 = 10;
 const CMD_SET_CHARGE_STATE: u32 = 7;
 const CMD_GET_CHARGE_STATE: u32 = 8;
 
-/// The enumeration to express state of charging for Robot Guitar.
+/// State of charging for Robot Guitar.
 #[derive(Debug)]
 pub struct GuitarChargeState {
     pub manual_charge: bool,

@@ -23,7 +23,7 @@ use {
     hitaki::{prelude::EfwProtocolExtManual, EfwProtocolError},
 };
 
-/// The enumeration to express source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ClkSrc {
     Internal,
@@ -71,7 +71,7 @@ impl From<usize> for ClkSrc {
     }
 }
 
-/// The enumeration to express nominal level of audio signal.
+/// Nominal level of audio signal.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum NominalSignalLevel {
     /// +4 dBu.

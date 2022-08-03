@@ -19,7 +19,7 @@ const CMD_GET_PHANTOM: u32 = 5;
 const CMD_SET_STREAM_MAP: u32 = 6;
 const CMD_GET_STREAM_MAP: u32 = 7;
 
-/// The enumeration to express the type of audio signal for dignal input and output.
+/// Type of audio signal for dignal input and output.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum DigitalMode {
     /// Coaxial interface for S/PDIF signal.

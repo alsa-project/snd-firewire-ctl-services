@@ -36,7 +36,7 @@ const CMD_METER: u32 = 1;
 const CMD_CHANGE_RESP_ADDR: u32 = 2;
 const CMD_READ_SESSION_BLOCK: u32 = 3;
 
-/// The enumeration to express hardware capability.
+/// Hardware capability.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum HwCap {
     /// The address to which response of transaction is transmitted is configurable.
@@ -101,7 +101,7 @@ impl From<usize> for HwCap {
     }
 }
 
-/// The enumeration to express type of physical group.
+/// Type of physical group.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PhysGroupType {
     Analog,
@@ -135,14 +135,14 @@ impl From<usize> for PhysGroupType {
     }
 }
 
-/// The structure to express entry of physical group.
+/// Entry of physical group.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct PhysGroupEntry {
     pub group_type: PhysGroupType,
     pub group_count: usize,
 }
 
-/// The structure to express hardware information.
+/// Information of hardware.
 #[derive(Debug)]
 pub struct HwInfo {
     pub caps: Vec<HwCap>,
@@ -293,7 +293,7 @@ impl HwInfo {
     }
 }
 
-/// The structure to express hardware meter.
+/// Hardware meter.
 #[derive(Debug)]
 pub struct HwMeter {
     pub detected_clk_srcs: Vec<(ClkSrc, bool)>,
