@@ -5,7 +5,7 @@ use {
     super::{common_ctl::*, *},
     protocols::{
         alesis::{meter::*, mixer::*, output::*, *},
-        tcat::{global_section::*, tx_stream_format_section::*, *},
+        tcat::tx_stream_format_section::*,
     },
 };
 
