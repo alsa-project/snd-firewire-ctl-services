@@ -50,6 +50,7 @@ License
   * `bebob-protocols`
   * `efw-protocols`
   * `oxfw-protocols`
+  * `dice-protocols`
 
 * The other crates are released under GNU General Public License Version 3.
 

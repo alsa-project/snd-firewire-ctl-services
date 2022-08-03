@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
 //! Common structure for hardware state for TC Electronic Konnekt series.

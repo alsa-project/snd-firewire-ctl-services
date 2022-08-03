@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
 //! Tx Stream format section in general protocol for ASICs of DICE.
