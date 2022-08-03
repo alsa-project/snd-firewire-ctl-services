@@ -9,7 +9,7 @@
 
 use {super::*, ieee1212_config_rom::*};
 
-/// The structure for data in unit directory of configuration ROM.
+/// Data in unit directory of configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct UnitData<'a> {
     pub specifier_id: u32,

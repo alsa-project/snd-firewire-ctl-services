@@ -20,6 +20,9 @@ use {
 };
 
 glib::wrapper! {
+    /// The implementation of `hitaki::TascamProtocol` so that it can cache status of hardware
+    /// from message in asynchronous packet from the hardware as ALSA firewire-tascam driver does
+    /// for message in isochronous packet.
     pub struct TascamExpander(ObjectSubclass<imp::TascamExpanderPrivate>)
         @extends FwResp, @implements TascamProtocol;
 }

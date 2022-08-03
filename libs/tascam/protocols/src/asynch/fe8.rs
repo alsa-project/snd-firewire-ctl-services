@@ -19,6 +19,7 @@
 
 use super::*;
 
+/// The protocol implementation of FE-8.
 #[derive(Default)]
 pub struct Fe8Protocol;
 
@@ -81,7 +82,7 @@ impl MachineStateOperation for Fe8Protocol {
     const HAS_BANK: bool = false;
 }
 
-/// The structure for state of control surface in FE-8.
+/// State of control surface in FE-8.
 #[derive(Default, Debug)]
 pub struct Fe8SurfaceState {
     common: SurfaceCommonState,

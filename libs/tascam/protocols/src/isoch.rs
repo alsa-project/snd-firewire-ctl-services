@@ -12,7 +12,7 @@ pub mod fw1884;
 
 use super::*;
 
-/// The enumeration for source of sampling clock.
+/// Signal source of sampling clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClkSrc {
     Internal,
@@ -27,7 +27,7 @@ impl Default for ClkSrc {
     }
 }
 
-/// The enumeration for frequency of media clock.
+/// Nominal frequency of media clock.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClkRate {
     R44100,
@@ -42,7 +42,7 @@ impl Default for ClkRate {
     }
 }
 
-/// The enumeration for mode of monitor.
+/// Mode of monitor.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MonitorMode {
     Computer,
@@ -56,7 +56,7 @@ impl Default for MonitorMode {
     }
 }
 
-/// The structure for state of meter.
+/// State of meter.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct IsochMeterState {
     pub monitor: i16,
@@ -226,7 +226,7 @@ fn write_config_flag<T: Copy + Eq>(
     )
 }
 
-/// The enumeration for source of output coaxial interface.
+/// Source of output coaxial interface.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum CoaxialOutputSource {
     /// A pair in stream inputs.
@@ -471,7 +471,7 @@ pub trait IsochCommonOperation {
     }
 }
 
-/// The enumeration for source of S/PDIF input.
+/// Source of S/PDIF input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SpdifCaptureSource {
     Coaxial,
@@ -484,7 +484,7 @@ impl Default for SpdifCaptureSource {
     }
 }
 
-/// The enumeration for source of optical output.
+/// Source of optical output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OpticalOutputSource {
     /// 4 pairs in stream inputs.
@@ -547,7 +547,7 @@ pub trait IsochOpticalOperation {
     }
 }
 
-/// The structure for state of console.
+/// State of console.
 #[derive(Default, Debug)]
 pub struct IsochConsoleState {
     pub host_mode: bool,
@@ -585,7 +585,7 @@ pub trait IsochConsoleOperation {
 
 const RACK_STATE_SIZE: usize = 72;
 
-/// The structure for state of rack.
+/// State of rack.
 #[derive(Debug)]
 pub struct IsochRackState([u8; RACK_STATE_SIZE]);
 
@@ -707,7 +707,7 @@ pub trait IsochRackOperation {
     }
 }
 
-/// The structure for state of surface in isoch models.
+/// State of surface in isoch models.
 #[derive(Default, Debug)]
 struct SurfaceIsochState {
     shifted: bool,

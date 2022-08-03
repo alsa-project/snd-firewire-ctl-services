@@ -112,7 +112,7 @@ fn write_quadlet(
     )
 }
 
-/// The structure of hardware information.
+/// Information of hardware.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct HardwareInformation {
     pub register: u32,
@@ -121,7 +121,7 @@ pub struct HardwareInformation {
     pub hardware: u32,
 }
 
-/// The structure for protocol implementaion commonly available to Tascam FireWire models.
+/// The protocol implementaion commonly available to Tascam FireWire models.
 #[derive(Debug, Default)]
 pub struct HardwareInformationProtocol;
 
@@ -146,7 +146,7 @@ impl HardwareInformationProtocol {
     }
 }
 
-/// The enumeration for surface items.
+/// Items of surface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MachineItem {
     // Channel section.
@@ -487,17 +487,17 @@ pub trait SurfaceImageOperation<T> {
     ) -> Result<(), Error>;
 }
 
-/// The structure for common state of surface.
+/// Common state of surface.
 #[derive(Default, Debug)]
 struct SurfaceCommonState {
     stateful_items: Vec<bool>,
 }
 
-/// The structure of boolean value in surface image.
+/// Boolean value in surface image.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 struct SurfaceBoolValue(usize, u32); // index, mask.
 
-/// The structure of u16 value in surface image.
+/// U16 value in surface image.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 struct SurfaceU16Value(usize, u32, usize); // index, mask, shift
 
