@@ -52,6 +52,7 @@ License
   * `oxfw-protocols`
   * `dice-protocols`
   * `dg00x-protocols`
+  * `tascam-protocols`
 
 * The other crates are released under GNU General Public License Version 3.
 
