@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    super::*, efw_protocols::hw_info::*, ieee1212_config_rom::ConfigRom, std::convert::TryFrom,
+    super::*, protocols::hw_info::*, ieee1212_config_rom::ConfigRom, std::convert::TryFrom,
     ta1394_avc_general::config_rom::Ta1394ConfigRom,
 };
 

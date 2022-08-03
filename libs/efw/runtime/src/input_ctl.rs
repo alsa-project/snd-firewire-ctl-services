@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    efw_protocols::{hw_info::*, phys_input::*, *},
+    protocols::{hw_info::*, phys_input::*, *},
 };
 
 #[derive(Default)]

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {super::*, efw_protocols::hw_info::*};
+use {super::*, protocols::hw_info::*};
 
 #[derive(Default)]
 pub struct MeterCtl {

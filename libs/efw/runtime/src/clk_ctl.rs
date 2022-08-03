@@ -3,7 +3,7 @@
 
 use {
     super::*,
-    efw_protocols::{hw_ctl::*, hw_info::*, ClkSrc},
+    protocols::{hw_ctl::*, hw_info::*, ClkSrc},
 };
 
 fn clk_src_to_str(src: &ClkSrc) -> &'static str {
