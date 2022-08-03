@@ -18,6 +18,8 @@ use {
 };
 
 glib::wrapper! {
+    /// The implementation of hitaki`::EfwProtocolExt` and `hitaki::EfwProtocolExtManual` traits
+    /// so that it can perform Echo Audio Fireworks transaction instead of ALSA Fireworks driver.
     pub struct EfwTransaction(ObjectSubclass<imp::EfwTransactionPrivate>)
         @extends FwResp, @implements EfwProtocol;
 }
