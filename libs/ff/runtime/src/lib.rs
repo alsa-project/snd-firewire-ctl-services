@@ -14,8 +14,12 @@ mod latter_ctls;
 use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    ff_protocols as protocols,
     glib::{source, Error, FileError},
-    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
+    hinawa::{
+        prelude::{FwNodeExt, FwNodeExtManual},
+        FwNode, FwReq,
+    },
     hitaki::{prelude::*, *},
     model::*,
     nix::sys::signal,

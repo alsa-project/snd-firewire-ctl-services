@@ -4,7 +4,7 @@
 use {
     super::*,
     alsa_ctl_tlv_codec::DbInterval,
-    ff_protocols::{latter::*, *},
+    protocols::{latter::*, *},
 };
 
 const LINE_INPUT_METER: &str = "meter:line-input";
