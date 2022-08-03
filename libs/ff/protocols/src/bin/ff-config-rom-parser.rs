@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
-use glib::FileError;
 
-use hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError};
-
-use ff_protocols::*;
-use ieee1212_config_rom::*;
-
-use std::convert::TryFrom;
-use std::io::Read;
+use {
+    ff_protocols as protocols,
+    glib::FileError,
+    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError},
+    ieee1212_config_rom::*,
+    protocols::*,
+    std::{convert::TryFrom, io::Read},
+};
 
 fn main() {
     let code = std::env::args()
