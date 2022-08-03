@@ -13,7 +13,7 @@ use {
         tcelectronic::studiok48_model::*, *,
     },
     ieee1212_config_rom::*,
-    protocols::tcat::{config_rom::*, extension::*, *},
+    protocols::tcat::{config_rom::*, extension::*},
     std::convert::TryFrom,
 };
 

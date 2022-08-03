@@ -3,10 +3,7 @@
 
 use {
     super::{common_ctl::*, tcd22xx_ctl::*, *},
-    protocols::{
-        maudio::*,
-        tcat::{extension::*, global_section::*, *},
-    },
+    protocols::{maudio::*, tcat::extension::*},
 };
 
 const TIMEOUT_MS: u32 = 20;

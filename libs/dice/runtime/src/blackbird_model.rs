@@ -2,10 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 use {
     super::{common_ctl::*, tcd22xx_ctl::*, *},
-    protocols::{
-        loud::*,
-        tcat::{extension::*, global_section::*, *},
-    },
+    protocols::{loud::*, tcat::extension::*},
 };
 
 #[derive(Default)]

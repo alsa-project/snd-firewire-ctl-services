@@ -10,7 +10,6 @@ use {
             {current_config_section::*, standalone_section::*},
         },
         tcd22xx_spec::*,
-        {global_section::*, *},
     },
 };
 

@@ -3,10 +3,7 @@
 
 use {
     super::{common_ctl::*, *},
-    protocols::{
-        lexicon::*,
-        tcat::{global_section::*, *},
-    },
+    protocols::lexicon::*,
 };
 
 #[derive(Default)]

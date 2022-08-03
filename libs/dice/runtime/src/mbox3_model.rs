@@ -3,10 +3,7 @@
 
 use {
     super::{common_ctl::*, tcd22xx_ctl::*, *},
-    protocols::{
-        avid::*,
-        tcat::{extension::*, global_section::*, *},
-    },
+    protocols::{avid::*, tcat::extension::*},
 };
 
 #[derive(Default)]

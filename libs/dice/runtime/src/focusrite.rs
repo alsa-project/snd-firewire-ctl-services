@@ -10,10 +10,7 @@ pub mod spro40_model;
 
 use {
     super::{common_ctl::*, tcd22xx_ctl::*, *},
-    protocols::{
-        focusrite::*,
-        tcat::{extension::*, global_section::*, *},
-    },
+    protocols::{focusrite::*, tcat::extension::*},
 };
 
 const VOL_NAME: &str = "output-group-volume";
