@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{FileError, MainContext, MainLoop};
-
-use hinawa::FwReq;
-use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError};
-
-use oxfw_protocols::oxford::*;
-
-use std::sync::Arc;
-use std::thread;
+use {
+    glib::{FileError, MainContext, MainLoop},
+    hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
+    oxfw_protocols as protocols,
+    protocols::oxford::*,
+    std::{sync::Arc, thread},
+};
 
 const TIMEOUT_MS: u32 = 20;
 
