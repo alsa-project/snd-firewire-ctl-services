@@ -5,9 +5,9 @@ use {
     super::{fe8_model::*, seq_cntr::*, *},
     core::dispatcher::*,
     nix::sys::signal::Signal,
+    protocols::asynch::{fe8::*, *},
     std::marker::PhantomData,
     std::sync::mpsc,
-    tascam_protocols::asynch::{fe8::*, *},
 };
 
 pub type Fe8Runtime = AsynchRuntime<Fe8Model, Fe8Protocol, Fe8SurfaceState>;

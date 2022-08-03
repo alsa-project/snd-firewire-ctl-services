@@ -2,8 +2,11 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
-    super::*, alsa_ctl_tlv_codec::DbInterval, alsactl::{prelude::*, *}, core::elem_value_accessor::*,
-    tascam_protocols::isoch::*,
+    super::*,
+    alsa_ctl_tlv_codec::DbInterval,
+    alsactl::{prelude::*, *},
+    core::elem_value_accessor::*,
+    protocols::isoch::*,
 };
 
 const MONITOR_ROTARY_NAME: &str = "monitor-rotary";

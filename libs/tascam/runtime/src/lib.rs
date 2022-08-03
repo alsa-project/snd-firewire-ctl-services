@@ -18,14 +18,18 @@ use {
     asynch_runtime::*,
     core::{card_cntr::*, RuntimeOperation},
     glib::{source, Error, FileError, IsA},
-    hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwReq},
+    hinawa::{
+        prelude::{FwNodeExt, FwNodeExtManual},
+        FwNode, FwReq,
+    },
     hitaki::{prelude::*, *},
     ieee1212_config_rom::*,
     isoch_console_runtime::*,
     isoch_rack_runtime::*,
+    protocols::{config_rom::*, *},
     seq_cntr::*,
     std::convert::TryFrom,
-    tascam_protocols::{config_rom::*, *},
+    tascam_protocols as protocols,
 };
 
 pub enum TascamRuntime {
