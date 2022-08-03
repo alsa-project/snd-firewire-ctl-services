@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use glib::{FileError, MainContext, MainLoop};
-
-use hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError};
-
-use ieee1212_config_rom::*;
-
-use tascam_protocols::config_rom::*;
-
-use std::convert::TryFrom;
-use std::sync::Arc;
-use std::thread;
+use {
+    glib::{FileError, MainContext, MainLoop},
+    hinawa::{
+        prelude::{FwNodeExt, FwNodeExtManual},
+        FwNode, FwNodeError,
+    },
+    ieee1212_config_rom::*,
+    protocols::config_rom::*,
+    std::{convert::TryFrom, sync::Arc, thread},
+    tascam_protocols as protocols,
+};
 
 fn main() {
     let result: Result<(), String> = (|| {
