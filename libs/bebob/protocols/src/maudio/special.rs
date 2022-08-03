@@ -4,7 +4,8 @@
 //! Protocol implementation for M-Audio FireWire 1814 and ProjectMix I/O.
 //!
 //! The module includes structure, enumeration, and trait and its implementation for protocol
-//! defined by M-Audio FireWire 1814 and ProjectMix I/O.
+//! defined by M-Audio FireWire 1814 and ProjectMix I/O. The configuration for these models
+//! is write-only, thus the implementaion includes caching mechanism for the configuration.
 //!
 //! DM1000 is used for M-Audio FireWire 1814.
 //!
@@ -437,6 +438,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialInputParameters {
     }
 }
 
+/// The protocol implementation to operate analog inputs.
 #[derive(Default)]
 pub struct MaudioSpecialInputProtocol;
 
@@ -566,6 +568,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
     }
 }
 
+/// The protocol implementation for physical output.
 #[derive(Default)]
 pub struct MaudioSpecialOutputProtocol;
 
@@ -640,6 +643,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialAuxParameters {
     }
 }
 
+/// The protocol implementation to operate input and output of AUX mixer.
 #[derive(Default)]
 pub struct MaudioSpecialAuxProtocol;
 
@@ -735,6 +739,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters {
     }
 }
 
+/// The protocol implementation for input and output of mixer.
 #[derive(Default)]
 pub struct MaudioSpecialMixerProtocol;
 
