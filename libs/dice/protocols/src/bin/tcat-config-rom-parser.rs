@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
-use glib::FileError;
 
-use hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError};
-
-use dice_protocols::tcat::config_rom::*;
-use ieee1212_config_rom::*;
-
-use std::convert::TryFrom;
-use std::io::Read;
+use {
+    dice_protocols as protocols,
+    glib::FileError,
+    hinawa::{
+        prelude::{FwNodeExt, FwNodeExtManual},
+        FwNode, FwNodeError,
+    },
+    ieee1212_config_rom::*,
+    protocols::tcat::config_rom::*,
+    std::{convert::TryFrom, io::Read},
+};
 
 fn main() {
     let code = std::env::args()

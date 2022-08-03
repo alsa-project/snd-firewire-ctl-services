@@ -1,18 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError, MainContext, MainLoop};
-
-use hinawa::FwReq;
-use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError};
-
-use dice_protocols::tcat::extension::current_config_section::*;
-use dice_protocols::tcat::extension::peak_section::*;
-use dice_protocols::tcat::extension::standalone_section::*;
-use dice_protocols::tcat::extension::{caps_section::*, cmd_section::*, mixer_section::*, *};
-
-use std::sync::Arc;
-use std::thread;
+use {
+    dice_protocols as protocols,
+    glib::{Error, FileError, MainContext, MainLoop},
+    hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
+    protocols::tcat::extension::{
+        caps_section::*, cmd_section::*, current_config_section::*, mixer_section::*,
+        peak_section::*, standalone_section::*, *,
+    },
+    std::{sync::Arc, thread},
+};
 
 const TIMEOUT_MS: u32 = 20;
 

@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use glib::{Error, FileError, MainContext, MainLoop};
-
-use hinawa::FwReq;
-use hinawa::{prelude::FwNodeExt, FwNode, FwNodeError};
-
-use dice_protocols::tcat::{
-    ext_sync_section::*, global_section::*, rx_stream_format_section::*,
-    tx_stream_format_section::*, *,
+use {
+    dice_protocols as protocols,
+    glib::{Error, FileError, MainContext, MainLoop},
+    hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
+    protocols::tcat::{
+        ext_sync_section::*, global_section::*, rx_stream_format_section::*,
+        tx_stream_format_section::*, *,
+    },
+    std::sync::Arc,
+    std::thread,
 };
-
-use std::sync::Arc;
-use std::thread;
 
 const TIMEOUT_MS: u32 = 20;
 
