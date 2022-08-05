@@ -19,5 +19,5 @@ alsactl = "0.4"
 alsaseq = "0.4"
 ieee1212-config-rom = "0.1"
 alsa-ctl-tlv-codec = "0.1"
-tascam-protocols = "0.1"
+firewire-tascam-protocols = "0.1"
 core = { path = "../../core" }
