@@ -49,7 +49,7 @@ License
 
   * `firewire-bebob-protocols`
   * `firewire-fireworks-protocols`
-  * `oxfw-protocols`
+  * `firewire-oxfw-protocols`
   * `dice-protocols`
   * `dg00x-protocols`
   * `tascam-protocols`

@@ -67,5 +67,5 @@ dice-protocols = { path = "libs/dice/protocols" }
 firewire-fireworks-protocols = { path = "libs/efw/protocols" }
 ff-protocols = { path = "libs/ff/protocols" }
 motu-protocols = { path = "libs/motu/protocols" }
-oxfw-protocols = { path = "libs/oxfw/protocols" }
+firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
 tascam-protocols = { path = "libs/tascam/protocols" }
