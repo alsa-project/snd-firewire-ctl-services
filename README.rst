@@ -47,7 +47,7 @@ License
 * Some library crates for protocol implementation are released under GNU Lesser General
   Public License v3.0 or later with respect to clause for reverse engineering.
 
-  * `bebob-protocols`
+  * `firewire-bebob-protocols`
   * `efw-protocols`
   * `oxfw-protocols`
   * `dice-protocols`
