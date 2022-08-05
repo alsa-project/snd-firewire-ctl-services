@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
-    ff_protocols as protocols,
+    firewire_fireface_protocols as protocols,
     glib::FileError,
     hinawa::{prelude::{FwNodeExt, FwNodeExtManual}, FwNode, FwNodeError},
     ieee1212_config_rom::*,
