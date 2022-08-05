@@ -53,7 +53,7 @@ License
   * `firewire-dice-protocols`
   * `firewire-digi00x-protocols`
   * `firewire-tascam-protocols`
-  * `motu-protocols`
+  * `firewire-motu-protocols`
   * `ff-protocols`
 
 * The other crates are released under GNU General Public License Version 3.

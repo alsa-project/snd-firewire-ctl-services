@@ -66,6 +66,6 @@ firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
 firewire-dice-protocols = { path = "libs/dice/protocols" }
 firewire-fireworks-protocols = { path = "libs/efw/protocols" }
 ff-protocols = { path = "libs/ff/protocols" }
-motu-protocols = { path = "libs/motu/protocols" }
+firewire-motu-protocols = { path = "libs/motu/protocols" }
 firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
 firewire-tascam-protocols = { path = "libs/tascam/protocols" }
