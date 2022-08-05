@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-//! Protocol defined by Echo Audio Digital Corporation for Fireworks board module.
-//!
-//! The module includes protocols defined by Echo Audio Digital Corporation for Fireworks board
-//! module.
+#![doc = include_str!("../README.md")]
 
 pub mod flash;
 pub mod hw_ctl;
