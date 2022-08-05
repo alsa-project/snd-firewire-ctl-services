@@ -63,13 +63,13 @@ impl FfLatterMidiTxLowOffset {
     }
 }
 
-/// The trait to represent operation for configuration structure.
+/// Operation for configuration structure.
 pub trait RmeFfLatterRegisterValueOperation {
     fn build(&self, quad: &mut u32);
     fn parse(&mut self, quad: &u32);
 }
 
-/// The trait to represent configuration protocol.
+/// Configuration protocol.
 pub trait RmeFfLatterConfigOperation<U: RmeFfLatterRegisterValueOperation> {
     fn write_cfg(
         req: &mut FwReq,
@@ -153,7 +153,7 @@ fn optional_val_to_clk_rate(clk_rate: &mut Option<ClkNominalRate>, quad: &u32, s
     };
 }
 
-/// The trait to represent status protocol.
+/// Status protocol.
 pub trait RmeFfLatterStatusOperation<U>
 where
     U: RmeFfLatterRegisterValueOperation,
@@ -199,7 +199,7 @@ pub struct FfLatterMeterState {
 
 const METER32_MASK: i32 = 0x07fffff0;
 
-/// The trait to represent meter protocol.
+/// Meter protocol.
 pub trait RmeFfLatterMeterOperation {
     const LINE_INPUT_COUNT: usize;
     const MIC_INPUT_COUNT: usize;
@@ -388,7 +388,7 @@ fn write_dsp_cmds(
         .try_for_each(|(&cmd, _)| write_dsp_cmd(req, node, cmd, timeout_ms))
 }
 
-/// The trait to represent DSP protocol.
+/// DSP protocol.
 ///
 /// DSP is configurable by quadlet write request with command aligned to little endian, which
 /// consists of two parts; 16 bit target and 16 bit coefficient. The command has odd parity
@@ -642,7 +642,7 @@ pub struct FfLatterInputState {
     pub mic_insts: Vec<bool>,
 }
 
-/// The trait to represent input protocol.
+/// Input protocol.
 pub trait RmeFfLatterInputOperation: RmeFfLatterDspOperation {
     const PHYS_INPUT_GAIN_MIN: i32 = 0;
     const PHYS_INPUT_GAIN_MAX: i32 = 120;
@@ -764,7 +764,7 @@ pub struct FfLatterOutputState {
     pub line_levels: Vec<LineOutNominalLevel>,
 }
 
-/// The trait to represent output protocol.
+/// Output protocol.
 pub trait RmeFfLatterOutputOperation: RmeFfLatterDspOperation {
     const PHYS_OUTPUT_VOL_MIN: i32 = -650;
     const PHYS_OUTPUT_VOL_MAX: i32 = 60;
@@ -881,7 +881,7 @@ pub struct FfLatterMixerState {
     pub stream_gains: Vec<u16>,
 }
 
-/// The trait to represent mixer protocol.
+/// Mixer protocol.
 pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
     const MIXER_INPUT_GAIN_MIN: i32 = 0x0000;
     const MIXER_INPUT_GAIN_ZERO: i32 = 0x9000;
@@ -948,7 +948,7 @@ pub trait RmeFfLatterMixerOperation: RmeFfLatterDspOperation {
 
 impl<O: RmeFfLatterDspOperation> RmeFfLatterMixerOperation for O {}
 
-/// The enum to represent level of roll off in high pass filter.
+/// Level of roll off in high pass filter.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfLatterHpfRollOffLevel {
     L6,
@@ -1013,7 +1013,7 @@ fn hpf_state_to_cmds(state: &FfLatterHpfState, ch_offset: u8) -> Vec<u32> {
     cmds
 }
 
-/// The enum to represent type of bandwidth equalizing.
+/// Type of bandwidth equalizing.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FfLatterChStripEqType {
     Peak,
@@ -1283,7 +1283,7 @@ pub struct FfLatterChStripState {
     pub autolevel: FfLatterAutolevelState,
 }
 
-/// The trait to represent channel strip protocol.
+/// Channel strip protocol.
 pub trait RmeFfLatterChStripOperation<T>: RmeFfLatterDspOperation {
     const CH_COUNT: usize;
     const CH_OFFSET: u8;
@@ -1766,7 +1766,7 @@ pub struct FfLatterFxState {
 const FX_MIXER_0: u16 = 0x1e;
 const FX_MIXER_1: u16 = 0x1f;
 
-/// The trait to represent mixer protocol.
+/// Mixer protocol.
 pub trait RmeFfLatterFxOperation: RmeFfLatterDspOperation {
     const FX_PHYS_LEVEL_MIN: i32 = -650;
     const FX_PHYS_LEVEL_MAX: i32 = 0;

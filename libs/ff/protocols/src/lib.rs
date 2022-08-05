@@ -13,7 +13,7 @@ use ieee1212_config_rom::*;
 
 const RME_OUI: u32 = 0x00000a35;
 
-/// The trait to represent parser of configuration rom for RME Fireface series.
+/// Parser of configuration rom for RME Fireface series.
 pub trait FfConfigRom {
     fn get_model_id(&self) -> Option<u32>;
 }
