@@ -14,7 +14,7 @@ mod latter_ctls;
 use {
     alsactl::{prelude::*, *},
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
-    ff_protocols as protocols,
+    firewire_fireface_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
