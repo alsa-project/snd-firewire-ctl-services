@@ -14,9 +14,15 @@ keywords = ["alsa", "ieee1394", "firewire", "protocol"]
 license = "LGPL-3.0-or-later"
 readme = "README.md"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
+[package.metadata.docs.rs]
+features = ["dox"]
 
 [dependencies]
 glib = "0.15"
 hinawa = "0.7"
 hitaki = "0.2"
 ieee1212-config-rom = "0.1"
+
+[features]
+# To suppress discovering C library when generating documentation in docs.rs.
+dox = ["glib/dox", "hinawa/dox", "hitaki/dox"]
