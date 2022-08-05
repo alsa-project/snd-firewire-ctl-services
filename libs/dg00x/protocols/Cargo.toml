@@ -8,6 +8,7 @@ categories = ["hardware-support", "multimedia"]
 description = """
 Implementation of protocol for Digi 00x family
 """
+documentation = "https://docs.rs/firewire-digi00x-protocols"
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
 keywords = ["alsa", "ieee1394", "firewire", "protocol"]
 license = "LGPL-3.0-or-later"
