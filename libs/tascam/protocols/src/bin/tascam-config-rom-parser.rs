@@ -2,6 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
+    firewire_tascam_protocols as protocols,
     glib::{FileError, MainContext, MainLoop},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
@@ -10,7 +11,6 @@ use {
     ieee1212_config_rom::*,
     protocols::config_rom::*,
     std::{convert::TryFrom, sync::Arc, thread},
-    tascam_protocols as protocols,
 };
 
 fn main() {

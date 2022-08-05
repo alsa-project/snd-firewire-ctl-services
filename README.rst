@@ -52,7 +52,7 @@ License
   * `firewire-oxfw-protocols`
   * `firewire-dice-protocols`
   * `firewire-digi00x-protocols`
-  * `tascam-protocols`
+  * `firewire-tascam-protocols`
   * `motu-protocols`
   * `ff-protocols`
 

@@ -17,6 +17,7 @@ use {
     alsaseq::{prelude::*, *},
     asynch_runtime::*,
     core::{card_cntr::*, RuntimeOperation},
+    firewire_tascam_protocols as protocols,
     glib::{source, Error, FileError, IsA},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
@@ -29,7 +30,6 @@ use {
     protocols::{config_rom::*, *},
     seq_cntr::*,
     std::convert::TryFrom,
-    tascam_protocols as protocols,
 };
 
 pub enum TascamRuntime {
