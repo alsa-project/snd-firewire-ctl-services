@@ -62,7 +62,7 @@ ta1394-avc-audio = { path = "libs/ta1394/audio" }
 ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
 ta1394-avc-ccm = { path = "libs/ta1394/ccm" }
 firewire-bebob-protocols = { path = "libs/bebob/protocols" }
-dg00x-protocols = { path = "libs/dg00x/protocols" }
+firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
 firewire-dice-protocols = { path = "libs/dice/protocols" }
 firewire-fireworks-protocols = { path = "libs/efw/protocols" }
 ff-protocols = { path = "libs/ff/protocols" }

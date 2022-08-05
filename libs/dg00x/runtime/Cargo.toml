@@ -19,5 +19,5 @@ alsactl = "0.4"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 ta1394-avc-general = "0.1"
-dg00x-protocols = "0.1"
+firewire-digi00x-protocols = "0.1"
 core = { path = "../../core" }

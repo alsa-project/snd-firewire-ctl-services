@@ -1,6 +1,6 @@
 [package]
 edition = "2018"
-name = "dg00x-protocols"
+name = "firewire-digi00x-protocols"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
