@@ -2,7 +2,7 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
-    bebob_protocols as protocols,
+    firewire_bebob_protocols as protocols,
     glib::{FileError, MainContext, MainLoop},
     hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
     protocols::bridgeco::*,
