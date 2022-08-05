@@ -27,7 +27,7 @@ pub struct FormerMeterState {
     pub adat_outputs: Vec<i32>,
 }
 
-/// The trait to represent meter protocol of Fireface 400.
+/// Meter protocol of Fireface 400.
 pub trait RmeFfFormerMeterOperation {
     const METER_OFFSET: usize;
 
@@ -117,7 +117,7 @@ pub trait RmeFfFormerMeterOperation {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormerOutputVolumeState(pub Vec<i32>);
 
-/// The trait to represent output protocol specific to former models of RME Fireface.
+/// Output protocol specific to former models of RME Fireface.
 pub trait RmeFormerOutputOperation {
     const ANALOG_OUTPUT_COUNT: usize;
     const SPDIF_OUTPUT_COUNT: usize;
@@ -191,7 +191,7 @@ pub struct FormerMixerSrc {
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormerMixerState(pub Vec<FormerMixerSrc>);
 
-/// The trait to represent mixer protocol specific to former models of RME Fireface.
+/// Mixer protocol specific to former models of RME Fireface.
 pub trait RmeFormerMixerOperation {
     const ANALOG_INPUT_COUNT: usize;
     const SPDIF_INPUT_COUNT: usize;
