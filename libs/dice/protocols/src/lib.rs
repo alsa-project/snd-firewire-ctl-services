@@ -23,8 +23,8 @@ use {
 
 const QUADLET_SIZE: usize = 4;
 
-/// The trait to represent utility for conversion between quadlet-aligned byte array and computed value.
-pub trait QuadletConvert<T>: From<T> {
+/// For conversion between quadlet-aligned byte array and computed value.
+trait QuadletConvert<T>: From<T> {
     fn build_quadlet(&self, raw: &mut [u8]);
     fn parse_quadlet(&mut self, raw: &[u8]);
 }
@@ -125,9 +125,8 @@ impl QuadletConvert<u8> for u8 {
     }
 }
 
-/// The trait to represent utility for conversion between quadlet-aligned byte array and array of
-/// computed value.
-pub trait QuadletBlockConvert<T> {
+/// For conversion between quadlet-aligned byte array and array of computed value.
+trait QuadletBlockConvert<T> {
     fn build_quadlet_block(&self, raw: &mut [u8]);
     fn parse_quadlet_block(&mut self, raw: &[u8]);
 }
