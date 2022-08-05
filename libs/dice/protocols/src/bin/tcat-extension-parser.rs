@@ -2,7 +2,7 @@
 // Copyright (c) 2020 Takashi Sakamoto
 
 use {
-    dice_protocols as protocols,
+    firewire_dice_protocols as protocols,
     glib::{Error, FileError, MainContext, MainLoop},
     hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
     protocols::tcat::extension::{

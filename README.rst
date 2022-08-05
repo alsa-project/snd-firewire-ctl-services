@@ -50,7 +50,7 @@ License
   * `firewire-bebob-protocols`
   * `firewire-fireworks-protocols`
   * `firewire-oxfw-protocols`
-  * `dice-protocols`
+  * `firewire-dice-protocols`
   * `dg00x-protocols`
   * `tascam-protocols`
   * `motu-protocols`
