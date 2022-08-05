@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-//! Protocols defined for Mark of the Unicorn FireWire series.
-//!
-//! The crate includes protocols defined by Mark of the Unicorn for its FireWire series.
+#![doc = include_str!("../README.md")]
 
 pub mod command_dsp;
 pub mod config_rom;
