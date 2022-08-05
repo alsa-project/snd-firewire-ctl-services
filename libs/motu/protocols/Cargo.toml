@@ -4,10 +4,12 @@ name = "firewire-motu-protocols"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
+categories = ["hardware-support", "multimedia"]
 description = """
 Implementation of protocols defined by Mark of the Unicorn for its FireWire series.
 """
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+keywords = ["alsa", "ieee1394", "firewire", "protocol"]
 license = "LGPL-3.0-or-later"
 readme = "README.md"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
