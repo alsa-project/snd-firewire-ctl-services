@@ -80,3 +80,53 @@ The implementation of protocol is developed by the way of reverse engineering; s
 bus to which target device is connected, and analysis of the communication between the device and
 driver provided by hardware vendor. It's natural not to work with your device since developer
 worked with blackbox.
+
+## Utilities
+
+Some programs are available under 'src/bin' directory.
+
+### tascam-config-rom-parser.rs
+
+This program parses content of Configuration ROM specialized by TASCAM, then print the
+information.
+
+Without any command line argument, it prints help message and exit.
+
+```sh
+$ cargo run --bin tascam-config-rom-parser
+Usage:
+  tascam-config-rom-parser CDEV
+
+  where:
+    CDEV:       The path to special file of firewire character device, typically '/dev/fw1'.
+```
+
+Please run with an argument for firewire character device:
+
+```sh
+$ cargo run --bin tascam-config-rom-parser /dev/fw1
+...
+```
+
+### tascam-hardware-info.rs
+
+This program retrieves information from node of target device by protocol defined by TASCAM,
+then print the information.
+
+Without any command line argument, it prints help message and exit.
+
+```sh
+$ cargo run --bin tascam-hardware-info
+Usage:
+  tascam-hardware-info CDEV
+
+  where:
+    CDEV:       The path to special file of firewire character device, typically '/dev/fw1'.
+```
+
+Please run with an argument for firewire character device:
+
+```sh
+$ cargo run --bin tascam-hardware-info /dev/fw1
+...
+```
