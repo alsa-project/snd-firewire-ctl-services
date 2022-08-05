@@ -190,7 +190,7 @@
 
 use super::{tcat::tcd22xx_spec::*, *};
 
-/// The structure for protocol implementation specific to Saffire Pro 24 DSP.
+/// Protocol implementation specific to Saffire Pro 24 DSP.
 #[derive(Debug)]
 pub struct SPro24DspProtocol;
 
@@ -367,7 +367,7 @@ trait QuadletConvert {
     fn build(&self, quads: &mut [f32]);
 }
 
-/// The structure for state of compressor effect.
+/// State of compressor effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct Spro24DspCompressorState {
     /// The volume of output, between 0.0 to 64.0.
@@ -382,11 +382,11 @@ pub struct Spro24DspCompressorState {
     pub release: [f32; 2],
 }
 
-/// The structure for coefficients per frequency band.
+/// Coefficients per frequency band.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct Spro24DspEqualizerFrequencyBandState([f32; EQ_COEF_COUNT]);
 
-/// The structure for state of equalizer effect.
+/// State of equalizer effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct Spro24DspEqualizerState {
     /// The volume of output, between 0.0 to 1.0.
@@ -398,7 +398,7 @@ pub struct Spro24DspEqualizerState {
     pub high_coef: [Spro24DspEqualizerFrequencyBandState; 2],
 }
 
-/// The structure for state of reverb effect.
+/// State of reverb effect.
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct Spro24DspReverbState {
     /// The size of room, between 0.0 to 1.0.

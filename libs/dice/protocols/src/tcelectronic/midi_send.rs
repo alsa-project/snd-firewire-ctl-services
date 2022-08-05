@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure to represent channel and control code of MIDI event.
+/// Channel and control code of MIDI event.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct TcKonnektMidiMsgParams {
     /// The channel for MIDI message.
@@ -17,7 +17,7 @@ pub struct TcKonnektMidiMsgParams {
     pub cc: u8,
 }
 
-/// The structure to represent MIDI sender.
+/// MIDI sender.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct TcKonnektMidiSender {
     /// The parameter of MIDI message generated normally.

@@ -8,7 +8,7 @@
 
 use super::{global_section::*, *};
 
-/// The enumeration to represent parameter of ADAT input/output.
+/// Parameter of ADAT input/output.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum AdatParam {
     Normal,
@@ -58,7 +58,7 @@ impl From<AdatParam> for [u8; 4] {
     }
 }
 
-/// The enumeration to represent mode of word clock input/output.
+/// Mode of word clock input/output.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum WordClockMode {
     Normal,
@@ -85,14 +85,14 @@ impl std::fmt::Display for WordClockMode {
     }
 }
 
-/// The structure to represent rate of word clock input/output by enumerator and denominator.
+/// Rate of word clock input/output by enumerator and denominator.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct WordClockRate {
     pub numerator: u16,
     pub denominator: u16,
 }
 
-/// The structure to represent parameter of word clock input/output.
+/// Parameter of word clock input/output.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct WordClockParam {
     pub mode: WordClockMode,
@@ -137,7 +137,7 @@ impl From<WordClockParam> for [u8; 4] {
     }
 }
 
-/// The structure for protocol implementation of standalone section.
+/// Protocol implementation of standalone section.
 #[derive(Default)]
 pub struct StandaloneSectionProtocol;
 

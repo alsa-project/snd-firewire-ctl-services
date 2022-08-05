@@ -18,7 +18,7 @@ use super::{
 const KNOB_ASSIGN_OFFSET: usize = 0x00;
 const STANDALONE_MODE_OFFSET: usize = 0x04;
 
-/// The structure for protocol implementation specific to ProFire 2626.
+/// Protocol implementation specific to ProFire 2626.
 pub struct Pfire2626Protocol;
 
 impl PfireClkSpec for Pfire2626Protocol {
@@ -126,7 +126,7 @@ impl Tcd22xxSpecOperation for Pfire2626Protocol {
     ];
 }
 
-/// The structure for protocol implementation specific to ProFire 610.
+/// Protocol implementation specific to ProFire 610.
 pub struct Pfire610Protocol;
 
 impl PfireClkSpec for Pfire610Protocol {
@@ -138,7 +138,7 @@ impl PfireSpecificOperation for Pfire610Protocol {
     const SUPPORT_STANDALONE_CONVERTER: bool = false;
 }
 
-/// The trait to represent available rate and source of sampling clock.
+/// Available rates and sources of sampling clock.
 pub trait PfireClkSpec {
     const AVAIL_CLK_RATES: [ClockRate; 7] = [
         ClockRate::R32000,
@@ -195,14 +195,14 @@ impl Tcd22xxSpecOperation for Pfire610Protocol {
     ];
 }
 
-/// The enumeration for mode of optical interface.
+/// Mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptIfaceMode {
     Spdif,
     Adat,
 }
 
-/// The enumeration for mode of standalone converter.
+/// Mode of standalone converter.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StandaloneConverterMode {
     AdDa,
@@ -213,7 +213,7 @@ const KNOB_ASSIGN_MASK: u32 = 0x0f;
 const OPT_IFACE_B_IS_SPDIF_FLAG: u32 = 0x10;
 const STANDALONE_CONVERTER_IS_AD_ONLY_FLAG: u32 = 0x02;
 
-/// The trait for protocol implementation specific to ProFire series.
+/// Protocol implementation specific to ProFire series.
 pub trait PfireSpecificOperation {
     const HAS_OPT_IFACE_B: bool;
     const SUPPORT_STANDALONE_CONVERTER: bool;

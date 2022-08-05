@@ -23,13 +23,13 @@ use super::{tcat::*, *};
 
 const BASE_OFFSET: usize = 0x00a01000;
 
-/// The trait to interpret data of segment.
+/// Data of segment.
 pub trait TcKonnektSegmentData: Default {
     fn build(&self, raw: &mut [u8]);
     fn parse(&mut self, raw: &[u8]);
 }
 
-/// The trait for specification of segment.
+/// Specification of segment.
 pub trait TcKonnektSegmentSpec {
     const OFFSET: usize;
     const SIZE: usize;
@@ -58,7 +58,7 @@ where
     }
 }
 
-/// The trait for operation of segment in TC Electronics Konnekt series.
+/// Operation of segment in TC Electronics Konnekt series.
 pub trait SegmentOperation<T>
 where
     T: TcKonnektSegmentData,
@@ -112,7 +112,7 @@ where
     }
 }
 
-/// The trait to represent specification for segment in which any change is notified to controller.
+/// Specification for segment in which any change is notified to controller.
 pub trait TcKonnektNotifiedSegmentSpec {
     const NOTIFY_FLAG: u32;
 

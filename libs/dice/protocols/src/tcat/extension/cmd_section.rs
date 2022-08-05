@@ -7,7 +7,7 @@
 //! section in protocol extension defined by TCAT for ASICs of DICE.
 use super::{caps_section::*, *};
 
-/// The enumeration to represent the mode of sampling transfer frequency.
+/// Mode of sampling transfer frequency.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RateMode {
     Low,
@@ -55,7 +55,7 @@ impl TryFrom<u32> for RateMode {
     }
 }
 
-/// The enumeration to represent opcode of command.
+/// Operation code of command.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Opcode {
     NoOp,
@@ -79,7 +79,7 @@ impl From<Opcode> for u16 {
     }
 }
 
-/// The structure for protocol implementation of command section.
+/// Protocol implementation of command section.
 #[derive(Default)]
 pub struct CmdSectionProtocol;
 

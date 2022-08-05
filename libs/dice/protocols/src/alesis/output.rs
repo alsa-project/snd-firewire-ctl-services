@@ -13,7 +13,7 @@ const MIXER_DIGITAL_B_67_SRC_OFFSET: usize = 0x0568;
 const SPDIF_OUT_SRC_OFFSET: usize = 0x056c;
 const HP34_SRC_OFFSET: usize = 0x0570;
 
-/// The enumeration to represent nominal level of signal.
+/// Nominal level of signal.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum NominalSignalLevel {
     /// -10dBV.
@@ -47,7 +47,7 @@ impl From<NominalSignalLevel> for u32 {
     }
 }
 
-/// The enumeration to represent source of 6/7 channels of digital B input.
+/// Source of 6/7 channels of digital B input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DigitalB67Src {
     Spdif12,
@@ -79,7 +79,7 @@ impl From<DigitalB67Src> for u32 {
     }
 }
 
-/// The enumeration to represent pair of mixer output.
+/// Pair of mixer output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MixerOutPair {
     Mixer01,
@@ -116,7 +116,7 @@ impl From<MixerOutPair> for u32 {
     }
 }
 
-/// The trait to represent output protocol for iO FireWire series.
+/// Protocol of output for iO FireWire series.
 pub trait IofwOutputOperation {
     const ANALOG_OUTPUT_COUNT: usize;
     const HAS_OPT_IFACE_B: bool;

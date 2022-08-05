@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure for protocol implementation of application section.
+/// Protocol implementation of application section.
 #[derive(Default)]
 pub struct ApplSectionProtocol;
 

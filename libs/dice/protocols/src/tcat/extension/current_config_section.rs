@@ -12,7 +12,7 @@ use super::{
     {caps_section::*, cmd_section::*, *},
 };
 
-/// The structure of protocol implementation of current configuration section.
+/// Protocol implementation of current configuration section.
 #[derive(Default)]
 pub struct CurrentConfigSectionProtocol;
 

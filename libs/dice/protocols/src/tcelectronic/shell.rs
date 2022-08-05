@@ -24,7 +24,7 @@ const SHELL_HW_STATE_NOTIFY_FLAG: u32 = 0x01000000;
 
 const SHELL_CH_STRIP_COUNT: usize = 2;
 
-/// The enumeration to represent state of jack sense for analog input.
+/// State of jack sense for analog input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ShellAnalogJackState {
     FrontSelected,
@@ -77,7 +77,7 @@ impl From<ShellAnalogJackState> for u32 {
 /// The number of analog inputs which has jack sense.
 pub const SHELL_ANALOG_JACK_STATE_COUNT: usize = 2;
 
-/// The structure to represent hardware state.
+/// Hardware state.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ShellHwState {
     pub analog_jack_states: [ShellAnalogJackState; SHELL_ANALOG_JACK_STATE_COUNT],
@@ -102,7 +102,7 @@ impl ShellHwState {
     }
 }
 
-/// The structure to represent parameter of monitor source.
+/// Parameter of monitor source.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct MonitorSrcParam {
     ///  ch 1 gain to mixer ch 1/2 (0xfffffc18..0x00000000, -90.0..0.00 dB)
@@ -141,7 +141,7 @@ impl MonitorSrcParam {
     }
 }
 
-/// The structure to represent monitor source.
+/// Monitor source.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct ShellMonitorSrcPair {
     ///  ch 1/2 stereo link (0 or 1)
@@ -168,7 +168,7 @@ impl ShellMonitorSrcPair {
     }
 }
 
-/// The structure to represent mute state for monitor sources.
+/// Mute state for monitor sources.
 #[derive(Debug)]
 pub struct ShellMonitorSrcMute {
     pub stream: bool,
@@ -176,7 +176,7 @@ pub struct ShellMonitorSrcMute {
     pub digital: Vec<bool>,
 }
 
-/// The structure to represent state of mixer.
+/// State of mixer.
 #[derive(Debug)]
 pub struct ShellMixerState {
     pub stream: ShellMonitorSrcPair,
@@ -344,7 +344,7 @@ pub trait ShellMixerStateConvert {
     }
 }
 
-/// The structure to represent return configuration of reverb effect.
+/// Return configuration of reverb effect.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct ShellReverbReturn {
     /// Whether to use reverb effect as plugin. When enabled, return of reverb effect is delivered
@@ -376,7 +376,7 @@ impl ShellReverbReturn {
     }
 }
 
-/// The structure to represent meter information. -1000..0 (-94.0..0 dB).
+/// Meter information. -1000..0 (-94.0..0 dB).
 #[derive(Default, Debug)]
 pub struct ShellMixerMeter {
     pub stream_inputs: [i32; Self::STREAM_INPUT_COUNT],
@@ -504,7 +504,7 @@ pub trait ShellMixerMeterConvert {
     }
 }
 
-/// The enumeration to represent available source for sampling clock.
+/// Available source for sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ShellPhysOutSrc {
     Stream,
@@ -541,7 +541,7 @@ impl From<ShellPhysOutSrc> for u32 {
     }
 }
 
-/// The enumeration to represent format of optical input interface.
+/// Format of optical input interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ShellOptInputIfaceFormat {
     Adat0to7,
@@ -575,7 +575,7 @@ impl From<ShellOptInputIfaceFormat> for u32 {
     }
 }
 
-/// The enumeration to represent format of optical output interface.
+/// Format of optical output interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ShellOptOutputIfaceFormat {
     Adat,
@@ -606,11 +606,11 @@ impl From<ShellOptOutputIfaceFormat> for u32 {
     }
 }
 
-/// The enumeration to represent source for optical output interface.
+/// Source for optical output interface.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ShellOptOutputSrc(pub ShellPhysOutSrc);
 
-/// The structure to represent configuration for optical interface.
+/// Configuration for optical interface.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ShellOptIfaceConfig {
     pub input_format: ShellOptInputIfaceFormat,
@@ -638,11 +638,11 @@ impl ShellOptIfaceConfig {
     }
 }
 
-/// The structure to represent source of coaxial output interface.
+/// Source of coaxial output interface.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ShellCoaxOutPairSrc(pub ShellPhysOutSrc);
 
-/// The enumeration to represent available source for sampling clock.
+/// Available source for sampling clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ShellStandaloneClkSrc {
     Optical,
@@ -680,7 +680,7 @@ pub trait ShellStandaloneClkSpec: TcKonnektSegmentData {
     const STANDALONE_CLOCK_SOURCES: &'static [ShellStandaloneClkSrc];
 }
 
-/// The structure to represent source pair of stream to mixer.
+/// Source pair of stream to mixer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ShellMixerStreamSrcPair {
     Stream01,
@@ -726,26 +726,26 @@ impl From<ShellMixerStreamSrcPair> for u32 {
     }
 }
 
-/// The trait to represent specification for source pair of stream to mixer.
+/// Specification for source pair of stream to mixer.
 pub trait ShellMixerStreamSrcPairSpec {
     const MAXIMUM_STREAM_SRC_PAIR_COUNT: usize;
 }
 
-/// The wrapper to represent target of knob.
+/// Target of knob.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct ShellKnobTarget(pub u32);
 
-/// The trait to represent maximum value of knob 2.
+/// Maximum value of knob.
 pub trait ShellKnobTargetSpec {
     const HAS_SPDIF: bool;
     const HAS_EFFECTS: bool;
 }
 
-/// The wrapper to represent target of knob 2.
+/// Target of knob 2.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct ShellKnob2Target(pub u32);
 
-/// The trait to represent maximum value of knob 2.
+/// Maximum value of knob 2.
 pub trait ShellKnob2TargetSpec {
     const KNOB2_TARGET_COUNT: usize;
 }

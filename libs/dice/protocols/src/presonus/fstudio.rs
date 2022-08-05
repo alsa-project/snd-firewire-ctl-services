@@ -5,7 +5,7 @@
 
 use super::{tcat::*, *};
 
-/// The structure for protocol implementation specific to FireStudio.
+/// Protocol implementation specific to FireStudio.
 #[derive(Default)]
 pub struct FStudioProtocol;
 
@@ -31,7 +31,7 @@ fn presonus_write(
     GeneralProtocol::write(req, node, OFFSET + offset, raw, timeout_ms)
 }
 
-/// The structure for hardware meter.
+/// Hardware meter.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct FStudioMeter {
     pub analog_inputs: [u8; 8],
@@ -65,7 +65,7 @@ impl FStudioProtocol {
     }
 }
 
-/// The enumeration to represent source of output.
+/// Source of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OutputSrc {
     Analog(usize),
@@ -112,7 +112,7 @@ impl From<OutputSrc> for u32 {
     }
 }
 
-/// The structure to represent state of outputs for FireStudio.
+/// State of outputs for FireStudio.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct OutputState {
     pub vols: [u8; 18],
@@ -283,7 +283,7 @@ impl FStudioProtocol {
     }
 }
 
-/// The enumeration to represent target of output assignment.
+/// Target of output assignment.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum AssignTarget {
     Analog01,
@@ -416,7 +416,7 @@ impl FStudioProtocol {
     }
 }
 
-/// The enumeration to represent mode of mixer expansion.
+/// Mode of mixer expansion.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ExpansionMode {
     Stream10_17,
@@ -447,7 +447,7 @@ impl From<ExpansionMode> for u32 {
     }
 }
 
-/// The structure to represent params of mixer sources.
+/// Parameters of mixer sources.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SrcParams {
     pub gains: [u8; 18],
@@ -455,7 +455,7 @@ pub struct SrcParams {
     pub mutes: [bool; 18],
 }
 
-/// The structure to represent params of mixer outputs.
+/// Parameters of mixer outputs.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct OutParams {
     pub vols: [u8; MIXER_COUNT],

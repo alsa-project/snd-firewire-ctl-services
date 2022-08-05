@@ -8,7 +8,7 @@
 
 use super::{ch_strip::*, fw_led::*, midi_send::*, prog::*, reverb::*, standalone::*, *};
 
-/// The structure for protocol implementation of Studio Konnekt 48.
+/// Protocol implementation of Studio Konnekt 48.
 #[derive(Default)]
 pub struct Studiok48Protocol;
 
@@ -75,7 +75,7 @@ const STUDIO_CH_STRIP_NOTIFY_23_CHANGE: u32 = 0x00800000;
 const STUDIO_HW_STATE_NOTIFY_FLAG: u32 = 0x04000000;
 // NOTE: 0x08000000 is for remote controller.
 
-/// The enumeration to represent line output level.
+/// Line output level.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum NominalSignalLevel {
     /// +4dBu.
@@ -109,7 +109,7 @@ impl From<NominalSignalLevel> for u32 {
     }
 }
 
-/// The structure to represent a set of line output levels.
+/// Line output levels.
 #[derive(Default, Debug)]
 pub struct StudioLineOutLevel {
     pub line_45: NominalSignalLevel,
@@ -147,7 +147,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioLineOutLevel> {
     const NOTIFY_FLAG: u32 = STUDIO_LINE_OUT_LEVEL_NOTIFY_FLAG;
 }
 
-/// The enumeration to represent mode of remote effect button.
+/// Mode of remote effect button.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RemoteEffectButtonMode {
     Reverb,
@@ -179,7 +179,7 @@ impl From<RemoteEffectButtonMode> for u32 {
     }
 }
 
-/// The enumeration to represent mode of knob target at pushed state.
+/// Mode of knob target at pushed state.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum KnobPushMode {
     Pan,
@@ -219,7 +219,7 @@ impl From<KnobPushMode> for u32 {
 /// The number of entries for user-assigned button.
 pub const STUDIO_REMOTE_USER_ASSIGN_COUNT: usize = 6;
 
-/// The structure to represent state of remote controller.
+/// State of remote controller.
 #[derive(Default, Debug)]
 pub struct StudioRemote {
     pub prog: TcKonnektLoadedProgram,
@@ -265,7 +265,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioRemote> {
     const NOTIFY_FLAG: u32 = STUDIO_REMOTE_NOTIFY_FLAG;
 }
 
-/// The enumeration to represent mode of optical interface.
+/// Mode of optical interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptIfaceMode {
     Adat,
@@ -294,7 +294,7 @@ impl From<OptIfaceMode> for u32 {
     }
 }
 
-/// The enumeration to represent source of standalone clock.
+/// Source of standalone clock.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StudioStandaloneClkSrc {
     Adat,
@@ -337,7 +337,7 @@ impl From<StudioStandaloneClkSrc> for u32 {
     }
 }
 
-/// The structure to represent configuration.
+/// Configuration.
 #[derive(Default, Debug)]
 pub struct StudioConfig {
     pub opt_iface_mode: OptIfaceMode,
@@ -378,7 +378,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioConfig> {
     const NOTIFY_FLAG: u32 = STUDIO_CONFIG_NOTIFY_FLAG;
 }
 
-/// The enumeration to represent entry of signal source.
+/// Entry of signal source.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SrcEntry {
     /// For unused.
@@ -448,7 +448,7 @@ impl From<SrcEntry> for u32 {
     }
 }
 
-/// The structure to represent state of output pair.
+/// State of output pair.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct OutPair {
     pub dim_enabled: bool,
@@ -510,7 +510,7 @@ impl From<MonitorSrcPairMode> for u32 {
     }
 }
 
-/// The structure to represent parameters of source of monitor.
+/// Parameters of source of monitor.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MonitorSrcParam {
     pub src: SrcEntry,
@@ -547,7 +547,7 @@ impl MonitorSrcParam {
     }
 }
 
-/// The structure to represent source of monitor.
+/// Source of monitor.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MonitorSrcPair {
     pub mode: MonitorSrcPairMode,
@@ -581,7 +581,7 @@ impl MonitorSrcPair {
 /// The number of pairs for source of monitor.
 pub const STUDIO_MIXER_SRC_PAIR_COUNT: usize = 12;
 
-/// The structure to represent state of mixer.
+/// State of mixer.
 #[derive(Default, Debug)]
 pub struct StudioMixerState {
     pub src_pairs: [MonitorSrcPair; STUDIO_MIXER_SRC_PAIR_COUNT],
@@ -669,7 +669,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioMixerState> {
     const NOTIFY_FLAG: u32 = STUDIO_MIXER_STATE_NOTIFY_FLAG;
 }
 
-/// The structure to represent parameter of each channel for source of physical output.
+/// Parameter of each channel for source of physical output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PhysOutSrcParam {
     pub src: SrcEntry,
@@ -697,7 +697,7 @@ impl PhysOutSrcParam {
     }
 }
 
-/// The structure to represent source of physical output.
+/// Source of physical output.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PhysOutPairSrc {
     pub stereo_link: bool,
@@ -725,7 +725,7 @@ impl PhysOutPairSrc {
     }
 }
 
-/// The enumeration to represent the highest frequency to cross over into LFE channel.
+/// The highest frequency to cross over into LFE channel.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum CrossOverFreq {
     F50,
@@ -771,7 +771,7 @@ impl From<CrossOverFreq> for u32 {
     }
 }
 
-/// The enumeration to represent the frequency above cross over frequency into main channel.
+/// The frequency above cross over frequency into main channel.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum HighPassFreq {
     Off,
@@ -808,7 +808,7 @@ impl From<HighPassFreq> for u32 {
     }
 }
 
-/// The enumeration to represent the frequency below cross over frequency into LFE channel.
+/// The frequency below cross over frequency into LFE channel.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum LowPassFreq {
     Below12,
@@ -916,7 +916,7 @@ pub const STUDIO_PHYS_OUT_PAIR_COUNT: usize = 11;
 /// The number of groups to aggregate several outputs for surround channels.
 pub const STUDIO_OUTPUT_GROUP_COUNT: usize = 3;
 
-/// The structure to represent data of physical out segment.
+/// Data of physical out segment.
 #[derive(Default, Debug)]
 pub struct StudioPhysOut {
     /// The configuration for master output
@@ -1062,7 +1062,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioChStripStates> {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-/// The enumeration to represent state of jack sense for analog input.
+/// State of jack sense for analog input.
 pub enum StudioAnalogJackState {
     FrontSelected,
     FrontInserted,
@@ -1102,7 +1102,7 @@ impl From<StudioAnalogJackState> for u32 {
 pub const STUDIO_ANALOG_JACK_STATE_COUNT: usize = 12;
 
 #[derive(Default, Debug)]
-/// The structure to represent hardware state.
+/// Hardware state.
 pub struct StudioHwState {
     pub analog_jack_states: [StudioAnalogJackState; STUDIO_ANALOG_JACK_STATE_COUNT],
     pub hp_state: [bool; 2],
@@ -1139,7 +1139,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<StudioHwState> {
     const NOTIFY_FLAG: u32 = STUDIO_HW_STATE_NOTIFY_FLAG;
 }
 
-/// The structure to represent meter for input/output of mixer.
+/// Meter for input/output of mixer.
 #[derive(Default, Debug)]
 pub struct StudioMixerMeter {
     pub src_inputs: [i32; 24],

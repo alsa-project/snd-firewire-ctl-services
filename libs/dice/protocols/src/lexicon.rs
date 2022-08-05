@@ -19,7 +19,7 @@ const MIXER_REVERB_SRC_OFFSET: usize = 0x0360;
 const METER_OFFSET: usize = 0x0500;
 const EFFECT_OFFSET: usize = 0x4000;
 
-/// The structure for protocol implementation specific to Lexicon I-ONIX FW810s.
+/// Protocol implementation specific to Lexicon I-ONIX FW810s.
 pub struct IonixProtocol;
 
 fn lexicon_read(
@@ -79,7 +79,7 @@ impl IonixProtocol {
 }
 
 #[derive(Default, Debug)]
-/// The structure to represent hardware meter.
+/// Hardware meter.
 pub struct IonixMeter {
     pub analog_inputs: [i32; IonixProtocol::ANALOG_INPUT_COUNT],
     pub spdif_inputs: [i32; IonixProtocol::SPDIF_INPUT_COUNT],
@@ -88,7 +88,7 @@ pub struct IonixMeter {
     pub main_outputs: [i32; IonixProtocol::MIXER_MAIN_COUNT],
 }
 
-/// The structure to represent entry of hardware meter.
+/// Entry of hardware meter.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 struct IonixMeterEntry {
     /// The level of audio signal from the source to the destination.
@@ -179,7 +179,7 @@ impl IonixProtocol {
     }
 }
 
-/// The enumeration to represent source of mixer.
+/// Source of mixer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MixerSrc {
     Stream(usize),

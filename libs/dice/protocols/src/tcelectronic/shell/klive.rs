@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure for protocol implementation of Konnekt Live.
+/// Protocol implementation of Konnekt Live.
 #[derive(Default)]
 pub struct KliveProtocol;
 
@@ -50,7 +50,7 @@ impl SegmentOperation<KliveReverbMeter> for KliveProtocol {}
 pub type KliveChStripMetersSegment = TcKonnektSegment<KliveChStripMeters>;
 impl SegmentOperation<KliveChStripMeters> for KliveProtocol {}
 
-/// The structure to represent state of knob.
+/// State of knob.
 #[derive(Default, Debug)]
 pub struct KliveKnob {
     pub target: ShellKnobTarget,
@@ -93,7 +93,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<KliveKnob> {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
-/// The structure to represent configuration.
+/// Configuration.
 #[derive(Default, Debug)]
 pub struct KliveConfig {
     pub opt: ShellOptIfaceConfig,
@@ -237,7 +237,7 @@ impl From<ChStripMode> for u32 {
     }
 }
 
-/// The structureto represent state of mixer.
+/// State of mixer.
 #[derive(Debug)]
 pub struct KliveMixerState {
     /// The common structure for state of mixer.
@@ -471,7 +471,7 @@ impl TcKonnektSegmentSpec for TcKonnektSegment<KliveChStripMeters> {
     const SIZE: usize = ChStripMeter::SIZE * SHELL_CH_STRIP_COUNT + 4;
 }
 
-/// The enumeration to represent impedance of output.
+/// Impedance of output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OutputImpedance {
     Unbalance,

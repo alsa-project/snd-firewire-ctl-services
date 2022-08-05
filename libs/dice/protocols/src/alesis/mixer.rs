@@ -29,7 +29,7 @@ const STREAM_INPUT_COUNT: usize = 8;
 const MIXER_COUNT: usize = 8;
 const MIXER_PAIR_COUNT: usize = 8 / 4;
 
-/// The structure to represent parameters of mixer. 0x00000000..0x007fffff (-60.0..0.0 dB).
+/// Parameters of mixer. 0x00000000..0x007fffff (-60.0..0.0 dB).
 #[derive(Debug, Clone)]
 pub struct IofwMixerGain {
     pub analog_inputs: Vec<i32>,
@@ -104,7 +104,7 @@ impl IofwMixerGain {
     }
 }
 
-/// The structure to represent mute state of mixer input pairs.
+/// Mute state of mixer input pairs.
 #[derive(Debug, Clone)]
 pub struct IofwMixerMute {
     pub analog_inputs: Vec<bool>,
@@ -190,7 +190,7 @@ impl IofwMixerMute {
     }
 }
 
-/// The structure to represent state of knobs.
+/// State of knobs.
 #[derive(Default, Debug, Copy, Clone)]
 pub struct IoKnobState {
     /// The ratio to mix monitored inputs and stream inputs. 0x0000..0x0100.
@@ -210,7 +210,7 @@ impl IoKnobState {
     }
 }
 
-/// The structure to represent state of mixer.
+/// State of mixer.
 #[derive(Default, Debug)]
 pub struct IofwMixerState {
     pub gains: Vec<IofwMixerGain>,

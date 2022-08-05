@@ -8,7 +8,7 @@
 
 use super::{tcat::tcd22xx_spec::*, *};
 
-/// The structure for protocol implementation specific to Saffire Pro 26.
+/// Protocol implementation specific to Saffire Pro 26.
 #[derive(Default)]
 pub struct SPro26Protocol;
 

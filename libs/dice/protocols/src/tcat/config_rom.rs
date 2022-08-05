@@ -8,7 +8,7 @@
 
 use ieee1212_config_rom::*;
 
-/// The structure to represent identifier in bus information block of Configuration ROM.
+/// Identifier in bus information block of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct Identifier {
     pub vendor_id: u32,
@@ -17,7 +17,7 @@ pub struct Identifier {
     pub serial: u32,
 }
 
-/// The structure to represent data in root directory block of Configuration ROM.
+/// Data in root directory block of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct RootData<'a> {
     pub vendor_id: u32,
@@ -26,7 +26,7 @@ pub struct RootData<'a> {
     pub product_name: &'a str,
 }
 
-/// The structure to represent data in unit directory block of Configuration ROM.
+/// Data in unit directory block of Configuration ROM.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct UnitData<'a> {
     pub model_id: u32,

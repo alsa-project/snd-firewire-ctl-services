@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The enumeration to represent algorithm of reverb effect.
+/// Algorithm of reverb effect.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ReverbAlgorithm {
     Live1,
@@ -95,7 +95,7 @@ impl From<ReverbAlgorithm> for u32 {
     }
 }
 
-/// The structure to represent state of reverb effect.
+/// State of reverb effect.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ReverbState {
     /// The level of input. -24..0 (-24.0..0.0 dB).
@@ -184,7 +184,7 @@ impl ReverbState {
     }
 }
 
-/// The structure to represent meter of reverb effect.
+/// Meter of reverb effect.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ReverbMeter {
     /// The meter of left and right outputs. -1000..500 (-24.0..12.0 dB)

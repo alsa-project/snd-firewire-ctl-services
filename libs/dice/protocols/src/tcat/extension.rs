@@ -26,7 +26,7 @@ use {
     std::cmp::Ordering,
 };
 
-/// The structure to represent sections for protocol extension.
+/// Sections for protocol extension.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExtensionSections {
     pub caps: Section,
@@ -61,7 +61,7 @@ impl From<&[u8]> for ExtensionSections {
     }
 }
 
-/// The enumeration to represent any error of protocol extension.
+/// Any error of protocol extension.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ProtocolExtensionError {
     Caps,
@@ -161,7 +161,7 @@ fn extension_write(
     GeneralProtocol::write(req, node, EXTENSION_OFFSET + offset, frames, timeout_ms)
 }
 
-/// The structure for protocol implementation of extension section.
+/// Protocol implementation of extension section.
 #[derive(Default)]
 pub struct ProtocolExtension;
 
@@ -177,7 +177,7 @@ impl ProtocolExtension {
     }
 }
 
-/// The enumeration to represent ID of destination block.
+/// Identifier of destination block.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DstBlkId {
     Aes,
@@ -198,14 +198,14 @@ impl Default for DstBlkId {
     }
 }
 
-/// The structure to represent destination block.
+/// Destination block in router function.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct DstBlk {
     pub id: DstBlkId,
     pub ch: u8,
 }
 
-/// The enumeration to represent ID of source block.
+/// Identifier of source block.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum SrcBlkId {
     Aes,
@@ -226,14 +226,14 @@ impl Default for SrcBlkId {
     }
 }
 
-/// The structure to represent source block.
+/// Source block in router function.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct SrcBlk {
     pub id: SrcBlkId,
     pub ch: u8,
 }
 
-/// The structure to represent entry of route.
+/// Entry of route in router function.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct RouterEntry {
     pub dst: DstBlk,
@@ -241,7 +241,7 @@ pub struct RouterEntry {
     pub peak: u16,
 }
 
-/// The structure to represent entry of stream format.
+/// Entry of stream format.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct FormatEntry {
     pub pcm_count: u8,

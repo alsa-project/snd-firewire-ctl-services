@@ -11,7 +11,7 @@ use super::{tcat::tcd22xx_spec::*, *};
 const ANALOG_OUT_0_1_PAD_OFFSET: usize = 0x0040;
 const IO_FLAGS_OFFSET: usize = 0x005c;
 
-/// The structure for protocol implementation specific to Saffire Pro 40.
+/// Protocol implementation specific to Saffire Pro 40.
 #[derive(Default)]
 pub struct SPro40Protocol;
 
@@ -131,7 +131,7 @@ impl SaffireproOutGroupOperation for SPro40Protocol {
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
 }
 
-/// The enumeration to represent type of signal for optical output interface.
+/// Type of signal for optical output interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptOutIfaceMode {
     Adat,
@@ -144,7 +144,7 @@ impl Default for OptOutIfaceMode {
     }
 }
 
-/// The trait to represent protocol specific to Saffire Pro 26.
+/// Protocol specific to Saffire Pro 26.
 impl SPro40Protocol {
     pub fn read_analog_out_0_1_pad(
         req: &mut FwReq,

@@ -111,7 +111,7 @@ use {
 
 mod utils;
 
-/// The structure to represent section in control and status register (CSR) of node.
+/// Section in control and status register (CSR) of node.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Section {
     pub offset: usize,
@@ -136,7 +136,7 @@ impl From<&[u8]> for Section {
     }
 }
 
-/// The structure to represent the set of sections in CSR of node.
+/// The sset of sections in CSR of node.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GeneralSections {
     pub global: Section,
@@ -163,7 +163,7 @@ impl From<&[u8]> for GeneralSections {
     }
 }
 
-/// The enumeration to represent any error of general protocol.
+/// Any error of general protocol.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GeneralProtocolError {
     Global,
@@ -210,7 +210,7 @@ impl ErrorDomain for GeneralProtocolError {
     }
 }
 
-/// The structure for protocol implementation of TCAT general protocol.
+/// Protocol implementation of TCAT general protocol.
 #[derive(Default)]
 pub struct GeneralProtocol;
 
@@ -282,7 +282,7 @@ impl GeneralProtocol {
     }
 }
 
-/// The structure to represent parameter of stream format for IEC 60958.
+/// Parameter of stream format for IEC 60958.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Iec60958Param {
     pub cap: bool,

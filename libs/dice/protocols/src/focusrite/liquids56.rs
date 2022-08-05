@@ -17,7 +17,7 @@ const METER_DISPLAY_TARGET_OFFSET: usize = 0x029c;
 const ANALOG_INPUT_LEVEL_OFFSET: usize = 0x02b4;
 const LED_OFFSET: usize = 0x02bc;
 
-/// The structure for protocol implementation specific to Liquid Saffire 56.
+/// Protocol implementation specific to Liquid Saffire 56.
 #[derive(Default)]
 pub struct LiquidS56Protocol;
 
@@ -233,7 +233,7 @@ impl SaffireproOutGroupOperation for LiquidS56Protocol {
     const DIM_MUTE_NOTICE: u32 = DIM_MUTE_SW_NOTICE;
 }
 
-/// The enumeration to represent type of signal for optical output interface.
+/// Type of signal for optical output interface.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OptOutIfaceMode {
     Adat,
@@ -241,7 +241,7 @@ pub enum OptOutIfaceMode {
     AesEbu,
 }
 
-/// The enumeration to represent emulation type of mic pre amp.
+/// Emulation type of mic pre amp.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MicAmpEmulationType {
     Flat,
@@ -296,7 +296,7 @@ impl From<MicAmpEmulationType> for u32 {
     }
 }
 
-/// The enumeration to represent level of analog input.
+/// Level of analog input.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum AnalogInputLevel {
     Line,
@@ -328,7 +328,7 @@ impl From<AnalogInputLevel> for u8 {
     }
 }
 
-/// The enumeration to represent target of meter display.
+/// Target of meter display.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct LedState {
     pub adat1: bool,
@@ -378,7 +378,7 @@ impl LedState {
     }
 }
 
-/// The trait to represent protocol specific to Saffire Pro 26.
+/// Protocol specific to Saffire Pro 26.
 impl LiquidS56Protocol {
     pub fn read_analog_out_0_1_pad_offset(
         req: &mut FwReq,
@@ -735,7 +735,7 @@ impl LiquidS56Protocol {
         ApplSectionProtocol::write_appl_data(req, node, sections, LED_OFFSET, &mut raw, timeout_ms)
     }
 
-    /// The target of meter display represent index of router entry.
+    /// The target of meter display expresses index of router entry.
     pub fn read_meter_display_targets(
         req: &mut FwReq,
         node: &mut FwNode,

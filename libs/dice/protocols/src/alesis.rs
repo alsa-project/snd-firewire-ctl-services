@@ -15,7 +15,7 @@ use {
     super::{tcat::*, *},
 };
 
-/// The structure for protocol implementation specific to iO 14 FireWire.
+/// Protocol implementation specific to iO 14 FireWire.
 #[derive(Default)]
 pub struct Io14fwProtocol;
 
@@ -34,7 +34,7 @@ impl IofwOutputOperation for Io14fwProtocol {
     const HAS_OPT_IFACE_B: bool = false;
 }
 
-/// The structure for protocol implementation specific to iO 26 FireWire.
+/// Protocol implementation specific to iO 26 FireWire.
 #[derive(Default)]
 pub struct Io26fwProtocol;
 

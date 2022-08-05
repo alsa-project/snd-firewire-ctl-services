@@ -7,7 +7,7 @@
 //! format section in general protocol defined by TCAT for ASICs of DICE.
 use super::{utils::*, *};
 
-/// The structure to represent an entry for stream format in stream transmitted by the node.
+/// Entry for stream format in stream transmitted by the node.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct TxStreamFormatEntry {
     pub iso_channel: i8,
@@ -84,7 +84,7 @@ impl From<&TxStreamFormatEntry> for Vec<u8> {
     }
 }
 
-/// The structure for protocol implementation of tx stream format section.
+/// Protocol implementation of tx stream format section.
 #[derive(Default)]
 pub struct TxStreamFormatSectionProtocol;
 
