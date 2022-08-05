@@ -14,6 +14,7 @@ use {
     alsactl::{prelude::*, *},
     common_ctl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
+    firewire_oxfw_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
@@ -23,7 +24,6 @@ use {
     ieee1212_config_rom::*,
     model::*,
     nix::sys::signal,
-    oxfw_protocols as protocols,
     protocols::*,
     std::{convert::TryFrom, sync::mpsc},
     ta1394_avc_general::config_rom::*,

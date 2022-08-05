@@ -2,9 +2,9 @@
 // Copyright (c) 2021 Takashi Sakamoto
 
 use {
+    firewire_oxfw_protocols as protocols,
     glib::{FileError, MainContext, MainLoop},
     hinawa::{prelude::FwNodeExt, FwNode, FwNodeError, FwReq},
-    oxfw_protocols as protocols,
     protocols::oxford::*,
     std::{sync::Arc, thread},
 };
