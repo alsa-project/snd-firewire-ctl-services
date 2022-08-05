@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-//! The implementation for protocol defined by Tascam specific to FireWire series.
-//!
-//! The crate includes traits, structures, and enumerations for protocol defined by Tascam specific
-//! to its FireWire series.
-//!
-//! # The way to process events for control surface
+#![doc = include_str!("../README.md")]
+
+//! ## Process events for control surface
 //!
 //! Tascam FW-1884, FW-1082, and FE-8 have control surface, in which the hardware make no
 //! superficial change to the surface according to user operation. Instead, the surface notifies
