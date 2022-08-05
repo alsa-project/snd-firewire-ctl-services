@@ -4,11 +4,13 @@ name = "firewire-bebob-protocols"
 version = "0.1.0"
 # For publishing.
 authors = ["Takashi Sakamoto"]
+categories = ["hardware-support", "multimedia"]
 description = """
 Implementation of protocols defined by BridgeCo. AG and application vendors for DM1000, DM1100, and
 DM1500 ASICs with its BridgeCo. Enhanced Break Out Box (BeBoB) solution.
 """
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
+keywords = ["alsa", "ieee1394", "firewire", "protocol"]
 license = "LGPL-3.0-or-later"
 readme = "README.md"
 repository = "https://github.com/alsa-project/snd-firewire-ctl-services"
