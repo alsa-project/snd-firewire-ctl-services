@@ -51,7 +51,7 @@ License
   * `firewire-fireworks-protocols`
   * `firewire-oxfw-protocols`
   * `firewire-dice-protocols`
-  * `dg00x-protocols`
+  * `firewire-digi00x-protocols`
   * `tascam-protocols`
   * `motu-protocols`
   * `ff-protocols`
