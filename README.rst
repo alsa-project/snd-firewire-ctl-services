@@ -48,7 +48,7 @@ License
   Public License v3.0 or later with respect to clause for reverse engineering.
 
   * `firewire-bebob-protocols`
-  * `efw-protocols`
+  * `firewire-fireworks-protocols`
   * `oxfw-protocols`
   * `dice-protocols`
   * `dg00x-protocols`
