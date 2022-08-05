@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2022/07/24
+2022/08/05
 Takashi Sakamoto
 
 Introduction
@@ -35,26 +35,28 @@ snd-fireface-ctl-service
 License
 =======
 
-* Some library crates are released under MIT license.
+* Some library crates are released under MIT license. They are available in `<crates.io>`_
+  as well.
 
-  * `alsa-ctl-tlv-codec`
-  * `ieee1212-config-rom`
-  * `ta1394-avc-general`
-  * `ta1394-avc-audio`
-  * `ta1394-avc-stream-format`
-  * `ta1394-avc-ccm`
+  * `alsa-ctl-tlv-codec <https://crates.io/crates/alsa-ctl-tlv-codec>`_
+  * `ieee1212-config-rom <https://crates.io/crates/ieee1212-config-rom>`_
+  * `ta1394-avc-general <https://crates.io/crates/ta1394-avc-general>`_
+  * `ta1394-avc-audio <https://crates.io/crates/ta1394-avc-audio>`_
+  * `ta1394-avc-stream-format <https://crates.io/crates/ta1394-avc-stream-format>`_
+  * `ta1394-avc-ccm <https://crates.io/crates/ta1394-avc-ccm>`_
 
 * Some library crates for protocol implementation are released under GNU Lesser General
-  Public License v3.0 or later with respect to clause for reverse engineering.
+  Public License v3.0 or later with respect to clause for reverse engineering. They are
+  available in `<crates.io>`_ as well.
 
-  * `firewire-bebob-protocols`
-  * `firewire-fireworks-protocols`
-  * `firewire-oxfw-protocols`
-  * `firewire-dice-protocols`
-  * `firewire-digi00x-protocols`
-  * `firewire-tascam-protocols`
-  * `firewire-motu-protocols`
-  * `firewire-fireface-protocols`
+  * `firewire-bebob-protocols <https://crates.io/crates/firewire-bebob-protocols>`_
+  * `firewire-fireworks-protocols <https://crates.io/crates/firewire-fireworks-protocols>`_
+  * `firewire-oxfw-protocols <https://crates.io/crates/firewire-oxfw-protocols>`_
+  * `firewire-dice-protocols <https://crates.io/crates/firewire-dice-protocols>`_
+  * `firewire-digi00x-protocols <https://crates.io/crates/firewire-digi00x-protocols>`_
+  * `firewire-tascam-protocols <https://crates.io/crates/firewire-tascam-protocols>`_
+  * `firewire-motu-protocols <https://crates.io/crates/firewire-motu-protocols>`_
+  * `firewire-fireface-protocols <https://crates.io/crates/firewire-fireface-protocols>`_
 
 * The other crates are released under GNU General Public License Version 3.
 
@@ -67,6 +69,9 @@ Dependencies
 * libhinawa v2.5 or later `<https://github.com/alsa-project/libhinawa>`_
 * libhitaki v0.1 or later `<https://github.com/alsa-project/libhitaki>`_
 * alsa-gobject v0.3 or later `<https://github.com/alsa-project/alsa-gobject/>`_
+
+* The library crates enumerated in `License` section are downloaded from `<crates.io>`_ when
+  building.
 
 How to build
 ============

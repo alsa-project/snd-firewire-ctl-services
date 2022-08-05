@@ -28,44 +28,45 @@ ff-runtime = { path = "libs/ff/runtime" }
 
 [workspace]
 members = [
-    "libs/alsa-ctl-tlv-codec",
     "libs/core",
-    "libs/ieee1212-config-rom",
-    "libs/ta1394/general",
-    "libs/ta1394/audio",
-    "libs/ta1394/stream-format",
-    "libs/ta1394/ccm",
-    "libs/dg00x/protocols",
     "libs/dg00x/runtime",
-    "libs/tascam/protocols",
     "libs/tascam/runtime",
-    "libs/efw/protocols",
     "libs/efw/runtime",
-    "libs/motu/protocols",
     "libs/motu/runtime",
-    "libs/oxfw/protocols",
     "libs/oxfw/runtime",
-    "libs/bebob/protocols",
     "libs/bebob/runtime",
-    "libs/dice/protocols",
     "libs/dice/runtime",
-    "libs/ff/protocols",
     "libs/ff/runtime",
+# They are now available in crates.io.
+#    "libs/alsa-ctl-tlv-codec",
+#    "libs/ieee1212-config-rom",
+#    "libs/ta1394/general",
+#    "libs/ta1394/audio",
+#    "libs/ta1394/stream-format",
+#    "libs/ta1394/ccm",
+#    "libs/dg00x/protocols",
+#    "libs/tascam/protocols",
+#    "libs/efw/protocols",
+#    "libs/motu/protocols",
+#    "libs/oxfw/protocols",
+#    "libs/bebob/protocols",
+#    "libs/dice/protocols",
+#    "libs/ff/protocols",
 ]
 
-# They have plans to be published into crates.io.
-[patch.crates-io]
-alsa-ctl-tlv-codec = { path = "libs/alsa-ctl-tlv-codec" }
-ieee1212-config-rom = { path = "libs/ieee1212-config-rom" }
-ta1394-avc-general = { path = "libs/ta1394/general" }
-ta1394-avc-audio = { path = "libs/ta1394/audio" }
-ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
-ta1394-avc-ccm = { path = "libs/ta1394/ccm" }
-firewire-bebob-protocols = { path = "libs/bebob/protocols" }
-firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
-firewire-dice-protocols = { path = "libs/dice/protocols" }
-firewire-fireworks-protocols = { path = "libs/efw/protocols" }
-firewire-fireface-protocols = { path = "libs/ff/protocols" }
-firewire-motu-protocols = { path = "libs/motu/protocols" }
-firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
-firewire-tascam-protocols = { path = "libs/tascam/protocols" }
+# For development purpose.
+#[patch.crates-io]
+#alsa-ctl-tlv-codec = { path = "libs/alsa-ctl-tlv-codec" }
+#ieee1212-config-rom = { path = "libs/ieee1212-config-rom" }
+#ta1394-avc-general = { path = "libs/ta1394/general" }
+#ta1394-avc-audio = { path = "libs/ta1394/audio" }
+#ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
+#ta1394-avc-ccm = { path = "libs/ta1394/ccm" }
+#firewire-bebob-protocols = { path = "libs/bebob/protocols" }
+#firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
+#firewire-dice-protocols = { path = "libs/dice/protocols" }
+#firewire-fireworks-protocols = { path = "libs/efw/protocols" }
+#firewire-fireface-protocols = { path = "libs/ff/protocols" }
+#firewire-motu-protocols = { path = "libs/motu/protocols" }
+#firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
+#firewire-tascam-protocols = { path = "libs/tascam/protocols" }
