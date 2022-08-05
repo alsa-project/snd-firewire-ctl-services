@@ -21,7 +21,7 @@ use {
     alsactl::{prelude::*, *},
     common_ctl::*,
     core::{card_cntr::*, dispatcher::*, elem_value_accessor::*, RuntimeOperation},
-    dice_protocols as protocols,
+    firewire_dice_protocols as protocols,
     glib::{source, Error, FileError},
     hinawa::{
         prelude::{FwNodeExt, FwNodeExtManual},
