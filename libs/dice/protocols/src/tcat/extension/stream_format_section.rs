@@ -8,7 +8,7 @@
 
 use super::{caps_section::*, stream_format_entry::*, *};
 
-/// The structure for protocol implementation of stream format section.
+/// Protocol implementation of stream format section.
 #[derive(Default)]
 pub struct StreamFormatSectionProtocol;
 

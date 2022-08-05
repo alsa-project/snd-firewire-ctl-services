@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure to represent hardware meters. 0..0x007fff00 with 0x100 step (-90.0..0.0 dB)
+/// For hardware meters. 0..0x007fff00 with 0x100 step (-90.0..0.0 dB)
 #[derive(Default, Debug)]
 pub struct IofwMeterState {
     pub analog_inputs: Vec<i32>,
@@ -25,7 +25,7 @@ const MIXER_OUTPUT_COUNT: usize = 8;
 const METER_OFFSET: usize = 0x04c0;
 const METER_SIZE: usize = 160;
 
-/// The trait to represent protofol of hardware meter.
+/// Protofol of hardware meter.
 pub trait IofwMeterOperation {
     const ANALOG_INPUT_COUNT: usize;
     const DIGITAL_B_INPUT_COUNT: usize;

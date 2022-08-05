@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure for protocol implementation of Konnekt 8.
+/// Protocol implementation of Konnekt 8.
 #[derive(Default)]
 pub struct K8Protocol;
 
@@ -32,7 +32,7 @@ impl SegmentOperation<K8MixerMeter> for K8Protocol {}
 pub type K8HwStateSegment = TcKonnektSegment<K8HwState>;
 impl SegmentOperation<K8HwState> for K8Protocol {}
 
-/// The structure to represent state of knob.
+/// State of knob.
 #[derive(Default, Debug)]
 pub struct K8Knob {
     pub target: ShellKnobTarget,
@@ -69,7 +69,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Knob> {
     const NOTIFY_FLAG: u32 = SHELL_KNOB_NOTIFY_FLAG;
 }
 
-/// The structure to represent configuration.
+/// Configuration.
 #[derive(Default, Debug)]
 pub struct K8Config {
     pub coax_out_src: ShellCoaxOutPairSrc,
@@ -107,7 +107,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K8Config> {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
-/// The structureto represent state of mixer.
+/// State of mixer.
 #[derive(Debug)]
 pub struct K8MixerState {
     /// The common structure for state of mixer.

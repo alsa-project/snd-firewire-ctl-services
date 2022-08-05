@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The enumeration to represent type of source.
+/// Type of source.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ChStripSrcType {
     FemaleVocal,
@@ -127,7 +127,7 @@ impl From<ChStripSrcType> for u32 {
     }
 }
 
-/// The structure to represent state of compressor part.
+/// State of compressor part.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct CompState {
     /// The gain of input. 0..360 (-18.0..18.0 dB).
@@ -142,7 +142,7 @@ pub struct CompState {
     pub level: [u32; 3],
 }
 
-/// The structure to represent state of deesser part.
+/// State of deesser part.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct DeesserState {
     /// The ratio to deesser. 0..10 (0..100 %)
@@ -150,7 +150,7 @@ pub struct DeesserState {
     pub bypass: bool,
 }
 
-/// The structure to represent state of equalizer part.
+/// State of equalizer part.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EqState {
     pub enabled: bool,
@@ -163,14 +163,14 @@ pub struct EqState {
     pub freq: u32,
 }
 
-/// The structure to represent state of limitter part.
+/// State of limitter part.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct LimitterState {
     /// The threshold to limit. 0..72 (-18.0..+18.0)
     pub threshold: u32,
 }
 
-/// The structure to represent state entry of channel strip effect.
+/// State entry of channel strip effect.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ChStripState {
     pub src_type: ChStripSrcType,
@@ -201,7 +201,7 @@ fn calculate_ch_strip_state_segment_pos(idx: usize) -> usize {
     (((idx + 1) / 2) * 4) + idx * ChStripState::SIZE
 }
 
-/// The trait to represent conversion between data and raw.
+/// Conversion between data and raw.
 pub trait ChStripStatesConvert {
     fn build(&self, raw: &mut [u8]);
     fn parse(&mut self, raw: &[u8]);
@@ -307,7 +307,7 @@ impl ChStripStatesConvert for [ChStripState] {
     }
 }
 
-/// The structure to represent meter entry of channel strip effect.
+/// Meter entry of channel strip effect.
 #[derive(Default, Debug, Clone)]
 pub struct ChStripMeter {
     /// Input meter. -72..0 (-72.0..0.0 dB)
@@ -332,7 +332,7 @@ fn calculate_ch_strip_meter_segment_pos(idx: usize) -> usize {
     (((idx + 1) / 2) * 4) + idx * ChStripMeter::SIZE
 }
 
-/// The trait to represent conversion between data and raw.
+/// Conversion between data and raw.
 pub trait ChStripMetersConvert {
     fn build(&self, raw: &mut [u8]);
     fn parse(&mut self, raw: &[u8]);

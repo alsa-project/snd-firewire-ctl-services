@@ -7,7 +7,7 @@
 //! in protocol extension defined by TCAT for ASICs of DICE.
 use super::{caps_section::*, router_entry::*, *};
 
-/// The structure for protocol implementation of peak section.
+/// Protocol implementation of peak section.
 #[derive(Default)]
 pub struct PeakSectionProtocol;
 

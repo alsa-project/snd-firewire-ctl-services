@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure for protocol implementation of Impact Twin.
+/// Protocol implementation of Impact Twin.
 #[derive(Default)]
 pub struct ItwinProtocol;
 
@@ -50,7 +50,7 @@ impl SegmentOperation<ItwinReverbMeter> for ItwinProtocol {}
 pub type ItwinChStripMetersSegment = TcKonnektSegment<ItwinChStripMeters>;
 impl SegmentOperation<ItwinChStripMeters> for ItwinProtocol {}
 
-/// The structure to represent state of knob.
+/// State of knob.
 #[derive(Default, Debug)]
 pub struct ItwinKnob {
     pub target: ShellKnobTarget,
@@ -86,7 +86,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<ItwinKnob> {
 /// The number of pair for physical output.
 pub const ITWIN_PHYS_OUT_PAIR_COUNT: usize = 7;
 
-/// The enumeration to represent source of stream for mixer.
+/// Source of stream for mixer.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ItwinOutputPairSrc {
     MixerOut01,

@@ -31,7 +31,7 @@ const REVERB_VOLUME_OFFSET: usize = 0x44;
 const REVERB_DURATION_OFFSET: usize = 0x48;
 const REVERB_FEEDBACK_OFFSET: usize = 0x4c;
 
-/// The structure for protocol implementation of Avid Mbox 3 Pro.
+/// Protocol implementation of Avid Mbox 3 Pro.
 #[derive(Default)]
 pub struct Mbox3Protocol;
 
@@ -108,7 +108,7 @@ impl Tcd22xxSpecOperation for Mbox3Protocol {
     ];
 }
 
-/// The enumeration to represent usecase of standalone mode.
+/// Usecase of standalone mode.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum StandaloneUseCase {
     Preamp,
@@ -186,10 +186,10 @@ impl Mbox3Protocol {
     }
 }
 
-/// The alternative type to represent assignment map for master knob.
+/// Assignment map for master knob.
 pub type MasterKnobAssigns = [bool; 6];
 
-/// The enumeration to represent LED state of mute button.
+/// LED state of mute button.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MuteLedState {
     Off,
@@ -230,7 +230,7 @@ impl From<&MuteLedState> for u32 {
     }
 }
 
-/// The enumeration to represent LED state of mono button.
+/// LED state of mono button.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MonoLedState {
     Off,
@@ -267,7 +267,7 @@ impl From<&MonoLedState> for u32 {
     }
 }
 
-/// The enumeration to represent LED state of spkr button.
+/// LED state of spkr button.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SpkrLedState {
     Off,
@@ -351,7 +351,7 @@ impl From<&SpkrLedState> for u32 {
     }
 }
 
-/// The structure to represent status of buttons.
+/// Status of buttons.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ButtonLedState {
     pub mute: MuteLedState,
@@ -650,7 +650,7 @@ impl Mbox3Protocol {
     }
 }
 
-/// The enumration to represent type of reverb DSP.
+/// Type of reverb DSP.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ReverbType {
     Room1,

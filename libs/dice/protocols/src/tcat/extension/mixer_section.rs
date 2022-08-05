@@ -7,7 +7,7 @@
 //! in protocol extension defined by TCAT for ASICs of DICE.
 use super::{caps_section::*, *};
 
-/// The structure for protocol implementation of mixer section.
+/// Protocol implementation of mixer section.
 #[derive(Default)]
 pub struct MixerSectionProtocol;
 

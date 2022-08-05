@@ -52,7 +52,7 @@ impl ExtSyncBlock {
     }
 }
 
-/// The structure for protocol implementaion of external synchronization section.
+/// Protocol implementaion of external synchronization section.
 #[derive(Default)]
 pub struct ExtSyncSectionProtocol;
 

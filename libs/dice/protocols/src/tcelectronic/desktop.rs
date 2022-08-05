@@ -13,7 +13,7 @@ const DESKTOP_CONFIG_NOTIFY_FLAG: u32 = 0x00020000;
 const DESKTOP_MIXER_STATE_NOTIFY_FLAG: u32 = 0x00040000;
 const DESKTOP_PANEL_NOTIFY_FLAG: u32 = 0x00080000;
 
-/// The structure for protocol implementation of Desktop Konnekt 6.
+/// Protocol implementation of Desktop Konnekt 6.
 #[derive(Default)]
 pub struct Desktopk6Protocol;
 
@@ -37,7 +37,7 @@ impl SegmentOperation<DesktopPanel> for Desktopk6Protocol {}
 pub type Desktopk6MeterSegment = TcKonnektSegment<DesktopMeter>;
 impl SegmentOperation<DesktopMeter> for Desktopk6Protocol {}
 
-/// The enumeration to represent target of meter.
+/// Target of meter.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MeterTarget {
     Input,
@@ -71,7 +71,7 @@ impl From<MeterTarget> for u32 {
     }
 }
 
-/// The enumeration to represent current scene.
+/// Current scene.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum InputScene {
     MicInst,
@@ -105,7 +105,7 @@ impl From<InputScene> for u32 {
     }
 }
 
-/// The structure to represent state of panel.
+/// State of panel.
 #[derive(Default, Debug)]
 pub struct DesktopHwState {
     pub meter_target: MeterTarget,
@@ -186,7 +186,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopHwState> {
     const NOTIFY_FLAG: u32 = DESKTOP_HW_STATE_NOTIFY_FLAG;
 }
 
-/// The structure to represent configuration.
+/// Configuration.
 #[derive(Default, Debug)]
 pub struct DesktopConfig {
     pub standalone_rate: TcKonnektStandaloneClkRate,
@@ -215,7 +215,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<DesktopConfig> {
     const NOTIFY_FLAG: u32 = DESKTOP_CONFIG_NOTIFY_FLAG;
 }
 
-/// The enumeration to represent source of headphone.
+/// Source of headphone.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DesktopHpSrc {
     Stream23,
@@ -246,7 +246,7 @@ impl From<DesktopHpSrc> for u32 {
     }
 }
 
-/// The structure to represent state of mixer.
+/// State of mixer.
 #[derive(Default, Debug)]
 pub struct DesktopMixerState {
     /// The input level for ch 0 and 1. -1000..0 (-94.0..0.0 dB)

@@ -5,7 +5,7 @@
 
 use super::tcat::{extension::*, tcd22xx_spec::*};
 
-/// The structure for protocol implementation of PreSonus FireStudio Project.
+/// Protocol implementation of PreSonus FireStudio Project.
 #[derive(Default)]
 pub struct FStudioProjectProtocol;
 

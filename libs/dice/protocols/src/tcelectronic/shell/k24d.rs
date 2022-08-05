@@ -8,7 +8,7 @@
 
 use super::*;
 
-/// The structure for protocol implementation of Konnekt 24d.
+/// Protocol implementation of Konnekt 24d.
 #[derive(Default)]
 pub struct K24dProtocol;
 
@@ -50,7 +50,7 @@ impl SegmentOperation<K24dReverbMeter> for K24dProtocol {}
 pub type K24dChStripMetersSegment = TcKonnektSegment<K24dChStripMeters>;
 impl SegmentOperation<K24dChStripMeters> for K24dProtocol {}
 
-/// The structure to represent state of knob.
+/// State of knob.
 #[derive(Default, Debug)]
 pub struct K24dKnob {
     pub target: ShellKnobTarget,
@@ -134,7 +134,7 @@ impl TcKonnektNotifiedSegmentSpec for TcKonnektSegment<K24dConfig> {
     const NOTIFY_FLAG: u32 = SHELL_CONFIG_NOTIFY_FLAG;
 }
 
-/// The structure to represent state of mixer.
+/// State of mixer.
 #[derive(Debug)]
 pub struct K24dMixerState {
     /// The common structure for state of mixer.

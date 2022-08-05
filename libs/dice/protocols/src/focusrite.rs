@@ -18,7 +18,7 @@ use super::{
     *,
 };
 
-/// The trait for software notice protocol to update hardware parameter.
+/// Software notice protocol to update hardware parameter.
 pub trait SaffireproSwNoticeOperation {
     const SW_NOTICE_OFFSET: usize;
 
@@ -42,7 +42,7 @@ pub trait SaffireproSwNoticeOperation {
     }
 }
 
-/// The structure to represent a set of entries for output control.
+/// A set of entries for output control.
 #[derive(Default, Debug)]
 pub struct OutGroupState {
     pub vols: Vec<i8>,
@@ -58,7 +58,7 @@ pub struct OutGroupState {
     pub hw_knob_value: i8,
 }
 
-/// The trait for output group protocol.
+/// Output group protocol.
 pub trait SaffireproOutGroupOperation: SaffireproSwNoticeOperation {
     const ENTRY_COUNT: usize;
     const HAS_VOL_HWCTL: bool;
@@ -492,7 +492,7 @@ impl Default for SaffireproLineInputLevel {
 const MIC_INPUT_LEVEL_INSTRUMENT_FLAG: u16 = 0x0002;
 const LINE_INPUT_LEVEL_HIGH_FLAG: u16 = 0x0001;
 
-// The trait for input protocol specific to Pro 14 and Pro 24.
+/// Input protocol specific to Pro 14 and Pro 24.
 pub trait SaffireproInputOperation: SaffireproSwNoticeOperation {
     const MIC_INPUT_OFFSET: usize;
     const LINE_INPUT_OFFSET: usize;

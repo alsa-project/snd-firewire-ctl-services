@@ -7,7 +7,7 @@
 //! in general protocol defined by TCAT for ASICs of DICE.
 use super::{utils::*, *};
 
-/// The enumeration for nominal sampling rate.
+/// Nominal sampling rate.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClockRate {
     R32000,
@@ -146,7 +146,7 @@ impl std::fmt::Display for ClockRate {
     }
 }
 
-/// The enumeration for nominal sampling rate.
+/// Nominal sampling rate.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ClockSource {
     Aes1,
@@ -288,7 +288,7 @@ impl std::fmt::Display for ClockSource {
     }
 }
 
-/// The structure to represent configuration of clock.
+/// Configuration of clock.
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ClockConfig {
     pub rate: ClockRate,
@@ -321,7 +321,7 @@ impl From<ClockConfig> for u32 {
     }
 }
 
-/// The structure to represent status of sampling clock.
+/// Status of sampling clock.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ClockStatus {
     pub src_is_locked: bool,
@@ -346,7 +346,7 @@ impl From<u32> for ClockStatus {
     }
 }
 
-/// The structure to represent states of available clock source.
+/// States of available clock source.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ExtSourceStates {
     locked_bits: u16,
@@ -393,7 +393,7 @@ impl From<u32> for ExtSourceStates {
     }
 }
 
-/// The structure to represent capabilities of clock configurations.
+/// Capabilities of clock configurations.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ClockCaps {
     pub rate_bits: u16,
@@ -477,7 +477,7 @@ impl From<u32> for ClockCaps {
     }
 }
 
-/// The structure with labels for source of sampling clock.
+/// Labels for source of sampling clock.
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct ClockSourceLabels {
     pub entries: Vec<String>,
@@ -486,7 +486,7 @@ pub struct ClockSourceLabels {
 /// The maximum size of nickname in bytes.
 pub const NICKNAME_MAX_SIZE: usize = 64;
 
-/// The structure for protocol implementaion of global section.
+/// Protocol implementaion of global section.
 pub struct GlobalSectionProtocol;
 
 const OWNER_OFFSET: usize = 0x00;

@@ -8,7 +8,7 @@
 
 use super::tcat::{extension::*, tcd22xx_spec::*};
 
-/// The structure for protocol implementation of Mackie Onyx Blackbird.
+/// Protocol implementation of Mackie Onyx Blackbird.
 #[derive(Default)]
 pub struct BlackbirdProtocol;
 

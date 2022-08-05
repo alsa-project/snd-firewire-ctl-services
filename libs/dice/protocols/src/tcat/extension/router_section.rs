@@ -8,7 +8,7 @@
 
 use super::{caps_section::*, router_entry::*, *};
 
-/// The structure for protocol implementation of router section.
+/// Protocol implementation of router section.
 #[derive(Default)]
 pub struct RouterSectionProtocol;
 

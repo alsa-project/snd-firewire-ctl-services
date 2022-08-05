@@ -6,7 +6,7 @@
 //! The module includes enumeration for data of standalone configuration defined by TC Electronic
 //! for Konnekt series.
 
-/// The enumeration to represent available rate for sampling clock in standalone mode.
+/// Available rate for sampling clock in standalone mode.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TcKonnektStandaloneClkRate {
     R44100,

@@ -7,7 +7,7 @@
 //! section in protocol extension defined by TCAT for ASICs of DICE.
 use super::*;
 
-/// The structure to represent capability of router functionality.
+/// Capability of router functionality.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RouterCaps {
     pub is_exposed: bool,
@@ -41,7 +41,7 @@ impl From<&[u8]> for RouterCaps {
     }
 }
 
-/// The structure to represent capability of mixer functionality.
+/// Capability of mixer functionality.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MixerCaps {
     pub is_exposed: bool,
@@ -88,7 +88,7 @@ impl From<&[u8]> for MixerCaps {
     }
 }
 
-/// The enumeration to represent the type of ASIC.
+/// Type of ASIC.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AsicType {
     DiceII,
@@ -114,7 +114,7 @@ impl From<u8> for AsicType {
     }
 }
 
-/// The structure to represent capability of general functionality.
+/// Capability of general functionality.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GeneralCaps {
     pub dynamic_stream_format: bool,
@@ -166,7 +166,7 @@ impl From<&[u8]> for GeneralCaps {
     }
 }
 
-/// The structure to represent capabilities of each funtions.
+/// Capabilities of each funtions.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExtensionCaps {
     pub router: RouterCaps,
@@ -188,7 +188,7 @@ impl From<&[u8]> for ExtensionCaps {
     }
 }
 
-/// The structure for protocol implementation of capabilities section.
+/// Protocol implementation of capabilities section.
 #[derive(Default)]
 pub struct CapsSectionProtocol;
 
