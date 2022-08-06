@@ -6,7 +6,7 @@ version = "0.1.1"
 authors = ["Takashi Sakamoto"]
 categories = ["hardware-support", "multimedia"]
 description = """
-Implementation of protocol for Oxford Semiconductor FW970/971 chipset and vendor-specific models
+Implementation of protocol for Oxford Semiconductor FW970/971 ASICs and vendor-specific models
 """
 documentation = "https://docs.rs/firewire-oxfw-protocols"
 homepage = "https://alsa-project.github.io/gobject-introspection-docs/"
