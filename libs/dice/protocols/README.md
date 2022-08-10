@@ -6,14 +6,13 @@ Engine (DICE) solution and application devices connected to IEEE 1394 bus.
 TC Applied Technologies (TCAT) was established in 2003 as a result to split division of TC Group
 for digital audio microelectronic and software technologies. The first product was DICE II ASIC
 as single chip IEEE 1394 audio solution for pro and consumer applications. DICE II ASIC was
-manufacturered and distributed exclusively by WaveFront Semiconductor (formerly known as
-Alesis Semiconductor). DICE Jr (TCD2200 ASIC) and DICE Mini (TCD2210 ASIC) seems to be released
-around 2005. DICE III (TCD3070 ASIC) was launched in 2014 with better jitter performance than
-the previous.
+manufactured and distributed exclusively by WaveFront Semiconductor (formerly known as Alesis
+Semiconductor). DICE Jr (TCD2200 ASIC) and DICE Mini (TCD2210 ASIC) seems to be released around
+2005. DICE III (TCD3070 ASIC) was launched in 2014 with better jitter performance than the
+previous.
 
-Digital Interface Communication Engine (DICE) appeared to express solution including hardware
-abstraction layer in the ASICs and software stack to operate by common application programming
-interface.
+DICE appeared to express solution including hardware abstraction layer in the ASICs and software
+stack to operate by common application programming interface.
 
 When Music Group acquired TC Group in 2015, the ownership of TCAT was also moved. One of group
 company, CoolAudio International, distributes TCAT ASICs as well as WaveFront ICs. In 2017,
@@ -21,9 +20,10 @@ Music Group changed its name to Music Tribe.
 
 ## TCAT protocol
 
-TCAT prepared options of software stack for two types of protocols; TCAT protocol, and mLAN/OGT
-protocols. DICE II ASIC was utilized to Yamaha's mLAN 3rd generation; Yamaha n8/n12 (launched in
-2007), Steinberg MR816X/MR816CSX (launched in 2008).
+TCAT prepared options of software stack for two types of protocols; TCAT protocol, and
+mLAN (Music Local Area Network)/OGT (Open Generic Transporter) protocols. DICE II ASIC was
+utilized to Yamaha's mLAN 3rd generation; Yamaha n8/n12 (launched in 2007), Steinberg
+MR816X/MR816CSX (launched in 2008).
 
 The crate just supports TCAT protocol since mLAN/OGT protocols are closed. The protocol is
 categorized to two parts; common and extension. All of DICE-based devices support the common
