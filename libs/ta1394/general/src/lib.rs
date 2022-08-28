@@ -235,6 +235,12 @@ impl AvcCmdType {
     const GENERAL_INQUIRY: u8 = 0x04;
 }
 
+impl Default for AvcCmdType {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
 impl From<u8> for AvcCmdType {
     fn from(val: u8) -> Self {
         match val {
