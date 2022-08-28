@@ -1117,6 +1117,8 @@ pub struct ExtendedStreamFormatSingle {
 impl ExtendedStreamFormatSingle {
     const SUBFUNC: u8 = 0xc0;
 
+    const LENGTH_MIN: usize = 8;
+
     pub fn new(plug_addr: &PlugAddr) -> Self {
         ExtendedStreamFormatSingle {
             support_status: SupportStatus::NoInfo,
@@ -1141,13 +1143,14 @@ impl AvcStatus for ExtendedStreamFormatSingle {
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        self.op.parse_operands(addr, operands)?;
+        if operands.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
 
-        self.stream_format = StreamFormat::from_raw(&operands[7..]);
-
-        self.support_status = self.op.support_status;
-
-        Ok(())
+        self.op.parse_operands(addr, operands).map(|_| {
+            self.stream_format = StreamFormat::from_raw(&operands[7..]);
+            self.support_status = self.op.support_status;
+        })
     }
 }
 
@@ -1157,19 +1160,20 @@ impl AvcControl for ExtendedStreamFormatSingle {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.op.build_operands(addr, operands)?;
-        operands.append(&mut self.stream_format.to_raw());
-        Ok(())
+        self.op
+            .build_operands(addr, operands)
+            .map(|_| operands.append(&mut self.stream_format.to_raw()))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        self.op.parse_operands(addr, operands)?;
+        if operands.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
 
-        self.stream_format = StreamFormat::from_raw(&operands[7..]);
-
-        self.support_status = self.op.support_status;
-
-        Ok(())
+        self.op.parse_operands(addr, operands).map(|_| {
+            self.stream_format = StreamFormat::from_raw(&operands[7..]);
+            self.support_status = self.op.support_status;
+        })
     }
 }
 
@@ -1190,6 +1194,8 @@ pub struct ExtendedStreamFormatList {
 
 impl ExtendedStreamFormatList {
     const SUBFUNC: u8 = 0xc1;
+
+    const LENGTH_MIN: usize = 8;
 
     pub fn new(plug_addr: &PlugAddr, index: u8) -> Self {
         ExtendedStreamFormatList {
@@ -1212,23 +1218,25 @@ impl AvcStatus for ExtendedStreamFormatList {
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
         self.op.support_status = SupportStatus::Reserved(0xff);
-        self.op.build_operands(addr, operands)?;
-        operands.push(self.index);
-        Ok(())
+        self.op
+            .build_operands(addr, operands)
+            .map(|_| operands.push(self.index))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        self.op.parse_operands(addr, operands)?;
-
-        if self.index != operands[7] {
-            Err(AvcRespParseError::UnexpectedOperands(7))?;
+        if operands.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
 
-        self.stream_format = StreamFormat::from_raw(&operands[8..]);
-
-        self.support_status = self.op.support_status;
-
-        Ok(())
+        self.op.parse_operands(addr, operands).and_then(|_| {
+            if self.index != operands[7] {
+                Err(AvcRespParseError::UnexpectedOperands(7))
+            } else {
+                self.stream_format = StreamFormat::from_raw(&operands[8..]);
+                self.support_status = self.op.support_status;
+                Ok(())
+            }
+        })
     }
 }
 
