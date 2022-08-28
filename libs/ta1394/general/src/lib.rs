@@ -26,6 +26,12 @@ pub enum AvcSubunitType {
     Reserved(u8),
 }
 
+impl Default for AvcSubunitType {
+    fn default() -> Self {
+        Self::Reserved(AvcAddrSubunit::SUBUNIT_TYPE_MASK)
+    }
+}
+
 impl AvcSubunitType {
     const MONITOR: u8 = 0x00;
     const AUDIO: u8 = 0x01;
@@ -112,6 +118,15 @@ pub struct AvcAddrSubunit {
     pub subunit_id: u8,
 }
 
+impl Default for AvcAddrSubunit {
+    fn default() -> Self {
+        Self {
+            subunit_type: Default::default(),
+            subunit_id: Self::SUBUNIT_ID_MASK,
+        }
+    }
+}
+
 impl AvcAddrSubunit {
     const SUBUNIT_TYPE_SHIFT: usize = 3;
     const SUBUNIT_TYPE_MASK: u8 = 0x1f;
@@ -160,6 +175,12 @@ impl From<AvcAddrSubunit> for u8 {
 pub enum AvcAddr {
     Unit,
     Subunit(AvcAddrSubunit),
+}
+
+impl Default for AvcAddr {
+    fn default() -> Self {
+        Self::Unit
+    }
 }
 
 impl AvcAddr {
