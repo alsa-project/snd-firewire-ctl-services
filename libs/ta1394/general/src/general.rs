@@ -15,15 +15,21 @@ pub struct UnitInfo {
     pub company_id: [u8; 3],
 }
 
-impl UnitInfo {
-    const FIRST_OPERAND: u8 = 0x07;
-
-    pub fn new() -> Self {
-        UnitInfo {
+impl Default for UnitInfo {
+    fn default() -> Self {
+        Self {
             unit_type: AvcSubunitType::Reserved(AvcAddrSubunit::SUBUNIT_TYPE_MASK),
             unit_id: AvcAddrSubunit::SUBUNIT_ID_MASK,
             company_id: [0xff; 3],
         }
+    }
+}
+
+impl UnitInfo {
+    const FIRST_OPERAND: u8 = 0x07;
+
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
