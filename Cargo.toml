@@ -42,7 +42,7 @@ members = [
 #    "libs/ieee1212-config-rom",
     "libs/ta1394/general",
 #    "libs/ta1394/audio",
-#    "libs/ta1394/stream-format",
+    "libs/ta1394/stream-format",
     "libs/ta1394/ccm",
 #    "libs/dg00x/protocols",
 #    "libs/tascam/protocols",
@@ -60,7 +60,7 @@ members = [
 #ieee1212-config-rom = { path = "libs/ieee1212-config-rom" }
 ta1394-avc-general = { path = "libs/ta1394/general" }
 #ta1394-avc-audio = { path = "libs/ta1394/audio" }
-#ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
+ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
 ta1394-avc-ccm = { path = "libs/ta1394/ccm" }
 firewire-bebob-protocols = { path = "libs/bebob/protocols" }
 #firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
