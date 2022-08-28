@@ -12,6 +12,15 @@ pub struct Am824MultiBitAudioAttr {
     pub rate_ctl: bool,
 }
 
+impl Default for Am824MultiBitAudioAttr {
+    fn default() -> Self {
+        Self {
+            freq: 22050,
+            rate_ctl: Default::default(),
+        }
+    }
+}
+
 impl Am824MultiBitAudioAttr {
     const FREQ_CODE_22050: u8 = 0x00;
     const FREQ_CODE_24000: u8 = 0x01;
@@ -85,6 +94,15 @@ impl Am824MultiBitAudioAttr {
 pub struct Am824OneBitAudioAttr {
     pub freq: u32,
     pub rate_ctl: bool,
+}
+
+impl Default for Am824OneBitAudioAttr {
+    fn default() -> Self {
+        Self {
+            freq: 2048000,
+            rate_ctl: Default::default(),
+        }
+    }
 }
 
 impl Am824OneBitAudioAttr {
@@ -170,6 +188,12 @@ pub enum Am824Stream {
     HighPrecisionMultiBitLinearAudio(Am824MultiBitAudioAttr),
     MidiConformant([u8; 2]),
     Reserved([u8; 4]),
+}
+
+impl Default for Am824Stream {
+    fn default() -> Self {
+        Self::Reserved([0xff; 4])
+    }
 }
 
 impl Am824Stream {
@@ -329,6 +353,12 @@ pub enum CompoundAm824StreamFormat {
     Reserved(u8),
 }
 
+impl Default for CompoundAm824StreamFormat {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
 impl CompoundAm824StreamFormat {
     const IEC60958_3: u8 = 0x00;
     const IEC61937_3: u8 = 0x01;
@@ -395,6 +425,15 @@ pub struct CompoundAm824StreamEntry {
     pub format: CompoundAm824StreamFormat,
 }
 
+impl Default for CompoundAm824StreamEntry {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            format: Default::default(),
+        }
+    }
+}
+
 impl CompoundAm824StreamEntry {
     const LENGTH: usize = 2;
 
@@ -418,6 +457,12 @@ pub enum RateCtl {
     DontCare,
     NotSupported,
     Reserved(u8),
+}
+
+impl Default for RateCtl {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
 }
 
 impl RateCtl {
@@ -455,6 +500,17 @@ pub struct CompoundAm824Stream {
     pub rate_ctl: RateCtl,
     /// The entries of available stream format.
     pub entries: Vec<CompoundAm824StreamEntry>,
+}
+
+impl Default for CompoundAm824Stream {
+    fn default() -> Self {
+        Self {
+            freq: 22050,
+            sync_src: Default::default(),
+            rate_ctl: Default::default(),
+            entries: Default::default(),
+        }
+    }
 }
 
 impl CompoundAm824Stream {
@@ -555,6 +611,12 @@ pub enum AmStream {
     Reserved(Vec<u8>),
 }
 
+impl Default for AmStream {
+    fn default() -> Self {
+        Self::Reserved(vec![0xff; Self::LENGTH_MIN])
+    }
+}
+
 impl AmStream {
     const HIER_LEVEL_1_AM824: u8 = 0x00;
     const HIER_LEVEL_1_AUDIO_PACK: u8 = 0x01;
@@ -618,6 +680,12 @@ pub enum StreamFormat {
     /// Defined in Audio and Music Data Transmission Protocol.
     Am(AmStream),
     Reserved(Vec<u8>),
+}
+
+impl Default for StreamFormat {
+    fn default() -> Self {
+        Self::Reserved(vec![0xff; Self::LENGTH_MIN])
+    }
 }
 
 impl StreamFormat {
