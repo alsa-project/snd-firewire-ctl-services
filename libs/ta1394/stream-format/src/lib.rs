@@ -682,8 +682,8 @@ pub enum UnitPlugType {
     Invalid(u8),
 }
 
-impl From<u8> for UnitPlugType {
-    fn from(val: u8) -> Self {
+impl UnitPlugType {
+    fn from_val(val: u8) -> Self {
         match val {
             0 => Self::Pcr,
             1 => Self::External,
@@ -691,15 +691,13 @@ impl From<u8> for UnitPlugType {
             _ => Self::Invalid(val),
         }
     }
-}
 
-impl From<UnitPlugType> for u8 {
-    fn from(plug_type: UnitPlugType) -> Self {
-        match plug_type {
-            UnitPlugType::Pcr => 0,
-            UnitPlugType::External => 1,
-            UnitPlugType::Async => 2,
-            UnitPlugType::Invalid(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Pcr => 0,
+            Self::External => 1,
+            Self::Async => 2,
+            Self::Invalid(val) => *val,
         }
     }
 }
@@ -713,18 +711,19 @@ pub struct UnitPlugData {
     pub plug_id: u8,
 }
 
-impl From<&[u8]> for UnitPlugData {
-    fn from(raw: &[u8]) -> Self {
-        UnitPlugData {
-            unit_type: raw[0].into(),
+impl UnitPlugData {
+    const LENGTH: usize = 3;
+
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        Self {
+            unit_type: UnitPlugType::from_val(raw[0]),
             plug_id: raw[1],
         }
     }
-}
 
-impl From<UnitPlugData> for [u8; 3] {
-    fn from(data: UnitPlugData) -> Self {
-        [u8::from(data.unit_type), data.plug_id, 0xff]
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        [self.unit_type.to_val(), self.plug_id, 0xff]
     }
 }
 
@@ -734,15 +733,16 @@ pub struct SubunitPlugData {
     pub plug_id: u8,
 }
 
-impl From<&[u8]> for SubunitPlugData {
-    fn from(raw: &[u8]) -> Self {
-        SubunitPlugData { plug_id: raw[0] }
-    }
-}
+impl SubunitPlugData {
+    const LENGTH: usize = 3;
 
-impl From<SubunitPlugData> for [u8; 3] {
-    fn from(data: SubunitPlugData) -> Self {
-        [data.plug_id, 0xff, 0xff]
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        Self { plug_id: raw[0] }
+    }
+
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        [self.plug_id, 0xff, 0xff]
     }
 }
 
@@ -757,19 +757,20 @@ pub struct FunctionBlockPlugData {
     pub plug_id: u8,
 }
 
-impl From<&[u8]> for FunctionBlockPlugData {
-    fn from(raw: &[u8]) -> Self {
-        FunctionBlockPlugData {
+impl FunctionBlockPlugData {
+    const LENGTH: usize = 3;
+
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        Self {
             fb_type: raw[0],
             fb_id: raw[1],
             plug_id: raw[2],
         }
     }
-}
 
-impl From<FunctionBlockPlugData> for [u8; 3] {
-    fn from(data: FunctionBlockPlugData) -> Self {
-        [data.fb_type, data.fb_id, data.plug_id]
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        [self.fb_type, self.fb_id, self.plug_id]
     }
 }
 
@@ -779,40 +780,42 @@ pub enum PlugAddrMode {
     Unit(UnitPlugData),
     Subunit(SubunitPlugData),
     FunctionBlock(FunctionBlockPlugData),
-    Invalid,
+    Invalid([u8; 4]),
 }
 
-impl From<&[u8]> for PlugAddrMode {
-    fn from(raw: &[u8]) -> Self {
+impl PlugAddrMode {
+    const LENGTH: usize = 4;
+
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
         match raw[0] {
-            0 => Self::Unit(UnitPlugData::from(&raw[1..4])),
-            1 => Self::Subunit(SubunitPlugData::from(&raw[1..4])),
-            2 => Self::FunctionBlock(FunctionBlockPlugData::from(&raw[1..4])),
-            _ => Self::Invalid,
+            0 => Self::Unit(UnitPlugData::from_raw(&raw[1..4])),
+            1 => Self::Subunit(SubunitPlugData::from_raw(&raw[1..4])),
+            2 => Self::FunctionBlock(FunctionBlockPlugData::from_raw(&raw[1..4])),
+            _ => {
+                let mut r = [0; Self::LENGTH];
+                r.copy_from_slice(raw);
+                Self::Invalid(r)
+            }
         }
     }
-}
 
-impl From<PlugAddrMode> for [u8; 4] {
-    fn from(mode: PlugAddrMode) -> Self {
-        let mut raw: [u8; 4] = [0xff; 4];
-        match mode {
-            PlugAddrMode::Unit(data) => {
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0xff; Self::LENGTH];
+        match self {
+            Self::Unit(data) => {
                 raw[0] = 0;
-                let d: [u8; 3] = data.into();
-                raw[1..4].copy_from_slice(&d);
+                raw[1..4].copy_from_slice(&data.to_raw());
             }
-            PlugAddrMode::Subunit(data) => {
+            Self::Subunit(data) => {
                 raw[0] = 1;
-                let d: [u8; 3] = data.into();
-                raw[1..4].copy_from_slice(&d);
+                raw[1..4].copy_from_slice(&data.to_raw());
             }
-            PlugAddrMode::FunctionBlock(data) => {
+            Self::FunctionBlock(data) => {
                 raw[0] = 2;
-                let d: [u8; 3] = data.into();
-                raw[1..4].copy_from_slice(&d);
+                raw[1..4].copy_from_slice(&data.to_raw());
             }
-            _ => (),
+            Self::Invalid(data) => raw.copy_from_slice(data),
         }
         raw
     }
@@ -829,24 +832,20 @@ pub enum PlugDirection {
 impl PlugDirection {
     const INPUT: u8 = 0;
     const OUTPUT: u8 = 1;
-}
 
-impl From<u8> for PlugDirection {
-    fn from(val: u8) -> Self {
+    fn from_val(val: u8) -> Self {
         match val {
-            PlugDirection::INPUT => PlugDirection::Input,
-            PlugDirection::OUTPUT => PlugDirection::Output,
+            Self::INPUT => Self::Input,
+            Self::OUTPUT => Self::Output,
             _ => Self::Invalid(val),
         }
     }
-}
 
-impl From<PlugDirection> for u8 {
-    fn from(dir: PlugDirection) -> Self {
-        match dir {
-            PlugDirection::Input => PlugDirection::INPUT,
-            PlugDirection::Output => PlugDirection::OUTPUT,
-            PlugDirection::Invalid(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Input => Self::INPUT,
+            Self::Output => Self::OUTPUT,
+            Self::Invalid(val) => *val,
         }
     }
 }
@@ -860,21 +859,21 @@ pub struct PlugAddr {
     pub mode: PlugAddrMode,
 }
 
-impl From<&[u8]> for PlugAddr {
-    fn from(raw: &[u8]) -> Self {
-        PlugAddr {
-            direction: PlugDirection::from(raw[0]),
-            mode: PlugAddrMode::from(&raw[1..5]),
+impl PlugAddr {
+    const LENGTH: usize = 5;
+
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        Self {
+            direction: PlugDirection::from_val(raw[0]),
+            mode: PlugAddrMode::from_raw(&raw[1..5]),
         }
     }
-}
 
-impl From<PlugAddr> for [u8; 5] {
-    fn from(addr: PlugAddr) -> [u8; 5] {
-        let mut raw = [0xff; 5];
-        raw[0] = u8::from(addr.direction);
-        let m: [u8; 4] = addr.mode.into();
-        raw[1..5].copy_from_slice(&m);
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0xff; Self::LENGTH];
+        raw[0] = self.direction.to_val();
+        raw[1..5].copy_from_slice(&self.mode.to_raw());
         raw
     }
 }
@@ -948,7 +947,7 @@ impl ExtendedStreamFormat {
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
         operands.push(self.subfunc);
-        operands.extend_from_slice(&Into::<[u8; 5]>::into(self.plug_addr));
+        operands.extend_from_slice(&self.plug_addr.to_raw());
         operands.push(self.support_status.into());
         Ok(())
     }
@@ -959,7 +958,7 @@ impl ExtendedStreamFormat {
         } else if operands[0] != self.subfunc {
             Err(AvcRespParseError::UnexpectedOperands(0))
         } else {
-            let plug_addr = PlugAddr::from(&operands[1..6]);
+            let plug_addr = PlugAddr::from_raw(&operands[1..6]);
             if plug_addr != self.plug_addr {
                 Err(AvcRespParseError::UnexpectedOperands(1))
             } else {
@@ -1264,44 +1263,45 @@ mod tests {
 
     #[test]
     fn plug_addr_from() {
-        let unit_pcr = PlugAddr {
+        // Unit for PCR stream.
+        let addr = PlugAddr {
             direction: PlugDirection::Input,
             mode: PlugAddrMode::Unit(UnitPlugData {
                 unit_type: UnitPlugType::Pcr,
                 plug_id: 0x2,
             }),
         };
-        let raw: [u8; 5] = unit_pcr.into();
-        assert_eq!(unit_pcr, raw[..].into());
+        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
 
-        let unit_ext = PlugAddr {
+        // Unit for external stream.
+        let addr = PlugAddr {
             direction: PlugDirection::Input,
             mode: PlugAddrMode::Unit(UnitPlugData {
                 unit_type: UnitPlugType::External,
                 plug_id: 0x3,
             }),
         };
-        let raw: [u8; 5] = unit_ext.into();
-        assert_eq!(unit_ext, raw[..].into());
+        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
 
-        let unit_async = PlugAddr {
+        // Unit for asynchronous stream.
+        let addr = PlugAddr {
             direction: PlugDirection::Output,
             mode: PlugAddrMode::Unit(UnitPlugData {
                 unit_type: UnitPlugType::Async,
                 plug_id: 0x4,
             }),
         };
-        let raw: [u8; 5] = unit_async.into();
-        assert_eq!(unit_async, raw[..].into());
+        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
 
-        let subunit = PlugAddr {
+        // Subunit.
+        let addr = PlugAddr {
             direction: PlugDirection::Output,
             mode: PlugAddrMode::Subunit(SubunitPlugData { plug_id: 0x8 }),
         };
-        let raw: [u8; 5] = subunit.into();
-        assert_eq!(subunit, raw[..].into());
+        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
 
-        let fb = PlugAddr {
+        // Function block.
+        let addr = PlugAddr {
             direction: PlugDirection::Input,
             mode: PlugAddrMode::FunctionBlock(FunctionBlockPlugData {
                 fb_type: 0x1f,
@@ -1309,8 +1309,7 @@ mod tests {
                 plug_id: 0x29,
             }),
         };
-        let raw: [u8; 5] = fb.into();
-        assert_eq!(fb, raw[..].into());
+        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
     }
 
     #[test]
