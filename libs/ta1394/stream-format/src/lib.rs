@@ -1052,6 +1052,16 @@ struct ExtendedStreamFormat {
     support_status: SupportStatus,
 }
 
+impl Default for ExtendedStreamFormat {
+    fn default() -> Self {
+        Self {
+            subfunc: 0xff,
+            plug_addr: Default::default(),
+            support_status: Default::default(),
+        }
+    }
+}
+
 impl ExtendedStreamFormat {
     const OPCODE: u8 = 0xbf;
 
@@ -1059,7 +1069,7 @@ impl ExtendedStreamFormat {
         ExtendedStreamFormat {
             subfunc,
             plug_addr: *plug_addr,
-            support_status: SupportStatus::Reserved(0xff),
+            ..Default::default()
         }
     }
 
