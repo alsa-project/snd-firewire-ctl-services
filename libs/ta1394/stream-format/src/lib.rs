@@ -750,6 +750,12 @@ pub enum UnitPlugType {
     Invalid(u8),
 }
 
+impl Default for UnitPlugType {
+    fn default() -> Self {
+        Self::Invalid(0xff)
+    }
+}
+
 impl UnitPlugType {
     fn from_val(val: u8) -> Self {
         match val {
@@ -779,6 +785,15 @@ pub struct UnitPlugData {
     pub plug_id: u8,
 }
 
+impl Default for UnitPlugData {
+    fn default() -> Self {
+        Self {
+            unit_type: Default::default(),
+            plug_id: 0xff,
+        }
+    }
+}
+
 impl UnitPlugData {
     const LENGTH: usize = 3;
 
@@ -799,6 +814,12 @@ impl UnitPlugData {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SubunitPlugData {
     pub plug_id: u8,
+}
+
+impl Default for SubunitPlugData {
+    fn default() -> Self {
+        Self { plug_id: 0xff }
+    }
 }
 
 impl SubunitPlugData {
@@ -825,6 +846,16 @@ pub struct FunctionBlockPlugData {
     pub plug_id: u8,
 }
 
+impl Default for FunctionBlockPlugData {
+    fn default() -> Self {
+        Self {
+            fb_type: 0xff,
+            fb_id: 0xff,
+            plug_id: 0xff,
+        }
+    }
+}
+
 impl FunctionBlockPlugData {
     const LENGTH: usize = 3;
 
@@ -849,6 +880,12 @@ pub enum PlugAddrMode {
     Subunit(SubunitPlugData),
     FunctionBlock(FunctionBlockPlugData),
     Invalid([u8; 4]),
+}
+
+impl Default for PlugAddrMode {
+    fn default() -> Self {
+        Self::Invalid([0xff; Self::LENGTH])
+    }
 }
 
 impl PlugAddrMode {
@@ -897,6 +934,12 @@ pub enum PlugDirection {
     Invalid(u8),
 }
 
+impl Default for PlugDirection {
+    fn default() -> Self {
+        Self::Invalid(0xff)
+    }
+}
+
 impl PlugDirection {
     const INPUT: u8 = 0;
     const OUTPUT: u8 = 1;
@@ -925,6 +968,15 @@ pub struct PlugAddr {
     pub direction: PlugDirection,
     /// The mode of addressing.
     pub mode: PlugAddrMode,
+}
+
+impl Default for PlugAddr {
+    fn default() -> Self {
+        Self {
+            direction: Default::default(),
+            mode: Default::default(),
+        }
+    }
 }
 
 impl PlugAddr {
