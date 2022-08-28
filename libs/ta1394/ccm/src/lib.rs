@@ -20,6 +20,12 @@ pub enum SignalUnitAddr {
     ),
 }
 
+impl Default for SignalUnitAddr {
+    fn default() -> Self {
+        Self::Isoc(Self::PLUG_ID_MASK)
+    }
+}
+
 impl SignalUnitAddr {
     const EXT_PLUG_FLAG: u8 = 0x80;
     const PLUG_ID_MASK: u8 = 0x7f;
@@ -56,6 +62,15 @@ pub struct SignalSubunitAddr {
     pub plug_id: u8,
 }
 
+impl Default for SignalSubunitAddr {
+    fn default() -> Self {
+        Self {
+            subunit: Default::default(),
+            plug_id: 0xff,
+        }
+    }
+}
+
 impl SignalSubunitAddr {
     const LENGTH: usize = 2;
 
@@ -79,6 +94,12 @@ impl SignalSubunitAddr {
 pub enum SignalAddr {
     Unit(SignalUnitAddr),
     Subunit(SignalSubunitAddr),
+}
+
+impl Default for SignalAddr {
+    fn default() -> Self {
+        Self::Unit(Default::default())
+    }
 }
 
 impl SignalAddr {
@@ -133,8 +154,8 @@ pub struct SignalSource {
 impl SignalSource {
     pub fn new(dst: &SignalAddr) -> Self {
         SignalSource {
-            src: SignalAddr::Unit(SignalUnitAddr::Isoc(SignalUnitAddr::PLUG_ID_MASK)),
             dst: *dst,
+            ..Default::default()
         }
     }
 
@@ -145,6 +166,15 @@ impl SignalSource {
             Ok(())
         } else {
             Err(AvcRespParseError::TooShortResp(4))
+        }
+    }
+}
+
+impl Default for SignalSource {
+    fn default() -> Self {
+        Self {
+            src: Default::default(),
+            dst: Default::default(),
         }
     }
 }
