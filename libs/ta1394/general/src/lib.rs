@@ -298,6 +298,12 @@ impl AvcRespCode {
     const INTERIM: u8 = 0x0f;
 }
 
+impl Default for AvcRespCode {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
 impl From<u8> for AvcRespCode {
     fn from(val: u8) -> Self {
         match val {
