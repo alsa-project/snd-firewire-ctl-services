@@ -1012,6 +1012,12 @@ pub enum SupportStatus {
     Reserved(u8),
 }
 
+impl Default for SupportStatus {
+    fn default() -> Self {
+        SupportStatus::Reserved(0xff)
+    }
+}
+
 impl SupportStatus {
     const ACTIVE: u8 = 0x00;
     const INACTIVE: u8 = 0x01;
