@@ -189,11 +189,20 @@ pub struct VendorDependent {
     pub data: Vec<u8>,
 }
 
+impl Default for VendorDependent {
+    fn default() -> Self {
+        Self {
+            company_id: [0xff, 0xff, 0xff],
+            data: Default::default(),
+        }
+    }
+}
+
 impl VendorDependent {
     pub fn new(company_id: &[u8; 3]) -> Self {
-        VendorDependent {
+        Self {
             company_id: *company_id,
-            data: Vec::new(),
+            ..Default::default()
         }
     }
 
