@@ -23,28 +23,27 @@ pub enum SignalUnitAddr {
 impl SignalUnitAddr {
     const EXT_PLUG_FLAG: u8 = 0x80;
     const PLUG_ID_MASK: u8 = 0x7f;
-}
 
-impl From<&[u8; 2]> for SignalUnitAddr {
-    fn from(data: &[u8; 2]) -> Self {
-        let plug_id = data[1] & Self::PLUG_ID_MASK;
-        if data[1] & Self::EXT_PLUG_FLAG > 0 {
+    const LENGTH: usize = 2;
+
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        let plug_id = raw[1] & Self::PLUG_ID_MASK;
+        if raw[1] & Self::EXT_PLUG_FLAG > 0 {
             Self::Ext(plug_id)
         } else {
             Self::Isoc(plug_id)
         }
     }
-}
 
-impl From<SignalUnitAddr> for [u8; 2] {
-    fn from(addr: SignalUnitAddr) -> Self {
-        let mut data = [0; 2];
-        data[0] = AvcAddr::UNIT_ADDR;
-        data[1] = match addr {
-            SignalUnitAddr::Isoc(val) => val,
-            SignalUnitAddr::Ext(val) => SignalUnitAddr::EXT_PLUG_FLAG | val,
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0; Self::LENGTH];
+        raw[0] = AvcAddr::UNIT_ADDR;
+        raw[1] = match self {
+            SignalUnitAddr::Isoc(val) => *val,
+            SignalUnitAddr::Ext(val) => SignalUnitAddr::EXT_PLUG_FLAG | *val,
         };
-        data
+        raw
     }
 }
 
@@ -57,20 +56,21 @@ pub struct SignalSubunitAddr {
     pub plug_id: u8,
 }
 
-impl From<&[u8; 2]> for SignalSubunitAddr {
-    fn from(data: &[u8; 2]) -> Self {
-        let subunit = AvcAddrSubunit::from(data[0]);
-        let plug_id = data[1];
+impl SignalSubunitAddr {
+    const LENGTH: usize = 2;
+
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        let subunit = AvcAddrSubunit::from(raw[0]);
+        let plug_id = raw[1];
         SignalSubunitAddr { subunit, plug_id }
     }
-}
 
-impl From<SignalSubunitAddr> for [u8; 2] {
-    fn from(addr: SignalSubunitAddr) -> Self {
-        let mut data = [0; 2];
-        data[0] = u8::from(addr.subunit);
-        data[1] = addr.plug_id;
-        data
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0; Self::LENGTH];
+        raw[0] = u8::from(self.subunit);
+        raw[1] = self.plug_id;
+        raw
     }
 }
 
@@ -82,6 +82,8 @@ pub enum SignalAddr {
 }
 
 impl SignalAddr {
+    const LENGTH: usize = 2;
+
     pub fn new_for_isoc_unit(plug_id: u8) -> Self {
         SignalAddr::Unit(SignalUnitAddr::Isoc(plug_id & SignalUnitAddr::PLUG_ID_MASK))
     }
@@ -99,23 +101,20 @@ impl SignalAddr {
             plug_id,
         })
     }
-}
 
-impl From<&[u8; 2]> for SignalAddr {
-    fn from(data: &[u8; 2]) -> Self {
-        if data[0] == AvcAddr::UNIT_ADDR {
-            SignalAddr::Unit(data.into())
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH);
+        if raw[0] == AvcAddr::UNIT_ADDR {
+            SignalAddr::Unit(SignalUnitAddr::from_raw(&raw))
         } else {
-            SignalAddr::Subunit(data.into())
+            SignalAddr::Subunit(SignalSubunitAddr::from_raw(&raw))
         }
     }
-}
 
-impl From<SignalAddr> for [u8; 2] {
-    fn from(addr: SignalAddr) -> Self {
-        match addr {
-            SignalAddr::Unit(a) => a.into(),
-            SignalAddr::Subunit(a) => a.into(),
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        match self {
+            SignalAddr::Unit(a) => a.to_raw(),
+            SignalAddr::Subunit(a) => a.to_raw(),
         }
     }
 }
@@ -141,11 +140,8 @@ impl SignalSource {
 
     fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
         if operands.len() > 4 {
-            let mut doublet = [0; 2];
-            doublet.copy_from_slice(&operands[1..3]);
-            self.src = SignalAddr::from(&doublet);
-            doublet.copy_from_slice(&operands[3..5]);
-            self.dst = SignalAddr::from(&doublet);
+            self.src = SignalAddr::from_raw(&operands[1..3]);
+            self.dst = SignalAddr::from_raw(&operands[3..5]);
             Ok(())
         } else {
             Err(AvcRespParseError::TooShortResp(4))
@@ -164,8 +160,8 @@ impl AvcControl for SignalSource {
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
         operands.push(0xff);
-        operands.extend_from_slice(&Into::<[u8; 2]>::into(self.src));
-        operands.extend_from_slice(&Into::<[u8; 2]>::into(self.dst));
+        operands.extend_from_slice(&self.src.to_raw());
+        operands.extend_from_slice(&self.dst.to_raw());
         Ok(())
     }
 
@@ -182,7 +178,7 @@ impl AvcStatus for SignalSource {
     ) -> Result<(), AvcCmdBuildError> {
         operands.push(0xff);
         operands.extend_from_slice(&[0xff, 0xfe]);
-        operands.extend_from_slice(&Into::<[u8; 2]>::into(self.dst));
+        operands.extend_from_slice(&self.dst.to_raw());
         Ok(())
     }
 
@@ -197,30 +193,12 @@ mod test {
 
     #[test]
     fn signaladdr_from() {
-        assert_eq!(
-            [0xff, 0x00],
-            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0x00]))
-        );
-        assert_eq!(
-            [0xff, 0x27],
-            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0x27]))
-        );
-        assert_eq!(
-            [0xff, 0x87],
-            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0x87]))
-        );
-        assert_eq!(
-            [0xff, 0xc7],
-            Into::<[u8; 2]>::into(SignalAddr::from(&[0xff, 0xc7]))
-        );
-        assert_eq!(
-            [0x63, 0x07],
-            Into::<[u8; 2]>::into(SignalAddr::from(&[0x63, 0x07]))
-        );
-        assert_eq!(
-            [0x09, 0x11],
-            Into::<[u8; 2]>::into(SignalAddr::from(&[0x09, 0x11]))
-        );
+        assert_eq!([0xff, 0x00], SignalAddr::from_raw(&[0xff, 0x00]).to_raw());
+        assert_eq!([0xff, 0x27], SignalAddr::from_raw(&[0xff, 0x27]).to_raw());
+        assert_eq!([0xff, 0x87], SignalAddr::from_raw(&[0xff, 0x87]).to_raw());
+        assert_eq!([0xff, 0xc7], SignalAddr::from_raw(&[0xff, 0xc7]).to_raw());
+        assert_eq!([0x63, 0x07], SignalAddr::from_raw(&[0x63, 0x07]).to_raw());
+        assert_eq!([0x09, 0x11], SignalAddr::from_raw(&[0x09, 0x11]).to_raw());
     }
 
     #[test]
