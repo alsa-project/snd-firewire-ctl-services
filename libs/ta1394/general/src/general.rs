@@ -76,9 +76,18 @@ pub struct SubunitInfoEntry {
     pub maximum_id: u8,
 }
 
+impl Default for SubunitInfoEntry {
+    fn default() -> Self {
+        SubunitInfoEntry {
+            subunit_type: Default::default(),
+            maximum_id: AvcAddrSubunit::SUBUNIT_ID_MASK,
+        }
+    }
+}
+
 impl SubunitInfoEntry {
     pub fn new(subunit_type: AvcSubunitType, maximum_id: u8) -> Self {
-        SubunitInfoEntry {
+        Self {
             subunit_type,
             maximum_id,
         }
@@ -95,6 +104,16 @@ pub struct SubunitInfo {
     pub entries: Vec<SubunitInfoEntry>,
 }
 
+impl Default for SubunitInfo {
+    fn default() -> Self {
+        SubunitInfo {
+            page: Self::PAGE_MASK,
+            extension_code: Self::EXTENSION_CODE_MASK,
+            entries: Default::default(),
+        }
+    }
+}
+
 impl SubunitInfo {
     const PAGE_SHIFT: usize = 4;
     const PAGE_MASK: u8 = 0x07;
@@ -102,10 +121,10 @@ impl SubunitInfo {
     const EXTENSION_CODE_MASK: u8 = 0x07;
 
     pub fn new(page: u8, extension_code: u8) -> Self {
-        SubunitInfo {
+        Self {
             page,
             extension_code,
-            entries: Vec::new(),
+            ..Default::default()
         }
     }
 }
