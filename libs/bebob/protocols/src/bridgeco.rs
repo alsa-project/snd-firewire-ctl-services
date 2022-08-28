@@ -1269,12 +1269,57 @@ impl From<&BcoStreamFormat> for Vec<u8> {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BcoSupportStatus {
+    /// The format is already set and stream is available.
+    Active,
+    /// The format is already set but stream is not available.
+    Inactive,
+    /// The format is not uset yet.
+    NoStreamFormat,
+    NotUsed,
+    Reserved(u8),
+}
+
+impl Default for BcoSupportStatus {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
+impl BcoSupportStatus {
+    const ACTIVE: u8 = 0x00;
+    const INACTIVE: u8 = 0x01;
+    const NO_STREAM_FORMAT: u8 = 0x02;
+    const NOT_USED: u8 = 0xff;
+
+    fn from_val(val: u8) -> Self {
+        match val {
+            Self::ACTIVE => Self::Active,
+            Self::INACTIVE => Self::Inactive,
+            Self::NO_STREAM_FORMAT => Self::NoStreamFormat,
+            Self::NOT_USED=> Self::NotUsed,
+            _ => Self::Reserved(val),
+        }
+    }
+
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Active => Self::ACTIVE,
+            Self::Inactive => Self::INACTIVE,
+            Self::NoStreamFormat => Self::NO_STREAM_FORMAT,
+            Self::NotUsed => Self::NOT_USED,
+            Self::Reserved(val) => *val,
+        }
+    }
+}
+
 /// AV/C command for extension of stream format.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct BcoExtendedStreamFormat {
     subfunc: u8,
     plug_addr: BcoPlugAddr,
-    support_status: SupportStatus,
+    support_status: BcoSupportStatus,
 }
 
 impl BcoExtendedStreamFormat {
@@ -1284,7 +1329,7 @@ impl BcoExtendedStreamFormat {
         BcoExtendedStreamFormat {
             subfunc,
             plug_addr: *plug_addr,
-            support_status: SupportStatus::Reserved(0xff),
+            support_status: BcoSupportStatus::Reserved(0xff),
         }
     }
 }
@@ -1297,7 +1342,7 @@ impl AvcStatus for BcoExtendedStreamFormat {
     ) -> Result<(), AvcCmdBuildError> {
         operands.push(self.subfunc);
         operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.plug_addr));
-        operands.push(self.support_status.into());
+        operands.push(self.support_status.to_val());
         Ok(())
     }
 
@@ -1317,7 +1362,7 @@ impl AvcStatus for BcoExtendedStreamFormat {
             Err(AvcRespParseError::UnexpectedOperands(1))?;
         }
 
-        self.support_status = SupportStatus::from(operands[6]);
+        self.support_status = BcoSupportStatus::from_val(operands[6]);
 
         Ok(())
     }
@@ -1326,7 +1371,7 @@ impl AvcStatus for BcoExtendedStreamFormat {
 /// AV/C command for single subfunction of extension of stream format.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedStreamFormatSingle {
-    pub support_status: SupportStatus,
+    pub support_status: BcoSupportStatus,
     pub stream_format: BcoStreamFormat,
     op: BcoExtendedStreamFormat,
 }
@@ -1336,7 +1381,7 @@ impl ExtendedStreamFormatSingle {
 
     pub fn new(plug_addr: &BcoPlugAddr) -> Self {
         ExtendedStreamFormatSingle {
-            support_status: SupportStatus::Reserved(0xff),
+            support_status: BcoSupportStatus::Reserved(0xff),
             stream_format: BcoStreamFormat::Reserved(Vec::new()),
             op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
         }
@@ -1353,7 +1398,7 @@ impl AvcStatus for ExtendedStreamFormatSingle {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.op.support_status = SupportStatus::Reserved(0xff);
+        self.op.support_status = BcoSupportStatus::Reserved(0xff);
         self.op.build_operands(addr, operands)
     }
 
@@ -1373,7 +1418,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.op.support_status = SupportStatus::Active;
+        self.op.support_status = BcoSupportStatus::Active;
         self.op.build_operands(addr, operands)?;
         operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
         Ok(())
@@ -1392,7 +1437,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
 /// AV/C command for list subfunction of extension of stream format.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedStreamFormatList {
-    pub support_status: SupportStatus,
+    pub support_status: BcoSupportStatus,
     pub index: u8,
     pub stream_format: BcoStreamFormat,
     op: BcoExtendedStreamFormat,
@@ -1404,7 +1449,7 @@ impl ExtendedStreamFormatList {
     /// Instantiate extended stream format list structure with parameters.
     pub fn new(plug_addr: &BcoPlugAddr, index: u8) -> Self {
         ExtendedStreamFormatList {
-            support_status: SupportStatus::NoInfo,
+            support_status: BcoSupportStatus::NotUsed,
             index,
             stream_format: BcoStreamFormat::Reserved(Vec::new()),
             op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
