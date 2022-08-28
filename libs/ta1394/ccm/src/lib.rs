@@ -152,6 +152,8 @@ pub struct SignalSource {
 }
 
 impl SignalSource {
+    const LENGTH_MIN: usize = 5;
+
     pub fn new(dst: &SignalAddr) -> Self {
         SignalSource {
             dst: *dst,
@@ -159,14 +161,31 @@ impl SignalSource {
         }
     }
 
-    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        if operands.len() > 4 {
-            self.src = SignalAddr::from_raw(&operands[1..3]);
-            self.dst = SignalAddr::from_raw(&operands[3..5]);
-            Ok(())
+    fn build_operands(
+        &self,
+        operands: &mut Vec<u8>,
+        for_status: bool,
+    ) -> Result<(), AvcCmdBuildError> {
+        operands.push(0xff);
+
+        if for_status {
+            operands.extend_from_slice(&[0xff, 0xfe]);
         } else {
-            Err(AvcRespParseError::TooShortResp(4))
+            operands.extend_from_slice(&self.src.to_raw());
         }
+
+        operands.extend_from_slice(&self.dst.to_raw());
+        Ok(())
+    }
+
+    fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
+        if operands.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(4))?;
+        }
+
+        self.src = SignalAddr::from_raw(&operands[1..3]);
+        self.dst = SignalAddr::from_raw(&operands[3..5]);
+        Ok(())
     }
 }
 
@@ -189,10 +208,7 @@ impl AvcControl for SignalSource {
         _: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        operands.push(0xff);
-        operands.extend_from_slice(&self.src.to_raw());
-        operands.extend_from_slice(&self.dst.to_raw());
-        Ok(())
+        Self::build_operands(&self, operands, false)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -206,10 +222,7 @@ impl AvcStatus for SignalSource {
         _: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        operands.push(0xff);
-        operands.extend_from_slice(&[0xff, 0xfe]);
-        operands.extend_from_slice(&self.dst.to_raw());
-        Ok(())
+        Self::build_operands(&self, operands, true)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
