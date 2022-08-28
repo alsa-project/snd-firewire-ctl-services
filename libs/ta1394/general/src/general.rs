@@ -268,11 +268,31 @@ pub struct PlugInfoUnitIsocExtData {
     pub external_output_plugs: u8,
 }
 
+impl Default for PlugInfoUnitIsocExtData {
+    fn default() -> Self {
+        Self {
+            isoc_input_plugs: 0xff,
+            isoc_output_plugs: 0xff,
+            external_input_plugs: 0xff,
+            external_output_plugs: 0xff,
+        }
+    }
+}
+
 /// The data of unit plugs for asynchronous inputs/outputs.
 #[derive(Debug)]
 pub struct PlugInfoUnitAsyncData {
     pub async_input_plugs: u8,
     pub async_output_plugs: u8,
+}
+
+impl Default for PlugInfoUnitAsyncData {
+    fn default() -> Self {
+        Self {
+            async_input_plugs: 0xff,
+            async_output_plugs: 0xff,
+        }
+    }
 }
 
 /// The data of the number of plugs for inputs/outputs.
@@ -285,6 +305,18 @@ pub struct PlugInfoUnitOtherData {
     pub output_plugs: u8,
 }
 
+impl Default for PlugInfoUnitOtherData {
+    fn default() -> Self {
+        Self {
+            subfunction: 0xff,
+            first_input_plug: 0xff,
+            input_plugs: 0xff,
+            first_output_plug: 0xff,
+            output_plugs: 0xff,
+        }
+    }
+}
+
 /// Plug information for unit.
 #[derive(Debug)]
 pub enum PlugInfoUnitData {
@@ -293,11 +325,26 @@ pub enum PlugInfoUnitData {
     Other(PlugInfoUnitOtherData),
 }
 
+impl Default for PlugInfoUnitData {
+    fn default() -> Self {
+        Self::IsocExt(Default::default())
+    }
+}
+
 /// Plug information for subunit.
 #[derive(Debug)]
 pub struct PlugInfoSubunitData {
     pub dst_plugs: u8,
     pub src_plugs: u8,
+}
+
+impl Default for PlugInfoSubunitData {
+    fn default() -> Self {
+        Self {
+            dst_plugs: 0xff,
+            src_plugs: 0xff,
+        }
+    }
 }
 
 /// AV/C PLUG INFO command.
@@ -309,42 +356,34 @@ pub enum PlugInfo {
     Subunit(PlugInfoSubunitData),
 }
 
+impl Default for PlugInfo {
+    fn default() -> Self {
+        Self::Unit(Default::default())
+    }
+}
+
 impl PlugInfo {
     const SUBFUNC_UNIT_ISOC_EXT: u8 = 0x00;
     const SUBFUNC_UNIT_ASYNC: u8 = 0x01;
     const SUBFUNC_SUBUNIT: u8 = 0x00;
 
     pub fn new_for_unit_isoc_ext_plugs() -> Self {
-        PlugInfo::Unit(PlugInfoUnitData::IsocExt(PlugInfoUnitIsocExtData {
-            isoc_input_plugs: 0xff,
-            isoc_output_plugs: 0xff,
-            external_input_plugs: 0xff,
-            external_output_plugs: 0xff,
-        }))
+        PlugInfo::Unit(PlugInfoUnitData::IsocExt(Default::default()))
     }
 
     pub fn new_for_unit_async_plugs() -> Self {
-        PlugInfo::Unit(PlugInfoUnitData::Async(PlugInfoUnitAsyncData {
-            async_input_plugs: 0xff,
-            async_output_plugs: 0xff,
-        }))
+        PlugInfo::Unit(PlugInfoUnitData::Async(Default::default()))
     }
 
     pub fn new_for_unit_other_plugs(subfunction: u8) -> Self {
         PlugInfo::Unit(PlugInfoUnitData::Other(PlugInfoUnitOtherData {
             subfunction,
-            first_input_plug: 0xff,
-            input_plugs: 0xff,
-            first_output_plug: 0xff,
-            output_plugs: 0xff,
+            ..Default::default()
         }))
     }
 
     pub fn new_for_subunit_plugs() -> Self {
-        PlugInfo::Subunit(PlugInfoSubunitData {
-            dst_plugs: 0xff,
-            src_plugs: 0xff,
-        })
+        PlugInfo::Subunit(Default::default())
     }
 }
 
