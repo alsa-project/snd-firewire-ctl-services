@@ -897,10 +897,8 @@ impl SupportStatus {
     const INACTIVE: u8 = 0x01;
     const NO_STREAM_FORMAT: u8 = 0x02;
     const NO_INFO: u8 = 0xff;
-}
 
-impl From<u8> for SupportStatus {
-    fn from(val: u8) -> Self {
+    fn from_val(val: u8) -> Self {
         match val {
             Self::ACTIVE => Self::Active,
             Self::INACTIVE => Self::Inactive,
@@ -909,16 +907,14 @@ impl From<u8> for SupportStatus {
             _ => Self::Reserved(val),
         }
     }
-}
 
-impl From<SupportStatus> for u8 {
-    fn from(status: SupportStatus) -> Self {
-        match status {
-            SupportStatus::Active => SupportStatus::ACTIVE,
-            SupportStatus::Inactive => SupportStatus::INACTIVE,
-            SupportStatus::NoStreamFormat => SupportStatus::NO_STREAM_FORMAT,
-            SupportStatus::NoInfo => SupportStatus::NO_INFO,
-            SupportStatus::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Active => Self::ACTIVE,
+            Self::Inactive => Self::INACTIVE,
+            Self::NoStreamFormat => Self::NO_STREAM_FORMAT,
+            Self::NoInfo => Self::NO_INFO,
+            Self::Reserved(val) => *val,
         }
     }
 }
@@ -948,7 +944,7 @@ impl ExtendedStreamFormat {
     ) -> Result<(), AvcCmdBuildError> {
         operands.push(self.subfunc);
         operands.extend_from_slice(&self.plug_addr.to_raw());
-        operands.push(self.support_status.into());
+        operands.push(self.support_status.to_val());
         Ok(())
     }
 
@@ -962,7 +958,7 @@ impl ExtendedStreamFormat {
             if plug_addr != self.plug_addr {
                 Err(AvcRespParseError::UnexpectedOperands(1))
             } else {
-                self.support_status = SupportStatus::from(operands[6]);
+                self.support_status = SupportStatus::from_val(operands[6]);
                 Ok(())
             }
         }
