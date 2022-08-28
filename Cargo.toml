@@ -49,7 +49,7 @@ members = [
 #    "libs/efw/protocols",
 #    "libs/motu/protocols",
 #    "libs/oxfw/protocols",
-#    "libs/bebob/protocols",
+    "libs/bebob/protocols",
 #    "libs/dice/protocols",
 #    "libs/ff/protocols",
 ]
@@ -62,7 +62,7 @@ ta1394-avc-general = { path = "libs/ta1394/general" }
 #ta1394-avc-audio = { path = "libs/ta1394/audio" }
 #ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
 ta1394-avc-ccm = { path = "libs/ta1394/ccm" }
-#firewire-bebob-protocols = { path = "libs/bebob/protocols" }
+firewire-bebob-protocols = { path = "libs/bebob/protocols" }
 #firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
 #firewire-dice-protocols = { path = "libs/dice/protocols" }
 #firewire-fireworks-protocols = { path = "libs/efw/protocols" }
