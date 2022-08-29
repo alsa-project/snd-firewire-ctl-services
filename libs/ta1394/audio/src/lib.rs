@@ -337,13 +337,13 @@ impl AvcStatus for AudioSelector {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.build_func_blk()?;
-        AvcStatus::build_operands(&mut self.func_blk, addr, operands)
+        self.build_func_blk()
+            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr, operands))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
-        self.parse_func_blk()
+        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)
+            .and_then(|_| self.parse_func_blk())
     }
 }
 
@@ -353,13 +353,13 @@ impl AvcControl for AudioSelector {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.build_func_blk()?;
-        AvcControl::build_operands(&mut self.func_blk, addr, operands)
+        self.build_func_blk()
+            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr, operands))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
-        self.parse_func_blk()
+        AvcControl::parse_operands(&mut self.func_blk, addr, operands)
+            .and_then(|_| self.parse_func_blk())
     }
 }
 
@@ -698,13 +698,13 @@ impl AvcStatus for AudioFeature {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.build_func_blk()?;
-        AvcStatus::build_operands(&mut self.func_blk, addr, operands)
+        self.build_func_blk()
+            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr, operands))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
-        self.parse_func_blk()
+        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)
+            .and_then(|_| self.parse_func_blk())
     }
 }
 
@@ -714,13 +714,13 @@ impl AvcControl for AudioFeature {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.build_func_blk()?;
-        AvcControl::build_operands(&mut self.func_blk, addr, operands)
+        self.build_func_blk()
+            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr, operands))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
-        self.parse_func_blk()
+        AvcControl::parse_operands(&mut self.func_blk, addr, operands)
+            .and_then(|_| self.parse_func_blk())
     }
 }
 
@@ -866,13 +866,13 @@ impl AvcStatus for AudioProcessing {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.build_func_blk()?;
-        AvcStatus::build_operands(&mut self.func_blk, addr, operands)
+        self.build_func_blk()
+            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr, operands))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)?;
-        self.parse_func_blk()
+        AvcStatus::parse_operands(&mut self.func_blk, addr, operands)
+            .and_then(|_| self.parse_func_blk())
     }
 }
 
@@ -882,13 +882,13 @@ impl AvcControl for AudioProcessing {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.build_func_blk()?;
-        AvcControl::build_operands(&mut self.func_blk, addr, operands)
+        self.build_func_blk()
+            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr, operands))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        AvcControl::parse_operands(&mut self.func_blk, addr, operands)?;
-        self.parse_func_blk()
+        AvcControl::parse_operands(&mut self.func_blk, addr, operands)
+            .and_then(|_| self.parse_func_blk())
     }
 }
 
