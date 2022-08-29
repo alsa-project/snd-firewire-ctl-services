@@ -65,8 +65,14 @@ pub enum CtlAttr {
     Reserved(u8),
 }
 
-impl From<u8> for CtlAttr {
-    fn from(val: u8) -> Self {
+impl Default for CtlAttr {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
+impl CtlAttr {
+    fn from_val(val: u8) -> Self {
         match val {
             0x01 => Self::Resolution,
             0x02 => Self::Minimum,
@@ -79,20 +85,18 @@ impl From<u8> for CtlAttr {
             _ => Self::Reserved(val),
         }
     }
-}
 
-impl From<CtlAttr> for u8 {
-    fn from(attr_type: CtlAttr) -> Self {
-        match attr_type {
-            CtlAttr::Resolution => 0x01,
-            CtlAttr::Minimum => 0x02,
-            CtlAttr::Maximum => 0x03,
-            CtlAttr::Default => 0x04,
-            CtlAttr::Duration => 0x08,
-            CtlAttr::Current => 0x10,
-            CtlAttr::Move => 0x18,
-            CtlAttr::Delta => 0x19,
-            CtlAttr::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Resolution => 0x01,
+            Self::Minimum => 0x02,
+            Self::Maximum => 0x03,
+            Self::Default => 0x04,
+            Self::Duration => 0x08,
+            Self::Current => 0x10,
+            Self::Move => 0x18,
+            Self::Delta => 0x19,
+            Self::Reserved(val) => *val,
         }
     }
 }
@@ -100,15 +104,15 @@ impl From<CtlAttr> for u8 {
 impl std::fmt::Display for CtlAttr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let label = match self {
-            CtlAttr::Resolution => "resolution".to_owned(),
-            CtlAttr::Minimum => "minimum".to_owned(),
-            CtlAttr::Maximum => "maximum".to_owned(),
-            CtlAttr::Default => "default".to_owned(),
-            CtlAttr::Duration => "duration".to_owned(),
-            CtlAttr::Current => "current".to_owned(),
-            CtlAttr::Move => "move".to_owned(),
-            CtlAttr::Delta => "delta".to_owned(),
-            CtlAttr::Reserved(val) => format!("reserved: {}", val),
+            Self::Resolution => "resolution".to_owned(),
+            Self::Minimum => "minimum".to_owned(),
+            Self::Maximum => "maximum".to_owned(),
+            Self::Default => "default".to_owned(),
+            Self::Duration => "duration".to_owned(),
+            Self::Current => "current".to_owned(),
+            Self::Move => "move".to_owned(),
+            Self::Delta => "delta".to_owned(),
+            Self::Reserved(val) => format!("reserved: {}", val),
         };
         write!(f, "{}", &label)
     }
@@ -184,7 +188,7 @@ impl AudioFuncBlk {
                 if s.subunit_type == AvcSubunitType::Audio {
                     operands.push(self.func_blk_type.to_val());
                     operands.push(self.func_blk_id);
-                    operands.push(self.ctl_attr.into());
+                    operands.push(self.ctl_attr.to_val());
                     operands.push(1 + self.audio_selector_data.len() as u8);
                     operands.extend_from_slice(&self.audio_selector_data);
                     self.ctl.build_raw(operands);
@@ -210,7 +214,7 @@ impl AudioFuncBlk {
             Err(AvcRespParseError::UnexpectedOperands(1))?;
         }
 
-        let ctl_attr = CtlAttr::from(operands[2]);
+        let ctl_attr = CtlAttr::from_val(operands[2]);
         if ctl_attr != self.ctl_attr {
             Err(AvcRespParseError::UnexpectedOperands(2))?;
         }
