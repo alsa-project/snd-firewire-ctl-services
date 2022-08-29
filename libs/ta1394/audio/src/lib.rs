@@ -509,6 +509,35 @@ impl BassData {
     }
 }
 
+/// Parameters for mid control.
+///
+/// Table 10.9 – Settings for the Mid Control attribute
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct MidData(pub Vec<i8>);
+
+impl MidData {
+    /// The invalid value of mid control.
+    pub const VALUE_INVALID: i8 = 0x7f;
+    /// The maximum value of mid control expresses +31.50 dB.
+    pub const VALUE_MAX: i8 = 0x7e;
+    /// The value of mid control which expresses 0.00 dB.
+    pub const VALUE_ZERO: i8 = 0x00;
+    /// The minimum value of mid control expresses -32.00 dB.
+    pub const VALUE_MIN: i8 = 0x80u8 as i8;
+
+    pub fn new(count: usize) -> Self {
+        Self(vec![Self::VALUE_INVALID; count])
+    }
+
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
+        Self(i8_vector_from_raw(raw.as_ref()))
+    }
+
+    fn to_raw(&self) -> Vec<u8> {
+        self.0.iter().map(|v| *v as u8).collect()
+    }
+}
+
 /// Parameters for graphic equalizer.
 ///
 /// Figure 10.30 – First Form of the Graphic Equalizer Control Parameters.
@@ -712,7 +741,7 @@ pub enum FeatureCtl {
     /// Clause 10.3.5 Bass Control.
     Bass(BassData),
     /// Clause 10.3.6 Mid Control.
-    Mid(Vec<i8>),
+    Mid(MidData),
     /// Clause 10.3.7 Treble Control.
     Treble(Vec<i8>),
     /// Clause 10.3.8 Graphic Equalizer Control.
@@ -771,7 +800,7 @@ impl FeatureCtl {
             },
             Self::Mid(data) => AudioFuncBlkCtl {
                 selector: Self::MID,
-                data: data.iter().map(|v| *v as u8).collect(),
+                data: data.to_raw(),
             },
             Self::Treble(data) => AudioFuncBlkCtl {
                 selector: Self::TREBLE,
@@ -847,7 +876,7 @@ impl FeatureCtl {
             Self::LR_BALANCE => Self::LrBalance(LrBalanceData::from_raw(&ctl.data)),
             Self::FR_BALANCE => Self::FrBalance(FrBalanceData::from_raw(&ctl.data)),
             Self::BASS => Self::Bass(BassData::from_raw(&ctl.data)),
-            Self::MID => Self::Mid(i8_vector_from_raw(&ctl.data)),
+            Self::MID => Self::Mid(MidData::from_raw(&ctl.data)),
             Self::TREBLE => Self::Treble(i8_vector_from_raw(&ctl.data)),
             Self::GRAPHIC_EQUALIZER => {
                 Self::GraphicEqualizer(GraphicEqualizerData::from_raw(&ctl.data))
@@ -1361,7 +1390,7 @@ mod test {
         let ctl = FeatureCtl::Bass(BassData(vec![10, -10, 20, -20]));
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
-        let ctl = FeatureCtl::Mid(vec![30, -30, -40, 40]);
+        let ctl = FeatureCtl::Mid(MidData(vec![30, -30, -40, 40]));
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
         let data = GraphicEqualizerData {
