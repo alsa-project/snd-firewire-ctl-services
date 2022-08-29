@@ -538,6 +538,35 @@ impl MidData {
     }
 }
 
+/// Parameters for treble control.
+///
+/// Table 10.10 – Settings for the Treble Control attribute
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct TrebleData(pub Vec<i8>);
+
+impl TrebleData {
+    /// The invalid value of treble control.
+    pub const VALUE_INVALID: i8 = 0x7f;
+    /// The maximum value of treble control expresses +31.50 dB.
+    pub const VALUE_MAX: i8 = 0x7e;
+    /// The value of treble control which expresses 0.00 dB.
+    pub const VALUE_ZERO: i8 = 0x00;
+    /// The minimum value of treble control expresses -32.00 dB.
+    pub const VALUE_MIN: i8 = 0x80u8 as i8;
+
+    pub fn new(count: usize) -> Self {
+        Self(vec![Self::VALUE_INVALID; count])
+    }
+
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
+        Self(i8_vector_from_raw(raw.as_ref()))
+    }
+
+    fn to_raw(&self) -> Vec<u8> {
+        self.0.iter().map(|v| *v as u8).collect()
+    }
+}
+
 /// Parameters for graphic equalizer.
 ///
 /// Figure 10.30 – First Form of the Graphic Equalizer Control Parameters.
@@ -743,7 +772,7 @@ pub enum FeatureCtl {
     /// Clause 10.3.6 Mid Control.
     Mid(MidData),
     /// Clause 10.3.7 Treble Control.
-    Treble(Vec<i8>),
+    Treble(TrebleData),
     /// Clause 10.3.8 Graphic Equalizer Control.
     GraphicEqualizer(GraphicEqualizerData),
     /// Clause 10.3.9 Automatic Gain Control.
@@ -804,7 +833,7 @@ impl FeatureCtl {
             },
             Self::Treble(data) => AudioFuncBlkCtl {
                 selector: Self::TREBLE,
-                data: data.iter().map(|v| *v as u8).collect(),
+                data: data.to_raw(),
             },
             Self::GraphicEqualizer(data) => AudioFuncBlkCtl {
                 selector: Self::GRAPHIC_EQUALIZER,
@@ -877,7 +906,7 @@ impl FeatureCtl {
             Self::FR_BALANCE => Self::FrBalance(FrBalanceData::from_raw(&ctl.data)),
             Self::BASS => Self::Bass(BassData::from_raw(&ctl.data)),
             Self::MID => Self::Mid(MidData::from_raw(&ctl.data)),
-            Self::TREBLE => Self::Treble(i8_vector_from_raw(&ctl.data)),
+            Self::TREBLE => Self::Treble(TrebleData::from_raw(&ctl.data)),
             Self::GRAPHIC_EQUALIZER => {
                 Self::GraphicEqualizer(GraphicEqualizerData::from_raw(&ctl.data))
             }
@@ -1464,7 +1493,7 @@ mod test {
         let ctl = FeatureCtl::GraphicEqualizer(data);
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
-        let ctl = FeatureCtl::Treble(vec![50, 60, -70, -80]);
+        let ctl = FeatureCtl::Treble(TrebleData(vec![50, 60, -70, -80]));
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
         let ctl = FeatureCtl::AutomaticGain(vec![false, true, false]);
@@ -1499,7 +1528,7 @@ mod test {
         assert_eq!(AudioCh::Each(0x1b), op.audio_ch_num);
         assert_eq!(ctl, op.ctl);
 
-        let ctl = FeatureCtl::Treble(vec![40, -33, 123, -96]);
+        let ctl = FeatureCtl::Treble(TrebleData(vec![40, -33, 123, -96]));
         let mut op = AudioFeature::new(0x33, CtlAttr::Resolution, AudioCh::Each(0xd8), ctl.clone());
         let mut operands = Vec::new();
         AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
