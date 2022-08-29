@@ -146,8 +146,10 @@ impl AvcMuteOperation for FireboxMixerOutputProtocol {}
 /// The protocol implementation of analog input.
 pub struct FireboxAnalogInputProtocol;
 
-const BOOST_OFF: i16 = 0x7ffe;
-const BOOST_ON: i16 = 0x0000;
+impl FireboxAnalogInputProtocol {
+    const BOOST_OFF: i16 = VolumeData::VALUE_MIN;
+    const BOOST_ON: i16 = VolumeData::VALUE_ZERO;
+}
 
 impl AvcSelectorOperation for FireboxAnalogInputProtocol {
     // NOTE: "analog-input-1", "analog-input-2", "analog-input-3", "analog-input-4"
@@ -170,12 +172,12 @@ impl AvcSelectorOperation for FireboxAnalogInputProtocol {
             func_block_id,
             CtlAttr::Current,
             AudioCh::Each(ch_id as u8),
-            FeatureCtl::Volume(vec![-1]),
+            FeatureCtl::Volume(VolumeData::new(1)),
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
 
         if let FeatureCtl::Volume(data) = op.ctl {
-            let val = if data[0] == BOOST_OFF { 0 } else { 1 };
+            let val = if data.0[0] == Self::BOOST_OFF { 0 } else { 1 };
             Ok(val)
         } else {
             unreachable!();
@@ -202,7 +204,7 @@ impl AvcSelectorOperation for FireboxAnalogInputProtocol {
             func_block_id,
             CtlAttr::Current,
             AudioCh::Each(ch_id as u8),
-            FeatureCtl::Volume(vec![if val == 0 { BOOST_OFF } else { BOOST_ON }]),
+            FeatureCtl::Volume(VolumeData(vec![if val == 0 { Self::BOOST_OFF } else { Self::BOOST_ON }])),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
