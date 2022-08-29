@@ -363,6 +363,37 @@ impl AvcControl for AudioSelector {
     }
 }
 
+/// Parameters for volume.
+///
+/// Table 10.5 – Values for the volume settings.
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct VolumeData(pub Vec<i16>);
+
+impl VolumeData {
+    /// The invalid value of volume.
+    pub const VALUE_INVALID: i16 = 0x7fffu16 as i16;
+    /// The maximum value of volume expresses 127.9922 dB.
+    pub const VALUE_MAX: i16 = 0x7ffeu16 as i16;
+    /// The value of volume which expresses 0.00 dB.
+    pub const VALUE_ZERO: i16 = 0;
+    /// The minimum value of volume expresses -127.9961 dB
+    pub const VALUE_MIN: i16 = 0x8001u16 as i16;
+    /// The negative infinity.
+    pub const VALUE_NEG_INFINITY: i16 = 0x8000u16 as i16;
+
+    pub fn new(count: usize) -> Self {
+        Self(vec![Self::VALUE_INVALID; count])
+    }
+
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
+        Self(i16_vector_from_raw(raw.as_ref()))
+    }
+
+    fn to_raw(&self) -> Vec<u8> {
+        i16_vector_to_raw(&self.0)
+    }
+}
+
 /// Parameters for graphic equalizer.
 ///
 /// Figure 10.30 – First Form of the Graphic Equalizer Control Parameters.
@@ -558,7 +589,7 @@ pub enum FeatureCtl {
     /// Clause 10.3.1 Mute Control.
     Mute(Vec<bool>),
     /// Clause 10.3.2 Volume Control.
-    Volume(Vec<i16>),
+    Volume(VolumeData),
     /// Clause 10.3.3 LR Balance Control.
     LrBalance(i16),
     /// Clause 10.3.4 FR Balance Control.
@@ -612,7 +643,7 @@ impl FeatureCtl {
             },
             Self::Volume(data) => AudioFuncBlkCtl {
                 selector: Self::VOLUME,
-                data: i16_vector_to_raw(data),
+                data: data.to_raw(),
             },
             Self::LrBalance(data) => AudioFuncBlkCtl {
                 selector: Self::LR_BALANCE,
@@ -700,7 +731,7 @@ impl FeatureCtl {
     fn from_ctl(ctl: &AudioFuncBlkCtl) -> Self {
         match ctl.selector {
             Self::MUTE => Self::Mute(bool_vector_from_raw(&ctl.data)),
-            Self::VOLUME => Self::Volume(i16_vector_from_raw(&ctl.data)),
+            Self::VOLUME => Self::Volume(VolumeData::from_raw(&ctl.data)),
             Self::LR_BALANCE => Self::LrBalance(i16_from_raw(&ctl.data)),
             Self::FR_BALANCE => Self::FrBalance(i16_from_raw(&ctl.data)),
             Self::BASS => Self::Bass(i8_vector_from_raw(&ctl.data)),
@@ -1205,7 +1236,8 @@ mod test {
         let ctl = FeatureCtl::Mute(vec![false, true, false]);
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
-        let ctl = FeatureCtl::Volume(vec![0x1234, 0x3456, 0x789a]);
+        let data = VolumeData(vec![0x1234, 0x3456, 0x789a]);
+        let ctl = FeatureCtl::Volume(data);
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
         let ctl = FeatureCtl::LrBalance(-123);
@@ -1312,7 +1344,8 @@ mod test {
 
     #[test]
     fn avcaudiofeature_operands() {
-        let ctl = FeatureCtl::Volume(vec![-1234, 5678, 3210]);
+        let data = VolumeData(vec![-1234, 5678, 3210]);
+        let ctl = FeatureCtl::Volume(data);
         let mut op = AudioFeature::new(0x03, CtlAttr::Minimum, AudioCh::Each(0x1b), ctl.clone());
         let mut operands = Vec::new();
         AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();

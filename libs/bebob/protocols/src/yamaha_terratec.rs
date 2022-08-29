@@ -171,17 +171,17 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
             INPUT_NOMINAL_LEVEL_FB_ID,
             CtlAttr::Current,
             AudioCh::Master,
-            FeatureCtl::Volume(vec![0xff]),
+            FeatureCtl::Volume(VolumeData::new(1)),
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
         if let FeatureCtl::Volume(data) = op.ctl {
             INPUT_NOMINAL_LEVELS
                 .iter()
-                .position(|l| *l == data[0])
+                .position(|l| *l == data.0[0])
                 .ok_or_else(|| {
                     let msg = format!(
                         "Unexpected value for value of nominal level: 0x{:04x}",
-                        data[0]
+                        data.0[0]
                     );
                     Error::new(FileError::Io, &msg)
                 })
@@ -212,7 +212,7 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
             INPUT_NOMINAL_LEVEL_FB_ID,
             CtlAttr::Current,
             AudioCh::Master,
-            FeatureCtl::Volume(vec![v]),
+            FeatureCtl::Volume(VolumeData(vec![v])),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }

@@ -12,8 +12,8 @@ use super::*;
 pub struct FirewaveProtocol;
 
 impl FirewaveProtocol {
-    pub const VOLUME_MIN: i16 = i16::MIN;
-    pub const VOLUME_MAX: i16 = 0;
+    pub const VOLUME_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
+    pub const VOLUME_MAX: i16 = VolumeData::VALUE_ZERO;
     pub const VOLUME_STEP: i16 = 1;
 
     pub const PLAYBACK_COUNT: usize = Self::CHANNEL_MAP.len();
@@ -36,12 +36,12 @@ impl FirewaveProtocol {
                 Self::VOL_FB_ID,
                 CtlAttr::Current,
                 AudioCh::Each(Self::CHANNEL_MAP[idx]),
-                FeatureCtl::Volume(vec![-1]),
+                FeatureCtl::Volume(VolumeData::new(1)),
             );
             avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
                 .map(|_| {
                     if let FeatureCtl::Volume(data) = op.ctl {
-                        *volume = data[0]
+                        *volume = data.0[0]
                     }
                 })
         }
@@ -61,7 +61,7 @@ impl FirewaveProtocol {
                 Self::VOL_FB_ID,
                 CtlAttr::Current,
                 AudioCh::Each(Self::CHANNEL_MAP[idx]),
-                FeatureCtl::Volume(vec![volume]),
+                FeatureCtl::Volume(VolumeData(vec![volume])),
             );
             avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
         }

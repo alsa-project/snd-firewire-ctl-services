@@ -221,8 +221,8 @@ pub trait SamplingClockSourceOperation {
 pub trait AvcLevelOperation {
     const ENTRIES: &'static [(u8, AudioCh)];
 
-    const LEVEL_MIN: i16 = FeatureCtl::NEG_INFINITY;
-    const LEVEL_MAX: i16 = 0;
+    const LEVEL_MIN: i16 = VolumeData::VALUE_NEG_INFINITY;
+    const LEVEL_MAX: i16 = VolumeData::VALUE_ZERO;
     const LEVEL_STEP: i16 = 0x100;
 
     fn read_level(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
@@ -235,12 +235,12 @@ pub trait AvcLevelOperation {
             func_block_id,
             CtlAttr::Current,
             audio_ch,
-            FeatureCtl::Volume(vec![-1]),
+            FeatureCtl::Volume(VolumeData::new(1)),
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
 
         if let FeatureCtl::Volume(data) = op.ctl {
-            Ok(data[0])
+            Ok(data.0[0])
         } else {
             unreachable!();
         }
@@ -256,7 +256,7 @@ pub trait AvcLevelOperation {
             func_block_id,
             CtlAttr::Current,
             audio_ch,
-            FeatureCtl::Volume(vec![vol]),
+            FeatureCtl::Volume(VolumeData(vec![vol])),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
