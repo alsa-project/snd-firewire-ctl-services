@@ -23,6 +23,12 @@ enum AudioFuncBlkType {
     Reserved(u8),
 }
 
+impl Default for AudioFuncBlkType {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
 impl AudioFuncBlkType {
     fn from_val(val: u8) -> Self {
         match val {
@@ -127,15 +133,17 @@ struct AudioFuncBlkCtl {
     data: Vec<u8>,
 }
 
-impl AudioFuncBlkCtl {
-    const LENGTH_MIN: usize = 1;
-
-    fn new() -> Self {
-        AudioFuncBlkCtl {
+impl Default for AudioFuncBlkCtl {
+    fn default() -> Self {
+        Self {
             selector: 0xff,
-            data: Vec::new(),
+            data: Default::default(),
         }
     }
+}
+
+impl AudioFuncBlkCtl {
+    const LENGTH_MIN: usize = 1;
 
     fn from_raw(raw: &[u8]) -> Self {
         assert!(raw.len() >= Self::LENGTH_MIN);
@@ -174,17 +182,19 @@ struct AudioFuncBlk {
     ctl: AudioFuncBlkCtl,
 }
 
-impl AudioFuncBlk {
-    fn new(func_blk_type: AudioFuncBlkType, func_blk_id: u8, ctl_attr: CtlAttr) -> Self {
-        AudioFuncBlk {
-            func_blk_type,
-            func_blk_id,
-            ctl_attr,
-            audio_selector_data: Vec::new(),
-            ctl: AudioFuncBlkCtl::new(),
+impl Default for AudioFuncBlk {
+    fn default() -> Self {
+        Self {
+            func_blk_type: Default::default(),
+            func_blk_id: 0xff,
+            ctl_attr: Default::default(),
+            audio_selector_data: Default::default(),
+            ctl: Default::default(),
         }
     }
+}
 
+impl AudioFuncBlk {
     fn build_operands(
         &self,
         addr: &AvcAddr,
@@ -286,9 +296,14 @@ impl AudioSelector {
     const SELECTOR_CONTROL: u8 = 0x01;
 
     pub fn new(func_blk_id: u8, ctl_attr: CtlAttr, input_plug_id: u8) -> Self {
-        AudioSelector {
+        Self {
             input_plug_id,
-            func_blk: AudioFuncBlk::new(AudioFuncBlkType::Selector, func_blk_id, ctl_attr),
+            func_blk: AudioFuncBlk {
+                func_blk_type: AudioFuncBlkType::Selector,
+                func_blk_id,
+                ctl_attr,
+                ..Default::default()
+            },
         }
     }
 
@@ -641,10 +656,15 @@ pub struct AudioFeature {
 
 impl AudioFeature {
     pub fn new(func_blk_id: u8, ctl_attr: CtlAttr, audio_ch_num: AudioCh, ctl: FeatureCtl) -> Self {
-        AudioFeature {
+        Self {
             audio_ch_num,
             ctl,
-            func_blk: AudioFuncBlk::new(AudioFuncBlkType::Feature, func_blk_id, ctl_attr),
+            func_blk: AudioFuncBlk {
+                func_blk_type: AudioFuncBlkType::Feature,
+                func_blk_id,
+                ctl_attr,
+                ..Default::default()
+            },
         }
     }
 
@@ -789,12 +809,17 @@ impl AudioProcessing {
         output_ch: AudioCh,
         ctl: ProcessingCtl,
     ) -> Self {
-        AudioProcessing {
+        Self {
             input_plug_id,
             input_ch,
             output_ch,
             ctl,
-            func_blk: AudioFuncBlk::new(AudioFuncBlkType::Processing, func_blk_id, ctl_attr),
+            func_blk: AudioFuncBlk {
+                func_blk_type: AudioFuncBlkType::Processing,
+                func_blk_id,
+                ctl_attr,
+                ..Default::default()
+            },
         }
     }
 
@@ -873,7 +898,12 @@ mod test {
 
     #[test]
     fn func_blk_operands() {
-        let mut op = AudioFuncBlk::new(AudioFuncBlkType::Selector, 0xfe, CtlAttr::Resolution);
+        let mut op = AudioFuncBlk {
+            func_blk_type: AudioFuncBlkType::Selector,
+            func_blk_id: 0xfe,
+            ctl_attr: CtlAttr::Resolution,
+            ..Default::default()
+        };
         op.audio_selector_data
             .extend_from_slice(&[0xde, 0xad, 0xbe, 0xef]);
         op.ctl.selector = 0x11;
@@ -894,7 +924,12 @@ mod test {
         assert_eq!(op.ctl.selector, 0x11);
         assert_eq!(&op.ctl.data, &[0xbe, 0xef]);
 
-        let mut op = AudioFuncBlk::new(AudioFuncBlkType::Selector, 0xfd, CtlAttr::Minimum);
+        let mut op = AudioFuncBlk {
+            func_blk_type: AudioFuncBlkType::Selector,
+            func_blk_id: 0xfd,
+            ctl_attr: CtlAttr::Minimum,
+            ..Default::default()
+        };
         op.audio_selector_data
             .extend_from_slice(&[0xde, 0xad, 0xbe, 0xef]);
         op.ctl.selector = 0x12;
@@ -916,7 +951,12 @@ mod test {
         assert_eq!(&op.ctl.data, &[0xbe, 0xef]);
 
         // For the case that audio_selector_data is empty.
-        let mut op = AudioFuncBlk::new(AudioFuncBlkType::Feature, 0xfc, CtlAttr::Maximum);
+        let mut op = AudioFuncBlk {
+            func_blk_type: AudioFuncBlkType::Feature,
+            func_blk_id: 0xfc,
+            ctl_attr: CtlAttr::Maximum,
+            ..Default::default()
+        };
         op.ctl.selector = 0x13;
         op.ctl.data.extend_from_slice(&[0xfe, 0xeb, 0xda, 0xed]);
 
@@ -935,9 +975,16 @@ mod test {
         assert_eq!(op.ctl.selector, 0x13);
         assert_eq!(&op.ctl.data, &[0xfe, 0xeb, 0xda, 0xed]);
 
-        let mut op = AudioFuncBlk::new(AudioFuncBlkType::Feature, 0xfb, CtlAttr::Default);
-        op.ctl.selector = 0x14;
-        op.ctl.data.extend_from_slice(&[0xfe, 0xeb, 0xda, 0xed]);
+        let mut op = AudioFuncBlk {
+            func_blk_type: AudioFuncBlkType::Feature,
+            func_blk_id: 0xfb,
+            ctl_attr: CtlAttr::Default,
+            ctl: AudioFuncBlkCtl {
+                selector: 0x14,
+                data: vec![0xfe, 0xeb, 0xda, 0xed],
+            },
+            ..Default::default()
+        };
 
         let mut operands = Vec::new();
         AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
@@ -955,9 +1002,16 @@ mod test {
         assert_eq!(&op.ctl.data, &[0xfe, 0xeb, 0xda, 0xed]);
 
         // For the case that ctl_data is empty.
-        let mut op = AudioFuncBlk::new(AudioFuncBlkType::Processing, 0xfa, CtlAttr::Duration);
-        op.audio_selector_data.extend_from_slice(&[0xda, 0xed]);
-        op.ctl.selector = 0x15;
+        let mut op = AudioFuncBlk {
+            func_blk_type: AudioFuncBlkType::Processing,
+            func_blk_id: 0xfa,
+            ctl_attr: CtlAttr::Duration,
+            audio_selector_data: vec![0xda, 0xed],
+            ctl: AudioFuncBlkCtl {
+                selector: 0x15,
+                ..Default::default()
+            },
+        };
 
         let mut operands = Vec::new();
         AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
@@ -971,9 +1025,16 @@ mod test {
         assert_eq!(op.ctl.selector, 0x15);
         assert_eq!(&op.ctl.data, &[]);
 
-        let mut op = AudioFuncBlk::new(AudioFuncBlkType::Processing, 0xf9, CtlAttr::Current);
-        op.audio_selector_data.extend_from_slice(&[0xda, 0xed]);
-        op.ctl.selector = 0x16;
+        let mut op = AudioFuncBlk {
+            func_blk_type: AudioFuncBlkType::Processing,
+            func_blk_id: 0xf9,
+            ctl_attr: CtlAttr::Current,
+            audio_selector_data: vec![0xda, 0xed],
+            ctl: AudioFuncBlkCtl {
+                selector: 0x16,
+                ..Default::default()
+            },
+        };
 
         let mut operands = Vec::new();
         AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
