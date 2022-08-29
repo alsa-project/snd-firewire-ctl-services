@@ -730,6 +730,33 @@ impl GraphicEqualizerData {
     }
 }
 
+/// Parameters for delay.
+///
+/// Table 10.16 – Values for the setting of the Delay attribute
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct DelayData(pub Vec<u16>);
+
+impl DelayData {
+    /// The invalid value of volume.
+    pub const VALUE_INVALID: u16 = 0xffff;
+    /// The maximum value of volume expresses 1023.9687 ms.
+    pub const VALUE_MAX: u16 = 0x7ffe;
+    /// The value of volume which expresses 0.0000 ms.
+    pub const VALUE_ZERO: u16 = 0;
+
+    pub fn new(count: usize) -> Self {
+        Self(vec![Self::VALUE_INVALID; count])
+    }
+
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
+        Self(u16_vector_from_raw(raw.as_ref()))
+    }
+
+    fn to_raw(&self) -> Vec<u8> {
+        u16_vector_to_raw(&self.0)
+    }
+}
+
 fn i16_vector_to_raw(data: &[i16]) -> Vec<u8> {
     data.iter().fold(Vec::new(), |mut raw, d| {
         raw.extend_from_slice(&d.to_be_bytes());
@@ -778,7 +805,7 @@ pub enum FeatureCtl {
     /// Clause 10.3.9 Automatic Gain Control.
     AutomaticGain(Vec<bool>),
     /// Clause 10.3.10 Delay Control.
-    Delay(Vec<u16>),
+    Delay(DelayData),
     /// Clause 10.3.11 Bass Boost Control.
     BassBoost(Vec<bool>),
     /// Clause 10.3.12 Loudness Control.
@@ -845,7 +872,7 @@ impl FeatureCtl {
             },
             Self::Delay(data) => AudioFuncBlkCtl {
                 selector: Self::DELAY,
-                data: u16_vector_to_raw(data),
+                data: data.to_raw(),
             },
             Self::BassBoost(data) => AudioFuncBlkCtl {
                 selector: Self::BASS_BOOST,
@@ -911,7 +938,7 @@ impl FeatureCtl {
                 Self::GraphicEqualizer(GraphicEqualizerData::from_raw(&ctl.data))
             }
             Self::AUTOMATIC_GAIN => Self::AutomaticGain(bool_vector_from_raw(&ctl.data)),
-            Self::DELAY => Self::Delay(u16_vector_from_raw(&ctl.data)),
+            Self::DELAY => Self::Delay(DelayData::from_raw(&ctl.data)),
             Self::BASS_BOOST => Self::BassBoost(bool_vector_from_raw(&ctl.data)),
             Self::LOUDNESS => Self::Loudness(bool_vector_from_raw(&ctl.data)),
             _ => {
@@ -1499,7 +1526,7 @@ mod test {
         let ctl = FeatureCtl::AutomaticGain(vec![false, true, false]);
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
-        let ctl = FeatureCtl::Delay(vec![0x1234, 0x3456, 0x789a]);
+        let ctl = FeatureCtl::Delay(DelayData(vec![0x1234, 0x3456, 0x789a]));
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
         let ctl = FeatureCtl::BassBoost(vec![true, false, true]);
