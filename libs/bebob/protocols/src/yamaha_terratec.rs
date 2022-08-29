@@ -170,7 +170,7 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
         let mut op = AudioFeature::new(
             INPUT_NOMINAL_LEVEL_FB_ID,
             CtlAttr::Current,
-            AudioCh::All,
+            AudioCh::Master,
             FeatureCtl::Volume(vec![0xff]),
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
@@ -211,7 +211,7 @@ impl AvcSelectorOperation for GoPhase24CoaxPhysInputProtocol {
         let mut op = AudioFeature::new(
             INPUT_NOMINAL_LEVEL_FB_ID,
             CtlAttr::Current,
-            AudioCh::All,
+            AudioCh::Master,
             FeatureCtl::Volume(vec![v]),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)

@@ -140,7 +140,7 @@ impl AvcMuteOperation for Inspire1394MixerAnalogSourceProtocol {}
 pub struct Inspire1394MixerStreamSourceProtocol;
 
 impl AvcLevelOperation for Inspire1394MixerStreamSourceProtocol {
-    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x05, AudioCh::All)];
+    const ENTRIES: &'static [(u8, AudioCh)] = &[(0x05, AudioCh::Master)];
 }
 
 impl AvcMuteOperation for Inspire1394MixerStreamSourceProtocol {}

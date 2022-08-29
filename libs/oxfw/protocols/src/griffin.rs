@@ -71,7 +71,7 @@ impl FirewaveProtocol {
         let mut op = AudioFeature::new(
             Self::MUTE_FB_ID,
             CtlAttr::Current,
-            AudioCh::All,
+            AudioCh::Master,
             FeatureCtl::Mute(vec![false]),
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
@@ -86,7 +86,7 @@ impl FirewaveProtocol {
         let mut op = AudioFeature::new(
             Self::MUTE_FB_ID,
             CtlAttr::Current,
-            AudioCh::All,
+            AudioCh::Master,
             FeatureCtl::Mute(vec![mute]),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)

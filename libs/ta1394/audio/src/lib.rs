@@ -571,30 +571,46 @@ impl From<&AudioFuncBlkCtl> for FeatureCtl {
 /// block".
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AudioCh {
-    /// All channels.
-    All,
+    /// Master channel.
+    Master,
     /// Each of channel.
     Each(u8),
+    /// Void channel.
+    Void,
+    /// All channels.
+    All,
+}
+
+impl Default for AudioCh {
+    fn default() -> Self {
+        Self::All
+    }
 }
 
 impl AudioCh {
     const MASTER: u8 = 0x00;
+    const VOID: u8 = 0xfe;
+    const ALL: u8 = 0xff;
 }
 
-impl From<u8> for AudioCh {
-    fn from(val: u8) -> Self {
+impl AudioCh {
+    fn from_val(val: u8) -> Self {
         match val {
-            AudioCh::MASTER => AudioCh::All,
-            _ => AudioCh::Each(val - 1),
+            Self::MASTER => Self::Master,
+            Self::ALL => Self::All,
+            Self::VOID => Self::Void,
+            // MEMO: It should be greater than 0 and less than 0xfe, however it' loosely handled
+            // here.
+            _ => Self::Each(val - 1),
         }
     }
-}
 
-impl From<AudioCh> for u8 {
-    fn from(num: AudioCh) -> u8 {
-        match num {
-            AudioCh::All => AudioCh::MASTER,
-            AudioCh::Each(val) => val + 1,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Master => Self::MASTER,
+            Self::All => Self::ALL,
+            Self::Void => Self::VOID,
+            Self::Each(val) => val + 1,
         }
     }
 }
@@ -626,13 +642,13 @@ impl AudioFeature {
         self.func_blk.audio_selector_data.clear();
         self.func_blk
             .audio_selector_data
-            .push(u8::from(self.audio_ch_num));
+            .push(self.audio_ch_num.to_val());
         self.func_blk.ctl = AudioFuncBlkCtl::from(&self.ctl);
         Ok(())
     }
 
     fn parse_func_blk(&mut self) -> Result<(), AvcRespParseError> {
-        let audio_ch_num = AudioCh::from(self.func_blk.audio_selector_data[0]);
+        let audio_ch_num = AudioCh::from_val(self.func_blk.audio_selector_data[0]);
         if audio_ch_num != self.audio_ch_num {
             Err(AvcRespParseError::UnexpectedOperands(7))
         } else {
@@ -783,10 +799,10 @@ impl AudioProcessing {
         self.func_blk.audio_selector_data.push(self.input_plug_id);
         self.func_blk
             .audio_selector_data
-            .push(u8::from(self.input_ch));
+            .push(self.input_ch.to_val());
         self.func_blk
             .audio_selector_data
-            .push(u8::from(self.output_ch));
+            .push(self.output_ch.to_val());
         self.func_blk.ctl = AudioFuncBlkCtl::from(&self.ctl);
         Ok(())
     }
@@ -796,12 +812,12 @@ impl AudioProcessing {
             Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
 
-        let input_ch = AudioCh::from(self.func_blk.audio_selector_data[1]);
+        let input_ch = AudioCh::from_val(self.func_blk.audio_selector_data[1]);
         if input_ch != self.input_ch {
             Err(AvcRespParseError::UnexpectedOperands(8))?;
         }
 
-        let output_ch = AudioCh::from(self.func_blk.audio_selector_data[2]);
+        let output_ch = AudioCh::from_val(self.func_blk.audio_selector_data[2]);
         if output_ch != self.output_ch {
             Err(AvcRespParseError::UnexpectedOperands(9))?;
         }
