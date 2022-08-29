@@ -437,6 +437,49 @@ impl LrBalanceData {
     }
 }
 
+/// Parameters for Front-to-Rear balance.
+///
+/// Table 10.7 – Values for the FR Balance settings
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct FrBalanceData(pub i16);
+
+impl Default for FrBalanceData {
+    fn default() -> Self {
+        Self(Self::VALUE_INVALID)
+    }
+}
+
+impl FrBalanceData {
+    /// The invalid value of volume.
+    pub const VALUE_INVALID: i16 = 0x7fffu16 as i16;
+
+    /// The maximum value of front balance expresses 0.00 dB.
+    pub const VALUE_FRONT_MAX: i16 = 0x7ffeu16 as i16;
+    /// The value of front balance which expresses 0.00 dB.
+    pub const VALUE_FRONT_ZERO: i16 = 0;
+    /// The minimum value of front balance expresses -127.9961 dB
+    pub const VALUE_FRONT_MIN: i16 = 0x8001u16 as i16;
+    /// The negative infinity of front balance.
+    pub const VALUE_FRONT_NEG_INFINITY: i16 = 0x8000u16 as i16;
+
+    /// The maximum value of rear balance expresses 0.00 dB.
+    pub const VALUE_REAR_MAX: i16 = 0x8000u16 as i16;
+    /// The value of rear balance which expresses 0.00 dB.
+    pub const VALUE_REAR_ZERO: i16 = 0;
+    /// The minimum value of rear balance expresses -127.9961 dB
+    pub const VALUE_REAR_MIN: i16 = 0x7ffdu16 as i16;
+    /// The negative infinity of rear balance.
+    pub const VALUE_REAR_NEG_INFINITY: i16 = 0x7ffeu16 as i16;
+
+    fn from_raw<T: AsRef<[u8]>>(raw: &T) -> Self {
+        Self(i16_from_raw(raw.as_ref()))
+    }
+
+    fn to_raw(&self) -> Vec<u8> {
+        self.0.to_be_bytes().to_vec()
+    }
+}
+
 /// Parameters for graphic equalizer.
 ///
 /// Figure 10.30 – First Form of the Graphic Equalizer Control Parameters.
@@ -636,7 +679,7 @@ pub enum FeatureCtl {
     /// Clause 10.3.3 LR Balance Control.
     LrBalance(LrBalanceData),
     /// Clause 10.3.4 FR Balance Control.
-    FrBalance(i16),
+    FrBalance(FrBalanceData),
     /// Clause 10.3.5 Bass Control.
     Bass(Vec<i8>),
     /// Clause 10.3.6 Mid Control.
@@ -672,9 +715,6 @@ impl FeatureCtl {
 
     const TRUE: u8 = 0x70;
     const FALSE: u8 = 0x60;
-
-    pub const INFINITY: i16 = 0x7ffeu16 as i16;
-    pub const NEG_INFINITY: i16 = 0x8000u16 as i16;
 }
 
 impl FeatureCtl {
@@ -694,7 +734,7 @@ impl FeatureCtl {
             },
             Self::FrBalance(data) => AudioFuncBlkCtl {
                 selector: Self::FR_BALANCE,
-                data: data.to_be_bytes().to_vec(),
+                data: data.to_raw(),
             },
             Self::Bass(data) => AudioFuncBlkCtl {
                 selector: Self::BASS,
@@ -776,7 +816,7 @@ impl FeatureCtl {
             Self::MUTE => Self::Mute(bool_vector_from_raw(&ctl.data)),
             Self::VOLUME => Self::Volume(VolumeData::from_raw(&ctl.data)),
             Self::LR_BALANCE => Self::LrBalance(LrBalanceData::from_raw(&ctl.data)),
-            Self::FR_BALANCE => Self::FrBalance(i16_from_raw(&ctl.data)),
+            Self::FR_BALANCE => Self::FrBalance(FrBalanceData::from_raw(&ctl.data)),
             Self::BASS => Self::Bass(i8_vector_from_raw(&ctl.data)),
             Self::MID => Self::Mid(i8_vector_from_raw(&ctl.data)),
             Self::TREBLE => Self::Treble(i8_vector_from_raw(&ctl.data)),
@@ -1286,7 +1326,7 @@ mod test {
         let ctl = FeatureCtl::LrBalance(LrBalanceData(-123));
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
-        let ctl = FeatureCtl::FrBalance(321);
+        let ctl = FeatureCtl::FrBalance(FrBalanceData(321));
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
         let ctl = FeatureCtl::Bass(vec![10, -10, 20, -20]);
