@@ -264,8 +264,8 @@ pub trait AvcLevelOperation {
 
 /// The trait of LR balance operation for audio function blocks.
 pub trait AvcLrBalanceOperation: AvcLevelOperation {
-    const BALANCE_MIN: i16 = FeatureCtl::NEG_INFINITY;
-    const BALANCE_MAX: i16 = FeatureCtl::INFINITY;
+    const BALANCE_MIN: i16 = LrBalanceData::VALUE_LEFT_NEG_INFINITY;
+    const BALANCE_MAX: i16 = LrBalanceData::VALUE_LEFT_MAX;
     const BALANCE_STEP: i16 = 0x80;
 
     fn read_lr_balance(avc: &BebobAvc, idx: usize, timeout_ms: u32) -> Result<i16, Error> {
@@ -278,12 +278,12 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
             func_block_id,
             CtlAttr::Current,
             audio_ch,
-            FeatureCtl::LrBalance(-1),
+            FeatureCtl::LrBalance(Default::default()),
         );
         avc.status(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)?;
 
         if let FeatureCtl::LrBalance(balance) = op.ctl {
-            Ok(balance)
+            Ok(balance.0)
         } else {
             unreachable!();
         }
@@ -304,7 +304,7 @@ pub trait AvcLrBalanceOperation: AvcLevelOperation {
             func_block_id,
             CtlAttr::Current,
             audio_ch,
-            FeatureCtl::LrBalance(balance),
+            FeatureCtl::LrBalance(LrBalanceData(balance)),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
