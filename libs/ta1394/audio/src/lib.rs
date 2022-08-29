@@ -725,45 +725,39 @@ impl ProcessingCtl {
     pub const NEG_INFINITY: i16 = 0x8000u16 as i16;
 }
 
-impl From<&ProcessingCtl> for AudioFuncBlkCtl {
-    fn from(ctl: &ProcessingCtl) -> Self {
-        match ctl {
-            ProcessingCtl::Enable(data) => AudioFuncBlkCtl {
-                selector: ProcessingCtl::ENABLE,
-                data: vec![if *data {
-                    ProcessingCtl::TRUE
-                } else {
-                    ProcessingCtl::FALSE
-                }],
+impl ProcessingCtl {
+    fn to_ctl(&self) -> AudioFuncBlkCtl {
+        match self {
+            Self::Enable(data) => AudioFuncBlkCtl {
+                selector: Self::ENABLE,
+                data: vec![if *data { Self::TRUE } else { Self::FALSE }],
             },
-            ProcessingCtl::Mode(data) => AudioFuncBlkCtl {
-                selector: ProcessingCtl::MODE,
+            Self::Mode(data) => AudioFuncBlkCtl {
+                selector: Self::MODE,
                 data: data.to_vec(),
             },
-            ProcessingCtl::Mixer(data) => AudioFuncBlkCtl {
-                selector: ProcessingCtl::MIXER,
+            Self::Mixer(data) => AudioFuncBlkCtl {
+                selector: Self::MIXER,
                 data: i16_vector_to_raw(data),
             },
-            ProcessingCtl::Reserved(data) => AudioFuncBlkCtl {
+            Self::Reserved(data) => AudioFuncBlkCtl {
                 selector: data[0],
                 data: data[2..].to_vec(),
             },
         }
     }
-}
 
-impl From<&AudioFuncBlkCtl> for ProcessingCtl {
-    fn from(ctl_blk: &AudioFuncBlkCtl) -> Self {
+    fn from_ctl(ctl_blk: &AudioFuncBlkCtl) -> Self {
         match ctl_blk.selector {
-            Self::ENABLE => ProcessingCtl::Enable(ctl_blk.data[0] == ProcessingCtl::TRUE),
-            Self::MODE => ProcessingCtl::Mode(ctl_blk.data.to_vec()),
-            Self::MIXER => ProcessingCtl::Mixer(i16_vector_from_raw(&ctl_blk.data)),
+            Self::ENABLE => Self::Enable(ctl_blk.data[0] == Self::TRUE),
+            Self::MODE => Self::Mode(ctl_blk.data.to_vec()),
+            Self::MIXER => Self::Mixer(i16_vector_from_raw(&ctl_blk.data)),
             _ => {
                 let mut data = Vec::new();
                 data.push(ctl_blk.selector);
                 data.push(1 + ctl_blk.data.len() as u8);
                 data.extend_from_slice(&ctl_blk.data);
-                ProcessingCtl::Reserved(data)
+                Self::Reserved(data)
             }
         }
     }
@@ -813,7 +807,7 @@ impl AudioProcessing {
         self.func_blk
             .audio_selector_data
             .push(self.output_ch.to_val());
-        self.func_blk.ctl = AudioFuncBlkCtl::from(&self.ctl);
+        self.func_blk.ctl = self.ctl.to_ctl();
         Ok(())
     }
 
@@ -832,7 +826,7 @@ impl AudioProcessing {
             Err(AvcRespParseError::UnexpectedOperands(9))?;
         }
 
-        self.ctl = ProcessingCtl::from(&self.func_blk.ctl);
+        self.ctl = ProcessingCtl::from_ctl(&self.func_blk.ctl);
         Ok(())
     }
 }
@@ -1094,13 +1088,13 @@ mod test {
     #[test]
     fn processingctl_from() {
         let ctl = ProcessingCtl::Enable(true);
-        assert_eq!(ctl, ProcessingCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()));
 
         let ctl = ProcessingCtl::Mode(vec![0xde, 0xad, 0xbe, 0xef]);
-        assert_eq!(ctl, ProcessingCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()));
 
         let ctl = ProcessingCtl::Mixer(vec![-73, -157]);
-        assert_eq!(ctl, ProcessingCtl::from(&AudioFuncBlkCtl::from(&ctl)));
+        assert_eq!(ctl, ProcessingCtl::from_ctl(&ctl.to_ctl()));
     }
 
     #[test]
