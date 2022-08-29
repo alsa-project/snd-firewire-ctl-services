@@ -77,8 +77,8 @@ pub struct AureonPhysInputProtocol;
 
 impl AvcLevelOperation for AureonPhysInputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x02, AudioCh::All), // analog-input-1/2
-        (0x03, AudioCh::All), // analog-input-3/4
+        (0x02, AudioCh::Master), // analog-input-1/2
+        (0x03, AudioCh::Master), // analog-input-3/4
     ];
 }
 
@@ -98,7 +98,7 @@ pub struct AureonMonitorOutputProtocol;
 
 impl AvcLevelOperation for AureonMonitorOutputProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x04, AudioCh::All), // monitor-output-1/2
+        (0x04, AudioCh::Master), // monitor-output-1/2
     ];
 }
 

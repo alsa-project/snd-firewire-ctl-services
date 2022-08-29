@@ -108,7 +108,7 @@ pub struct FirexonMixerSourceProtocol;
 
 impl AvcLevelOperation for FirexonMixerSourceProtocol {
     const ENTRIES: &'static [(u8, AudioCh)] = &[
-        (0x04, AudioCh::All), // stream-input-1/2
-        (0x05, AudioCh::All), // monitor-output-1/2
+        (0x04, AudioCh::Master), // stream-input-1/2
+        (0x05, AudioCh::Master), // monitor-output-1/2
     ];
 }
