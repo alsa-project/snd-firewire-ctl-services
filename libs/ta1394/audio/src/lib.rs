@@ -190,21 +190,20 @@ impl AudioFuncBlk {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        match addr {
-            AvcAddr::Unit => Err(AvcCmdBuildError::InvalidAddress),
-            AvcAddr::Subunit(s) => {
-                if s.subunit_type == AvcSubunitType::Audio {
-                    operands.push(self.func_blk_type.to_val());
-                    operands.push(self.func_blk_id);
-                    operands.push(self.ctl_attr.to_val());
-                    operands.push(1 + self.audio_selector_data.len() as u8);
-                    operands.extend_from_slice(&self.audio_selector_data);
-                    operands.append(&mut self.ctl.to_raw());
-                    Ok(())
-                } else {
-                    Err(AvcCmdBuildError::InvalidAddress)
-                }
-            }
+        if let AvcAddr::Subunit(AvcAddrSubunit {
+            subunit_type: AvcSubunitType::Audio,
+            subunit_id: _,
+        }) = addr
+        {
+            operands.push(self.func_blk_type.to_val());
+            operands.push(self.func_blk_id);
+            operands.push(self.ctl_attr.to_val());
+            operands.push(1 + self.audio_selector_data.len() as u8);
+            operands.extend_from_slice(&self.audio_selector_data);
+            operands.append(&mut self.ctl.to_raw());
+            Ok(())
+        } else {
+            Err(AvcCmdBuildError::InvalidAddress)
         }
     }
 
