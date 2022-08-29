@@ -128,6 +128,8 @@ struct AudioFuncBlkCtl {
 }
 
 impl AudioFuncBlkCtl {
+    const LENGTH_MIN: usize = 1;
+
     fn new() -> Self {
         AudioFuncBlkCtl {
             selector: 0xff,
@@ -135,23 +137,29 @@ impl AudioFuncBlkCtl {
         }
     }
 
-    fn build_raw(&self, raw: &mut Vec<u8>) {
+    fn from_raw(raw: &[u8]) -> Self {
+        assert!(raw.len() >= Self::LENGTH_MIN);
+        let mut ctl = Self {
+            selector: raw[0],
+            data: Default::default(),
+        };
+        if raw.len() > 1 {
+            let length = raw[1] as usize;
+            if raw.len() >= 2 + length {
+                ctl.data.extend_from_slice(&raw[2..(2 + length)]);
+            }
+        }
+        ctl
+    }
+
+    fn to_raw(&self) -> Vec<u8> {
+        let mut raw = Vec::with_capacity(Self::LENGTH_MIN);
         raw.push(self.selector);
         if self.data.len() > 0 {
             raw.push(self.data.len() as u8);
             raw.extend_from_slice(&self.data);
         }
-    }
-
-    fn parse_raw(&mut self, raw: &[u8]) {
-        self.selector = raw[0];
-        self.data.clear();
-        if raw.len() > 1 {
-            let length = raw[1] as usize;
-            if raw.len() >= 2 + length {
-                self.data.extend_from_slice(&raw[2..(2 + length)]);
-            }
-        }
+        raw
     }
 }
 
@@ -191,7 +199,7 @@ impl AudioFuncBlk {
                     operands.push(self.ctl_attr.to_val());
                     operands.push(1 + self.audio_selector_data.len() as u8);
                     operands.extend_from_slice(&self.audio_selector_data);
-                    self.ctl.build_raw(operands);
+                    operands.append(&mut self.ctl.to_raw());
                     Ok(())
                 } else {
                     Err(AvcCmdBuildError::InvalidAddress)
@@ -228,7 +236,7 @@ impl AudioFuncBlk {
         audio_selector_length -= 1;
         self.audio_selector_data = operands[4..(4 + audio_selector_length)].to_vec();
 
-        self.ctl.parse_raw(&operands[(4 + audio_selector_length)..]);
+        self.ctl = AudioFuncBlkCtl::from_raw(&operands[(4 + audio_selector_length)..]);
 
         Ok(())
     }
