@@ -23,24 +23,22 @@ enum AudioFuncBlkType {
     Reserved(u8),
 }
 
-impl From<u8> for AudioFuncBlkType {
-    fn from(val: u8) -> Self {
+impl AudioFuncBlkType {
+    fn from_val(val: u8) -> Self {
         match val {
-            0x80 => AudioFuncBlkType::Selector,
-            0x81 => AudioFuncBlkType::Feature,
-            0x82 => AudioFuncBlkType::Processing,
-            _ => AudioFuncBlkType::Reserved(val),
+            0x80 => Self::Selector,
+            0x81 => Self::Feature,
+            0x82 => Self::Processing,
+            _ => Self::Reserved(val),
         }
     }
-}
 
-impl From<AudioFuncBlkType> for u8 {
-    fn from(func_blk_type: AudioFuncBlkType) -> Self {
-        match func_blk_type {
-            AudioFuncBlkType::Selector => 0x80,
-            AudioFuncBlkType::Feature => 0x81,
-            AudioFuncBlkType::Processing => 0x82,
-            AudioFuncBlkType::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Selector => 0x80,
+            Self::Feature => 0x81,
+            Self::Processing => 0x82,
+            Self::Reserved(val) => *val,
         }
     }
 }
@@ -184,7 +182,7 @@ impl AudioFuncBlk {
             AvcAddr::Unit => Err(AvcCmdBuildError::InvalidAddress),
             AvcAddr::Subunit(s) => {
                 if s.subunit_type == AvcSubunitType::Audio {
-                    operands.push(self.func_blk_type.into());
+                    operands.push(self.func_blk_type.to_val());
                     operands.push(self.func_blk_id);
                     operands.push(self.ctl_attr.into());
                     operands.push(1 + self.audio_selector_data.len() as u8);
@@ -202,7 +200,7 @@ impl AudioFuncBlk {
         if operands.len() < 4 {
             Err(AvcRespParseError::TooShortResp(4))?;
         }
-        let func_blk_type = AudioFuncBlkType::from(operands[0]);
+        let func_blk_type = AudioFuncBlkType::from_val(operands[0]);
         if func_blk_type != self.func_blk_type {
             Err(AvcRespParseError::UnexpectedOperands(0))?;
         }
