@@ -20,7 +20,7 @@ impl Tcd22xxSpecOperation for SPro40Protocol {
         Input {
             id: SrcBlkId::Ins1,
             offset: 0,
-            count: 6,
+            count: 8,
             label: None,
         },
         Input {
