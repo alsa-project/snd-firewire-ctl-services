@@ -48,7 +48,7 @@ members = [
 #    "libs/tascam/protocols",
 #    "libs/efw/protocols",
 #    "libs/motu/protocols",
-#    "libs/oxfw/protocols",
+    "libs/oxfw/protocols",
     "libs/bebob/protocols",
 #    "libs/dice/protocols",
 #    "libs/ff/protocols",
@@ -68,5 +68,5 @@ firewire-bebob-protocols = { path = "libs/bebob/protocols" }
 #firewire-fireworks-protocols = { path = "libs/efw/protocols" }
 #firewire-fireface-protocols = { path = "libs/ff/protocols" }
 #firewire-motu-protocols = { path = "libs/motu/protocols" }
-#firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
+firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
 #firewire-tascam-protocols = { path = "libs/tascam/protocols" }
