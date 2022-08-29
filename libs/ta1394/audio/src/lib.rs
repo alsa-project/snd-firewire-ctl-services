@@ -363,33 +363,165 @@ impl AvcControl for AudioSelector {
     }
 }
 
+/// Parameters for graphic equalizer.
+///
 /// Figure 10.30 – First Form of the Graphic Equalizer Control Parameters.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct GraphicEqualizerData {
-    pub bands_present: [u8; 4],
-    pub ex_bands_present: [u8; 4],
-    pub gain: Vec<i8>,
+    /// Gains for bands of third octave graphic equalizer, defined in ANSI S1.11-1986.
+    /// The band number with asterisk expresses the band of an octave equalizer.
+    ///
+    /// Band number  | Center of frequency (Hz)
+    /// ------------ | ------------------------
+    /// 14           | 25
+    /// 15*          | 31.5
+    /// 16           | 40
+    /// 17           | 50
+    /// 18*          | 63
+    /// 19           | 80
+    /// 20           | 100
+    /// 21*          | 125
+    /// 22           | 160
+    /// 23           | 200
+    /// 24*          | 250
+    /// 25           | 315
+    /// 26           | 400
+    /// 27*          | 500
+    /// 28           | 630
+    /// 29           | 800
+    /// 30*          | 1000
+    /// 31           | 1250
+    /// 32           | 1600
+    /// 33*          | 2000
+    /// 34           | 2500
+    /// 35           | 3150
+    /// 36*          | 4000
+    /// 37           | 5000
+    /// 38           | 6300
+    /// 39*          | 8000
+    /// 40           | 10000
+    /// 41           | 12500
+    /// 42*          | 16000
+    /// 43           | 20000
+    pub ansi_band_gains: [Option<i8>; Self::ANSI_BAND_COUNT],
+
+    /// Gains for extra bands of six octave graphic equalizer.
+    ///
+    /// Band number  | Center of frequency (Hz)
+    /// ------------ | ------------------------
+    /// 1            | 18
+    /// 2            | 20
+    /// 3            | 22
+    /// 4            | 28
+    /// 5            | 35
+    /// 6            | 44.5
+    /// 7            | 56
+    /// 8            | 70
+    /// 9            | 89
+    /// 10           | 110
+    /// 11           | 140
+    /// 12           | 180
+    /// 13           | 220
+    /// 14           | 280
+    /// 15           | 355
+    /// 16           | 445
+    /// 17           | 560
+    /// 18           | 710
+    /// 19           | 890
+    /// 20           | 1100
+    /// 21           | 1400
+    /// 22           | 1800
+    /// 23           | 2200
+    /// 24           | 2800
+    /// 25           | 3550
+    /// 26           | 4450
+    /// 27           | 5600
+    /// 28           | 7100
+    /// 29           | 8900
+    /// 30           | 11000
+    /// 31           | 14000
+    /// 32           | 18000
+    pub extra_band_gains: [Option<i8>; Self::EXTRA_BAND_COUNT],
 }
 
 impl GraphicEqualizerData {
+    /// The maximum value of gain expresses +31.50 dB.
+    pub const VALUE_MIN: i8 = i8::MIN;
+
+    /// The value of gain expresses zero dB.
+    pub const VALUE_ZERO: i8 = 0;
+
+    /// The minimum value of gain expresses -32.00 dB.
+    pub const VALUE_MAX: i8 = i8::MAX;
+
+    const VALUE_INVALID: u8 = 0x7f;
+
+    const ANSI_BAND_COUNT: usize = 30;
+    const EXTRA_BAND_COUNT: usize = 32;
+
+    const LENGTH_MIN: usize = 8;
+
     fn from_raw<T: AsRef<[u8]>>(raw: T) -> Self {
-        let mut data = GraphicEqualizerData {
-            bands_present: [0; 4],
-            ex_bands_present: [0; 4],
-            gain: Vec::new(),
-        };
-        let r = &raw.as_ref();
-        data.bands_present.copy_from_slice(&r[0..4]);
-        data.ex_bands_present.copy_from_slice(&r[4..8]);
-        r[8..].iter().for_each(|val| data.gain.push(*val as i8));
-        data
+        let mut ansi_band_gains = [None; Self::ANSI_BAND_COUNT];
+        let mut extra_band_gains = [None; Self::EXTRA_BAND_COUNT];
+
+        let mut gain_index = Self::LENGTH_MIN;
+
+        let mut band_gains = [
+            (ansi_band_gains.as_mut_slice(), 0usize),
+            (extra_band_gains.as_mut_slice(), 4usize),
+        ];
+
+        let r = raw.as_ref();
+
+        band_gains.iter_mut().for_each(|(gains, offset)| {
+            gains
+                .iter_mut()
+                .enumerate()
+                .filter(|(i, _)| (r[*offset + i / 8] & (1 << (i % 8)) > 0))
+                .for_each(|(_, gain)| {
+                    *gain = if r.len() < gain_index {
+                        None
+                    } else if r[gain_index] == Self::VALUE_INVALID {
+                        None
+                    } else {
+                        let val = Some(r[gain_index] as i8);
+                        gain_index += 1;
+                        val
+                    }
+                });
+        });
+
+        Self {
+            ansi_band_gains,
+            extra_band_gains,
+        }
     }
 
     fn to_raw(&self) -> Vec<u8> {
-        let mut raw = Vec::new();
-        raw.extend_from_slice(&self.bands_present);
-        raw.extend_from_slice(&self.ex_bands_present);
-        self.gain.iter().for_each(|val| raw.push(*val as u8));
+        let band_gains = [
+            (self.ansi_band_gains.as_slice(), 0usize),
+            (self.extra_band_gains.as_slice(), 4usize),
+        ];
+        let mut raw = vec![0x00u8; Self::LENGTH_MIN];
+
+        band_gains.iter().for_each(|(gains, offset)| {
+            gains
+                .iter()
+                .enumerate()
+                .filter_map(|(i, gain)| {
+                    if let Some(g) = gain {
+                        Some((i, *g))
+                    } else {
+                        None
+                    }
+                })
+                .for_each(|(i, gain)| {
+                    raw[offset + i / 8] |= 1 << (i % 8);
+                    raw.push(gain as u8);
+                });
+        });
+
         raw
     }
 }
@@ -1089,10 +1221,71 @@ mod test {
         assert_eq!(ctl, FeatureCtl::from_ctl(&ctl.to_ctl()));
 
         let data = GraphicEqualizerData {
-            bands_present: [0x00, 0x01, 0x02, 0x03],
-            ex_bands_present: [0x04, 0x05, 0x06, 0x07],
-            gain: vec![
-                -1, -2, -3, 10, 14, -40, -100, 33, 87, 99, -123, 100, -76, -97, 18, 21,
+            ansi_band_gains: [
+                Some(-1),
+                Some(-2),
+                Some(-3),
+                Some(10),
+                None,
+                None,
+                None,
+                None,
+                Some(14),
+                Some(-40),
+                Some(-100),
+                Some(33),
+                None,
+                None,
+                None,
+                None,
+                Some(-1),
+                Some(-2),
+                Some(-3),
+                Some(10),
+                None,
+                None,
+                None,
+                None,
+                Some(14),
+                Some(-40),
+                Some(-100),
+                Some(33),
+                None,
+                None,
+            ],
+            extra_band_gains: [
+                Some(87),
+                Some(99),
+                Some(-123),
+                Some(100),
+                None,
+                None,
+                None,
+                None,
+                Some(-76),
+                Some(-97),
+                Some(18),
+                Some(21),
+                None,
+                None,
+                None,
+                None,
+                Some(87),
+                Some(99),
+                Some(-123),
+                Some(100),
+                None,
+                None,
+                None,
+                None,
+                Some(-76),
+                Some(-97),
+                Some(18),
+                Some(21),
+                None,
+                None,
+                None,
+                None,
             ],
         };
         let ctl = FeatureCtl::GraphicEqualizer(data);
