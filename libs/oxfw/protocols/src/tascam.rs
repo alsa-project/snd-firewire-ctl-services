@@ -285,15 +285,11 @@ impl AvcOp for TascamProto {
 }
 
 impl AvcControl for TascamProto {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         let mut data = self.cmd.build_data();
         self.cmd.append_variable(&mut data);
         self.op.data = data;
-        AvcControl::build_operands(&mut self.op, addr, operands)
+        AvcControl::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -302,13 +298,9 @@ impl AvcControl for TascamProto {
 }
 
 impl AvcStatus for TascamProto {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.data = self.cmd.build_data();
-        AvcStatus::build_operands(&mut self.op, addr, operands)
+        AvcStatus::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -335,31 +327,28 @@ impl Ta1394Avc<Error> for TascamAvc {
         op: &mut O,
         timeout_ms: u32,
     ) -> Result<(), Ta1394AvcError<Error>> {
-        let mut operands = Vec::new();
-        let command_frame = AvcControl::build_operands(op, addr, &mut operands)
-            .map_err(|err| Ta1394AvcError::CmdBuild(err))
-            .map(|_| {
-                Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)
-            })?;
-        self.transaction(&command_frame, timeout_ms)
-            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))
-            .and_then(|response_frame| {
-                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
-                    .and_then(|(rcode, operands)| {
-                        let expected = if O::OPCODE != VendorDependent::OPCODE {
-                            AvcRespCode::Accepted
-                        } else {
-                            // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
-                            AvcRespCode::ImplementedStable
-                        };
-                        if rcode != expected {
-                            Err(AvcRespParseError::UnexpectedStatus)
-                        } else {
-                            AvcControl::parse_operands(op, addr, &operands)
-                        }
-                    })
-                    .map_err(|err| Ta1394AvcError::RespParse(err))
+        let operands =
+            AvcControl::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
+        let command_frame =
+            Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands);
+        let response_frame = self
+            .transaction(&command_frame, timeout_ms)
+            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
+        Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+            .and_then(|(rcode, operands)| {
+                let expected = if O::OPCODE != VendorDependent::OPCODE {
+                    AvcRespCode::Accepted
+                } else {
+                    // NOTE: quirk. Furthermore, company_id in response transaction is 0xffffff.
+                    AvcRespCode::ImplementedStable
+                };
+                if rcode != expected {
+                    Err(AvcRespParseError::UnexpectedStatus)
+                } else {
+                    AvcControl::parse_operands(op, addr, &operands)
+                }
             })
+            .map_err(|err| Ta1394AvcError::RespParse(err))
     }
 }
 
@@ -403,16 +392,14 @@ mod test {
             unreachable!();
         }
 
-        let mut o = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands[..7]);
 
         let mut op = TascamProto::new(VendorCmd::InputMode(0x01));
         let operands = [0x00, 0x02, 0x2e, 0x46, 0x49, 0x31, 0x12, 0x01];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
 
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands);
     }
 }

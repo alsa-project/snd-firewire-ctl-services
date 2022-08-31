@@ -38,17 +38,14 @@ impl AvcOp for UnitInfo {
 }
 
 impl AvcStatus for UnitInfo {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         if let AvcAddr::Subunit(_) = addr {
             Err(AvcCmdBuildError::InvalidAddress)
         } else {
+            let mut operands = Vec::new();
             operands.push(Self::FIRST_OPERAND);
             operands.extend_from_slice(&[0xff; 4]);
-            Ok(())
+            Ok(operands)
         }
     }
 
@@ -134,21 +131,18 @@ impl AvcOp for SubunitInfo {
 }
 
 impl AvcStatus for SubunitInfo {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         if let AvcAddr::Subunit(_) = addr {
             Err(AvcCmdBuildError::InvalidAddress)
         } else {
+            let mut operands = Vec::new();
             operands.push(
                 ((self.page & Self::PAGE_MASK) << Self::PAGE_SHIFT)
                     | ((self.extension_code & Self::EXTENSION_CODE_MASK)
                         << Self::EXTENSION_CODE_SHIFT),
             );
             operands.extend_from_slice(&[0xff; 4]);
-            Ok(())
+            Ok(operands)
         }
     }
 
@@ -206,11 +200,12 @@ impl VendorDependent {
         }
     }
 
-    fn build_operands(&self, operands: &mut Vec<u8>) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&self) -> Result<Vec<u8>, AvcCmdBuildError> {
         if self.data.len() > 0 {
+            let mut operands = Vec::new();
             operands.extend_from_slice(&self.company_id);
             operands.extend_from_slice(&self.data);
-            Ok(())
+            Ok(operands)
         } else {
             Err(AvcCmdBuildError::InvalidOperands)
         }
@@ -232,12 +227,8 @@ impl AvcOp for VendorDependent {
 }
 
 impl AvcControl for VendorDependent {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        Self::build_operands(self, operands)
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        Self::build_operands(self)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -246,12 +237,8 @@ impl AvcControl for VendorDependent {
 }
 
 impl AvcStatus for VendorDependent {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        Self::build_operands(self, operands)
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        Self::build_operands(self)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -392,11 +379,7 @@ impl AvcOp for PlugInfo {
 }
 
 impl AvcStatus for PlugInfo {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         let subfunction = match &self {
             PlugInfo::Unit(u) => {
                 if let AvcAddr::Subunit(_) = addr {
@@ -415,9 +398,10 @@ impl AvcStatus for PlugInfo {
                 Self::SUBFUNC_SUBUNIT
             }
         };
+        let mut operands = Vec::new();
         operands.push(subfunction);
         operands.extend_from_slice(&[0xff; 4]);
-        Ok(())
+        Ok(operands)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -479,10 +463,10 @@ impl PlugSignalFormat {
     fn build_operands(
         &mut self,
         addr: &AvcAddr,
-        operands: &mut Vec<u8>,
         for_status: bool,
-    ) -> Result<(), AvcCmdBuildError> {
+    ) -> Result<Vec<u8>, AvcCmdBuildError> {
         if *addr == AvcAddr::Unit {
+            let mut operands = Vec::new();
             operands.push(self.plug_id);
             if for_status {
                 operands.extend_from_slice(&[0xff; 4]);
@@ -490,7 +474,7 @@ impl PlugSignalFormat {
                 operands.push(self.fmt);
                 operands.extend_from_slice(&self.fdf);
             }
-            Ok(())
+            Ok(operands)
         } else {
             Err(AvcCmdBuildError::InvalidAddress)
         }
@@ -538,12 +522,8 @@ impl AvcOp for InputPlugSignalFormat {
 }
 
 impl AvcControl for InputPlugSignalFormat {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        self.0.build_operands(addr, operands, false)
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.0.build_operands(addr, false)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -552,12 +532,8 @@ impl AvcControl for InputPlugSignalFormat {
 }
 
 impl AvcStatus for InputPlugSignalFormat {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        self.0.build_operands(addr, operands, true)
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.0.build_operands(addr, true)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -585,12 +561,8 @@ impl AvcOp for OutputPlugSignalFormat {
 }
 
 impl AvcControl for OutputPlugSignalFormat {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        self.0.build_operands(addr, operands, false)
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.0.build_operands(addr, false)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -599,12 +571,8 @@ impl AvcControl for OutputPlugSignalFormat {
 }
 
 impl AvcStatus for OutputPlugSignalFormat {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        self.0.build_operands(addr, operands, true)
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.0.build_operands(addr, true)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -625,8 +593,7 @@ mod test {
         assert_eq!(op.unit_id, 0x06);
         assert_eq!(op.company_id, [0xad, 0xbe, 0xef]);
 
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&operands, &[0x07, 0xff, 0xff, 0xff, 0xff]);
     }
 
@@ -664,12 +631,10 @@ mod test {
         assert_eq!(op.company_id, company_id);
         assert_eq!(&op.data, &[0xde, 0xad, 0xbe, 0xef]);
 
-        let mut target = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        let target = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&target, &operands);
 
-        let mut target = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        let target = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&target, &operands);
 
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &target).unwrap();
@@ -695,9 +660,8 @@ mod test {
             _ => unreachable!(),
         }
 
-        let mut target = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
-        assert_eq!(&target, &[0x00, 0xff, 0xff, 0xff, 0xff]);
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands, &[0x00, 0xff, 0xff, 0xff, 0xff]);
 
         let operands = [0x01, 0xde, 0xad, 0xff, 0xff];
         let mut op = PlugInfo::new_for_unit_async_plugs();
@@ -713,9 +677,8 @@ mod test {
             _ => unreachable!(),
         }
 
-        let mut target = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
-        assert_eq!(&target, &[0x01, 0xff, 0xff, 0xff, 0xff]);
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands, &[0x01, 0xff, 0xff, 0xff, 0xff]);
 
         let operands = [0x53, 0xde, 0xad, 0xbe, 0xef];
         let mut op = PlugInfo::new_for_unit_other_plugs(0x53);
@@ -734,9 +697,8 @@ mod test {
             _ => unreachable!(),
         }
 
-        let mut target = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
-        assert_eq!(&target, &[0x53, 0xff, 0xff, 0xff, 0xff]);
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
+        assert_eq!(&operands, &[0x53, 0xff, 0xff, 0xff, 0xff]);
 
         let operands = [0x00, 0xde, 0xad, 0xff, 0xff];
         let mut op = PlugInfo::new_for_subunit_plugs();
@@ -749,13 +711,12 @@ mod test {
             _ => unreachable!(),
         }
 
-        let mut target = Vec::new();
         let addr = AvcAddr::Subunit(AvcAddrSubunit {
             subunit_type: AvcSubunitType::Audio,
             subunit_id: 0x4,
         });
-        AvcStatus::build_operands(&mut op, &addr, &mut target).unwrap();
-        assert_eq!(&target, &[0x00, 0xff, 0xff, 0xff, 0xff]);
+        let operands = AvcStatus::build_operands(&mut op, &addr).unwrap();
+        assert_eq!(&operands, &[0x00, 0xff, 0xff, 0xff, 0xff]);
     }
 
     #[test]
@@ -767,12 +728,10 @@ mod test {
         assert_eq!(op.0.fmt, 0xde);
         assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
 
-        let mut target = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        let target = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(target, &[0x1e, 0xff, 0xff, 0xff, 0xff]);
 
-        let mut target = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        let target = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(target, operands);
 
         let mut op = InputPlugSignalFormat::new(0x1e);
@@ -791,12 +750,10 @@ mod test {
         assert_eq!(op.0.fmt, 0xde);
         assert_eq!(op.0.fdf, [0xad, 0xbe, 0xef]);
 
-        let mut target = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        let target = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(target, &[0x1e, 0xff, 0xff, 0xff, 0xff]);
 
-        let mut target = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut target).unwrap();
+        let target = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(target, operands);
 
         let mut op = OutputPlugSignalFormat::new(0x1e);

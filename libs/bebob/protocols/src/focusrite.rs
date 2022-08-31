@@ -399,11 +399,7 @@ const FOCUSRITE_CONTROL_ACTION: u8 = 0x01;
 const FOCUSRITE_STATUS_ACTION: u8 = 0x03;
 
 impl AvcControl for SaffireAvcOperation {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         assert!(self.offsets.len() <= MAXIMUM_OFFSET_COUNT);
         assert_eq!(self.offsets.len() * 4, self.buf.len());
 
@@ -418,7 +414,7 @@ impl AvcControl for SaffireAvcOperation {
             data.extend_from_slice(&idx.to_be_bytes());
             data.extend_from_slice(&buf[pos..(pos + 4)]);
         });
-        AvcControl::build_operands(&mut self.op, addr, operands)
+        AvcControl::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -433,11 +429,7 @@ impl AvcControl for SaffireAvcOperation {
 }
 
 impl AvcStatus for SaffireAvcOperation {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         assert!(self.offsets.len() <= MAXIMUM_OFFSET_COUNT);
         assert_eq!(self.offsets.len() * 4, self.buf.len());
 
@@ -450,7 +442,7 @@ impl AvcStatus for SaffireAvcOperation {
             data.extend_from_slice(&idx.to_be_bytes());
             data.extend_from_slice(&[0xff; 4]);
         });
-        AvcStatus::build_operands(&mut self.op, addr, operands)
+        AvcStatus::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -662,8 +654,7 @@ mod test {
             buf: vec![0x01, 0x23, 0x45, 0x67, 0x76, 0x54, 0x32, 0x10],
             ..Default::default()
         };
-        let mut generated = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut generated).unwrap();
+        let generated = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
 
         let expected = [
             0x00, 0x13, 0x0e, 0x01, 0x02, 0x00, 0x00, 0x00, 0x10, 0x01, 0x23, 0x45, 0x67, 0x00,
@@ -709,8 +700,7 @@ mod test {
             buf: vec![0; 8],
             ..Default::default()
         };
-        let mut generated = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut generated).unwrap();
+        let generated = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
 
         let expected = [
             0x00, 0x13, 0x0e, 0x03, 0x02, 0x00, 0x00, 0x00, 0x10, 0xff, 0xff, 0xff, 0xff, 0x00,

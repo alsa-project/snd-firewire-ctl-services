@@ -1131,16 +1131,13 @@ impl ExtendedStreamFormat {
         }
     }
 
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        let mut operands = Vec::new();
         operands.push(self.subfunc);
         let r = self.plug_addr.to_raw()?;
         operands.extend_from_slice(&r);
         operands.push(self.support_status.to_val());
-        Ok(())
+        Ok(operands)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1193,13 +1190,9 @@ impl AvcOp for ExtendedStreamFormatSingle {
 }
 
 impl AvcStatus for ExtendedStreamFormatSingle {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.support_status = SupportStatus::Reserved(0xff);
-        self.op.build_operands(addr, operands)
+        self.op.build_operands(addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1216,15 +1209,13 @@ impl AvcStatus for ExtendedStreamFormatSingle {
 }
 
 impl AvcControl for ExtendedStreamFormatSingle {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        self.op.build_operands(addr, operands)?;
-        self.stream_format
-            .to_raw()
-            .map(|mut raw| operands.append(&mut raw))
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.op.build_operands(addr).and_then(|mut operands| {
+            self.stream_format.to_raw().map(|mut raw| {
+                operands.append(&mut raw);
+                operands
+            })
+        })
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1275,15 +1266,12 @@ impl AvcOp for ExtendedStreamFormatList {
 }
 
 impl AvcStatus for ExtendedStreamFormatList {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.support_status = SupportStatus::NotUsed;
-        self.op
-            .build_operands(addr, operands)
-            .map(|_| operands.push(self.index))
+        self.op.build_operands(addr).map(|mut operands| {
+            operands.push(self.index);
+            operands
+        })
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1531,8 +1519,7 @@ mod tests {
             }),
         };
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&operands, &[0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff]);
 
         let operands = [
@@ -1570,8 +1557,7 @@ mod tests {
             unreachable!();
         }
 
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(
             &operands,
             &[
@@ -1626,8 +1612,7 @@ mod tests {
             }),
         };
         let mut op = ExtendedStreamFormatList::new(&plug_addr, 0x31);
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&operands, &[0xc1, 0x01, 0x00, 0x00, 0x03, 0xff, 0xff, 0x31]);
 
         let operands = [

@@ -1224,11 +1224,7 @@ impl AvcOp for EnsembleOperation {
 }
 
 impl AvcControl for EnsembleOperation {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.data = Into::<Vec<u8>>::into(&self.cmd);
 
         // At least, 6 bytes should be required to align to 3 quadlets. Unless, the target unit is freezed.
@@ -1236,7 +1232,7 @@ impl AvcControl for EnsembleOperation {
             self.op.data.push(0xff);
         }
 
-        AvcControl::build_operands(&mut self.op, addr, operands)
+        AvcControl::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {

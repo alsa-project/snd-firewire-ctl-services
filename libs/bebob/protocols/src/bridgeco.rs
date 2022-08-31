@@ -819,15 +819,12 @@ impl AvcOp for ExtendedPlugInfo {
 }
 
 impl AvcStatus for ExtendedPlugInfo {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        let mut operands = Vec::new();
         operands.push(Self::SUBFUNC);
         operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.addr));
         operands.append(&mut Into::<Vec<u8>>::into(&self.info));
-        Ok(())
+        Ok(operands)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -936,15 +933,12 @@ impl AvcOp for ExtendedSubunitInfo {
 }
 
 impl AvcStatus for ExtendedSubunitInfo {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        let mut operands = Vec::new();
         operands.push(self.page);
         operands.push(self.func_blk_type);
         operands.extend_from_slice(&[0xff; 25]);
-        Ok(())
+        Ok(operands)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1298,7 +1292,7 @@ impl BcoSupportStatus {
             Self::ACTIVE => Self::Active,
             Self::INACTIVE => Self::Inactive,
             Self::NO_STREAM_FORMAT => Self::NoStreamFormat,
-            Self::NOT_USED=> Self::NotUsed,
+            Self::NOT_USED => Self::NotUsed,
             _ => Self::Reserved(val),
         }
     }
@@ -1335,15 +1329,12 @@ impl BcoExtendedStreamFormat {
 }
 
 impl AvcStatus for BcoExtendedStreamFormat {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        let mut operands = Vec::new();
         operands.push(self.subfunc);
         operands.extend_from_slice(&Into::<[u8; 5]>::into(&self.plug_addr));
         operands.push(self.support_status.to_val());
-        Ok(())
+        Ok(operands)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1393,13 +1384,9 @@ impl AvcOp for ExtendedStreamFormatSingle {
 }
 
 impl AvcStatus for ExtendedStreamFormatSingle {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.support_status = BcoSupportStatus::Reserved(0xff);
-        self.op.build_operands(addr, operands)
+        self.op.build_operands(addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1413,15 +1400,12 @@ impl AvcStatus for ExtendedStreamFormatSingle {
 }
 
 impl AvcControl for ExtendedStreamFormatSingle {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.support_status = BcoSupportStatus::Active;
-        self.op.build_operands(addr, operands)?;
-        operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
-        Ok(())
+        self.op.build_operands(addr).map(|mut operands| {
+            operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
+            operands
+        })
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1462,14 +1446,11 @@ impl AvcOp for ExtendedStreamFormatList {
 }
 
 impl AvcStatus for ExtendedStreamFormatList {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        self.op.build_operands(addr, operands)?;
-        operands.push(self.index);
-        Ok(())
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        self.op.build_operands(addr).map(|mut operands| {
+            operands.push(self.index);
+            operands
+        })
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -2308,8 +2289,7 @@ mod test {
         assert_eq!(e.func_blk_purpose, 0xe0);
         assert_eq!(e.input_plugs, 0xe0);
         assert_eq!(e.output_plugs, 0x04);
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(&operands[..2], &[0x00, 0xff]);
         assert_eq!(&operands[2..], &[0xff; 25]);
     }
