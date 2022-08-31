@@ -254,13 +254,13 @@ pub enum BcoIoPlugAddrMode {
     Reserved([u8; 6]),
 }
 
-impl From<&[u8; 6]> for BcoIoPlugAddrMode {
-    fn from(raw: &[u8; 6]) -> Self {
+impl BcoIoPlugAddrMode {
+    fn from_raw(raw: &[u8; 6]) -> Self {
         let mut r = [0; 3];
         match raw[0] {
             BcoPlugAddrMode::UNIT => {
                 r.copy_from_slice(&raw[1..4]);
-                BcoIoPlugAddrMode::Unit(BcoPlugAddrUnit::from_raw(&r))
+                Self::Unit(BcoPlugAddrUnit::from_raw(&r))
             }
             BcoPlugAddrMode::SUBUNIT => {
                 let subunit = AvcAddrSubunit {
@@ -268,7 +268,7 @@ impl From<&[u8; 6]> for BcoIoPlugAddrMode {
                     subunit_id: raw[2],
                 };
                 r.copy_from_slice(&raw[3..6]);
-                BcoIoPlugAddrMode::Subunit(subunit, BcoPlugAddrSubunit::from_raw(&r))
+                Self::Subunit(subunit, BcoPlugAddrSubunit::from_raw(&r))
             }
             BcoPlugAddrMode::FUNCBLK => {
                 let subunit = AvcAddrSubunit {
@@ -276,34 +276,32 @@ impl From<&[u8; 6]> for BcoIoPlugAddrMode {
                     subunit_id: raw[2],
                 };
                 r.copy_from_slice(&raw[3..6]);
-                BcoIoPlugAddrMode::FuncBlk(subunit, BcoPlugAddrFuncBlk::from_raw(&r))
+                Self::FuncBlk(subunit, BcoPlugAddrFuncBlk::from_raw(&r))
             }
-            _ => BcoIoPlugAddrMode::Reserved(*raw),
+            _ => Self::Reserved(*raw),
         }
     }
-}
 
-impl From<&BcoIoPlugAddrMode> for [u8; 6] {
-    fn from(data: &BcoIoPlugAddrMode) -> Self {
+    fn to_raw(&self) -> [u8; 6] {
         let mut raw = [0xff; 6];
-        match data {
-            BcoIoPlugAddrMode::Unit(d) => {
+        match self {
+            Self::Unit(d) => {
                 raw[0] = BcoPlugAddrMode::UNIT;
                 raw[1..4].copy_from_slice(&d.to_raw());
             }
-            BcoIoPlugAddrMode::Subunit(s, d) => {
+            Self::Subunit(s, d) => {
                 raw[0] = BcoPlugAddrMode::SUBUNIT;
                 raw[1] = s.subunit_type.into();
                 raw[2] = s.subunit_id;
                 raw[3..6].copy_from_slice(&d.to_raw());
             }
-            BcoIoPlugAddrMode::FuncBlk(s, d) => {
+            Self::FuncBlk(s, d) => {
                 raw[0] = BcoPlugAddrMode::FUNCBLK;
                 raw[1] = s.subunit_type.into();
                 raw[2] = s.subunit_id;
                 raw[3..6].copy_from_slice(&d.to_raw());
             }
-            BcoIoPlugAddrMode::Reserved(d) => {
+            Self::Reserved(d) => {
                 raw.copy_from_slice(d);
             }
         }
@@ -318,22 +316,20 @@ pub struct BcoIoPlugAddr {
     pub mode: BcoIoPlugAddrMode,
 }
 
-impl From<&[u8; 7]> for BcoIoPlugAddr {
-    fn from(raw: &[u8; 7]) -> Self {
+impl BcoIoPlugAddr {
+    fn from_raw(raw: &[u8; 7]) -> Self {
         let mut r = [0; 6];
         r.copy_from_slice(&raw[1..]);
-        BcoIoPlugAddr {
+        Self {
             direction: BcoPlugDirection::from_val(raw[0]),
-            mode: BcoIoPlugAddrMode::from(&r),
+            mode: BcoIoPlugAddrMode::from_raw(&r),
         }
     }
-}
 
-impl From<&BcoIoPlugAddr> for [u8; 7] {
-    fn from(data: &BcoIoPlugAddr) -> [u8; 7] {
+    fn to_raw(&self) -> [u8; 7] {
         let mut raw = [0; 7];
-        raw[0] = data.direction.to_val();
-        raw[1..].copy_from_slice(&Into::<[u8; 6]>::into(&data.mode));
+        raw[0] = self.direction.to_val();
+        raw[1..].copy_from_slice(&self.mode.to_raw());
         raw
     }
 }
@@ -698,14 +694,14 @@ impl From<&BcoPlugInfo> for Vec<u8> {
             }
             BcoPlugInfo::Input(plug_addr) => {
                 raw.push(BcoPlugInfo::INPUT);
-                raw.extend_from_slice(&mut Into::<[u8; 7]>::into(plug_addr));
+                raw.extend_from_slice(&mut plug_addr.to_raw());
             }
             BcoPlugInfo::Outputs(plug_addrs) => {
                 raw.push(BcoPlugInfo::OUTPUTS);
                 raw.push(plug_addrs.len() as u8);
                 plug_addrs
                     .iter()
-                    .for_each(|plug_addr| raw.extend_from_slice(&Into::<[u8; 7]>::into(plug_addr)));
+                    .for_each(|plug_addr| raw.extend_from_slice(&plug_addr.to_raw()));
             }
             BcoPlugInfo::ClusterInfo(d) => {
                 raw.push(BcoPlugInfo::CLUSTER_INFO);
@@ -756,7 +752,7 @@ impl From<&[u8]> for BcoPlugInfo {
             BcoPlugInfo::INPUT => {
                 let mut r = [0; 7];
                 r.copy_from_slice(&raw[1..8]);
-                BcoPlugInfo::Input(BcoIoPlugAddr::from(&r))
+                BcoPlugInfo::Input(BcoIoPlugAddr::from_raw(&r))
             }
             BcoPlugInfo::OUTPUTS => {
                 let count = raw[1] as usize;
@@ -765,7 +761,7 @@ impl From<&[u8]> for BcoPlugInfo {
                 while pos < raw.len() && entries.len() < count {
                     let mut r = [0; 7];
                     r.copy_from_slice(&raw[pos..(pos + 7)]);
-                    entries.push(BcoIoPlugAddr::from(&r));
+                    entries.push(BcoIoPlugAddr::from_raw(&r));
                     pos += 7;
                 }
                 BcoPlugInfo::Outputs(entries)
@@ -1755,7 +1751,7 @@ mod test {
     fn bcoioplugaddr_from() {
         // Unit.
         let raw: [u8; 7] = [0x00, 0x00, 0x02, 0x05, 0xff, 0xff, 0xff];
-        let addr = BcoIoPlugAddr::from(&raw);
+        let addr = BcoIoPlugAddr::from_raw(&raw);
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::Unit(d) = &addr.mode {
             assert_eq!(d.plug_type, BcoPlugAddrUnitType::Async);
@@ -1763,11 +1759,11 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8; 7]>::into(&addr));
+        assert_eq!(raw, addr.to_raw());
 
         // Subunit.
         let raw: [u8; 7] = [0x01, 0x01, 0x06, 0x05, 0x02, 0xff, 0xff];
-        let addr = BcoIoPlugAddr::from(&raw);
+        let addr = BcoIoPlugAddr::from_raw(&raw);
         assert_eq!(addr.direction, BcoPlugDirection::Output);
         if let BcoIoPlugAddrMode::Subunit(s, d) = &addr.mode {
             assert_eq!(s.subunit_type, AvcSubunitType::Ca);
@@ -1776,11 +1772,11 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8; 7]>::into(&addr));
+        assert_eq!(raw, addr.to_raw());
 
         // Function block.
         let raw: [u8; 7] = [0x00, 0x02, 0x04, 0x09, 0x80, 0x12, 0x23];
-        let addr = BcoIoPlugAddr::from(&raw);
+        let addr = BcoIoPlugAddr::from_raw(&raw);
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::FuncBlk(s, d) = &addr.mode {
             assert_eq!(s.subunit_type, AvcSubunitType::Tape);
@@ -1791,7 +1787,7 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<[u8; 7]>::into(&addr));
+        assert_eq!(raw, addr.to_raw());
     }
 
     #[test]
