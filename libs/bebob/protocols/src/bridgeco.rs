@@ -946,56 +946,36 @@ impl BcoCompoundAm824StreamFormat {
     const MULTI_BIT_LINEAR_AUDIO_DVD: u8 = 0x07;
     const HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO: u8 = 0x0c;
     const MIDI_CONFORMANT: u8 = 0x0d;
-}
 
-impl From<u8> for BcoCompoundAm824StreamFormat {
-    fn from(val: u8) -> Self {
+    fn from_val(val: u8) -> Self {
         match val {
-            BcoCompoundAm824StreamFormat::IEC60958_3 => BcoCompoundAm824StreamFormat::Iec60958_3,
-            BcoCompoundAm824StreamFormat::IEC61937_3 => BcoCompoundAm824StreamFormat::Iec61937_3,
-            BcoCompoundAm824StreamFormat::IEC61937_4 => BcoCompoundAm824StreamFormat::Iec61937_4,
-            BcoCompoundAm824StreamFormat::IEC61937_5 => BcoCompoundAm824StreamFormat::Iec61937_5,
-            BcoCompoundAm824StreamFormat::IEC61937_6 => BcoCompoundAm824StreamFormat::Iec61937_6,
-            BcoCompoundAm824StreamFormat::IEC61937_7 => BcoCompoundAm824StreamFormat::Iec61937_7,
-            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW => {
-                BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw
-            }
-            BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD => {
-                BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd
-            }
-            BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
-                BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio
-            }
-            BcoCompoundAm824StreamFormat::MIDI_CONFORMANT => {
-                BcoCompoundAm824StreamFormat::MidiConformant
-            }
-            _ => BcoCompoundAm824StreamFormat::Reserved(val),
+            Self::IEC60958_3 => Self::Iec60958_3,
+            Self::IEC61937_3 => Self::Iec61937_3,
+            Self::IEC61937_4 => Self::Iec61937_4,
+            Self::IEC61937_5 => Self::Iec61937_5,
+            Self::IEC61937_6 => Self::Iec61937_6,
+            Self::IEC61937_7 => Self::Iec61937_7,
+            Self::MULTI_BIT_LINEAR_AUDIO_RAW => Self::MultiBitLinearAudioRaw,
+            Self::MULTI_BIT_LINEAR_AUDIO_DVD => Self::MultiBitLinearAudioDvd,
+            Self::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => Self::HighPrecisionMultiBitLinearAudio,
+            Self::MIDI_CONFORMANT => Self::MidiConformant,
+            _ => Self::Reserved(val),
         }
     }
-}
 
-impl From<BcoCompoundAm824StreamFormat> for u8 {
-    fn from(fmt: BcoCompoundAm824StreamFormat) -> u8 {
-        match fmt {
-            BcoCompoundAm824StreamFormat::Iec60958_3 => BcoCompoundAm824StreamFormat::IEC60958_3,
-            BcoCompoundAm824StreamFormat::Iec61937_3 => BcoCompoundAm824StreamFormat::IEC61937_3,
-            BcoCompoundAm824StreamFormat::Iec61937_4 => BcoCompoundAm824StreamFormat::IEC61937_4,
-            BcoCompoundAm824StreamFormat::Iec61937_5 => BcoCompoundAm824StreamFormat::IEC61937_5,
-            BcoCompoundAm824StreamFormat::Iec61937_6 => BcoCompoundAm824StreamFormat::IEC61937_6,
-            BcoCompoundAm824StreamFormat::Iec61937_7 => BcoCompoundAm824StreamFormat::IEC61937_7,
-            BcoCompoundAm824StreamFormat::MultiBitLinearAudioRaw => {
-                BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_RAW
-            }
-            BcoCompoundAm824StreamFormat::MultiBitLinearAudioDvd => {
-                BcoCompoundAm824StreamFormat::MULTI_BIT_LINEAR_AUDIO_DVD
-            }
-            BcoCompoundAm824StreamFormat::HighPrecisionMultiBitLinearAudio => {
-                BcoCompoundAm824StreamFormat::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO
-            }
-            BcoCompoundAm824StreamFormat::MidiConformant => {
-                BcoCompoundAm824StreamFormat::MIDI_CONFORMANT
-            }
-            BcoCompoundAm824StreamFormat::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Iec60958_3 => Self::IEC60958_3,
+            Self::Iec61937_3 => Self::IEC61937_3,
+            Self::Iec61937_4 => Self::IEC61937_4,
+            Self::Iec61937_5 => Self::IEC61937_5,
+            Self::Iec61937_6 => Self::IEC61937_6,
+            Self::Iec61937_7 => Self::IEC61937_7,
+            Self::MultiBitLinearAudioRaw => Self::MULTI_BIT_LINEAR_AUDIO_RAW,
+            Self::MultiBitLinearAudioDvd => Self::MULTI_BIT_LINEAR_AUDIO_DVD,
+            Self::HighPrecisionMultiBitLinearAudio => Self::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO,
+            Self::MidiConformant => Self::MIDI_CONFORMANT,
+            Self::Reserved(val) => *val,
         }
     }
 }
@@ -1007,18 +987,16 @@ pub struct BcoCompoundAm824StreamEntry {
     pub format: BcoCompoundAm824StreamFormat,
 }
 
-impl From<&[u8; 2]> for BcoCompoundAm824StreamEntry {
-    fn from(raw: &[u8; 2]) -> Self {
+impl BcoCompoundAm824StreamEntry {
+    fn from_raw(raw: &[u8; 2]) -> Self {
         BcoCompoundAm824StreamEntry {
             count: raw[0],
-            format: BcoCompoundAm824StreamFormat::from(raw[1]),
+            format: BcoCompoundAm824StreamFormat::from_val(raw[1]),
         }
     }
-}
 
-impl From<&BcoCompoundAm824StreamEntry> for [u8; 2] {
-    fn from(data: &BcoCompoundAm824StreamEntry) -> Self {
-        [data.count, data.format.into()]
+    fn to_raw(&self) -> [u8; 2] {
+        [self.count, self.format.to_val()]
     }
 }
 
@@ -1047,27 +1025,23 @@ impl BcoCompoundAm824Stream {
 
     const RATE_CTL_MASK: u8 = 0x03;
     const RATE_CTL_SHIFT: usize = 0;
-}
 
-impl From<&[u8]> for BcoCompoundAm824Stream {
-    fn from(raw: &[u8]) -> Self {
+    fn from_raw(raw: &[u8]) -> Self {
         let freq = match raw[0] {
-            BcoCompoundAm824Stream::FREQ_CODE_22050 => 22050,
-            BcoCompoundAm824Stream::FREQ_CODE_24000 => 24000,
-            BcoCompoundAm824Stream::FREQ_CODE_32000 => 32000,
-            BcoCompoundAm824Stream::FREQ_CODE_44100 => 44100,
-            BcoCompoundAm824Stream::FREQ_CODE_48000 => 48000,
-            BcoCompoundAm824Stream::FREQ_CODE_96000 => 96000,
-            BcoCompoundAm824Stream::FREQ_CODE_176400 => 176400,
-            BcoCompoundAm824Stream::FREQ_CODE_192000 => 192000,
-            BcoCompoundAm824Stream::FREQ_CODE_88200 => 88200,
+            Self::FREQ_CODE_22050 => 22050,
+            Self::FREQ_CODE_24000 => 24000,
+            Self::FREQ_CODE_32000 => 32000,
+            Self::FREQ_CODE_44100 => 44100,
+            Self::FREQ_CODE_48000 => 48000,
+            Self::FREQ_CODE_96000 => 96000,
+            Self::FREQ_CODE_176400 => 176400,
+            Self::FREQ_CODE_192000 => 192000,
+            Self::FREQ_CODE_88200 => 88200,
             _ => u32::MAX,
         };
-        let sync_src_code = (raw[1] >> BcoCompoundAm824Stream::SYNC_SRC_SHIFT)
-            & BcoCompoundAm824Stream::SYNC_SRC_MASK;
+        let sync_src_code = (raw[1] >> Self::SYNC_SRC_SHIFT) & Self::SYNC_SRC_MASK;
         let sync_src = sync_src_code > 0;
-        let rate_ctl_code = (raw[1] >> BcoCompoundAm824Stream::RATE_CTL_SHIFT)
-            & BcoCompoundAm824Stream::RATE_CTL_MASK;
+        let rate_ctl_code = (raw[1] >> Self::RATE_CTL_SHIFT) & Self::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == 0;
         let entry_count = raw[2] as usize;
         let entries = (0..entry_count)
@@ -1077,45 +1051,41 @@ impl From<&[u8]> for BcoCompoundAm824Stream {
                 } else {
                     let mut doublet = [0; 2];
                     doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
-                    Some(BcoCompoundAm824StreamEntry::from(&doublet))
+                    Some(BcoCompoundAm824StreamEntry::from_raw(&doublet))
                 }
             })
             .collect();
-        BcoCompoundAm824Stream {
+        Self {
             freq,
             sync_src,
             rate_ctl,
             entries,
         }
     }
-}
 
-impl From<&BcoCompoundAm824Stream> for Vec<u8> {
-    fn from(data: &BcoCompoundAm824Stream) -> Self {
+    fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::new();
-        let freq_code = match data.freq {
-            22050 => BcoCompoundAm824Stream::FREQ_CODE_22050,
-            24000 => BcoCompoundAm824Stream::FREQ_CODE_24000,
-            32000 => BcoCompoundAm824Stream::FREQ_CODE_32000,
-            44100 => BcoCompoundAm824Stream::FREQ_CODE_44100,
-            48000 => BcoCompoundAm824Stream::FREQ_CODE_48000,
-            96000 => BcoCompoundAm824Stream::FREQ_CODE_96000,
-            176400 => BcoCompoundAm824Stream::FREQ_CODE_176400,
-            192000 => BcoCompoundAm824Stream::FREQ_CODE_192000,
-            88200 => BcoCompoundAm824Stream::FREQ_CODE_88200,
+        let freq_code = match self.freq {
+            22050 => Self::FREQ_CODE_22050,
+            24000 => Self::FREQ_CODE_24000,
+            32000 => Self::FREQ_CODE_32000,
+            44100 => Self::FREQ_CODE_44100,
+            48000 => Self::FREQ_CODE_48000,
+            96000 => Self::FREQ_CODE_96000,
+            176400 => Self::FREQ_CODE_176400,
+            192000 => Self::FREQ_CODE_192000,
+            88200 => Self::FREQ_CODE_88200,
             _ => u8::MAX,
         };
         raw.push(freq_code);
 
-        let sync_src_code = ((data.sync_src as u8) & BcoCompoundAm824Stream::SYNC_SRC_MASK)
-            << BcoCompoundAm824Stream::SYNC_SRC_SHIFT;
-        let rate_ctl_code = ((data.rate_ctl as u8) & BcoCompoundAm824Stream::RATE_CTL_MASK)
-            << BcoCompoundAm824Stream::RATE_CTL_SHIFT;
+        let sync_src_code = ((self.sync_src as u8) & Self::SYNC_SRC_MASK) << Self::SYNC_SRC_SHIFT;
+        let rate_ctl_code = ((self.rate_ctl as u8) & Self::RATE_CTL_MASK) << Self::RATE_CTL_SHIFT;
         raw.push(sync_src_code | rate_ctl_code);
 
-        raw.push(data.entries.len() as u8);
-        data.entries.iter().for_each(|entry| {
-            raw.extend_from_slice(&Into::<[u8; 2]>::into(entry));
+        raw.push(self.entries.len() as u8);
+        self.entries.iter().for_each(|entry| {
+            raw.extend_from_slice(&entry.to_raw());
         });
 
         raw
@@ -1133,7 +1103,7 @@ impl From<&[u8]> for BcoAmStream {
     fn from(raw: &[u8]) -> Self {
         match raw[0] {
             AmStream::HIER_LEVEL_1_COMPOUND_AM824 => {
-                let s = BcoCompoundAm824Stream::from(&raw[1..]);
+                let s = BcoCompoundAm824Stream::from_raw(&raw[1..]);
                 BcoAmStream::BcoStream(s)
             }
             _ => BcoAmStream::AmStream(AmStream::from_raw(raw).unwrap()),
@@ -1147,7 +1117,7 @@ impl From<&BcoAmStream> for Vec<u8> {
             BcoAmStream::BcoStream(s) => {
                 let mut raw = Vec::new();
                 raw.push(AmStream::HIER_LEVEL_1_COMPOUND_AM824);
-                raw.append(&mut Into::<Vec<u8>>::into(s));
+                raw.append(&mut s.to_raw());
                 raw
             }
             _ => Into::<Vec<u8>>::into(data),
