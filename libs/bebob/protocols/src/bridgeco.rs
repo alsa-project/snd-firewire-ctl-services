@@ -353,32 +353,28 @@ impl BcoPlugType {
     const SYNC: u8 = 0x03;
     const ANALOG: u8 = 0x04;
     const DIGITAL: u8 = 0x05;
-}
 
-impl From<u8> for BcoPlugType {
-    fn from(val: u8) -> Self {
+    fn from_val(val: u8) -> Self {
         match val {
-            BcoPlugType::ISOC_STREAM => BcoPlugType::Isoc,
-            BcoPlugType::ASYNC_STREAM => BcoPlugType::Async,
-            BcoPlugType::MIDI => BcoPlugType::Midi,
-            BcoPlugType::SYNC => BcoPlugType::Sync,
-            BcoPlugType::ANALOG => BcoPlugType::Analog,
-            BcoPlugType::DIGITAL => BcoPlugType::Digital,
-            _ => BcoPlugType::Reserved(val),
+            Self::ISOC_STREAM => Self::Isoc,
+            Self::ASYNC_STREAM => Self::Async,
+            Self::MIDI => Self::Midi,
+            Self::SYNC => Self::Sync,
+            Self::ANALOG => Self::Analog,
+            Self::DIGITAL => Self::Digital,
+            _ => Self::Reserved(val),
         }
     }
-}
 
-impl From<BcoPlugType> for u8 {
-    fn from(plug_type: BcoPlugType) -> u8 {
-        match plug_type {
-            BcoPlugType::Isoc => BcoPlugType::ISOC_STREAM,
-            BcoPlugType::Async => BcoPlugType::ASYNC_STREAM,
-            BcoPlugType::Midi => BcoPlugType::MIDI,
-            BcoPlugType::Sync => BcoPlugType::SYNC,
-            BcoPlugType::Analog => BcoPlugType::ANALOG,
-            BcoPlugType::Digital => BcoPlugType::DIGITAL,
-            BcoPlugType::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Isoc => Self::ISOC_STREAM,
+            Self::Async => Self::ASYNC_STREAM,
+            Self::Midi => Self::MIDI,
+            Self::Sync => Self::SYNC,
+            Self::Analog => Self::ANALOG,
+            Self::Digital => Self::DIGITAL,
+            Self::Reserved(val) => *val,
         }
     }
 }
@@ -668,7 +664,7 @@ impl From<&BcoPlugInfo> for Vec<u8> {
         match data {
             BcoPlugInfo::Type(plug_type) => {
                 raw.push(BcoPlugInfo::TYPE);
-                raw.push(u8::from(*plug_type));
+                raw.push(plug_type.to_val());
             }
             BcoPlugInfo::Name(n) => {
                 raw.push(BcoPlugInfo::NAME);
@@ -716,7 +712,7 @@ impl From<&BcoPlugInfo> for Vec<u8> {
 impl From<&[u8]> for BcoPlugInfo {
     fn from(raw: &[u8]) -> Self {
         match raw[0] {
-            BcoPlugInfo::TYPE => BcoPlugInfo::Type(BcoPlugType::from(raw[1])),
+            BcoPlugInfo::TYPE => BcoPlugInfo::Type(BcoPlugType::from_val(raw[1])),
             BcoPlugInfo::NAME => {
                 let pos = 2 + raw[1] as usize;
                 let name = if pos > raw.len() {
