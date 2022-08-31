@@ -786,22 +786,21 @@ pub enum UnitPlugType {
     Pcr,
     External,
     Async,
-    Invalid(u8),
 }
 
 impl Default for UnitPlugType {
     fn default() -> Self {
-        Self::Invalid(0xff)
+        Self::Pcr
     }
 }
 
 impl UnitPlugType {
-    fn from_val(val: u8) -> Self {
+    fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
         match val {
-            0 => Self::Pcr,
-            1 => Self::External,
-            2 => Self::Async,
-            _ => Self::Invalid(val),
+            0 => Ok(Self::Pcr),
+            1 => Ok(Self::External),
+            2 => Ok(Self::Async),
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         }
     }
 
@@ -810,7 +809,6 @@ impl UnitPlugType {
             Self::Pcr => 0,
             Self::External => 1,
             Self::Async => 2,
-            Self::Invalid(val) => *val,
         }
     }
 }
@@ -841,8 +839,10 @@ impl UnitPlugData {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
         }
 
+        let unit_type = UnitPlugType::from_val(raw[0])?;
+
         Ok(Self {
-            unit_type: UnitPlugType::from_val(raw[0]),
+            unit_type,
             plug_id: raw[1],
         })
     }
@@ -926,12 +926,11 @@ pub enum PlugAddrMode {
     Unit(UnitPlugData),
     Subunit(SubunitPlugData),
     FunctionBlock(FunctionBlockPlugData),
-    Invalid([u8; 4]),
 }
 
 impl Default for PlugAddrMode {
     fn default() -> Self {
-        Self::Invalid([0xff; Self::LENGTH])
+        Self::Unit(Default::default())
     }
 }
 
@@ -958,11 +957,7 @@ impl PlugAddrMode {
                     FunctionBlockPlugData::from_raw(&raw[1..4]).map_err(|err| err.add_offset(1))?;
                 Self::FunctionBlock(data)
             }
-            _ => {
-                let mut r = [0; Self::LENGTH];
-                r.copy_from_slice(raw);
-                Self::Invalid(r)
-            }
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
 
         Ok(mode)
@@ -983,7 +978,6 @@ impl PlugAddrMode {
                 raw[0] = 2;
                 raw[1..4].copy_from_slice(&data.to_raw());
             }
-            Self::Invalid(data) => raw.copy_from_slice(data),
         }
         Ok(raw)
     }
@@ -994,12 +988,11 @@ impl PlugAddrMode {
 pub enum PlugDirection {
     Input,
     Output,
-    Invalid(u8),
 }
 
 impl Default for PlugDirection {
     fn default() -> Self {
-        Self::Invalid(0xff)
+        Self::Input
     }
 }
 
@@ -1007,11 +1000,11 @@ impl PlugDirection {
     const INPUT: u8 = 0;
     const OUTPUT: u8 = 1;
 
-    fn from_val(val: u8) -> Self {
+    fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
         match val {
-            Self::INPUT => Self::Input,
-            Self::OUTPUT => Self::Output,
-            _ => Self::Invalid(val),
+            Self::INPUT => Ok(Self::Input),
+            Self::OUTPUT => Ok(Self::Output),
+            _ => Err(AvcRespParseError::UnexpectedOperands(0)),
         }
     }
 
@@ -1019,7 +1012,6 @@ impl PlugDirection {
         match self {
             Self::Input => Self::INPUT,
             Self::Output => Self::OUTPUT,
-            Self::Invalid(val) => *val,
         }
     }
 }
@@ -1050,11 +1042,9 @@ impl PlugAddr {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
         }
 
+        let direction = PlugDirection::from_val(raw[0])?;
         let mode = PlugAddrMode::from_raw(&raw[1..5]).map_err(|err| err.add_offset(1))?;
-        Ok(Self {
-            direction: PlugDirection::from_val(raw[0]),
-            mode,
-        })
+        Ok(Self { direction, mode })
     }
 
     fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
