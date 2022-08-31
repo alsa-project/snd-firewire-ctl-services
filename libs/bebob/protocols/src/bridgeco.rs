@@ -1158,26 +1158,22 @@ impl BcoStreamFormat {
             Err(Error::new(FileError::Nxio, &label))
         }
     }
-}
 
-impl From<&[u8]> for BcoStreamFormat {
-    fn from(raw: &[u8]) -> Self {
+    fn from_raw(raw: &[u8]) -> Self {
         match raw[0] {
-            StreamFormat::HIER_ROOT_AM => BcoStreamFormat::Am(BcoAmStream::from_raw(&raw[1..])),
-            _ => BcoStreamFormat::Reserved(raw.to_vec()),
+            StreamFormat::HIER_ROOT_AM => Self::Am(BcoAmStream::from_raw(&raw[1..])),
+            _ => Self::Reserved(raw.to_vec()),
         }
     }
-}
 
-impl From<&BcoStreamFormat> for Vec<u8> {
-    fn from(data: &BcoStreamFormat) -> Self {
+    fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::new();
-        match data {
-            BcoStreamFormat::Am(am) => {
+        match self {
+            Self::Am(am) => {
                 raw.push(StreamFormat::HIER_ROOT_AM);
                 raw.append(&mut am.to_raw());
             }
-            BcoStreamFormat::Reserved(d) => raw.extend_from_slice(d),
+            Self::Reserved(d) => raw.extend_from_slice(d),
         }
         raw
     }
@@ -1313,7 +1309,7 @@ impl AvcStatus for ExtendedStreamFormatSingle {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
-        self.stream_format = BcoStreamFormat::from(&operands[7..]);
+        self.stream_format = BcoStreamFormat::from_raw(&operands[7..]);
 
         Ok(())
     }
@@ -1323,7 +1319,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.support_status = BcoSupportStatus::Active;
         self.op.build_operands(addr).map(|mut operands| {
-            operands.append(&mut Into::<Vec<u8>>::into(&self.stream_format));
+            operands.append(&mut self.stream_format.to_raw());
             operands
         })
     }
@@ -1332,7 +1328,7 @@ impl AvcControl for ExtendedStreamFormatSingle {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
-        self.stream_format = BcoStreamFormat::from(&operands[7..]);
+        self.stream_format = BcoStreamFormat::from_raw(&operands[7..]);
 
         Ok(())
     }
@@ -1382,7 +1378,7 @@ impl AvcStatus for ExtendedStreamFormatList {
             Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
 
-        self.stream_format = BcoStreamFormat::from(&operands[8..]);
+        self.stream_format = BcoStreamFormat::from_raw(&operands[8..]);
 
         Ok(())
     }
