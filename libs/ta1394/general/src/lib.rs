@@ -365,6 +365,10 @@ pub enum AvcRespParseError {
     ),
     /// The status code in response frame is not expected.
     UnexpectedStatus,
+    /// The address in response frame is not expected.
+    UnexpectedAddr,
+    /// The operation code in response frame is not expected.
+    UnexpectedOpcode,
     /// Any of operand in response frame is not expected.
     UnexpectedOperands(
         /// The first offset for unexpected operand.
@@ -390,6 +394,8 @@ impl std::fmt::Display for AvcRespParseError {
         match self {
             Self::TooShortResp(expected) => write!(f, "response frame too short {}", expected),
             Self::UnexpectedStatus => write!(f, "unexpected response status"),
+            Self::UnexpectedAddr => write!(f, "unexpected response address"),
+            Self::UnexpectedOpcode => write!(f, "unexpected response operation code"),
             Self::UnexpectedOperands(offset) => {
                 write!(f, "unexpected response operands at {}", offset)
             }
@@ -486,9 +492,9 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         opcode: u8,
     ) -> Result<(AvcRespCode, &'a [u8]), AvcRespParseError> {
         if frame[1] != addr.into() {
-            Err(AvcRespParseError::UnexpectedStatus)
+            Err(AvcRespParseError::UnexpectedAddr)
         } else if frame[2] != opcode {
-            Err(AvcRespParseError::UnexpectedStatus)
+            Err(AvcRespParseError::UnexpectedOpcode)
         } else {
             let rcode = AvcRespCode::from(frame[0] & Self::RESP_CODE_MASK);
             let operands = &frame[3..];
