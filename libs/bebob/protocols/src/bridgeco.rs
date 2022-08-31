@@ -1090,14 +1090,20 @@ pub struct BcoCompoundAm824StreamEntry {
 }
 
 impl BcoCompoundAm824StreamEntry {
-    fn from_raw(raw: &[u8; 2]) -> Self {
-        BcoCompoundAm824StreamEntry {
+    const LENGTH: usize = 2;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        Ok(BcoCompoundAm824StreamEntry {
             count: raw[0],
             format: BcoCompoundAm824StreamFormat::from_val(raw[1]),
-        }
+        })
     }
 
-    fn to_raw(&self) -> [u8; 2] {
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
         [self.count, self.format.to_val()]
     }
 }
@@ -1128,7 +1134,13 @@ impl BcoCompoundAm824Stream {
     const RATE_CTL_MASK: u8 = 0x03;
     const RATE_CTL_SHIFT: usize = 0;
 
-    fn from_raw(raw: &[u8]) -> Self {
+    const LENGTH_MIN: usize = 3;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
         let freq = match raw[0] {
             Self::FREQ_CODE_22050 => 22050,
             Self::FREQ_CODE_24000 => 24000,
@@ -1146,27 +1158,27 @@ impl BcoCompoundAm824Stream {
         let rate_ctl_code = (raw[1] >> Self::RATE_CTL_SHIFT) & Self::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == 0;
         let entry_count = raw[2] as usize;
-        let entries = (0..entry_count)
-            .filter_map(|i| {
-                if 3 + i * 2 + 2 > raw.len() {
-                    None
-                } else {
-                    let mut doublet = [0; 2];
-                    doublet.copy_from_slice(&raw[(3 + i * 2)..(3 + i * 2 + 2)]);
-                    Some(BcoCompoundAm824StreamEntry::from_raw(&doublet))
-                }
-            })
-            .collect();
-        Self {
+
+        let mut entries = Vec::with_capacity(entry_count);
+        let mut pos = 3;
+        while pos + BcoCompoundAm824StreamEntry::LENGTH <= raw.len() && entries.len() < entry_count
+        {
+            let entry = BcoCompoundAm824StreamEntry::from_raw(&raw[pos..])
+                .map_err(|err| err.add_offset(pos))?;
+            entries.push(entry);
+            pos += BcoCompoundAm824StreamEntry::LENGTH;
+        }
+
+        Ok(Self {
             freq,
             sync_src,
             rate_ctl,
             entries,
-        }
+        })
     }
 
     fn to_raw(&self) -> Vec<u8> {
-        let mut raw = Vec::new();
+        let mut raw = Vec::with_capacity(Self::LENGTH_MIN);
         let freq_code = match self.freq {
             22050 => Self::FREQ_CODE_22050,
             24000 => Self::FREQ_CODE_24000,
@@ -1202,20 +1214,32 @@ pub enum BcoAmStream {
 }
 
 impl BcoAmStream {
-    fn from_raw(raw: &[u8]) -> Self {
-        match raw[0] {
+    const LENGTH_MIN: usize = 1;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
+        let fmt = match raw[0] {
+            // MEMO: overwrite compound AM824 stream.
             AmStream::HIER_LEVEL_1_COMPOUND_AM824 => {
-                let s = BcoCompoundAm824Stream::from_raw(&raw[1..]);
+                let s =
+                    BcoCompoundAm824Stream::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
                 Self::BcoStream(s)
             }
-            _ => Self::AmStream(AmStream::from_raw(raw).unwrap()),
-        }
+            _ => {
+                let am = AmStream::from_raw(raw)?;
+                Self::AmStream(am)
+            }
+        };
+        Ok(fmt)
     }
 
     fn to_raw(&self) -> Vec<u8> {
         match self {
             Self::BcoStream(s) => {
-                let mut raw = Vec::new();
+                let mut raw = Vec::with_capacity(Self::LENGTH_MIN);
                 raw.push(AmStream::HIER_LEVEL_1_COMPOUND_AM824);
                 raw.append(&mut s.to_raw());
                 raw
@@ -1234,6 +1258,8 @@ pub enum BcoStreamFormat {
 }
 
 impl BcoStreamFormat {
+    const LENGTH_MIN: usize = 1;
+
     fn as_bco_am_stream(&self) -> Result<&BcoAmStream, Error> {
         if let BcoStreamFormat::Am(s) = self {
             Ok(s)
@@ -1261,15 +1287,23 @@ impl BcoStreamFormat {
         }
     }
 
-    fn from_raw(raw: &[u8]) -> Self {
-        match raw[0] {
-            StreamFormat::HIER_ROOT_AM => Self::Am(BcoAmStream::from_raw(&raw[1..])),
-            _ => Self::Reserved(raw.to_vec()),
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
+
+        let fmt = match raw[0] {
+            StreamFormat::HIER_ROOT_AM => {
+                let am = BcoAmStream::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
+                Self::Am(am)
+            }
+            _ => Self::Reserved(raw.to_vec()),
+        };
+        Ok(fmt)
     }
 
     fn to_raw(&self) -> Vec<u8> {
-        let mut raw = Vec::new();
+        let mut raw = Vec::with_capacity(Self::LENGTH_MIN);
         match self {
             Self::Am(am) => {
                 raw.push(StreamFormat::HIER_ROOT_AM);
@@ -1337,6 +1371,8 @@ struct BcoExtendedStreamFormat {
 impl BcoExtendedStreamFormat {
     const OPCODE: u8 = 0x2f;
 
+    const LENGTH_MIN: usize = 7;
+
     fn new(subfunc: u8, plug_addr: &BcoPlugAddr) -> Self {
         BcoExtendedStreamFormat {
             subfunc,
@@ -1356,8 +1392,8 @@ impl AvcStatus for BcoExtendedStreamFormat {
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
-        if operands.len() < 7 {
-            Err(AvcRespParseError::TooShortResp(7))?;
+        if operands.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
 
         if operands[0] != self.subfunc {
@@ -1409,7 +1445,8 @@ impl AvcStatus for ExtendedStreamFormatSingle {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
-        self.stream_format = BcoStreamFormat::from_raw(&operands[7..]);
+        self.stream_format =
+            BcoStreamFormat::from_raw(&operands[7..]).map_err(|err| err.add_offset(7))?;
 
         Ok(())
     }
@@ -1428,7 +1465,8 @@ impl AvcControl for ExtendedStreamFormatSingle {
         self.op.parse_operands(addr, operands)?;
 
         self.support_status = self.op.support_status;
-        self.stream_format = BcoStreamFormat::from_raw(&operands[7..]);
+        self.stream_format =
+            BcoStreamFormat::from_raw(&operands[7..]).map_err(|err| err.add_offset(7))?;
 
         Ok(())
     }
@@ -1478,7 +1516,8 @@ impl AvcStatus for ExtendedStreamFormatList {
             Err(AvcRespParseError::UnexpectedOperands(7))?;
         }
 
-        self.stream_format = BcoStreamFormat::from_raw(&operands[8..]);
+        self.stream_format =
+            BcoStreamFormat::from_raw(&operands[8..]).map_err(|err| err.add_offset(8))?;
 
         Ok(())
     }
