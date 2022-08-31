@@ -1399,30 +1399,27 @@ pub enum BcoStreamFormat {
 impl BcoStreamFormat {
     const LENGTH_MIN: usize = 1;
 
-    fn as_bco_am_stream(&self) -> Result<&BcoAmStream, Error> {
+    fn as_bco_am_stream(&self) -> Option<&BcoAmStream> {
         if let BcoStreamFormat::Am(s) = self {
-            Ok(s)
+            Some(s)
         } else {
-            let label = "Bco Audio & Music stream is not available for the unit";
-            Err(Error::new(FileError::Nxio, &label))
+            None
         }
     }
 
-    pub fn as_am_stream(&self) -> Result<&AmStream, Error> {
+    pub fn as_am_stream(&self) -> Option<&AmStream> {
         if let BcoAmStream::AmStream(s) = self.as_bco_am_stream()? {
-            Ok(s)
+            Some(s)
         } else {
-            let label = "Audio & Music stream is not available for the unit";
-            Err(Error::new(FileError::Nxio, &label))
+            None
         }
     }
 
-    pub fn as_bco_compound_am824_stream(&self) -> Result<&BcoCompoundAm824Stream, Error> {
+    pub fn as_bco_compound_am824_stream(&self) -> Option<&BcoCompoundAm824Stream> {
         if let BcoAmStream::BcoStream(s) = self.as_bco_am_stream()? {
-            Ok(s)
+            Some(s)
         } else {
-            let label = "Bco Compound AM824 stream is not available for the unit";
-            Err(Error::new(FileError::Nxio, &label))
+            None
         }
     }
 

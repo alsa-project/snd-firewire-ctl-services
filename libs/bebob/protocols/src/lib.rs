@@ -135,6 +135,10 @@ pub trait MediaClockFrequencyOperation {
 
         op.stream_format
             .as_bco_compound_am824_stream()
+            .ok_or_else(|| {
+                let label = "Bco Compound AM824 stream is not available for the unit";
+                Error::new(FileError::Nxio, &label)
+            })
             .and_then(|format| {
                 Self::FREQ_LIST
                     .iter()

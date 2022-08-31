@@ -465,7 +465,13 @@ impl EnsembleParameterProtocol<EnsembleStreamParameters> for BebobAvc {
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
         self.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
-        let info = op.stream_format.as_bco_compound_am824_stream()?;
+        let info = op
+            .stream_format
+            .as_bco_compound_am824_stream()
+            .ok_or_else(|| {
+                let label = "Bco Compound AM824 stream is not available for the unit";
+                Error::new(FileError::Nxio, &label)
+            })?;
         let count = info
             .entries
             .iter()
