@@ -1099,28 +1099,26 @@ pub enum BcoAmStream {
     BcoStream(BcoCompoundAm824Stream),
 }
 
-impl From<&[u8]> for BcoAmStream {
-    fn from(raw: &[u8]) -> Self {
+impl BcoAmStream {
+    fn from_raw(raw: &[u8]) -> Self {
         match raw[0] {
             AmStream::HIER_LEVEL_1_COMPOUND_AM824 => {
                 let s = BcoCompoundAm824Stream::from_raw(&raw[1..]);
-                BcoAmStream::BcoStream(s)
+                Self::BcoStream(s)
             }
-            _ => BcoAmStream::AmStream(AmStream::from_raw(raw).unwrap()),
+            _ => Self::AmStream(AmStream::from_raw(raw).unwrap()),
         }
     }
-}
 
-impl From<&BcoAmStream> for Vec<u8> {
-    fn from(data: &BcoAmStream) -> Self {
-        match data {
-            BcoAmStream::BcoStream(s) => {
+    fn to_raw(&self) -> Vec<u8> {
+        match self {
+            Self::BcoStream(s) => {
                 let mut raw = Vec::new();
                 raw.push(AmStream::HIER_LEVEL_1_COMPOUND_AM824);
                 raw.append(&mut s.to_raw());
                 raw
             }
-            _ => Into::<Vec<u8>>::into(data),
+            _ => self.to_raw(),
         }
     }
 }
@@ -1165,7 +1163,7 @@ impl BcoStreamFormat {
 impl From<&[u8]> for BcoStreamFormat {
     fn from(raw: &[u8]) -> Self {
         match raw[0] {
-            StreamFormat::HIER_ROOT_AM => BcoStreamFormat::Am(BcoAmStream::from(&raw[1..])),
+            StreamFormat::HIER_ROOT_AM => BcoStreamFormat::Am(BcoAmStream::from_raw(&raw[1..])),
             _ => BcoStreamFormat::Reserved(raw.to_vec()),
         }
     }
@@ -1175,9 +1173,9 @@ impl From<&BcoStreamFormat> for Vec<u8> {
     fn from(data: &BcoStreamFormat) -> Self {
         let mut raw = Vec::new();
         match data {
-            BcoStreamFormat::Am(i) => {
+            BcoStreamFormat::Am(am) => {
                 raw.push(StreamFormat::HIER_ROOT_AM);
-                raw.append(&mut i.into());
+                raw.append(&mut am.to_raw());
             }
             BcoStreamFormat::Reserved(d) => raw.extend_from_slice(d),
         }
