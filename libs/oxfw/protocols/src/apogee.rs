@@ -1143,15 +1143,11 @@ impl AvcOp for ApogeeCmd {
 }
 
 impl AvcControl for ApogeeCmd {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         let mut data = self.cmd.build_args();
         self.cmd.append_variable(&mut data);
         self.op.data = data;
-        AvcControl::build_operands(&mut self.op, addr, operands)
+        AvcControl::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1160,13 +1156,9 @@ impl AvcControl for ApogeeCmd {
 }
 
 impl AvcStatus for ApogeeCmd {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.op.data = self.cmd.build_args();
-        AvcStatus::build_operands(&mut self.op, addr, operands)
+        AvcStatus::build_operands(&mut self.op, addr)
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1193,16 +1185,14 @@ mod test {
             unreachable!();
         }
 
-        let mut o = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::OutSourceIsMixer(Default::default()));
         let operands = [0x00, 0x03, 0xdb, 0x50, 0x43, 0x4d, 0x11, 0xff, 0xff, 0x60];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
 
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands);
 
         // One argument command.
@@ -1216,8 +1206,7 @@ mod test {
             unreachable!();
         }
 
-        let mut o = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::XlrIsConsumerLevel(1, true));
@@ -1230,8 +1219,7 @@ mod test {
             unreachable!();
         }
 
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands);
 
         // Two arguments command.
@@ -1249,8 +1237,7 @@ mod test {
             unreachable!();
         }
 
-        let mut o = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands[..9]);
 
         let mut op = ApogeeCmd::new(VendorCmd::MixerSrc(1, 0, 0xde00));
@@ -1260,8 +1247,7 @@ mod test {
         ];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
 
-        let mut o = Vec::new();
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands[..11]);
 
         // Command for block request.
@@ -1280,8 +1266,7 @@ mod test {
             unreachable!();
         }
 
-        let mut o = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut o).unwrap();
+        let o = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(o, operands[..9]);
     }
 }

@@ -198,23 +198,20 @@ impl Default for AudioFuncBlk {
 }
 
 impl AudioFuncBlk {
-    fn build_operands(
-        &self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         if let AvcAddr::Subunit(AvcAddrSubunit {
             subunit_type: AvcSubunitType::Audio,
             subunit_id: _,
         }) = addr
         {
+            let mut operands = Vec::new();
             operands.push(self.func_blk_type.to_val());
             operands.push(self.func_blk_id);
             operands.push(self.ctl_attr.to_val());
             operands.push(1 + self.audio_selector_data.len() as u8);
             operands.extend_from_slice(&self.audio_selector_data);
             operands.append(&mut self.ctl.to_raw());
-            Ok(())
+            Ok(operands)
         } else {
             Err(AvcCmdBuildError::InvalidAddress)
         }
@@ -260,12 +257,8 @@ impl AvcOp for AudioFuncBlk {
 }
 
 impl AvcStatus for AudioFuncBlk {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        AudioFuncBlk::build_operands(self, addr, operands)
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        AudioFuncBlk::build_operands(self, addr)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -274,12 +267,8 @@ impl AvcStatus for AudioFuncBlk {
 }
 
 impl AvcControl for AudioFuncBlk {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        AudioFuncBlk::build_operands(self, addr, operands)
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        AudioFuncBlk::build_operands(self, addr)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -336,13 +325,9 @@ impl AvcOp for AudioSelector {
 }
 
 impl AvcStatus for AudioSelector {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.build_func_blk()
-            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr, operands))
+            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -352,13 +337,9 @@ impl AvcStatus for AudioSelector {
 }
 
 impl AvcControl for AudioSelector {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.build_func_blk()
-            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr, operands))
+            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1057,13 +1038,9 @@ impl AvcOp for AudioFeature {
 }
 
 impl AvcStatus for AudioFeature {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.build_func_blk()
-            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr, operands))
+            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1073,13 +1050,9 @@ impl AvcStatus for AudioFeature {
 }
 
 impl AvcControl for AudioFeature {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.build_func_blk()
-            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr, operands))
+            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1225,13 +1198,9 @@ impl AvcOp for AudioProcessing {
 }
 
 impl AvcStatus for AudioProcessing {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.build_func_blk()
-            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr, operands))
+            .and_then(|_| AvcStatus::build_operands(&mut self.func_blk, addr))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1241,13 +1210,9 @@ impl AvcStatus for AudioProcessing {
 }
 
 impl AvcControl for AudioProcessing {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
         self.build_func_blk()
-            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr, operands))
+            .and_then(|_| AvcControl::build_operands(&mut self.func_blk, addr))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1273,8 +1238,7 @@ mod test {
         op.ctl.selector = 0x11;
         op.ctl.data.extend_from_slice(&[0xbe, 0xef]);
 
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x80, 0xfe, 0x01, 0x05, 0xde, 0xad, 0xbe, 0xef, 0x11, 0x02, 0xbe, 0xef]
@@ -1299,8 +1263,7 @@ mod test {
         op.ctl.selector = 0x12;
         op.ctl.data.extend_from_slice(&[0xbe, 0xef]);
 
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x80, 0xfd, 0x02, 0x05, 0xde, 0xad, 0xbe, 0xef, 0x12, 0x02, 0xbe, 0xef]
@@ -1324,8 +1287,7 @@ mod test {
         op.ctl.selector = 0x13;
         op.ctl.data.extend_from_slice(&[0xfe, 0xeb, 0xda, 0xed]);
 
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x81, 0xfc, 0x03, 0x01, 0x13, 0x04, 0xfe, 0xeb, 0xda, 0xed]
@@ -1350,8 +1312,7 @@ mod test {
             ..Default::default()
         };
 
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x81, 0xfb, 0x04, 0x01, 0x14, 0x04, 0xfe, 0xeb, 0xda, 0xed]
@@ -1377,8 +1338,7 @@ mod test {
             },
         };
 
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(&operands, &[0x82, 0xfa, 0x08, 0x03, 0xda, 0xed, 0x15]);
 
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
@@ -1400,8 +1360,7 @@ mod test {
             },
         };
 
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(&operands, &[0x82, 0xf9, 0x10, 0x03, 0xda, 0xed, 0x16]);
 
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
@@ -1416,16 +1375,14 @@ mod test {
     #[test]
     fn avcaudioselector_operands() {
         let mut op = AudioSelector::new(0xe5, CtlAttr::Duration, 0x28);
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(&operands, &[0x80, 0xe5, 0x08, 0x02, 0x28, 0x01]);
 
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.input_plug_id, 0x28);
 
         let mut op = AudioSelector::new(0x1e, CtlAttr::Move, 0x96);
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(&operands, &[0x80, 0x1e, 0x18, 0x02, 0x96, 0x01]);
 
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
@@ -1548,8 +1505,7 @@ mod test {
         let data = VolumeData(vec![-1234, 5678, 3210]);
         let ctl = FeatureCtl::Volume(data);
         let mut op = AudioFeature::new(0x03, CtlAttr::Minimum, AudioCh::Each(0x1b), ctl.clone());
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x81, 0x03, 0x02, 0x02, 0x1c, 0x02, 0x06, 0xfb, 0x2e, 0x16, 0x2e, 0x0c, 0x8a]
@@ -1561,8 +1517,7 @@ mod test {
 
         let ctl = FeatureCtl::Treble(TrebleData(vec![40, -33, 123, -96]));
         let mut op = AudioFeature::new(0x33, CtlAttr::Resolution, AudioCh::Each(0xd8), ctl.clone());
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x81, 0x33, 0x01, 0x2, 0xd9, 0x07, 0x04, 0x28, 0xdf, 0x7b, 0xa0]
@@ -1596,8 +1551,7 @@ mod test {
             AudioCh::Each(0x3e),
             ctl.clone(),
         );
-        let mut operands = Vec::new();
-        AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcStatus::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x82, 0xf5, 0x04, 0x04, 0x71, 0xa9, 0x3f, 0x01, 0x01, 0x70]
@@ -1618,8 +1572,7 @@ mod test {
             AudioCh::Each(0x43),
             ctl.clone(),
         );
-        let mut operands = Vec::new();
-        AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR, &mut operands).unwrap();
+        let operands = AvcControl::build_operands(&mut op, &AUDIO_SUBUNIT_0_ADDR).unwrap();
         assert_eq!(
             &operands,
             &[0x82, 0x11, 0x02, 0x04, 0x22, 0x33, 0x44, 0x03, 0x04, 0x00, 0x0a, 0xff, 0xf6]

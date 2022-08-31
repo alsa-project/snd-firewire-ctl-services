@@ -17,8 +17,8 @@ use {
         FwFcp, FwNode, FwReq, FwTcode,
     },
     ta1394_avc_audio::*,
-    ta1394_avc_general::{general::*, *},
     ta1394_avc_ccm::*,
+    ta1394_avc_general::{general::*, *},
 };
 
 /// The implementation of AV/C transaction.

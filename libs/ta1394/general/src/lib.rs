@@ -402,31 +402,19 @@ pub trait AvcOp {
 
 /// The AV/C operation supporting control and inquiry command.
 pub trait AvcControl {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError>;
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError>;
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError>;
 }
 
 /// The AV/C operation supporting status command.
 pub trait AvcStatus {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError>;
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError>;
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError>;
 }
 
 /// The AV/C operation supporting notify command.
 pub trait AvcNotify {
-    fn build_operands(
-        &mut self,
-        addr: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError>;
+    fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError>;
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError>;
 }
 
@@ -506,22 +494,19 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         op: &mut O,
         timeout_ms: u32,
     ) -> Result<(), Ta1394AvcError<T>> {
-        let mut operands = Vec::new();
-        let command_frame = AvcControl::build_operands(op, addr, &mut operands)
-            .map_err(|err| Ta1394AvcError::CmdBuild(err))
-            .map(|_| {
-                Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)
-            })?;
-        self.transaction(&command_frame, timeout_ms)
-            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))
-            .and_then(|response_frame| {
-                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
-                    .and_then(|(rcode, operands)| match rcode {
-                        AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
-                        _ => Err(AvcRespParseError::UnexpectedStatus),
-                    })
-                    .map_err(|err| Ta1394AvcError::RespParse(err))
+        let operands =
+            AvcControl::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
+        let command_frame =
+            Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands);
+        let response_frame = self
+            .transaction(&command_frame, timeout_ms)
+            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
+        Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::Accepted => AvcControl::parse_operands(op, addr, &operands),
+                _ => Err(AvcRespParseError::UnexpectedStatus),
             })
+            .map_err(|err| Ta1394AvcError::RespParse(err))
     }
 
     fn status<O: AvcOp + AvcStatus>(
@@ -530,22 +515,19 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         op: &mut O,
         timeout_ms: u32,
     ) -> Result<(), Ta1394AvcError<T>> {
-        let mut operands = Vec::new();
-        let command_frame = AvcStatus::build_operands(op, addr, &mut operands)
-            .map_err(|err| Ta1394AvcError::CmdBuild(err))
-            .map(|_| Self::compose_command_frame(AvcCmdType::Status, addr, O::OPCODE, &operands))?;
-        self.transaction(&command_frame, timeout_ms)
-            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))
-            .and_then(|response_frame| {
-                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
-                    .and_then(|(rcode, operands)| match rcode {
-                        AvcRespCode::ImplementedStable => {
-                            AvcStatus::parse_operands(op, addr, &operands)
-                        }
-                        _ => Err(AvcRespParseError::UnexpectedStatus),
-                    })
-                    .map_err(|err| Ta1394AvcError::RespParse(err))
+        let operands =
+            AvcStatus::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
+        let command_frame =
+            Self::compose_command_frame(AvcCmdType::Status, addr, O::OPCODE, &operands);
+        let response_frame = self
+            .transaction(&command_frame, timeout_ms)
+            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
+        Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::ImplementedStable => AvcStatus::parse_operands(op, addr, &operands),
+                _ => Err(AvcRespParseError::UnexpectedStatus),
             })
+            .map_err(|err| Ta1394AvcError::RespParse(err))
     }
 
     fn specific_inquiry<O: AvcOp + AvcControl>(
@@ -554,24 +536,19 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         op: &mut O,
         timeout_ms: u32,
     ) -> Result<(), Ta1394AvcError<T>> {
-        let mut operands = Vec::new();
-        let command_frame = AvcControl::build_operands(op, addr, &mut operands)
-            .map_err(|err| Ta1394AvcError::CmdBuild(err))
-            .map(|_| {
-                Self::compose_command_frame(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands)
-            })?;
-        self.transaction(&command_frame, timeout_ms)
-            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))
-            .and_then(|response_frame| {
-                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
-                    .and_then(|(rcode, operands)| match rcode {
-                        AvcRespCode::ImplementedStable => {
-                            AvcControl::parse_operands(op, addr, &operands)
-                        }
-                        _ => Err(AvcRespParseError::UnexpectedStatus),
-                    })
-                    .map_err(|err| Ta1394AvcError::RespParse(err))
+        let operands =
+            AvcControl::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
+        let command_frame =
+            Self::compose_command_frame(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands);
+        let response_frame = self
+            .transaction(&command_frame, timeout_ms)
+            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
+        Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::ImplementedStable => AvcControl::parse_operands(op, addr, &operands),
+                _ => Err(AvcRespParseError::UnexpectedStatus),
             })
+            .map_err(|err| Ta1394AvcError::RespParse(err))
     }
 
     fn notify<O: AvcOp + AvcNotify>(
@@ -580,20 +557,19 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         op: &mut O,
         timeout_ms: u32,
     ) -> Result<(), Ta1394AvcError<T>> {
-        let mut operands = Vec::new();
-        let command_frame = AvcNotify::build_operands(op, addr, &mut operands)
-            .map_err(|err| Ta1394AvcError::CmdBuild(err))
-            .map(|_| Self::compose_command_frame(AvcCmdType::Notify, addr, O::OPCODE, &operands))?;
-        self.transaction(&command_frame, timeout_ms)
-            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))
-            .and_then(|response_frame| {
-                Self::detect_response_operands(&response_frame, addr, O::OPCODE)
-                    .and_then(|(rcode, operands)| match rcode {
-                        AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
-                        _ => Err(AvcRespParseError::UnexpectedStatus),
-                    })
-                    .map_err(|err| Ta1394AvcError::RespParse(err))
+        let operands =
+            AvcNotify::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
+        let command_frame =
+            Self::compose_command_frame(AvcCmdType::Notify, addr, O::OPCODE, &operands);
+        let response_frame = self
+            .transaction(&command_frame, timeout_ms)
+            .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
+        Self::detect_response_operands(&response_frame, addr, O::OPCODE)
+            .and_then(|(rcode, operands)| match rcode {
+                AvcRespCode::Changed => AvcNotify::parse_operands(op, addr, &operands),
+                _ => Err(AvcRespParseError::UnexpectedStatus),
             })
+            .map_err(|err| Ta1394AvcError::RespParse(err))
     }
 }
 

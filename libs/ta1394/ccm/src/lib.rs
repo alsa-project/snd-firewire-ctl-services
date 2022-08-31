@@ -175,11 +175,8 @@ impl SignalSource {
         }
     }
 
-    fn build_operands(
-        &self,
-        operands: &mut Vec<u8>,
-        for_status: bool,
-    ) -> Result<(), AvcCmdBuildError> {
+    fn build_operands(&self, for_status: bool) -> Result<Vec<u8>, AvcCmdBuildError> {
+        let mut operands = Vec::new();
         operands.push(0xff);
 
         if for_status {
@@ -189,7 +186,7 @@ impl SignalSource {
         }
 
         operands.extend_from_slice(&self.dst.to_raw());
-        Ok(())
+        Ok(operands)
     }
 
     fn parse_operands(&mut self, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -217,12 +214,8 @@ impl AvcOp for SignalSource {
 }
 
 impl AvcControl for SignalSource {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        Self::build_operands(&self, operands, false)
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        Self::build_operands(&self, false)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -231,12 +224,8 @@ impl AvcControl for SignalSource {
 }
 
 impl AvcStatus for SignalSource {
-    fn build_operands(
-        &mut self,
-        _: &AvcAddr,
-        operands: &mut Vec<u8>,
-    ) -> Result<(), AvcCmdBuildError> {
-        Self::build_operands(&self, operands, true)
+    fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
+        Self::build_operands(&self, true)
     }
 
     fn parse_operands(&mut self, _: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -288,18 +277,16 @@ mod test {
         assert_eq!(op.src, src);
         assert_eq!(op.dst, dst);
 
-        let mut targets = Vec::new();
-        AvcStatus::build_operands(&mut op, &AvcAddr::Unit, &mut targets).unwrap();
+        let targets = AvcStatus::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(targets, [0xff, 0xff, 0xfe, 0xff, 0x05]);
 
-        let mut targets = Vec::new();
         let src = SignalAddr::Subunit(SignalSubunitAddr {
             subunit: AvcAddrSubunit::new(AvcSubunitType::Extended, 0x05),
             plug_id: 0x07,
         });
         let dst = SignalAddr::Unit(SignalUnitAddr::Ext(0x03));
         let mut op = SignalSource { src, dst };
-        AvcControl::build_operands(&mut op, &AvcAddr::Unit, &mut targets).unwrap();
+        let targets = AvcControl::build_operands(&mut op, &AvcAddr::Unit).unwrap();
         assert_eq!(targets, [0xff, 0xf5, 0x07, 0xff, 0x83]);
 
         let mut op = SignalSource {

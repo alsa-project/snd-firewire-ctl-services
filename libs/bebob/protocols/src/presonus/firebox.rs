@@ -204,7 +204,11 @@ impl AvcSelectorOperation for FireboxAnalogInputProtocol {
             func_block_id,
             CtlAttr::Current,
             AudioCh::Each(ch_id as u8),
-            FeatureCtl::Volume(VolumeData(vec![if val == 0 { Self::BOOST_OFF } else { Self::BOOST_ON }])),
+            FeatureCtl::Volume(VolumeData(vec![if val == 0 {
+                Self::BOOST_OFF
+            } else {
+                Self::BOOST_ON
+            }])),
         );
         avc.control(&AUDIO_SUBUNIT_0_ADDR, &mut op, timeout_ms)
     }
