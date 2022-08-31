@@ -45,6 +45,12 @@ impl BcoPlugAddrUnitType {
     }
 }
 
+impl Default for BcoPlugAddrUnitType {
+    fn default() -> Self {
+        Self::Isoc
+    }
+}
+
 /// Address to plug for unit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddrUnit {
@@ -71,6 +77,15 @@ impl BcoPlugAddrUnit {
     }
 }
 
+impl Default for BcoPlugAddrUnit {
+    fn default() -> Self {
+        Self {
+            plug_type: Default::default(),
+            plug_id: 0xff,
+        }
+    }
+}
+
 /// Address to plug for subunit.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddrSubunit {
@@ -90,6 +105,12 @@ impl BcoPlugAddrSubunit {
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
         [self.plug_id, 0xff, 0xff]
+    }
+}
+
+impl Default for BcoPlugAddrSubunit {
+    fn default() -> Self {
+        Self { plug_id: 0xff }
     }
 }
 
@@ -118,6 +139,16 @@ impl BcoPlugAddrFuncBlk {
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
         [self.func_blk_type, self.func_blk_id, self.plug_id]
+    }
+}
+
+impl Default for BcoPlugAddrFuncBlk {
+    fn default() -> Self {
+        Self {
+            func_blk_type: 0xff,
+            func_blk_id: 0xff,
+            plug_id: 0xff,
+        }
     }
 }
 
@@ -182,6 +213,12 @@ impl BcoPlugAddrMode {
     }
 }
 
+impl Default for BcoPlugAddrMode {
+    fn default() -> Self {
+        Self::Unit(Default::default())
+    }
+}
+
 /// Direction of plug.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum BcoPlugDirection {
@@ -192,9 +229,7 @@ pub enum BcoPlugDirection {
 impl BcoPlugDirection {
     const INPUT: u8 = 0x00;
     const OUTPUT: u8 = 0x01;
-}
 
-impl BcoPlugDirection {
     fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
         let direction = match val {
             Self::INPUT => Self::Input,
@@ -212,8 +247,14 @@ impl BcoPlugDirection {
     }
 }
 
+impl Default for BcoPlugDirection {
+    fn default() -> Self {
+        Self::Input
+    }
+}
+
 /// Address of plug.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct BcoPlugAddr {
     pub direction: BcoPlugDirection,
     pub mode: BcoPlugAddrMode,
@@ -347,8 +388,14 @@ impl BcoIoPlugAddrMode {
     }
 }
 
+impl Default for BcoIoPlugAddrMode {
+    fn default() -> Self {
+        Self::Unit(Default::default())
+    }
+}
+
 /// Address to plug for input and output direction.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct BcoIoPlugAddr {
     pub direction: BcoPlugDirection,
     pub mode: BcoIoPlugAddrMode,
@@ -417,6 +464,12 @@ impl BcoPlugType {
             Self::Analog => Self::ANALOG,
             Self::Digital => Self::DIGITAL,
         }
+    }
+}
+
+impl Default for BcoPlugType {
+    fn default() -> Self {
+        Self::Isoc
     }
 }
 
@@ -504,6 +557,12 @@ impl BcoLocation {
     }
 }
 
+impl Default for BcoLocation {
+    fn default() -> Self {
+        Self::NoPosition
+    }
+}
+
 /// Information about data channel for multi bit linear audio.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BcoChannelInfo {
@@ -533,8 +592,17 @@ impl BcoChannelInfo {
     }
 }
 
+impl Default for BcoChannelInfo {
+    fn default() -> Self {
+        Self {
+            pos: 0xff,
+            loc: Default::default(),
+        }
+    }
+}
+
 /// Cluster with single or multiple data channels.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct BcoCluster {
     entries: Vec<BcoChannelInfo>,
 }
@@ -579,6 +647,15 @@ impl BcoCluster {
 pub struct BcoChannelName {
     pub ch: u8,
     pub name: String,
+}
+
+impl Default for BcoChannelName {
+    fn default() -> Self {
+        Self {
+            ch: 0xff,
+            name: Default::default(),
+        }
+    }
 }
 
 /// Type of physical port.
@@ -649,6 +726,12 @@ impl BcoPortType {
     }
 }
 
+impl Default for BcoPortType {
+    fn default() -> Self {
+        Self::NoType
+    }
+}
+
 /// Information about cluster of data channels.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct BcoClusterInfo {
@@ -687,6 +770,16 @@ impl BcoClusterInfo {
         raw.push(self.name.len() as u8);
         raw.append(&mut self.name.clone().into_bytes());
         raw
+    }
+}
+
+impl Default for BcoClusterInfo {
+    fn default() -> Self {
+        Self {
+            index: 0xff,
+            port_type: Default::default(),
+            name: Default::default(),
+        }
     }
 }
 
@@ -836,7 +929,14 @@ impl BcoPlugInfo {
     }
 }
 
+impl Default for BcoPlugInfo {
+    fn default() -> Self {
+        Self::Type(Default::default())
+    }
+}
+
 /// AV/C command for extend plug information.
+#[derive(Default)]
 pub struct ExtendedPlugInfo {
     /// The address of plug.
     pub addr: BcoPlugAddr,
@@ -850,7 +950,7 @@ impl ExtendedPlugInfo {
     /// Instantiate extended plug info structure with parameters.
     #[allow(dead_code)]
     pub fn new(addr: &BcoPlugAddr, info: BcoPlugInfo) -> Self {
-        ExtendedPlugInfo { addr: *addr, info }
+        Self { addr: *addr, info }
     }
 }
 
@@ -945,6 +1045,18 @@ impl ExtendedSubunitInfoEntry {
     }
 }
 
+impl Default for ExtendedSubunitInfoEntry {
+    fn default() -> Self {
+        Self {
+            func_blk_type: 0xff,
+            func_blk_id: 0xff,
+            func_blk_purpose: 0xff,
+            input_plugs: 0xff,
+            output_plugs: 0xff,
+        }
+    }
+}
+
 /// AV/C command for extended subunit information.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ExtendedSubunitInfo {
@@ -960,7 +1072,17 @@ impl ExtendedSubunitInfo {
         Self {
             page,
             func_blk_type,
-            entries: Vec::new(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for ExtendedSubunitInfo {
+    fn default() -> Self {
+        Self {
+            page: 0xff,
+            func_blk_type: 0xff,
+            entries: Default::default(),
         }
     }
 }
@@ -1066,6 +1188,12 @@ impl BcoCompoundAm824StreamFormat {
     }
 }
 
+impl Default for BcoCompoundAm824StreamFormat {
+    fn default() -> Self {
+        Self::Reserved(0xff)
+    }
+}
+
 /// Entry for compound AM824 stream.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BcoCompoundAm824StreamEntry {
@@ -1089,6 +1217,15 @@ impl BcoCompoundAm824StreamEntry {
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
         [self.count, self.format.to_val()]
+    }
+}
+
+impl Default for BcoCompoundAm824StreamEntry {
+    fn default() -> Self {
+        Self {
+            count: 0xff,
+            format: Default::default(),
+        }
     }
 }
 
@@ -1190,8 +1327,19 @@ impl BcoCompoundAm824Stream {
     }
 }
 
+impl Default for BcoCompoundAm824Stream {
+    fn default() -> Self {
+        Self {
+            freq: 44100,
+            sync_src: Default::default(),
+            rate_ctl: Default::default(),
+            entries: Default::default(),
+        }
+    }
+}
+
 /// Format of isochronous packet stream for Audio and Music data transmission.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum BcoAmStream {
     AmStream(AmStream),
     BcoStream(BcoCompoundAm824Stream),
@@ -1231,6 +1379,12 @@ impl BcoAmStream {
             }
             _ => self.to_raw(),
         }
+    }
+}
+
+impl Default for BcoAmStream {
+    fn default() -> Self {
+        Self::BcoStream(Default::default())
     }
 }
 
@@ -1301,6 +1455,12 @@ impl BcoStreamFormat {
     }
 }
 
+impl Default for BcoStreamFormat {
+    fn default() -> Self {
+        Self::Reserved(Default::default())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BcoSupportStatus {
     /// The format is already set and stream is available.
@@ -1359,10 +1519,20 @@ impl BcoExtendedStreamFormat {
     const LENGTH_MIN: usize = 7;
 
     fn new(subfunc: u8, plug_addr: &BcoPlugAddr) -> Self {
-        BcoExtendedStreamFormat {
+        Self {
             subfunc,
             plug_addr: *plug_addr,
-            support_status: BcoSupportStatus::NotUsed,
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for BcoExtendedStreamFormat {
+    fn default() -> Self {
+        Self {
+            subfunc: 0xff,
+            plug_addr: Default::default(),
+            support_status: Default::default(),
         }
     }
 }
@@ -1408,10 +1578,19 @@ impl ExtendedStreamFormatSingle {
     const SUBFUNC: u8 = 0xc0;
 
     pub fn new(plug_addr: &BcoPlugAddr) -> Self {
-        ExtendedStreamFormatSingle {
-            support_status: BcoSupportStatus::NotUsed,
-            stream_format: BcoStreamFormat::Reserved(Vec::new()),
+        Self {
             op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for ExtendedStreamFormatSingle {
+    fn default() -> Self {
+        Self {
+            support_status: Default::default(),
+            stream_format: Default::default(),
+            op: BcoExtendedStreamFormat::new(Self::SUBFUNC, &BcoPlugAddr::default()),
         }
     }
 }
@@ -1473,11 +1652,21 @@ impl ExtendedStreamFormatList {
 
     /// Instantiate extended stream format list structure with parameters.
     pub fn new(plug_addr: &BcoPlugAddr, index: u8) -> Self {
-        ExtendedStreamFormatList {
-            support_status: BcoSupportStatus::NotUsed,
+        Self {
             index,
-            stream_format: BcoStreamFormat::Reserved(Vec::new()),
             op: BcoExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for ExtendedStreamFormatList {
+    fn default() -> Self {
+        Self {
+            support_status: Default::default(),
+            index: 0xff,
+            stream_format: Default::default(),
+            op: BcoExtendedStreamFormat::new(Self::SUBFUNC, &BcoPlugAddr::default()),
         }
     }
 }
@@ -1813,7 +2002,7 @@ mod test {
     #[test]
     fn bcoioplugaddr_from() {
         // Unit.
-        let raw: [u8; 7] = [0x00, 0x00, 0x02, 0x05, 0xff, 0xff, 0xff];
+        let raw = [0x00, 0x00, 0x02, 0x05, 0xff, 0xff, 0xff];
         let addr = BcoIoPlugAddr::from_raw(&raw).unwrap();
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::Unit(d) = &addr.mode {
@@ -1825,7 +2014,7 @@ mod test {
         assert_eq!(raw, addr.to_raw());
 
         // Subunit.
-        let raw: [u8; 7] = [0x01, 0x01, 0x06, 0x05, 0x02, 0xff, 0xff];
+        let raw = [0x01, 0x01, 0x06, 0x05, 0x02, 0xff, 0xff];
         let addr = BcoIoPlugAddr::from_raw(&raw).unwrap();
         assert_eq!(addr.direction, BcoPlugDirection::Output);
         if let BcoIoPlugAddrMode::Subunit(s, d) = &addr.mode {
@@ -1838,7 +2027,7 @@ mod test {
         assert_eq!(raw, addr.to_raw());
 
         // Function block.
-        let raw: [u8; 7] = [0x00, 0x02, 0x04, 0x09, 0x80, 0x12, 0x23];
+        let raw = [0x00, 0x02, 0x04, 0x09, 0x80, 0x12, 0x23];
         let addr = BcoIoPlugAddr::from_raw(&raw).unwrap();
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::FuncBlk(s, d) = &addr.mode {
@@ -1855,7 +2044,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_type_from() {
-        let raw: Vec<u8> = vec![0x00, 0x03];
+        let raw = vec![0x00, 0x03];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::Type(t) = &info {
             assert_eq!(*t, BcoPlugType::Sync);
@@ -1867,7 +2056,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_name_from() {
-        let raw: Vec<u8> = vec![0x01, 0x03, 0x31, 0x32, 0x33];
+        let raw = vec![0x01, 0x03, 0x31, 0x32, 0x33];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::Name(n) = &info {
             assert_eq!(n, "123");
@@ -1879,7 +2068,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_chcount_from() {
-        let raw: Vec<u8> = vec![0x02, 0xc3];
+        let raw = vec![0x02, 0xc3];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::ChCount(c) = &info {
             assert_eq!(*c, 0xc3);
@@ -1891,7 +2080,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_chpositions_from() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0x03, 0x04, 0x01, 0x00, 0x04, 0x02, 0x03, 0x08, 0x00, 0x09, 0x03, 0x04, 0x08, 0x06,
             0x08, 0x05, 0x07, 0x01, 0x09, 0xb,
         ];
@@ -1963,7 +2152,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_chname_from() {
-        let raw: Vec<u8> = vec![0x04, 0x9a, 0x01, 0x39];
+        let raw = vec![0x04, 0x9a, 0x01, 0x39];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::ChName(d) = &info {
             assert_eq!(d.ch, 0x9a);
@@ -1976,7 +2165,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_input_from() {
-        let raw: Vec<u8> = vec![0x05, 0x01, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff];
+        let raw = vec![0x05, 0x01, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::Input(plug_addr) = &info {
             assert_eq!(plug_addr.direction, BcoPlugDirection::Output);
@@ -1995,7 +2184,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_outputs_from() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0x06, 0x02, 0x01, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff, 0x01, 0x01, 0x0b, 0x07, 0x42,
             0xff, 0xff,
         ];
@@ -2027,7 +2216,7 @@ mod test {
 
     #[test]
     fn bcopluginfo_clusterinfo_from() {
-        let raw: Vec<u8> = vec![0x07, 0x01, 0x09, 0x05, 0x41, 0x42, 0x43, 0x44, 0x45];
+        let raw = vec![0x07, 0x01, 0x09, 0x05, 0x41, 0x42, 0x43, 0x44, 0x45];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::ClusterInfo(d) = &info {
             assert_eq!(d.index, 0x01);
@@ -2041,7 +2230,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_type_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x00, 0x00];
+        let raw = vec![0xc0, 0x01, 0x00, 0x00, 0x03, 0xff, 0x00, 0x00];
         let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
             mode: BcoPlugAddrMode::Unit(BcoPlugAddrUnit {
@@ -2062,7 +2251,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_name_operands() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0xc0, 0x00, 0x01, 0x17, 0xff, 0xff, 0x01, 0x05, 0x39, 0x38, 0x52, 0x36, 0x35,
         ];
         let addr = BcoPlugAddr {
@@ -2082,7 +2271,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_chcount_operands() {
-        let raw: Vec<u8> = vec![0xc0, 0x01, 0x02, 0x3e, 0x9a, 0x77, 0x02, 0xe4];
+        let raw = vec![0xc0, 0x01, 0x02, 0x3e, 0x9a, 0x77, 0x02, 0xe4];
         let addr = BcoPlugAddr {
             direction: BcoPlugDirection::Output,
             mode: BcoPlugAddrMode::FuncBlk(BcoPlugAddrFuncBlk {
@@ -2104,7 +2293,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_chpositions_operands() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0xc0, 0x00, 0x00, 0x01, 0x5c, 0xff, 0x03, 0x03, 0x01, 0x00, 0x0a, 0x02, 0x03, 0x04,
             0x02, 0x07, 0x03, 0x01, 0x0f, 0x04, 0x01, 0x05, 0x03,
         ];
@@ -2176,7 +2365,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_chname_operands() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0xc0, 0x00, 0x00, 0x02, 0x97, 0xff, 0x04, 0x9d, 0x02, 0x46, 0x54,
         ];
         let addr = BcoPlugAddr {
@@ -2203,7 +2392,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_input_operands() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0xc0, 0x01, 0x01, 0x5d, 0xff, 0xff, 0x05, 0x00, 0x02, 0x0c, 0x12, 0x80, 0xd9, 0x04,
         ];
         let addr = BcoPlugAddr {
@@ -2238,7 +2427,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_outputs_operands() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0xc0, 0x01, 0x00, 0x00, 0x11, 0xff, 0x06, 0x02, 0x00, 0x02, 0x0c, 0x12, 0x80, 0xd9,
             0x04, 0x00, 0x01, 0x0c, 0x03, 0x31, 0xff, 0xff,
         ];
@@ -2281,7 +2470,7 @@ mod test {
 
     #[test]
     fn extendedpluginfo_clusterinfo_operands() {
-        let raw: Vec<u8> = vec![
+        let raw = vec![
             0xc0, 0x01, 0x00, 0x01, 0x1e, 0xff, 0x07, 0x02, 0x05, 0x03, 0x60, 0x50, 0x70,
         ];
         let addr = BcoPlugAddr {
