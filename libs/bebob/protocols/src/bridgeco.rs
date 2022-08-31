@@ -284,7 +284,6 @@ pub enum BcoIoPlugAddrMode {
     Unit(BcoPlugAddrUnit),
     Subunit(AvcAddrSubunit, BcoPlugAddrSubunit),
     FuncBlk(AvcAddrSubunit, BcoPlugAddrFuncBlk),
-    Reserved([u8; 6]),
 }
 
 impl BcoIoPlugAddrMode {
@@ -318,11 +317,7 @@ impl BcoIoPlugAddrMode {
                     BcoPlugAddrFuncBlk::from_raw(&raw[3..]).map_err(|err| err.add_offset(3))?;
                 Self::FuncBlk(subunit, data)
             }
-            _ => {
-                let mut r = [0; Self::LENGTH];
-                r.copy_from_slice(&raw[..Self::LENGTH]);
-                Self::Reserved(r)
-            }
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
 
         Ok(mode)
@@ -346,9 +341,6 @@ impl BcoIoPlugAddrMode {
                 raw[1] = s.subunit_type.into();
                 raw[2] = s.subunit_id;
                 raw[3..6].copy_from_slice(&d.to_raw());
-            }
-            Self::Reserved(d) => {
-                raw.copy_from_slice(d);
             }
         }
         raw
@@ -2217,7 +2209,10 @@ mod test {
         };
         let info = BcoPlugInfo::Input(BcoIoPlugAddr {
             direction: BcoPlugDirection::Input,
-            mode: BcoIoPlugAddrMode::Reserved([0; 6]),
+            mode: BcoIoPlugAddrMode::Unit(BcoPlugAddrUnit {
+                plug_type: BcoPlugAddrUnitType::Isoc,
+                plug_id: 0xff,
+            }),
         });
         let mut op = ExtendedPlugInfo::new(&addr, info);
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &raw).unwrap();
