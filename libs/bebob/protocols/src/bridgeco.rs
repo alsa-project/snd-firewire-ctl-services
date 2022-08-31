@@ -416,50 +416,46 @@ impl BcoLocation {
     const B: u8 = 0x0d;
     const FEL: u8 = 0x0e;
     const FER: u8 = 0x0f;
-}
 
-impl From<u8> for BcoLocation {
-    fn from(val: u8) -> Self {
+    fn from_val(val: u8) -> Self {
         match val {
-            BcoLocation::L => BcoLocation::LeftFront,
-            BcoLocation::R => BcoLocation::RightFront,
-            BcoLocation::C => BcoLocation::Center,
-            BcoLocation::LFE => BcoLocation::LowFrequencyEffect,
-            BcoLocation::LS => BcoLocation::LeftSurround,
-            BcoLocation::RS => BcoLocation::RightSurround,
-            BcoLocation::LC => BcoLocation::LeftCenter,
-            BcoLocation::RC => BcoLocation::RightCenter,
-            BcoLocation::S => BcoLocation::Surround,
-            BcoLocation::SL => BcoLocation::SideLeft,
-            BcoLocation::SR => BcoLocation::SideRight,
-            BcoLocation::T => BcoLocation::Top,
-            BcoLocation::B => BcoLocation::Bottom,
-            BcoLocation::FEL => BcoLocation::LeftFrontEffect,
-            BcoLocation::FER => BcoLocation::RightFrontEffect,
-            _ => BcoLocation::Reserved(val),
+            Self::L => Self::LeftFront,
+            Self::R => Self::RightFront,
+            Self::C => Self::Center,
+            Self::LFE => Self::LowFrequencyEffect,
+            Self::LS => Self::LeftSurround,
+            Self::RS => Self::RightSurround,
+            Self::LC => Self::LeftCenter,
+            Self::RC => Self::RightCenter,
+            Self::S => Self::Surround,
+            Self::SL => Self::SideLeft,
+            Self::SR => Self::SideRight,
+            Self::T => Self::Top,
+            Self::B => Self::Bottom,
+            Self::FEL => Self::LeftFrontEffect,
+            Self::FER => Self::RightFrontEffect,
+            _ => Self::Reserved(val),
         }
     }
-}
 
-impl From<BcoLocation> for u8 {
-    fn from(loc: BcoLocation) -> Self {
-        match loc {
-            BcoLocation::LeftFront => BcoLocation::L,
-            BcoLocation::RightFront => BcoLocation::R,
-            BcoLocation::Center => BcoLocation::C,
-            BcoLocation::LowFrequencyEffect => BcoLocation::LFE,
-            BcoLocation::LeftSurround => BcoLocation::LS,
-            BcoLocation::RightSurround => BcoLocation::RS,
-            BcoLocation::LeftCenter => BcoLocation::LC,
-            BcoLocation::RightCenter => BcoLocation::RC,
-            BcoLocation::Surround => BcoLocation::S,
-            BcoLocation::SideLeft => BcoLocation::SL,
-            BcoLocation::SideRight => BcoLocation::SR,
-            BcoLocation::Top => BcoLocation::T,
-            BcoLocation::Bottom => BcoLocation::B,
-            BcoLocation::LeftFrontEffect => BcoLocation::FEL,
-            BcoLocation::RightFrontEffect => BcoLocation::FER,
-            BcoLocation::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::LeftFront => Self::L,
+            Self::RightFront => Self::R,
+            Self::Center => Self::C,
+            Self::LowFrequencyEffect => Self::LFE,
+            Self::LeftSurround => Self::LS,
+            Self::RightSurround => Self::RS,
+            Self::LeftCenter => Self::LC,
+            Self::RightCenter => Self::RC,
+            Self::Surround => Self::S,
+            Self::SideLeft => Self::SL,
+            Self::SideRight => Self::SR,
+            Self::Top => Self::T,
+            Self::Bottom => Self::B,
+            Self::LeftFrontEffect => Self::FEL,
+            Self::RightFrontEffect => Self::FER,
+            Self::Reserved(val) => *val,
         }
     }
 }
@@ -471,20 +467,18 @@ pub struct BcoChannelInfo {
     loc: BcoLocation,
 }
 
-impl From<&BcoChannelInfo> for [u8; 2] {
-    fn from(data: &BcoChannelInfo) -> Self {
+impl BcoChannelInfo {
+    fn to_raw(&self) -> [u8; 2] {
         let mut raw = [0; 2];
-        raw[0] = data.pos;
-        raw[1] = data.loc.into();
+        raw[0] = self.pos;
+        raw[1] = self.loc.to_val();
         raw
     }
-}
 
-impl From<&[u8; 2]> for BcoChannelInfo {
-    fn from(raw: &[u8; 2]) -> Self {
-        BcoChannelInfo {
+    fn from_raw(raw: &[u8; 2]) -> Self {
+        Self {
             pos: raw[0],
-            loc: BcoLocation::from(raw[1]),
+            loc: BcoLocation::from_val(raw[1]),
         }
     }
 }
@@ -495,28 +489,26 @@ pub struct BcoCluster {
     entries: Vec<BcoChannelInfo>,
 }
 
-impl From<&[u8]> for BcoCluster {
-    fn from(raw: &[u8]) -> Self {
+impl BcoCluster {
+    fn from_raw(raw: &[u8]) -> Self {
         let count = raw[0] as usize;
-        BcoCluster {
+        Self {
             entries: (0..count)
                 .map(|i| {
                     let mut r = [0; 2];
                     let pos = 1 + i * 2;
                     r.copy_from_slice(&raw[pos..(pos + 2)]);
-                    BcoChannelInfo::from(&r)
+                    BcoChannelInfo::from_raw(&r)
                 })
                 .collect(),
         }
     }
-}
 
-impl From<&BcoCluster> for Vec<u8> {
-    fn from(data: &BcoCluster) -> Self {
+    fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::new();
-        raw.push(data.entries.len() as u8);
-        data.entries.iter().fold(raw, |mut raw, entry| {
-            raw.extend_from_slice(&Into::<[u8; 2]>::into(entry));
+        raw.push(self.entries.len() as u8);
+        self.entries.iter().fold(raw, |mut raw, entry| {
+            raw.extend_from_slice(&entry.to_raw());
             raw
         })
     }
@@ -680,7 +672,7 @@ impl From<&BcoPlugInfo> for Vec<u8> {
                 raw.push(entries.len() as u8);
                 entries
                     .iter()
-                    .for_each(|entry| raw.append(&mut entry.into()));
+                    .for_each(|entry| raw.append(&mut entry.to_raw()));
             }
             BcoPlugInfo::ChName(d) => {
                 raw.push(BcoPlugInfo::CH_NAME);
@@ -730,7 +722,7 @@ impl From<&[u8]> for BcoPlugInfo {
                 while pos < raw.len() && entries.len() < count {
                     let c = raw[pos] as usize;
                     let size = 1 + 2 * c;
-                    entries.push(BcoCluster::from(&raw[pos..(pos + size)]));
+                    entries.push(BcoCluster::from_raw(&raw[pos..(pos + size)]));
                     pos += size;
                 }
                 BcoPlugInfo::ChPositions(entries)
@@ -1712,26 +1704,25 @@ mod test {
     #[test]
     fn bcochannelinfo_from() {
         let raw = [0x02, 0x0d];
-        assert_eq!(raw, Into::<[u8; 2]>::into(&BcoChannelInfo::from(&raw)));
+        let info = BcoChannelInfo::from_raw(&raw);
+        assert_eq!(raw, info.to_raw());
+
         let raw = [0x3e, 0x0c];
-        assert_eq!(raw, Into::<[u8; 2]>::into(&BcoChannelInfo::from(&raw)));
+        let info = BcoChannelInfo::from_raw(&raw);
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcocluster_from() {
         let raw: Vec<u8> = vec![0x03, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01];
-        assert_eq!(
-            raw,
-            Into::<Vec<u8>>::into(&BcoCluster::from(raw.as_slice()))
-        );
+        let cluster = BcoCluster::from_raw(&raw);
+        assert_eq!(raw, cluster.to_raw(),);
 
         let raw: Vec<u8> = vec![
             0x05, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01, 0x02, 0x0d, 0x3e, 0x0c,
         ];
-        assert_eq!(
-            raw,
-            Into::<Vec<u8>>::into(&BcoCluster::from(raw.as_slice()))
-        );
+        let cluster = BcoCluster::from_raw(&raw);
+        assert_eq!(raw, cluster.to_raw(),);
     }
 
     #[test]
