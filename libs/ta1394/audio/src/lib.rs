@@ -145,8 +145,11 @@ impl Default for AudioFuncBlkCtl {
 impl AudioFuncBlkCtl {
     const LENGTH_MIN: usize = 1;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH_MIN);
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
         let mut ctl = Self {
             selector: raw[0],
             data: Default::default(),
@@ -157,7 +160,7 @@ impl AudioFuncBlkCtl {
                 ctl.data.extend_from_slice(&raw[2..(2 + length)]);
             }
         }
-        ctl
+        Ok(ctl)
     }
 
     fn to_raw(&self) -> Vec<u8> {
@@ -245,7 +248,8 @@ impl AudioFuncBlk {
         audio_selector_length -= 1;
         self.audio_selector_data = operands[4..(4 + audio_selector_length)].to_vec();
 
-        self.ctl = AudioFuncBlkCtl::from_raw(&operands[(4 + audio_selector_length)..]);
+        self.ctl = AudioFuncBlkCtl::from_raw(&operands[(4 + audio_selector_length)..])
+            .map_err(|err| err.add_offset(4))?;
 
         Ok(())
     }
