@@ -603,7 +603,7 @@ pub enum BcoPortType {
     Analog,
     Digital,
     Midi,
-    Reserved(u8),
+    NoType,
 }
 
 impl BcoPortType {
@@ -618,6 +618,7 @@ impl BcoPortType {
     const ANALOG: u8 = 0x08;
     const DIGITAL: u8 = 0x09;
     const MIDI: u8 = 0x0a;
+    const NO_TYPE: u8 = 0xff;
 
     fn to_val(&self) -> u8 {
         match self {
@@ -632,12 +633,12 @@ impl BcoPortType {
             Self::Analog => Self::ANALOG,
             Self::Digital => Self::DIGITAL,
             Self::Midi => Self::MIDI,
-            Self::Reserved(val) => *val,
+            Self::NoType => Self::NO_TYPE,
         }
     }
 
-    fn from_val(val: u8) -> Self {
-        match val {
+    fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
+        let port_type = match val {
             Self::SPEAKER => Self::Speaker,
             Self::HEADPHONE => Self::Headphone,
             Self::MICROPHONE => Self::Microphone,
@@ -649,8 +650,10 @@ impl BcoPortType {
             Self::ANALOG => Self::Analog,
             Self::DIGITAL => Self::Digital,
             Self::MIDI => Self::Midi,
-            _ => Self::Reserved(val),
-        }
+            Self::NO_TYPE => Self::NoType,
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
+        };
+        Ok(port_type)
     }
 }
 
@@ -670,6 +673,8 @@ impl BcoClusterInfo {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
 
+        let index = raw[0];
+        let port_type = BcoPortType::from_val(raw[1]).map_err(|err| err.add_offset(1))?;
         let pos = Self::LENGTH_MIN + raw[2] as usize;
         let name = if pos > raw.len() {
             "".to_string()
@@ -677,8 +682,8 @@ impl BcoClusterInfo {
             String::from_utf8(raw[Self::LENGTH_MIN..pos].to_vec()).unwrap_or("".to_string())
         };
         Ok(Self {
-            index: raw[0],
-            port_type: BcoPortType::from_val(raw[1]),
+            index,
+            port_type,
             name,
         })
     }
@@ -2290,7 +2295,7 @@ mod test {
         };
         let info = BcoClusterInfo {
             index: 0x02,
-            port_type: BcoPortType::Reserved(0xff),
+            port_type: BcoPortType::NoType,
             name: "".to_string(),
         };
         let mut op = ExtendedPlugInfo::new(&addr, BcoPlugInfo::ClusterInfo(info));
