@@ -393,7 +393,6 @@ pub enum BcoPlugType {
     Sync,
     Analog,
     Digital,
-    Reserved(u8),
 }
 
 impl BcoPlugType {
@@ -404,16 +403,17 @@ impl BcoPlugType {
     const ANALOG: u8 = 0x04;
     const DIGITAL: u8 = 0x05;
 
-    fn from_val(val: u8) -> Self {
-        match val {
+    fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
+        let plug_type = match val {
             Self::ISOC_STREAM => Self::Isoc,
             Self::ASYNC_STREAM => Self::Async,
             Self::MIDI => Self::Midi,
             Self::SYNC => Self::Sync,
             Self::ANALOG => Self::Analog,
             Self::DIGITAL => Self::Digital,
-            _ => Self::Reserved(val),
-        }
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
+        };
+        Ok(plug_type)
     }
 
     fn to_val(&self) -> u8 {
@@ -424,7 +424,6 @@ impl BcoPlugType {
             Self::Sync => Self::SYNC,
             Self::Analog => Self::ANALOG,
             Self::Digital => Self::DIGITAL,
-            Self::Reserved(val) => *val,
         }
     }
 }
@@ -772,7 +771,10 @@ impl BcoPlugInfo {
         }
 
         let info = match raw[0] {
-            Self::TYPE => Self::Type(BcoPlugType::from_val(raw[1])),
+            Self::TYPE => {
+                let plug_type = BcoPlugType::from_val(raw[1])?;
+                Self::Type(plug_type)
+            }
             Self::NAME => {
                 let pos = Self::LENGTH_MIN + raw[1] as usize;
                 let name = if pos > raw.len() {
@@ -2044,7 +2046,7 @@ mod test {
                 plug_id: 0x03,
             }),
         };
-        let info = BcoPlugInfo::Type(BcoPlugType::Reserved(0xff));
+        let info = BcoPlugInfo::Type(BcoPlugType::Isoc);
         let mut op = ExtendedPlugInfo::new(&addr, info);
         AvcStatus::parse_operands(&mut op, &AvcAddr::Unit, &raw).unwrap();
         assert_eq!(op.addr, addr);
