@@ -341,6 +341,8 @@ pub enum AvcCmdBuildError {
     InvalidAddress,
     /// Fail to prepare operands for the operation.
     InvalidOperands,
+    /// Operands too long.
+    TooLongOperands,
 }
 
 impl std::fmt::Display for AvcCmdBuildError {
@@ -348,6 +350,7 @@ impl std::fmt::Display for AvcCmdBuildError {
         match self {
             Self::InvalidAddress => write!(f, "invalid address"),
             Self::InvalidOperands => write!(f, "invalid operands"),
+            Self::TooLongOperands => write!(f, "too long operands"),
         }
     }
 }
@@ -463,13 +466,18 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         addr: &AvcAddr,
         opcode: u8,
         operands: &[u8],
-    ) -> Vec<u8> {
+    ) -> Result<Vec<u8>, Ta1394AvcError<T>> {
         let mut frame = Vec::new();
         frame.push(ctype.into());
         frame.push(addr.into());
         frame.push(opcode);
         frame.extend_from_slice(operands);
-        frame
+
+        if frame.len() > Self::FRAME_SIZE {
+            Err(Ta1394AvcError::CmdBuild(AvcCmdBuildError::TooLongOperands))?;
+        }
+
+        Ok(frame)
     }
 
     fn detect_response_operands<'a>(
@@ -497,7 +505,7 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         let operands =
             AvcControl::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
         let command_frame =
-            Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands);
+            Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)?;
         let response_frame = self
             .transaction(&command_frame, timeout_ms)
             .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
@@ -518,7 +526,7 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         let operands =
             AvcStatus::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
         let command_frame =
-            Self::compose_command_frame(AvcCmdType::Status, addr, O::OPCODE, &operands);
+            Self::compose_command_frame(AvcCmdType::Status, addr, O::OPCODE, &operands)?;
         let response_frame = self
             .transaction(&command_frame, timeout_ms)
             .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
@@ -539,7 +547,7 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         let operands =
             AvcControl::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
         let command_frame =
-            Self::compose_command_frame(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands);
+            Self::compose_command_frame(AvcCmdType::SpecificInquiry, addr, O::OPCODE, &operands)?;
         let response_frame = self
             .transaction(&command_frame, timeout_ms)
             .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
@@ -560,7 +568,7 @@ pub trait Ta1394Avc<T: std::fmt::Display + Clone> {
         let operands =
             AvcNotify::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
         let command_frame =
-            Self::compose_command_frame(AvcCmdType::Notify, addr, O::OPCODE, &operands);
+            Self::compose_command_frame(AvcCmdType::Notify, addr, O::OPCODE, &operands)?;
         let response_frame = self
             .transaction(&command_frame, timeout_ms)
             .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
