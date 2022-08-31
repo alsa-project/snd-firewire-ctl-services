@@ -299,12 +299,16 @@ pub enum BcoIoPlugAddrMode {
 }
 
 impl BcoIoPlugAddrMode {
-    fn from_raw(raw: &[u8; 6]) -> Self {
-        match raw[0] {
+    const LENGTH: usize = 6;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        let mode = match raw[0] {
             BcoPlugAddrMode::UNIT => {
-                let data = BcoPlugAddrUnit::from_raw(&raw[1..])
-                    .map_err(|err| err.add_offset(1))
-                    .unwrap();
+                let data = BcoPlugAddrUnit::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
                 Self::Unit(data)
             }
             BcoPlugAddrMode::SUBUNIT => {
@@ -312,9 +316,8 @@ impl BcoIoPlugAddrMode {
                     subunit_type: AvcSubunitType::from(raw[1]),
                     subunit_id: raw[2],
                 };
-                let data = BcoPlugAddrSubunit::from_raw(&raw[3..])
-                    .map_err(|err| err.add_offset(3))
-                    .unwrap();
+                let data =
+                    BcoPlugAddrSubunit::from_raw(&raw[3..]).map_err(|err| err.add_offset(3))?;
                 Self::Subunit(subunit, data)
             }
             BcoPlugAddrMode::FUNCBLK => {
@@ -322,17 +325,22 @@ impl BcoIoPlugAddrMode {
                     subunit_type: AvcSubunitType::from(raw[1]),
                     subunit_id: raw[2],
                 };
-                let data = BcoPlugAddrFuncBlk::from_raw(&raw[3..])
-                    .map_err(|err| err.add_offset(3))
-                    .unwrap();
+                let data =
+                    BcoPlugAddrFuncBlk::from_raw(&raw[3..]).map_err(|err| err.add_offset(3))?;
                 Self::FuncBlk(subunit, data)
             }
-            _ => Self::Reserved(*raw),
-        }
+            _ => {
+                let mut r = [0; Self::LENGTH];
+                r.copy_from_slice(&raw[..Self::LENGTH]);
+                Self::Reserved(r)
+            }
+        };
+
+        Ok(mode)
     }
 
-    fn to_raw(&self) -> [u8; 6] {
-        let mut raw = [0xff; 6];
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0xff; Self::LENGTH];
         match self {
             Self::Unit(d) => {
                 raw[0] = BcoPlugAddrMode::UNIT;
@@ -366,18 +374,21 @@ pub struct BcoIoPlugAddr {
 }
 
 impl BcoIoPlugAddr {
-    fn from_raw(raw: &[u8; 7]) -> Self {
-        let direction = BcoPlugDirection::from_val(raw[0]).unwrap();
-        let mut r = [0; 6];
-        r.copy_from_slice(&raw[1..]);
-        Self {
-            direction,
-            mode: BcoIoPlugAddrMode::from_raw(&r),
+    const LENGTH: usize = 7;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
         }
+
+        let direction = BcoPlugDirection::from_val(raw[0])?;
+        let mode = BcoIoPlugAddrMode::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
+
+        Ok(Self { direction, mode })
     }
 
-    fn to_raw(&self) -> [u8; 7] {
-        let mut raw = [0; 7];
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0; Self::LENGTH];
         raw[0] = self.direction.to_val();
         raw[1..].copy_from_slice(&self.mode.to_raw());
         raw
@@ -803,19 +814,21 @@ impl BcoPlugInfo {
                 Self::ChName(BcoChannelName { ch, name })
             }
             Self::INPUT => {
-                let mut r = [0; 7];
-                r.copy_from_slice(&raw[1..8]);
-                Self::Input(BcoIoPlugAddr::from_raw(&r))
+                let addr = BcoIoPlugAddr::from_raw(&raw[1..])
+                    .map_err(|err| err.add_offset(1))
+                    .unwrap();
+                Self::Input(addr)
             }
             Self::OUTPUTS => {
                 let count = raw[1] as usize;
+                let mut entries = Vec::with_capacity(count);
                 let mut pos = 2;
-                let mut entries = Vec::new();
-                while pos < raw.len() && entries.len() < count {
-                    let mut r = [0; 7];
-                    r.copy_from_slice(&raw[pos..(pos + 7)]);
-                    entries.push(BcoIoPlugAddr::from_raw(&r));
-                    pos += 7;
+                while pos + BcoIoPlugAddr::LENGTH <= raw.len() && entries.len() != count {
+                    let entry = BcoIoPlugAddr::from_raw(&raw[pos..(pos + BcoIoPlugAddr::LENGTH)])
+                        .map_err(|err| err.add_offset(pos))
+                        .unwrap();
+                    entries.push(entry);
+                    pos += BcoIoPlugAddr::LENGTH;
                 }
                 Self::Outputs(entries)
             }
@@ -1764,7 +1777,7 @@ mod test {
     fn bcoioplugaddr_from() {
         // Unit.
         let raw: [u8; 7] = [0x00, 0x00, 0x02, 0x05, 0xff, 0xff, 0xff];
-        let addr = BcoIoPlugAddr::from_raw(&raw);
+        let addr = BcoIoPlugAddr::from_raw(&raw).unwrap();
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::Unit(d) = &addr.mode {
             assert_eq!(d.plug_type, BcoPlugAddrUnitType::Async);
@@ -1776,7 +1789,7 @@ mod test {
 
         // Subunit.
         let raw: [u8; 7] = [0x01, 0x01, 0x06, 0x05, 0x02, 0xff, 0xff];
-        let addr = BcoIoPlugAddr::from_raw(&raw);
+        let addr = BcoIoPlugAddr::from_raw(&raw).unwrap();
         assert_eq!(addr.direction, BcoPlugDirection::Output);
         if let BcoIoPlugAddrMode::Subunit(s, d) = &addr.mode {
             assert_eq!(s.subunit_type, AvcSubunitType::Ca);
@@ -1789,7 +1802,7 @@ mod test {
 
         // Function block.
         let raw: [u8; 7] = [0x00, 0x02, 0x04, 0x09, 0x80, 0x12, 0x23];
-        let addr = BcoIoPlugAddr::from_raw(&raw);
+        let addr = BcoIoPlugAddr::from_raw(&raw).unwrap();
         assert_eq!(addr.direction, BcoPlugDirection::Input);
         if let BcoIoPlugAddrMode::FuncBlk(s, d) = &addr.mode {
             assert_eq!(s.subunit_type, AvcSubunitType::Tape);
