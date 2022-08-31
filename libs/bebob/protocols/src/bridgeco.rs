@@ -661,18 +661,24 @@ pub struct BcoClusterInfo {
 }
 
 impl BcoClusterInfo {
-    fn from_raw(raw: &[u8]) -> Self {
-        let pos = 3 + raw[2] as usize;
+    const LENGTH_MIN: usize = 3;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
+        let pos = Self::LENGTH_MIN + raw[2] as usize;
         let name = if pos > raw.len() {
             "".to_string()
         } else {
-            String::from_utf8(raw[3..pos].to_vec()).unwrap_or("".to_string())
+            String::from_utf8(raw[Self::LENGTH_MIN..pos].to_vec()).unwrap_or("".to_string())
         };
-        Self {
+        Ok(Self {
             index: raw[0],
             port_type: BcoPortType::from_val(raw[1]),
             name,
-        }
+        })
     }
 
     fn to_raw(&self) -> Vec<u8> {
@@ -813,7 +819,12 @@ impl BcoPlugInfo {
                 }
                 Self::Outputs(entries)
             }
-            Self::CLUSTER_INFO => Self::ClusterInfo(BcoClusterInfo::from_raw(&raw[1..])),
+            Self::CLUSTER_INFO => {
+                let info = BcoClusterInfo::from_raw(&raw[1..])
+                    .map_err(|err| err.add_offset(1))
+                    .unwrap();
+                Self::ClusterInfo(info)
+            }
             _ => Self::Reserved(raw.to_vec()),
         }
     }
@@ -1745,7 +1756,7 @@ mod test {
     #[test]
     fn bcoclusterinfo_from() {
         let raw: Vec<u8> = vec![0x03, 0x0a, 0x03, 0x4c, 0x51, 0x33];
-        let info = BcoClusterInfo::from_raw(&raw);
+        let info = BcoClusterInfo::from_raw(&raw).unwrap();
         assert_eq!(raw, info.to_raw(),);
     }
 
