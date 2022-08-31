@@ -678,22 +678,25 @@ impl Default for AudiophileSwitchState {
     }
 }
 
-impl From<AudiophileSwitchState> for u8 {
-    fn from(state: AudiophileSwitchState) -> Self {
-        match state {
-            AudiophileSwitchState::Off => 0x00,
-            AudiophileSwitchState::A => 0x01,
-            AudiophileSwitchState::B => 0x02,
+impl AudiophileSwitchState {
+    const VALUE_OFF: u8 = 0x00;
+    const VALUE_A: u8 = 0x01;
+    const VALUE_B: u8 = 0x02;
+
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Off => Self::VALUE_OFF,
+            Self::A => Self::VALUE_A,
+            Self::B => Self::VALUE_B,
         }
     }
-}
 
-impl From<u8> for AudiophileSwitchState {
-    fn from(val: u8) -> Self {
+    #[allow(dead_code)]
+    fn from_val(val: u8) -> Self {
         match val {
-            0x01 => AudiophileSwitchState::A,
-            0x02 => AudiophileSwitchState::B,
-            _ => AudiophileSwitchState::Off,
+            Self::VALUE_A => Self::A,
+            Self::VALUE_B => Self::B,
+            _ => Self::Off,
         }
     }
 }
@@ -731,7 +734,7 @@ impl AvcOp for AudiophileLedSwitch {
 
 impl AvcControl for AudiophileLedSwitch {
     fn build_operands(&mut self, addr: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        self.op.data[3] = self.state.into();
+        self.op.data[3] = self.state.to_val();
         AvcControl::build_operands(&mut self.op, addr)
     }
 
