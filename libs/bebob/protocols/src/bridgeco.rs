@@ -642,74 +642,70 @@ impl BcoPlugInfo {
     const INPUT: u8 = 0x05;
     const OUTPUTS: u8 = 0x06;
     const CLUSTER_INFO: u8 = 0x07;
-}
 
-impl From<&BcoPlugInfo> for Vec<u8> {
-    fn from(data: &BcoPlugInfo) -> Self {
+    fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::new();
-        match data {
-            BcoPlugInfo::Type(plug_type) => {
-                raw.push(BcoPlugInfo::TYPE);
+        match self {
+            Self::Type(plug_type) => {
+                raw.push(Self::TYPE);
                 raw.push(plug_type.to_val());
             }
-            BcoPlugInfo::Name(n) => {
-                raw.push(BcoPlugInfo::NAME);
+            Self::Name(n) => {
+                raw.push(Self::NAME);
                 raw.push(n.len() as u8);
                 raw.append(&mut n.clone().into_bytes());
             }
-            BcoPlugInfo::ChCount(c) => {
-                raw.push(BcoPlugInfo::CH_COUNT);
+            Self::ChCount(c) => {
+                raw.push(Self::CH_COUNT);
                 raw.push(*c);
             }
-            BcoPlugInfo::ChPositions(entries) => {
-                raw.push(BcoPlugInfo::CH_POSITIONS);
+            Self::ChPositions(entries) => {
+                raw.push(Self::CH_POSITIONS);
                 raw.push(entries.len() as u8);
                 entries
                     .iter()
                     .for_each(|entry| raw.append(&mut entry.to_raw()));
             }
-            BcoPlugInfo::ChName(d) => {
-                raw.push(BcoPlugInfo::CH_NAME);
+            Self::ChName(d) => {
+                raw.push(Self::CH_NAME);
                 raw.push(d.ch);
                 raw.push(d.name.len() as u8);
                 raw.append(&mut d.name.clone().into_bytes());
             }
-            BcoPlugInfo::Input(plug_addr) => {
-                raw.push(BcoPlugInfo::INPUT);
+            Self::Input(plug_addr) => {
+                raw.push(Self::INPUT);
                 raw.extend_from_slice(&mut plug_addr.to_raw());
             }
-            BcoPlugInfo::Outputs(plug_addrs) => {
-                raw.push(BcoPlugInfo::OUTPUTS);
+            Self::Outputs(plug_addrs) => {
+                raw.push(Self::OUTPUTS);
                 raw.push(plug_addrs.len() as u8);
                 plug_addrs
                     .iter()
                     .for_each(|plug_addr| raw.extend_from_slice(&plug_addr.to_raw()));
             }
-            BcoPlugInfo::ClusterInfo(d) => {
-                raw.push(BcoPlugInfo::CLUSTER_INFO);
+            Self::ClusterInfo(d) => {
+                raw.push(Self::CLUSTER_INFO);
                 raw.append(&mut d.to_raw());
             }
-            BcoPlugInfo::Reserved(d) => raw.extend_from_slice(&d),
+            Self::Reserved(d) => raw.extend_from_slice(&d),
         }
         raw
     }
-}
 
-impl From<&[u8]> for BcoPlugInfo {
-    fn from(raw: &[u8]) -> Self {
+    fn from_raw(raw: &[u8]) -> Self {
         match raw[0] {
-            BcoPlugInfo::TYPE => BcoPlugInfo::Type(BcoPlugType::from_val(raw[1])),
-            BcoPlugInfo::NAME => {
+            Self::TYPE => Self::Type(BcoPlugType::from_val(raw[1])),
+            Self::NAME => {
                 let pos = 2 + raw[1] as usize;
                 let name = if pos > raw.len() {
                     "".to_string()
                 } else {
                     String::from_utf8(raw[2..pos].to_vec()).unwrap_or("".to_string())
                 };
-                BcoPlugInfo::Name(name)
+                Self::Name(name)
             }
-            BcoPlugInfo::CH_COUNT => BcoPlugInfo::ChCount(raw[1]),
-            BcoPlugInfo::CH_POSITIONS => {
+            Self::CH_COUNT => Self::ChCount(raw[1]),
+            Self::CH_POSITIONS => {
                 let count = raw[1] as usize;
                 let mut entries = Vec::with_capacity(count);
                 let mut pos = 2;
@@ -719,9 +715,9 @@ impl From<&[u8]> for BcoPlugInfo {
                     entries.push(BcoCluster::from_raw(&raw[pos..(pos + size)]));
                     pos += size;
                 }
-                BcoPlugInfo::ChPositions(entries)
+                Self::ChPositions(entries)
             }
-            BcoPlugInfo::CH_NAME => {
+            Self::CH_NAME => {
                 let ch = raw[1] as u8;
                 let pos = 3 + raw[2] as usize;
                 let name = if pos > raw.len() {
@@ -729,14 +725,14 @@ impl From<&[u8]> for BcoPlugInfo {
                 } else {
                     String::from_utf8(raw[3..pos].to_vec()).unwrap_or("".to_string())
                 };
-                BcoPlugInfo::ChName(BcoChannelName { ch, name })
+                Self::ChName(BcoChannelName { ch, name })
             }
-            BcoPlugInfo::INPUT => {
+            Self::INPUT => {
                 let mut r = [0; 7];
                 r.copy_from_slice(&raw[1..8]);
-                BcoPlugInfo::Input(BcoIoPlugAddr::from_raw(&r))
+                Self::Input(BcoIoPlugAddr::from_raw(&r))
             }
-            BcoPlugInfo::OUTPUTS => {
+            Self::OUTPUTS => {
                 let count = raw[1] as usize;
                 let mut pos = 2;
                 let mut entries = Vec::new();
@@ -746,12 +742,10 @@ impl From<&[u8]> for BcoPlugInfo {
                     entries.push(BcoIoPlugAddr::from_raw(&r));
                     pos += 7;
                 }
-                BcoPlugInfo::Outputs(entries)
+                Self::Outputs(entries)
             }
-            BcoPlugInfo::CLUSTER_INFO => {
-                BcoPlugInfo::ClusterInfo(BcoClusterInfo::from_raw(&raw[1..]))
-            }
-            _ => BcoPlugInfo::Reserved(raw.to_vec()),
+            Self::CLUSTER_INFO => Self::ClusterInfo(BcoClusterInfo::from_raw(&raw[1..])),
+            _ => Self::Reserved(raw.to_vec()),
         }
     }
 }
@@ -783,7 +777,7 @@ impl AvcStatus for ExtendedPlugInfo {
         let mut operands = Vec::new();
         operands.push(Self::SUBFUNC);
         operands.extend_from_slice(&self.addr.to_raw());
-        operands.append(&mut Into::<Vec<u8>>::into(&self.info));
+        operands.append(&mut self.info.to_raw());
         Ok(operands)
     }
 
@@ -818,7 +812,7 @@ impl AvcStatus for ExtendedPlugInfo {
             Err(AvcRespParseError::UnexpectedOperands(6))?;
         }
 
-        let info = BcoPlugInfo::from(&operands[6..]);
+        let info = BcoPlugInfo::from_raw(&operands[6..]);
         if let BcoPlugInfo::Input(d) = &info {
             if let BcoPlugDirection::Reserved(_) = &d.direction {
                 Err(AvcRespParseError::UnexpectedOperands(6))?;
@@ -1774,37 +1768,37 @@ mod test {
     #[test]
     fn bcopluginfo_type_from() {
         let raw: Vec<u8> = vec![0x00, 0x03];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::Type(t) = &info {
             assert_eq!(*t, BcoPlugType::Sync);
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcopluginfo_name_from() {
         let raw: Vec<u8> = vec![0x01, 0x03, 0x31, 0x32, 0x33];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::Name(n) = &info {
             assert_eq!(n, "123");
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcopluginfo_chcount_from() {
         let raw: Vec<u8> = vec![0x02, 0xc3];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::ChCount(c) = &info {
             assert_eq!(*c, 0xc3);
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
@@ -1813,7 +1807,7 @@ mod test {
             0x03, 0x04, 0x01, 0x00, 0x04, 0x02, 0x03, 0x08, 0x00, 0x09, 0x03, 0x04, 0x08, 0x06,
             0x08, 0x05, 0x07, 0x01, 0x09, 0xb,
         ];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::ChPositions(clusters) = &info {
             assert_eq!(clusters.len(), 4);
             let m = &clusters[0];
@@ -1876,26 +1870,26 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcopluginfo_chname_from() {
         let raw: Vec<u8> = vec![0x04, 0x9a, 0x01, 0x39];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::ChName(d) = &info {
             assert_eq!(d.ch, 0x9a);
             assert_eq!(d.name, "9");
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcopluginfo_input_from() {
         let raw: Vec<u8> = vec![0x05, 0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::Input(plug_addr) = &info {
             assert_eq!(plug_addr.direction, BcoPlugDirection::Reserved(0xa9));
             if let BcoIoPlugAddrMode::Subunit(s, d) = &plug_addr.mode {
@@ -1908,7 +1902,7 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
@@ -1917,7 +1911,7 @@ mod test {
             0x06, 0x02, 0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff, 0xa9, 0x01, 0x0b, 0x07, 0x42,
             0xff, 0xff,
         ];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::Outputs(plug_addrs) = &info {
             let plug_addr = plug_addrs[0];
             assert_eq!(plug_addr.direction, BcoPlugDirection::Reserved(0xa9));
@@ -1940,13 +1934,13 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcopluginfo_clusterinfo_from() {
         let raw: Vec<u8> = vec![0x07, 0x01, 0x09, 0x05, 0x41, 0x42, 0x43, 0x44, 0x45];
-        let info = BcoPlugInfo::from(raw.as_slice());
+        let info = BcoPlugInfo::from_raw(&raw);
         if let BcoPlugInfo::ClusterInfo(d) = &info {
             assert_eq!(d.index, 0x01);
             assert_eq!(d.port_type, BcoPortType::Digital);
@@ -1954,7 +1948,7 @@ mod test {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, Into::<Vec<u8>>::into(&info));
+        assert_eq!(raw, info.to_raw());
     }
 
     #[test]
