@@ -19,7 +19,6 @@ pub enum BcoPlugAddrUnitType {
     Isoc,
     Ext,
     Async,
-    Reserved(u8),
 }
 
 impl BcoPlugAddrUnitType {
@@ -27,13 +26,14 @@ impl BcoPlugAddrUnitType {
     const EXT: u8 = 0x01;
     const ASYNC: u8 = 0x02;
 
-    fn from_val(val: u8) -> Self {
-        match val {
+    fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
+        let unit_type = match val {
             Self::ISOC => Self::Isoc,
             Self::EXT => Self::Ext,
             Self::ASYNC => Self::Async,
-            _ => Self::Reserved(val),
-        }
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
+        };
+        Ok(unit_type)
     }
 
     fn to_val(&self) -> u8 {
@@ -41,7 +41,6 @@ impl BcoPlugAddrUnitType {
             Self::Isoc => Self::ISOC,
             Self::Ext => Self::EXT,
             Self::Async => Self::ASYNC,
-            Self::Reserved(val) => *val,
         }
     }
 }
@@ -61,10 +60,10 @@ impl BcoPlugAddrUnit {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
         }
 
-        Ok(Self {
-            plug_type: BcoPlugAddrUnitType::from_val(raw[0]),
-            plug_id: raw[1],
-        })
+        let plug_type = BcoPlugAddrUnitType::from_val(raw[0])?;
+        let plug_id = raw[1];
+
+        Ok(Self { plug_type, plug_id })
     }
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
@@ -128,7 +127,6 @@ pub enum BcoPlugAddrMode {
     Unit(BcoPlugAddrUnit),
     Subunit(BcoPlugAddrSubunit),
     FuncBlk(BcoPlugAddrFuncBlk),
-    Reserved([u8; Self::LENGTH]),
 }
 
 impl BcoPlugAddrMode {
@@ -158,11 +156,7 @@ impl BcoPlugAddrMode {
                     BcoPlugAddrFuncBlk::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
                 Self::FuncBlk(data)
             }
-            _ => {
-                let mut r = [0; Self::LENGTH];
-                r.copy_from_slice(&raw[..Self::LENGTH]);
-                Self::Reserved(r)
-            }
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
 
         Ok(mode)
@@ -183,9 +177,6 @@ impl BcoPlugAddrMode {
                 raw[0] = Self::FUNCBLK;
                 raw[1..].copy_from_slice(&d.to_raw());
             }
-            Self::Reserved(d) => {
-                raw.copy_from_slice(d);
-            }
         }
         raw
     }
@@ -196,7 +187,6 @@ impl BcoPlugAddrMode {
 pub enum BcoPlugDirection {
     Input,
     Output,
-    Reserved(u8),
 }
 
 impl BcoPlugDirection {
@@ -209,7 +199,7 @@ impl BcoPlugDirection {
         let direction = match val {
             Self::INPUT => Self::Input,
             Self::OUTPUT => Self::Output,
-            _ => Self::Reserved(val),
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
         Ok(direction)
     }
@@ -218,7 +208,6 @@ impl BcoPlugDirection {
         match self {
             Self::Input => Self::INPUT,
             Self::Output => Self::OUTPUT,
-            Self::Reserved(val) => *val,
         }
     }
 }
@@ -905,14 +894,7 @@ impl AvcStatus for ExtendedPlugInfo {
             Err(AvcRespParseError::UnexpectedOperands(6))?;
         }
 
-        let info = BcoPlugInfo::from_raw(&operands[6..]).map_err(|err| err.add_offset(6))?;
-        if let BcoPlugInfo::Input(d) = &info {
-            if let BcoPlugDirection::Reserved(_) = &d.direction {
-                Err(AvcRespParseError::UnexpectedOperands(6))?;
-            }
-        }
-
-        self.info = info;
+        self.info = BcoPlugInfo::from_raw(&operands[6..]).map_err(|err| err.add_offset(6))?;
 
         Ok(())
     }
@@ -1779,9 +1761,9 @@ mod test {
         assert_eq!(raw, addr.to_raw());
 
         // Input plug for function block.
-        let raw = [0x02, 0x02, 0x06, 0x03, 0x02];
+        let raw = [0x01, 0x02, 0x06, 0x03, 0x02];
         let addr = BcoPlugAddr::from_raw(&raw).unwrap();
-        assert_eq!(addr.direction, BcoPlugDirection::Reserved(0x02));
+        assert_eq!(addr.direction, BcoPlugDirection::Output);
         if let BcoPlugAddrMode::FuncBlk(d) = &addr.mode {
             assert_eq!(d.func_blk_type, 0x06);
             assert_eq!(d.func_blk_id, 0x03);
@@ -1989,10 +1971,10 @@ mod test {
 
     #[test]
     fn bcopluginfo_input_from() {
-        let raw: Vec<u8> = vec![0x05, 0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff];
+        let raw: Vec<u8> = vec![0x05, 0x01, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::Input(plug_addr) = &info {
-            assert_eq!(plug_addr.direction, BcoPlugDirection::Reserved(0xa9));
+            assert_eq!(plug_addr.direction, BcoPlugDirection::Output);
             if let BcoIoPlugAddrMode::Subunit(s, d) = &plug_addr.mode {
                 assert_eq!(s.subunit_type, AvcSubunitType::CameraStorage);
                 assert_eq!(s.subunit_id, 0x07);
@@ -2009,13 +1991,13 @@ mod test {
     #[test]
     fn bcopluginfo_outputs_from() {
         let raw: Vec<u8> = vec![
-            0x06, 0x02, 0xa9, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff, 0xa9, 0x01, 0x0b, 0x07, 0x42,
+            0x06, 0x02, 0x01, 0x01, 0x0b, 0x07, 0x42, 0xff, 0xff, 0x01, 0x01, 0x0b, 0x07, 0x42,
             0xff, 0xff,
         ];
         let info = BcoPlugInfo::from_raw(&raw).unwrap();
         if let BcoPlugInfo::Outputs(plug_addrs) = &info {
             let plug_addr = plug_addrs[0];
-            assert_eq!(plug_addr.direction, BcoPlugDirection::Reserved(0xa9));
+            assert_eq!(plug_addr.direction, BcoPlugDirection::Output);
             if let BcoIoPlugAddrMode::Subunit(s, d) = &plug_addr.mode {
                 assert_eq!(s.subunit_type, AvcSubunitType::CameraStorage);
                 assert_eq!(s.subunit_id, 0x07);
@@ -2024,7 +2006,7 @@ mod test {
                 unreachable!();
             }
             let plug_addr = plug_addrs[1];
-            assert_eq!(plug_addr.direction, BcoPlugDirection::Reserved(0xa9));
+            assert_eq!(plug_addr.direction, BcoPlugDirection::Output);
             if let BcoIoPlugAddrMode::Subunit(s, d) = &plug_addr.mode {
                 assert_eq!(s.subunit_type, AvcSubunitType::CameraStorage);
                 assert_eq!(s.subunit_id, 0x07);
@@ -2224,7 +2206,7 @@ mod test {
             mode: BcoPlugAddrMode::Subunit(BcoPlugAddrSubunit { plug_id: 0x5d }),
         };
         let info = BcoPlugInfo::Input(BcoIoPlugAddr {
-            direction: BcoPlugDirection::Reserved(0xff),
+            direction: BcoPlugDirection::Input,
             mode: BcoIoPlugAddrMode::Reserved([0; 6]),
         });
         let mut op = ExtendedPlugInfo::new(&addr, info);
