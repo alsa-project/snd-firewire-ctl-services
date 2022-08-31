@@ -518,18 +518,24 @@ pub struct BcoChannelInfo {
 }
 
 impl BcoChannelInfo {
-    fn to_raw(&self) -> [u8; 2] {
-        let mut raw = [0; 2];
+    const LENGTH: usize = 2;
+
+    fn to_raw(&self) -> [u8; Self::LENGTH] {
+        let mut raw = [0; Self::LENGTH];
         raw[0] = self.pos;
         raw[1] = self.loc.to_val();
         raw
     }
 
-    fn from_raw(raw: &[u8; 2]) -> Self {
-        Self {
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        Ok(Self {
             pos: raw[0],
             loc: BcoLocation::from_val(raw[1]),
-        }
+        })
     }
 }
 
@@ -540,18 +546,28 @@ pub struct BcoCluster {
 }
 
 impl BcoCluster {
-    fn from_raw(raw: &[u8]) -> Self {
-        let count = raw[0] as usize;
-        Self {
-            entries: (0..count)
-                .map(|i| {
-                    let mut r = [0; 2];
-                    let pos = 1 + i * 2;
-                    r.copy_from_slice(&raw[pos..(pos + 2)]);
-                    BcoChannelInfo::from_raw(&r)
-                })
-                .collect(),
+    const LENGTH_MIN: usize = 1;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
+
+        let count = raw[0] as usize;
+
+        let mut entries = Vec::with_capacity(count);
+        let mut pos = 1;
+        while pos + BcoChannelInfo::LENGTH <= raw.len() {
+            let entry = BcoChannelInfo::from_raw(&raw[pos..]).map_err(|err| err.add_offset(pos))?;
+            entries.push(entry);
+            pos += BcoChannelInfo::LENGTH;
+        }
+
+        if entries.len() != count {
+            Err(AvcRespParseError::UnexpectedOperands(0))?;
+        }
+
+        Ok(Self { entries })
     }
 
     fn to_raw(&self) -> Vec<u8> {
@@ -762,7 +778,10 @@ impl BcoPlugInfo {
                 while pos < raw.len() && entries.len() < count {
                     let c = raw[pos] as usize;
                     let size = 1 + 2 * c;
-                    entries.push(BcoCluster::from_raw(&raw[pos..(pos + size)]));
+                    let entry = BcoCluster::from_raw(&raw[pos..(pos + size)])
+                        .map_err(|err| err.add_offset(pos))
+                        .unwrap();
+                    entries.push(entry);
                     pos += size;
                 }
                 Self::ChPositions(entries)
@@ -1702,25 +1721,25 @@ mod test {
     #[test]
     fn bcochannelinfo_from() {
         let raw = [0x02, 0x0d];
-        let info = BcoChannelInfo::from_raw(&raw);
+        let info = BcoChannelInfo::from_raw(&raw).unwrap();
         assert_eq!(raw, info.to_raw());
 
         let raw = [0x3e, 0x0c];
-        let info = BcoChannelInfo::from_raw(&raw);
+        let info = BcoChannelInfo::from_raw(&raw).unwrap();
         assert_eq!(raw, info.to_raw());
     }
 
     #[test]
     fn bcocluster_from() {
         let raw: Vec<u8> = vec![0x03, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01];
-        let cluster = BcoCluster::from_raw(&raw);
-        assert_eq!(raw, cluster.to_raw(),);
+        let cluster = BcoCluster::from_raw(&raw).unwrap();
+        assert_eq!(raw, cluster.to_raw());
 
         let raw: Vec<u8> = vec![
             0x05, 0x03, 0x0b, 0x09, 0x03, 0x2c, 0x01, 0x02, 0x0d, 0x3e, 0x0c,
         ];
-        let cluster = BcoCluster::from_raw(&raw);
-        assert_eq!(raw, cluster.to_raw(),);
+        let cluster = BcoCluster::from_raw(&raw).unwrap();
+        assert_eq!(raw, cluster.to_raw());
     }
 
     #[test]
