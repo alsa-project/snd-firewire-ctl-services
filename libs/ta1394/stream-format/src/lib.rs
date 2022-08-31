@@ -42,8 +42,11 @@ impl Am824MultiBitAudioAttr {
 
     const LENGTH: usize = 2;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
         let freq_code = (raw[0] >> Self::FREQ_CODE_SHIFT) & Self::FREQ_CODE_MASK;
         let freq = match freq_code {
             Self::FREQ_CODE_22050 => 22050,
@@ -54,16 +57,16 @@ impl Am824MultiBitAudioAttr {
             Self::FREQ_CODE_96000 => 96000,
             Self::FREQ_CODE_176400 => 176400,
             Self::FREQ_CODE_192000 => 192000,
-            _ => 0xffffffff,
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
 
         let rate_ctl_code = (raw[0] >> Self::RATE_CTL_SHIFT) & Self::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == Self::RATE_CTL_SUPPORTED;
 
-        Am824MultiBitAudioAttr { freq, rate_ctl }
+        Ok(Am824MultiBitAudioAttr { freq, rate_ctl })
     }
 
-    fn to_raw(&self) -> [u8; Self::LENGTH] {
+    fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
         let freq_code = match self.freq {
             22050 => Self::FREQ_CODE_22050,
             24000 => Self::FREQ_CODE_24000,
@@ -73,7 +76,7 @@ impl Am824MultiBitAudioAttr {
             96000 => Self::FREQ_CODE_96000,
             176400 => Self::FREQ_CODE_176400,
             192000 => Self::FREQ_CODE_192000,
-            _ => 0x0f,
+            _ => Err(AvcCmdBuildError::InvalidOperands)?,
         };
 
         let rate_ctl_code = if self.rate_ctl {
@@ -85,7 +88,8 @@ impl Am824MultiBitAudioAttr {
         let mut raw = [0xff; Self::LENGTH];
         raw[0] = ((freq_code & Self::FREQ_CODE_MASK) << Self::FREQ_CODE_SHIFT)
             | ((rate_ctl_code & Self::RATE_CTL_MASK) << Self::RATE_CTL_SHIFT);
-        raw
+
+        Ok(raw)
     }
 }
 
@@ -125,8 +129,11 @@ impl Am824OneBitAudioAttr {
 
     const LENGTH: usize = 2;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
         let freq_code = (raw[0] >> Self::FREQ_CODE_SHIFT) & Self::FREQ_CODE_MASK;
         let freq = match freq_code {
             Self::FREQ_CODE_2048000 => 2048000,
@@ -136,16 +143,16 @@ impl Am824OneBitAudioAttr {
             Self::FREQ_CODE_6144000 => 6144000,
             Self::FREQ_CODE_11289600 => 11289600,
             Self::FREQ_CODE_12288000 => 12288000,
-            _ => 0xffffffff,
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
 
         let rate_ctl_code = (raw[0] >> Self::RATE_CTL_SHIFT) & Self::RATE_CTL_MASK;
         let rate_ctl = rate_ctl_code == Self::RATE_CTL_SUPPORTED;
 
-        Am824OneBitAudioAttr { freq, rate_ctl }
+        Ok(Am824OneBitAudioAttr { freq, rate_ctl })
     }
 
-    fn to_raw(&self) -> [u8; Self::LENGTH] {
+    fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
         let freq_code = match self.freq {
             2048000 => Self::FREQ_CODE_2048000,
             2822400 => Self::FREQ_CODE_2822400,
@@ -154,7 +161,7 @@ impl Am824OneBitAudioAttr {
             6144000 => Self::FREQ_CODE_6144000,
             11289600 => Self::FREQ_CODE_11289600,
             12288000 => Self::FREQ_CODE_12288000,
-            _ => 0x0f,
+            _ => Err(AvcCmdBuildError::InvalidOperands)?,
         };
 
         let rate_ctl_code = if self.rate_ctl {
@@ -166,7 +173,8 @@ impl Am824OneBitAudioAttr {
         let mut raw = [0xff; Self::LENGTH];
         raw[0] = ((freq_code & Self::FREQ_CODE_MASK) << Self::FREQ_CODE_SHIFT)
             | ((rate_ctl_code & Self::RATE_CTL_MASK) << Self::RATE_CTL_SHIFT);
-        raw
+
+        Ok(raw)
     }
 }
 
@@ -214,9 +222,12 @@ impl Am824Stream {
 
     const LENGTH: usize = 4;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        match raw[0] {
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        let fmt = match raw[0] {
             Self::IEC60958_3
             | Self::IEC61937_3
             | Self::IEC61937_4
@@ -226,7 +237,8 @@ impl Am824Stream {
             | Self::MULTI_BIT_LINEAR_AUDIO_RAW
             | Self::MULTI_BIT_LINEAR_AUDIO_DVD
             | Self::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
-                let attrs = Am824MultiBitAudioAttr::from_raw(&raw[2..]);
+                let attrs =
+                    Am824MultiBitAudioAttr::from_raw(&raw[2..]).map_err(|err| err.add_offset(2))?;
                 match raw[0] {
                     Self::IEC60958_3 => Self::Iec60958_3(attrs),
                     Self::IEC61937_3 => Self::Iec61937_3(attrs),
@@ -239,20 +251,21 @@ impl Am824Stream {
                     Self::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO => {
                         Self::HighPrecisionMultiBitLinearAudio(attrs)
                     }
-                    _ => unreachable!(),
+                    _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
                 }
             }
             Self::ONE_BIT_AUDIO_PLAIN_RAW
             | Self::ONE_BIT_AUDIO_PLAIN_SACD
             | Self::ONE_BIT_AUDIO_ENCODED_RAW
             | Self::ONE_BIT_AUDIO_ENCODED_SACD => {
-                let attrs = Am824OneBitAudioAttr::from_raw(&raw[2..]);
+                let attrs =
+                    Am824OneBitAudioAttr::from_raw(&raw[2..]).map_err(|err| err.add_offset(2))?;
                 match raw[0] {
                     Self::ONE_BIT_AUDIO_PLAIN_RAW => Self::OneBitAudioPlainRaw(attrs),
                     Self::ONE_BIT_AUDIO_PLAIN_SACD => Self::OneBitAudioPlainSacd(attrs),
                     Self::ONE_BIT_AUDIO_ENCODED_RAW => Self::OneBitAudioEncodedRaw(attrs),
                     Self::ONE_BIT_AUDIO_ENCODED_SACD => Self::OneBitAudioEncodedSacd(attrs),
-                    _ => unreachable!(),
+                    _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
                 }
             }
             Self::MIDI_CONFORMANT => {
@@ -265,10 +278,12 @@ impl Am824Stream {
                 r.copy_from_slice(&raw);
                 Self::Reserved(r)
             }
-        }
+        };
+
+        Ok(fmt)
     }
 
-    fn to_raw(&self) -> [u8; Self::LENGTH] {
+    fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
         let mut raw = [0xff; Self::LENGTH];
         match self {
             Self::Iec60958_3(attrs)
@@ -292,10 +307,10 @@ impl Am824Stream {
                     Self::HighPrecisionMultiBitLinearAudio(_) => {
                         Self::HIGH_PRECISION_MULTI_BIT_LINEAR_AUDIO
                     }
-                    _ => unreachable!(),
+                    _ => Err(AvcCmdBuildError::InvalidOperands)?,
                 };
-                raw[2..4].copy_from_slice(&attrs.to_raw());
-                raw
+                let r = attrs.to_raw()?;
+                raw[2..4].copy_from_slice(&r)
             }
             Self::OneBitAudioPlainRaw(attrs)
             | Self::OneBitAudioPlainSacd(attrs)
@@ -306,18 +321,19 @@ impl Am824Stream {
                     Self::OneBitAudioPlainSacd(_) => Self::ONE_BIT_AUDIO_PLAIN_SACD,
                     Self::OneBitAudioEncodedRaw(_) => Self::ONE_BIT_AUDIO_ENCODED_RAW,
                     Self::OneBitAudioEncodedSacd(_) => Self::ONE_BIT_AUDIO_ENCODED_SACD,
-                    _ => unreachable!(),
+                    _ => Err(AvcCmdBuildError::InvalidOperands)?,
                 };
-                raw[2..4].copy_from_slice(&attrs.to_raw());
-                raw
+                let r = attrs.to_raw()?;
+                raw[2..4].copy_from_slice(&r);
             }
             Self::MidiConformant(d) => {
                 raw[0] = Self::MIDI_CONFORMANT;
                 raw[2..4].copy_from_slice(d);
-                raw
             }
-            Self::Reserved(r) => *r,
+            Self::Reserved(r) => raw.copy_from_slice(r),
         }
+
+        Ok(raw)
     }
 }
 
@@ -437,16 +453,18 @@ impl Default for CompoundAm824StreamEntry {
 impl CompoundAm824StreamEntry {
     const LENGTH: usize = 2;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        Self {
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+        Ok(Self {
             count: raw[0],
             format: CompoundAm824StreamFormat::from_val(raw[1]),
-        }
+        })
     }
 
-    fn to_raw(&self) -> [u8; Self::LENGTH] {
-        [self.count, self.format.to_val()]
+    fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
+        Ok([self.count, self.format.to_val()])
     }
 }
 
@@ -532,8 +550,11 @@ impl CompoundAm824Stream {
 
     const LENGTH_MIN: usize = 3;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH_MIN);
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
         let freq = match raw[0] {
             Self::FREQ_CODE_22050 => 22050,
             Self::FREQ_CODE_24000 => 24000,
@@ -544,32 +565,36 @@ impl CompoundAm824Stream {
             Self::FREQ_CODE_176400 => 176400,
             Self::FREQ_CODE_192000 => 192000,
             Self::FREQ_CODE_88200 => 88200,
-            _ => u32::MAX,
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
         };
         let sync_src_code = (raw[1] >> Self::SYNC_SRC_SHIFT) & Self::SYNC_SRC_MASK;
         let sync_src = sync_src_code > 0;
         let rate_ctl_code = (raw[1] >> Self::RATE_CTL_SHIFT) & Self::RATE_CTL_MASK;
         let rate_ctl = RateCtl::from_val(rate_ctl_code);
         let entry_count = raw[2] as usize;
-        let entries = (0..entry_count)
-            .filter_map(|i| {
-                let pos = 3 + i * 2;
-                if pos + CompoundAm824StreamEntry::LENGTH > raw.len() {
-                    None
-                } else {
-                    Some(CompoundAm824StreamEntry::from_raw(&raw[pos..]))
-                }
-            })
-            .collect();
-        Self {
+
+        let mut entries = Vec::with_capacity(entry_count);
+        let mut pos = 3;
+        while pos + CompoundAm824StreamEntry::LENGTH <= raw.len() {
+            let entry = CompoundAm824StreamEntry::from_raw(&raw[pos..])
+                .map_err(|err| err.add_offset(pos))?;
+            entries.push(entry);
+            pos += CompoundAm824StreamEntry::LENGTH;
+        }
+
+        if entries.len() != entry_count {
+            Err(AvcRespParseError::UnexpectedOperands(2))?;
+        }
+
+        Ok(Self {
             freq,
             sync_src,
             rate_ctl,
             entries,
-        }
+        })
     }
 
-    fn to_raw(&self) -> Vec<u8> {
+    fn to_raw(&self) -> Result<Vec<u8>, AvcCmdBuildError> {
         let mut raw = Vec::with_capacity(Self::LENGTH_MIN);
         let freq_code = match self.freq {
             22050 => Self::FREQ_CODE_22050,
@@ -581,7 +606,7 @@ impl CompoundAm824Stream {
             176400 => Self::FREQ_CODE_176400,
             192000 => Self::FREQ_CODE_192000,
             88200 => Self::FREQ_CODE_88200,
-            _ => u8::MAX,
+            _ => Err(AvcCmdBuildError::InvalidOperands)?,
         };
         raw.push(freq_code);
 
@@ -590,10 +615,10 @@ impl CompoundAm824Stream {
         raw.push(sync_src_code | rate_ctl_code);
 
         raw.push(self.entries.len() as u8);
-        self.entries.iter().for_each(|entry| {
-            raw.extend_from_slice(&entry.to_raw());
-        });
-        raw
+        self.entries
+            .iter()
+            .try_for_each(|entry| entry.to_raw().map(|r| raw.extend_from_slice(&r)))
+            .map(|_| raw)
     }
 }
 
@@ -627,29 +652,36 @@ impl AmStream {
 }
 
 impl AmStream {
-    pub fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH_MIN);
-        match raw[0] {
+    pub fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
+        }
+
+        let s = match raw[0] {
             Self::HIER_LEVEL_1_AM824 => {
-                let format = Am824Stream::from_raw(&raw[1..]);
+                let format = Am824Stream::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
                 Self::Am824(format)
             }
             Self::HIER_LEVEL_1_AUDIO_PACK => Self::AudioPack,
             Self::HIER_LEVEL_1_FP32 => Self::Fp32,
             Self::HIER_LEVEL_1_COMPOUND_AM824 => {
-                let s = CompoundAm824Stream::from_raw(&raw[1..]);
+                let s =
+                    CompoundAm824Stream::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
                 Self::CompoundAm824(s)
             }
             _ => Self::Reserved(raw.to_vec()),
-        }
+        };
+
+        Ok(s)
     }
 
-    pub fn to_raw(&self) -> Vec<u8> {
+    pub fn to_raw(&self) -> Result<Vec<u8>, AvcCmdBuildError> {
         let mut raw = Vec::with_capacity(AmStream::LENGTH_MIN);
         match self {
             AmStream::Am824(format) => {
                 raw.push(AmStream::HIER_LEVEL_1_AM824);
-                raw.extend_from_slice(&format.to_raw());
+                let r = format.to_raw()?;
+                raw.extend_from_slice(&r);
             }
             AmStream::AudioPack => {
                 raw.push(AmStream::HIER_LEVEL_1_AUDIO_PACK);
@@ -661,13 +693,14 @@ impl AmStream {
             }
             AmStream::CompoundAm824(s) => {
                 raw.push(AmStream::HIER_LEVEL_1_COMPOUND_AM824);
-                raw.append(&mut s.to_raw());
+                let mut r = s.to_raw()?;
+                raw.append(&mut r);
             }
             AmStream::Reserved(d) => {
                 raw.copy_from_slice(d);
             }
         }
-        raw
+        Ok(raw)
     }
 }
 
@@ -718,24 +751,32 @@ impl StreamFormat {
         }
     }
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH_MIN);
-        match raw[0] {
-            Self::HIER_ROOT_AM => StreamFormat::Am(AmStream::from_raw(&raw[1..])),
-            _ => StreamFormat::Reserved(raw.to_vec()),
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH_MIN {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
+
+        let s = match raw[0] {
+            Self::HIER_ROOT_AM => {
+                let am = AmStream::from_raw(&raw[1..]).map_err(|err| err.add_offset(1))?;
+                StreamFormat::Am(am)
+            }
+            _ => StreamFormat::Reserved(raw.to_vec()),
+        };
+
+        Ok(s)
     }
 
-    fn to_raw(&self) -> Vec<u8> {
+    fn to_raw(&self) -> Result<Vec<u8>, AvcCmdBuildError> {
         let mut raw = Vec::with_capacity(Self::LENGTH_MIN);
         match self {
-            StreamFormat::Am(i) => {
+            StreamFormat::Am(am) => {
                 raw.push(StreamFormat::HIER_ROOT_AM);
-                raw.append(&mut i.to_raw());
+                am.to_raw().map(|mut r| raw.append(&mut r))?;
             }
             StreamFormat::Reserved(d) => raw.extend_from_slice(d),
         }
-        raw
+        Ok(raw)
     }
 }
 
@@ -1145,8 +1186,9 @@ impl AvcStatus for ExtendedStreamFormatSingle {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
 
-        self.op.parse_operands(addr, operands).map(|_| {
-            self.stream_format = StreamFormat::from_raw(&operands[7..]);
+        self.op.parse_operands(addr, operands)?;
+        StreamFormat::from_raw(&operands[7..]).map(|stream_format| {
+            self.stream_format = stream_format;
             self.support_status = self.op.support_status;
         })
     }
@@ -1158,9 +1200,10 @@ impl AvcControl for ExtendedStreamFormatSingle {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.op
-            .build_operands(addr, operands)
-            .map(|_| operands.append(&mut self.stream_format.to_raw()))
+        self.op.build_operands(addr, operands)?;
+        self.stream_format
+            .to_raw()
+            .map(|mut raw| operands.append(&mut raw))
     }
 
     fn parse_operands(&mut self, addr: &AvcAddr, operands: &[u8]) -> Result<(), AvcRespParseError> {
@@ -1168,8 +1211,9 @@ impl AvcControl for ExtendedStreamFormatSingle {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH_MIN))?;
         }
 
-        self.op.parse_operands(addr, operands).map(|_| {
-            self.stream_format = StreamFormat::from_raw(&operands[7..]);
+        self.op.parse_operands(addr, operands)?;
+        StreamFormat::from_raw(&operands[7..]).map(|stream_format| {
+            self.stream_format = stream_format;
             self.support_status = self.op.support_status;
         })
     }
@@ -1230,9 +1274,10 @@ impl AvcStatus for ExtendedStreamFormatList {
             if self.index != operands[7] {
                 Err(AvcRespParseError::UnexpectedOperands(7))
             } else {
-                self.stream_format = StreamFormat::from_raw(&operands[8..]);
-                self.support_status = self.op.support_status;
-                Ok(())
+                StreamFormat::from_raw(&operands[8..]).map(|stream_format| {
+                    self.stream_format = stream_format;
+                    self.support_status = self.op.support_status;
+                })
             }
         })
     }
@@ -1245,31 +1290,31 @@ mod tests {
     #[test]
     fn am824multibitaudioattr_from() {
         let raw = [0x31, 0xff];
-        let attr = Am824MultiBitAudioAttr::from_raw(&raw);
+        let attr = Am824MultiBitAudioAttr::from_raw(&raw).unwrap();
         assert_eq!(44100, attr.freq);
         assert_eq!(false, attr.rate_ctl);
-        assert_eq!(raw, attr.to_raw());
+        assert_eq!(Ok(raw), attr.to_raw());
     }
 
     #[test]
     fn am824onebitaudioattr_from() {
         let raw = [0x40, 0xff];
-        let attr = Am824OneBitAudioAttr::from_raw(&raw);
+        let attr = Am824OneBitAudioAttr::from_raw(&raw).unwrap();
         assert_eq!(6144000, attr.freq);
         assert_eq!(true, attr.rate_ctl);
-        assert_eq!(raw, attr.to_raw());
+        assert_eq!(Ok(raw), attr.to_raw());
     }
 
     #[test]
     fn am824stream_from() {
         let raw = [0x06, 0xff, 0x20, 0xff];
-        let format = Am824Stream::from_raw(&raw);
+        let format = Am824Stream::from_raw(&raw).unwrap();
         let attr = Am824MultiBitAudioAttr {
             freq: 32000,
             rate_ctl: true,
         };
         assert_eq!(format, Am824Stream::MultiBitLinearAudioRaw(attr));
-        assert_eq!(raw, format.to_raw());
+        assert_eq!(raw, format.to_raw().unwrap());
     }
 
     #[test]
@@ -1279,28 +1324,28 @@ mod tests {
             freq: 6144000,
             rate_ctl: true,
         };
-        let format = AmStream::from_raw(raw);
+        let format = AmStream::from_raw(raw).unwrap();
         assert_eq!(
             AmStream::Am824(Am824Stream::OneBitAudioPlainRaw(attr)),
             format
         );
-        assert_eq!(raw, format.to_raw());
+        assert_eq!(raw, format.to_raw().unwrap());
 
         let raw: &[u8] = &[0x01, 0xff, 0xff, 0xff, 0xff];
-        let format = AmStream::from_raw(raw);
+        let format = AmStream::from_raw(raw).unwrap();
         assert_eq!(AmStream::AudioPack, format);
-        assert_eq!(raw, format.to_raw());
+        assert_eq!(raw, format.to_raw().unwrap());
 
         let raw: &[u8] = &[0x02, 0xff, 0xff, 0xff, 0xff];
-        let format = AmStream::from_raw(raw);
+        let format = AmStream::from_raw(raw).unwrap();
         assert_eq!(AmStream::Fp32, format);
-        assert_eq!(raw, format.to_raw());
+        assert_eq!(raw, format.to_raw().unwrap());
     }
 
     #[test]
     fn streamformat_from() {
         let raw: &[u8] = &[0x90, 0x00, 0x08, 0xff, 0x40, 0xff];
-        let format = StreamFormat::from_raw(raw);
+        let format = StreamFormat::from_raw(raw).unwrap();
         if let StreamFormat::Am(i) = &format {
             if let AmStream::Am824(s) = i {
                 if let Am824Stream::OneBitAudioPlainRaw(attr) = s {
@@ -1315,11 +1360,11 @@ mod tests {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, format.to_raw());
+        assert_eq!(raw, format.to_raw().unwrap());
 
         let mut raw = Vec::<u8>::new();
         raw.extend_from_slice(&[0x90, 0x40, 0x04, 0x02, 0x01, 0x1c, 0x02]);
-        let stream_format = StreamFormat::from_raw(&raw);
+        let stream_format = StreamFormat::from_raw(&raw).unwrap();
         if let StreamFormat::Am(i) = &stream_format {
             if let AmStream::CompoundAm824(s) = i {
                 assert_eq!(48000, s.freq);
@@ -1334,7 +1379,7 @@ mod tests {
         } else {
             unreachable!();
         }
-        assert_eq!(raw, stream_format.to_raw());
+        assert_eq!(raw, stream_format.to_raw().unwrap());
     }
 
     #[test]
@@ -1358,18 +1403,17 @@ mod tests {
 
     #[test]
     fn compoundam824streamentry_from() {
-        assert_eq!(
-            [0x02, 0x04],
-            CompoundAm824StreamEntry::from_raw(&[0x02, 0x04]).to_raw()
-        );
-        assert_eq!(
-            [0x19, 0x03],
-            CompoundAm824StreamEntry::from_raw(&[0x19, 0x03]).to_raw()
-        );
-        assert_eq!(
-            [0x37, 0x00],
-            CompoundAm824StreamEntry::from_raw(&[0x37, 0x00]).to_raw()
-        );
+        let raw = [0x02, 0x04];
+        let entry = CompoundAm824StreamEntry::from_raw(&raw).unwrap();
+        assert_eq!(Ok(raw), entry.to_raw());
+
+        let raw = [0x19, 0x03];
+        let entry = CompoundAm824StreamEntry::from_raw(&raw).unwrap();
+        assert_eq!(Ok(raw), entry.to_raw());
+
+        let raw = [0x37, 0x00];
+        let entry = CompoundAm824StreamEntry::from_raw(&raw).unwrap();
+        assert_eq!(Ok(raw), entry.to_raw());
     }
 
     #[test]
@@ -1384,7 +1428,7 @@ mod tests {
     fn compoundam824stream_from() {
         let mut raw = Vec::<u8>::new();
         raw.extend_from_slice(&[0x03, 0x02, 0x02, 0xee, 0x03, 0x37, 0x0d]);
-        let s = CompoundAm824Stream::from_raw(&raw);
+        let s = CompoundAm824Stream::from_raw(&raw).unwrap();
         assert_eq!(44100, s.freq);
         assert_eq!(false, s.sync_src);
         assert_eq!(RateCtl::NotSupported, s.rate_ctl);
@@ -1396,7 +1440,8 @@ mod tests {
             CompoundAm824StreamFormat::MidiConformant,
             s.entries[1].format
         );
-        assert_eq!(raw, CompoundAm824Stream::from_raw(&raw).to_raw());
+        let am = CompoundAm824Stream::from_raw(&raw).unwrap();
+        assert_eq!(raw, am.to_raw().unwrap());
     }
 
     #[test]

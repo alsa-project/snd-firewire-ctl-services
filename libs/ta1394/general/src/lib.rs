@@ -369,6 +369,19 @@ pub enum AvcRespParseError {
     ),
 }
 
+impl AvcRespParseError {
+    /// Add given offset to some enumerations.
+    pub fn add_offset(mut self, offset: usize) -> Self {
+        match &mut self {
+            AvcRespParseError::TooShortResp(pos) | AvcRespParseError::UnexpectedOperands(pos) => {
+                *pos += offset
+            }
+            _ => (),
+        }
+        self
+    }
+}
+
 impl std::fmt::Display for AvcRespParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
