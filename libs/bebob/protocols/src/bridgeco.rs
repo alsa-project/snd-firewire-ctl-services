@@ -446,7 +446,7 @@ pub enum BcoLocation {
     Bottom,
     LeftFrontEffect,
     RightFrontEffect,
-    Reserved(u8),
+    NoPosition,
 }
 
 impl BcoLocation {
@@ -465,9 +465,10 @@ impl BcoLocation {
     const B: u8 = 0x0d;
     const FEL: u8 = 0x0e;
     const FER: u8 = 0x0f;
+    const NO_POSITION: u8 = 0xff;
 
-    fn from_val(val: u8) -> Self {
-        match val {
+    fn from_val(val: u8) -> Result<Self, AvcRespParseError> {
+        let loc = match val {
             Self::L => Self::LeftFront,
             Self::R => Self::RightFront,
             Self::C => Self::Center,
@@ -483,8 +484,10 @@ impl BcoLocation {
             Self::B => Self::Bottom,
             Self::FEL => Self::LeftFrontEffect,
             Self::FER => Self::RightFrontEffect,
-            _ => Self::Reserved(val),
-        }
+            Self::NO_POSITION => Self::NoPosition,
+            _ => Err(AvcRespParseError::UnexpectedOperands(0))?,
+        };
+        Ok(loc)
     }
 
     fn to_val(&self) -> u8 {
@@ -504,7 +507,7 @@ impl BcoLocation {
             Self::Bottom => Self::B,
             Self::LeftFrontEffect => Self::FEL,
             Self::RightFrontEffect => Self::FER,
-            Self::Reserved(val) => *val,
+            Self::NoPosition => Self::NO_POSITION,
         }
     }
 }
@@ -531,10 +534,10 @@ impl BcoChannelInfo {
             Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
         }
 
-        Ok(Self {
-            pos: raw[0],
-            loc: BcoLocation::from_val(raw[1]),
-        })
+        let pos = raw[0];
+        let loc = BcoLocation::from_val(raw[1]).map_err(|err| err.add_offset(1))?;
+
+        Ok(Self { pos, loc })
     }
 }
 
