@@ -1066,7 +1066,7 @@ pub enum SupportStatus {
     /// The format is not uset yet.
     NoStreamFormat,
     /// For response frame of specific inquiry operation.
-    NoInfo,
+    NotUsed,
     Reserved(u8),
 }
 
@@ -1080,14 +1080,14 @@ impl SupportStatus {
     const ACTIVE: u8 = 0x00;
     const INACTIVE: u8 = 0x01;
     const NO_STREAM_FORMAT: u8 = 0x02;
-    const NO_INFO: u8 = 0xff;
+    const NOT_USED: u8 = 0xff;
 
     fn from_val(val: u8) -> Self {
         match val {
             Self::ACTIVE => Self::Active,
             Self::INACTIVE => Self::Inactive,
             Self::NO_STREAM_FORMAT => Self::NoStreamFormat,
-            Self::NO_INFO => Self::NoInfo,
+            Self::NOT_USED => Self::NotUsed,
             _ => Self::Reserved(val),
         }
     }
@@ -1097,7 +1097,7 @@ impl SupportStatus {
             Self::Active => Self::ACTIVE,
             Self::Inactive => Self::INACTIVE,
             Self::NoStreamFormat => Self::NO_STREAM_FORMAT,
-            Self::NoInfo => Self::NO_INFO,
+            Self::NotUsed => Self::NOT_USED,
             Self::Reserved(val) => *val,
         }
     }
@@ -1181,7 +1181,7 @@ impl ExtendedStreamFormatSingle {
 
     pub fn new(plug_addr: &PlugAddr) -> Self {
         ExtendedStreamFormatSingle {
-            support_status: SupportStatus::NoInfo,
+            support_status: SupportStatus::NotUsed,
             stream_format: StreamFormat::Reserved(Vec::new()),
             op: ExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
         }
@@ -1262,7 +1262,7 @@ impl ExtendedStreamFormatList {
 
     pub fn new(plug_addr: &PlugAddr, index: u8) -> Self {
         ExtendedStreamFormatList {
-            support_status: SupportStatus::Reserved(0xff),
+            support_status: SupportStatus::NotUsed,
             index,
             stream_format: StreamFormat::Reserved(Vec::new()),
             op: ExtendedStreamFormat::new(Self::SUBFUNC, plug_addr),
@@ -1280,7 +1280,7 @@ impl AvcStatus for ExtendedStreamFormatList {
         addr: &AvcAddr,
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
-        self.op.support_status = SupportStatus::Reserved(0xff);
+        self.op.support_status = SupportStatus::NotUsed;
         self.op
             .build_operands(addr, operands)
             .map(|_| operands.push(self.index))
@@ -1587,7 +1587,7 @@ mod tests {
         ];
         AvcControl::parse_operands(&mut op, &AvcAddr::Unit, &operands).unwrap();
         assert_eq!(op.op.plug_addr, plug_addr);
-        assert_eq!(op.op.support_status, SupportStatus::NoInfo);
+        assert_eq!(op.op.support_status, SupportStatus::NotUsed);
         if let StreamFormat::Am(stream_format) = &op.stream_format {
             if let AmStream::CompoundAm824(s) = stream_format {
                 assert_eq!(s.freq, 96000);
