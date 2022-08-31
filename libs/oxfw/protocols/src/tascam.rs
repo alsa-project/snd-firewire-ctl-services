@@ -330,7 +330,7 @@ impl Ta1394Avc<Error> for TascamAvc {
         let operands =
             AvcControl::build_operands(op, addr).map_err(|err| Ta1394AvcError::CmdBuild(err))?;
         let command_frame =
-            Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands);
+            Self::compose_command_frame(AvcCmdType::Control, addr, O::OPCODE, &operands)?;
         let response_frame = self
             .transaction(&command_frame, timeout_ms)
             .map_err(|cause| Ta1394AvcError::CommunicationFailure(cause))?;
