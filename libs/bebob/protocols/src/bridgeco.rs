@@ -839,9 +839,9 @@ pub struct ExtendedSubunitInfoEntry {
     pub output_plugs: u8,
 }
 
-impl From<&[u8; 5]> for ExtendedSubunitInfoEntry {
-    fn from(raw: &[u8; 5]) -> Self {
-        ExtendedSubunitInfoEntry {
+impl ExtendedSubunitInfoEntry {
+    fn from_raw(raw: &[u8; 5]) -> Self {
+        Self {
             func_blk_type: raw[0],
             func_blk_id: raw[1],
             func_blk_purpose: raw[2],
@@ -849,16 +849,15 @@ impl From<&[u8; 5]> for ExtendedSubunitInfoEntry {
             output_plugs: raw[4],
         }
     }
-}
 
-impl From<&ExtendedSubunitInfoEntry> for [u8; 5] {
-    fn from(data: &ExtendedSubunitInfoEntry) -> Self {
+    #[allow(dead_code)]
+    fn to_raw(&self) -> [u8; 5] {
         [
-            data.func_blk_type,
-            data.func_blk_id,
-            data.func_blk_purpose,
-            data.input_plugs,
-            data.output_plugs,
+            self.func_blk_type,
+            self.func_blk_id,
+            self.func_blk_purpose,
+            self.input_plugs,
+            self.output_plugs,
         ]
     }
 }
@@ -872,9 +871,8 @@ pub struct ExtendedSubunitInfo {
 }
 
 impl ExtendedSubunitInfo {
-    #[allow(dead_code)]
     pub fn new(page: u8, func_blk_type: u8) -> Self {
-        ExtendedSubunitInfo {
+        Self {
             page,
             func_blk_type,
             entries: Vec::new(),
@@ -909,7 +907,7 @@ impl AvcStatus for ExtendedSubunitInfo {
                     let pos = 2 + i * 5;
                     let mut raw = [0; 5];
                     raw.copy_from_slice(&operands[pos..(pos + 5)]);
-                    ExtendedSubunitInfoEntry::from(&raw)
+                    ExtendedSubunitInfoEntry::from_raw(&raw)
                 })
                 .collect();
             Ok(())
