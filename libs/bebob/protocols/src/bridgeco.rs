@@ -550,42 +550,38 @@ impl BcoPortType {
     const ANALOG: u8 = 0x08;
     const DIGITAL: u8 = 0x09;
     const MIDI: u8 = 0x0a;
-}
 
-impl From<BcoPortType> for u8 {
-    fn from(port_type: BcoPortType) -> Self {
-        match port_type {
-            BcoPortType::Speaker => BcoPortType::SPEAKER,
-            BcoPortType::Headphone => BcoPortType::HEADPHONE,
-            BcoPortType::Microphone => BcoPortType::MICROPHONE,
-            BcoPortType::Line => BcoPortType::LINE,
-            BcoPortType::Spdif => BcoPortType::SPDIF,
-            BcoPortType::Adat => BcoPortType::ADAT,
-            BcoPortType::Tdif => BcoPortType::TDIF,
-            BcoPortType::Madi => BcoPortType::MADI,
-            BcoPortType::Analog => BcoPortType::ANALOG,
-            BcoPortType::Digital => BcoPortType::DIGITAL,
-            BcoPortType::Midi => BcoPortType::MIDI,
-            BcoPortType::Reserved(val) => val,
+    fn to_val(&self) -> u8 {
+        match self {
+            Self::Speaker => Self::SPEAKER,
+            Self::Headphone => Self::HEADPHONE,
+            Self::Microphone => Self::MICROPHONE,
+            Self::Line => Self::LINE,
+            Self::Spdif => Self::SPDIF,
+            Self::Adat => Self::ADAT,
+            Self::Tdif => Self::TDIF,
+            Self::Madi => Self::MADI,
+            Self::Analog => Self::ANALOG,
+            Self::Digital => Self::DIGITAL,
+            Self::Midi => Self::MIDI,
+            Self::Reserved(val) => *val,
         }
     }
-}
 
-impl From<u8> for BcoPortType {
-    fn from(val: u8) -> Self {
+    fn from_val(val: u8) -> Self {
         match val {
-            BcoPortType::SPEAKER => BcoPortType::Speaker,
-            BcoPortType::HEADPHONE => BcoPortType::Headphone,
-            BcoPortType::MICROPHONE => BcoPortType::Microphone,
-            BcoPortType::LINE => BcoPortType::Line,
-            BcoPortType::SPDIF => BcoPortType::Spdif,
-            BcoPortType::ADAT => BcoPortType::Adat,
-            BcoPortType::TDIF => BcoPortType::Tdif,
-            BcoPortType::MADI => BcoPortType::Madi,
-            BcoPortType::ANALOG => BcoPortType::Analog,
-            BcoPortType::DIGITAL => BcoPortType::Digital,
-            BcoPortType::MIDI => BcoPortType::Midi,
-            _ => BcoPortType::Reserved(val),
+            Self::SPEAKER => Self::Speaker,
+            Self::HEADPHONE => Self::Headphone,
+            Self::MICROPHONE => Self::Microphone,
+            Self::LINE => Self::Line,
+            Self::SPDIF => Self::Spdif,
+            Self::ADAT => Self::Adat,
+            Self::TDIF => Self::Tdif,
+            Self::MADI => Self::Madi,
+            Self::ANALOG => Self::Analog,
+            Self::DIGITAL => Self::Digital,
+            Self::MIDI => Self::Midi,
+            _ => Self::Reserved(val),
         }
     }
 }
@@ -608,7 +604,7 @@ impl BcoClusterInfo {
         };
         Self {
             index: raw[0],
-            port_type: BcoPortType::from(raw[1]),
+            port_type: BcoPortType::from_val(raw[1]),
             name,
         }
     }
@@ -616,7 +612,7 @@ impl BcoClusterInfo {
     fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::new();
         raw.push(self.index);
-        raw.push(self.port_type.into());
+        raw.push(self.port_type.to_val());
         raw.push(self.name.len() as u8);
         raw.append(&mut self.name.clone().into_bytes());
         raw
