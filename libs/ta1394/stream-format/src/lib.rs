@@ -836,12 +836,15 @@ impl Default for UnitPlugData {
 impl UnitPlugData {
     const LENGTH: usize = 3;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        Self {
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        Ok(Self {
             unit_type: UnitPlugType::from_val(raw[0]),
             plug_id: raw[1],
-        }
+        })
     }
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
@@ -864,9 +867,11 @@ impl Default for SubunitPlugData {
 impl SubunitPlugData {
     const LENGTH: usize = 3;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        Self { plug_id: raw[0] }
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+        Ok(Self { plug_id: raw[0] })
     }
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
@@ -898,13 +903,16 @@ impl Default for FunctionBlockPlugData {
 impl FunctionBlockPlugData {
     const LENGTH: usize = 3;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        Self {
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        Ok(Self {
             fb_type: raw[0],
             fb_id: raw[1],
             plug_id: raw[2],
-        }
+        })
     }
 
     fn to_raw(&self) -> [u8; Self::LENGTH] {
@@ -930,21 +938,37 @@ impl Default for PlugAddrMode {
 impl PlugAddrMode {
     const LENGTH: usize = 4;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        match raw[0] {
-            0 => Self::Unit(UnitPlugData::from_raw(&raw[1..4])),
-            1 => Self::Subunit(SubunitPlugData::from_raw(&raw[1..4])),
-            2 => Self::FunctionBlock(FunctionBlockPlugData::from_raw(&raw[1..4])),
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        let mode = match raw[0] {
+            0 => {
+                let data = UnitPlugData::from_raw(&raw[1..4]).map_err(|err| err.add_offset(1))?;
+                Self::Unit(data)
+            }
+            1 => {
+                let data =
+                    SubunitPlugData::from_raw(&raw[1..4]).map_err(|err| err.add_offset(1))?;
+                Self::Subunit(data)
+            }
+            2 => {
+                let data =
+                    FunctionBlockPlugData::from_raw(&raw[1..4]).map_err(|err| err.add_offset(1))?;
+                Self::FunctionBlock(data)
+            }
             _ => {
                 let mut r = [0; Self::LENGTH];
                 r.copy_from_slice(raw);
                 Self::Invalid(r)
             }
-        }
+        };
+
+        Ok(mode)
     }
 
-    fn to_raw(&self) -> [u8; Self::LENGTH] {
+    fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
         let mut raw = [0xff; Self::LENGTH];
         match self {
             Self::Unit(data) => {
@@ -961,7 +985,7 @@ impl PlugAddrMode {
             }
             Self::Invalid(data) => raw.copy_from_slice(data),
         }
-        raw
+        Ok(raw)
     }
 }
 
@@ -1021,19 +1045,24 @@ impl Default for PlugAddr {
 impl PlugAddr {
     const LENGTH: usize = 5;
 
-    fn from_raw(raw: &[u8]) -> Self {
-        assert!(raw.len() >= Self::LENGTH);
-        Self {
-            direction: PlugDirection::from_val(raw[0]),
-            mode: PlugAddrMode::from_raw(&raw[1..5]),
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
         }
+
+        let mode = PlugAddrMode::from_raw(&raw[1..5]).map_err(|err| err.add_offset(1))?;
+        Ok(Self {
+            direction: PlugDirection::from_val(raw[0]),
+            mode,
+        })
     }
 
-    fn to_raw(&self) -> [u8; Self::LENGTH] {
+    fn to_raw(&self) -> Result<[u8; Self::LENGTH], AvcCmdBuildError> {
         let mut raw = [0xff; Self::LENGTH];
         raw[0] = self.direction.to_val();
-        raw[1..5].copy_from_slice(&self.mode.to_raw());
-        raw
+        let r = self.mode.to_raw()?;
+        raw[1..5].copy_from_slice(&r);
+        Ok(raw)
     }
 }
 
@@ -1118,7 +1147,8 @@ impl ExtendedStreamFormat {
         operands: &mut Vec<u8>,
     ) -> Result<(), AvcCmdBuildError> {
         operands.push(self.subfunc);
-        operands.extend_from_slice(&self.plug_addr.to_raw());
+        let r = self.plug_addr.to_raw()?;
+        operands.extend_from_slice(&r);
         operands.push(self.support_status.to_val());
         Ok(())
     }
@@ -1129,13 +1159,14 @@ impl ExtendedStreamFormat {
         } else if operands[0] != self.subfunc {
             Err(AvcRespParseError::UnexpectedOperands(0))
         } else {
-            let plug_addr = PlugAddr::from_raw(&operands[1..6]);
-            if plug_addr != self.plug_addr {
-                Err(AvcRespParseError::UnexpectedOperands(1))
-            } else {
-                self.support_status = SupportStatus::from_val(operands[6]);
-                Ok(())
-            }
+            PlugAddr::from_raw(&operands[1..6]).and_then(|plug_addr| {
+                if plug_addr != self.plug_addr {
+                    Err(AvcRespParseError::UnexpectedOperands(1))
+                } else {
+                    self.support_status = SupportStatus::from_val(operands[6]);
+                    Ok(())
+                }
+            })
         }
     }
 }
@@ -1454,7 +1485,8 @@ mod tests {
                 plug_id: 0x2,
             }),
         };
-        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
+        let raw = addr.to_raw().unwrap();
+        assert_eq!(addr, PlugAddr::from_raw(&raw).unwrap());
 
         // Unit for external stream.
         let addr = PlugAddr {
@@ -1464,7 +1496,8 @@ mod tests {
                 plug_id: 0x3,
             }),
         };
-        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
+        let raw = addr.to_raw().unwrap();
+        assert_eq!(addr, PlugAddr::from_raw(&raw).unwrap());
 
         // Unit for asynchronous stream.
         let addr = PlugAddr {
@@ -1474,14 +1507,16 @@ mod tests {
                 plug_id: 0x4,
             }),
         };
-        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
+        let raw = addr.to_raw().unwrap();
+        assert_eq!(addr, PlugAddr::from_raw(&raw).unwrap());
 
         // Subunit.
         let addr = PlugAddr {
             direction: PlugDirection::Output,
             mode: PlugAddrMode::Subunit(SubunitPlugData { plug_id: 0x8 }),
         };
-        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
+        let raw = addr.to_raw().unwrap();
+        assert_eq!(addr, PlugAddr::from_raw(&raw).unwrap());
 
         // Function block.
         let addr = PlugAddr {
@@ -1492,7 +1527,8 @@ mod tests {
                 plug_id: 0x29,
             }),
         };
-        assert_eq!(addr, PlugAddr::from_raw(&addr.to_raw()));
+        let raw = addr.to_raw().unwrap();
+        assert_eq!(addr, PlugAddr::from_raw(&raw).unwrap());
     }
 
     #[test]
