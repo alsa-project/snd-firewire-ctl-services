@@ -933,14 +933,20 @@ pub struct ExtendedSubunitInfoEntry {
 }
 
 impl ExtendedSubunitInfoEntry {
-    fn from_raw(raw: &[u8; 5]) -> Self {
-        Self {
+    const LENGTH: usize = 5;
+
+    fn from_raw(raw: &[u8]) -> Result<Self, AvcRespParseError> {
+        if raw.len() < Self::LENGTH {
+            Err(AvcRespParseError::TooShortResp(Self::LENGTH))?;
+        }
+
+        Ok(Self {
             func_blk_type: raw[0],
             func_blk_id: raw[1],
             func_blk_purpose: raw[2],
             input_plugs: raw[3],
             output_plugs: raw[4],
-        }
+        })
     }
 
     #[allow(dead_code)]
@@ -964,6 +970,8 @@ pub struct ExtendedSubunitInfo {
 }
 
 impl ExtendedSubunitInfo {
+    const LENGTH: usize = 27;
+
     pub fn new(page: u8, func_blk_type: u8) -> Self {
         Self {
             page,
@@ -979,10 +987,9 @@ impl AvcOp for ExtendedSubunitInfo {
 
 impl AvcStatus for ExtendedSubunitInfo {
     fn build_operands(&mut self, _: &AvcAddr) -> Result<Vec<u8>, AvcCmdBuildError> {
-        let mut operands = Vec::new();
-        operands.push(self.page);
-        operands.push(self.func_blk_type);
-        operands.extend_from_slice(&[0xff; 25]);
+        let mut operands = vec![0xff; Self::LENGTH];
+        operands[0] = self.page;
+        operands[1] = self.func_blk_type;
         Ok(operands)
     }
 
@@ -994,15 +1001,17 @@ impl AvcStatus for ExtendedSubunitInfo {
         } else if self.func_blk_type != operands[1] {
             Err(AvcRespParseError::UnexpectedOperands(1))
         } else {
-            self.entries = (0..5)
-                .filter(|i| operands[2 + i * 5] != 0xff)
-                .map(|i| {
-                    let pos = 2 + i * 5;
-                    let mut raw = [0; 5];
-                    raw.copy_from_slice(&operands[pos..(pos + 5)]);
-                    ExtendedSubunitInfoEntry::from_raw(&raw)
-                })
-                .collect();
+            let mut entries = Vec::new();
+            let mut pos = 2;
+            while pos + ExtendedSubunitInfoEntry::LENGTH <= operands.len() {
+                if operands[pos] != 0xff {
+                    let entry = ExtendedSubunitInfoEntry::from_raw(&operands[pos..])
+                        .map_err(|err| err.add_offset(pos))?;
+                    entries.push(entry);
+                }
+                pos += ExtendedSubunitInfoEntry::LENGTH;
+            }
+            self.entries = entries;
             Ok(())
         }
     }
