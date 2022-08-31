@@ -598,29 +598,27 @@ pub struct BcoClusterInfo {
     pub name: String,
 }
 
-impl From<&[u8]> for BcoClusterInfo {
-    fn from(raw: &[u8]) -> Self {
+impl BcoClusterInfo {
+    fn from_raw(raw: &[u8]) -> Self {
         let pos = 3 + raw[2] as usize;
         let name = if pos > raw.len() {
             "".to_string()
         } else {
             String::from_utf8(raw[3..pos].to_vec()).unwrap_or("".to_string())
         };
-        BcoClusterInfo {
+        Self {
             index: raw[0],
             port_type: BcoPortType::from(raw[1]),
             name,
         }
     }
-}
 
-impl From<&BcoClusterInfo> for Vec<u8> {
-    fn from(data: &BcoClusterInfo) -> Vec<u8> {
+    fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::new();
-        raw.push(data.index);
-        raw.push(data.port_type.into());
-        raw.push(data.name.len() as u8);
-        raw.append(&mut data.name.clone().into_bytes());
+        raw.push(self.index);
+        raw.push(self.port_type.into());
+        raw.push(self.name.len() as u8);
+        raw.append(&mut self.name.clone().into_bytes());
         raw
     }
 }
@@ -693,7 +691,7 @@ impl From<&BcoPlugInfo> for Vec<u8> {
             }
             BcoPlugInfo::ClusterInfo(d) => {
                 raw.push(BcoPlugInfo::CLUSTER_INFO);
-                raw.append(&mut d.into());
+                raw.append(&mut d.to_raw());
             }
             BcoPlugInfo::Reserved(d) => raw.extend_from_slice(&d),
         }
@@ -754,7 +752,9 @@ impl From<&[u8]> for BcoPlugInfo {
                 }
                 BcoPlugInfo::Outputs(entries)
             }
-            BcoPlugInfo::CLUSTER_INFO => BcoPlugInfo::ClusterInfo(BcoClusterInfo::from(&raw[1..])),
+            BcoPlugInfo::CLUSTER_INFO => {
+                BcoPlugInfo::ClusterInfo(BcoClusterInfo::from_raw(&raw[1..]))
+            }
             _ => BcoPlugInfo::Reserved(raw.to_vec()),
         }
     }
@@ -1728,10 +1728,8 @@ mod test {
     #[test]
     fn bcoclusterinfo_from() {
         let raw: Vec<u8> = vec![0x03, 0x0a, 0x03, 0x4c, 0x51, 0x33];
-        assert_eq!(
-            raw,
-            Into::<Vec<u8>>::into(&BcoClusterInfo::from(raw.as_slice()))
-        );
+        let info = BcoClusterInfo::from_raw(&raw);
+        assert_eq!(raw, info.to_raw(),);
     }
 
     #[test]
