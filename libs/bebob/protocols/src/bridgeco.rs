@@ -1190,7 +1190,7 @@ impl From<&[u8]> for BcoAmStream {
                 let s = BcoCompoundAm824Stream::from(&raw[1..]);
                 BcoAmStream::BcoStream(s)
             }
-            _ => BcoAmStream::AmStream(AmStream::from(raw)),
+            _ => BcoAmStream::AmStream(AmStream::from_raw(raw)),
         }
     }
 }

@@ -626,8 +626,8 @@ impl AmStream {
     const LENGTH_MIN: usize = 4;
 }
 
-impl From<&[u8]> for AmStream {
-    fn from(raw: &[u8]) -> Self {
+impl AmStream {
+    pub fn from_raw(raw: &[u8]) -> Self {
         assert!(raw.len() >= Self::LENGTH_MIN);
         match raw[0] {
             Self::HIER_LEVEL_1_AM824 => {
@@ -643,12 +643,10 @@ impl From<&[u8]> for AmStream {
             _ => Self::Reserved(raw.to_vec()),
         }
     }
-}
 
-impl From<&AmStream> for Vec<u8> {
-    fn from(data: &AmStream) -> Self {
+    pub fn to_raw(&self) -> Vec<u8> {
         let mut raw = Vec::with_capacity(AmStream::LENGTH_MIN);
-        match data {
+        match self {
             AmStream::Am824(format) => {
                 raw.push(AmStream::HIER_LEVEL_1_AM824);
                 raw.extend_from_slice(&format.to_raw());
@@ -723,7 +721,7 @@ impl StreamFormat {
     fn from_raw(raw: &[u8]) -> Self {
         assert!(raw.len() >= Self::LENGTH_MIN);
         match raw[0] {
-            Self::HIER_ROOT_AM => StreamFormat::Am(AmStream::from(&raw[1..])),
+            Self::HIER_ROOT_AM => StreamFormat::Am(AmStream::from_raw(&raw[1..])),
             _ => StreamFormat::Reserved(raw.to_vec()),
         }
     }
@@ -733,7 +731,7 @@ impl StreamFormat {
         match self {
             StreamFormat::Am(i) => {
                 raw.push(StreamFormat::HIER_ROOT_AM);
-                raw.append(&mut i.into());
+                raw.append(&mut i.to_raw());
             }
             StreamFormat::Reserved(d) => raw.extend_from_slice(d),
         }
@@ -1281,22 +1279,22 @@ mod tests {
             freq: 6144000,
             rate_ctl: true,
         };
-        let format = AmStream::from(raw);
+        let format = AmStream::from_raw(raw);
         assert_eq!(
             AmStream::Am824(Am824Stream::OneBitAudioPlainRaw(attr)),
             format
         );
-        assert_eq!(raw, Vec::<u8>::from(&format));
+        assert_eq!(raw, format.to_raw());
 
         let raw: &[u8] = &[0x01, 0xff, 0xff, 0xff, 0xff];
-        let format = AmStream::from(raw);
+        let format = AmStream::from_raw(raw);
         assert_eq!(AmStream::AudioPack, format);
-        assert_eq!(raw, Vec::<u8>::from(&format));
+        assert_eq!(raw, format.to_raw());
 
         let raw: &[u8] = &[0x02, 0xff, 0xff, 0xff, 0xff];
-        let format = AmStream::from(raw);
+        let format = AmStream::from_raw(raw);
         assert_eq!(AmStream::Fp32, format);
-        assert_eq!(raw, Vec::<u8>::from(&format));
+        assert_eq!(raw, format.to_raw());
     }
 
     #[test]
