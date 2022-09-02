@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2022/08/05
+2022/09/01
 Takashi Sakamoto
 
 Introduction
@@ -80,9 +80,40 @@ Build ::
 
     $ cargo build
 
-Execute ::
+Execute temporarily ::
 
     & cargo run --bin (the executable name) (the arguments of executable)
+
+Install executables ::
+
+    $ cargo install --path (path to runtime crate)
+
+The runtime crates which provide the executables are listed below:
+
+snd-firewire-digi00x-ctl-service
+    ``digi00x-runtme`` crate locates in ``runtime/digi00x``
+snd-firewire-tascam-ctl-service
+    ``tascam-runtime`` crate locates in ``runtime/tascam``
+snd-fireworks-ctl-service
+    ``fireworks-runtime`` crate locates in ``runtime/fireworks``
+snd-firewire-motu-ctl-service
+    ``motu-runtime`` crate locates in ``runtime/motu``
+snd-oxfw-ctl-service
+    ``oxfw-runtime`` crate locates in ``runtime/oxfw``
+snd-bebob-ctl-service
+    ``bebob-runtime`` crate locates in ``runtime/bebob``
+snd-dice-ctl-service
+    ``dice-runtime`` crate locates in ``runtime/dice``
+snd-fireface-ctl-service
+    ``fireface-runtime`` crate locates in ``runtime/fireface``
+
+The executable is usually installed under ``~/.cargo/bin``, while it's possible to choose the path.
+In detail, please refer to
+`manual of cargo install <https://doc.rust-lang.org/cargo/commands/cargo-install.html>`_.
+
+Uninstall executables ::
+
+    $ cargo uninstall -p (name of runtime crate)
 
 Supported devices
 =================
