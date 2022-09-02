@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
 use {bebob_runtime::BebobRuntime, core::cmdline::*};
 

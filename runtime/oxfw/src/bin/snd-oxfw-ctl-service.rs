@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
-use {core::cmdline::*, dice_runtime::DiceRuntime};
+use {core::cmdline::*, oxfw_runtime::OxfwRuntime};
 
-struct DiceServiceCmd;
+struct OxfwServiceCmd;
 
-impl ServiceCmd<u32, DiceRuntime> for DiceServiceCmd {
-    const CMD_NAME: &'static str = "snd-dice-ctl-service";
+impl ServiceCmd<u32, OxfwRuntime> for OxfwServiceCmd {
+    const CMD_NAME: &'static str = "snd-oxfw-ctl-service";
     const ARGS: &'static [(&'static str, &'static str)] =
         &[("CARD_ID", "The numeric ID of sound card")];
 
@@ -16,5 +16,5 @@ impl ServiceCmd<u32, DiceRuntime> for DiceServiceCmd {
 }
 
 fn main() {
-    DiceServiceCmd::run()
+    OxfwServiceCmd::run()
 }

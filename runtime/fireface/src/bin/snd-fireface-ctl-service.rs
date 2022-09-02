@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2021 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
 use {core::cmdline::*, fireface_runtime::FfRuntime};
 

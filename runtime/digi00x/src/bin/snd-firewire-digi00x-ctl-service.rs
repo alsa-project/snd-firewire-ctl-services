@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
-use {core::cmdline::*, oxfw_runtime::OxfwRuntime};
+use {core::cmdline::*, digi00x_runtime::Dg00xRuntime};
 
-struct OxfwServiceCmd;
+struct Dg00xServiceCmd;
 
-impl ServiceCmd<u32, OxfwRuntime> for OxfwServiceCmd {
-    const CMD_NAME: &'static str = "snd-oxfw-ctl-service";
+impl ServiceCmd<u32, Dg00xRuntime> for Dg00xServiceCmd {
+    const CMD_NAME: &'static str = "snd-firewire-digi00x-ctl-service";
     const ARGS: &'static [(&'static str, &'static str)] =
         &[("CARD_ID", "The numeric ID of sound card")];
 
@@ -16,5 +16,5 @@ impl ServiceCmd<u32, OxfwRuntime> for OxfwServiceCmd {
 }
 
 fn main() {
-    OxfwServiceCmd::run()
+    Dg00xServiceCmd::run()
 }
