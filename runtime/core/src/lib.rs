@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 pub mod card_cntr;
+pub mod cmdline;
 pub mod dispatcher;
 pub mod elem_value_accessor;
 
