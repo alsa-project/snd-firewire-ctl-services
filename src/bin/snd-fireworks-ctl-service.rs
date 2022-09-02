@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2020 Takashi Sakamoto
 
-use {efw_runtime::EfwRuntime, snd_firewire_ctl_services::*};
+use {fireworks_runtime::EfwRuntime, snd_firewire_ctl_services::*};
 
 struct EfwServiceCmd;
 

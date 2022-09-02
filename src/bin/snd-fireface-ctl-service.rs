@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-use {ff_runtime::FfRuntime, snd_firewire_ctl_services::*};
+use {fireface_runtime::FfRuntime, snd_firewire_ctl_services::*};
 
 struct FfServiceCmd;
 

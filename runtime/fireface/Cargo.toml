@@ -1,0 +1,22 @@
+[package]
+edition = "2018"
+name = "fireface-runtime"
+version = "0.1.0"
+# For publishing.
+authors = ["Takashi Sakamoto"]
+description = """
+Implementation of service runtime for models in RME Fireface series.
+"""
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+glib = "0.15"
+nix = "0.17"
+hinawa = "0.7"
+hitaki = "0.2"
+alsactl = "0.4"
+alsa-ctl-tlv-codec = "0.1"
+ieee1212-config-rom = "0.1"
+firewire-fireface-protocols = "0.1"
+core = { path = "../core" }
