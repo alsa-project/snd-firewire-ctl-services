@@ -16,57 +16,57 @@ alsactl = "0.4"
 alsaseq = "0.4"
 hinawa = "0.7"
 hitaki = "0.2"
-core = { path = "libs/core" }
-dg00x-runtime = { path = "libs/dg00x/runtime" }
-tascam-runtime = { path = "libs/tascam/runtime" }
-efw-runtime = { path = "libs/efw/runtime" }
-motu-runtime = { path = "libs/motu/runtime" }
-oxfw-runtime = { path = "libs/oxfw/runtime" }
-bebob-runtime = { path = "libs/bebob/runtime" }
-dice-runtime = { path = "libs/dice/runtime" }
-ff-runtime = { path = "libs/ff/runtime" }
+core = { path = "runtime/core" }
+digi00x-runtime = { path = "runtime/digi00x" }
+tascam-runtime = { path = "runtime/tascam" }
+fireworks-runtime = { path = "runtime/fireworks" }
+motu-runtime = { path = "runtime/motu" }
+oxfw-runtime = { path = "runtime/oxfw" }
+bebob-runtime = { path = "runtime/bebob" }
+dice-runtime = { path = "runtime/dice" }
+fireface-runtime = { path = "runtime/fireface" }
 
 [workspace]
 members = [
-    "libs/core",
-    "libs/dg00x/runtime",
-    "libs/tascam/runtime",
-    "libs/efw/runtime",
-    "libs/motu/runtime",
-    "libs/oxfw/runtime",
-    "libs/bebob/runtime",
-    "libs/dice/runtime",
-    "libs/ff/runtime",
+    "runtime/core",
+    "runtime/digi00x",
+    "runtime/tascam",
+    "runtime/fireworks",
+    "runtime/motu",
+    "runtime/oxfw",
+    "runtime/bebob",
+    "runtime/dice",
+    "runtime/fireface",
 # They are now available in crates.io.
-#    "libs/alsa-ctl-tlv-codec",
-#    "libs/ieee1212-config-rom",
-    "libs/ta1394/general",
-    "libs/ta1394/audio",
-    "libs/ta1394/stream-format",
-    "libs/ta1394/ccm",
-#    "libs/dg00x/protocols",
-#    "libs/tascam/protocols",
-#    "libs/efw/protocols",
-#    "libs/motu/protocols",
-    "libs/oxfw/protocols",
-    "libs/bebob/protocols",
-#    "libs/dice/protocols",
-#    "libs/ff/protocols",
+#    "protocols/alsa-ctl-tlv-codec",
+#    "protocols/ieee1212-config-rom",
+    "protocols/ta1394/general",
+    "protocols/ta1394/audio",
+    "protocols/ta1394/stream-format",
+    "protocols/ta1394/ccm",
+#    "protocols/digi00x",
+#    "protocols/tascam",
+#    "protocols/fireworks",
+#    "protocols/motu",
+    "protocols/oxfw",
+    "protocols/bebob",
+#    "protocols/dice",
+#    "protocols/fireface",
 ]
 
 # For development purpose.
 [patch.crates-io]
-#alsa-ctl-tlv-codec = { path = "libs/alsa-ctl-tlv-codec" }
-#ieee1212-config-rom = { path = "libs/ieee1212-config-rom" }
-ta1394-avc-general = { path = "libs/ta1394/general" }
-ta1394-avc-audio = { path = "libs/ta1394/audio" }
-ta1394-avc-stream-format = { path = "libs/ta1394/stream-format" }
-ta1394-avc-ccm = { path = "libs/ta1394/ccm" }
-firewire-bebob-protocols = { path = "libs/bebob/protocols" }
-#firewire-digi00x-protocols = { path = "libs/dg00x/protocols" }
-#firewire-dice-protocols = { path = "libs/dice/protocols" }
-#firewire-fireworks-protocols = { path = "libs/efw/protocols" }
-#firewire-fireface-protocols = { path = "libs/ff/protocols" }
-#firewire-motu-protocols = { path = "libs/motu/protocols" }
-firewire-oxfw-protocols = { path = "libs/oxfw/protocols" }
-#firewire-tascam-protocols = { path = "libs/tascam/protocols" }
+#alsa-ctl-tlv-codec = { path = "protocols/alsa-ctl-tlv-codec" }
+#ieee1212-config-rom = { path = "protocols/ieee1212-config-rom" }
+ta1394-avc-general = { path = "protocols/ta1394/general" }
+ta1394-avc-audio = { path = "protocols/ta1394/audio" }
+ta1394-avc-stream-format = { path = "protocols/ta1394/stream-format" }
+ta1394-avc-ccm = { path = "protocols/ta1394/ccm" }
+firewire-bebob-protocols = { path = "protocols/bebob" }
+#firewire-digi00x-protocols = { path = "protocols/digi00x" }
+#firewire-dice-protocols = { path = "protocols/dice" }
+#firewire-fireworks-protocols = { path = "protocols/fireworks" }
+#firewire-fireface-protocols = { path = "protocols/fireface" }
+#firewire-motu-protocols = { path = "protocols/motu" }
+firewire-oxfw-protocols = { path = "protocols/oxfw" }
+#firewire-tascam-protocols = { path = "protocols/tascam" }

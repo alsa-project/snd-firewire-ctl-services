@@ -1,0 +1,23 @@
+[package]
+edition = "2018"
+name = "fireworks-runtime"
+version = "0.1.0"
+# For publishing.
+authors = ["Takashi Sakamoto"]
+description = """
+Implementation of service runtime for Fireworks board module
+"""
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+nix = "0.17"
+glib = "0.15"
+hinawa = "0.7"
+hitaki = "0.2"
+alsactl = "0.4"
+alsa-ctl-tlv-codec = "0.1"
+ieee1212-config-rom = "0.1"
+ta1394-avc-general = "0.1"
+firewire-fireworks-protocols = "0.1"
+core = { path = "../core" }
