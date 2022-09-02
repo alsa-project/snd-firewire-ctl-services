@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
-use {core::cmdline::*, digi00x_runtime::Dg00xRuntime};
+use {core::cmdline::*, motu_runtime::MotuRuntime};
 
-struct Dg00xServiceCmd;
+struct MotuServiceCmd;
 
-impl ServiceCmd<u32, Dg00xRuntime> for Dg00xServiceCmd {
-    const CMD_NAME: &'static str = "snd-firewire-digi00x-ctl-service";
+impl ServiceCmd<u32, MotuRuntime> for MotuServiceCmd {
+    const CMD_NAME: &'static str = "snd-firewire-motu-ctl-service";
     const ARGS: &'static [(&'static str, &'static str)] =
         &[("CARD_ID", "The numeric ID of sound card")];
 
@@ -16,5 +16,5 @@ impl ServiceCmd<u32, Dg00xRuntime> for Dg00xServiceCmd {
 }
 
 fn main() {
-    Dg00xServiceCmd::run()
+    MotuServiceCmd::run()
 }

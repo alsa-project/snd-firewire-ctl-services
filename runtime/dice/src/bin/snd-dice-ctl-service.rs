@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2020 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
-use {core::cmdline::*, motu_runtime::MotuRuntime};
+use {core::cmdline::*, dice_runtime::DiceRuntime};
 
-struct MotuServiceCmd;
+struct DiceServiceCmd;
 
-impl ServiceCmd<u32, MotuRuntime> for MotuServiceCmd {
-    const CMD_NAME: &'static str = "snd-firewire-motu-ctl-service";
+impl ServiceCmd<u32, DiceRuntime> for DiceServiceCmd {
+    const CMD_NAME: &'static str = "snd-dice-ctl-service";
     const ARGS: &'static [(&'static str, &'static str)] =
         &[("CARD_ID", "The numeric ID of sound card")];
 
@@ -16,5 +16,5 @@ impl ServiceCmd<u32, MotuRuntime> for MotuServiceCmd {
 }
 
 fn main() {
-    MotuServiceCmd::run()
+    DiceServiceCmd::run()
 }
