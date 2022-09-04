@@ -63,7 +63,7 @@ impl Drop for OxfwRuntime {
     }
 }
 
-impl<'a> RuntimeOperation<u32> for OxfwRuntime {
+impl RuntimeOperation<u32> for OxfwRuntime {
     fn new(card_id: u32) -> Result<Self, Error> {
         let cdev = format!("/dev/snd/hwC{}D0", card_id);
         let unit = SndUnit::new();
@@ -181,12 +181,12 @@ impl<'a> RuntimeOperation<u32> for OxfwRuntime {
     }
 }
 
-impl<'a> OxfwRuntime {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
+impl OxfwRuntime {
+    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
+    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
+    const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
 
-    const TIMER_NAME: &'a str = "metering";
+    const TIMER_NAME: &'static str = "metering";
     const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
