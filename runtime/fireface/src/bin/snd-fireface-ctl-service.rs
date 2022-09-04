@@ -6,20 +6,15 @@ use {clap::Parser, core::cmdline::*, fireface_runtime::FfRuntime};
 struct FfServiceCmd;
 
 #[derive(Parser, Default)]
+#[clap(name = "snd-fireface-ctl-service")]
 struct Arguments {
     /// The numeric identifier of sound card in Linux sound subsystem.
     card_id: u32,
 }
 
-impl ServiceCmd<u32, FfRuntime> for FfServiceCmd {
-    const CMD_NAME: &'static str = "snd-fireface-ctl-service";
-    const ARGS: &'static [(&'static str, &'static str)] =
-        &[("CARD_ID", "The numeric ID of sound card")];
-
-    fn params(_: &[String]) -> Result<u32, String> {
-        Arguments::try_parse()
-            .map(|args| args.card_id)
-            .map_err(|err| err.to_string())
+impl ServiceCmd<Arguments, u32, FfRuntime> for FfServiceCmd {
+    fn params(args: &Arguments) -> u32 {
+        args.card_id
     }
 }
 

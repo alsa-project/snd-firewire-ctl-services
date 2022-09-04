@@ -2,7 +2,7 @@
 snd-firewire-ctl-services
 ========================
 
-2022/09/01
+2022/09/04
 Takashi Sakamoto
 
 Introduction
@@ -82,7 +82,10 @@ Build ::
 
 Execute temporarily ::
 
-    & cargo run --bin (the executable name) (the arguments of executable)
+    & cargo run --bin (the executable name) -- (the arguments of executable)
+
+All of executables can print help when either ``--help`` or ``-h`` is given as an argument of
+command line.
 
 Install executables ::
 
