@@ -19,4 +19,5 @@ alsactl = "0.4"
 alsa-ctl-tlv-codec = "0.1"
 ieee1212-config-rom = "0.1"
 firewire-motu-protocols = "0.1"
+clap = { version = "3.2", features = ["derive"] }
 core = { path = "../core" }
