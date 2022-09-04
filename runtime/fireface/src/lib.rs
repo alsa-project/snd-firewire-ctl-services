@@ -152,12 +152,12 @@ impl Drop for FfRuntime {
     }
 }
 
-impl<'a> FfRuntime {
-    const NODE_DISPATCHER_NAME: &'a str = "node event dispatcher";
-    const SYSTEM_DISPATCHER_NAME: &'a str = "system event dispatcher";
-    const TIMER_DISPATCHER_NAME: &'a str = "interval timer dispatcher";
+impl FfRuntime {
+    const NODE_DISPATCHER_NAME: &'static str = "node event dispatcher";
+    const SYSTEM_DISPATCHER_NAME: &'static str = "system event dispatcher";
+    const TIMER_DISPATCHER_NAME: &'static str = "interval timer dispatcher";
 
-    const TIMER_NAME: &'a str = "metering";
+    const TIMER_NAME: &'static str = "metering";
     const TIMER_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
     fn launch_node_event_dispatcher(&mut self) -> Result<(), Error> {
