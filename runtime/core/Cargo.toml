@@ -18,3 +18,4 @@ hinawa = "0.7"
 hitaki = "0.2"
 alsactl = "0.4"
 alsaseq = "0.4"
+clap = { version = "3.2", features = ["derive"] }

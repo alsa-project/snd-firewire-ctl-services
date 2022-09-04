@@ -2,117 +2,85 @@
 // Copyright (c) 2022 Takashi Sakamoto
 
 use {
-    super::RuntimeOperation, alsactl::CardError, alsaseq::UserClientError, glib::FileError,
-    hinawa::FwNodeError, hitaki::AlsaFirewireError, std::str::FromStr,
+    super::RuntimeOperation,
+    alsactl::CardError,
+    alsaseq::UserClientError,
+    clap::Parser,
+    glib::{Error, FileError},
+    hinawa::FwNodeError,
+    hitaki::AlsaFirewireError,
 };
 
-pub fn parse_arg_as_u32(arg: &str) -> Result<u32, String> {
-    u32::from_str(arg).map_err(|e| {
-        format!(
-            "The first argument should be numeric number: {}, {}",
-            e, arg
-        )
-    })
-}
-
-pub trait ServiceCmd<T, R>: Sized
+pub trait ServiceCmd<A, T, R>: Sized
 where
+    A: Parser,
     R: RuntimeOperation<T>,
 {
-    const CMD_NAME: &'static str;
-    const ARGS: &'static [(&'static str, &'static str)];
-    fn parse_args(args: &[String]) -> Result<T, String>;
-
-    fn print_help() {
-        println!(
-            "
-Usage:
-  {}{}
-
-  where",
-            Self::CMD_NAME,
-            &Self::ARGS
-                .iter()
-                .fold(String::new(), |label, entry| label + " " + entry.0),
-        );
-
-        Self::ARGS.iter().for_each(|entry| {
-            println!("    {}: {}", entry.0, entry.1);
-        })
-    }
+    fn params(args: &A) -> T;
 
     fn run() {
-        let args: Vec<String> = std::env::args().skip(1).collect();
-        let code = (if args.len() < Self::ARGS.len() {
-            let msg = if Self::ARGS.len() == 1 {
-                format!("1 argument is required at least")
-            } else {
-                format!("{} arguments are required at least", Self::ARGS.len())
-            };
-            Err(msg)
-        } else {
-            Self::params(&args)
-        })
-        .and_then(|args| {
-            R::new(args).map_err(|e| {
-                let (domain, cause) = if let Some(error) = e.kind::<FileError>() {
-                    (
-                        "Linux file operation error",
-                        match error {
-                            FileError::Acces => "Access permission",
-                            FileError::Isdir => "Is directory",
-                            FileError::Noent => "Not exists",
-                            _ => "",
-                        },
-                    )
-                } else if let Some(error) = e.kind::<AlsaFirewireError>() {
-                    (
-                        "ALSA HwDep operation error",
-                        match error {
-                            AlsaFirewireError::IsDisconnected => "Sound card is disconnected",
-                            AlsaFirewireError::IsUsed => "ALSA Hwdep device is already used",
-                            AlsaFirewireError::WrongClass => "Unit is not for the runtime",
-                            _ => "",
-                        },
-                    )
-                } else if let Some(error) = e.kind::<FwNodeError>() {
-                    (
-                        "Linux FireWire node operation error",
-                        match error {
-                            FwNodeError::Disconnected => "Node is disconnected",
-                            _ => "",
-                        },
-                    )
-                } else if let Some(error) = e.kind::<CardError>() {
-                    (
-                        "ALSA control operation error",
-                        match error {
-                            CardError::Disconnected => "Sound card is disconnected",
-                            _ => "",
-                        },
-                    )
-                } else if e.is::<UserClientError>() {
-                    ("ALSA Sequencer operation error", "")
-                } else {
-                    ("Unknown domain error", "")
-                };
-                format!("{}: {}, {}", domain, cause, e)
+        let code = A::try_parse()
+            .map_err(|err| err.to_string())
+            .map(|args| Self::params(&args))
+            .and_then(|params| {
+                R::new(params)
+                    .and_then(|mut runtime| {
+                        runtime.listen()?;
+                        runtime.run()?;
+                        Ok(libc::EXIT_SUCCESS)
+                    })
+                    .map_err(|err| specific_err_to_string(&err))
             })
-        })
-        .and_then(|mut runtime| {
-            runtime
-                .listen()
-                .map_err(|e| format!("Fail to listen to events: {}", e))
-                .map(|_| runtime)
-        })
-        .and_then(|mut runtime| runtime.run().map_err(|e| format!("Finish by error: {}", e)))
-        .map(|_| libc::EXIT_SUCCESS)
-        .unwrap_or_else(|msg| {
-            eprintln!("{}", msg);
-            Self::print_help();
-            libc::EXIT_FAILURE
-        });
+            .unwrap_or_else(|msg| {
+                eprintln!("{}", msg);
+                libc::EXIT_FAILURE
+            });
 
         std::process::exit(code)
     }
+}
+
+fn specific_err_to_string(e: &Error) -> String {
+    let (domain, cause) = if let Some(error) = e.kind::<FileError>() {
+        (
+            "Linux file operation error",
+            match error {
+                FileError::Acces => "Access permission",
+                FileError::Isdir => "Is directory",
+                FileError::Noent => "Not exists",
+                _ => "",
+            },
+        )
+    } else if let Some(error) = e.kind::<AlsaFirewireError>() {
+        (
+            "ALSA HwDep operation error",
+            match error {
+                AlsaFirewireError::IsDisconnected => "Sound card is disconnected",
+                AlsaFirewireError::IsUsed => "ALSA Hwdep device is already used",
+                AlsaFirewireError::WrongClass => "Unit is not for the runtime",
+                _ => "",
+            },
+        )
+    } else if let Some(error) = e.kind::<FwNodeError>() {
+        (
+            "Linux FireWire node operation error",
+            match error {
+                FwNodeError::Disconnected => "Node is disconnected",
+                _ => "",
+            },
+        )
+    } else if let Some(error) = e.kind::<CardError>() {
+        (
+            "ALSA control operation error",
+            match error {
+                CardError::Disconnected => "Sound card is disconnected",
+                _ => "",
+            },
+        )
+    } else if e.is::<UserClientError>() {
+        ("ALSA Sequencer operation error", "")
+    } else {
+        ("Unknown domain error", "")
+    };
+    format!("{}: {}, {}", domain, cause, e)
 }
