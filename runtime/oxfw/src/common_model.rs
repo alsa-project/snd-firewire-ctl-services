@@ -9,7 +9,7 @@ pub struct CommonModel {
     common_ctl: CommonCtl<OxfwAvc>,
 }
 
-impl<'a> CommonModel {
+impl CommonModel {
     const FCP_TIMEOUT_MS: u32 = 100;
 }
 
