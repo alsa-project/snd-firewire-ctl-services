@@ -51,7 +51,7 @@ Usage:
             };
             Err(msg)
         } else {
-            Self::parse_args(&args)
+            Self::params(&args)
         })
         .and_then(|args| {
             R::new(args).map_err(|e| {

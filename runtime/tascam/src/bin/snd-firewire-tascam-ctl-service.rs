@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2022 Takashi Sakamoto
 
-use {core::cmdline::*, tascam_runtime::TascamRuntime};
+use {clap::Parser, core::cmdline::*, tascam_runtime::TascamRuntime};
 
 struct TascamServiceCmd;
+
+#[derive(Parser, Default)]
+struct Arguments {
+    /// The name of subsystem; 'snd' or 'fw'.
+    subsystem: String,
+    /// The numeric identifier of sound card or firewire character device.
+    sysnum: u32,
+}
 
 impl ServiceCmd<(String, u32), TascamRuntime> for TascamServiceCmd {
     const CMD_NAME: &'static str = "snd-firewire-tascam-ctl-service";
@@ -15,18 +23,10 @@ impl ServiceCmd<(String, u32), TascamRuntime> for TascamServiceCmd {
         ),
     ];
 
-    fn parse_args(args: &[String]) -> Result<(String, u32), String> {
-        match args[0].as_str() {
-            "snd" | "fw" => Ok(args[0].clone()),
-            _ => {
-                let msg = format!(
-                    "The first argument should be one of 'snd' and 'fw': {}",
-                    args[0]
-                );
-                Err(msg)
-            }
-        }
-        .and_then(|subsystem| parse_arg_as_u32(&args[1]).map(|sysnum| (subsystem, sysnum)))
+    fn params(_: &[String]) -> Result<(String, u32), String> {
+        Arguments::try_parse()
+            .map(|args| (args.subsystem, args.sysnum))
+            .map_err(|err| err.to_string())
     }
 }
 
