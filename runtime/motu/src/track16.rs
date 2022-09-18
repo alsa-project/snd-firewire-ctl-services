@@ -86,8 +86,13 @@ impl CommandDspMonitorCtlOperation<Track16Protocol> for MonitorCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerCtl(CommandDspMixerState, Vec<ElemId>);
+
+impl Default for MixerCtl {
+    fn default() -> Self {
+        Self(Track16Protocol::create_mixer_state(), Default::default())
+    }
+}
 
 impl CommandDspMixerCtlOperation<Track16Protocol> for MixerCtl {
     fn state(&self) -> &CommandDspMixerState {

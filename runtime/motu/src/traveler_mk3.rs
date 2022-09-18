@@ -100,8 +100,16 @@ impl CommandDspMonitorCtlOperation<TravelerMk3Protocol> for MonitorCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerCtl(CommandDspMixerState, Vec<ElemId>);
+
+impl Default for MixerCtl {
+    fn default() -> Self {
+        Self(
+            TravelerMk3Protocol::create_mixer_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspMixerCtlOperation<TravelerMk3Protocol> for MixerCtl {
     fn state(&self) -> &CommandDspMixerState {

@@ -614,9 +614,6 @@ pub trait CommandDspMixerCtlOperation<T: CommandDspMixerOperation> {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let state = T::create_mixer_state();
-        *self.state_mut() = state;
-
         let mut notified_elem_id_list = Vec::new();
 
         let labels: Vec<String> = T::OUTPUT_PORTS
