@@ -46,18 +46,47 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
             .load_freq(card_cntr)
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
-        self.meter_ctl
-            .load_state(card_cntr, &self.req, &unit.1, TIMEOUT_MS)?;
+        self.meter_ctl.load_state(card_cntr)?;
 
-        self.input_ctl.load_params(card_cntr, &mut self.cache)?;
+        self.input_ctl.load_params(card_cntr)?;
+        self.output_ctl.load_params(card_cntr)?;
+        self.aux_ctl.load_params(card_cntr)?;
+        self.mixer_ctl.load_params(card_cntr)?;
 
-        self.output_ctl.load_params(card_cntr, &mut self.cache)?;
-
-        self.aux_ctl.load_params(card_cntr, &mut self.cache)?;
-
-        self.mixer_ctl.load_params(card_cntr, &mut self.cache)?;
-
-        self.cache.download(&self.req, &unit.1, TIMEOUT_MS)?;
+        MaudioSpecialMeterProtocol::cache(
+            &self.req,
+            &unit.1,
+            &mut self.meter_ctl.0,
+            TIMEOUT_MS,
+        )?;
+        MaudioSpecialInputProtocol::whole_update(
+            &self.req,
+            &unit.1,
+            &mut self.input_ctl.0,
+            &mut self.cache,
+            TIMEOUT_MS,
+        )?;
+        MaudioSpecialOutputProtocol::whole_update(
+            &self.req,
+            &unit.1,
+            &mut self.output_ctl.0,
+            &mut self.cache,
+            TIMEOUT_MS,
+        )?;
+        MaudioSpecialAuxProtocol::whole_update(
+            &self.req,
+            &unit.1,
+            &mut self.aux_ctl.0,
+            &mut self.cache,
+            TIMEOUT_MS,
+        )?;
+        MaudioSpecialMixerProtocol::whole_update(
+            &self.req,
+            &unit.1,
+            &mut self.mixer_ctl.0,
+            &mut self.cache,
+            TIMEOUT_MS,
+        )?;
 
         Ok(())
     }
@@ -343,13 +372,7 @@ impl MeterCtl {
         )
     }
 
-    fn load_state(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        req: &FwReq,
-        node: &FwNode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_state(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (ANALOG_INPUT_METER_NAME, &ANALOG_INPUT_LABELS[..]),
             (SPDIF_INPUT_METER_NAME, &SPDIF_INPUT_LABELS[..]),
@@ -390,7 +413,7 @@ impl MeterCtl {
             .add_bool_elems(&elem_id, 1, 1, false)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        self.measure_state(req, node, timeout_ms)
+        Ok(())
     }
 
     fn measure_state(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
@@ -526,11 +549,7 @@ impl InputCtl {
         )
     }
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        state: &mut MaudioSpecialStateCache,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         [
             (STREAM_INPUT_GAIN_NAME, &STREAM_INPUT_LABELS[..]),
             (ANALOG_INPUT_GAIN_NAME, &ANALOG_INPUT_LABELS[..]),
@@ -551,8 +570,6 @@ impl InputCtl {
         .try_for_each(|(name, labels)| {
             Self::add_input_balance_elem(card_cntr, name, labels).map(|_| ())
         })?;
-
-        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -754,11 +771,7 @@ impl OutputCtl {
         card_cntr.add_enum_elems(&elem_id, 1, labels.len(), &item_labels, None, true)
     }
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        state: &mut MaudioSpecialStateCache,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         Self::add_volume_elem(card_cntr, OUT_VOL_NAME, &ANALOG_OUTPUT_LABELS)?;
         Self::add_volume_elem(card_cntr, HP_VOL_NAME, &HEADPHONE_LABELS)
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
@@ -777,8 +790,6 @@ impl OutputCtl {
             &Self::HEADPHONE_PAIR_SOURCES,
             headphone_source_to_str,
         )?;
-
-        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -979,11 +990,7 @@ impl AuxCtl {
         )
     }
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        state: &mut MaudioSpecialStateCache,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, AUX_OUT_VOL_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -1000,8 +1007,6 @@ impl AuxCtl {
         let _ = Self::add_input_int_elem(card_cntr, AUX_ANALOG_SRC_NAME, &ANALOG_INPUT_LABELS)?;
         let _ = Self::add_input_int_elem(card_cntr, AUX_SPDIF_SRC_NAME, &SPDIF_INPUT_LABELS)?;
         let _ = Self::add_input_int_elem(card_cntr, AUX_ADAT_SRC_NAME, &ADAT_INPUT_LABELS)?;
-
-        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
@@ -1147,17 +1152,11 @@ impl MixerCtl {
         card_cntr.add_bool_elems(&elem_id, MIXER_LABELS.len(), labels.len(), true)
     }
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        state: &mut MaudioSpecialStateCache,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let _ = Self::add_bool_elem(card_cntr, MIXER_ANALOG_SRC_NAME, &ANALOG_INPUT_PAIR_LABELS)?;
         let _ = Self::add_bool_elem(card_cntr, MIXER_SPDIF_SRC_NAME, &SPDIF_INPUT_PAIR_LABELS)?;
         let _ = Self::add_bool_elem(card_cntr, MIXER_ADAT_SRC_NAME, &ADAT_INPUT_PAIR_LABELS)?;
         let _ = Self::add_bool_elem(card_cntr, MIXER_STREAM_SRC_NAME, &STREAM_INPUT_PAIR_LABELS)?;
-
-        self.0.write_to_cache(&mut state.0);
 
         Ok(())
     }
