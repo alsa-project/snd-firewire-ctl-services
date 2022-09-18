@@ -63,7 +63,7 @@
 //!   maximum size: 0x180000
 //! ```
 
-use super::*;
+use {super::*, std::ops::Range};
 
 /// The protocol implementation for media clock of FireWire 1814.
 #[derive(Default)]
@@ -149,7 +149,7 @@ impl AvcControl for MaudioSpecialLedSwitch {
 }
 
 /// The protocol implementation for hardware metering.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MaudioSpecialMeterProtocol;
 
 const METER_SIZE: usize = 84;
@@ -293,24 +293,78 @@ const CACHE_SIZE: usize = 160;
 // 0x0094 - 0x0098: stream sources to mixer
 // 0x0098 - 0x009c: source of headphone pair
 // 0x009c - 0x00a0: source of analog output pair
-const STREAM_INPUT_GAIN_POS: usize = 0x0000;
-const ANALOG_OUTPUT_VOLUME_POS: usize = 0x0008;
-const ANALOG_INPUT_GAIN_POS: usize = 0x0010;
-const SPDIF_INPUT_GAIN_POS: usize = 0x0020;
-const ADAT_INPUT_GAIN_POS: usize = 0x0024;
-const AUX_OUTPUT_VOLUME_POS: usize = 0x0034;
-const HEADPHONE_VOLUME_POS: usize = 0x0038;
-const ANALOG_INPUT_BALANCE_POS: usize = 0x0040;
-const SPDIF_INPUT_BALANCE_POS: usize = 0x0050;
-const ADAT_INPUT_BALANCE_POS: usize = 0x0054;
-const AUX_STREAM_INPUT_GAIN_POS: usize = 0x0064;
-const AUX_ANALOG_INPUT_GAIN_POS: usize = 0x006c;
-const AUX_SPDIF_INPUT_GAIN_POS: usize = 0x007c;
-const AUX_ADAT_INPUT_GAIN_POS: usize = 0x0080;
-const MIXER_PHYS_SOURCE_POS: usize = 0x0090;
-const MIXER_STREAM_SOURCE_POS: usize = 0x0094;
-const HEADPHONE_PAIR_SOURCE_POS: usize = 0x0098;
-const ANALOG_OUTPUT_PAIR_SOURCE_POS: usize = 0x009c;
+const STREAM_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x0000,
+    end: 0x0008,
+};
+const ANALOG_OUTPUT_VOLUME_RANGE: Range<usize> = Range {
+    start: 0x0008,
+    end: 0x0010,
+};
+const ANALOG_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x0010,
+    end: 0x0020,
+};
+const SPDIF_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x0020,
+    end: 0x0024,
+};
+const ADAT_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x0024,
+    end: 0x0034,
+};
+const AUX_OUTPUT_VOLUME_RANGE: Range<usize> = Range {
+    start: 0x0034,
+    end: 0x0038,
+};
+const HEADPHONE_VOLUME_RANGE: Range<usize> = Range {
+    start: 0x0038,
+    end: 0x0040,
+};
+const ANALOG_INPUT_BALANCE_RANGE: Range<usize> = Range {
+    start: 0x0040,
+    end: 0x0050,
+};
+const SPDIF_INPUT_BALANCE_RANGE: Range<usize> = Range {
+    start: 0x0050,
+    end: 0x0054,
+};
+const ADAT_INPUT_BALANCE_RANGE: Range<usize> = Range {
+    start: 0x0054,
+    end: 0x0064,
+};
+const AUX_STREAM_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x0064,
+    end: 0x006c,
+};
+const AUX_ANALOG_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x006c,
+    end: 0x007c,
+};
+const AUX_SPDIF_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x007c,
+    end: 0x0080,
+};
+const AUX_ADAT_INPUT_GAIN_RANGE: Range<usize> = Range {
+    start: 0x0080,
+    end: 0x0090,
+};
+const MIXER_PHYS_SOURCE_RANGE: Range<usize> = Range {
+    start: 0x0090,
+    end: 0x0094,
+};
+const MIXER_STREAM_SOURCE_RANGE: Range<usize> = Range {
+    start: 0x0094,
+    end: 0x0098,
+};
+const HEADPHONE_PAIR_SOURCE_RANGE: Range<usize> = Range {
+    start: 0x0098,
+    end: 0x009c,
+};
+const ANALOG_OUTPUT_PAIR_SOURCE_RANGE: Range<usize> = Range {
+    start: 0x009c,
+    end: 0x00a0,
+};
 
 /// Cache of state.
 #[derive(Debug)]
@@ -338,7 +392,7 @@ impl MaudioSpecialStateCache {
 }
 
 /// Parameters of input.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialInputParameters {
     pub stream_gains: [i16; 4],
 
@@ -388,54 +442,12 @@ impl Default for MaudioSpecialInputParameters {
 
 impl MaudioSpecialParameterOperation for MaudioSpecialInputParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        self.stream_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = STREAM_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.analog_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = ANALOG_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.spdif_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = SPDIF_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.adat_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = ADAT_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.analog_balances
-            .iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = ANALOG_INPUT_BALANCE_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
-
-        self.spdif_balances
-            .iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = SPDIF_INPUT_BALANCE_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
-
-        self.adat_balances
-            .iter()
-            .enumerate()
-            .for_each(|(i, &gain)| {
-                let pos = ADAT_INPUT_BALANCE_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-            });
+        MaudioSpecialInputProtocol::serialize(self, cache)
     }
 }
 
 /// The protocol implementation to operate analog inputs.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MaudioSpecialInputProtocol;
 
 impl MaudioSpecialInputProtocol {
@@ -448,6 +460,58 @@ impl MaudioSpecialInputProtocol {
     pub const BALANCE_STEP: i16 = 0x100;
 }
 
+impl SpecialParametersSerdes<MaudioSpecialInputParameters> for MaudioSpecialInputProtocol {
+    const OFFSET_RANGES: &'static [&'static Range<usize>] = &[
+        &STREAM_INPUT_GAIN_RANGE,
+        &ANALOG_INPUT_GAIN_RANGE,
+        &SPDIF_INPUT_GAIN_RANGE,
+        &ADAT_INPUT_GAIN_RANGE,
+        &ANALOG_INPUT_BALANCE_RANGE,
+        &SPDIF_INPUT_BALANCE_RANGE,
+        &ADAT_INPUT_BALANCE_RANGE,
+    ];
+
+    fn serialize(params: &MaudioSpecialInputParameters, raw: &mut [u8]) {
+        [
+            (&params.stream_gains[..], &STREAM_INPUT_GAIN_RANGE),
+            (&params.analog_gains[..], &ANALOG_INPUT_GAIN_RANGE),
+            (&params.spdif_gains[..], &SPDIF_INPUT_GAIN_RANGE),
+            (&params.adat_gains[..], &ADAT_INPUT_GAIN_RANGE),
+            (&params.analog_balances[..], &ANALOG_INPUT_BALANCE_RANGE),
+            (&params.spdif_balances[..], &SPDIF_INPUT_BALANCE_RANGE),
+            (&params.adat_balances[..], &ADAT_INPUT_BALANCE_RANGE),
+        ]
+        .iter()
+        .for_each(|(gains, range)| {
+            gains.iter().enumerate().for_each(|(i, gain)| {
+                let pos = range.start + i * 2;
+                raw[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
+            })
+        });
+    }
+
+    fn deserialize(params: &mut MaudioSpecialInputParameters, raw: &[u8]) {
+        let mut doublet = [0u8; 2];
+
+        [
+            (&mut params.stream_gains[..], &STREAM_INPUT_GAIN_RANGE),
+            (&mut params.analog_gains[..], &ANALOG_INPUT_GAIN_RANGE),
+            (&mut params.spdif_gains[..], &SPDIF_INPUT_GAIN_RANGE),
+            (&mut params.adat_gains[..], &ADAT_INPUT_GAIN_RANGE),
+            (&mut params.analog_balances[..], &ANALOG_INPUT_BALANCE_RANGE),
+            (&mut params.spdif_balances[..], &SPDIF_INPUT_BALANCE_RANGE),
+            (&mut params.adat_balances[..], &ADAT_INPUT_BALANCE_RANGE),
+        ]
+        .iter_mut()
+        .for_each(|(gains, range)| {
+            gains.iter_mut().enumerate().for_each(|(i, gain)| {
+                let pos = range.start + i * 2;
+                doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                *gain = i16::from_be_bytes(doublet);
+            })
+        });
+    }
+}
 impl MaudioSpecialParameterProtocol<MaudioSpecialInputParameters> for MaudioSpecialInputProtocol {}
 
 /// Source of analog output.
@@ -478,7 +542,7 @@ impl Default for HeadphoneSource {
 }
 
 /// Parameters of output.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialOutputParameters {
     pub analog_volumes: [i16; 4],
     pub analog_pair_sources: [OutputSource; 2],
@@ -502,28 +566,48 @@ impl Default for MaudioSpecialOutputParameters {
 
 impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        self.analog_volumes
-            .iter()
-            .enumerate()
-            .for_each(|(i, &vol)| {
-                let pos = ANALOG_OUTPUT_VOLUME_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
-            });
+        MaudioSpecialOutputProtocol::serialize(self, cache)
+    }
+}
 
-        self.headphone_volumes
-            .iter()
-            .enumerate()
-            .for_each(|(i, &vol)| {
-                let pos = HEADPHONE_VOLUME_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
+/// The protocol implementation for physical output.
+#[derive(Default, Debug)]
+pub struct MaudioSpecialOutputProtocol;
+
+impl MaudioSpecialOutputProtocol {
+    pub const VOLUME_MIN: i16 = i16::MIN;
+    pub const VOLUME_MAX: i16 = 0;
+    pub const VOLUME_STEP: i16 = 0x100;
+}
+
+impl SpecialParametersSerdes<MaudioSpecialOutputParameters> for MaudioSpecialOutputProtocol {
+    const OFFSET_RANGES: &'static [&'static Range<usize>] = &[
+        &ANALOG_OUTPUT_VOLUME_RANGE,
+        &HEADPHONE_VOLUME_RANGE,
+        &HEADPHONE_PAIR_SOURCE_RANGE,
+        &ANALOG_OUTPUT_PAIR_SOURCE_RANGE,
+    ];
+
+    fn serialize(params: &MaudioSpecialOutputParameters, raw: &mut [u8]) {
+        [
+            (&params.analog_volumes[..], &ANALOG_OUTPUT_VOLUME_RANGE),
+            (&params.headphone_volumes[..], &HEADPHONE_VOLUME_RANGE),
+        ]
+        .iter()
+        .for_each(|(vols, range)| {
+            vols.iter().enumerate().for_each(|(i, vol)| {
+                let pos = range.start + i * 2;
+                raw[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
             });
+        });
 
         let mut quadlet = [0; 4];
-        let pos = HEADPHONE_PAIR_SOURCE_POS;
-        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        let pos = HEADPHONE_PAIR_SOURCE_RANGE.start;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.headphone_pair_sources
+        params
+            .headphone_pair_sources
             .iter()
             .enumerate()
             .for_each(|(i, &src)| {
@@ -539,13 +623,14 @@ impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
                 val |= flag << shift;
             });
 
-        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
 
-        let pos = ANALOG_OUTPUT_PAIR_SOURCE_POS;
-        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        let pos = ANALOG_OUTPUT_PAIR_SOURCE_RANGE.start;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.analog_pair_sources
+        params
+            .analog_pair_sources
             .iter()
             .enumerate()
             .for_each(|(i, &src)| {
@@ -560,24 +645,69 @@ impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
                 val |= flag << shift;
             });
 
-        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        raw[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
     }
-}
 
-/// The protocol implementation for physical output.
-#[derive(Default)]
-pub struct MaudioSpecialOutputProtocol;
+    fn deserialize(params: &mut MaudioSpecialOutputParameters, raw: &[u8]) {
+        let mut doublet = [0u8; 2];
 
-impl MaudioSpecialOutputProtocol {
-    pub const VOLUME_MIN: i16 = i16::MIN;
-    pub const VOLUME_MAX: i16 = 0;
-    pub const VOLUME_STEP: i16 = 0x100;
+        [
+            (&mut params.analog_volumes[..], &ANALOG_OUTPUT_VOLUME_RANGE),
+            (&mut params.headphone_volumes[..], &HEADPHONE_VOLUME_RANGE),
+        ]
+        .iter_mut()
+        .for_each(|(vols, range)| {
+            vols.iter_mut().enumerate().for_each(|(i, vol)| {
+                let pos = range.start + i * 2;
+                doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                *vol = i16::from_be_bytes(doublet);
+            });
+        });
+
+        let mut quadlet = [0u8; 4];
+        let pos = HEADPHONE_PAIR_SOURCE_RANGE.start;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        let val = u32::from_be_bytes(quadlet);
+
+        params
+            .headphone_pair_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, src)| {
+                let shift = i * 16;
+                let mask = 0x07;
+                let flag = (val >> shift) & mask;
+                *src = match flag {
+                    0x04 => HeadphoneSource::AuxOutputPair0,
+                    0x02 => HeadphoneSource::MixerOutputPair1,
+                    _ => HeadphoneSource::MixerOutputPair0,
+                };
+            });
+
+        let pos = ANALOG_OUTPUT_PAIR_SOURCE_RANGE.start;
+        quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+        let val = u32::from_be_bytes(quadlet);
+
+        params
+            .analog_pair_sources
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, src)| {
+                let shift = i;
+                let mask = 0x01;
+                let flag = (val >> shift) & mask;
+                *src = match flag {
+                    0x01 => OutputSource::AuxOutputPair0,
+                    _ => OutputSource::MixerOutputPair,
+                };
+            });
+    }
 }
 
 impl MaudioSpecialParameterProtocol<MaudioSpecialOutputParameters> for MaudioSpecialOutputProtocol {}
 
 /// Parameters of aux signal multiplexer.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialAuxParameters {
     pub output_volumes: [i16; 2],
     pub stream_gains: [i16; 4],
@@ -609,38 +739,12 @@ impl Default for MaudioSpecialAuxParameters {
 
 impl MaudioSpecialParameterOperation for MaudioSpecialAuxParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        self.output_volumes
-            .iter()
-            .enumerate()
-            .for_each(|(i, &vol)| {
-                let pos = AUX_OUTPUT_VOLUME_POS + i * 2;
-                cache[pos..(pos + 2)].copy_from_slice(&vol.to_be_bytes());
-            });
-
-        self.stream_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = AUX_STREAM_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.analog_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = AUX_ANALOG_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.spdif_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = AUX_SPDIF_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
-
-        self.adat_gains.iter().enumerate().for_each(|(i, &gain)| {
-            let pos = AUX_ADAT_INPUT_GAIN_POS + i * 2;
-            cache[pos..(pos + 2)].copy_from_slice(&gain.to_be_bytes());
-        });
+        MaudioSpecialAuxProtocol::serialize(self, cache)
     }
 }
 
 /// The protocol implementation to operate input and output of AUX mixer.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MaudioSpecialAuxProtocol;
 
 impl MaudioSpecialAuxProtocol {
@@ -653,10 +757,57 @@ impl MaudioSpecialAuxProtocol {
     pub const VOLUME_STEP: i16 = 0x100;
 }
 
+impl SpecialParametersSerdes<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol {
+    const OFFSET_RANGES: &'static [&'static Range<usize>] = &[
+        &AUX_OUTPUT_VOLUME_RANGE,
+        &AUX_STREAM_INPUT_GAIN_RANGE,
+        &AUX_ANALOG_INPUT_GAIN_RANGE,
+        &AUX_SPDIF_INPUT_GAIN_RANGE,
+        &AUX_ADAT_INPUT_GAIN_RANGE,
+    ];
+
+    fn serialize(params: &MaudioSpecialAuxParameters, raw: &mut [u8]) {
+        [
+            (&params.output_volumes[..], &AUX_OUTPUT_VOLUME_RANGE),
+            (&params.stream_gains[..], &AUX_STREAM_INPUT_GAIN_RANGE),
+            (&params.analog_gains[..], &AUX_ANALOG_INPUT_GAIN_RANGE),
+            (&params.spdif_gains[..], &AUX_SPDIF_INPUT_GAIN_RANGE),
+            (&params.adat_gains[..], &AUX_ADAT_INPUT_GAIN_RANGE),
+        ]
+        .iter()
+        .for_each(|(levels, range)| {
+            levels.iter().enumerate().for_each(|(i, level)| {
+                let pos = range.start + i * 2;
+                raw[pos..(pos + 2)].copy_from_slice(&level.to_be_bytes());
+            })
+        });
+    }
+
+    fn deserialize(params: &mut MaudioSpecialAuxParameters, raw: &[u8]) {
+        let mut doublet = [0u8; 2];
+
+        [
+            (&mut params.output_volumes[..], &AUX_OUTPUT_VOLUME_RANGE),
+            (&mut params.stream_gains[..], &AUX_STREAM_INPUT_GAIN_RANGE),
+            (&mut params.analog_gains[..], &AUX_ANALOG_INPUT_GAIN_RANGE),
+            (&mut params.spdif_gains[..], &AUX_SPDIF_INPUT_GAIN_RANGE),
+            (&mut params.adat_gains[..], &AUX_ADAT_INPUT_GAIN_RANGE),
+        ]
+        .iter_mut()
+        .for_each(|(levels, range)| {
+            levels.iter_mut().enumerate().for_each(|(i, level)| {
+                let pos = range.start + i * 2;
+                doublet.copy_from_slice(&raw[pos..(pos + 2)]);
+                *level = i16::from_be_bytes(doublet);
+            })
+        });
+    }
+}
+
 impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol {}
 
 /// Parameters of signal multiplexer.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialMixerParameters {
     pub analog_pairs: [[bool; 4]; 2],
     pub spdif_pairs: [bool; 2],
@@ -677,23 +828,40 @@ impl Default for MaudioSpecialMixerParameters {
 
 impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters {
     fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
+        MaudioSpecialMixerProtocol::serialize(self, cache)
+    }
+}
+
+/// The protocol implementation for input and output of mixer.
+#[derive(Default, Debug)]
+pub struct MaudioSpecialMixerProtocol;
+
+impl SpecialParametersSerdes<MaudioSpecialMixerParameters> for MaudioSpecialMixerProtocol {
+    const OFFSET_RANGES: &'static [&'static Range<usize>] =
+        &[&MIXER_PHYS_SOURCE_RANGE, &MIXER_STREAM_SOURCE_RANGE];
+
+    fn serialize(params: &MaudioSpecialMixerParameters, raw: &mut [u8]) {
         let mut quadlet = [0; 4];
 
-        let pos = MIXER_PHYS_SOURCE_POS;
-        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        quadlet.copy_from_slice(&raw[MIXER_PHYS_SOURCE_RANGE]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.analog_pairs.iter().enumerate().for_each(|(i, pairs)| {
-            pairs.iter().enumerate().for_each(|(j, &enabled)| {
-                let flag = 1u32 << (i * 4 + j);
-                val &= !flag;
-                if enabled {
-                    val |= flag;
-                }
+        params
+            .analog_pairs
+            .iter()
+            .enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter().enumerate().for_each(|(j, &enabled)| {
+                    let flag = 1u32 << (i * 4 + j);
+                    val &= !flag;
+                    if enabled {
+                        val |= flag;
+                    }
+                });
             });
-        });
 
-        self.spdif_pairs
+        params
+            .spdif_pairs
             .iter()
             .enumerate()
             .for_each(|(i, &enabled)| {
@@ -704,7 +872,7 @@ impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters {
                 }
             });
 
-        self.adat_pairs.iter().enumerate().for_each(|(i, pairs)| {
+        params.adat_pairs.iter().enumerate().for_each(|(i, pairs)| {
             pairs.iter().enumerate().for_each(|(j, &enabled)| {
                 let flag = 1u32 << (8 + i * 4 + j);
                 val &= !flag;
@@ -714,32 +882,94 @@ impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters {
             });
         });
 
-        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        raw[MIXER_PHYS_SOURCE_RANGE].copy_from_slice(&val.to_be_bytes());
 
-        let pos = MIXER_STREAM_SOURCE_POS;
-        quadlet.copy_from_slice(&cache[pos..(pos + 4)]);
+        quadlet.copy_from_slice(&raw[MIXER_STREAM_SOURCE_RANGE]);
         let mut val = u32::from_be_bytes(quadlet);
 
-        self.stream_pairs.iter().enumerate().for_each(|(i, pairs)| {
-            pairs.iter().enumerate().for_each(|(j, &enabled)| {
-                let flag = 1u32 << (i * 2 + j);
+        params
+            .stream_pairs
+            .iter()
+            .enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter().enumerate().for_each(|(j, &enabled)| {
+                    let flag = 1u32 << (j * 2 + i);
 
-                val &= !flag;
-                if enabled {
-                    val |= flag;
-                }
+                    val &= !flag;
+                    if enabled {
+                        val |= flag;
+                    }
+                });
             });
-        });
 
-        cache[pos..(pos + 4)].copy_from_slice(&val.to_be_bytes());
+        raw[MIXER_STREAM_SOURCE_RANGE].copy_from_slice(&val.to_be_bytes());
+    }
+
+    fn deserialize(params: &mut MaudioSpecialMixerParameters, raw: &[u8]) {
+        let mut quadlet = [0; 4];
+
+        quadlet.copy_from_slice(&raw[MIXER_PHYS_SOURCE_RANGE]);
+        let val = u32::from_be_bytes(quadlet);
+
+        params
+            .analog_pairs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter_mut().enumerate().for_each(|(j, enabled)| {
+                    let flag = 1u32 << (i * 4 + j);
+                    *enabled = val & flag > 0;
+                });
+            });
+
+        params
+            .spdif_pairs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, enabled)| {
+                let flag = 1u32 << (16 + i);
+                *enabled = val & flag > 0;
+            });
+
+        params
+            .adat_pairs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter_mut().enumerate().for_each(|(j, enabled)| {
+                    let flag = 1u32 << (8 + i * 4 + j);
+                    *enabled = val & flag > 0;
+                });
+            });
+
+        quadlet.copy_from_slice(&raw[MIXER_STREAM_SOURCE_RANGE]);
+        let val = u32::from_be_bytes(quadlet);
+
+        params
+            .stream_pairs
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, pairs)| {
+                pairs.iter_mut().enumerate().for_each(|(j, enabled)| {
+                    let flag = 1u32 << (j * 2 + i);
+                    *enabled = val & flag > 0;
+                });
+            });
     }
 }
-
-/// The protocol implementation for input and output of mixer.
-#[derive(Default)]
-pub struct MaudioSpecialMixerProtocol;
-
 impl MaudioSpecialParameterProtocol<MaudioSpecialMixerParameters> for MaudioSpecialMixerProtocol {}
+
+/// Protocol interface for each type of parameters.
+pub trait SpecialParametersSerdes<T: Copy> {
+    /// The set of offset ranges for the type of parameters.
+    const OFFSET_RANGES: &'static [&'static Range<usize>];
+
+    /// Change the content of cache by the given parameters.
+    fn serialize(params: &T, raw: &mut [u8]);
+
+    /// Decode the cache to change the given parameter
+    fn deserialize(params: &mut T, raw: &[u8]);
+}
 
 /// The trait for operation about parameters.
 pub trait MaudioSpecialParameterOperation {
@@ -747,7 +977,9 @@ pub trait MaudioSpecialParameterOperation {
 }
 
 /// The trait for protocol of parameters.
-pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Copy> {
+pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Copy>:
+    SpecialParametersSerdes<T>
+{
     fn update_params(
         req: &FwReq,
         node: &FwNode,
@@ -758,22 +990,133 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
     ) -> Result<(), Error> {
         let mut new = [0; CACHE_SIZE];
         new.copy_from_slice(&cache.0);
-        params.write_to_cache(&mut new);
-        (0..CACHE_SIZE).step_by(4).try_for_each(|pos| {
-            if new[pos..(pos + 4)] != cache.0[pos..(pos + 4)] {
-                req.transaction_sync(
-                    node,
-                    FwTcode::WriteQuadletRequest,
-                    DM_APPL_PARAM_OFFSET + pos as u64,
-                    4,
-                    &mut new[pos..(pos + 4)],
-                    timeout_ms,
-                )
-                .map(|_| cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]))
-            } else {
-                Ok(())
-            }
-        })
-        .map(|_| *old = *params)
+        Self::serialize(params, &mut new);
+        (0..CACHE_SIZE)
+            .step_by(4)
+            .try_for_each(|pos| {
+                if new[pos..(pos + 4)] != cache.0[pos..(pos + 4)] {
+                    req.transaction_sync(
+                        node,
+                        FwTcode::WriteQuadletRequest,
+                        DM_APPL_PARAM_OFFSET + pos as u64,
+                        4,
+                        &mut new[pos..(pos + 4)],
+                        timeout_ms,
+                    )
+                    .map(|_| cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]))
+                } else {
+                    Ok(())
+                }
+            })
+            .map(|_| *old = *params)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn offset_ranges() {
+        let ranges = [
+            &STREAM_INPUT_GAIN_RANGE,
+            &ANALOG_OUTPUT_VOLUME_RANGE,
+            &ANALOG_INPUT_GAIN_RANGE,
+            &SPDIF_INPUT_GAIN_RANGE,
+            &ADAT_INPUT_GAIN_RANGE,
+            &AUX_OUTPUT_VOLUME_RANGE,
+            &HEADPHONE_VOLUME_RANGE,
+            &ANALOG_INPUT_BALANCE_RANGE,
+            &SPDIF_INPUT_BALANCE_RANGE,
+            &ADAT_INPUT_BALANCE_RANGE,
+            &AUX_STREAM_INPUT_GAIN_RANGE,
+            &AUX_ANALOG_INPUT_GAIN_RANGE,
+            &AUX_SPDIF_INPUT_GAIN_RANGE,
+            &AUX_ADAT_INPUT_GAIN_RANGE,
+            &MIXER_PHYS_SOURCE_RANGE,
+            &MIXER_STREAM_SOURCE_RANGE,
+            &HEADPHONE_PAIR_SOURCE_RANGE,
+            &ANALOG_OUTPUT_PAIR_SOURCE_RANGE,
+        ];
+
+        (0..CACHE_SIZE).for_each(|pos| {
+            let count = ranges.iter().filter(|range| range.contains(&pos)).count();
+            assert_eq!(count, 1);
+        });
+    }
+
+    #[test]
+    fn input_params_serdes() {
+        let expected = MaudioSpecialInputParameters {
+            stream_gains: [-2, -1, 0, 1],
+            analog_gains: [-3, -2, -1, 0, 1, 2, 3, 4],
+            spdif_gains: [-1, 0],
+            adat_gains: [-3, -2, -1, 0, 1, 2, 3, 4],
+            analog_balances: [-3, -2, -1, 0, 1, 2, 3, 4],
+            spdif_balances: [-1, 0],
+            adat_balances: [-3, -2, -1, 0, 1, 2, 3, 4],
+        };
+        let mut cache = MaudioSpecialStateCache::default();
+        MaudioSpecialInputProtocol::serialize(&expected, &mut cache.0);
+
+        let mut params = MaudioSpecialInputParameters::default();
+        MaudioSpecialInputProtocol::deserialize(&mut params, &cache.0);
+
+        assert_eq!(expected, params);
+    }
+
+    #[test]
+    fn output_params_serdes() {
+        let expected = MaudioSpecialOutputParameters {
+            analog_volumes: [-2, -1, 0, 1],
+            analog_pair_sources: [OutputSource::MixerOutputPair, OutputSource::AuxOutputPair0],
+            headphone_volumes: [-1, 0, 1, 2],
+            headphone_pair_sources: [
+                HeadphoneSource::AuxOutputPair0,
+                HeadphoneSource::MixerOutputPair0,
+            ],
+        };
+        let mut cache = MaudioSpecialStateCache::default();
+        MaudioSpecialOutputProtocol::serialize(&expected, &mut cache.0);
+
+        let mut params = MaudioSpecialOutputParameters::default();
+        MaudioSpecialOutputProtocol::deserialize(&mut params, &cache.0);
+
+        assert_eq!(expected, params);
+    }
+
+    #[test]
+    fn aux_params_serdes() {
+        let expected = MaudioSpecialAuxParameters {
+            output_volumes: [0, 1],
+            stream_gains: [-3, -2, -1, 0],
+            analog_gains: [-3, -2, -1, 0, 1, 2, 3, 4],
+            spdif_gains: [-1, 0],
+            adat_gains: [-3, -2, -1, 0, 1, 2, 3, 4],
+        };
+        let mut cache = MaudioSpecialStateCache::default();
+        MaudioSpecialAuxProtocol::serialize(&expected, &mut cache.0);
+
+        let mut params = MaudioSpecialAuxParameters::default();
+        MaudioSpecialAuxProtocol::deserialize(&mut params, &cache.0);
+
+        assert_eq!(expected, params);
+    }
+
+    #[test]
+    fn mixer_params_serdes() {
+        let expected = MaudioSpecialMixerParameters {
+            analog_pairs: [[false, true, false, true], [true, false, true, false]],
+            spdif_pairs: [true, false],
+            adat_pairs: [[false, true, false, true], [true, false, true, false]],
+            stream_pairs: [[true, false], [false, true]],
+        };
+        let mut cache = MaudioSpecialStateCache::default();
+        MaudioSpecialMixerProtocol::serialize(&expected, &mut cache.0);
+
+        let mut params = MaudioSpecialMixerParameters::default();
+        MaudioSpecialMixerProtocol::deserialize(&mut params, &cache.0);
+
+        assert_eq!(expected, params);
     }
 }
