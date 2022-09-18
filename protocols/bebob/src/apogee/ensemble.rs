@@ -112,16 +112,36 @@ impl SamplingClockSourceOperation for EnsembleClkProtocol {
 }
 
 /// Parameters of sample format converter.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct EnsembleConvertParameters {
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct EnsembleConverterParameters {
     pub format_target: FormatConvertTarget,
     pub rate_target: RateConvertTarget,
     pub converted_rate: RateConvertRate,
     pub cd_mode: bool,
 }
 
-impl From<&EnsembleConvertParameters> for Vec<EnsembleCmd> {
-    fn from(params: &EnsembleConvertParameters) -> Self {
+/// Protocol implementation for converter parameters.
+#[derive(Default, Debug)]
+pub struct EnsembleConverterProtocol;
+
+impl EnsembleParametersConverter<EnsembleConverterParameters> for EnsembleConverterProtocol {
+    fn parse_cmds(params: &mut EnsembleConverterParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            &EnsembleCmd::FormatConvert(format_target) => {
+                params.format_target = format_target;
+            }
+            &EnsembleCmd::RateConvert(rate_target, converted_rate) => {
+                params.rate_target = rate_target;
+                params.converted_rate = converted_rate;
+            }
+            &EnsembleCmd::Hw(HwCmd::CdMode(cd_mode)) => {
+                params.cd_mode = cd_mode;
+            }
+            _ => (),
+        });
+    }
+
+    fn build_cmds(params: &EnsembleConverterParameters) -> Vec<EnsembleCmd> {
         vec![
             EnsembleCmd::FormatConvert(params.format_target),
             EnsembleCmd::RateConvert(params.rate_target, params.converted_rate),
@@ -130,10 +150,16 @@ impl From<&EnsembleConvertParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleConvertParameters> for BebobAvc {}
+impl From<&EnsembleConverterParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleConverterParameters) -> Self {
+        EnsembleConverterProtocol::build_cmds(params)
+    }
+}
+
+impl EnsembleParameterProtocol<EnsembleConverterParameters> for BebobAvc {}
 
 /// Parameters of display meters.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleDisplayParameters {
     pub enabled: bool,
     pub illuminate: bool,
@@ -141,8 +167,30 @@ pub struct EnsembleDisplayParameters {
     pub overhold: bool,
 }
 
-impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
-    fn from(params: &EnsembleDisplayParameters) -> Self {
+/// Protocol implementation for display parameters.
+#[derive(Default, Debug)]
+pub struct EnsembleDisplayProtocol;
+
+impl EnsembleParametersConverter<EnsembleDisplayParameters> for EnsembleDisplayProtocol {
+    fn parse_cmds(params: &mut EnsembleDisplayParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            &EnsembleCmd::Hw(HwCmd::DisplayMode(enabled)) => {
+                params.enabled = enabled;
+            }
+            &EnsembleCmd::Hw(HwCmd::DisplayIlluminate(illuminate)) => {
+                params.illuminate = illuminate;
+            }
+            &EnsembleCmd::Hw(HwCmd::DisplayTarget(target)) => {
+                params.target = target;
+            }
+            &EnsembleCmd::Hw(HwCmd::DisplayOverhold(overhold)) => {
+                params.overhold = overhold;
+            }
+            _ => (),
+        })
+    }
+
+    fn build_cmds(params: &EnsembleDisplayParameters) -> Vec<EnsembleCmd> {
         vec![
             EnsembleCmd::Hw(HwCmd::DisplayMode(params.enabled)),
             EnsembleCmd::Hw(HwCmd::DisplayIlluminate(params.illuminate)),
@@ -152,11 +200,17 @@ impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
     }
 }
 
+impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleDisplayParameters) -> Self {
+        EnsembleDisplayProtocol::build_cmds(params)
+    }
+}
+
 impl EnsembleParameterProtocol<EnsembleDisplayParameters> for BebobAvc {}
 
 /// Parameters of analog/digital inputs. The gains, phantoms, and polarities parameters
 /// are available when channel 0-3 levels are for mic.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleInputParameters {
     pub limits: [bool; 8],
     pub levels: [InputNominalLevel; 8],
@@ -166,14 +220,57 @@ pub struct EnsembleInputParameters {
     pub opt_iface_mode: OptIfaceMode,
 }
 
-impl EnsembleInputParameters {
+/// Protocol implementation for input parameters.
+#[derive(Default, Debug)]
+pub struct EnsembleInputProtocol;
+
+impl EnsembleInputProtocol {
+    /// The maximum value of gain.
     pub const GAIN_MIN: u8 = 0;
+
+    /// The minimum value of gain.
     pub const GAIN_MAX: u8 = 75;
+
+    /// The step of value of gain.
     pub const GAIN_STEP: u8 = 1;
 }
 
-impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
-    fn from(params: &EnsembleInputParameters) -> Self {
+impl EnsembleParametersConverter<EnsembleInputParameters> for EnsembleInputProtocol {
+    fn parse_cmds(params: &mut EnsembleInputParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            &EnsembleCmd::InputLimit(i, limit) => {
+                if i < params.limits.len() {
+                    params.limits[i] = limit;
+                }
+            }
+            &EnsembleCmd::InputNominalLevel(i, level) => {
+                if i < params.levels.len() {
+                    params.levels[i] = level;
+                }
+            }
+            &EnsembleCmd::MicGain(i, gain) => {
+                if i < params.gains.len() {
+                    params.gains[i] = gain;
+                }
+            }
+            &EnsembleCmd::MicPower(i, phantom) => {
+                if i < params.phantoms.len() {
+                    params.phantoms[i] = phantom;
+                }
+            }
+            &EnsembleCmd::MicPolarity(i, polarity) => {
+                if i < params.polarities.len() {
+                    params.polarities[i] = polarity;
+                }
+            }
+            &EnsembleCmd::InputOptIface(opt_iface_mode) => {
+                params.opt_iface_mode = opt_iface_mode;
+            }
+            _ => (),
+        })
+    }
+
+    fn build_cmds(params: &EnsembleInputParameters) -> Vec<EnsembleCmd> {
         let mut cmds = Vec::new();
 
         params
@@ -212,10 +309,16 @@ impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
     }
 }
 
+impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleInputParameters) -> Self {
+        EnsembleInputProtocol::build_cmds(params)
+    }
+}
+
 impl EnsembleParameterProtocol<EnsembleInputParameters> for BebobAvc {}
 
 /// Parameters of analog/digital outputs.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleOutputParameters {
     pub vol: u8,
     pub headphone_vols: [u8; 2],
@@ -223,26 +326,62 @@ pub struct EnsembleOutputParameters {
     pub opt_iface_mode: OptIfaceMode,
 }
 
-impl EnsembleOutputParameters {
+/// Protocol implementation for output parameters.
+#[derive(Default, Debug)]
+pub struct EnsembleOutputProtocol;
+
+impl EnsembleOutputProtocol {
+    /// The minimum value of volume.
     pub const VOL_MIN: u8 = 0;
+
+    /// The maximum value of volume.
     pub const VOL_MAX: u8 = 0x7f;
+
+    /// The step of value of volume.
     pub const VOL_STEP: u8 = 1;
+
+    fn coef_from_vol(vol: u8) -> u8 {
+        Self::VOL_MAX - vol
+    }
+
+    fn coef_to_vol(coef: u8) -> u8 {
+        Self::VOL_MAX - coef
+    }
 }
 
-impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
-    fn from(params: &EnsembleOutputParameters) -> Self {
+impl EnsembleParametersConverter<EnsembleOutputParameters> for EnsembleOutputProtocol {
+    fn parse_cmds(params: &mut EnsembleOutputParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            &EnsembleCmd::OutVol(i, coef) => {
+                let vol = Self::coef_to_vol(coef);
+                match i {
+                    0 => params.vol = vol,
+                    1..=2 => {
+                        params.headphone_vols[i - 1] = vol;
+                    }
+                    _ => (),
+                }
+            }
+            &EnsembleCmd::OutputNominalLevel(i, level) => {
+                if i < params.levels.len() {
+                    params.levels[i] = level;
+                }
+            }
+            &EnsembleCmd::OutputOptIface(opt_iface_mode) => {
+                params.opt_iface_mode = opt_iface_mode;
+            }
+            _ => (),
+        })
+    }
+
+    fn build_cmds(params: &EnsembleOutputParameters) -> Vec<EnsembleCmd> {
         let mut cmds = Vec::new();
 
         [params.vol]
             .iter()
             .chain(&params.headphone_vols)
             .enumerate()
-            .for_each(|(i, &vol)| {
-                cmds.push(EnsembleCmd::OutVol(
-                    i,
-                    EnsembleOutputParameters::VOL_MAX - vol,
-                ))
-            });
+            .for_each(|(i, &vol)| cmds.push(EnsembleCmd::OutVol(i, Self::coef_from_vol(vol))));
 
         params
             .levels
@@ -256,10 +395,16 @@ impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
     }
 }
 
+impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleOutputParameters) -> Self {
+        EnsembleOutputProtocol::build_cmds(params)
+    }
+}
+
 impl EnsembleParameterProtocol<EnsembleOutputParameters> for BebobAvc {}
 
 /// Parameters of input/output source.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleSourceParameters {
     /// To (18):
     ///   analog-output-0, analog-output-1, analog-output-2, analog-output-3,
@@ -327,27 +472,86 @@ impl Default for EnsembleSourceParameters {
     }
 }
 
-impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
-    fn from(params: &EnsembleSourceParameters) -> Self {
+/// Protocol implementation for source parameters.
+#[derive(Default, Debug)]
+pub struct EnsembleSourceProtocol;
+
+impl EnsembleSourceProtocol {
+    fn dst_id_from_out_idx(idx: usize) -> Option<usize> {
+        match idx {
+            0..=7 => Some(idx),
+            8..=17 => Some(idx + 18),
+            _ => None,
+        }
+    }
+
+    fn dst_id_to_out_idx(dst_id: usize) -> Option<usize> {
+        match dst_id {
+            0..=7 => Some(dst_id),
+            8..=25 => None,
+            26..=35 => Some(dst_id - 18),
+            _ => None,
+        }
+    }
+
+    fn dst_id_from_cap_idx(idx: usize) -> Option<usize> {
+        if idx < 18 {
+            Some(idx + 8)
+        } else {
+            None
+        }
+    }
+
+    fn dst_id_to_cap_idx(dst_id: usize) -> Option<usize> {
+        match dst_id {
+            0..=7 => None,
+            8..=25 => Some(dst_id - 8),
+            _ => None,
+        }
+    }
+
+    fn src_id_from_stream_idx(src_id: usize) -> Option<usize> {
+        match src_id {
+            0..=7 => Some(src_id),
+            8..=17 => Some(src_id + 18),
+            _ => None,
+        }
+    }
+
+    fn src_id_to_stream_idx(idx: usize) -> Option<usize> {
+        match idx {
+            0..=7 => Some(idx),
+            8..=25 => None,
+            26..=35 => Some(idx - 18),
+            _ => None,
+        }
+    }
+}
+
+impl EnsembleParametersConverter<EnsembleSourceParameters> for EnsembleSourceProtocol {
+    fn build_cmds(params: &EnsembleSourceParameters) -> Vec<EnsembleCmd> {
         let mut cmds = Vec::new();
 
         params
             .output_sources
             .iter()
             .enumerate()
-            .for_each(|(dst_id, &src_id)| {
-                let dst_id = if dst_id < 8 { dst_id } else { dst_id + 18 };
-                cmds.push(EnsembleCmd::IoRouting(dst_id, src_id));
+            .for_each(|(out_idx, &src_id)| {
+                Self::dst_id_from_out_idx(out_idx).map(|dst_id| {
+                    cmds.push(EnsembleCmd::IoRouting(dst_id, src_id));
+                });
             });
 
         params
             .capture_sources
             .iter()
             .enumerate()
-            .for_each(|(dst_id, &src)| {
-                let dst_id = dst_id + 8;
-                let src_id = if src < 8 { src } else { src + 18 };
-                cmds.push(EnsembleCmd::IoRouting(dst_id, src_id));
+            .for_each(|(cap_idx, &stream_idx)| {
+                Self::dst_id_from_cap_idx(cap_idx).map(|dst_id| {
+                    Self::src_id_from_stream_idx(stream_idx).map(|src_id| {
+                        cmds.push(EnsembleCmd::IoRouting(dst_id, src_id));
+                    });
+                });
             });
 
         params
@@ -360,12 +564,37 @@ impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
 
         cmds
     }
+
+    fn parse_cmds(params: &mut EnsembleSourceParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            &EnsembleCmd::IoRouting(dst_id, src_id) => {
+                if let Some(cap_idx) = Self::dst_id_to_cap_idx(dst_id) {
+                    Self::src_id_to_stream_idx(src_id).map(|stream_idx| {
+                        params.capture_sources[cap_idx] = stream_idx;
+                    });
+                } else if let Some(out_idx) = Self::dst_id_to_out_idx(dst_id) {
+                    params.output_sources[out_idx] = src_id;
+                }
+            }
+            &EnsembleCmd::HpSrc(dst_id, src_id) => {
+                if dst_id < params.headphone_sources.len() {
+                    params.headphone_sources[dst_id] = src_id;
+                }
+            }
+            _ => (),
+        })
+    }
+}
+impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleSourceParameters) -> Self {
+        EnsembleSourceProtocol::build_cmds(params)
+    }
 }
 
 impl EnsembleParameterProtocol<EnsembleSourceParameters> for BebobAvc {}
 
 /// Parameters of signal multiplexer.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleMixerParameters {
     /// To (4):
     ///   mixer-output-0, mixer-output-1, mixer-output-2, mixer-output-3
@@ -384,12 +613,6 @@ pub struct EnsembleMixerParameters {
     pub src_gains: [[i16; 36]; 4],
 }
 
-impl EnsembleMixerParameters {
-    pub const GAIN_MIN: i16 = 0;
-    pub const GAIN_MAX: i16 = 0xff;
-    pub const GAIN_STEP: i16 = 0x01;
-}
-
 impl Default for EnsembleMixerParameters {
     fn default() -> Self {
         let mut src_gains = [[0; 36]; 4];
@@ -399,58 +622,187 @@ impl Default for EnsembleMixerParameters {
                 .iter_mut()
                 .enumerate()
                 .filter(|(j, _)| i % 2 == j % 2)
-                .for_each(|(_, gain)| *gain = Self::GAIN_MAX);
+                .for_each(|(_, gain)| *gain = EnsembleMixerProtocol::GAIN_MAX);
         });
         Self { src_gains }
     }
 }
 
-impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
-    fn from(params: &EnsembleMixerParameters) -> Self {
+/// Mixer protocol.
+#[derive(Default, Debug)]
+pub struct EnsembleMixerProtocol;
+
+impl EnsembleMixerProtocol {
+    /// The minimum value of gain.
+    pub const GAIN_MIN: i16 = 0;
+
+    /// The maximum value of gain.
+    pub const GAIN_MAX: i16 = 0xff;
+
+    /// The step of value of gain.
+    pub const GAIN_STEP: i16 = 0x01;
+
+    fn array_indices_to_cmd_indices(dst_idx: usize, src_idx: usize) -> (usize, usize, usize) {
+        let pair_idx = dst_idx / 2;
+        let target_idx = src_idx / 9;
+        let coef_idx = (dst_idx % 2) + (src_idx % 9) * 2;
+
+        (pair_idx, target_idx, coef_idx)
+    }
+
+    fn array_indices_from_cmd_indices(
+        pair_idx: usize,
+        target_idx: usize,
+        coef_idx: usize,
+    ) -> (usize, usize) {
+        let dst_idx = pair_idx * 2 + coef_idx % 2;
+        let src_idx = target_idx * 9 + coef_idx / 2;
+
+        (dst_idx, src_idx)
+    }
+
+    fn update_params_by_cmd_content(
+        params: &mut EnsembleMixerParameters,
+        pair_idx: usize,
+        target_idx: usize,
+        gains: &[i16],
+    ) {
+        assert!(pair_idx < 2);
+        assert!(target_idx < 4);
+        assert_eq!(gains.len(), MIXER_COEFFICIENT_COUNT);
+
+        gains.iter().enumerate().for_each(|(coef_idx, &gain)| {
+            let (dst_idx, src_idx) =
+                Self::array_indices_from_cmd_indices(pair_idx, target_idx, coef_idx);
+            params.src_gains[dst_idx][src_idx] = gain;
+        });
+    }
+}
+
+// NOTE:
+//
+// Array layout:
+//
+//                src_idx 0-35
+//              +--------------------------------+
+//    dst_idx 0 |   A (L)  B (L)  C (L)  D (L)   |
+//              +--------------------------------+
+//    dst_idx 1 |   A (R)  B (R)  C (R)  D (R)   |
+//              +--------------------------------+
+//    dst_idx 2 |   E (L)  F (L)  G (L)  H (L)   |
+//              +--------------------------------+
+//    dst_idx 3 |   E (R)  F (R)  G (R)  H (R)   |
+//              +--------------------------------+
+//
+// Command content layout:
+//
+//                 pair_idx 0        pair_idx 1
+//               coef_idx 0-18     coef_idx 0-18
+//              +--------------+  +--------------+
+// target_idx 0 |  A (LRLR..)  |  |  E (LRLR..)  |
+//              +--------------+  +--------------+
+// target_idx 1 |  B (LRLR..)  |  |  F (LRLR..)  |
+//              +--------------+  +--------------+
+// target_idx 2 |  C (LRLR..)  |  |  G (LRLR..)  |
+//              +--------------+  +--------------+
+// target_idx 3 |  D (LRLR..)  |  |  H (LRLR..)  |
+//              +--------------+  +--------------+
+//
+impl EnsembleParametersConverter<EnsembleMixerParameters> for EnsembleMixerProtocol {
+    fn build_cmds(params: &EnsembleMixerParameters) -> Vec<EnsembleCmd> {
         let mut cmds = Vec::new();
 
-        (0..2).for_each(|i| {
+        (0..2).for_each(|pair_idx| {
             let mut src0_gains = [0; MIXER_COEFFICIENT_COUNT];
             let mut src1_gains = [0; MIXER_COEFFICIENT_COUNT];
             let mut src2_gains = [0; MIXER_COEFFICIENT_COUNT];
             let mut src3_gains = [0; MIXER_COEFFICIENT_COUNT];
 
-            params.src_gains[i * 2]
+            params
+                .src_gains
                 .iter()
-                .zip(params.src_gains[i * 2 + 1])
+                .skip(pair_idx * 2)
+                .take(2)
                 .enumerate()
-                .for_each(|(j, (&l, r))| {
-                    let (gains, pos) = match j {
-                        0..=8 => (&mut src0_gains, j),
-                        9..=17 => (&mut src1_gains, j - 9),
-                        18..=26 => (&mut src2_gains, j - 18),
-                        _ => (&mut src3_gains, j - 27),
-                    };
-                    gains[pos * 2] = l;
-                    gains[pos * 2 + 1] = r;
+                .for_each(|(idx, gains)| {
+                    let dst_idx = pair_idx * 2 + idx;
+                    gains.iter().enumerate().for_each(|(src_idx, &gain)| {
+                        let (_, target_idx, coef_idx) =
+                            Self::array_indices_to_cmd_indices(dst_idx, src_idx);
+                        let src_gains = match target_idx {
+                            0 => &mut src0_gains,
+                            1 => &mut src1_gains,
+                            2 => &mut src2_gains,
+                            3 => &mut src3_gains,
+                            _ => unreachable!(),
+                        };
+                        src_gains[coef_idx] = gain;
+                    });
                 });
 
-            cmds.push(EnsembleCmd::MixerSrc0(i, src0_gains));
-            cmds.push(EnsembleCmd::MixerSrc1(i, src1_gains));
-            cmds.push(EnsembleCmd::MixerSrc2(i, src2_gains));
-            cmds.push(EnsembleCmd::MixerSrc3(i, src3_gains));
+            cmds.push(EnsembleCmd::MixerSrc0(pair_idx, src0_gains));
+            cmds.push(EnsembleCmd::MixerSrc1(pair_idx, src1_gains));
+            cmds.push(EnsembleCmd::MixerSrc2(pair_idx, src2_gains));
+            cmds.push(EnsembleCmd::MixerSrc3(pair_idx, src3_gains));
         });
 
         cmds
+    }
+
+    fn parse_cmds(params: &mut EnsembleMixerParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            EnsembleCmd::MixerSrc0(pair_idx, gains) => {
+                Self::update_params_by_cmd_content(params, *pair_idx, 0, gains);
+            }
+            EnsembleCmd::MixerSrc1(pair_idx, gains) => {
+                Self::update_params_by_cmd_content(params, *pair_idx, 1, gains);
+            }
+            EnsembleCmd::MixerSrc2(pair_idx, gains) => {
+                Self::update_params_by_cmd_content(params, *pair_idx, 2, gains);
+            }
+            EnsembleCmd::MixerSrc3(pair_idx, gains) => {
+                Self::update_params_by_cmd_content(params, *pair_idx, 3, gains);
+            }
+            _ => (),
+        });
+    }
+}
+impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
+    fn from(params: &EnsembleMixerParameters) -> Self {
+        EnsembleMixerProtocol::build_cmds(params)
     }
 }
 
 impl EnsembleParameterProtocol<EnsembleMixerParameters> for BebobAvc {}
 
 /// Parameters of stream mode.
-#[derive(Default, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleStreamParameters {
     pub mode: StreamMode,
 }
 
+/// Protocol implementation for stream mode parameters.
+#[derive(Default, Debug)]
+pub struct EnsembleStreamProtocol;
+
+impl EnsembleParametersConverter<EnsembleStreamParameters> for EnsembleStreamProtocol {
+    fn build_cmds(params: &EnsembleStreamParameters) -> Vec<EnsembleCmd> {
+        vec![EnsembleCmd::Hw(HwCmd::StreamMode(params.mode))]
+    }
+
+    fn parse_cmds(params: &mut EnsembleStreamParameters, cmds: &[EnsembleCmd]) {
+        cmds.iter().for_each(|cmd| match cmd {
+            &EnsembleCmd::Hw(HwCmd::StreamMode(mode)) => {
+                params.mode = mode;
+            }
+            _ => (),
+        });
+    }
+}
+
 impl From<&EnsembleStreamParameters> for Vec<EnsembleCmd> {
     fn from(params: &EnsembleStreamParameters) -> Self {
-        vec![EnsembleCmd::Hw(HwCmd::StreamMode(params.mode))]
+        EnsembleStreamProtocol::build_cmds(params)
     }
 }
 
@@ -485,6 +837,14 @@ impl EnsembleParameterProtocol<EnsembleStreamParameters> for BebobAvc {
 
         Ok(())
     }
+}
+
+/// The converter between parameters and specific commands.
+pub trait EnsembleParametersConverter<T: Copy> {
+    /// Parse the given vector of commands for parameters.
+    fn parse_cmds(params: &mut T, cmds: &[EnsembleCmd]);
+    /// Build vector of commands by the given parameters.
+    fn build_cmds(params: &T) -> Vec<EnsembleCmd>;
 }
 
 /// The trait for parameter protocol.
@@ -595,13 +955,13 @@ const OUT_METER_POS: [usize; 16] = [
 
 /// The trait of operation for meter information.
 impl EnsembleMeterProtocol {
-    pub const OUT_KNOB_VAL_MIN: u8 = EnsembleOutputParameters::VOL_MIN;
-    pub const OUT_KNOB_VAL_MAX: u8 = EnsembleOutputParameters::VOL_MAX;
-    pub const OUT_KNOB_VAL_STEP: u8 = EnsembleOutputParameters::VOL_STEP;
+    pub const OUT_KNOB_VAL_MIN: u8 = EnsembleOutputProtocol::VOL_MIN;
+    pub const OUT_KNOB_VAL_MAX: u8 = EnsembleOutputProtocol::VOL_MAX;
+    pub const OUT_KNOB_VAL_STEP: u8 = EnsembleOutputProtocol::VOL_STEP;
 
-    pub const IN_KNOB_VAL_MIN: u8 = EnsembleInputParameters::GAIN_MIN;
-    pub const IN_KNOB_VAL_MAX: u8 = EnsembleInputParameters::GAIN_MAX;
-    pub const IN_KNOB_VAL_STEP: u8 = EnsembleInputParameters::GAIN_STEP;
+    pub const IN_KNOB_VAL_MIN: u8 = EnsembleInputProtocol::GAIN_MIN;
+    pub const IN_KNOB_VAL_MAX: u8 = EnsembleInputProtocol::GAIN_MAX;
+    pub const IN_KNOB_VAL_STEP: u8 = EnsembleInputProtocol::GAIN_STEP;
 
     pub const LEVEL_MIN: u8 = u8::MIN;
     pub const LEVEL_MAX: u8 = u8::MAX;
@@ -1256,6 +1616,143 @@ impl AvcControl for EnsembleOperation {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn converter_params_and_cmds() {
+        let params = EnsembleConverterParameters {
+            format_target: FormatConvertTarget::SpdifCoaxialInputPair0,
+            rate_target: RateConvertTarget::SpdifOpticalOutputPair0,
+            converted_rate: RateConvertRate::R88200,
+            cd_mode: true,
+        };
+        let cmds = EnsembleConverterProtocol::build_cmds(&params);
+        let mut p = EnsembleConverterParameters::default();
+        EnsembleConverterProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn display_params_and_cmds() {
+        let params = EnsembleDisplayParameters {
+            enabled: false,
+            illuminate: true,
+            target: DisplayMeterTarget::Output,
+            overhold: true,
+        };
+        let cmds = EnsembleDisplayProtocol::build_cmds(&params);
+        let mut p = EnsembleDisplayParameters::default();
+        EnsembleDisplayProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn input_params_and_cmds() {
+        let params = EnsembleInputParameters {
+            limits: [false, true, false, true, true, false, true, false],
+            levels: [
+                InputNominalLevel::Professional,
+                InputNominalLevel::Consumer,
+                InputNominalLevel::Microphone,
+                InputNominalLevel::Professional,
+                InputNominalLevel::Consumer,
+                InputNominalLevel::Microphone,
+                InputNominalLevel::Professional,
+                InputNominalLevel::Consumer,
+            ],
+            gains: [10, 20, 30, 40],
+            phantoms: [true, false, false, true],
+            polarities: [false, true, true, false],
+            opt_iface_mode: OptIfaceMode::Adat,
+        };
+        let cmds = EnsembleInputProtocol::build_cmds(&params);
+        let mut p = EnsembleInputParameters::default();
+        EnsembleInputProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn output_params_and_cmds() {
+        let params = EnsembleOutputParameters {
+            vol: 0x72,
+            headphone_vols: [0x4f, 0x5a],
+            levels: [
+                OutputNominalLevel::Professional,
+                OutputNominalLevel::Consumer,
+                OutputNominalLevel::Professional,
+                OutputNominalLevel::Consumer,
+                OutputNominalLevel::Professional,
+                OutputNominalLevel::Consumer,
+                OutputNominalLevel::Professional,
+                OutputNominalLevel::Consumer,
+            ],
+            opt_iface_mode: OptIfaceMode::Adat,
+        };
+        let cmds = EnsembleOutputProtocol::build_cmds(&params);
+        let mut p = EnsembleOutputParameters::default();
+        EnsembleOutputProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn source_params_and_cmds() {
+        let params = EnsembleSourceParameters {
+            output_sources: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 17, 16, 15, 14, 13, 12, 11, 10],
+            capture_sources: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 17, 16, 15, 14, 13, 12, 11, 10],
+            headphone_sources: [7, 2],
+        };
+        let cmds = EnsembleSourceProtocol::build_cmds(&params);
+        let mut p = EnsembleSourceParameters::default();
+        EnsembleSourceProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn mixer_params_and_cmds() {
+        let params = EnsembleMixerParameters {
+            src_gains: [
+                [
+                    39, -84, 33, 93, -55, 26, -14, -16, 36, 25, -76, 27, -90, -22, -92, 15, -98,
+                    90, 55, 58, 0, -33, -3, -86, 62, -57, 45, 2, 51, -39, 53, 41, -58, -18, -88,
+                    -38,
+                ],
+                [
+                    -12, -78, -72, -43, -50, -73, 19, -9, 21, 28, -15, 36, 55, -58, 22, 56, 39, 43,
+                    10, -1, 60, -6, -29, 15, -98, 46, 90, -67, 32, 83, -55, 66, 54, 48, 62, -49,
+                ],
+                [
+                    10, -100, 90, 18, -3, -61, -2, -37, -29, -60, 99, -16, 54, 28, -17, 17, -69,
+                    33, -81, -56, -39, 3, 22, 85, -35, -52, -21, 40, 21, -67, 45, 80, 0, 42, -88,
+                    63,
+                ],
+                [
+                    4, -72, 18, -56, 10, 68, -82, 82, 94, -8, -9, 6, -79, 64, 30, -50, -88, -23,
+                    -34, 23, -33, 77, -28, -7, 21, -32, -42, -58, -1, 71, 84, 37, -80, -19, 88, 0,
+                ],
+            ],
+        };
+        let cmds = EnsembleMixerProtocol::build_cmds(&params);
+        let mut p = EnsembleMixerParameters::default();
+        EnsembleMixerProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
+
+    #[test]
+    fn stream_params() {
+        let params = EnsembleStreamParameters {
+            mode: StreamMode::Format10x10,
+        };
+        let cmds = EnsembleStreamProtocol::build_cmds(&params);
+        let mut p = EnsembleStreamParameters::default();
+        EnsembleStreamProtocol::parse_cmds(&mut p, &cmds);
+
+        assert_eq!(params, p);
+    }
 
     #[test]
     fn vendorcmd_from() {
