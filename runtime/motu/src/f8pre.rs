@@ -117,11 +117,11 @@ struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
 impl Default for MeterCtl {
     fn default() -> Self {
-        Self(F896hdProtocol::create_meter_state(), Default::default())
+        Self(F8preProtocol::create_meter_state(), Default::default())
     }
 }
 
-impl RegisterDspMeterCtlOperation<F896hdProtocol> for MeterCtl {
+impl RegisterDspMeterCtlOperation<F8preProtocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {
         &self.0
     }
