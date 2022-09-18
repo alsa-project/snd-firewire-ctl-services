@@ -79,8 +79,16 @@ impl RegisterDspMixerReturnCtlOperation<F8preProtocol> for MixerReturnCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerSourceCtl(RegisterDspMixerMonauralSourceState, Vec<ElemId>);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(
+            F8preProtocol::create_mixer_monaural_source_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMixerMonauralSourceCtlOperation<F8preProtocol> for MixerSourceCtl {
     fn state(&self) -> &RegisterDspMixerMonauralSourceState {

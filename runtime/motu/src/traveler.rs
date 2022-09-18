@@ -95,8 +95,16 @@ impl RegisterDspMixerReturnCtlOperation<TravelerProtocol> for MixerReturnCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerSourceCtl(RegisterDspMixerMonauralSourceState, Vec<ElemId>);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(
+            TravelerProtocol::create_mixer_monaural_source_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMixerMonauralSourceCtlOperation<TravelerProtocol> for MixerSourceCtl {
     fn state(&self) -> &RegisterDspMixerMonauralSourceState {
