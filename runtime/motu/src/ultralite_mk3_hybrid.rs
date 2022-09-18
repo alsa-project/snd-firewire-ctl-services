@@ -80,8 +80,16 @@ impl CommandDspMonitorCtlOperation<UltraliteMk3HybridProtocol> for MonitorCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerCtl(CommandDspMixerState, Vec<ElemId>);
+
+impl Default for MixerCtl {
+    fn default() -> Self {
+        Self(
+            UltraliteMk3HybridProtocol::create_mixer_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspMixerCtlOperation<UltraliteMk3HybridProtocol> for MixerCtl {
     fn state(&self) -> &CommandDspMixerState {
