@@ -222,7 +222,7 @@ impl EnsembleParameterProtocol<EnsembleDisplayParameters> for EnsembleDisplayPro
 pub struct EnsembleInputParameters {
     /// Whether to enable/disable limitter of analog inputs.
     pub limits: [bool; 8],
-    /// The level of analog inputs.
+    /// The nominal level of analog inputs.
     pub levels: [InputNominalLevel; 8],
     /// The gain of microphone inputs.
     pub gains: [u8; 4],
@@ -338,7 +338,7 @@ pub struct EnsembleOutputParameters {
     pub vol: u8,
     /// The volume of headphone outputs.
     pub headphone_vols: [u8; 2],
-    /// The level of outputs.
+    /// The nominal level of outputs.
     pub levels: [OutputNominalLevel; 8],
     /// The mode of optical outputs.
     pub opt_iface_mode: OptIfaceMode,
@@ -1054,7 +1054,7 @@ impl EnsembleMeterProtocol {
 }
 
 /// The nominal level of analog input 0-7.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum InputNominalLevel {
     /// +4 dBu.
     Professional,
@@ -1071,7 +1071,7 @@ impl Default for InputNominalLevel {
 }
 
 /// The nominal level of analog ouput 0-7.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OutputNominalLevel {
     /// +4 dBu.
     Professional,
@@ -1086,7 +1086,7 @@ impl Default for OutputNominalLevel {
 }
 
 /// The mode of signal in optical interface.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum OptIfaceMode {
     Spdif,
     Adat,
@@ -1115,16 +1115,25 @@ fn opt_iface_mode_from_val(val: u8) -> OptIfaceMode {
 }
 
 /// The target to convert sample format from 24 bit to 16 bit.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FormatConvertTarget {
+    /// Disabled.
     Disabled,
+    /// 1st pair of analog inputs.
     AnalogInputPair0,
+    /// 2nd pair of analog inputs.
     AnalogInputPair1,
+    /// 3rd pair of analog inputs.
     AnalogInputPair2,
+    /// 4th pair of analog inputs.
     AnalogInputPair3,
+    /// The pair of S/PDIF input in optical interface.
     SpdifOpticalInputPair0,
+    /// The pair of S/PDIF input in coaxial interface.
     SpdifCoaxialInputPair0,
+    /// The pair of S/PDIF output in optical interface.
     SpdifCoaxialOutputPair0,
+    /// The pair of S/PDIF output in coaxial interface.
     SpdifOpticalOutputPair0,
 }
 
@@ -1135,12 +1144,17 @@ impl Default for FormatConvertTarget {
 }
 
 /// The target to convert sample rate.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum RateConvertTarget {
+    /// Disabled.
     Disabled,
+    /// The pair of S/PDIF output in optical interface.
     SpdifOpticalOutputPair0,
+    /// The pair of S/PDIF output in coaxial interface.
     SpdifCoaxialOutputPair0,
+    /// The pair of S/PDIF input in optical interface.
     SpdifOpticalInputPair0,
+    /// The pair of S/PDIF input in coaxial interface.
     SpdifCoaxialInputPair0,
 }
 
@@ -1153,11 +1167,17 @@ impl Default for RateConvertTarget {
 /// The rate to convert sample rate.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum RateConvertRate {
+    /// To 44.1 kHz.
     R44100,
+    /// To 48.0 kHz.
     R48000,
+    /// To 88.2 kHz.
     R88200,
+    /// To 96.0 kHz.
     R96000,
+    /// To 176.0 kHz.
     R176400,
+    /// To 192.0 kHz.
     R192000,
 }
 
@@ -1174,25 +1194,45 @@ const MIXER_COEFFICIENT_COUNT: usize = 18;
 /// Command specific to Apogee Ensemble.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum EnsembleCmd {
+    /// Limitter for 8 analog inputs.
     InputLimit(usize, bool), // index, state
-    MicPower(usize, bool),   // index, state
+    /// Phantom powering for 4 microphone inputs.
+    MicPower(usize, bool), // index, state
+    /// The nominal level of 8 analog inputs.
     InputNominalLevel(usize, InputNominalLevel),
+    /// The nominal level of 8 analog outputs.
     OutputNominalLevel(usize, OutputNominalLevel),
+    /// The routing between source and destination.
     IoRouting(usize, usize), // destination, source
+    /// Hardware type of command.
     Hw(HwCmd),
+    /// The source of 4 headphone outputs.
     HpSrc(usize, usize), // destination, source
+    /// The source of 1st nine pairs of coefficients for two pairs of mixers.
     MixerSrc0(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    /// The source of 2nd nine pairs of coefficients for two pairs of mixers.
     MixerSrc1(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    /// The source of 3rd nine pairs of coefficients for two pairs of mixers.
     MixerSrc2(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    /// The source of 4th nine pairs of coefficients for two pairs of mixers.
     MixerSrc3(usize, [i16; MIXER_COEFFICIENT_COUNT]),
+    /// The gain of 4 microphone inputs, between 10 and 75.
     MicGain(usize, u8), // 1/2/3/4, dB(10-75), also available as knob control
+    /// The mode of output in optical interface.
     OutputOptIface(OptIfaceMode),
+    /// The mode of input in optical interface.
     InputOptIface(OptIfaceMode),
+    /// The target of converter for sample format.
     FormatConvert(FormatConvertTarget),
+    /// The parameters of sampling rate converter.
     RateConvert(RateConvertTarget, RateConvertRate),
+    /// The polarity for 4 microphone inputs.
     MicPolarity(usize, bool), // index, state
-    OutVol(usize, u8),        // main/hp0/hp1, dB(127-0), also available as knob control
+    /// The volume of output.
+    OutVol(usize, u8), // main/hp0/hp1, dB(127-0), also available as knob control
+    /// The short expression of hardware status.
     HwStatusShort([u8; METER_SHORT_FRAME_SIZE]),
+    /// The long expression of hardware status.
     HwStatusLong([u8; METER_LONG_FRAME_SIZE]),
     Reserved(Vec<u8>),
 }
@@ -1486,10 +1526,13 @@ impl From<&[u8]> for EnsembleCmd {
 }
 
 /// The mode of stream format.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum StreamMode {
+    /// For 18 channels capture and 18 channels playback.
     Format18x18,
+    /// For 10 channels capture and 10 channels playback.
     Format10x10,
+    /// For 8 channels capture and 8 channels playback.
     Format8x8,
 }
 
@@ -1500,9 +1543,11 @@ impl Default for StreamMode {
 }
 
 /// The target of display meter.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisplayMeterTarget {
+    /// For outputs.
     Output,
+    /// For inputs.
     Input,
 }
 
@@ -1513,15 +1558,21 @@ impl Default for DisplayMeterTarget {
 }
 
 /// Command for functions in hardware category specific to Apogee Ensemble.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HwCmd {
-    /// STREAM_MODE command generates bus reset to change available stream formats.
+    /// The mode of isochronous stream in IEEE 1394 bus. Any change generates bus reset in the bus.
     StreamMode(StreamMode),
+    /// Whether to illuminate display.
     DisplayIlluminate(bool),
+    /// Whether to enable/disable display.
     DisplayMode(bool),
+    /// The target of metering display.
     DisplayTarget(DisplayMeterTarget),
+    /// Whether to enable/disable overhold of peak detection.
     DisplayOverhold(bool),
+    /// Reset display metering.
     MeterReset,
+    /// The mode of CD (44.1 kHz/16 bit sample).
     CdMode(bool),
     Reserved(Vec<u8>),
 }
