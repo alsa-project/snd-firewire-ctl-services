@@ -176,8 +176,16 @@ impl CommandDspResourcebCtlOperation for ResourceCtl {
     }
 }
 
-#[derive(Default)]
 struct MeterCtl(CommandDspMeterState, Vec<ElemId>);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(
+            TravelerMk3Protocol::create_meter_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspMeterCtlOperation<TravelerMk3Protocol> for MeterCtl {
     fn state(&self) -> &CommandDspMeterState {
