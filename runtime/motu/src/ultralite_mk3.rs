@@ -101,8 +101,16 @@ impl CommandDspMixerCtlOperation<UltraliteMk3Protocol> for MixerCtl {
     }
 }
 
-#[derive(Default)]
 struct InputCtl(CommandDspInputState, Vec<ElemId>);
+
+impl Default for InputCtl {
+    fn default() -> Self {
+        Self(
+            UltraliteMk3Protocol::create_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspInputCtlOperation<UltraliteMk3Protocol> for InputCtl {
     fn state(&self) -> &CommandDspInputState {

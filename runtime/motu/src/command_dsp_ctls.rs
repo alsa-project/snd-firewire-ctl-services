@@ -2553,9 +2553,6 @@ pub trait CommandDspInputCtlOperation<T: CommandDspInputOperation> {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let state = T::create_input_state();
-        *self.state_mut() = state;
-
         let mut notified_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_PHASE_NAME, 0);

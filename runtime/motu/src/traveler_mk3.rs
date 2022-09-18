@@ -121,8 +121,16 @@ impl CommandDspMixerCtlOperation<TravelerMk3Protocol> for MixerCtl {
     }
 }
 
-#[derive(Default)]
 struct InputCtl(CommandDspInputState, Vec<ElemId>);
+
+impl Default for InputCtl {
+    fn default() -> Self {
+        Self(
+            TravelerMk3Protocol::create_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspInputCtlOperation<TravelerMk3Protocol> for InputCtl {
     fn state(&self) -> &CommandDspInputState {
