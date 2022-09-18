@@ -66,8 +66,16 @@ impl RegisterDspMixerReturnCtlOperation<H4preProtocol> for MixerReturnCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerSourceCtl(RegisterDspMixerStereoSourceState, Vec<ElemId>);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(
+            H4preProtocol::create_mixer_stereo_source_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMixerStereoSourceCtlOperation<H4preProtocol> for MixerSourceCtl {
     fn state(&self) -> &RegisterDspMixerStereoSourceState {
