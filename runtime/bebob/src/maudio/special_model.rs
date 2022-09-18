@@ -34,31 +34,9 @@ impl<T: MediaClockFrequencyOperation> MediaClkFreqCtlOperation<T> for ClkCtl<T> 
 #[derive(Default)]
 struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
 
-impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
-    fn load(
-        &mut self,
-        unit: &mut (SndUnit, FwNode),
-        card_cntr: &mut CardCntr,
-    ) -> Result<(), Error> {
-        self.avc.bind(&unit.1)?;
-
-        self.clk_ctl
-            .load_freq(card_cntr)
-            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
-
-        self.meter_ctl.load_state(card_cntr)?;
-
-        self.input_ctl.load_params(card_cntr)?;
-        self.output_ctl.load_params(card_cntr)?;
-        self.aux_ctl.load_params(card_cntr)?;
-        self.mixer_ctl.load_params(card_cntr)?;
-
-        MaudioSpecialMeterProtocol::cache(
-            &self.req,
-            &unit.1,
-            &mut self.meter_ctl.0,
-            TIMEOUT_MS,
-        )?;
+impl<T: MediaClockFrequencyOperation> SpecialModel<T> {
+    pub fn cache(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        MaudioSpecialMeterProtocol::cache(&self.req, &unit.1, &mut self.meter_ctl.0, TIMEOUT_MS)?;
         MaudioSpecialInputProtocol::whole_update(
             &self.req,
             &unit.1,
@@ -89,6 +67,29 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
         )?;
 
         Ok(())
+    }
+}
+
+impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
+    fn load(
+        &mut self,
+        unit: &mut (SndUnit, FwNode),
+        card_cntr: &mut CardCntr,
+    ) -> Result<(), Error> {
+        self.avc.bind(&unit.1)?;
+
+        self.clk_ctl
+            .load_freq(card_cntr)
+            .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
+
+        self.meter_ctl.load_state(card_cntr)?;
+
+        self.input_ctl.load_params(card_cntr)?;
+        self.output_ctl.load_params(card_cntr)?;
+        self.aux_ctl.load_params(card_cntr)?;
+        self.mixer_ctl.load_params(card_cntr)?;
+
+        self.cache(unit)
     }
 
     fn read(
@@ -173,9 +174,7 @@ impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialMod
     }
 }
 
-impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)>
-    for SpecialModel<T>
-{
+impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)> for SpecialModel<T> {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.meter_ctl.1);
         elem_id_list.extend_from_slice(&self.output_ctl.1);
@@ -263,9 +262,7 @@ impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)>
     }
 }
 
-impl<T: MediaClockFrequencyOperation> NotifyModel<(SndUnit, FwNode), bool>
-    for SpecialModel<T>
-{
+impl<T: MediaClockFrequencyOperation> NotifyModel<(SndUnit, FwNode), bool> for SpecialModel<T> {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
