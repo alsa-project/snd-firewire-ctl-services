@@ -376,21 +376,6 @@ impl Default for MaudioSpecialStateCache {
     }
 }
 
-impl MaudioSpecialStateCache {
-    pub fn download(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        (0..CACHE_SIZE).step_by(4).try_for_each(|pos| {
-            req.transaction_sync(
-                node,
-                FwTcode::WriteQuadletRequest,
-                DM_APPL_PARAM_OFFSET + pos as u64,
-                4,
-                &mut self.0[pos..(pos + 4)],
-                timeout_ms,
-            )
-        })
-    }
-}
-
 /// Parameters of input.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialInputParameters {
@@ -437,12 +422,6 @@ impl Default for MaudioSpecialInputParameters {
                 MaudioSpecialInputProtocol::BALANCE_MAX,
             ],
         }
-    }
-}
-
-impl MaudioSpecialParameterOperation for MaudioSpecialInputParameters {
-    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        MaudioSpecialInputProtocol::serialize(self, cache)
     }
 }
 
@@ -512,7 +491,6 @@ impl SpecialParametersSerdes<MaudioSpecialInputParameters> for MaudioSpecialInpu
         });
     }
 }
-impl MaudioSpecialParameterProtocol<MaudioSpecialInputParameters> for MaudioSpecialInputProtocol {}
 
 /// Source of analog output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -561,12 +539,6 @@ impl Default for MaudioSpecialOutputParameters {
                 HeadphoneSource::MixerOutputPair1,
             ],
         }
-    }
-}
-
-impl MaudioSpecialParameterOperation for MaudioSpecialOutputParameters {
-    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        MaudioSpecialOutputProtocol::serialize(self, cache)
     }
 }
 
@@ -704,8 +676,6 @@ impl SpecialParametersSerdes<MaudioSpecialOutputParameters> for MaudioSpecialOut
     }
 }
 
-impl MaudioSpecialParameterProtocol<MaudioSpecialOutputParameters> for MaudioSpecialOutputProtocol {}
-
 /// Parameters of aux signal multiplexer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialAuxParameters {
@@ -734,12 +704,6 @@ impl Default for MaudioSpecialAuxParameters {
             spdif_gains: [MaudioSpecialAuxProtocol::GAIN_MIN; 2],
             adat_gains: [MaudioSpecialAuxProtocol::GAIN_MIN; 8],
         }
-    }
-}
-
-impl MaudioSpecialParameterOperation for MaudioSpecialAuxParameters {
-    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        MaudioSpecialAuxProtocol::serialize(self, cache)
     }
 }
 
@@ -804,8 +768,6 @@ impl SpecialParametersSerdes<MaudioSpecialAuxParameters> for MaudioSpecialAuxPro
     }
 }
 
-impl MaudioSpecialParameterProtocol<MaudioSpecialAuxParameters> for MaudioSpecialAuxProtocol {}
-
 /// Parameters of signal multiplexer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialMixerParameters {
@@ -823,12 +785,6 @@ impl Default for MaudioSpecialMixerParameters {
             adat_pairs: [[false; 4]; 2],
             stream_pairs: [[true, false], [false, true]],
         }
-    }
-}
-
-impl MaudioSpecialParameterOperation for MaudioSpecialMixerParameters {
-    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]) {
-        MaudioSpecialMixerProtocol::serialize(self, cache)
     }
 }
 
@@ -957,7 +913,6 @@ impl SpecialParametersSerdes<MaudioSpecialMixerParameters> for MaudioSpecialMixe
             });
     }
 }
-impl MaudioSpecialParameterProtocol<MaudioSpecialMixerParameters> for MaudioSpecialMixerProtocol {}
 
 /// Protocol interface for each type of parameters.
 pub trait SpecialParametersSerdes<T: Copy> {
@@ -971,15 +926,58 @@ pub trait SpecialParametersSerdes<T: Copy> {
     fn deserialize(params: &mut T, raw: &[u8]);
 }
 
-/// The trait for operation about parameters.
-pub trait MaudioSpecialParameterOperation {
-    fn write_to_cache(&self, cache: &mut [u8; CACHE_SIZE]);
-}
-
 /// The trait for protocol of parameters.
-pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Copy>:
-    SpecialParametersSerdes<T>
-{
+pub trait MaudioSpecialParameterProtocol<T: Copy>: SpecialParametersSerdes<T> {
+    /// Update the hardware for the whole parameters.
+    fn whole_update(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        cache: &mut MaudioSpecialStateCache,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        assert!(Self::OFFSET_RANGES.len() > 0);
+
+        Self::serialize(params, &mut cache.0);
+
+        let mut peek_iter = Self::OFFSET_RANGES.iter().peekable();
+        let mut prev_offset = Self::OFFSET_RANGES[0].start;
+
+        // NOTE: detect range of continuous offsets or the end entry.
+        while let Some(curr_range) = peek_iter.next() {
+            let begin_offset = prev_offset;
+            let mut next = peek_iter.peek();
+
+            if let Some(next_range) = next {
+                if curr_range.end != next_range.start {
+                    prev_offset = next_range.start;
+                    next = None;
+                }
+            }
+
+            if next.is_none() {
+                let raw = &mut cache.0[begin_offset..curr_range.end];
+                if raw.len() == 4 {
+                    FwTcode::WriteQuadletRequest
+                } else {
+                    FwTcode::WriteBlockRequest
+                };
+
+                req.transaction_sync(
+                    node,
+                    FwTcode::WriteQuadletRequest,
+                    DM_APPL_PARAM_OFFSET + begin_offset as u64,
+                    raw.len(),
+                    raw,
+                    timeout_ms,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update the hardware partially for any change of parameter.
     fn update_params(
         req: &FwReq,
         node: &FwNode,
@@ -1011,6 +1009,8 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
             .map(|_| *old = *params)
     }
 }
+
+impl<O: SpecialParametersSerdes<T>, T: Copy> MaudioSpecialParameterProtocol<T> for O {}
 
 #[cfg(test)]
 mod test {
