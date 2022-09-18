@@ -43,6 +43,36 @@ fn input_output_copy_from_meter(model: &mut EnsembleModel) {
         .copy_from_slice(&m.knob_output_vals[1..]);
 }
 
+impl EnsembleModel {
+    pub fn cache(&mut self, _: &mut (SndUnit, FwNode)) -> Result<(), Error> {
+        EnsembleMeterProtocol::whole_update(&mut self.avc, &mut self.meter_ctl.0, FCP_TIMEOUT_MS)?;
+        EnsembleConverterProtocol::whole_update(
+            &mut self.avc,
+            &mut self.convert_ctl.0,
+            FCP_TIMEOUT_MS,
+        )?;
+        EnsembleDisplayProtocol::whole_update(
+            &mut self.avc,
+            &mut self.display_ctl.0,
+            FCP_TIMEOUT_MS,
+        )?;
+        EnsembleInputProtocol::whole_update(&mut self.avc, &mut self.input_ctl.0, FCP_TIMEOUT_MS)?;
+        EnsembleOutputProtocol::whole_update(
+            &mut self.avc,
+            &mut self.output_ctl.0,
+            FCP_TIMEOUT_MS,
+        )?;
+        EnsembleSourceProtocol::whole_update(&mut self.avc, &mut self.route_ctl.0, FCP_TIMEOUT_MS)?;
+        EnsembleMixerProtocol::whole_update(&mut self.avc, &mut self.mixer_ctl.0, FCP_TIMEOUT_MS)?;
+        EnsembleStreamProtocol::whole_update(
+            &mut self.avc,
+            &mut self.stream_ctl.0,
+            FCP_TIMEOUT_MS,
+        )?;
+        Ok(())
+    }
+}
+
 impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
     fn load(
         &mut self,
@@ -60,31 +90,24 @@ impl CtlModel<(SndUnit, FwNode)> for EnsembleModel {
             .map(|mut elem_id_list| self.clk_ctl.0.append(&mut elem_id_list))?;
 
         self.meter_ctl
-            .load_state(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)
+            .load_state(card_cntr)
             .map(|_| input_output_copy_from_meter(self))?;
 
-        self.convert_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.convert_ctl.load_params(card_cntr)?;
 
-        self.display_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.display_ctl.load_params(card_cntr)?;
 
-        self.input_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.input_ctl.load_params(card_cntr)?;
 
-        self.output_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.output_ctl.load_params(card_cntr)?;
 
-        self.route_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.route_ctl.load_params(card_cntr)?;
 
-        self.mixer_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.mixer_ctl.load_params(card_cntr)?;
 
-        self.stream_ctl
-            .load_params(card_cntr, &mut self.avc, FCP_TIMEOUT_MS)?;
+        self.stream_ctl.load_params(card_cntr)?;
 
-        Ok(())
+        self.cache(unit)
     }
 
     fn read(
@@ -330,12 +353,7 @@ impl MeterCtl {
     const LEVEL_MAX: i32 = EnsembleMeterProtocol::LEVEL_MAX as i32;
     const LEVEL_STEP: i32 = EnsembleMeterProtocol::LEVEL_STEP as i32;
 
-    fn load_state(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_state(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::KNOB_INPUT_TARGETS
             .iter()
             .map(|t| knob_input_target_to_str(t))
@@ -382,7 +400,7 @@ impl MeterCtl {
             )
             .map(|mut elem_id_list| self.1.append(&mut elem_id_list))?;
 
-        self.measure_state(avc, timeout_ms)
+        Ok(())
     }
 
     fn measure_state(&mut self, avc: &mut BebobAvc, timeout_ms: u32) -> Result<(), Error> {
@@ -497,12 +515,7 @@ impl ConvertCtl {
         RateConvertRate::R192000,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::FORMAT_CONVERT_TARGETS
             .iter()
             .map(|t| format_convert_target_to_str(t))
@@ -527,7 +540,7 @@ impl ConvertCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CD_MODE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        EnsembleConverterProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -644,12 +657,7 @@ impl DisplayCtl {
     const DISPLAY_METER_TARGETS: [DisplayMeterTarget; 2] =
         [DisplayMeterTarget::Output, DisplayMeterTarget::Input];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_ENABLE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
@@ -666,7 +674,7 @@ impl DisplayCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_OVERHOLD_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        EnsembleDisplayProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -780,12 +788,7 @@ impl InputCtl {
         InputNominalLevel::Microphone,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_LIMIT_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, Self::INPUT_LABELS.len(), true)?;
 
@@ -824,7 +827,7 @@ impl InputCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        EnsembleInputProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -981,12 +984,7 @@ impl<'a> OutputCtl {
         OutputNominalLevel::Consumer,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::NOMINAL_LEVELS
             .iter()
             .map(|l| output_nominal_level_to_str(l))
@@ -1031,7 +1029,7 @@ impl<'a> OutputCtl {
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        EnsembleOutputProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1259,12 +1257,7 @@ impl RouteCtl {
         "none",
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUT_SRC_NAME, 0);
         let _ = card_cntr.add_enum_elems(
             &elem_id,
@@ -1295,7 +1288,7 @@ impl RouteCtl {
             true,
         )?;
 
-        EnsembleSourceProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1439,12 +1432,7 @@ impl MixerCtl {
         mute_avail: true,
     };
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, MIXER_SRC_GAIN_NAME, 0);
         let _ = card_cntr.add_int_elems(
             &elem_id,
@@ -1457,7 +1445,7 @@ impl MixerCtl {
             true,
         )?;
 
-        EnsembleMixerProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1521,12 +1509,7 @@ impl StreamCtl {
         StreamMode::Format8x8,
     ];
 
-    fn load_params(
-        &mut self,
-        card_cntr: &mut CardCntr,
-        avc: &mut BebobAvc,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
+    fn load_params(&mut self, card_cntr: &mut CardCntr) -> Result<(), Error> {
         let labels: Vec<&str> = Self::STREAM_MODES
             .iter()
             .map(|m| stream_mode_to_str(m))
@@ -1535,7 +1518,7 @@ impl StreamCtl {
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, STREAM_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        EnsembleStreamProtocol::whole_update(avc, &mut self.0, timeout_ms)
+        Ok(())
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
