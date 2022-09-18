@@ -105,8 +105,13 @@ impl RegisterDspOutputCtlOperation<F8preProtocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(F896hdProtocol::create_meter_state(), Default::default())
+    }
+}
 
 impl RegisterDspMeterCtlOperation<F896hdProtocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {

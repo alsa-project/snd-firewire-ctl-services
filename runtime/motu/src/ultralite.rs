@@ -109,8 +109,13 @@ impl RegisterDspMonauralInputCtlOperation<UltraliteProtocol> for InputCtl {
     }
 }
 
-#[derive(Default)]
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(UltraliteProtocol::create_meter_state(), Default::default())
+    }
+}
 
 impl RegisterDspMeterCtlOperation<UltraliteProtocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {

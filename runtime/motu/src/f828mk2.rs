@@ -133,8 +133,13 @@ impl RegisterDspLineInputCtlOperation<F828mk2Protocol> for LineInputCtl {
     }
 }
 
-#[derive(Default)]
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(F828mk2Protocol::create_meter_state(), Default::default())
+    }
+}
 
 impl RegisterDspMeterCtlOperation<F828mk2Protocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {
