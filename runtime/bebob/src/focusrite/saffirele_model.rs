@@ -35,28 +35,24 @@ struct MeterCtl(Vec<ElemId>, SaffireLeMeter);
 #[derive(Default)]
 struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
 
-impl AsRef<SaffireOutputParameters> for OutputCtl {
-    fn as_ref(&self) -> &SaffireOutputParameters {
-        &self.1
-    }
-}
-
-impl AsMut<SaffireOutputParameters> for OutputCtl {
-    fn as_mut(&mut self) -> &mut SaffireOutputParameters {
-        &mut self.1
-    }
-}
-
-#[derive(Default)]
-struct SpecificCtl(SaffireLeSpecificParameters);
-
 impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
         "analog-output-1/2",
         "analog-output-3/4",
         "analog-output-5/6",
     ];
+
+    fn state(&self) -> &SaffireOutputParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireOutputParameters {
+        &mut self.1
+    }
 }
+
+#[derive(Default)]
+struct SpecificCtl(SaffireLeSpecificParameters);
 
 #[derive(Default)]
 struct MixerLowRateCtl(SaffireLeMixerLowRateState);

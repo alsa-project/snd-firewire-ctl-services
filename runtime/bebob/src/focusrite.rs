@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (c) 2021 Takashi Sakamoto
 
-pub mod saffirepro10io_model;
-pub mod saffirepro26io_model;
+pub mod saffireproio_model;
 
 pub mod saffire_model;
 pub mod saffirele_model;
@@ -134,9 +133,10 @@ const MUTE_LED_NAME: &str = "mute-led";
 const DIM_LED_NAME: &str = "dim-led";
 const EFFECTIVE_CLOCK_SRC_NAME: &str = "effective-clock-source";
 
-trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
-    AsRef<SaffireProioMeterState> + AsMut<SaffireProioMeterState>
-{
+trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation> {
+    fn state(&self) -> &SaffireProioMeterState;
+    fn state_mut(&mut self) -> &mut SaffireProioMeterState;
+
     fn load_state(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -181,27 +181,27 @@ trait SaffireProioMeterCtlOperation<T: SaffireProioMeterOperation>:
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_state(req, &unit.1, self.as_mut(), timeout_ms)
+        T::read_state(req, &unit.1, self.state_mut(), timeout_ms)
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             MONITOR_KNOB_VALUE_NAME => {
-                elem_value.set_int(&[self.as_ref().monitor_knob as i32]);
+                elem_value.set_int(&[self.state().monitor_knob as i32]);
                 Ok(true)
             }
             MUTE_LED_NAME => {
-                elem_value.set_bool(&[self.as_ref().mute_led]);
+                elem_value.set_bool(&[self.state().mute_led]);
                 Ok(true)
             }
             DIM_LED_NAME => {
-                elem_value.set_bool(&[self.as_ref().dim_led]);
+                elem_value.set_bool(&[self.state().dim_led]);
                 Ok(true)
             }
             EFFECTIVE_CLOCK_SRC_NAME => {
                 let pos = T::SRC_LIST
                     .iter()
-                    .position(|s| s.eq(&self.as_ref().effective_clk_srcs))
+                    .position(|s| s.eq(&self.state().effective_clk_srcs))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
@@ -224,10 +224,11 @@ const LEVEL_TLV: DbInterval = DbInterval {
     mute_avail: false,
 };
 
-trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
-    AsRef<SaffireOutputParameters> + AsMut<SaffireOutputParameters>
-{
+trait SaffireOutputCtlOperation<T: SaffireOutputOperation> {
     const OUTPUT_LABELS: &'static [&'static str];
+
+    fn state(&self) -> &SaffireOutputParameters;
+    fn state_mut(&mut self) -> &mut SaffireOutputParameters;
 
     fn load_params(
         &mut self,
@@ -242,7 +243,7 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
             "Programming error about labels for physical outputs",
         );
 
-        *self.as_mut() = T::create_output_parameters();
+        *self.state_mut() = T::create_output_parameters();
 
         let mut measure_elem_id_list = Vec::new();
 
@@ -286,7 +287,7 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
                 .map(|mut elem_id_list| measure_elem_id_list.append(&mut elem_id_list))?;
         }
 
-        T::read_output_parameters(req, &unit.1, self.as_mut(), true, timeout_ms)?;
+        T::read_output_parameters(req, &unit.1, self.state_mut(), true, timeout_ms)?;
 
         Ok(measure_elem_id_list)
     }
@@ -297,30 +298,30 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        T::read_output_parameters(req, &unit.1, self.as_mut(), false, timeout_ms)
+        T::read_output_parameters(req, &unit.1, self.state_mut(), false, timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUT_MUTE_NAME => {
-                elem_value.set_bool(&self.as_ref().mutes);
+                elem_value.set_bool(&self.state().mutes);
                 Ok(true)
             }
             OUT_VOL_NAME => {
-                let vals: Vec<i32> = self.as_ref().vols.iter().map(|&val| val as i32).collect();
+                let vals: Vec<i32> = self.state().vols.iter().map(|&val| val as i32).collect();
                 elem_value.set_int(&vals);
                 Ok(true)
             }
             OUT_HWCTL_NAME => {
-                elem_value.set_bool(&self.as_ref().hwctls);
+                elem_value.set_bool(&self.state().hwctls);
                 Ok(true)
             }
             OUT_DIM_NAME => {
-                elem_value.set_bool(&self.as_ref().dims);
+                elem_value.set_bool(&self.state().dims);
                 Ok(true)
             }
             OUT_PAD_NAME => {
-                elem_value.set_bool(&self.as_ref().pads);
+                elem_value.set_bool(&self.state().pads);
                 Ok(true)
             }
             _ => Ok(false),
@@ -337,25 +338,25 @@ trait SaffireOutputCtlOperation<T: SaffireOutputOperation>:
     ) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             OUT_MUTE_NAME => {
-                let vals = &elem_value.boolean()[..self.as_ref().mutes.len()];
-                T::write_mutes(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
+                let vals = &elem_value.boolean()[..self.state().mutes.len()];
+                T::write_mutes(req, &unit.1, &vals, self.state_mut(), timeout_ms).map(|_| true)
             }
             OUT_VOL_NAME => {
-                let vals = &elem_value.int()[..self.as_ref().vols.len()];
+                let vals = &elem_value.int()[..self.state().vols.len()];
                 let vols: Vec<u8> = vals.iter().map(|&vol| vol as u8).collect();
-                T::write_vols(req, &unit.1, &vols, self.as_mut(), timeout_ms).map(|_| true)
+                T::write_vols(req, &unit.1, &vols, self.state_mut(), timeout_ms).map(|_| true)
             }
             OUT_HWCTL_NAME => {
-                let vals = &elem_value.boolean()[..self.as_ref().hwctls.len()];
-                T::write_hwctls(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
+                let vals = &elem_value.boolean()[..self.state().hwctls.len()];
+                T::write_hwctls(req, &unit.1, &vals, self.state_mut(), timeout_ms).map(|_| true)
             }
             OUT_DIM_NAME => {
-                let vals = &elem_value.boolean()[..self.as_ref().dims.len()];
-                T::write_dims(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
+                let vals = &elem_value.boolean()[..self.state().dims.len()];
+                T::write_dims(req, &unit.1, &vals, self.state_mut(), timeout_ms).map(|_| true)
             }
             OUT_PAD_NAME => {
-                let vals = &elem_value.boolean()[..self.as_ref().pads.len()];
-                T::write_pads(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
+                let vals = &elem_value.boolean()[..self.state().pads.len()];
+                T::write_pads(req, &unit.1, &vals, self.state_mut(), timeout_ms).map(|_| true)
             }
             _ => Ok(false),
         }
@@ -611,9 +612,10 @@ const PRO_MONITOR_ANALOG_INPUT_NAME: &str = "monitor:analog-input";
 const PRO_MONITOR_SPDIF_INPUT_NAME: &str = "monitor:spdif-input";
 const PRO_MONITOR_ADAT_INPUT_NAME: &str = "monitor:adat-input";
 
-trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
-    AsRef<SaffireProioMonitorParameters> + AsMut<SaffireProioMonitorParameters>
-{
+trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol> {
+    fn state(&self) -> &SaffireProioMonitorParameters;
+    fn state_mut(&mut self) -> &mut SaffireProioMonitorParameters;
+
     fn load_params(
         &mut self,
         card_cntr: &mut CardCntr,
@@ -621,18 +623,18 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
         req: &FwReq,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        *self.as_mut() = T::create_params();
+        *self.state_mut() = T::create_params();
 
         let elem_id =
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MONITOR_ANALOG_INPUT_NAME, 0);
         card_cntr
             .add_int_elems(
                 &elem_id,
-                self.as_ref().analog_inputs.len(),
+                self.state().analog_inputs.len(),
                 T::LEVEL_MIN as i32,
                 T::LEVEL_MAX as i32,
                 T::LEVEL_STEP as i32,
-                self.as_ref().analog_inputs[0].len(),
+                self.state().analog_inputs[0].len(),
                 Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
                 true,
             )
@@ -643,17 +645,17 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
         card_cntr
             .add_int_elems(
                 &elem_id,
-                self.as_ref().spdif_inputs.len(),
+                self.state().spdif_inputs.len(),
                 T::LEVEL_MIN as i32,
                 T::LEVEL_MAX as i32,
                 T::LEVEL_STEP as i32,
-                self.as_ref().spdif_inputs[0].len(),
+                self.state().spdif_inputs[0].len(),
                 Some(&Into::<Vec<u32>>::into(LEVEL_TLV)),
                 true,
             )
             .map(|_| ())?;
 
-        if let Some(adat_inputs) = self.as_ref().adat_inputs {
+        if let Some(adat_inputs) = self.state().adat_inputs {
             let elem_id =
                 ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, PRO_MONITOR_ADAT_INPUT_NAME, 0);
             card_cntr
@@ -670,14 +672,14 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                 .map(|_| ())?;
         }
 
-        T::read_params(req, &unit.1, self.as_mut(), timeout_ms)
+        T::read_params(req, &unit.1, self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             PRO_MONITOR_ANALOG_INPUT_NAME => {
                 let idx = elem_id.index() as usize;
-                let vals: Vec<i32> = self.as_ref().analog_inputs[idx]
+                let vals: Vec<i32> = self.state().analog_inputs[idx]
                     .iter()
                     .map(|&val| val as i32)
                     .collect();
@@ -686,7 +688,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.index() as usize;
-                let vals: Vec<i32> = self.as_ref().spdif_inputs[idx]
+                let vals: Vec<i32> = self.state().spdif_inputs[idx]
                     .iter()
                     .map(|&val| val as i32)
                     .collect();
@@ -694,7 +696,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                 Ok(true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
-                if let Some(adat_inputs) = self.as_ref().adat_inputs {
+                if let Some(adat_inputs) = self.state().adat_inputs {
                     let idx = elem_id.index() as usize;
                     let vals: Vec<i32> = adat_inputs[idx].iter().map(|&val| val as i32).collect();
                     elem_value.set_int(&vals);
@@ -718,16 +720,16 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
         match elem_id.name().as_str() {
             PRO_MONITOR_ANALOG_INPUT_NAME => {
                 let idx = elem_id.index() as usize;
-                let vals = &elem_value.int()[..self.as_ref().analog_inputs[idx].len()];
+                let vals = &elem_value.int()[..self.state().analog_inputs[idx].len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
-                T::write_analog_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
+                T::write_analog_inputs(req, &unit.1, idx, &levels, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             PRO_MONITOR_SPDIF_INPUT_NAME => {
                 let idx = elem_id.index() as usize;
-                let vals = &elem_value.int()[..self.as_ref().spdif_inputs[idx].len()];
+                let vals = &elem_value.int()[..self.state().spdif_inputs[idx].len()];
                 let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
-                T::write_spdif_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
+                T::write_spdif_inputs(req, &unit.1, idx, &levels, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             PRO_MONITOR_ADAT_INPUT_NAME => {
@@ -735,7 +737,7 @@ trait SaffireProioMonitorCtlOperation<T: SaffireProioMonitorProtocol>:
                     let vals = &elem_value.int()[..16];
                     let levels: Vec<i16> = vals.iter().map(|&level| level as i16).collect();
                     let idx = elem_id.index() as usize;
-                    T::write_adat_inputs(req, &unit.1, idx, &levels, self.as_mut(), timeout_ms)
+                    T::write_adat_inputs(req, &unit.1, idx, &levels, self.state_mut(), timeout_ms)
                         .map(|_| true)
                 } else {
                     Ok(false)
@@ -913,13 +915,14 @@ fn standalone_mode_to_str(mode: &SaffireProioStandaloneMode) -> &str {
     }
 }
 
-trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
-    AsRef<SaffireProioSpecificParameters> + AsMut<SaffireProioSpecificParameters>
-{
+trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation> {
     const STANDALONE_MODES: [SaffireProioStandaloneMode; 2] = [
         SaffireProioStandaloneMode::Mix,
         SaffireProioStandaloneMode::Track,
     ];
+
+    fn state(&self) -> &SaffireProioSpecificParameters;
+    fn state_mut(&mut self) -> &mut SaffireProioSpecificParameters;
 
     fn load_params(
         &mut self,
@@ -954,38 +957,38 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, DIRECT_MONITORING_NAME, 0);
         card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        *self.as_mut() = T::create_params();
-        T::read_params(req, &unit.1, self.as_mut(), timeout_ms)
+        *self.state_mut() = T::create_params();
+        T::read_params(req, &unit.1, self.state_mut(), timeout_ms)
     }
 
     fn read_params(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
         match elem_id.name().as_str() {
             HEAD_ROOM_NAME => {
-                elem_value.set_bool(&[self.as_ref().head_room]);
+                elem_value.set_bool(&[self.state().head_room]);
                 Ok(true)
             }
             PHANTOM_POWERING_NAME => {
-                elem_value.set_bool(&self.as_ref().phantom_powerings);
+                elem_value.set_bool(&self.state().phantom_powerings);
                 Ok(true)
             }
             INSERT_SWAP_NAME => {
-                elem_value.set_bool(&self.as_ref().insert_swaps);
+                elem_value.set_bool(&self.state().insert_swaps);
                 Ok(true)
             }
             STANDALONE_MODE_NAME => {
                 let pos = Self::STANDALONE_MODES
                     .iter()
-                    .position(|m| m.eq(&self.as_ref().standalone_mode))
+                    .position(|m| m.eq(&self.state().standalone_mode))
                     .unwrap();
                 elem_value.set_enum(&[pos as u32]);
                 Ok(true)
             }
             ADAT_ENABLE_NAME => {
-                elem_value.set_bool(&[self.as_ref().adat_enabled]);
+                elem_value.set_bool(&[self.state().adat_enabled]);
                 Ok(true)
             }
             DIRECT_MONITORING_NAME => {
-                elem_value.set_bool(&[self.as_ref().direct_monitoring]);
+                elem_value.set_bool(&[self.state().direct_monitoring]);
                 Ok(true)
             }
             _ => Ok(false),
@@ -1003,16 +1006,17 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
         match elem_id.name().as_str() {
             HEAD_ROOM_NAME => {
                 let val = elem_value.boolean()[0];
-                T::write_head_room(req, &unit.1, val, self.as_mut(), timeout_ms).map(|_| true)
+                T::write_head_room(req, &unit.1, val, self.state_mut(), timeout_ms).map(|_| true)
             }
             PHANTOM_POWERING_NAME => {
-                let vals = &elem_value.boolean()[..self.as_ref().phantom_powerings.len()];
-                T::write_phantom_powerings(req, &unit.1, &vals, self.as_mut(), timeout_ms)
+                let vals = &elem_value.boolean()[..self.state().phantom_powerings.len()];
+                T::write_phantom_powerings(req, &unit.1, &vals, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             INSERT_SWAP_NAME => {
-                let vals = &elem_value.boolean()[..self.as_ref().insert_swaps.len()];
-                T::write_insert_swaps(req, &unit.1, &vals, self.as_mut(), timeout_ms).map(|_| true)
+                let vals = &elem_value.boolean()[..self.state().insert_swaps.len()];
+                T::write_insert_swaps(req, &unit.1, &vals, self.state_mut(), timeout_ms)
+                    .map(|_| true)
             }
             STANDALONE_MODE_NAME => {
                 let val = elem_value.enumerated()[0];
@@ -1023,16 +1027,16 @@ trait SaffireProioSpecificCtlOperation<T: SaffireProioSpecificOperation>:
                         let msg = format!("Invalid index of standalone mode: {}", val);
                         Error::new(FileError::Inval, &msg)
                     })?;
-                T::write_standalone_mode(req, &unit.1, mode, self.as_mut(), timeout_ms)
+                T::write_standalone_mode(req, &unit.1, mode, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             ADAT_ENABLE_NAME => {
                 let val = elem_value.boolean()[0];
-                T::write_adat_enable(req, &unit.1, val, self.as_mut(), timeout_ms).map(|_| true)
+                T::write_adat_enable(req, &unit.1, val, self.state_mut(), timeout_ms).map(|_| true)
             }
             DIRECT_MONITORING_NAME => {
                 let val = elem_value.boolean()[0];
-                T::write_direct_monitoring(req, &unit.1, val, self.as_mut(), timeout_ms)
+                T::write_direct_monitoring(req, &unit.1, val, self.state_mut(), timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),

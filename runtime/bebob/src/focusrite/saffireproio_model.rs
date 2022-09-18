@@ -1,61 +1,77 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Copyright (c) 2021 Takashi Sakamoto
+// Copyright (c) 2022 Takashi Sakamoto
 
-use super::*;
+use {super::*, std::marker::PhantomData};
 
-#[derive(Default)]
-pub struct SaffirePro10ioModel {
+pub type SaffirePro10ioModel = SaffireProIoModel<
+    SaffirePro10ioClkProtocol,
+    SaffirePro10ioMeterProtocol,
+    SaffirePro10ioMonitorProtocol,
+    SaffirePro10ioSpecificProtocol,
+>;
+pub type SaffirePro26ioModel = SaffireProIoModel<
+    SaffirePro26ioClkProtocol,
+    SaffirePro26ioMeterProtocol,
+    SaffirePro26ioMonitorProtocol,
+    SaffirePro26ioSpecificProtocol,
+>;
+
+#[derive(Default, Debug)]
+pub struct SaffireProIoModel<C, M, O, S>
+where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    M: SaffireProioMeterOperation,
+    O: SaffireProioMonitorProtocol,
+    S: SaffireProioSpecificOperation,
+{
     req: FwReq,
     avc: BebobAvc,
-    clk_ctl: ClkCtl,
-    meter_ctl: MeterCtl,
+    clk_ctl: ClkCtl<C>,
+    meter_ctl: MeterCtl<M>,
     out_ctl: OutputCtl,
     through_ctl: ThroughCtl,
-    monitor_ctl: MonitorCtl,
+    monitor_ctl: MonitorCtl<O>,
     mixer_ctl: SaffireProioMixerCtl,
-    specific_ctl: SpecificCtl,
+    specific_ctl: SpecificCtl<S>,
 }
 
 const TIMEOUT_MS: u32 = 50;
 
-#[derive(Default)]
-struct ClkCtl(Vec<ElemId>);
+#[derive(Default, Debug)]
+struct ClkCtl<C>(Vec<ElemId>, PhantomData<C>)
+where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation;
 
-impl SaffireProMediaClkFreqCtlOperation<SaffirePro10ioClkProtocol> for ClkCtl {}
+impl<C> SaffireProMediaClkFreqCtlOperation<C> for ClkCtl<C> where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation
+{
+}
 
-impl SaffireProSamplingClkSrcCtlOperation<SaffirePro10ioClkProtocol> for ClkCtl {}
+impl<C> SaffireProSamplingClkSrcCtlOperation<C> for ClkCtl<C> where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation
+{
+}
 
-#[derive(Default)]
-struct MeterCtl(Vec<ElemId>, SaffireProioMeterState);
+#[derive(Default, Debug)]
+struct MeterCtl<M>(SaffireProioMeterState, Vec<ElemId>, PhantomData<M>)
+where
+    M: SaffireProioMeterOperation;
 
-impl AsRef<SaffireProioMeterState> for MeterCtl {
-    fn as_ref(&self) -> &SaffireProioMeterState {
-        &self.1
+impl<M> SaffireProioMeterCtlOperation<M> for MeterCtl<M>
+where
+    M: SaffireProioMeterOperation,
+{
+    fn state(&self) -> &SaffireProioMeterState {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireProioMeterState {
+        &mut self.0
     }
 }
 
-impl AsMut<SaffireProioMeterState> for MeterCtl {
-    fn as_mut(&mut self) -> &mut SaffireProioMeterState {
-        &mut self.1
-    }
-}
-
-impl SaffireProioMeterCtlOperation<SaffirePro10ioMeterProtocol> for MeterCtl {}
-
-#[derive(Default)]
-struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
-
-impl AsRef<SaffireOutputParameters> for OutputCtl {
-    fn as_ref(&self) -> &SaffireOutputParameters {
-        &self.1
-    }
-}
-
-impl AsMut<SaffireOutputParameters> for OutputCtl {
-    fn as_mut(&mut self) -> &mut SaffireOutputParameters {
-        &mut self.1
-    }
-}
+#[derive(Default, Debug)]
+struct OutputCtl(SaffireOutputParameters, Vec<ElemId>);
 
 impl SaffireOutputCtlOperation<SaffireProioOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
@@ -64,48 +80,64 @@ impl SaffireOutputCtlOperation<SaffireProioOutputProtocol> for OutputCtl {
         "analog-output-5/6",
         "analog-output-7/8",
     ];
+
+    fn state(&self) -> &SaffireOutputParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireOutputParameters {
+        &mut self.0
+    }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ThroughCtl;
 
 impl SaffireThroughCtlOperation<SaffireProioThroughProtocol> for ThroughCtl {}
 
-#[derive(Default)]
-struct MonitorCtl(SaffireProioMonitorParameters);
+#[derive(Default, Debug)]
+struct MonitorCtl<O>(SaffireProioMonitorParameters, PhantomData<O>)
+where
+    O: SaffireProioMonitorProtocol;
 
-impl AsRef<SaffireProioMonitorParameters> for MonitorCtl {
-    fn as_ref(&self) -> &SaffireProioMonitorParameters {
+impl<O> SaffireProioMonitorCtlOperation<O> for MonitorCtl<O>
+where
+    O: SaffireProioMonitorProtocol,
+{
+    fn state(&self) -> &SaffireProioMonitorParameters {
         &self.0
     }
-}
 
-impl AsMut<SaffireProioMonitorParameters> for MonitorCtl {
-    fn as_mut(&mut self) -> &mut SaffireProioMonitorParameters {
+    fn state_mut(&mut self) -> &mut SaffireProioMonitorParameters {
         &mut self.0
     }
 }
 
-impl SaffireProioMonitorCtlOperation<SaffirePro10ioMonitorProtocol> for MonitorCtl {}
+#[derive(Default, Debug)]
+struct SpecificCtl<S>(SaffireProioSpecificParameters, PhantomData<S>)
+where
+    S: SaffireProioSpecificOperation;
 
-#[derive(Default)]
-struct SpecificCtl(SaffireProioSpecificParameters);
-
-impl AsRef<SaffireProioSpecificParameters> for SpecificCtl {
-    fn as_ref(&self) -> &SaffireProioSpecificParameters {
+impl<S> SaffireProioSpecificCtlOperation<S> for SpecificCtl<S>
+where
+    S: SaffireProioSpecificOperation,
+{
+    fn state(&self) -> &SaffireProioSpecificParameters {
         &self.0
     }
-}
 
-impl AsMut<SaffireProioSpecificParameters> for SpecificCtl {
-    fn as_mut(&mut self) -> &mut SaffireProioSpecificParameters {
+    fn state_mut(&mut self) -> &mut SaffireProioSpecificParameters {
         &mut self.0
     }
 }
 
-impl SaffireProioSpecificCtlOperation<SaffirePro10ioSpecificProtocol> for SpecificCtl {}
-
-impl CtlModel<(SndUnit, FwNode)> for SaffirePro10ioModel {
+impl<C, M, O, S> CtlModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
+where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    M: SaffireProioMeterOperation,
+    O: SaffireProioMonitorProtocol,
+    S: SaffireProioSpecificOperation,
+{
     fn load(
         &mut self,
         unit: &mut (SndUnit, FwNode),
@@ -123,11 +155,11 @@ impl CtlModel<(SndUnit, FwNode)> for SaffirePro10ioModel {
 
         self.meter_ctl
             .load_state(card_cntr, unit, &self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.meter_ctl.1.append(&mut elem_id_list))?;
 
         self.out_ctl
             .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
-            .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
+            .map(|mut elem_id_list| self.out_ctl.1.append(&mut elem_id_list))?;
 
         self.through_ctl.load_params(card_cntr)?;
 
@@ -227,7 +259,13 @@ impl CtlModel<(SndUnit, FwNode)> for SaffirePro10ioModel {
     }
 }
 
-impl NotifyModel<(SndUnit, FwNode), bool> for SaffirePro10ioModel {
+impl<C, M, O, S> NotifyModel<(SndUnit, FwNode), bool> for SaffireProIoModel<C, M, O, S>
+where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    M: SaffireProioMeterOperation,
+    O: SaffireProioMonitorProtocol,
+    S: SaffireProioSpecificOperation,
+{
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
         elem_id_list.extend_from_slice(&self.clk_ctl.0);
     }
@@ -247,9 +285,15 @@ impl NotifyModel<(SndUnit, FwNode), bool> for SaffirePro10ioModel {
     }
 }
 
-impl MeasureModel<(SndUnit, FwNode)> for SaffirePro10ioModel {
+impl<C, M, O, S> MeasureModel<(SndUnit, FwNode)> for SaffireProIoModel<C, M, O, S>
+where
+    C: SaffireProioMediaClockFrequencyOperation + SaffireProioSamplingClockSourceOperation,
+    M: SaffireProioMeterOperation,
+    O: SaffireProioMonitorProtocol,
+    S: SaffireProioSpecificOperation,
+{
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
-        elem_id_list.extend_from_slice(&self.meter_ctl.0);
+        elem_id_list.extend_from_slice(&self.meter_ctl.1);
     }
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
