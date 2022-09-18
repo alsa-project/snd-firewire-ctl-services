@@ -156,7 +156,7 @@ impl From<&EnsembleConverterParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleConverterParameters> for BebobAvc {}
+impl EnsembleParameterProtocol<EnsembleConverterParameters> for EnsembleConverterProtocol {}
 
 /// Parameters of display meters.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -206,7 +206,7 @@ impl From<&EnsembleDisplayParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleDisplayParameters> for BebobAvc {}
+impl EnsembleParameterProtocol<EnsembleDisplayParameters> for EnsembleDisplayProtocol {}
 
 /// Parameters of analog/digital inputs. The gains, phantoms, and polarities parameters
 /// are available when channel 0-3 levels are for mic.
@@ -315,7 +315,7 @@ impl From<&EnsembleInputParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleInputParameters> for BebobAvc {}
+impl EnsembleParameterProtocol<EnsembleInputParameters> for EnsembleInputProtocol {}
 
 /// Parameters of analog/digital outputs.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -401,7 +401,7 @@ impl From<&EnsembleOutputParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleOutputParameters> for BebobAvc {}
+impl EnsembleParameterProtocol<EnsembleOutputParameters> for EnsembleOutputProtocol {}
 
 /// Parameters of input/output source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -591,7 +591,7 @@ impl From<&EnsembleSourceParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleSourceParameters> for BebobAvc {}
+impl EnsembleParameterProtocol<EnsembleSourceParameters> for EnsembleSourceProtocol {}
 
 /// Parameters of signal multiplexer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -661,7 +661,7 @@ impl EnsembleMixerProtocol {
         (dst_idx, src_idx)
     }
 
-    fn update_params_by_cmd_content(
+    fn partial_update_by_cmd_content(
         params: &mut EnsembleMixerParameters,
         pair_idx: usize,
         target_idx: usize,
@@ -752,16 +752,16 @@ impl EnsembleParametersConverter<EnsembleMixerParameters> for EnsembleMixerProto
     fn parse_cmds(params: &mut EnsembleMixerParameters, cmds: &[EnsembleCmd]) {
         cmds.iter().for_each(|cmd| match cmd {
             EnsembleCmd::MixerSrc0(pair_idx, gains) => {
-                Self::update_params_by_cmd_content(params, *pair_idx, 0, gains);
+                Self::partial_update_by_cmd_content(params, *pair_idx, 0, gains);
             }
             EnsembleCmd::MixerSrc1(pair_idx, gains) => {
-                Self::update_params_by_cmd_content(params, *pair_idx, 1, gains);
+                Self::partial_update_by_cmd_content(params, *pair_idx, 1, gains);
             }
             EnsembleCmd::MixerSrc2(pair_idx, gains) => {
-                Self::update_params_by_cmd_content(params, *pair_idx, 2, gains);
+                Self::partial_update_by_cmd_content(params, *pair_idx, 2, gains);
             }
             EnsembleCmd::MixerSrc3(pair_idx, gains) => {
-                Self::update_params_by_cmd_content(params, *pair_idx, 3, gains);
+                Self::partial_update_by_cmd_content(params, *pair_idx, 3, gains);
             }
             _ => (),
         });
@@ -773,7 +773,7 @@ impl From<&EnsembleMixerParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleMixerParameters> for BebobAvc {}
+impl EnsembleParameterProtocol<EnsembleMixerParameters> for EnsembleMixerProtocol {}
 
 /// Parameters of stream mode.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -806,16 +806,16 @@ impl From<&EnsembleStreamParameters> for Vec<EnsembleCmd> {
     }
 }
 
-impl EnsembleParameterProtocol<EnsembleStreamParameters> for BebobAvc {
-    fn init_params(
-        &mut self,
+impl EnsembleParameterProtocol<EnsembleStreamParameters> for EnsembleStreamProtocol {
+    fn whole_update(
+        avc: &BebobAvc,
         params: &mut EnsembleStreamParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let plug_addr =
             BcoPlugAddr::new_for_unit(BcoPlugDirection::Output, BcoPlugAddrUnitType::Isoc, 0);
         let mut op = ExtendedStreamFormatSingle::new(&plug_addr);
-        self.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
+        avc.status(&AvcAddr::Unit, &mut op, timeout_ms)?;
 
         let info = op
             .stream_format
@@ -848,30 +848,24 @@ pub trait EnsembleParametersConverter<T: Copy> {
 }
 
 /// The trait for parameter protocol.
-pub trait EnsembleParameterProtocol<T>: Ta1394Avc<Error>
-where
-    for<'a> Vec<EnsembleCmd>: From<&'a T>,
-    T: Copy,
-{
-    fn init_params(&mut self, params: &mut T, timeout_ms: u32) -> Result<(), Error> {
-        Vec::<EnsembleCmd>::from(&(*params))
-            .into_iter()
-            .try_for_each(|cmd| {
-                let mut op = EnsembleOperation::new(cmd);
-                self.control(&AvcAddr::Unit, &mut op, timeout_ms)
-                    .map_err(|err| from_avc_err(err))
-            })
+pub trait EnsembleParameterProtocol<T: Copy>: EnsembleParametersConverter<T> {
+    /// Update the hardware for all of the parameters
+    fn whole_update(avc: &BebobAvc, params: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        Self::build_cmds(params).into_iter().try_for_each(|cmd| {
+            let mut op = EnsembleOperation::new(cmd);
+            avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
+        })
     }
 
-    fn update_params(&mut self, new: &T, old: &mut T, timeout_ms: u32) -> Result<(), Error> {
-        Vec::<EnsembleCmd>::from(new)
+    /// Update the hardware for the part of parameters.
+    fn partial_update(avc: &BebobAvc, new: &T, old: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        Self::build_cmds(new)
             .into_iter()
-            .zip(Vec::<EnsembleCmd>::from(&(*old)))
+            .zip(Self::build_cmds(old))
             .filter(|(n, o)| !n.eq(o))
             .try_for_each(|(n, _)| {
                 let mut op = EnsembleOperation::new(n);
-                self.control(&AvcAddr::Unit, &mut op, timeout_ms)
-                    .map_err(|err| from_avc_err(err))
+                avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
             })
             .map(|_| *old = *new)
     }
@@ -931,7 +925,7 @@ impl Default for EnsembleMeter {
 }
 
 /// The protocol implementation for meter information.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct EnsembleMeterProtocol;
 
 const KNOB_IN_TARGET_MASK: u8 = 0x03;
@@ -953,7 +947,7 @@ const OUT_METER_POS: [usize; 16] = [
     35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 ];
 
-/// The trait of operation for meter information.
+/// Protocol implementation for hardware metering.
 impl EnsembleMeterProtocol {
     pub const OUT_KNOB_VAL_MIN: u8 = EnsembleOutputProtocol::VOL_MIN;
     pub const OUT_KNOB_VAL_MAX: u8 = EnsembleOutputProtocol::VOL_MAX;
@@ -967,7 +961,8 @@ impl EnsembleMeterProtocol {
     pub const LEVEL_MAX: u8 = u8::MAX;
     pub const LEVEL_STEP: u8 = 1;
 
-    pub fn measure_meter(
+    /// Update the given parameters by the state of hardware.
+    pub fn whole_update(
         avc: &mut BebobAvc,
         meter: &mut EnsembleMeter,
         timeout_ms: u32,

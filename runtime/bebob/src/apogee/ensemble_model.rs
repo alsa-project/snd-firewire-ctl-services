@@ -386,7 +386,7 @@ impl MeterCtl {
     }
 
     fn measure_state(&mut self, avc: &mut BebobAvc, timeout_ms: u32) -> Result<(), Error> {
-        EnsembleMeterProtocol::measure_meter(avc, &mut self.0, timeout_ms)
+        EnsembleMeterProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -527,7 +527,7 @@ impl ConvertCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, CD_MODE_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleConverterProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -583,13 +583,13 @@ impl ConvertCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.format_target = target;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             CD_MODE_NAME => {
                 let mut params = self.0.clone();
                 params.cd_mode = elem_value.boolean()[0];
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             RATE_CONVERT_TARGET_NAME => {
@@ -603,7 +603,7 @@ impl ConvertCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.rate_target = target;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             RATE_CONVERT_RATE_NAME => {
@@ -617,7 +617,7 @@ impl ConvertCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.converted_rate = converted_rate;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleConverterProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -666,7 +666,7 @@ impl DisplayCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, DISPLAY_OVERHOLD_NAME, 0);
         let _ = card_cntr.add_bool_elems(&elem_id, 1, 1, true)?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleDisplayProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -706,13 +706,13 @@ impl DisplayCtl {
             DISPLAY_ENABLE_NAME => {
                 let mut params = self.0.clone();
                 params.enabled = elem_value.boolean()[0];
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             DISPLAY_ILLUMINATE_NAME => {
                 let mut params = self.0.clone();
                 params.illuminate = elem_value.boolean()[0];
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             DISPLAY_TARGET_NAME => {
@@ -726,13 +726,13 @@ impl DisplayCtl {
                     })?;
                 let mut params = self.0.clone();
                 params.target = target;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             DISPLAY_OVERHOLD_NAME => {
                 let mut params = self.0.clone();
                 params.overhold = elem_value.boolean()[0];
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleDisplayProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -824,7 +824,7 @@ impl InputCtl {
         let elem_id = ElemId::new_by_name(ElemIfaceType::Card, 0, 0, INPUT_OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleInputProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -883,7 +883,7 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             INPUT_LEVEL_NAME => {
@@ -903,7 +903,7 @@ impl InputCtl {
                             })
                             .map(|&l| *level = l)
                     })?;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_GAIN_NAME => {
@@ -914,7 +914,7 @@ impl InputCtl {
                     .iter_mut()
                     .enumerate()
                     .for_each(|(i, gain)| *gain = vals[i] as u8);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_PHANTOM_NAME => {
@@ -924,7 +924,7 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             MIC_POLARITY_NAME => {
@@ -934,7 +934,7 @@ impl InputCtl {
                     .iter_mut()
                     .zip(elem_value.boolean())
                     .for_each(|(d, s)| *d = s);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             INPUT_OPT_IFACE_MODE_NAME => {
@@ -945,7 +945,7 @@ impl InputCtl {
                 })?;
                 let mut params = self.0.clone();
                 params.opt_iface_mode = mode;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleInputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -1031,7 +1031,7 @@ impl<'a> OutputCtl {
             ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, OUTPUT_OPT_IFACE_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleOutputProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1100,13 +1100,13 @@ impl<'a> OutputCtl {
                             })
                             .map(|&l| *level = l)
                     })?;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             OUTPUT_VOL_NAME => {
                 let mut params = self.0.clone();
                 params.vol = elem_value.int()[0] as u8;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             HP_VOL_NAME => {
@@ -1117,7 +1117,7 @@ impl<'a> OutputCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(vol, &val)| *vol = val as u8);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             OUTPUT_OPT_IFACE_MODE_NAME => {
@@ -1128,7 +1128,7 @@ impl<'a> OutputCtl {
                     Error::new(FileError::Inval, &msg)
                 })?;
                 params.opt_iface_mode = mode;
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleOutputProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -1295,7 +1295,7 @@ impl RouteCtl {
             true,
         )?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleSourceProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1350,7 +1350,7 @@ impl RouteCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             CAPTURE_SOURCE_NAME => {
@@ -1361,7 +1361,7 @@ impl RouteCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             HP_SRC_NAME => {
@@ -1372,7 +1372,7 @@ impl RouteCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(src, &val)| *src = val as usize);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleSourceProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -1457,7 +1457,7 @@ impl MixerCtl {
             true,
         )?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleMixerProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1493,7 +1493,7 @@ impl MixerCtl {
                     .iter_mut()
                     .zip(vals)
                     .for_each(|(gain, &val)| *gain = val as i16);
-                avc.update_params(&params, &mut self.0, timeout_ms)
+                EnsembleMixerProtocol::partial_update(avc, &params, &mut self.0, timeout_ms)
                     .map(|_| true)
             }
             _ => Ok(false),
@@ -1535,7 +1535,7 @@ impl StreamCtl {
             alsactl::ElemId::new_by_name(alsactl::ElemIfaceType::Card, 0, 0, STREAM_MODE_NAME, 0);
         let _ = card_cntr.add_enum_elems(&elem_id, 1, 1, &labels, None, true)?;
 
-        avc.init_params(&mut self.0, timeout_ms)
+        EnsembleStreamProtocol::whole_update(avc, &mut self.0, timeout_ms)
     }
 
     fn read_params(&mut self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
@@ -1570,7 +1570,8 @@ impl StreamCtl {
                 let mut params = self.0.clone();
                 params.mode = mode;
                 unit.0.lock()?;
-                let res = avc.update_params(&params, &mut self.0, timeout_ms);
+                let res =
+                    EnsembleStreamProtocol::partial_update(avc, &params, &mut self.0, timeout_ms);
                 let _ = unit.0.unlock();
                 res.map(|_| true)
             }
