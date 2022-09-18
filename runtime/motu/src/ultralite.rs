@@ -104,8 +104,16 @@ impl RegisterDspOutputCtlOperation<UltraliteProtocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
 struct InputCtl(RegisterDspMonauralInputState, Vec<ElemId>);
+
+impl Default for InputCtl {
+    fn default() -> Self {
+        Self(
+            UltraliteProtocol::create_monaural_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMonauralInputCtlOperation<UltraliteProtocol> for InputCtl {
     fn state(&self) -> &RegisterDspMonauralInputState {
