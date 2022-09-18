@@ -394,7 +394,7 @@ impl MeterCtl {
     }
 
     fn measure_state(&mut self, req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        MaudioSpecialMeterProtocol::read_state(req, node, &mut self.0, timeout_ms)
+        MaudioSpecialMeterProtocol::cache(req, node, &mut self.0, timeout_ms)
     }
 
     fn read_state(&self, elem_id: &ElemId, elem_value: &mut ElemValue) -> Result<bool, Error> {
