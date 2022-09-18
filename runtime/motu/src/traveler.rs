@@ -157,11 +157,11 @@ struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
 impl Default for MeterCtl {
     fn default() -> Self {
-        Self(H4preProtocol::create_meter_state(), Default::default())
+        Self(TravelerProtocol::create_meter_state(), Default::default())
     }
 }
 
-impl RegisterDspMeterCtlOperation<H4preProtocol> for MeterCtl {
+impl RegisterDspMeterCtlOperation<TravelerProtocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {
         &self.0
     }
