@@ -31,7 +31,7 @@ struct ClkCtl<T: MediaClockFrequencyOperation>(Vec<ElemId>, PhantomData<T>);
 
 impl<T: MediaClockFrequencyOperation> MediaClkFreqCtlOperation<T> for ClkCtl<T> {}
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
 
 impl<T: MediaClockFrequencyOperation> SpecialModel<T> {
@@ -484,7 +484,7 @@ impl MeterCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct InputCtl(MaudioSpecialInputParameters);
 
 const STREAM_INPUT_GAIN_NAME: &str = "stream-input-gain";
@@ -695,7 +695,7 @@ impl InputCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct OutputCtl(MaudioSpecialOutputParameters, Vec<ElemId>);
 
 const HP_VOL_NAME: &str = "headphone-volume";
@@ -945,7 +945,7 @@ impl OutputCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct AuxCtl(MaudioSpecialAuxParameters);
 
 const AUX_OUT_VOL_NAME: &str = "aux-output-volume";
@@ -1111,7 +1111,7 @@ impl AuxCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MixerCtl(MaudioSpecialMixerParameters);
 
 const MIXER_ANALOG_SRC_NAME: &str = "mixer-analog-source";
