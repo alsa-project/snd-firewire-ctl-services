@@ -100,8 +100,16 @@ impl RegisterDspOutputCtlOperation<AudioExpressProtocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
 struct InputCtl(RegisterDspStereoInputState, Vec<ElemId>);
+
+impl Default for InputCtl {
+    fn default() -> Self {
+        Self(
+            AudioExpressProtocol::create_stereo_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspStereoInputCtlOperation<AudioExpressProtocol> for InputCtl {
     fn state(&self) -> &RegisterDspStereoInputState {
