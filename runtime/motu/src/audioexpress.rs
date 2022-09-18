@@ -125,11 +125,11 @@ struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
 
 impl Default for MeterCtl {
     fn default() -> Self {
-        Self(F828mk2Protocol::create_meter_state(), Default::default())
+        Self(AudioExpressProtocol::create_meter_state(), Default::default())
     }
 }
 
-impl RegisterDspMeterCtlOperation<F828mk2Protocol> for MeterCtl {
+impl RegisterDspMeterCtlOperation<AudioExpressProtocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {
         &self.0
     }
