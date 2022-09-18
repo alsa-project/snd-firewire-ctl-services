@@ -978,7 +978,7 @@ pub trait MaudioSpecialParameterProtocol<T: Copy>: SpecialParametersSerdes<T> {
     }
 
     /// Update the hardware partially for any change of parameter.
-    fn update_params(
+    fn partial_update(
         req: &FwReq,
         node: &FwNode,
         params: &T,
@@ -986,22 +986,33 @@ pub trait MaudioSpecialParameterProtocol<T: Copy>: SpecialParametersSerdes<T> {
         old: &mut T,
         timeout_ms: u32,
     ) -> Result<(), Error> {
+        assert!(Self::OFFSET_RANGES.len() > 0);
+
         let mut new = [0; CACHE_SIZE];
         new.copy_from_slice(&cache.0);
         Self::serialize(params, &mut new);
-        (0..CACHE_SIZE)
-            .step_by(4)
-            .try_for_each(|pos| {
-                if new[pos..(pos + 4)] != cache.0[pos..(pos + 4)] {
+
+        Self::OFFSET_RANGES
+            .iter()
+            .try_for_each(|range| {
+                let raw = &mut new[range.start..range.end];
+
+                if raw != &cache.0[range.start..range.end] {
+                    if raw.len() == 4 {
+                        FwTcode::WriteQuadletRequest
+                    } else {
+                        FwTcode::WriteBlockRequest
+                    };
+
                     req.transaction_sync(
                         node,
                         FwTcode::WriteQuadletRequest,
-                        DM_APPL_PARAM_OFFSET + pos as u64,
-                        4,
-                        &mut new[pos..(pos + 4)],
+                        DM_APPL_PARAM_OFFSET + range.start as u64,
+                        raw.len(),
+                        raw,
                         timeout_ms,
                     )
-                    .map(|_| cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]))
+                    .map(|_| cache.0[range.start..range.end].copy_from_slice(raw))
                 } else {
                     Ok(())
                 }

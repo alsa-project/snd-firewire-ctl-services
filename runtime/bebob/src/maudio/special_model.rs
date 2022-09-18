@@ -234,7 +234,7 @@ impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)>
             });
 
         if params.headphone_volumes != self.output_ctl.0.headphone_volumes {
-            MaudioSpecialOutputProtocol::update_params(
+            MaudioSpecialOutputProtocol::partial_update(
                 &self.req,
                 &unit.1,
                 &params,
@@ -609,7 +609,7 @@ impl InputCtl {
         let vals = &elem_value.int()[..count];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
-        MaudioSpecialInputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+        MaudioSpecialInputProtocol::partial_update(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
     }
 
@@ -854,7 +854,7 @@ impl OutputCtl {
         let vals = &elem_value.int()[..labels.len()];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
-        MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+        MaudioSpecialOutputProtocol::partial_update(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
     }
 
@@ -887,7 +887,7 @@ impl OutputCtl {
                 .map(|&src| srcs.push(src))
         })?;
         set(&mut params, &srcs);
-        MaudioSpecialOutputProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+        MaudioSpecialOutputProtocol::partial_update(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
     }
 
@@ -1045,7 +1045,7 @@ impl AuxCtl {
         let vals = &elem_value.int()[..labels.len()];
         let levels: Vec<i16> = vals.iter().map(|&val| val as i16).collect();
         set(&mut params, &levels);
-        MaudioSpecialAuxProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+        MaudioSpecialAuxProtocol::partial_update(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
     }
 
@@ -1205,7 +1205,7 @@ impl MixerCtl {
         let mut params = curr.clone();
         let vals = &elem_value.boolean()[..labels.len()];
         set(&mut params, index, &vals);
-        MaudioSpecialMixerProtocol::update_params(req, &unit.1, &params, state, curr, timeout_ms)
+        MaudioSpecialMixerProtocol::partial_update(req, &unit.1, &params, state, curr, timeout_ms)
             .map(|_| true)
     }
 
