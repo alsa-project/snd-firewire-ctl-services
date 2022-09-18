@@ -66,8 +66,16 @@ impl RegisterDspMixerReturnCtlOperation<AudioExpressProtocol> for MixerReturnCtl
     }
 }
 
-#[derive(Default)]
 struct MixerSourceCtl(RegisterDspMixerStereoSourceState, Vec<ElemId>);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(
+            AudioExpressProtocol::create_mixer_stereo_source_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMixerStereoSourceCtlOperation<AudioExpressProtocol> for MixerSourceCtl {
     fn state(&self) -> &RegisterDspMixerStereoSourceState {
