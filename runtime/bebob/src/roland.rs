@@ -4,13 +4,14 @@
 use {
     super::{common_ctls::*, *},
     protocols::{roland::*, *},
+    std::marker::PhantomData,
 };
 
 pub type Fa66Model = FaModel<Fa66MixerAnalogSourceProtocol>;
 pub type Fa101Model = FaModel<Fa101MixerAnalogSourceProtocol>;
 
 #[derive(Default)]
-pub struct FaModel<T: AvcLevelOperation + AvcLrBalanceOperation + Default> {
+pub struct FaModel<T: AvcLevelOperation + AvcLrBalanceOperation> {
     avc: BebobAvc,
     clk_ctl: ClkCtl,
     analog_in_ctl: MixerAnalogSourceCtl<T>,
@@ -44,7 +45,7 @@ impl MediaClkFreqCtlOperation<FaClkProtocol> for ClkCtl {
 }
 
 #[derive(Default)]
-struct MixerAnalogSourceCtl<O: AvcLevelOperation + Default>(O);
+struct MixerAnalogSourceCtl<T: AvcLevelOperation>(PhantomData<T>);
 
 impl AvcLevelCtlOperation<Fa66MixerAnalogSourceProtocol>
     for MixerAnalogSourceCtl<Fa66MixerAnalogSourceProtocol>
