@@ -122,8 +122,16 @@ impl CommandDspInputCtlOperation<UltraliteMk3Protocol> for InputCtl {
     }
 }
 
-#[derive(Default)]
 struct OutputCtl(CommandDspOutputState, Vec<ElemId>);
+
+impl Default for OutputCtl {
+    fn default() -> Self {
+        Self(
+            UltraliteMk3Protocol::create_output_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspOutputCtlOperation<UltraliteMk3Protocol> for OutputCtl {
     fn state(&self) -> &CommandDspOutputState {

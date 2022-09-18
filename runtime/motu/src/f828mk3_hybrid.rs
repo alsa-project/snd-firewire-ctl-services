@@ -142,8 +142,16 @@ impl CommandDspInputCtlOperation<F828mk3HybridProtocol> for InputCtl {
     }
 }
 
-#[derive(Default)]
 struct OutputCtl(CommandDspOutputState, Vec<ElemId>);
+
+impl Default for OutputCtl {
+    fn default() -> Self {
+        Self(
+            F828mk3HybridProtocol::create_output_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl CommandDspOutputCtlOperation<F828mk3HybridProtocol> for OutputCtl {
     fn state(&self) -> &CommandDspOutputState {

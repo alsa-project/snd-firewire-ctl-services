@@ -3024,9 +3024,6 @@ pub trait CommandDspOutputCtlOperation<T: CommandDspOutputOperation> {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        let state = T::create_output_state();
-        *self.state_mut() = state;
-
         let mut notified_elem_id_list = Vec::new();
 
         [
