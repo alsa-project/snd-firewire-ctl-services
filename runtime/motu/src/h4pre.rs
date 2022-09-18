@@ -100,8 +100,16 @@ impl RegisterDspOutputCtlOperation<H4preProtocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
 struct InputCtl(RegisterDspStereoInputState, Vec<ElemId>);
+
+impl Default for InputCtl {
+    fn default() -> Self {
+        Self(
+            H4preProtocol::create_stereo_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspStereoInputCtlOperation<H4preProtocol> for InputCtl {
     fn state(&self) -> &RegisterDspStereoInputState {
