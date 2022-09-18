@@ -769,13 +769,11 @@ pub trait MaudioSpecialParameterProtocol<T: MaudioSpecialParameterOperation + Co
                     &mut new[pos..(pos + 4)],
                     timeout_ms,
                 )
-                .map(|_| {
-                    cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]);
-                    *old = *params;
-                })
+                .map(|_| cache.0[pos..(pos + 4)].copy_from_slice(&new[pos..(pos + 4)]))
             } else {
                 Ok(())
             }
         })
+        .map(|_| *old = *params)
     }
 }
