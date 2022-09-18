@@ -148,7 +148,7 @@ impl AvcControl for MaudioSpecialLedSwitch {
     }
 }
 
-/// The protocol implementation of meter information.
+/// The protocol implementation for hardware metering.
 #[derive(Default)]
 pub struct MaudioSpecialMeterProtocol;
 
@@ -199,7 +199,7 @@ impl MaudioSpecialMeterProtocol {
     pub const ROTARY_MAX: i16 = 0;
     pub const ROTARY_STEP: i16 = 0x400;
 
-    pub fn read_state(
+    pub fn cache(
         req: &FwReq,
         node: &FwNode,
         meter: &mut MaudioSpecialMeterState,
