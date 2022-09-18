@@ -114,9 +114,13 @@ impl SamplingClockSourceOperation for EnsembleClkProtocol {
 /// Parameters of sample format converter.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleConverterParameters {
+    /// The target of sample format converter.
     pub format_target: FormatConvertTarget,
+    /// The target of sampling rate converter.
     pub rate_target: RateConvertTarget,
+    /// The sampling rate to convert.
     pub converted_rate: RateConvertRate,
+    /// The mode of CD (44.1 kHz/16 bit sample).
     pub cd_mode: bool,
 }
 
@@ -161,9 +165,13 @@ impl EnsembleParameterProtocol<EnsembleConverterParameters> for EnsembleConverte
 /// Parameters of display meters.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleDisplayParameters {
+    /// Whether to enable/disable display.
     pub enabled: bool,
+    /// Force to illuminate display.
     pub illuminate: bool,
+    /// The target for meter display.
     pub target: DisplayMeterTarget,
+    /// Whether to enable/disable overhold of peak detection.
     pub overhold: bool,
 }
 
@@ -212,11 +220,17 @@ impl EnsembleParameterProtocol<EnsembleDisplayParameters> for EnsembleDisplayPro
 /// are available when channel 0-3 levels are for mic.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleInputParameters {
+    /// Whether to enable/disable limitter of analog inputs.
     pub limits: [bool; 8],
+    /// The level of analog inputs.
     pub levels: [InputNominalLevel; 8],
+    /// The gain of microphone inputs.
     pub gains: [u8; 4],
+    /// Whether to enable/disable phantom powering for microphone inputs.
     pub phantoms: [bool; 4],
+    /// Whether to invert polarity for microphone inputs.
     pub polarities: [bool; 4],
+    /// The mode of optical inputs.
     pub opt_iface_mode: OptIfaceMode,
 }
 
@@ -320,9 +334,13 @@ impl EnsembleParameterProtocol<EnsembleInputParameters> for EnsembleInputProtoco
 /// Parameters of analog/digital outputs.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleOutputParameters {
+    /// The volume of 1st pair of analog outputs.
     pub vol: u8,
+    /// The volume of headphone outputs.
     pub headphone_vols: [u8; 2],
+    /// The level of outputs.
     pub levels: [OutputNominalLevel; 8],
+    /// The mode of optical outputs.
     pub opt_iface_mode: OptIfaceMode,
 }
 
@@ -778,6 +796,7 @@ impl EnsembleParameterProtocol<EnsembleMixerParameters> for EnsembleMixerProtoco
 /// Parameters of stream mode.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleStreamParameters {
+    /// The mode of isochronous stream in IEEE 1394 bus.
     pub mode: StreamMode,
 }
 
@@ -872,11 +891,15 @@ pub trait EnsembleParameterProtocol<T: Copy>: EnsembleParametersConverter<T> {
 }
 
 /// The target of input for knob.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum KnobInputTarget {
+    /// 1st microphone.
     Mic0,
+    /// 2nd microphone.
     Mic1,
+    /// 3rd microphone.
     Mic2,
+    /// 4th microphone.
     Mic3,
 }
 
@@ -887,10 +910,13 @@ impl Default for KnobInputTarget {
 }
 
 /// The target of output for knob.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum KnobOutputTarget {
+    /// 1st pair of analog outputs.
     AnalogOutputPair0,
+    /// 1st pair of headphone outputs.
     HeadphonePair0,
+    /// 2nd pair of headphone outputs.
     HeadphonePair1,
 }
 
@@ -901,13 +927,19 @@ impl Default for KnobOutputTarget {
 }
 
 /// Information of hardware metering.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EnsembleMeter {
+    /// The target of hardware input knob.
     pub knob_input_target: KnobInputTarget,
+    /// The target of hardware output knob.
     pub knob_output_target: KnobOutputTarget,
+    /// The value of hardware input knob.
     pub knob_input_vals: [u8; 4],
+    /// The value of hardware output knob.
     pub knob_output_vals: [u8; 3],
+    /// The detected signal level of inputs.
     pub phys_inputs: [u8; 18],
+    /// The detected signal level of outputs.
     pub phys_outputs: [u8; 16],
 }
 
@@ -949,16 +981,25 @@ const OUT_METER_POS: [usize; 16] = [
 
 /// Protocol implementation for hardware metering.
 impl EnsembleMeterProtocol {
+    /// The minimum value of hardware output knob.
     pub const OUT_KNOB_VAL_MIN: u8 = EnsembleOutputProtocol::VOL_MIN;
+    /// The maximum value of hardware output knob.
     pub const OUT_KNOB_VAL_MAX: u8 = EnsembleOutputProtocol::VOL_MAX;
+    /// The step value of hardware output knob.
     pub const OUT_KNOB_VAL_STEP: u8 = EnsembleOutputProtocol::VOL_STEP;
 
+    /// The minimum value of hardware input knob.
     pub const IN_KNOB_VAL_MIN: u8 = EnsembleInputProtocol::GAIN_MIN;
+    /// The maximum value of hardware input knob.
     pub const IN_KNOB_VAL_MAX: u8 = EnsembleInputProtocol::GAIN_MAX;
+    /// The step value of hardware input knob.
     pub const IN_KNOB_VAL_STEP: u8 = EnsembleInputProtocol::GAIN_STEP;
 
+    /// The minimum value of detected signal level.
     pub const LEVEL_MIN: u8 = u8::MIN;
+    /// The maximum value of detected signal level.
     pub const LEVEL_MAX: u8 = u8::MAX;
+    /// The step value of detected signal level.
     pub const LEVEL_STEP: u8 = 1;
 
     /// Update the given parameters by the state of hardware.
