@@ -264,7 +264,7 @@ impl NotifyModel<(SndUnit, FwNode), bool> for EnsembleModel {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MeterCtl(EnsembleMeter, Vec<ElemId>);
 
 const KNOB_IN_TARGET_NAME: &str = "knob-input-target";
@@ -447,7 +447,7 @@ const RATE_CONVERT_TARGET_NAME: &str = "sample-rate-convert-target";
 const RATE_CONVERT_RATE_NAME: &str = "sample-rate-convert-rate";
 const CD_MODE_NAME: &str = "cd-mode";
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct ConvertCtl(EnsembleConverterParameters);
 
 fn format_convert_target_to_str(target: &FormatConvertTarget) -> &str {
@@ -638,7 +638,7 @@ impl ConvertCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct DisplayCtl(EnsembleDisplayParameters);
 
 fn display_meter_target_to_str(target: &DisplayMeterTarget) -> &str {
@@ -748,7 +748,7 @@ impl DisplayCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct InputCtl(EnsembleInputParameters, Vec<ElemId>);
 
 const INPUT_LIMIT_NAME: &str = "input-limit";
@@ -963,7 +963,7 @@ fn output_nominal_level_to_str(level: &OutputNominalLevel) -> &str {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct OutputCtl(EnsembleOutputParameters, Vec<ElemId>);
 
 const OUTPUT_LEVEL_NAME: &str = "output-level";
@@ -1136,7 +1136,7 @@ impl<'a> OutputCtl {
 
 const CAPTURE_SOURCE_NAME: &str = "capture-source";
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct RouteCtl(EnsembleSourceParameters);
 
 impl RouteCtl {
@@ -1373,7 +1373,7 @@ impl RouteCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct MixerCtl(EnsembleMixerParameters);
 
 const MIXER_SRC_GAIN_NAME: &str = "mixer-source-gain";
@@ -1489,7 +1489,7 @@ impl MixerCtl {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct StreamCtl(EnsembleStreamParameters);
 
 fn stream_mode_to_str(mode: &StreamMode) -> &str {
