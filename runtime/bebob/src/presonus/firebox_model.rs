@@ -183,7 +183,6 @@ impl CtlModel<(SndUnit, FwNode)> for FireboxModel {
         self.mixer_out_ctl.load_level(card_cntr)?;
         self.mixer_out_ctl.load_mute(card_cntr)?;
         self.mixer_out_ctl.load_balance(card_cntr)?;
-        self.mixer_out_ctl.load_mute(card_cntr)?;
 
         self.analog_in_ctl.load_switch(card_cntr)?;
 
