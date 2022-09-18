@@ -122,8 +122,13 @@ impl CommandDspInputCtlOperation<Track16Protocol> for InputCtl {
     }
 }
 
-#[derive(Default)]
 struct OutputCtl(CommandDspOutputState, Vec<ElemId>);
+
+impl Default for OutputCtl {
+    fn default() -> Self {
+        Self(Track16Protocol::create_output_state(), Default::default())
+    }
+}
 
 impl CommandDspOutputCtlOperation<Track16Protocol> for OutputCtl {
     fn state(&self) -> &CommandDspOutputState {
