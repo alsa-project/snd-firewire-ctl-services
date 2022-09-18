@@ -3455,8 +3455,6 @@ pub trait CommandDspMeterCtlOperation<T: CommandDspMeterOperation> {
     const F32_CONVERT_SCALE: f32 = 1000000.0;
 
     fn load(&mut self, card_cntr: &mut CardCntr) -> Result<Vec<ElemId>, Error> {
-        *self.state_mut() = T::create_meter_state();
-
         let mut measured_elem_id_list = Vec::new();
 
         let elem_id = ElemId::new_by_name(ElemIfaceType::Mixer, 0, 0, INPUT_METER_NAME, 0);

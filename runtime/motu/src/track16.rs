@@ -153,8 +153,13 @@ impl CommandDspResourcebCtlOperation for ResourceCtl {
     }
 }
 
-#[derive(Default)]
 struct MeterCtl(CommandDspMeterState, Vec<ElemId>);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(Track16Protocol::create_meter_state(), Default::default())
+    }
+}
 
 impl CommandDspMeterCtlOperation<Track16Protocol> for MeterCtl {
     fn state(&self) -> &CommandDspMeterState {
