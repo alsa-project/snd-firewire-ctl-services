@@ -97,8 +97,16 @@ impl RegisterDspMixerReturnCtlOperation<F896hdProtocol> for MixerReturnCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerSourceCtl(RegisterDspMixerMonauralSourceState, Vec<ElemId>);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(
+            F896hdProtocol::create_mixer_monaural_source_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMixerMonauralSourceCtlOperation<F896hdProtocol> for MixerSourceCtl {
     fn state(&self) -> &RegisterDspMixerMonauralSourceState {

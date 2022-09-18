@@ -70,8 +70,16 @@ impl RegisterDspMixerReturnCtlOperation<UltraliteProtocol> for MixerReturnCtl {
     }
 }
 
-#[derive(Default)]
 struct MixerSourceCtl(RegisterDspMixerMonauralSourceState, Vec<ElemId>);
+
+impl Default for MixerSourceCtl {
+    fn default() -> Self {
+        Self(
+            UltraliteProtocol::create_mixer_monaural_source_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspMixerMonauralSourceCtlOperation<UltraliteProtocol> for MixerSourceCtl {
     fn state(&self) -> &RegisterDspMixerMonauralSourceState {
