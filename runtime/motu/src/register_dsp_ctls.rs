@@ -755,9 +755,7 @@ pub trait RegisterDspLineInputCtlOperation<T: Traveler828mk2LineInputOperation> 
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        let mut state = T::create_line_input_state();
-        T::read_line_input_state(req, &mut unit.1, &mut state, timeout_ms)?;
-        *self.state_mut() = state;
+        T::read_line_input_state(req, &mut unit.1, self.state_mut(), timeout_ms)?;
 
         let mut notified_elem_id_list = Vec::new();
 

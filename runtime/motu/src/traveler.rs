@@ -129,8 +129,16 @@ impl RegisterDspOutputCtlOperation<TravelerProtocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
 struct LineInputCtl(RegisterDspLineInputState, Vec<ElemId>);
+
+impl Default for LineInputCtl {
+    fn default() -> Self {
+        Self(
+            TravelerProtocol::create_line_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspLineInputCtlOperation<TravelerProtocol> for LineInputCtl {
     fn state(&self) -> &RegisterDspLineInputState {

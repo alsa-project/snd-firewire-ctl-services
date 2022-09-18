@@ -128,8 +128,16 @@ impl RegisterDspOutputCtlOperation<F828mk2Protocol> for OutputCtl {
     }
 }
 
-#[derive(Default)]
 struct LineInputCtl(RegisterDspLineInputState, Vec<ElemId>);
+
+impl Default for LineInputCtl {
+    fn default() -> Self {
+        Self(
+            F828mk2Protocol::create_line_input_state(),
+            Default::default(),
+        )
+    }
+}
 
 impl RegisterDspLineInputCtlOperation<F828mk2Protocol> for LineInputCtl {
     fn state(&self) -> &RegisterDspLineInputState {
