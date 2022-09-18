@@ -34,18 +34,6 @@ struct MeterCtl(Vec<ElemId>, SaffireMeter);
 #[derive(Default)]
 struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
 
-impl AsRef<SaffireOutputParameters> for OutputCtl {
-    fn as_ref(&self) -> &SaffireOutputParameters {
-        &self.1
-    }
-}
-
-impl AsMut<SaffireOutputParameters> for OutputCtl {
-    fn as_mut(&mut self) -> &mut SaffireOutputParameters {
-        &mut self.1
-    }
-}
-
 impl SaffireOutputCtlOperation<SaffireOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
         "analog-output-1/2",
@@ -54,6 +42,14 @@ impl SaffireOutputCtlOperation<SaffireOutputProtocol> for OutputCtl {
         "analog-output-7/8",
         "digital-output-1/2",
     ];
+
+    fn state(&self) -> &SaffireOutputParameters {
+        &self.1
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireOutputParameters {
+        &mut self.1
+    }
 }
 
 #[derive(Default)]

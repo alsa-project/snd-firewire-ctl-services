@@ -41,7 +41,7 @@ use super::*;
 pub const FOCUSRITE_OUI: [u8; 3] = [0x00, 0x13, 0x0e];
 
 /// The structure for output parameters.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireOutputParameters {
     pub mutes: Vec<bool>,
     pub vols: Vec<u8>,
