@@ -157,16 +157,28 @@ const METER_SIZE: usize = 84;
 /// Information of hardware metering.
 #[derive(Debug)]
 pub struct MaudioSpecialMeterState {
+    /// Detected levels for analog inputs.
     pub analog_inputs: [i16; 8],
+    /// Detected levels of S/PDIF inputs.
     pub spdif_inputs: [i16; 2],
+    /// Detected levels of ADAT inputs.
     pub adat_inputs: [i16; 8],
+    /// Detected levels of analog outputs.
     pub analog_outputs: [i16; 4],
+    /// Detected levels of S/PDIF outputs.
     pub spdif_outputs: [i16; 2],
+    /// Detected levels of ADAT outputs.
     pub adat_outputs: [i16; 8],
+
+    /// Detected levels of headphone outputs.
     pub headphone: [i16; 4],
+    /// Detected levels of outputs from auxiliary mixer.
     pub aux_outputs: [i16; 2],
+    /// Detected state of hardware switch.
     pub switch: bool,
+    /// Detected states of hardware rotary knobs.
     pub rotaries: [i16; 3],
+    /// The status of sampling clock synchronization.
     pub sync_status: bool,
     cache: [u8; METER_SIZE],
 }
@@ -191,12 +203,18 @@ impl Default for MaudioSpecialMeterState {
 }
 
 impl MaudioSpecialMeterProtocol {
+    /// The minimum value of detected level.
     pub const LEVEL_MIN: i16 = 0;
+    /// The maximum value of detected level.
     pub const LEVEL_MAX: i16 = i16::MAX;
+    /// The step value of detected level.
     pub const LEVEL_STEP: i16 = 0x100;
 
+    /// The minimum value of hardware rotary.
     pub const ROTARY_MIN: i16 = i16::MIN;
+    /// The maximum value of hardware rotary.
     pub const ROTARY_MAX: i16 = 0;
+    /// The step value of hardware rotary.
     pub const ROTARY_STEP: i16 = 0x400;
 
     pub fn cache(
@@ -379,14 +397,21 @@ impl Default for MaudioSpecialStateCache {
 /// Parameters of input.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialInputParameters {
+    /// The gains of stream inputs.
     pub stream_gains: [i16; 4],
 
+    /// The gains of analog inputs.
     pub analog_gains: [i16; 8],
+    /// The gains of S/PDIF inputs.
     pub spdif_gains: [i16; 2],
+    /// The gains of ADAT inputs.
     pub adat_gains: [i16; 8],
 
+    /// The L/R balance of analog inputs.
     pub analog_balances: [i16; 8],
+    /// The L/R balance of S/PDIF inputs.
     pub spdif_balances: [i16; 2],
+    /// The L/R balance of ADAT inputs.
     pub adat_balances: [i16; 8],
 }
 
@@ -430,12 +455,18 @@ impl Default for MaudioSpecialInputParameters {
 pub struct MaudioSpecialInputProtocol;
 
 impl MaudioSpecialInputProtocol {
+    /// The minimum value of gain.
     pub const GAIN_MIN: i16 = i16::MIN;
+    /// The maximum value of gain.
     pub const GAIN_MAX: i16 = 0;
+    /// The step value of gain.
     pub const GAIN_STEP: i16 = 0x100;
 
+    /// The minimum value of L/R balance.
     pub const BALANCE_MIN: i16 = i16::MIN;
+    /// The maximum value of L/R balance.
     pub const BALANCE_MAX: i16 = i16::MAX;
+    /// The step value of L/R balance.
     pub const BALANCE_STEP: i16 = 0x100;
 }
 
@@ -495,7 +526,9 @@ impl SpecialParametersSerdes<MaudioSpecialInputParameters> for MaudioSpecialInpu
 /// Source of analog output.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum OutputSource {
+    /// The corresponding pair of mixer outputs.
     MixerOutputPair,
+    /// The pair of auxiliary mixer outputs.
     AuxOutputPair0,
 }
 
@@ -508,8 +541,11 @@ impl Default for OutputSource {
 /// Source of headphone.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum HeadphoneSource {
+    /// The 1st pair of mixer outputs.
     MixerOutputPair0,
+    /// The 2nd pair of mixer outputs.
     MixerOutputPair1,
+    /// The pair of auxiliary mixer outputs.
     AuxOutputPair0,
 }
 
@@ -522,9 +558,13 @@ impl Default for HeadphoneSource {
 /// Parameters of output.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialOutputParameters {
+    /// The volume of analog outputs.
     pub analog_volumes: [i16; 4],
+    /// The source for pair of analog outputs.
     pub analog_pair_sources: [OutputSource; 2],
+    /// The volume of headphone outputs.
     pub headphone_volumes: [i16; 4],
+    /// The source for pair of headphone outputs.
     pub headphone_pair_sources: [HeadphoneSource; 2],
 }
 
@@ -547,8 +587,11 @@ impl Default for MaudioSpecialOutputParameters {
 pub struct MaudioSpecialOutputProtocol;
 
 impl MaudioSpecialOutputProtocol {
+    /// The minimum value of volume.
     pub const VOLUME_MIN: i16 = i16::MIN;
+    /// The maximum value of volume.
     pub const VOLUME_MAX: i16 = 0;
+    /// The step value of volume.
     pub const VOLUME_STEP: i16 = 0x100;
 }
 
@@ -679,10 +722,15 @@ impl SpecialParametersSerdes<MaudioSpecialOutputParameters> for MaudioSpecialOut
 /// Parameters of aux signal multiplexer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialAuxParameters {
+    /// The volume of outputs.
     pub output_volumes: [i16; 2],
+    /// The gain of stream inputs.
     pub stream_gains: [i16; 4],
+    /// The gain of analog inputs.
     pub analog_gains: [i16; 8],
+    /// The gain of S/PDIF inputs.
     pub spdif_gains: [i16; 2],
+    /// The gain of ADAT inputs.
     pub adat_gains: [i16; 8],
 }
 
@@ -712,12 +760,18 @@ impl Default for MaudioSpecialAuxParameters {
 pub struct MaudioSpecialAuxProtocol;
 
 impl MaudioSpecialAuxProtocol {
+    /// The minimum value of input gain.
     pub const GAIN_MIN: i16 = i16::MIN;
+    /// The maximum value of input gain.
     pub const GAIN_MAX: i16 = 0;
+    /// The step value of input gain.
     pub const GAIN_STEP: i16 = 0x100;
 
+    /// The minimum value of output volume.
     pub const VOLUME_MIN: i16 = i16::MIN;
+    /// The maximum value of output volume.
     pub const VOLUME_MAX: i16 = 0;
+    /// The step value of output volume.
     pub const VOLUME_STEP: i16 = 0x100;
 }
 
@@ -771,9 +825,13 @@ impl SpecialParametersSerdes<MaudioSpecialAuxParameters> for MaudioSpecialAuxPro
 /// Parameters of signal multiplexer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MaudioSpecialMixerParameters {
+    /// Enable/Disable the pairs of analog inputs.
     pub analog_pairs: [[bool; 4]; 2],
+    /// Enable/Disable the pairs of S/PDIF inputs.
     pub spdif_pairs: [bool; 2],
+    /// Enable/Disable the pairs of ADAT inputs.
     pub adat_pairs: [[bool; 4]; 2],
+    /// Enable/Disable the pairs of stream inputs.
     pub stream_pairs: [[bool; 2]; 2],
 }
 
