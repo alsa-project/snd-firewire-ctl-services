@@ -1129,13 +1129,9 @@ pub trait RegisterDspMeterCtlOperation<T: RegisterDspMeterOperation> {
         req: &mut FwReq,
         timeout_ms: u32,
     ) -> Result<Vec<ElemId>, Error> {
-        let mut state = T::create_meter_state();
-
         if T::SELECTABLE {
-            T::select_output(req, &mut unit.1, 0, &mut state, timeout_ms)?;
+            T::select_output(req, &mut unit.1, 0, self.state_mut(), timeout_ms)?;
         }
-
-        *self.state_mut() = state;
 
         let mut measured_elem_id_list = Vec::new();
 

@@ -137,8 +137,13 @@ impl RegisterDspLineInputCtlOperation<TravelerProtocol> for LineInputCtl {
 #[derive(Default)]
 struct MicInputCtl(TravelerMicInputState, Vec<ElemId>);
 
-#[derive(Default)]
 struct MeterCtl(RegisterDspMeterState, Vec<ElemId>);
+
+impl Default for MeterCtl {
+    fn default() -> Self {
+        Self(H4preProtocol::create_meter_state(), Default::default())
+    }
+}
 
 impl RegisterDspMeterCtlOperation<H4preProtocol> for MeterCtl {
     fn state(&self) -> &RegisterDspMeterState {
