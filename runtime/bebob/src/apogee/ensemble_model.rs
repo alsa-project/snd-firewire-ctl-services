@@ -430,7 +430,7 @@ const RATE_CONVERT_RATE_NAME: &str = "sample-rate-convert-rate";
 const CD_MODE_NAME: &str = "cd-mode";
 
 #[derive(Default)]
-struct ConvertCtl(EnsembleConvertParameters);
+struct ConvertCtl(EnsembleConverterParameters);
 
 fn format_convert_target_to_str(target: &FormatConvertTarget) -> &str {
     match target {
@@ -802,9 +802,9 @@ impl InputCtl {
             .add_int_elems(
                 &elem_id,
                 1,
-                EnsembleInputParameters::GAIN_MIN as i32,
-                EnsembleInputParameters::GAIN_MAX as i32,
-                EnsembleInputParameters::GAIN_STEP as i32,
+                EnsembleInputProtocol::GAIN_MIN as i32,
+                EnsembleInputProtocol::GAIN_MAX as i32,
+                EnsembleInputProtocol::GAIN_STEP as i32,
                 Self::MIC_LABELS.len(),
                 None,
                 true,
@@ -1000,9 +1000,9 @@ impl<'a> OutputCtl {
             .add_int_elems(
                 &elem_id,
                 1,
-                EnsembleOutputParameters::VOL_MIN as i32,
-                EnsembleOutputParameters::VOL_MAX as i32,
-                EnsembleOutputParameters::VOL_STEP as i32,
+                EnsembleOutputProtocol::VOL_MIN as i32,
+                EnsembleOutputProtocol::VOL_MAX as i32,
+                EnsembleOutputProtocol::VOL_STEP as i32,
                 1,
                 None,
                 true,
@@ -1014,9 +1014,9 @@ impl<'a> OutputCtl {
             .add_int_elems(
                 &elem_id,
                 1,
-                EnsembleOutputParameters::VOL_MIN as i32,
-                EnsembleOutputParameters::VOL_MAX as i32,
-                EnsembleOutputParameters::VOL_STEP as i32,
+                EnsembleOutputProtocol::VOL_MIN as i32,
+                EnsembleOutputProtocol::VOL_MAX as i32,
+                EnsembleOutputProtocol::VOL_STEP as i32,
                 Self::HP_LABELS.len(),
                 None,
                 true,
@@ -1449,9 +1449,9 @@ impl MixerCtl {
         let _ = card_cntr.add_int_elems(
             &elem_id,
             Self::MIXER_LABELS.len(),
-            EnsembleMixerParameters::GAIN_MIN as i32,
-            EnsembleMixerParameters::GAIN_MAX as i32,
-            EnsembleMixerParameters::GAIN_STEP as i32,
+            EnsembleMixerProtocol::GAIN_MIN as i32,
+            EnsembleMixerProtocol::GAIN_MAX as i32,
+            EnsembleMixerProtocol::GAIN_STEP as i32,
             Self::MIXER_SRC_LABELS.len(),
             Some(&Into::<Vec<u32>>::into(Self::GAIN_TLV)),
             true,
