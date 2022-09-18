@@ -4,13 +4,14 @@
 use {
     super::*,
     protocols::{maudio::special::*, *},
+    std::marker::PhantomData,
 };
 
 pub type Fw1814Model = SpecialModel<Fw1814ClkProtocol>;
 pub type ProjectMixModel = SpecialModel<ProjectMixClkProtocol>;
 
 #[derive(Default)]
-pub struct SpecialModel<T: MediaClockFrequencyOperation + Default> {
+pub struct SpecialModel<T: MediaClockFrequencyOperation> {
     avc: BebobAvc,
     req: FwReq,
     clk_ctl: ClkCtl<T>,
@@ -26,14 +27,14 @@ const FCP_TIMEOUT_MS: u32 = 200;
 const TIMEOUT_MS: u32 = 100;
 
 #[derive(Default)]
-struct ClkCtl<T: MediaClockFrequencyOperation + Default>(Vec<ElemId>, T);
+struct ClkCtl<T: MediaClockFrequencyOperation>(Vec<ElemId>, PhantomData<T>);
 
-impl<T: MediaClockFrequencyOperation + Default> MediaClkFreqCtlOperation<T> for ClkCtl<T> {}
+impl<T: MediaClockFrequencyOperation> MediaClkFreqCtlOperation<T> for ClkCtl<T> {}
 
 #[derive(Default)]
 struct MeterCtl(MaudioSpecialMeterState, Vec<ElemId>);
 
-impl<T: MediaClockFrequencyOperation + Default> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
+impl<T: MediaClockFrequencyOperation> CtlModel<(SndUnit, FwNode)> for SpecialModel<T> {
     fn load(
         &mut self,
         unit: &mut (SndUnit, FwNode),
@@ -143,7 +144,7 @@ impl<T: MediaClockFrequencyOperation + Default> CtlModel<(SndUnit, FwNode)> for 
     }
 }
 
-impl<T: MediaClockFrequencyOperation + Default> MeasureModel<(SndUnit, FwNode)>
+impl<T: MediaClockFrequencyOperation> MeasureModel<(SndUnit, FwNode)>
     for SpecialModel<T>
 {
     fn get_measure_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
@@ -233,7 +234,7 @@ impl<T: MediaClockFrequencyOperation + Default> MeasureModel<(SndUnit, FwNode)>
     }
 }
 
-impl<T: MediaClockFrequencyOperation + Default> NotifyModel<(SndUnit, FwNode), bool>
+impl<T: MediaClockFrequencyOperation> NotifyModel<(SndUnit, FwNode), bool>
     for SpecialModel<T>
 {
     fn get_notified_elem_list(&mut self, elem_id_list: &mut Vec<ElemId>) {
