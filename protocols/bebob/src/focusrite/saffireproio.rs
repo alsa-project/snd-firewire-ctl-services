@@ -599,32 +599,7 @@ pub trait SaffireProioMonitorProtocol: SaffireProioMonitorSpecification {
         node: &FwNode,
         params: &mut SaffireProioMonitorParameters,
         timeout_ms: u32,
-    ) -> Result<(), Error> {
-        read_monitor_params(
-            req,
-            node,
-            &Self::MONITOR_OFFSETS[..16],
-            &mut params.analog_inputs,
-            timeout_ms,
-        )?;
-        read_monitor_params(
-            req,
-            node,
-            &Self::MONITOR_OFFSETS[16..20],
-            &mut params.spdif_inputs,
-            timeout_ms,
-        )?;
-        if let Some(mut levels_list) = &mut params.adat_inputs {
-            read_monitor_params(
-                req,
-                node,
-                &Self::MONITOR_OFFSETS[20..],
-                &mut levels_list,
-                timeout_ms,
-            )?;
-        }
-        Ok(())
-    }
+    ) -> Result<(), Error>;
 
     fn write_analog_inputs(
         req: &FwReq,
@@ -688,35 +663,15 @@ pub trait SaffireProioMonitorProtocol: SaffireProioMonitorSpecification {
     }
 }
 
-impl<O: SaffireProioMonitorSpecification> SaffireProioMonitorProtocol for O {}
-
-fn read_monitor_params<T>(
-    req: &FwReq,
-    node: &FwNode,
-    offsets: &[usize],
-    levels_list: &mut [T],
-    timeout_ms: u32,
-) -> Result<(), Error>
-where
-    T: AsMut<[i16]>,
-{
-    let mut buf = vec![0; offsets.len() * 4];
-    saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
-        let mut quadlet = [0; 4];
-        let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
-            let pos = i * 4;
-            quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-            vals.push(i32::from_be_bytes(quadlet) as i16);
-            vals
-        });
-        levels_list.iter_mut().enumerate().for_each(|(i, levels)| {
-            levels
-                .as_mut()
-                .iter_mut()
-                .enumerate()
-                .for_each(|(j, level)| *level = vals[i + j * 2]);
-        });
-    })
+impl<O: SaffireProioMonitorSpecification> SaffireProioMonitorProtocol for O {
+    fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireProioMonitorParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache(req, node, params, timeout_ms)
+    }
 }
 
 fn write_monitor_params<T>(
@@ -890,36 +845,7 @@ impl SaffireProioMixerProtocol {
         params: &mut SaffireProioMixerParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms)?;
-
-        let mut quadlet = [0; 4];
-        let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-            let pos = i * 4;
-            quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-            vals.push(u32::from_be_bytes(quadlet) as i16);
-            vals
-        });
-
-        params
-            .monitor_sources
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, level)| *level = vals[calc_monitor_source_pos(i)]);
-
-        params
-            .stream_source_pair0
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, level)| *level = vals[calc_stream_source_pair0_pos(i)]);
-
-        params
-            .stream_sources
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, level)| *level = vals[calc_stream_source_pos(i)]);
-
-        Ok(())
+        Self::cache(req, node, params, timeout_ms)
     }
 
     pub fn write_monitor_sources(
@@ -1177,37 +1103,7 @@ pub trait SaffireProioSpecificOperation: SaffireProioSpecificSpecification {
         node: &FwNode,
         params: &mut SaffireProioSpecificParameters,
         timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::SPECIFIC_OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, Self::SPECIFIC_OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::SPECIFIC_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(u32::from_be_bytes(quadlet));
-                vals
-            });
-
-            params.head_room = vals[0] > 0;
-            if Self::PHANTOM_POWERING_COUNT > 0 {
-                params.phantom_powerings[0] = vals[2] > 0;
-                params.phantom_powerings[1] = vals[1] > 0;
-            }
-            if Self::INSERT_SWAP_COUNT > 0 {
-                params.insert_swaps[0] = vals[3] > 0;
-                params.insert_swaps[1] = vals[4] > 0;
-            }
-
-            params.standalone_mode = if vals[5] > 0 {
-                SaffireProioStandaloneMode::Track
-            } else {
-                SaffireProioStandaloneMode::Mix
-            };
-
-            params.adat_enabled = vals[6] == 0;
-            params.direct_monitoring = vals[7] > 0;
-        })
-    }
+    ) -> Result<(), Error>;
 
     fn write_head_room(
         req: &FwReq,
@@ -1328,7 +1224,16 @@ pub trait SaffireProioSpecificOperation: SaffireProioSpecificSpecification {
     }
 }
 
-impl<O: SaffireProioSpecificSpecification> SaffireProioSpecificOperation for O {}
+impl<O: SaffireProioSpecificSpecification> SaffireProioSpecificOperation for O {
+    fn read_params(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireProioSpecificParameters,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache(req, node, params, timeout_ms)
+    }
+}
 
 /// The protocol implementation to store configuration in Saffire.
 #[derive(Default, Debug)]
