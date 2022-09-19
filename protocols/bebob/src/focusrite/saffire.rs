@@ -186,7 +186,7 @@ impl SamplingClockSourceOperation for SaffireClkProtocol {
 }
 
 /// Information of hardware metering in Saffire.
-#[derive(Debug, Default)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireMeter {
     pub phys_inputs: [i32; 4],
     pub dig_input_detect: bool,
@@ -194,7 +194,7 @@ pub struct SaffireMeter {
 }
 
 /// The protocol implementation of metering in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireMeterProtocol;
 
 impl SaffireMeterProtocol {
@@ -217,8 +217,7 @@ impl SaffireMeterProtocol {
 
     const DIG_INPUT_DETECT_OFFSET: usize = 0x13c;
 
-    // Read meter information.
-    pub fn read_meter(
+    pub fn cache(
         req: &FwReq,
         node: &FwNode,
         meter: &mut SaffireMeter,
@@ -378,65 +377,6 @@ impl SaffireParametersSerdes<SaffireSpecificParameters> for SaffireSpecificProto
 
 const SAFFIRE_INPUT_PAIR1_SRC_OFFSET: usize = 0xf8;
 const SAFFIRE_MIXER_MODE_OFFSET: usize = 0xfc;
-
-impl SaffireSpecificProtocol {
-    /// Read parameters.
-    pub fn read_params(
-        req: &FwReq,
-        node: &FwNode,
-        params: &mut SaffireSpecificParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache(req, node, params, timeout_ms)
-    }
-
-    /// Use mode of 192.0 khz.
-    pub fn write_192khz_mode(
-        req: &FwReq,
-        node: &FwNode,
-        enable: bool,
-        params: &mut SaffireSpecificParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let buf = (enable as u32).to_be_bytes();
-        saffire_write_quadlets(req, node, &Self::OFFSETS[..1], &buf, timeout_ms)
-            .map(|_| params.mode_192khz = enable)
-    }
-
-    /// Write the source of input 2/3.
-    pub fn write_input_pair_1_src(
-        req: &FwReq,
-        node: &FwNode,
-        src: SaffireInputPair1Source,
-        params: &mut SaffireSpecificParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let val = match src {
-            SaffireInputPair1Source::AnalogInputPair0 => 0,
-            SaffireInputPair1Source::DigitalInputPair0 => 1,
-        };
-        let buf = u32::to_be_bytes(val);
-        saffire_write_quadlets(req, node, &Self::OFFSETS[1..2], &buf, timeout_ms)
-            .map(|_| params.input_pair_1_src = src)
-    }
-
-    /// Write the mode of mixer.
-    pub fn write_mixer_mode(
-        req: &FwReq,
-        node: &FwNode,
-        mode: SaffireMixerMode,
-        params: &mut SaffireSpecificParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let val = match mode {
-            SaffireMixerMode::StereoPaired => 0,
-            SaffireMixerMode::StereoSeparated => 1,
-        };
-        let buf = u32::to_be_bytes(val);
-        saffire_write_quadlets(req, node, &Self::OFFSETS[2..], &buf, timeout_ms)
-            .map(|_| params.mixer_mode = mode)
-    }
-}
 
 /// The protocol implementation for operation of mixer at stereo separated mode in Saffire.
 #[derive(Default, Debug)]
@@ -1472,7 +1412,7 @@ impl SaffireStoreConfigSpecification for SaffireLeStoreConfigProtocol {
 }
 
 /// State of signal multiplexer in Saffire.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SaffireMixerState {
     pub phys_inputs: Vec<Vec<i16>>,
     pub reverb_returns: Vec<Vec<i16>>,
@@ -1644,133 +1584,9 @@ pub trait SaffireMixerOperation: SaffireMixerSpecification {
             stream_inputs: vec![vec![0; Self::STREAM_INPUT_COUNT]; Self::OUTPUT_PAIR_COUNT],
         }
     }
-
-    fn read_mixer_state(
-        req: &FwReq,
-        node: &FwNode,
-        state: &mut SaffireMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error>;
-
-    fn write_mixer_state(
-        req: &FwReq,
-        node: &FwNode,
-        state: &mut SaffireMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut offsets = Vec::new();
-        let mut buf = Vec::new();
-
-        state
-            .phys_inputs
-            .iter()
-            .enumerate()
-            .for_each(|(dst_idx, gains)| {
-                gains.iter().enumerate().for_each(|(src_idx, &gain)| {
-                    let pos = Self::phys_src_pos(dst_idx, src_idx);
-                    offsets.push(Self::MIXER_OFFSETS[pos]);
-                    buf.extend_from_slice(&(gain as i32).to_be_bytes());
-                });
-            });
-
-        state
-            .reverb_returns
-            .iter()
-            .enumerate()
-            .for_each(|(dst_idx, gains)| {
-                gains.iter().enumerate().for_each(|(src_idx, &gain)| {
-                    let pos = Self::reverb_return_pos(dst_idx, src_idx);
-                    offsets.push(Self::MIXER_OFFSETS[pos]);
-                    buf.extend_from_slice(&(gain as i32).to_be_bytes());
-                });
-            });
-
-        state
-            .stream_inputs
-            .iter()
-            .enumerate()
-            .for_each(|(dst_idx, gains)| {
-                gains.iter().enumerate().for_each(|(src_idx, &gain)| {
-                    let pos = Self::stream_src_pos(dst_idx, src_idx);
-                    offsets.push(Self::MIXER_OFFSETS[pos]);
-                    buf.extend_from_slice(&(gain as i32).to_be_bytes());
-                });
-            });
-
-        saffire_write_quadlets(req, node, &offsets, &mut buf, timeout_ms)
-    }
-
-    fn write_phys_inputs(
-        req: &FwReq,
-        node: &FwNode,
-        idx: usize,
-        levels: &[i16],
-        state: &mut SaffireMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        write_src_levels(
-            req,
-            node,
-            idx,
-            levels,
-            &Self::MIXER_OFFSETS,
-            &mut state.phys_inputs,
-            timeout_ms,
-            Self::phys_src_pos,
-        )
-    }
-
-    fn write_reverb_returns(
-        req: &FwReq,
-        node: &FwNode,
-        idx: usize,
-        levels: &[i16],
-        state: &mut SaffireMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        write_src_levels(
-            req,
-            node,
-            idx,
-            levels,
-            &Self::MIXER_OFFSETS,
-            &mut state.reverb_returns,
-            timeout_ms,
-            Self::reverb_return_pos,
-        )
-    }
-
-    fn write_stream_inputs(
-        req: &FwReq,
-        node: &FwNode,
-        idx: usize,
-        levels: &[i16],
-        state: &mut SaffireMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        write_src_levels(
-            req,
-            node,
-            idx,
-            levels,
-            &Self::MIXER_OFFSETS,
-            &mut state.stream_inputs,
-            timeout_ms,
-            Self::stream_src_pos,
-        )
-    }
 }
 
-impl<O: SaffireMixerSpecification> SaffireMixerOperation for O {
-    fn read_mixer_state(
-        req: &FwReq,
-        node: &FwNode,
-        state: &mut SaffireMixerState,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache(req, node, state, timeout_ms)
-    }
-}
+impl<O: SaffireMixerSpecification> SaffireMixerOperation for O {}
 
 /// State of stereo-separated reverb effect in Saffire.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -1860,21 +1676,6 @@ impl SaffireReverbProtocol {
     pub const TONE_MAX: i32 = i32::MAX;
     pub const TONE_STEP: i32 = 0x00000001;
 
-    const OFFSETS: [usize; 10] = [
-        // ch 0
-        0x1004, // amount
-        0x1008, // room-size
-        0x100c, // diffusion
-        0x1010, // tone-negative
-        0x1014, // tone-value
-        // ch 1
-        0x1018, // amount
-        0x101c, // room-size
-        0x1020, // diffusion
-        0x1024, // tone-negative
-        0x1028, // tone-value
-    ];
-
     fn parse_tone(vals: &[i32]) -> i32 {
         assert_eq!(vals.len(), 2);
         let mut tone = vals[1];
@@ -1884,96 +1685,10 @@ impl SaffireReverbProtocol {
         tone
     }
 
-    pub fn read_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SaffireReverbParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache(req, node, params, timeout_ms)
-    }
-
-    /// write amount parameter.
-    pub fn write_amounts(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        amounts: &[i32],
-        params: &mut SaffireReverbParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        amounts
-            .iter()
-            .zip(&mut params.amounts)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, Self::OFFSETS[i * 5], &buf, timeout_ms)
-                    .map(|_| *old = new)
-            })
-    }
-
-    /// Write room size parameter.
-    pub fn write_room_sizes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        room_sizes: &[i32],
-        params: &mut SaffireReverbParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        room_sizes
-            .iter()
-            .zip(&mut params.room_sizes)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, Self::OFFSETS[i * 5 + 1], &buf, timeout_ms)
-                    .map(|_| *old = new)
-            })
-    }
-
-    /// Write diffusion parameter.
-    pub fn write_diffusions(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        diffusions: &[i32],
-        params: &mut SaffireReverbParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        diffusions
-            .iter()
-            .zip(&mut params.diffusions)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, Self::OFFSETS[i * 5 + 2], &buf, timeout_ms)
-                    .map(|_| *old = new)
-            })
-    }
-
     fn build_tone(vals: &mut [u8], tone: i32) {
         assert_eq!(vals.len(), 8);
         vals[..4].copy_from_slice(&((tone < 0) as u32).to_be_bytes());
         vals[4..].copy_from_slice(&(tone.abs() as u32).to_be_bytes());
-    }
-
-    /// Write tone parameter.
-    pub fn write_tones(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        tones: &[i32],
-        params: &mut SaffireReverbParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        tones
-            .iter()
-            .zip(&mut params.tones)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let mut buf = [0; 8];
-                Self::build_tone(&mut buf, new);
-                let offsets = &Self::OFFSETS[(i * 5 + 3)..(i * 5 + 5)];
-                saffire_write_quadlets(req, node, offsets, &buf, timeout_ms).map(|_| *old = new)
-            })
     }
 }
 
@@ -2044,76 +1759,6 @@ impl SaffireCompressorProtocol {
     pub const VOLUME_MIN: i32 = 0x0fffffff;
     pub const VOLUME_MAX: i32 = 0x7fffffff;
     pub const VOLUME_STEP: i32 = 1;
-
-    const OFFSETS: [usize; 16] = [
-        // ch 0.
-        0x0c00, 0x0c04, 0x0c08, 0x0c0c, 0x0c10, 0x0c14, 0x0c18, 0x0c1c, // ch 1.
-        0x0c28, 0x0c2c, 0x0c30, 0x0c34, 0x0c38, 0x0c3c, 0x0c40, 0x0c48,
-    ];
-
-    pub fn read_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SaffireCompressorParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache(req, node, params, timeout_ms)
-    }
-
-    pub fn write_enables(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        enables: &[bool],
-        params: &mut SaffireCompressorParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        enables
-            .iter()
-            .zip(&mut params.enables)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[i * 8 + 5];
-                let val = if new { 0x7fffffffu32 } else { 0x00000000 };
-                let buf = val.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
-
-    pub fn write_input_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        input_gains: &[i32],
-        params: &mut SaffireCompressorParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        input_gains
-            .iter()
-            .zip(&mut params.input_gains)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[i * 8 + 6];
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
-
-    pub fn write_output_volumes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        output_volumes: &[i32],
-        params: &mut SaffireCompressorParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        output_volumes
-            .iter()
-            .zip(&mut params.output_volumes)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[i * 8 + 7];
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
 }
 
 /// Parameters of equalizer effect in Saffire.
@@ -2208,84 +1853,6 @@ impl SaffireParametersSerdes<SaffireEqualizerParameters> for SaffireEqualizerPro
     }
 }
 
-impl SaffireEqualizerProtocol {
-    const OFFSETS: [usize; 62] = [
-        0x0800, 0x0804, 0x0808, 0x080c, 0x0810, 0x0814, // ch 0 band 0.
-        0x0828, 0x082c, 0x0830, 0x0834, 0x0840, 0x0844, 0x0850, // ch 0 band 1.
-        0x08c8, 0x08cc, 0x08d0, 0x08d4, 0x08e0, 0x08e4, 0x08f0, // ch 0 band 2.
-        0x0968, 0x096c, 0x0970, 0x0974, 0x0980, 0x0984, 0x0990, // ch 0 band 3.
-        0x0a08, 0x0a0c, 0x0a10, 0x0a14, 0x0a20, 0x0a24, 0x0a30, // ch 1 band 0.
-        0x0878, 0x087c, 0x0880, 0x0884, 0x0890, 0x0894, 0x08a0, // ch 1 band 1.
-        0x0918, 0x091c, 0x0920, 0x0924, 0x0930, 0x0934, 0x0940, // ch 1 band 2.
-        0x09b8, 0x09bc, 0x09c0, 0x09c4, 0x09d0, 0x09d4, 0x09e0, // ch 1 band 3.
-        0x0a58, 0x0a5c, 0x0a60, 0x0a64, 0x0a70, 0x0a74, 0x0a80,
-    ];
-
-    pub fn read_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SaffireEqualizerParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache(req, node, params, timeout_ms)
-    }
-
-    pub fn write_enables(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        enables: &[bool],
-        params: &mut SaffireEqualizerParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        enables
-            .iter()
-            .zip(&mut params.enables)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[i];
-                let val = if new { 0x7fffffffu32 } else { 0x00000000 };
-                let buf = val.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
-
-    pub fn write_input_gains(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        input_gains: &[i32],
-        params: &mut SaffireEqualizerParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        input_gains
-            .iter()
-            .zip(&mut params.input_gains)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[2 + i * 2];
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
-
-    pub fn write_output_volumes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        output_volumes: &[i32],
-        params: &mut SaffireEqualizerParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        output_volumes
-            .iter()
-            .zip(&mut params.output_volumes)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[2 + i * 2 + 1];
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
-}
-
 /// Parameters of amplifier effect in Saffire.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SaffireAmplifierParameters {
@@ -2326,56 +1893,6 @@ impl SaffireParametersSerdes<SaffireAmplifierParameters> for SaffireAmplifierPro
         params.enables[1] = quads[1] > 0;
         params.output_volumes[0] = quads[2];
         params.output_volumes[1] = quads[3];
-    }
-}
-
-impl SaffireAmplifierProtocol {
-    const OFFSETS: [usize; 4] = [0x1400, 0x17e8, 0x17ec, 0x1bd4];
-
-    pub fn read_params(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        params: &mut SaffireAmplifierParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        Self::cache(req, node, params, timeout_ms)
-    }
-
-    pub fn write_enables(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        enables: &[bool],
-        params: &mut SaffireAmplifierParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        enables
-            .iter()
-            .zip(&mut params.enables)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[i];
-                let val = if new { 0x7fffffffu32 } else { 0x00000000 };
-                let buf = val.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
-    }
-
-    pub fn write_output_volumes(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        output_volumes: &[i32],
-        params: &mut SaffireAmplifierParameters,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        output_volumes
-            .iter()
-            .zip(&mut params.output_volumes)
-            .enumerate()
-            .try_for_each(|(i, (&new, old))| {
-                let offset = Self::OFFSETS[2 + i];
-                let buf = new.to_be_bytes();
-                saffire_write_quadlet(req, node, offset, &buf, timeout_ms).map(|_| *old = new)
-            })
     }
 }
 
@@ -2460,85 +1977,6 @@ impl SaffireParametersSerdes<SaffireChStripParameters> for SaffireChStripProtoco
 /// The protocol implementation to operate channel strip effects.
 #[derive(Default, Debug)]
 pub struct SaffireChStripProtocol;
-
-impl SaffireChStripProtocol {
-    const PAIRED_MODE_OFFSET: usize = 0x7d0;
-    const COMP_ORDER_OFFSET: [usize; 2] = [0x7d4, 0x7d8];
-
-    pub fn read_paired_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        paired_mode: &mut SaffireMixerMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut buf = [0; 4];
-        saffire_read_quadlet(req, node, Self::PAIRED_MODE_OFFSET, &mut buf, timeout_ms).map(|_| {
-            *paired_mode = if u32::from_be_bytes(buf) > 0 {
-                SaffireMixerMode::StereoSeparated
-            } else {
-                SaffireMixerMode::StereoPaired
-            };
-        })
-    }
-
-    pub fn write_paired_mode(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        paired_mode: SaffireMixerMode,
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let val = match paired_mode {
-            SaffireMixerMode::StereoSeparated => 0x7fffffffu32,
-            SaffireMixerMode::StereoPaired => 0x00000000,
-        };
-        saffire_write_quadlet(
-            req,
-            node,
-            Self::PAIRED_MODE_OFFSET,
-            &val.to_be_bytes(),
-            timeout_ms,
-        )
-    }
-
-    pub fn read_comp_order(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        comp_order: &mut [SaffireChStripCompOrder],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut buf = [0; 8];
-        saffire_read_quadlets(req, node, &Self::COMP_ORDER_OFFSET, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            comp_order.iter_mut().enumerate().for_each(|(i, order)| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                *order = if u32::from_be_bytes(quadlet) > 0 {
-                    SaffireChStripCompOrder::Pre
-                } else {
-                    SaffireChStripCompOrder::Post
-                };
-            });
-        })
-    }
-
-    pub fn write_comp_order(
-        req: &mut FwReq,
-        node: &mut FwNode,
-        comp_order: &[SaffireChStripCompOrder],
-        timeout_ms: u32,
-    ) -> Result<(), Error> {
-        comp_order
-            .iter()
-            .zip(Self::COMP_ORDER_OFFSET)
-            .try_for_each(|(&order, offset)| {
-                let val = match order {
-                    SaffireChStripCompOrder::Pre => 0x7fffffffu32,
-                    SaffireChStripCompOrder::Post => 0x00000000,
-                };
-                saffire_write_quadlet(req, node, offset, &val.to_be_bytes(), timeout_ms)
-            })
-    }
-}
 
 #[cfg(test)]
 mod test {
