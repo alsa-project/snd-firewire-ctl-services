@@ -387,28 +387,7 @@ impl SaffireSpecificProtocol {
         params: &mut SaffireSpecificParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(u32::from_be_bytes(quadlet));
-                vals
-            });
-            params.mode_192khz = vals[0] > 0;
-            params.input_pair_1_src = if vals[1] > 0 {
-                SaffireInputPair1Source::DigitalInputPair0
-            } else {
-                SaffireInputPair1Source::AnalogInputPair0
-            };
-            params.mixer_mode = if vals[2] > 0 {
-                SaffireMixerMode::StereoSeparated
-            } else {
-                SaffireMixerMode::StereoPaired
-            };
-        })
+        Self::cache(req, node, params, timeout_ms)
     }
 
     /// Use mode of 192.0 khz.
@@ -821,18 +800,7 @@ impl SaffireLeSpecificProtocol {
         params: &mut SaffireLeSpecificParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(u32::from_be_bytes(quadlet));
-                vals
-            });
-            params.analog_input_2_3_high_gains[0] = vals[0] > 0;
-            params.analog_input_2_3_high_gains[1] = vals[1] > 0;
-        })
+        Self::cache(req, node, params, timeout_ms)
     }
 
     /// Enable/disable high gain of analog input 2 or 3.
@@ -1146,42 +1114,7 @@ impl SaffireLeMixerLowRateProtocol {
         state: &mut SaffireLeMixerLowRateState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet) as i16);
-                vals
-            });
-
-            state
-                .stream_src_gains
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, gains)| {
-                    gains.iter_mut().enumerate().for_each(|(j, gain)| {
-                        *gain = vals[Self::stream_src_pos(i, j)];
-                    });
-                });
-
-            state
-                .phys_src_gains
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, gains)| {
-                    gains.iter_mut().enumerate().for_each(|(j, gain)| {
-                        *gain = vals[Self::phys_src_pos(i, j)];
-                    });
-                });
-
-            state.spdif_out_src = if vals[56] > 0 {
-                SaffireLeSpdifOutputSource::MixerOutputPair67
-            } else {
-                SaffireLeSpdifOutputSource::MixerOutputPair01
-            };
-        })
+        Self::cache(req, node, state, timeout_ms)
     }
 
     /// Write levels of stream source for indicated destination.
@@ -1441,50 +1374,7 @@ impl SaffireLeMixerMiddleRateProtocol {
         state: &mut SaffireLeMixerMiddleRateState,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet) as i16);
-                vals
-            });
-
-            state
-                .monitor_src_phys_input_gains
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, gain)| *gain = vals[Self::monitor_analog_input_pos(0, i)]);
-
-            state
-                .monitor_out_src_pair_gains
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, gains)| {
-                    gains
-                        .iter_mut()
-                        .enumerate()
-                        .for_each(|(j, gain)| *gain = vals[Self::mixer_monitor_src_pos(i, j)]);
-                });
-
-            state
-                .stream_src_pair_gains
-                .iter_mut()
-                .enumerate()
-                .for_each(|(i, gains)| {
-                    gains
-                        .iter_mut()
-                        .enumerate()
-                        .for_each(|(j, gain)| *gain = vals[Self::mixer_stream_input_pos(i, j)]);
-                });
-
-            state.spdif_out_src = if vals[18] > 0 {
-                SaffireLeSpdifOutputSource::MixerOutputPair67
-            } else {
-                SaffireLeSpdifOutputSource::MixerOutputPair01
-            };
-        })
+        Self::cache(req, node, state, timeout_ms)
     }
 
     /// Write levels of input source to monitor for indicated destination.
@@ -1764,51 +1654,7 @@ pub trait SaffireMixerOperation: SaffireMixerSpecification {
         node: &FwNode,
         state: &mut SaffireMixerState,
         timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::MIXER_OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::MIXER_OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::MIXER_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet) as i16);
-                vals
-            });
-
-            state
-                .phys_inputs
-                .iter_mut()
-                .enumerate()
-                .for_each(|(dst_idx, gains)| {
-                    gains.iter_mut().enumerate().for_each(|(src_idx, gain)| {
-                        let pos = Self::phys_src_pos(dst_idx, src_idx);
-                        *gain = vals[pos];
-                    });
-                });
-
-            state
-                .reverb_returns
-                .iter_mut()
-                .enumerate()
-                .for_each(|(dst_idx, gains)| {
-                    gains.iter_mut().enumerate().for_each(|(src_idx, gain)| {
-                        let pos = Self::reverb_return_pos(dst_idx, src_idx);
-                        *gain = vals[pos];
-                    });
-                });
-
-            state
-                .stream_inputs
-                .iter_mut()
-                .enumerate()
-                .for_each(|(dst_idx, gains)| {
-                    gains.iter_mut().enumerate().for_each(|(src_idx, gain)| {
-                        let pos = Self::stream_src_pos(dst_idx, src_idx);
-                        *gain = vals[pos];
-                    });
-                });
-        })
-    }
+    ) -> Result<(), Error>;
 
     fn write_mixer_state(
         req: &FwReq,
@@ -1919,7 +1765,16 @@ pub trait SaffireMixerOperation: SaffireMixerSpecification {
     }
 }
 
-impl<O: SaffireMixerSpecification> SaffireMixerOperation for O {}
+impl<O: SaffireMixerSpecification> SaffireMixerOperation for O {
+    fn read_mixer_state(
+        req: &FwReq,
+        node: &FwNode,
+        state: &mut SaffireMixerState,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache(req, node, state, timeout_ms)
+    }
+}
 
 /// State of stereo-separated reverb effect in Saffire.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
@@ -2039,24 +1894,7 @@ impl SaffireReverbProtocol {
         params: &mut SaffireReverbParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet));
-                vals
-            });
-            params.amounts[0] = vals[0];
-            params.amounts[1] = vals[5];
-            params.room_sizes[0] = vals[1];
-            params.room_sizes[1] = vals[6];
-            params.diffusions[0] = vals[2];
-            params.diffusions[1] = vals[7];
-            params.tones[0] = Self::parse_tone(&vals[3..5]);
-            params.tones[1] = Self::parse_tone(&vals[8..10]);
-        })
+        Self::cache(req, node, params, timeout_ms)
     }
 
     /// write amount parameter.
@@ -2223,23 +2061,7 @@ impl SaffireCompressorProtocol {
         params: &mut SaffireCompressorParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals: Vec<i32> = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet));
-                vals
-            });
-
-            params.enables[0] = vals[5] > 0;
-            params.enables[1] = vals[13] > 0;
-            params.input_gains[0] = vals[6];
-            params.input_gains[1] = vals[14];
-            params.output_volumes[0] = vals[7];
-            params.output_volumes[1] = vals[15];
-        })
+        Self::cache(req, node, params, timeout_ms)
     }
 
     pub fn write_enables(
@@ -2409,23 +2231,7 @@ impl SaffireEqualizerProtocol {
         params: &mut SaffireEqualizerParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals: Vec<i32> = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet));
-                vals
-            });
-
-            params.enables[0] = vals[5] > 0;
-            params.enables[1] = vals[13] > 0;
-            params.input_gains[0] = vals[6];
-            params.input_gains[1] = vals[14];
-            params.output_volumes[0] = vals[7];
-            params.output_volumes[1] = vals[15];
-        })
+        Self::cache(req, node, params, timeout_ms)
     }
 
     pub fn write_enables(
@@ -2533,24 +2339,10 @@ impl SaffireAmplifierProtocol {
     pub fn read_params(
         req: &mut FwReq,
         node: &mut FwNode,
-        params: &mut SaffireEqualizerParameters,
+        params: &mut SaffireAmplifierParameters,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OFFSETS, &mut buf, timeout_ms).map(|_| {
-            let mut quadlet = [0; 4];
-            let vals: Vec<i32> = (0..Self::OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet));
-                vals
-            });
-
-            params.enables[0] = vals[0] > 0;
-            params.enables[1] = vals[1] > 0;
-            params.output_volumes[0] = vals[2];
-            params.output_volumes[1] = vals[3];
-        })
+        Self::cache(req, node, params, timeout_ms)
     }
 
     pub fn write_enables(

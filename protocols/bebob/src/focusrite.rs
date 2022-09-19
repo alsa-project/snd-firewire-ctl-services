@@ -52,6 +52,115 @@ pub trait SaffireParametersSerdes<T: Clone> {
     fn deserialize(params: &mut T, raw: &[u8]);
 }
 
+/// The interface to operate hardware by parameters.
+pub trait SaffireParametersOperation<T: Clone>: SaffireParametersSerdes<T> {
+    /// Cache the state of hardware to the parameters.
+    fn cache(req: &FwReq, node: &FwNode, params: &mut T, timeout_ms: u32) -> Result<(), Error> {
+        let mut raw = vec![0u8; Self::OFFSETS.len() * 4];
+
+        let mut peek_iter = Self::OFFSETS.iter().enumerate().peekable();
+        let mut prev_idx = 0;
+
+        while let Some((curr_idx, curr_offset)) = peek_iter.next() {
+            let begin_idx = prev_idx;
+            let mut next = peek_iter.peek();
+
+            if let Some(&(next_idx, &next_offset)) = next {
+                if curr_offset + 4 != next_offset {
+                    prev_idx = next_idx;
+                    next = None;
+                }
+            }
+
+            if next.is_none() {
+                let end_idx = curr_idx + 1;
+
+                let begin_pos = begin_idx * 4;
+                let end_pos = end_idx * 4;
+                let r = &mut raw[begin_pos..end_pos];
+
+                let tcode = if r.len() == 4 {
+                    FwTcode::ReadQuadletRequest
+                } else {
+                    FwTcode::ReadBlockRequest
+                };
+
+                req.transaction_sync(
+                    node,
+                    tcode,
+                    READ_OFFSET + Self::OFFSETS[begin_idx] as u64,
+                    r.len(),
+                    r,
+                    timeout_ms,
+                )?;
+            }
+        }
+
+        Self::deserialize(params, &raw);
+
+        Ok(())
+    }
+
+    /// Update the hardware for the parameters.
+    fn update(
+        req: &FwReq,
+        node: &FwNode,
+        params: &T,
+        prev: &mut T,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        let mut new = vec![0u8; Self::OFFSETS.len() * 4];
+        Self::serialize(&params, &mut new);
+
+        let mut old = vec![0u8; Self::OFFSETS.len() * 4];
+        Self::serialize(&prev, &mut old);
+
+        let mut peek_iter = Self::OFFSETS.iter().enumerate().peekable();
+        let mut prev_idx = 0;
+
+        while let Some((curr_idx, curr_offset)) = peek_iter.next() {
+            let begin_idx = prev_idx;
+            let mut next = peek_iter.peek();
+
+            if let Some(&(next_idx, &next_offset)) = next {
+                if curr_offset + 4 != next_offset || next_idx - prev_idx >= MAXIMUM_OFFSET_COUNT {
+                    prev_idx = next_idx;
+                    next = None;
+                }
+            }
+
+            if next.is_none() {
+                let end_idx = curr_idx + 1;
+
+                let begin_pos = begin_idx * 4;
+                let end_pos = end_idx * 4;
+
+                let n = &mut new[begin_pos..end_pos];
+                let o = &mut old[begin_pos..end_pos];
+
+                if n != o {
+                    let mut frame = build_frame_for_write(&Self::OFFSETS[begin_idx..end_idx], n);
+
+                    req.transaction_sync(
+                        node,
+                        FwTcode::WriteBlockRequest,
+                        WRITE_OFFSET,
+                        frame.len(),
+                        &mut frame,
+                        timeout_ms,
+                    )?;
+                }
+            }
+        }
+
+        Self::deserialize(prev, &new);
+
+        Ok(())
+    }
+}
+
+impl<O: SaffireParametersSerdes<T>, T: Clone> SaffireParametersOperation<T> for O {}
+
 /// The structure for output parameters.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SaffireOutputParameters {
@@ -179,7 +288,9 @@ impl<O: SaffireOutputSpecification> SaffireParametersSerdes<SaffireOutputParamet
     }
 }
 
-/// The trait for operations of output parameters.
+/// The trait for operations of output parameters. It takes a bit time to read changed flag of
+/// hwctl after finishing write transaction to change it. Use parse_hwctl argument to suppress
+/// parsing the flag.
 pub trait SaffireOutputOperation: SaffireOutputSpecification {
     const LEVEL_MIN: u8 = 0x00;
     const LEVEL_MAX: u8 = 0xff;
@@ -195,60 +306,13 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
         }
     }
 
-    /// It takes a bit time to read changed flag of hwctl after finishing write transaction to
-    /// change it. Use parse_hwctl argument to suppress parsing the flag.
     fn read_output_parameters(
         req: &FwReq,
         node: &FwNode,
         params: &mut SaffireOutputParameters,
         parse_hwctl: bool,
         timeout_ms: u32,
-    ) -> Result<(), Error> {
-        let mut buf = vec![0; Self::OUTPUT_OFFSETS.len() * 4];
-        saffire_read_quadlets(req, node, &Self::OUTPUT_OFFSETS, &mut buf, timeout_ms)?;
-
-        let mut quadlet = [0; 4];
-        let vals = (0..Self::OUTPUT_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-            let pos = i * 4;
-            quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-            vals.push(u32::from_be_bytes(quadlet));
-            vals
-        });
-
-        params
-            .mutes
-            .iter_mut()
-            .zip(&vals)
-            .for_each(|(mute, &val)| *mute = val & MUTE_FLAG > 0);
-
-        params
-            .vols
-            .iter_mut()
-            .zip(&vals)
-            .for_each(|(vol, &val)| *vol = 0xff - (val & VOL_MASK) as u8);
-
-        if parse_hwctl {
-            params
-                .hwctls
-                .iter_mut()
-                .zip(&vals)
-                .for_each(|(hwctl, &val)| *hwctl = val & HWCTL_FLAG > 0);
-        }
-
-        params
-            .dims
-            .iter_mut()
-            .zip(&vals)
-            .for_each(|(dim, &val)| *dim = val & DIM_FLAG > 0);
-
-        params
-            .pads
-            .iter_mut()
-            .zip(&vals)
-            .for_each(|(pad, val)| *pad = val & PAD_FLAG > 0);
-
-        Ok(())
-    }
+    ) -> Result<(), Error>;
 
     fn write_mutes(
         req: &FwReq,
@@ -436,7 +500,17 @@ pub trait SaffireOutputOperation: SaffireOutputSpecification {
     }
 }
 
-impl<O: SaffireOutputSpecification> SaffireOutputOperation for O {}
+impl<O: SaffireOutputSpecification> SaffireOutputOperation for O {
+    fn read_output_parameters(
+        req: &FwReq,
+        node: &FwNode,
+        params: &mut SaffireOutputParameters,
+        _: bool,
+        timeout_ms: u32,
+    ) -> Result<(), Error> {
+        Self::cache(req, node, params, timeout_ms)
+    }
+}
 
 fn build_output_parameter(
     mutes: &[bool],
@@ -705,6 +779,20 @@ pub fn saffire_read_quadlets(
     Ok(())
 }
 
+fn build_frame_for_write(offsets: &[usize], raw: &[u8]) -> Vec<u8> {
+    assert_eq!(offsets.len() * 4, raw.len());
+
+    offsets
+        .iter()
+        .enumerate()
+        .fold(Vec::new(), |mut frame, (i, &offset)| {
+            frame.extend_from_slice(&((offset / 4) as u32).to_be_bytes());
+            let pos = i * 4;
+            frame.extend_from_slice(&raw[pos..(pos + 4)]);
+            frame
+        })
+}
+
 /// Write single quadlet.
 pub fn saffire_write_quadlet(
     req: &FwReq,
@@ -823,6 +911,24 @@ impl<O: SaffireThroughSpecification> SaffireThroughOperation for O {}
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn frame_for_write() {
+        let offsets = [4, 64, 100, 256];
+        let raw = [
+            193, 55, 77, 70, 113, 5, 39, 141, 62, 68, 38, 80, 87, 130, 82, 133,
+        ];
+
+        let frame = build_frame_for_write(&offsets, &raw);
+
+        offsets.iter().enumerate().for_each(|(i, &offset)| {
+            assert_eq!(
+                &frame[(i * 8)..(i * 8 + 4)],
+                &((offset / 4) as u32).to_be_bytes()
+            );
+            assert_eq!(&frame[(i * 8 + 4)..(i * 8 + 8)], &raw[(i * 4)..(i * 4 + 4)]);
+        });
+    }
 
     #[test]
     fn vendor_dependent_control_operands() {
