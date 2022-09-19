@@ -122,6 +122,13 @@ fn from_avc_err(err: Ta1394AvcError<Error>) -> Error {
     }
 }
 
+/// The parameters of media clock.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct MediaClockParameters {
+    /// The index for entry in frequency list.
+    pub freq_idx: usize,
+}
+
 /// The trait of frequency operation for media clock.
 pub trait MediaClockFrequencyOperation {
     const FREQ_LIST: &'static [u32];
@@ -176,6 +183,13 @@ pub trait MediaClockFrequencyOperation {
         });
         avc.control(&AvcAddr::Unit, &mut op, timeout_ms)
     }
+}
+
+/// The parameters of sampling clock.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SamplingClockParameters {
+    /// The index for entry in source list.
+    pub src_idx: usize,
 }
 
 /// The trait of source operation for sampling clock.
