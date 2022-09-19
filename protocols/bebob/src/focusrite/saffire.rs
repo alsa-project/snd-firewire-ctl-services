@@ -272,12 +272,12 @@ impl SaffireMeterProtocol {
 }
 
 /// The protocol implementation for operation of output parameters in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireOutputProtocol;
 
-impl SaffireOutputOperation for SaffireOutputProtocol {
+impl SaffireOutputSpecification for SaffireOutputProtocol {
     // physical-output-1/2, 3/4, 5/6, 7/8, and digital-output-1/2.
-    const OFFSETS: &'static [usize] = &[0xdc, 0xe0, 0xe4, 0xe8, 0xec];
+    const OUTPUT_OFFSETS: &'static [usize] = &[0xdc, 0xe0, 0xe4, 0xe8, 0xec];
 
     const MUTE_COUNT: usize = 5;
     const VOL_COUNT: usize = 4;
@@ -649,12 +649,14 @@ impl SamplingClockSourceOperation for SaffireLeClkProtocol {
 }
 
 /// The protocol implementation to store configuration in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireStoreConfigProtocol;
 
-impl SaffireStoreConfigOperation for SaffireStoreConfigProtocol {
-    const OFFSET: usize = 0x148;
+impl SaffireStoreConfigSpecification for SaffireStoreConfigProtocol {
+    const STORE_CONFIG_OFFSETS: &'static [usize] = &[0x148];
 }
+
+impl SaffireStoreConfigOperation for SaffireStoreConfigProtocol {}
 
 /// Information of hardware metering in Saffire LE.
 #[derive(Default)]
@@ -753,12 +755,12 @@ impl SaffireLeMeterProtocol {
 }
 
 /// The protocol implementation for operation of output parameters in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireLeOutputProtocol;
 
-impl SaffireOutputOperation for SaffireLeOutputProtocol {
+impl SaffireOutputSpecification for SaffireLeOutputProtocol {
     // physical-output-1/2, 3/4, 5/6, 7/8, and digital-output-1/2.
-    const OFFSETS: &'static [usize] = &[0x15c, 0x160, 0x164];
+    const OUTPUT_OFFSETS: &'static [usize] = &[0x15c, 0x160, 0x164];
 
     const MUTE_COUNT: usize = 3;
     const VOL_COUNT: usize = 3;
@@ -1258,18 +1260,19 @@ impl SaffireLeMixerMiddleRateProtocol {
 #[derive(Default, Debug)]
 pub struct SaffireLeThroughProtocol;
 
-impl SaffireThroughOperation for SaffireLeThroughProtocol {
-    const MIDI_THROUGH_OFFSET: usize = 0x01bc;
-    const AC3_THROUGH_OFFSET: usize = 0x01c0;
+impl SaffireThroughSpecification for SaffireLeThroughProtocol {
+    const THROUGH_OFFSETS: &'static [usize] = &[0x01bc, 0x01c0];
 }
 
 /// The protocol implementation to store configuration in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireLeStoreConfigProtocol;
 
-impl SaffireStoreConfigOperation for SaffireLeStoreConfigProtocol {
-    const OFFSET: usize = 0x1b8;
+impl SaffireStoreConfigSpecification for SaffireLeStoreConfigProtocol {
+    const STORE_CONFIG_OFFSETS: &'static [usize] = &[0x1b8];
 }
+
+impl SaffireStoreConfigOperation for SaffireLeStoreConfigProtocol {}
 
 /// State of signal multiplexer in Saffire.
 #[derive(Default, Debug)]

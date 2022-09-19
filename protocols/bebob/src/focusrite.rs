@@ -57,16 +57,30 @@ const MUTE_FLAG: u32 = 0x02000000;
 const DIM_FLAG: u32 = 0x01000000;
 const VOL_MASK: u32 = 0x000000ff;
 
-/// The trait for operations of output parameters.
-pub trait SaffireOutputOperation {
-    // NOTE: the series of offset should be continuous.
-    const OFFSETS: &'static [usize];
+/// The specification of protocol for output parameters.
+pub trait SaffireOutputSpecification {
+    /// The address offsets to operate for the parameters.
+    const OUTPUT_OFFSETS: &'static [usize];
 
+    /// The number of outputs accepting mute operation.
     const MUTE_COUNT: usize;
+
+    /// The number of outputs accepting volume operation.
     const VOL_COUNT: usize;
+
+    /// The number of outputs accepting hardware control operation.
     const HWCTL_COUNT: usize;
+
+    /// The number of outputs accepting dim operation.
     const DIM_COUNT: usize;
+
+    /// The number of outputs accepting pad operation.
     const PAD_COUNT: usize;
+}
+
+/// The trait for operations of output parameters.
+pub trait SaffireOutputOperation: SaffireOutputSpecification {
+    const OFFSETS: &'static [usize] = &Self::OUTPUT_OFFSETS;
 
     const LEVEL_MIN: u8 = 0x00;
     const LEVEL_MAX: u8 = 0xff;
@@ -323,6 +337,8 @@ pub trait SaffireOutputOperation {
     }
 }
 
+impl<O: SaffireOutputSpecification> SaffireOutputOperation for O {}
+
 fn build_output_parameter(
     mutes: &[bool],
     vols: &[u8],
@@ -356,11 +372,29 @@ fn build_output_parameter(
     val
 }
 
-pub trait SaffireStoreConfigOperation {
-    const OFFSET: usize;
+/// The specification of protocol for signal through function.
+pub trait SaffireThroughSpecification {
+    const THROUGH_OFFSETS: &'static [usize];
+}
 
+/// The parameters of configuration save.
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SaffireStoreConfigParameters;
+
+/// The specification of configuration save.
+pub trait SaffireStoreConfigSpecification {
+    const STORE_CONFIG_OFFSETS: &'static [usize];
+}
+
+pub trait SaffireStoreConfigOperation: SaffireStoreConfigSpecification {
     fn store_config(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<(), Error> {
-        saffire_write_quadlets(req, node, &[Self::OFFSET], &1u32.to_be_bytes(), timeout_ms)
+        saffire_write_quadlets(
+            req,
+            node,
+            Self::STORE_CONFIG_OFFSETS,
+            &1u32.to_be_bytes(),
+            timeout_ms,
+        )
     }
 }
 
@@ -586,9 +620,9 @@ pub fn saffire_write_quadlets(
 }
 
 /// The trait for operations of AC3 and MIDI signal through.
-pub trait SaffireThroughOperation {
-    const MIDI_THROUGH_OFFSET: usize;
-    const AC3_THROUGH_OFFSET: usize;
+pub trait SaffireThroughOperation: SaffireThroughSpecification {
+    const MIDI_THROUGH_OFFSET: usize = Self::THROUGH_OFFSETS[0];
+    const AC3_THROUGH_OFFSET: usize = Self::THROUGH_OFFSETS[1];
 
     fn read_midi_through(
         req: &FwReq,
@@ -642,6 +676,8 @@ pub trait SaffireThroughOperation {
         )
     }
 }
+
+impl<O: SaffireThroughSpecification> SaffireThroughOperation for O {}
 
 #[cfg(test)]
 mod test {
