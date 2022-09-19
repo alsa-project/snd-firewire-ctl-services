@@ -206,16 +206,14 @@ impl SaffireMeterProtocol {
     pub const LEVEL_MAX: i32 = 0x7fffffff;
     pub const LEVEL_STEP: i32 = 1;
 
-    const MONITOR_KNOB_VALUE_OFFSET: usize = 0x00f4;
-
-    const PHYS_INPUT_OFFSETS: [usize; 4] = [
-        0x100, // analog-input-0
-        0x104, // analog-input-2
-        0x108, // analog-input-1
-        0x10c, // analog-input-3
+    const OFFSETS: &'static [usize] = &[
+        0x00f4, // The value of monitor knob.
+        0x0100, // The signal level of analog-input-0.
+        0x0104, // The signal level of analog-input-2.
+        0x0108, // The signal level of analog-input-1.
+        0x010c, // The signal level of analog-input-3.
+        0x013c, // Whether to detect digital input.
     ];
-
-    const DIG_INPUT_DETECT_OFFSET: usize = 0x13c;
 
     pub fn cache(
         req: &FwReq,
@@ -223,49 +221,25 @@ impl SaffireMeterProtocol {
         meter: &mut SaffireMeter,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let mut buf = [0; 4];
-        saffire_read_quadlets(
-            req,
-            node,
-            &[Self::MONITOR_KNOB_VALUE_OFFSET],
-            &mut buf,
-            timeout_ms,
-        )
-        .map(|_| {
-            let vals = u32::from_be_bytes(buf);
-            meter.monitor_knob_value = (vals & 0x0000ffff) as u16;
-        })?;
+        let mut raw = [0u8; Self::OFFSETS.len() * 4];
 
-        let mut buf = [0; 16];
-        saffire_read_quadlets(req, node, &Self::PHYS_INPUT_OFFSETS, &mut buf, timeout_ms).map(
-            |_| {
-                let mut quadlet = [0; 4];
-                let vals: Vec<i32> =
-                    (0..Self::PHYS_INPUT_OFFSETS.len()).fold(Vec::new(), |mut vals, i| {
-                        let pos = i * 4;
-                        quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                        vals.push(i32::from_be_bytes(quadlet));
-                        vals
-                    });
+        saffire_read_quadlets(req, node, Self::OFFSETS, &mut raw, timeout_ms).map(|_| {
+            let mut quadlet = [0u8; 4];
+            quadlet.copy_from_slice(&raw[..4]);
+            meter.monitor_knob_value = (u32::from_be_bytes(quadlet) & 0x0000ffff) as u16;
 
-                meter.phys_inputs[0] = vals[0];
-                meter.phys_inputs[2] = vals[1];
-                meter.phys_inputs[1] = vals[2];
-                meter.phys_inputs[3] = vals[3];
-            },
-        )?;
+            meter
+                .phys_inputs
+                .iter_mut()
+                .enumerate()
+                .for_each(|(i, level)| {
+                    let pos = 4 + i * 4;
+                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                    *level = i32::from_be_bytes(quadlet);
+                });
 
-        let mut buf = [0; 4];
-        saffire_read_quadlets(
-            req,
-            node,
-            &[Self::DIG_INPUT_DETECT_OFFSET],
-            &mut buf,
-            timeout_ms,
-        )
-        .map(|_| {
-            let val = u32::from_be_bytes(buf);
-            meter.dig_input_detect = val > 0;
+            quadlet.copy_from_slice(&raw[20..]);
+            meter.dig_input_detect = u32::from_be_bytes(quadlet) > 0;
         })
     }
 }
