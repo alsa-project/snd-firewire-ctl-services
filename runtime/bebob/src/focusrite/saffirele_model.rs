@@ -32,8 +32,17 @@ impl SamplingClkSrcCtlOperation<SaffireLeClkProtocol> for ClkCtl {
 #[derive(Default)]
 struct MeterCtl(Vec<ElemId>, SaffireLeMeter);
 
-#[derive(Default)]
+#[derive(Debug)]
 struct OutputCtl(Vec<ElemId>, SaffireOutputParameters);
+
+impl Default for OutputCtl {
+    fn default() -> Self {
+        Self(
+            Default::default(),
+            SaffireLeOutputProtocol::create_output_parameters(),
+        )
+    }
+}
 
 impl SaffireOutputCtlOperation<SaffireLeOutputProtocol> for OutputCtl {
     const OUTPUT_LABELS: &'static [&'static str] = &[
@@ -60,10 +69,18 @@ struct MixerLowRateCtl(SaffireLeMixerLowRateState);
 #[derive(Default)]
 struct MixerMiddleRateCtl(SaffireLeMixerMiddleRateState);
 
-#[derive(Default)]
-struct ThroughCtl;
+#[derive(Default, Debug)]
+struct ThroughCtl(SaffireThroughParameters);
 
-impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {}
+impl SaffireThroughCtlOperation<SaffireLeThroughProtocol> for ThroughCtl {
+    fn state(&self) -> &SaffireThroughParameters {
+        &self.0
+    }
+
+    fn state_mut(&mut self) -> &mut SaffireThroughParameters {
+        &mut self.0
+    }
+}
 
 impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
     fn load(
@@ -86,7 +103,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
             .map(|mut elem_id_list| self.meter_ctl.0.append(&mut elem_id_list))?;
 
         self.out_ctl
-            .load_params(card_cntr, unit, &self.req, TIMEOUT_MS)
+            .load_params(card_cntr)
             .map(|mut elem_id_list| self.out_ctl.0.append(&mut elem_id_list))?;
 
         self.specific_ctl
@@ -99,12 +116,15 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
 
         self.through_ctl.load_params(card_cntr)?;
 
+        SaffireLeOutputProtocol::cache(&self.req, &unit.1, &mut self.out_ctl.1, TIMEOUT_MS)?;
+        SaffireLeThroughProtocol::cache(&self.req, &unit.1, &mut self.through_ctl.0, TIMEOUT_MS)?;
+
         Ok(())
     }
 
     fn read(
         &mut self,
-        unit: &mut (SndUnit, FwNode),
+        _: &mut (SndUnit, FwNode),
         elem_id: &ElemId,
         elem_value: &mut ElemValue,
     ) -> Result<bool, Error> {
@@ -134,10 +154,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
             .read_src_gains(elem_id, elem_value)?
         {
             Ok(true)
-        } else if self
-            .through_ctl
-            .read_params(unit, &self.req, elem_id, elem_value, TIMEOUT_MS)?
-        {
+        } else if self.through_ctl.read_params(elem_id, elem_value)? {
             Ok(true)
         } else {
             Ok(false)
@@ -171,7 +188,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
             Ok(true)
         } else if self
             .out_ctl
-            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+            .write_params(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else if self
@@ -191,7 +208,7 @@ impl CtlModel<(SndUnit, FwNode)> for SaffireLeModel {
             Ok(true)
         } else if self
             .through_ctl
-            .write_params(unit, &self.req, elem_id, new, TIMEOUT_MS)?
+            .write_params(&self.req, &unit.1, elem_id, new, TIMEOUT_MS)?
         {
             Ok(true)
         } else {
@@ -228,7 +245,8 @@ impl MeasureModel<(SndUnit, FwNode)> for SaffireLeModel {
 
     fn measure_states(&mut self, unit: &mut (SndUnit, FwNode)) -> Result<(), Error> {
         self.meter_ctl.measure_meter(unit, &self.req, TIMEOUT_MS)?;
-        self.out_ctl.measure_params(unit, &self.req, TIMEOUT_MS)?;
+        self.out_ctl
+            .measure_params(&self.req, &unit.1, TIMEOUT_MS)?;
         Ok(())
     }
 
@@ -716,20 +734,6 @@ mod test {
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
 
         let error = ctl.load_src(&mut card_cntr).unwrap_err();
-        assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
-    }
-
-    #[test]
-    fn test_output_params_definition() {
-        let mut card_cntr = CardCntr::default();
-        let mut ctl = OutputCtl::default();
-        let unit = SndUnit::default();
-        let node = FwNode::default();
-        let req = FwReq::default();
-
-        let error = ctl
-            .load_params(&mut card_cntr, &(unit, node), &req, TIMEOUT_MS)
-            .unwrap_err();
         assert_eq!(error.kind::<CardError>(), Some(CardError::Failed));
     }
 }
