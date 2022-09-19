@@ -116,14 +116,14 @@ use super::*;
 /// The protocol implementation of media and sampling clocks for Saffire Pro 26 i/o. Write
 /// operation corresponding to any change takes the unit to disappear from the bus, then
 /// appears again with new configurations.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffirePro26ioClkProtocol;
 
-impl SaffireProioMediaClockFrequencyOperation for SaffirePro26ioClkProtocol {
+impl SaffireProioMediaClockSpecification for SaffirePro26ioClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000, 176400, 192000];
 }
 
-impl SaffireProioSamplingClockSourceOperation for SaffirePro26ioClkProtocol {
+impl SaffireProioSamplingClockSpecification for SaffirePro26ioClkProtocol {
     const SRC_LIST: &'static [SaffireProioSamplingClockSource] = &[
         SaffireProioSamplingClockSource::Internal,
         SaffireProioSamplingClockSource::Spdif,
@@ -151,15 +151,15 @@ impl SaffireProioMeterOperation for SaffirePro26ioMeterProtocol {
 #[derive(Default, Debug)]
 pub struct SaffirePro26ioMonitorProtocol;
 
-impl SaffireProioMonitorProtocol for SaffirePro26ioMonitorProtocol {
+impl SaffireProioMonitorSpecification for SaffirePro26ioMonitorProtocol {
     const HAS_ADAT: bool = true;
 }
 
 /// The protocol implementaion of function specific to Saffire Pro 26 i/o
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffirePro26ioSpecificProtocol;
 
-impl SaffireProioSpecificOperation for SaffirePro26ioSpecificProtocol {
+impl SaffireProioSpecificSpecification for SaffirePro26ioSpecificProtocol {
     const PHANTOM_POWERING_COUNT: usize = 2;
     const INSERT_SWAP_COUNT: usize = 2;
 }
@@ -167,10 +167,10 @@ impl SaffireProioSpecificOperation for SaffirePro26ioSpecificProtocol {
 /// The protocol implementation of media and sampling clocks for Saffire Pro 10 i/o. Write
 /// operation corresponding to any change takes the unit to disappear from the bus, then
 /// appears again with new configurations.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffirePro10ioClkProtocol;
 
-impl SaffireProioMediaClockFrequencyOperation for SaffirePro10ioClkProtocol {
+impl SaffireProioMediaClockSpecification for SaffirePro10ioClkProtocol {
     const FREQ_LIST: &'static [u32] = &[44100, 48000, 88200, 96000];
 }
 
@@ -178,15 +178,15 @@ impl SaffireProioMediaClockFrequencyOperation for SaffirePro10ioClkProtocol {
 #[derive(Default, Debug)]
 pub struct SaffirePro10ioMonitorProtocol;
 
-impl SaffireProioMonitorProtocol for SaffirePro10ioMonitorProtocol {
+impl SaffireProioMonitorSpecification for SaffirePro10ioMonitorProtocol {
     const HAS_ADAT: bool = false;
 }
 
 /// The protocol implementaion of function specific to Saffire Pro 26 i/o
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffirePro10ioSpecificProtocol;
 
-impl SaffireProioSpecificOperation for SaffirePro10ioSpecificProtocol {
+impl SaffireProioSpecificSpecification for SaffirePro10ioSpecificProtocol {
     const PHANTOM_POWERING_COUNT: usize = 0;
     const INSERT_SWAP_COUNT: usize = 0;
 }
@@ -206,7 +206,7 @@ impl SaffireOutputSpecification for SaffireProioOutputProtocol {
     const PAD_COUNT: usize = 4;
 }
 
-impl SaffireProioSamplingClockSourceOperation for SaffirePro10ioClkProtocol {
+impl SaffireProioSamplingClockSpecification for SaffirePro10ioClkProtocol {
     const SRC_LIST: &'static [SaffireProioSamplingClockSource] = &[
         SaffireProioSamplingClockSource::Internal,
         SaffireProioSamplingClockSource::Spdif,
@@ -230,10 +230,14 @@ pub struct SaffireProioMixerProtocol;
 
 const MEDIA_CLOCK_FREQ_OFFSET: usize = 0x0150;
 
-/// The trait of frequency operation for media clock in Saffire Pro series.
-pub trait SaffireProioMediaClockFrequencyOperation {
+/// The specification of media clock.
+pub trait SaffireProioMediaClockSpecification {
+    /// The list of supported frequency.
     const FREQ_LIST: &'static [u32];
+}
 
+/// The trait of frequency operation for media clock in Saffire Pro series.
+pub trait SaffireProioMediaClockFrequencyOperation: SaffireProioMediaClockSpecification {
     fn read_clk_freq(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let mut buf = [0; 4];
         saffire_read_quadlet(req, node, MEDIA_CLOCK_FREQ_OFFSET, &mut buf, timeout_ms).and_then(
@@ -260,6 +264,8 @@ pub trait SaffireProioMediaClockFrequencyOperation {
     }
 }
 
+impl<O: SaffireProioMediaClockSpecification> SaffireProioMediaClockFrequencyOperation for O {}
+
 /// Signal source of sampling clock in Saffire Pro series.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum SaffireProioSamplingClockSource {
@@ -276,6 +282,12 @@ impl Default for SaffireProioSamplingClockSource {
     }
 }
 
+/// The specification of sampling clock.
+pub trait SaffireProioSamplingClockSpecification {
+    /// The list of supported sources.
+    const SRC_LIST: &'static [SaffireProioSamplingClockSource];
+}
+
 const SAMPLING_CLOCK_SRC_OFFSET: usize = 0x0174;
 
 const CLK_SRC_EFFECTIVE_MASK: u32 = 0x0000ff00;
@@ -287,9 +299,7 @@ const CLK_SRC_ADAT1: u32 = 0x04;
 const CLK_SRC_WORD_CLOCK: u32 = 0x05;
 
 /// The trait of source operation for sampling clock in Saffire Pro series.
-pub trait SaffireProioSamplingClockSourceOperation {
-    const SRC_LIST: &'static [SaffireProioSamplingClockSource];
-
+pub trait SaffireProioSamplingClockSourceOperation: SaffireProioSamplingClockSpecification {
     fn read_clk_src(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let mut buf = [0; 4];
         saffire_read_quadlet(req, node, SAMPLING_CLOCK_SRC_OFFSET, &mut buf, timeout_ms)?;
@@ -334,6 +344,8 @@ pub trait SaffireProioSamplingClockSourceOperation {
         saffire_write_quadlet(req, node, SAMPLING_CLOCK_SRC_OFFSET, &buf, timeout_ms)
     }
 }
+
+impl<O: SaffireProioSamplingClockSpecification> SaffireProioSamplingClockSourceOperation for O {}
 
 /// The prorocol implementation of AC3 and MIDI signal through.
 #[derive(Default, Debug)]
@@ -414,15 +426,14 @@ pub struct SaffireProioMonitorParameters {
     pub adat_inputs: Option<[[i16; 16]; 2]>,
 }
 
-/// The trait for input monitor protocol in Saffire Pro i/o.
-pub trait SaffireProioMonitorProtocol {
+/// The specification of protocol for hardware metering.
+pub trait SaffireProioMonitorSpecification {
+    /// Whether to have a pair of optical interface for ADAT signal.
     const HAS_ADAT: bool;
 
-    const LEVEL_MIN: i16 = 0;
-    const LEVEL_MAX: i16 = 0x7fff;
-    const LEVEL_STEP: i16 = 0x100;
-
-    const ANALOG_INPUT_OFFSETS: [usize; 16] = [
+    /// The address offsets to operate for the parameters.
+    const MONITOR_OFFSETS: &'static [usize] = &[
+        // From analog inputs, at 16 address offsets.
         0x00, // level from analog-input-0 to monitor-output-0
         0x04, // level from analog-input-0 to monitor-output-1
         0x08, // level from analog-input-1 to monitor-output-0
@@ -439,14 +450,12 @@ pub trait SaffireProioMonitorProtocol {
         0x34, // level from analog-input-6 to monitor-output-1
         0x38, // level from analog-input-7 to monitor-output-0
         0x3c, // level from analog-input-7 to monitor-output-1
-    ];
-    const SPDIF_INPUT_OFFSETS: [usize; 4] = [
+        // From S/PDIF inputs, at 4 address offsets.
         0x40, // level from spdif-input-0 to monitor-output-0
         0x44, // level from spdif-input-1 to monitor-output-0
         0x48, // level from spdif-input-0 to monitor-output-1
         0x4c, // level from spdif-input-1 to monitor-output-1
-    ];
-    const ADAT_INPUT_OFFSETS: [usize; 32] = [
+        // From ADAT inputs, at 32 address offsets.
         0x50, // level from adat-input-a-0 to monitor-output-0
         0x54, // level from adat-input-a-0 to monitor-output-1
         0x58, // level from adat-input-a-1 to monitor-output-0
@@ -480,6 +489,13 @@ pub trait SaffireProioMonitorProtocol {
         0xc8, // level from adat-input-b-7 to monitor-output-0
         0xcc, // level from adat-input-b-7 to monitor-output-1
     ];
+}
+
+/// The trait for input monitor protocol in Saffire Pro i/o.
+pub trait SaffireProioMonitorProtocol: SaffireProioMonitorSpecification {
+    const LEVEL_MIN: i16 = 0;
+    const LEVEL_MAX: i16 = 0x7fff;
+    const LEVEL_STEP: i16 = 0x100;
 
     fn create_params() -> SaffireProioMonitorParameters {
         SaffireProioMonitorParameters {
@@ -502,14 +518,14 @@ pub trait SaffireProioMonitorProtocol {
         read_monitor_params(
             req,
             node,
-            &Self::ANALOG_INPUT_OFFSETS,
+            &Self::MONITOR_OFFSETS[..16],
             &mut params.analog_inputs,
             timeout_ms,
         )?;
         read_monitor_params(
             req,
             node,
-            &Self::SPDIF_INPUT_OFFSETS,
+            &Self::MONITOR_OFFSETS[16..20],
             &mut params.spdif_inputs,
             timeout_ms,
         )?;
@@ -517,7 +533,7 @@ pub trait SaffireProioMonitorProtocol {
             read_monitor_params(
                 req,
                 node,
-                &Self::ADAT_INPUT_OFFSETS,
+                &Self::MONITOR_OFFSETS[20..],
                 &mut levels_list,
                 timeout_ms,
             )?;
@@ -538,7 +554,7 @@ pub trait SaffireProioMonitorProtocol {
             node,
             idx,
             levels,
-            &Self::ANALOG_INPUT_OFFSETS,
+            &Self::MONITOR_OFFSETS[..16],
             &mut params.analog_inputs,
             timeout_ms,
         )
@@ -557,7 +573,7 @@ pub trait SaffireProioMonitorProtocol {
             node,
             idx,
             levels,
-            &Self::SPDIF_INPUT_OFFSETS,
+            &Self::MONITOR_OFFSETS[16..20],
             &mut params.spdif_inputs,
             timeout_ms,
         )
@@ -577,7 +593,7 @@ pub trait SaffireProioMonitorProtocol {
                 node,
                 idx,
                 levels,
-                &Self::ADAT_INPUT_OFFSETS,
+                &Self::MONITOR_OFFSETS[20..],
                 adat_inputs,
                 timeout_ms,
             )
@@ -586,6 +602,8 @@ pub trait SaffireProioMonitorProtocol {
         }
     }
 }
+
+impl<O: SaffireProioMonitorSpecification> SaffireProioMonitorProtocol for O {}
 
 fn read_monitor_params<T>(
     req: &FwReq,
@@ -887,12 +905,30 @@ const STANDALONE_MODE_OFFSET: usize = 0x01bc;
 const ADAT_DISABLE_OFFSET: usize = 0x01c0;
 const DIRECT_MONITORING_OFFSET: usize = 0x01c8;
 
+/// The specification of protocol for function specific to Pro i/o.
+pub trait SaffireProioSpecificSpecification {
+    /// The address offsets to operate for the parameters.
+    const SPECIFIC_OFFSETS: &'static [usize] = &[
+        HEAD_ROOM_OFFSET,
+        PHANTOM_POWERING4567_OFFSET,
+        PHANTOM_POWERING0123_OFFSET,
+        INSERT_SWAP_0_OFFSET,
+        INSERT_SWAP_1_OFFSET,
+        STANDALONE_MODE_OFFSET,
+        ADAT_DISABLE_OFFSET,
+        DIRECT_MONITORING_OFFSET,
+    ];
+
+    /// The number of microphone inputs supporting phantom powering.
+    const PHANTOM_POWERING_COUNT: usize;
+
+    /// The number of line inputs supporting polarity.
+    const INSERT_SWAP_COUNT: usize;
+}
+
 /// The protocol implementation for functions specific to Saffire Pro i/o series. The change
 /// operation to enable/disable ADAT corresponds to bus reset.
-pub trait SaffireProioSpecificOperation {
-    const PHANTOM_POWERING_COUNT: usize;
-    const INSERT_SWAP_COUNT: usize;
-
+pub trait SaffireProioSpecificOperation: SaffireProioSpecificSpecification {
     fn create_params() -> SaffireProioSpecificParameters {
         SaffireProioSpecificParameters {
             head_room: Default::default(),
@@ -1069,6 +1105,8 @@ pub trait SaffireProioSpecificOperation {
             .map(|_| params.direct_monitoring = enable)
     }
 }
+
+impl<O: SaffireProioSpecificSpecification> SaffireProioSpecificOperation for O {}
 
 /// The protocol implementation to store configuration in Saffire.
 #[derive(Default, Debug)]
