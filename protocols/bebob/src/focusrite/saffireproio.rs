@@ -228,29 +228,48 @@ impl SaffireProioMeterOperation for SaffirePro10ioMeterProtocol {
 #[derive(Default, Debug)]
 pub struct SaffireProioMixerProtocol;
 
-const MEDIA_CLOCK_FREQ_OFFSET: usize = 0x0150;
-
 /// The specification of media clock.
 pub trait SaffireProioMediaClockSpecification {
     /// The list of supported frequency.
     const FREQ_LIST: &'static [u32];
 }
 
+impl<O: SaffireProioMediaClockSpecification> SaffireParametersSerdes<MediaClockParameters> for O {
+    const OFFSETS: &'static [usize] = &[0x0150];
+
+    fn serialize(params: &MediaClockParameters, raw: &mut [u8]) {
+        raw.copy_from_slice(&(params.freq_idx as u32).to_be_bytes());
+    }
+
+    fn deserialize(params: &mut MediaClockParameters, raw: &[u8]) {
+        let mut quadlet = [9u8; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        let idx = u32::from_be_bytes(quadlet) as usize;
+        if idx < Self::FREQ_LIST.len() {
+            params.freq_idx = idx;
+        }
+    }
+}
+
 /// The trait of frequency operation for media clock in Saffire Pro series.
 pub trait SaffireProioMediaClockFrequencyOperation: SaffireProioMediaClockSpecification {
+    fn read_clk_freq(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error>;
+    fn write_clk_freq(req: &FwReq, node: &FwNode, idx: usize, timeout_ms: u32)
+        -> Result<(), Error>;
+}
+
+impl<O: SaffireProioMediaClockSpecification> SaffireProioMediaClockFrequencyOperation for O {
     fn read_clk_freq(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let mut buf = [0; 4];
-        saffire_read_quadlet(req, node, MEDIA_CLOCK_FREQ_OFFSET, &mut buf, timeout_ms).and_then(
-            |_| {
-                let val = u32::from_be_bytes(buf) as usize;
-                if val > 0 || val < 1 + Self::FREQ_LIST.len() {
-                    Ok(val - 1)
-                } else {
-                    let msg = format!("Unexpected value for frequency of media clock: {}", val);
-                    Err(Error::new(FileError::Io, &msg))
-                }
-            },
-        )
+        saffire_read_quadlet(req, node, Self::OFFSETS[0], &mut buf, timeout_ms).and_then(|_| {
+            let val = u32::from_be_bytes(buf) as usize;
+            if val > 0 || val < 1 + Self::FREQ_LIST.len() {
+                Ok(val - 1)
+            } else {
+                let msg = format!("Unexpected value for frequency of media clock: {}", val);
+                Err(Error::new(FileError::Io, &msg))
+            }
+        })
     }
 
     fn write_clk_freq(
@@ -260,14 +279,12 @@ pub trait SaffireProioMediaClockFrequencyOperation: SaffireProioMediaClockSpecif
         timeout_ms: u32,
     ) -> Result<(), Error> {
         let buf = u32::to_be_bytes((idx + 1) as u32);
-        saffire_write_quadlet(req, node, MEDIA_CLOCK_FREQ_OFFSET, &buf, timeout_ms)
+        saffire_write_quadlet(req, node, Self::OFFSETS[0], &buf, timeout_ms)
     }
 }
 
-impl<O: SaffireProioMediaClockSpecification> SaffireProioMediaClockFrequencyOperation for O {}
-
 /// Signal source of sampling clock in Saffire Pro series.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SaffireProioSamplingClockSource {
     Internal,
     Spdif,
@@ -288,7 +305,45 @@ pub trait SaffireProioSamplingClockSpecification {
     const SRC_LIST: &'static [SaffireProioSamplingClockSource];
 }
 
-const SAMPLING_CLOCK_SRC_OFFSET: usize = 0x0174;
+impl<O: SaffireProioSamplingClockSpecification> SaffireParametersSerdes<SamplingClockParameters>
+    for O
+{
+    const OFFSETS: &'static [usize] = &[0x0174];
+
+    fn serialize(params: &SamplingClockParameters, raw: &mut [u8]) {
+        if let Some(val) = Self::SRC_LIST
+            .iter()
+            .nth(params.src_idx)
+            .and_then(|&src| match src {
+                SaffireProioSamplingClockSource::Internal => Some(CLK_SRC_INTERNAL),
+                SaffireProioSamplingClockSource::Spdif => Some(CLK_SRC_SPDIF),
+                SaffireProioSamplingClockSource::Adat0 => Some(CLK_SRC_ADAT0),
+                SaffireProioSamplingClockSource::Adat1 => Some(CLK_SRC_ADAT1),
+                SaffireProioSamplingClockSource::WordClock => Some(CLK_SRC_WORD_CLOCK),
+            })
+        {
+            raw.copy_from_slice(&val.to_be_bytes());
+        }
+    }
+
+    fn deserialize(params: &mut SamplingClockParameters, raw: &[u8]) {
+        let mut quadlet = [0u8; 4];
+        quadlet.copy_from_slice(&raw[..4]);
+        let val = u32::from_be_bytes(quadlet) & CLK_SRC_CONF_MASK;
+        if let Some(src_idx) = match val {
+            CLK_SRC_INTERNAL => Some(SaffireProioSamplingClockSource::Internal),
+            CLK_SRC_SPDIF => Some(SaffireProioSamplingClockSource::Spdif),
+            CLK_SRC_ADAT0 => Some(SaffireProioSamplingClockSource::Adat0),
+            CLK_SRC_ADAT1 => Some(SaffireProioSamplingClockSource::Adat1),
+            CLK_SRC_WORD_CLOCK => Some(SaffireProioSamplingClockSource::WordClock),
+            _ => None,
+        }
+        .and_then(|src| Self::SRC_LIST.iter().position(|s| s.eq(&src)))
+        {
+            params.src_idx = src_idx;
+        }
+    }
+}
 
 const CLK_SRC_EFFECTIVE_MASK: u32 = 0x0000ff00;
 const CLK_SRC_CONF_MASK: u32 = 0x000000ff;
@@ -300,9 +355,14 @@ const CLK_SRC_WORD_CLOCK: u32 = 0x05;
 
 /// The trait of source operation for sampling clock in Saffire Pro series.
 pub trait SaffireProioSamplingClockSourceOperation: SaffireProioSamplingClockSpecification {
+    fn read_clk_src(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error>;
+    fn write_clk_src(req: &FwReq, node: &FwNode, idx: usize, timeout_ms: u32) -> Result<(), Error>;
+}
+
+impl<O: SaffireProioSamplingClockSpecification> SaffireProioSamplingClockSourceOperation for O {
     fn read_clk_src(req: &FwReq, node: &FwNode, timeout_ms: u32) -> Result<usize, Error> {
         let mut buf = [0; 4];
-        saffire_read_quadlet(req, node, SAMPLING_CLOCK_SRC_OFFSET, &mut buf, timeout_ms)?;
+        saffire_read_quadlet(req, node, Self::OFFSETS[0], &mut buf, timeout_ms)?;
 
         let val = u32::from_be_bytes(buf) & CLK_SRC_CONF_MASK;
         let src = match val {
@@ -341,11 +401,9 @@ pub trait SaffireProioSamplingClockSourceOperation: SaffireProioSamplingClockSpe
         };
 
         let buf = value.to_be_bytes();
-        saffire_write_quadlet(req, node, SAMPLING_CLOCK_SRC_OFFSET, &buf, timeout_ms)
+        saffire_write_quadlet(req, node, Self::OFFSETS[0], &buf, timeout_ms)
     }
 }
-
-impl<O: SaffireProioSamplingClockSpecification> SaffireProioSamplingClockSourceOperation for O {}
 
 /// The prorocol implementation of AC3 and MIDI signal through.
 #[derive(Default, Debug)]
@@ -1038,6 +1096,54 @@ mod test {
         SaffireProioThroughProtocol::deserialize(&mut p, &raw);
 
         assert_eq!(params, p);
+    }
+
+    #[test]
+    fn saffirepro10io_media_clock_serdes() {
+        let mut raw = [0u8; 4];
+        (0..SaffirePro10ioClkProtocol::FREQ_LIST.len()).for_each(|freq_idx| {
+            let params = MediaClockParameters { freq_idx };
+            SaffirePro10ioClkProtocol::serialize(&params, &mut raw);
+            let mut p = MediaClockParameters::default();
+            SaffirePro10ioClkProtocol::deserialize(&mut p, &raw);
+            assert_eq!(params, p);
+        });
+    }
+
+    #[test]
+    fn saffirepro26io_media_clock_serdes() {
+        let mut raw = [0u8; 4];
+        (0..SaffirePro26ioClkProtocol::FREQ_LIST.len()).for_each(|freq_idx| {
+            let params = MediaClockParameters { freq_idx };
+            SaffirePro26ioClkProtocol::serialize(&params, &mut raw);
+            let mut p = MediaClockParameters::default();
+            SaffirePro26ioClkProtocol::deserialize(&mut p, &raw);
+            assert_eq!(params, p);
+        });
+    }
+
+    #[test]
+    fn saffirepro10io_sampling_clock_serdes() {
+        let mut raw = [0u8; 4];
+        (0..SaffirePro10ioClkProtocol::SRC_LIST.len()).for_each(|src_idx| {
+            let params = SamplingClockParameters { src_idx };
+            SaffirePro10ioClkProtocol::serialize(&params, &mut raw);
+            let mut p = SamplingClockParameters::default();
+            SaffirePro10ioClkProtocol::deserialize(&mut p, &raw);
+            assert_eq!(params, p);
+        });
+    }
+
+    #[test]
+    fn saffirepro26io_sampling_clock_serdes() {
+        let mut raw = [0u8; 4];
+        (0..SaffirePro26ioClkProtocol::SRC_LIST.len()).for_each(|src_idx| {
+            let params = SamplingClockParameters { src_idx };
+            SaffirePro26ioClkProtocol::serialize(&params, &mut raw);
+            let mut p = SamplingClockParameters::default();
+            SaffirePro26ioClkProtocol::deserialize(&mut p, &raw);
+            assert_eq!(params, p);
+        });
     }
 
     #[test]
