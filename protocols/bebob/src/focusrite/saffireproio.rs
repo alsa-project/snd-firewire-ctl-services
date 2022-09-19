@@ -192,12 +192,12 @@ impl SaffireProioSpecificOperation for SaffirePro10ioSpecificProtocol {
 }
 
 /// The protocol implementation for operation of output parameters in Saffire Pro i/o series.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireProioOutputProtocol;
 
-impl SaffireOutputOperation for SaffireProioOutputProtocol {
+impl SaffireOutputSpecification for SaffireProioOutputProtocol {
     // analog-output-1/2, 3/4, 5/6, 7/8.
-    const OFFSETS: &'static [usize] = &[0x140, 0x144, 0x148, 0x14c];
+    const OUTPUT_OFFSETS: &'static [usize] = &[0x140, 0x144, 0x148, 0x14c];
 
     const MUTE_COUNT: usize = 4;
     const VOL_COUNT: usize = 4;
@@ -335,13 +335,12 @@ pub trait SaffireProioSamplingClockSourceOperation {
     }
 }
 
-/// The ptorocol implementation of AC3 and MIDI signal through.
+/// The prorocol implementation of AC3 and MIDI signal through.
 #[derive(Default, Debug)]
 pub struct SaffireProioThroughProtocol;
 
-impl SaffireThroughOperation for SaffireProioThroughProtocol {
-    const MIDI_THROUGH_OFFSET: usize = 0x019c;
-    const AC3_THROUGH_OFFSET: usize = 0x01a0;
+impl SaffireThroughSpecification for SaffireProioThroughProtocol {
+    const THROUGH_OFFSETS: &'static [usize] = &[0x019c, 0x01a0];
 }
 
 /// Information of hardware metering in Saffire Pro i/o.
@@ -1072,12 +1071,14 @@ pub trait SaffireProioSpecificOperation {
 }
 
 /// The protocol implementation to store configuration in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireProioStoreConfigProtocol;
 
-impl SaffireStoreConfigOperation for SaffireProioStoreConfigProtocol {
-    const OFFSET: usize = 0x1b0;
+impl SaffireStoreConfigSpecification for SaffireProioStoreConfigProtocol {
+    const STORE_CONFIG_OFFSETS: &'static [usize] = &[0x1b0];
 }
+
+impl SaffireStoreConfigOperation for SaffireProioStoreConfigProtocol {}
 
 #[cfg(test)]
 mod test {
