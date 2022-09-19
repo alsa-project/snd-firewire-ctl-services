@@ -573,31 +573,27 @@ impl SaffireLeMeterProtocol {
     pub const LEVEL_MAX: i32 = 0x7fffffff;
     pub const LEVEL_STEP: i32 = 1;
 
-    const PHYS_INPUT_OFFSETS: [usize; 6] = [
-        0x168, // analog-input-0
-        0x16c, // analog-input-2
-        0x170, // digital-input-0
-        0x174, // analog-input-1
-        0x178, // analog-input-3
-        0x17c, // digital-input-1
+    const OFFSETS: &'static [usize] = &[
+        0x0168, // The signal level of analog-input-0.
+        0x016c, // The signal level of analog-input-2.
+        0x0170, // The signal level of digital-input-0.
+        0x0174, // The signal level of analog-input-1.
+        0x0178, // The signal level of analog-input-3.
+        0x017c, // The signal level of digital-input-1.
+        0x0180, // The signal level of analog-output-0.
+        0x0184, // The signal level of analog-output-2.
+        0x0188, // The signal level of analog-output-1.
+        0x018c, // The signal level of analog-output-3.
+        0x0190, // The signal level of analog-output-4.
+        0x0194, // The signal level of digital-output-0.
+        0x0198, // The signal level of analog-output-5.
+        0x019c, // The signal level of digital-output-1.
+        0x01a0, // The signal level of stream-input-0.
+        0x01a4, // The signal level of stream-input-2.
+        0x01a8, // The signal level of stream-input-1.
+        0x01ac, // The signal level of stream-input-3.
+        0x01b0, // Whether to detect digital input.
     ];
-    const PHYS_OUTPUT_OFFSETS: [usize; 8] = [
-        0x180, // analog-output-0
-        0x184, // analog-output-2
-        0x188, // analog-output-1
-        0x18c, // analog-output-3
-        0x190, // analog-output-4
-        0x194, // digital-output-0
-        0x198, // analog-output-5
-        0x19c, // digital-output-1
-    ];
-    const STREAM_INPUT_OFFSETS: [usize; 4] = [
-        0x1a0, // stream-input-0
-        0x1a4, // stream-input-2
-        0x1a8, // stream-input-1
-        0x1ac, // stream-input-3
-    ];
-    const DIG_INPUT_DETECT_OFFSET: usize = 0x1b0;
 
     /// Cache the state of hardware to the parameter.
     pub fn cache(
@@ -606,22 +602,16 @@ impl SaffireLeMeterProtocol {
         meter: &mut SaffireLeMeter,
         timeout_ms: u32,
     ) -> Result<(), Error> {
-        let offsets: Vec<usize> = Self::PHYS_INPUT_OFFSETS
-            .iter()
-            .chain(&Self::PHYS_OUTPUT_OFFSETS)
-            .chain(&Self::STREAM_INPUT_OFFSETS)
-            .chain(&[Self::DIG_INPUT_DETECT_OFFSET])
-            .copied()
-            .collect();
-        let mut buf = vec![0; offsets.len() * 4];
-        saffire_read_quadlets(req, node, &offsets, &mut buf, timeout_ms).map(|_| {
+        let mut raw = [0u8; Self::OFFSETS.len() * 4];
+        saffire_read_quadlets(req, node, Self::OFFSETS, &mut raw, timeout_ms).map(|_| {
             let mut quadlet = [0; 4];
-            let vals = (0..offsets.len()).fold(Vec::new(), |mut vals, i| {
-                let pos = i * 4;
-                quadlet.copy_from_slice(&buf[pos..(pos + 4)]);
-                vals.push(i32::from_be_bytes(quadlet));
-                vals
-            });
+            let vals: Vec<i32> = (0..Self::OFFSETS.len())
+                .map(|i| {
+                    let pos = i * 4;
+                    quadlet.copy_from_slice(&raw[pos..(pos + 4)]);
+                    i32::from_be_bytes(quadlet)
+                })
+                .collect();
 
             meter.phys_inputs[0] = vals[0];
             meter.phys_inputs[2] = vals[1];
