@@ -416,11 +416,11 @@ impl SaffireSpecificProtocol {
 }
 
 /// The protocol implementation for operation of mixer at stereo separated mode in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffireSeparatedMixerProtocol;
 
-impl SaffireMixerOperation for SaffireSeparatedMixerProtocol {
-    const OFFSETS: &'static [usize] = &[
+impl SaffireMixerSpecification for SaffireSeparatedMixerProtocol {
+    const MIXER_OFFSETS: &'static [usize] = &[
         // level from phys-input-0
         0x00, // to phys-output-8
         0x04, // to phys-output-0
@@ -529,11 +529,11 @@ impl SaffireMixerOperation for SaffireSeparatedMixerProtocol {
 }
 
 /// The protocol implementation for operation of mixer at stereo paired mode in Saffire.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SaffirePairedMixerProtocol;
 
-impl SaffireMixerOperation for SaffirePairedMixerProtocol {
-    const OFFSETS: &'static [usize] = &[
+impl SaffireMixerSpecification for SaffirePairedMixerProtocol {
+    const MIXER_OFFSETS: &'static [usize] = &[
         // level from stream-input-8/9
         0x00, // to phys-output-8/9
         0x04, // to phys-output-0/1
@@ -1332,9 +1332,9 @@ where
         .map(|_| old_vals.copy_from_slice(new_vals))
 }
 
-/// The trait for mixer operation in Saffire.
-pub trait SaffireMixerOperation {
-    const OFFSETS: &'static [usize];
+/// The specification of protocol for mixer function.
+pub trait SaffireMixerSpecification {
+    const MIXER_OFFSETS: &'static [usize];
 
     const PHYS_INPUT_COUNT: usize;
     const REVERB_RETURN_COUNT: usize;
@@ -1342,6 +1342,11 @@ pub trait SaffireMixerOperation {
     fn stream_src_pos(dst_idx: usize, src_idx: usize) -> usize;
     fn phys_src_pos(dst_idx: usize, src_idx: usize) -> usize;
     fn reverb_return_pos(dst_idx: usize, src_idx: usize) -> usize;
+}
+
+/// The trait for mixer operation in Saffire.
+pub trait SaffireMixerOperation: SaffireMixerSpecification {
+    const OFFSETS: &'static [usize] = &Self::MIXER_OFFSETS;
 
     const STREAM_INPUT_COUNT: usize = 5;
     const OUTPUT_PAIR_COUNT: usize = 5;
@@ -1517,6 +1522,8 @@ pub trait SaffireMixerOperation {
         )
     }
 }
+
+impl<O: SaffireMixerSpecification> SaffireMixerOperation for O {}
 
 /// State of stereo-separated reverb effect in Saffire.
 #[derive(Default, Debug)]
